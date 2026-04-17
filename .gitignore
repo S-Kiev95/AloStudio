@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+dist/
+build/
+*.egg-info/
+
+# uv
+uv.lock.bak
+
+# Env — everything except the committed *.example templates
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Docker volumes (local)
+.docker-data/
+
+# Runtime
+*.log
+logs/
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Chatwoot reference clone — upstream code, not versioned here.
+# Recreate with: scripts/bootstrap-reference.sh
+reference/
+
+# Claude Code local state
+.claude/settings.local.json
