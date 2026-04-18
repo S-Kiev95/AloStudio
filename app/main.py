@@ -7,6 +7,9 @@ from app.api.health import router as health_router
 from app.core.config import get_settings
 from app.core.db import dispose_engine
 from app.core.logging import configure_logging, get_logger
+from app.domains.accounts.router import router as accounts_router
+from app.domains.auth.router import router as auth_router
+from app.domains.users.router import router as profile_router
 
 
 @asynccontextmanager
@@ -31,6 +34,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(health_router)
+    app.include_router(accounts_router)
+    app.include_router(auth_router)
+    app.include_router(profile_router)
     return app
 
 
