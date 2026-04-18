@@ -9,10 +9,9 @@ auto_resolve_duration, domain, support_email) are present but not wired into
 services yet.
 """
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, BigInteger, Column, Integer, String
+from sqlalchemy import BigInteger, Column, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship
 

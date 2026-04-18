@@ -20,6 +20,7 @@ from ``Settings.blocked_email_domains`` (future) or an in-memory list.
 from __future__ import annotations
 
 import re
+
 from email_validator import EmailNotValidError, validate_email
 
 from app.domains.accounts.exceptions import InvalidEmail

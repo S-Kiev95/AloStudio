@@ -63,7 +63,18 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N", "SIM", "RUF"]
-ignore = ["E501"]
+# E501 line length: our code has long parity-anchored strings (error
+#   envelopes, jbuilder quotes) we don't wrap.
+# B008 `Depends(...)` as default arg: ruff's rule predates FastAPI and
+#   flags the official DI idiom every FastAPI app uses. The alternative
+#   (reading from a module-level singleton) defeats the point of DI.
+# N818 Exception classes should be named with an `Error` suffix:
+#   our exception class names mirror Chatwoot's Ruby classes verbatim
+#   (``InvalidEmail``, ``UserExists``, etc. from
+#   ``lib/custom_exceptions/account.rb``) so parity reasoning is
+#   name-stable across the port. Renaming them would obscure the
+#   reference mapping without any runtime benefit.
+ignore = ["E501", "B008", "N818"]
 
 [tool.mypy]
 python_version = "3.12"

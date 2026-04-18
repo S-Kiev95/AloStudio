@@ -23,10 +23,10 @@ deferred — each requires a dedicated slice in Phase 1.x or later.
 
 from __future__ import annotations
 
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.db import get_session
 from app.core.deps import current_user

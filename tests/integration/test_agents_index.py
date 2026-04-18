@@ -95,7 +95,10 @@ async def test_agents_index_requires_auth(client):
 
 
 async def test_agents_index_lists_members(client, account_with_two_users):
-    owner, agent, headers = account_with_two_users
+    # The second user is in the account but not directly referenced by
+    # the test (we assert on the list size + owner record); the fixture
+    # still needs to yield it so the row exists in the DB.
+    owner, _agent, headers = account_with_two_users
     resp = await client.get(
         f"/api/v1/accounts/{owner.account.id}/agents", headers=headers
     )

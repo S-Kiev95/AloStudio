@@ -26,7 +26,7 @@ from __future__ import annotations
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -35,9 +35,14 @@ from app.core.logging import get_logger
 from app.domains.users.models import User
 
 
-class ConfirmationError(str, Enum):
+class ConfirmationError(StrEnum):
     """Categorises why a confirmation attempt failed — maps 1:1 to the
     three branches in ``ConfirmationsController#render_confirmation_error``.
+
+    ``StrEnum`` (Python 3.11+) is the canonical replacement for the
+    ``class X(str, Enum)`` idiom — identical string-equality semantics
+    at the call site, plus the members ``.value`` round-trips through
+    JSON serialisers the same way Devise's string-backed enums do.
     """
 
     INVALID_TOKEN = "invalid_token"
