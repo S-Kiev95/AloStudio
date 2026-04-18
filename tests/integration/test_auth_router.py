@@ -103,8 +103,12 @@ async def test_sign_in_rejects_bad_password(client, seeded_user):
         json={"email": "agent@rocket.example.com", "password": "wrong-guess"},
     )
     assert resp.status_code == 401
-    assert resp.json()["detail"] == {
-        "errors": ["Invalid login credentials. Please try again."]
+    # Body is devise-token-auth's default failure envelope — ``success:
+    # false`` + ``errors`` array. No FastAPI ``detail`` wrapper (see
+    # ChatwootHTTPException).
+    assert resp.json() == {
+        "success": False,
+        "errors": ["Invalid login credentials. Please try again."],
     }
 
 
@@ -196,5 +200,5 @@ async def test_sign_in_rejects_unconfirmed_user(client, db_session):
         json={"email": "pending@rocket.example.com", "password": "Password123!"},
     )
     assert resp.status_code == 401
-    msg = resp.json()["detail"]["errors"][0]
+    msg = resp.json()["errors"][0]
     assert "confirmation email" in msg.lower()

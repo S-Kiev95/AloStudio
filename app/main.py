@@ -8,7 +8,14 @@ from app.core.config import get_settings
 from app.core.db import dispose_engine
 from app.core.logging import configure_logging, get_logger
 from app.domains.accounts.router import router as accounts_router
-from app.domains.auth.router import router as auth_router
+from app.domains.auth.router import (
+    ChatwootHTTPException,
+    chatwoot_http_exception_handler,
+    resend_confirmation_router,
+)
+from app.domains.auth.router import (
+    router as auth_router,
+)
 from app.domains.users.router import router as profile_router
 
 
@@ -33,9 +40,17 @@ def create_app() -> FastAPI:
         version="0.0.1",
         lifespan=lifespan,
     )
+    # Controllers raise ChatwootHTTPException for error envelopes that
+    # must match the Ruby ``render json: {...}`` body byte-for-byte —
+    # i.e. unwrapped (no FastAPI ``"detail"`` key). See the docstring
+    # on the marker class for context.
+    app.add_exception_handler(
+        ChatwootHTTPException, chatwoot_http_exception_handler  # type: ignore[arg-type]
+    )
     app.include_router(health_router)
     app.include_router(accounts_router)
     app.include_router(auth_router)
+    app.include_router(resend_confirmation_router)
     app.include_router(profile_router)
     return app
 
