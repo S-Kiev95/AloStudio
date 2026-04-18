@@ -15,7 +15,8 @@ from app.core.config import get_settings
 
 # Import all SQLModel tables here so autogenerate sees them.
 # As new domains are added, import their models module below.
-# e.g. from app.domains.accounts import models as _accounts  # noqa: F401
+from app.domains.accounts import models as _accounts  # noqa: F401, E402
+from app.domains.users import models as _users  # noqa: F401, E402
 
 config = context.config
 

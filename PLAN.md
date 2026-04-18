@@ -81,6 +81,33 @@ Legend: ✅ done · 🟡 in progress · ⬜ pending · ❌ blocked
 
 ---
 
+## Known hazards (Windows dev host)
+
+### Docker Desktop: stale `dockerInference` socket crashloop
+
+Docker Desktop 4.43.x on Windows creates an AF_UNIX reparse-point socket
+at `%LOCALAPPDATA%\Docker\run\dockerInference` when the Inference
+manager starts. If the backend crashes, that socket is left behind as a
+*stale* reparse point that `os.Remove` cannot delete (Windows returns
+`ERROR_CANT_ACCESS_FILE 1920`; the reparse tag is not resolvable from
+userland). On the next boot `startInferenceManager → ListenUnix` tries
+to `os.Remove` it, fails, and Docker refuses to start with:
+
+> initializing Inference manager: listening on
+> unix://...\run\dockerInference: remove ...\dockerInference:
+> El sistema no tiene acceso al archivo.
+
+`EnableDockerAI: false` in `settings-store.json` does *not* prevent
+the Inference manager from initializing in 4.43. The only reliable
+recovery is to rename the parent `run\` folder (which *is* renameable
+even though its children can't be deleted) so Docker creates a fresh
+one on next start.
+
+Recovery: run `scripts/fix-docker-run.ps1` with Docker fully stopped,
+then relaunch Docker Desktop.
+
+---
+
 ## Phase 0 — Foundation
 
 **Goal:** everything set up to start porting business logic in Phase 1
