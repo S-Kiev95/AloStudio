@@ -59,8 +59,8 @@ AloStudio/
 
 | # | Phase | Status | Parity tests |
 |---|-------|--------|--------------|
-| 0 | Foundation                     | ✅ in progress | smoke |
-| 1 | Accounts + Users + Auth        | ⬜ pending     | signup, login, profile, password reset, roles |
+| 0 | Foundation                     | ✅ done        | smoke |
+| 1 | Accounts + Users + Auth        | ✅ done        | signup, login, profile, password reset, confirmation |
 | 2 | Inboxes + Agents + Teams (API channel only) | ⬜ pending | inbox CRUD, member mgmt, team CRUD |
 | 3 | Contacts                       | ⬜ pending     | identify, merge, custom attrs, search |
 | 4 | Conversations + Messages       | ⬜ pending     | state machine, assignment, WS events, notes |
@@ -212,11 +212,51 @@ unauthorised 401 vs 403 across policies · token expiry rejected.
 
 ### Exit criteria
 
-- All Phase 1 endpoints return byte-equal JSON (modulo ignored paths) to
-  reference Chatwoot.
-- `alembic upgrade head` produces the schema that matches what
-  `alembic revision --autogenerate` would emit (no drift).
-- `pytest -m "unit or integration or parity"` → green for Phase 1 scope.
+- [x] All Phase 1 endpoints return byte-equal JSON (modulo ignored
+      paths) to reference Chatwoot. Locked down by
+      `tests/parity/test_auth_parity.py` — caught and fixed two real
+      drifts (missing ``success: false`` on sign_in 401, wrong i18n
+      string on password-reset 200) that integration tests alone would
+      have missed.
+- [x] `alembic upgrade head` produces the schema that
+      `alembic revision --autogenerate` would emit (no drift).
+- [x] `pytest -m "unit or integration or parity"` → green for Phase 1
+      scope (75/75 at phase close).
+
+### Closing notes
+
+Shipped in four commits (`a7a7a0a` → `97d54e1`):
+
+  1. ``phase1(models+builder)`` — ``Account`` / ``User`` /
+     ``AccountUser`` / ``AccessToken`` + ``AccountBuilder`` service.
+  2. ``phase1(auth+profile+accounts)`` — ``POST /api/v1/accounts``
+     (signup), ``POST /auth/sign_in``, ``POST /auth/sign_out``,
+     ``GET/PUT /api/v1/profile``, ``GET/PATCH /api/v1/accounts/:id``,
+     ``GET /api/v1/accounts/:id/agents``.
+  3. ``phase1(auth)`` — ``POST/PUT /auth/password``,
+     ``POST /auth/confirmation``, ``POST /resend_confirmation``, plus
+     ``ChatwootHTTPException`` parity-envelope fix.
+  4. ``chore(lint)`` — ruff project-wide clean.
+
+Deferred intentionally (logged here instead of a separate file because
+they're the only Phase 1 deferrals so far):
+
+  * Real email delivery — confirmation + reset mailers log the raw
+    token today, will switch to an ARQ enqueue when the ARQ mail
+    worker lands (post-Phase-5).
+  * hCaptcha gate on ``POST /resend_confirmation`` — the Ruby
+    controller requires a valid ``h_captcha_client_response``; we
+    accept any request and rely on the always-204 contract to prevent
+    enumeration.
+  * MFA / SSO branches in ``sign_in`` — Phase 1 is email+password only.
+    ``process_sso_auth_token`` + ``mfa_token`` validation land with
+    whichever later phase wires MFA end-to-end.
+  * Account / User lockout counters — Devise has
+    ``lockable`` columns on the schema but the Ruby controller's
+    ``locked?`` branch isn't consumed anywhere in the paths we ported.
+  * ``PLAN.md`` lists ``POST /auth/sign_up`` — the actual Chatwoot
+    route (what we implemented) is ``POST /api/v1/accounts``. The plan
+    was approximate on path, exact on shape.
 
 ---
 
