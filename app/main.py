@@ -11,6 +11,9 @@ from app.core.logging import configure_logging, get_logger
 from app.domains.accounts.router import router as accounts_router
 from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
+from app.domains.contacts.router import actions_router as contact_actions_router
+from app.domains.contacts.router import router as contacts_router
+from app.domains.custom_attributes.router import router as custom_attributes_router
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
 from app.domains.teams.router import router as teams_router
@@ -55,6 +58,9 @@ def create_app() -> FastAPI:
     app.include_router(inbox_members_router)
     app.include_router(teams_router)
     app.include_router(team_members_router)
+    app.include_router(contacts_router)
+    app.include_router(contact_actions_router)
+    app.include_router(custom_attributes_router)
     return app
 
 

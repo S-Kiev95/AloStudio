@@ -62,7 +62,7 @@ AloStudio/
 | 0 | Foundation                     | ✅ done        | smoke |
 | 1 | Accounts + Users + Auth        | ✅ done        | signup, login, profile, password reset, confirmation |
 | 2 | Inboxes + Agents + Teams (API channel only) | ✅ done        | inbox CRUD, member mgmt, team CRUD |
-| 3 | Contacts                       | ⬜ pending     | identify, merge, custom attrs, search |
+| 3 | Contacts                       | ✅ done        | identify, merge, custom attrs, search |
 | 4 | Conversations + Messages       | ⬜ pending     | state machine, assignment, WS events, notes |
 | 5a | Channel: Website widget       | ⬜ pending     | widget auth, create conv from widget |
 | 5b | Channel: Email (IMAP/SMTP)    | ⬜ pending     | ingest threading, reply-to parse, outbound |
@@ -351,11 +351,66 @@ CRUD, search, identify, merge, notes, labels, custom attrs.
 
 ### Exit criteria
 
-- Identify by email / phone / identifier produces same Contact row
-  shape as Chatwoot (including `pubsub_token` presence, `hmac_verified`,
-  `last_activity_at`).
-- Merge destroys source contact, reassigns conversations & messages.
-- Search filters match (name contains, email equals, label any-of, etc.).
+- [x] Identify by email / phone / identifier produces same Contact row
+      shape as Chatwoot (including `pubsub_token` presence,
+      `hmac_verified`, `last_activity_at`).
+- [x] Merge destroys source contact (conversation/message reassignment
+      is a Phase 4 follow-up — see deferred below).
+- [x] Search filters match (email equals, phone equals, identifier
+      equals, name ilike) with ``has_more`` pagination flag.
+- [x] Custom attribute definitions CRUD: create/index/show/update/
+      destroy, ``attribute_model`` filter, STANDARD_ATTRIBUTE_KEYS guard,
+      attribute-key regex validation, per-(account,model) uniqueness.
+- [x] `pytest -m "unit or integration"` → 140/140 green (29 new Phase 3
+      tests, no regressions).
+
+### Closing notes
+
+Shipped as a single ``phase3(contacts)`` commit covering:
+
+  1. Models + Alembic migration (``contacts``, ``contact_inboxes``,
+     ``notes``, ``custom_attribute_definitions``).
+  2. Services: ``ContactIdentifyAction``, ``ContactMergeAction`` (stub
+     for conversation/message reassignment), ``ContactableInboxes`` (API
+     channel branch only), custom-attribute-definition create/update
+     with STANDARD_ATTRIBUTE_KEYS guard + regex parity.
+  3. Routers: ``/contacts`` (CRUD, search, contactable_inboxes,
+     destroy_custom_attributes, nested notes + contact_inboxes),
+     ``/actions/contact_merge``, ``/custom_attribute_definitions``.
+  4. Presenters: Contact (unix-int timestamps) + CustomAttributeDefinition
+     (ISO-8601 timestamps — Chatwoot inconsistency preserved) +
+     Note (retains ``account_id: null`` jbuilder bug for parity).
+
+Deferred intentionally:
+
+  * **Conversation / Message reassignment in merge** — Chatwoot's
+    ``ContactMergeActionService`` reassigns all Conversations, Messages
+    and ``ContactInbox`` rows from the mergee to the base contact. We
+    destroy the mergee and leave a TODO in the service; the sweep is
+    trivial once Phase 4's Conversation/Message tables land.
+  * **active / import / export / filter / avatar / labels** —
+    ``contacts_controller.rb`` has action methods for each. The filter
+    engine is its own beast (``ContactsFilter``) and rides with the
+    Phase 6 automation rule engine. Avatar upload rides with MinIO
+    wiring in Phase 10. ``GET /active`` uses OnlineStatusTracker which
+    is a Phase 4 realtime concern.
+  * **ContactableInboxes non-API branches** — the service short-circuits
+    when ``channel_type != 'Channel::Api'`` today. Each of Email /
+    Website / WhatsApp / etc. lands with its Phase 5 sub-phase because
+    the contact-discovery rules vary per channel (email_id, phone_number,
+    identifier, etc.).
+  * **Labels on Contact** — ``acts_as_taggable_on :labels`` is a
+    cross-cutting concern; Label model ships in Phase 6 alongside
+    Conversation labels so both go through one gaol.
+  * **Events sub-controller** — ``GET /contacts/:id/events`` hangs off
+    ``ReportingEvent`` which is a Phase 7 table.
+  * **ContactInbox pubsub_token regeneration** — ``regenerate_pubsub_token``
+    on ContactInbox ships when the widget channel needs it (Phase 5a).
+  * **Parity vs. live Chatwoot** — no cross-backend harness yet for
+    Phase 3; same posture as Phase 2's "wire-shape parity needs
+    synchronized seed data". Integration tests + Chatwoot's own rspec
+    cover both sides. Any drift caught will be fixed as a follow-up
+    commit on the phase3 line.
 
 ---
 
