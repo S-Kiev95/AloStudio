@@ -27,7 +27,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -38,6 +37,7 @@ from app.core.auth.devise_token_auth import (
 )
 from app.core.db import get_session
 from app.core.deps import current_user
+from app.core.errors import ChatwootHTTPException, chatwoot_http_exception_handler
 from app.core.security import verify_password
 from app.domains.auth.confirmation import (
     ConfirmationError,
@@ -84,27 +84,9 @@ _INVALID_CREDENTIALS_BODY = {
 }
 
 
-class ChatwootHTTPException(HTTPException):
-    """``HTTPException`` whose ``detail`` dict becomes the response body
-    directly, *not* wrapped under a ``"detail"`` key.
-
-    Why a marker subclass instead of raw :class:`JSONResponse` returns:
-    every Rails controller in this port emits the body with ``render
-    json: {...}`` — i.e. no envelope. FastAPI's default
-    :func:`http_exception_handler` wraps ``detail`` as
-    ``{"detail": ...}``. Installing a custom handler for this marker
-    class lets us keep idiomatic ``raise`` flow in the controllers
-    while matching Chatwoot byte-for-byte on the wire.
-    """
-
-
-async def chatwoot_http_exception_handler(
-    _request: Request, exc: ChatwootHTTPException
-) -> JSONResponse:
-    """Emit ``exc.detail`` directly as the response body (no ``detail``
-    wrapper)."""
-    body = exc.detail if isinstance(exc.detail, dict | list) else {"message": exc.detail}
-    return JSONResponse(status_code=exc.status_code, content=body)
+# ``ChatwootHTTPException`` + ``chatwoot_http_exception_handler`` now live
+# in :mod:`app.core.errors`. They're re-exported above for any legacy
+# ``from app.domains.auth.router import ChatwootHTTPException`` callers.
 
 
 @router.post("/sign_in", status_code=status.HTTP_200_OK)

@@ -1,0 +1,116 @@
+"""Request bodies for the inboxes + inbox_members endpoints.
+
+Rails uses strong params (``params.permit(...)``) with an untyped Hash at
+the wire. We model the same shape with Pydantic so the FastAPI router can
+enforce type coercion before the builder runs.
+
+Unknown keys are silently dropped — matches Rails' permit(-only-allowed)
+behaviour. We don't fail hard on unexpected keys because Chatwoot doesn't.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+# ---------------------------------------------------------------------------
+# POST / PATCH /api/v1/accounts/:id/inboxes
+# ---------------------------------------------------------------------------
+class ChannelCreate(BaseModel):
+    """The ``channel:`` sub-hash in ``POST /inboxes``.
+
+    ``type`` is the short tag (``"api"``, ``"email"``, …) — we only accept
+    ``"api"`` in Phase 2 but keep the field open-string so 400s come from
+    the service layer with the same body Chatwoot would emit.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    type: str
+    webhook_url: str | None = None
+    hmac_mandatory: bool | None = None
+    additional_attributes: dict[str, Any] | None = None
+
+
+class InboxCreateRequest(BaseModel):
+    """``inbox_attributes`` + ``channel`` sub-hash, matching
+    ``InboxesController#permitted_params``.
+
+    The empty-default dict pattern on optional mutable fields is safe
+    because Pydantic v2 deep-copies model defaults.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = Field(min_length=1)
+    channel: ChannelCreate
+
+    # inbox_attributes (optional)
+    greeting_enabled: bool | None = None
+    greeting_message: str | None = None
+    enable_email_collect: bool | None = None
+    csat_survey_enabled: bool | None = None
+    enable_auto_assignment: bool | None = None
+    working_hours_enabled: bool | None = None
+    out_of_office_message: str | None = None
+    timezone: str | None = None
+    allow_messages_after_resolved: bool | None = None
+    lock_to_single_conversation: bool | None = None
+    portal_id: int | None = None
+    sender_name_type: Literal["friendly", "professional"] | None = None
+    business_name: str | None = None
+    csat_config: dict[str, Any] | None = None
+
+
+class ChannelUpdate(BaseModel):
+    """``channel:`` sub-hash on PATCH — Channel::Api EDITABLE_ATTRS.
+
+    Other channels have different editable sets; we'll gate on the inbox's
+    ``channel_type`` at the service layer when they arrive.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    webhook_url: str | None = None
+    hmac_mandatory: bool | None = None
+    additional_attributes: dict[str, Any] | None = None
+
+
+class InboxUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    name: str | None = None
+    greeting_enabled: bool | None = None
+    greeting_message: str | None = None
+    enable_email_collect: bool | None = None
+    csat_survey_enabled: bool | None = None
+    enable_auto_assignment: bool | None = None
+    working_hours_enabled: bool | None = None
+    out_of_office_message: str | None = None
+    timezone: str | None = None
+    allow_messages_after_resolved: bool | None = None
+    lock_to_single_conversation: bool | None = None
+    portal_id: int | None = None
+    sender_name_type: Literal["friendly", "professional"] | None = None
+    business_name: str | None = None
+    csat_config: dict[str, Any] | None = None
+    channel: ChannelUpdate | None = None
+
+
+# ---------------------------------------------------------------------------
+# inbox_members endpoints
+# ---------------------------------------------------------------------------
+class InboxMembersBody(BaseModel):
+    """Body for POST/PATCH/DELETE ``/inbox_members``.
+
+    Chatwoot accepts ``user_ids: [1, 2, 3]`` on all three verbs; DELETE
+    also takes the array (quirk of Rails strong-params: verbs carry JSON
+    bodies just fine).
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    inbox_id: int | None = None  # accepted for parity, but we take it from the path
+    user_ids: list[int]

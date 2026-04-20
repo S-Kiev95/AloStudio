@@ -28,7 +28,9 @@ happens on sign_in and password reset.
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Request, status
+from dataclasses import dataclass
+
+from fastapi import Depends, HTTPException, Path, Request, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -39,7 +41,9 @@ from app.core.auth.devise_token_auth import (
     verify_auth_token,
 )
 from app.core.db import get_session
-from app.domains.users.models import User
+from app.core.errors import ChatwootHTTPException
+from app.domains.accounts.models import Account
+from app.domains.users.models import ACCOUNT_USER_ROLE_ADMINISTRATOR, AccountUser, User
 
 _INVALID_CREDS = {"errors": ["Invalid login credentials. Please try again."]}
 
@@ -123,3 +127,80 @@ async def optional_current_user(
     ):
         return None
     return user
+
+
+# ============================================================================
+# Account-scoped authorization — the Rails ``Current.account`` + Pundit stack
+# ============================================================================
+@dataclass(slots=True)
+class AccountContext:
+    """The tuple Rails mints for every request under ``Api::V1::Accounts::``.
+
+    Chatwoot's ``Api::V1::Accounts::BaseController`` runs two before_actions:
+
+      * ``ensure_current_account`` — sets ``Current.account`` from
+        ``params[:account_id]`` after asserting the current user is a
+        member.
+      * ``ensure_current_account_user`` — sets ``Current.account_user``,
+        the :class:`AccountUser` row for ``(current_user, account)``.
+
+    We carry the same three pieces through a single dependency so policies
+    can read ``ctx.account_user.role`` without a second DB hit.
+    """
+
+    user: User
+    account: Account
+    account_user: AccountUser
+
+    @property
+    def is_administrator(self) -> bool:
+        return self.account_user.role == ACCOUNT_USER_ROLE_ADMINISTRATOR
+
+
+async def account_context(
+    account_id: int = Path(...),
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+) -> AccountContext:
+    """Populate :class:`AccountContext` or 404.
+
+    The 404-not-401 choice matches Rails exactly: a non-member hitting a
+    scoped endpoint gets a 404 because ``current_user.accounts.find(id)``
+    raises ``ActiveRecord::RecordNotFound``. We deliberately don't leak
+    membership information.
+    """
+    stmt = (
+        select(AccountUser, Account)
+        .join(Account, Account.id == AccountUser.account_id)  # type: ignore[arg-type]
+        .where(Account.id == account_id, AccountUser.user_id == user.id)
+    )
+    row = (await session.exec(stmt)).first()
+    if row is None:
+        # Rails' RequestExceptionHandler renders ``{"error": "Resource
+        # could not be found"}`` for every ``ActiveRecord::RecordNotFound``
+        # under Api::V1::Accounts::. Wire parity — *not* ``{"message": ...}``.
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Resource could not be found"},
+        )
+    au, account = row
+    return AccountContext(user=user, account=account, account_user=au)
+
+
+def require_admin(ctx: AccountContext = Depends(account_context)) -> AccountContext:
+    """Mirror of Pundit's ``@account_user.administrator?`` gate.
+
+    Chatwoot's ``check_authorization`` before_action invokes the action's
+    policy method (e.g. ``InboxPolicy#create?``) which returns
+    ``@account_user.administrator?``. A denial raises
+    ``Pundit::NotAuthorizedError`` → a 401 via
+    ``RequestExceptionHandler#render_unauthorized`` with the unwrapped
+    body ``{"error": "You are not authorized to do this action"}``. We
+    replicate the exact shape.
+    """
+    if not ctx.is_administrator:
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "You are not authorized to do this action"},
+        )
+    return ctx

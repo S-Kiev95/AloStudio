@@ -5,18 +5,20 @@ from __future__ import annotations
 import asyncio
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
+from alembic import context
 from app.core.config import get_settings
 
 # Import all SQLModel tables here so autogenerate sees them.
 # As new domains are added, import their models module below.
-from app.domains.accounts import models as _accounts  # noqa: F401, E402
-from app.domains.users import models as _users  # noqa: F401, E402
+from app.domains.accounts import models as _accounts  # noqa: F401
+from app.domains.inboxes import models as _inboxes  # noqa: F401
+from app.domains.teams import models as _teams  # noqa: F401
+from app.domains.users import models as _users  # noqa: F401
 
 config = context.config
 

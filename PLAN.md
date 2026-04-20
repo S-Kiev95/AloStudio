@@ -61,7 +61,7 @@ AloStudio/
 |---|-------|--------|--------------|
 | 0 | Foundation                     | ✅ done        | smoke |
 | 1 | Accounts + Users + Auth        | ✅ done        | signup, login, profile, password reset, confirmation |
-| 2 | Inboxes + Agents + Teams (API channel only) | ⬜ pending | inbox CRUD, member mgmt, team CRUD |
+| 2 | Inboxes + Agents + Teams (API channel only) | ✅ done        | inbox CRUD, member mgmt, team CRUD |
 | 3 | Contacts                       | ⬜ pending     | identify, merge, custom attrs, search |
 | 4 | Conversations + Messages       | ⬜ pending     | state machine, assignment, WS events, notes |
 | 5a | Channel: Website widget       | ⬜ pending     | widget auth, create conv from widget |
@@ -287,10 +287,48 @@ to. Other channel types land in Phase 5.
 
 ### Exit criteria
 
-- API inbox CRUD parity.
-- Agent assignment parity including the webhook_url + hmac_mandatory
-  knobs.
-- Team CRUD parity including member add/remove.
+- [x] API inbox CRUD parity.
+- [x] Agent assignment parity including the webhook_url + hmac_mandatory
+      knobs.
+- [x] Team CRUD parity including member add/remove.
+- [x] `pytest -m "unit or integration"` → green for Phase 2 scope
+      (94/94 at phase close).
+- [x] `pytest -m parity` → green for the stateless branches we can lock
+      down without a cross-backend seed harness (401s on all write paths,
+      401 on `reset_secret`, 401 on team destroy — 8 tests).
+
+### Closing notes
+
+Deferred intentionally:
+
+  * **Non-API channels** — ``Channel::Email`` /
+    ``Channel::FacebookPage`` / ``Channel::Whatsapp`` / etc. are stubbed
+    at the model layer (``channel_type`` is polymorphic, no FK) but no
+    concrete classes ship in Phase 2. Each lands in its own Phase 5
+    sub-phase with its own parity harness.
+  * **Round-robin hooks on ``InboxMember``** — Chatwoot's ``after_create``
+    /``after_destroy`` callbacks kick
+    ``AutoAssignment::InboxRoundRobinService``. Auto-assignment doesn't
+    exist yet, so the hooks are service-layer no-ops until Phase 5.
+  * **Working hours schedule** — ``working_hours`` has its own table
+    joined by ``inbox_id``. The inbox response presenter surfaces an
+    empty schedule for now; the table + endpoints land with Phase 9
+    (admin advanced).
+  * **Portal FK** — ``inboxes.portal_id`` column is kept for schema
+    parity with v4.13.0, but no SA-level ``ForeignKey`` is declared
+    because Portal is Phase 6+.
+  * **Happy-path body parity tests** — teams + inboxes wire-shape
+    parity needs synchronized seed data (same admin user, same account
+    IDs) across the two backends. Covered by integration tests on our
+    side + Chatwoot's own rspec on theirs. The parity module catches
+    envelope drift on the error paths that *don't* need seeding.
+
+Key decision: ``resources :inbox_members, param: :inbox_id`` in
+Chatwoot's ``config/routes.rb`` declares inbox_members at the **account**
+level — NOT nested under ``/inboxes/:id``. ``show`` hangs off
+``/inbox_members/:inbox_id``; create/patch/delete read ``inbox_id``
+from the body. We matched that exactly to avoid shape drift on a path
+that's easy to get wrong.
 
 ---
 

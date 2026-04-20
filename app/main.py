@@ -6,16 +6,15 @@ from fastapi import FastAPI
 from app.api.health import router as health_router
 from app.core.config import get_settings
 from app.core.db import dispose_engine
+from app.core.errors import ChatwootHTTPException, chatwoot_http_exception_handler
 from app.core.logging import configure_logging, get_logger
 from app.domains.accounts.router import router as accounts_router
-from app.domains.auth.router import (
-    ChatwootHTTPException,
-    chatwoot_http_exception_handler,
-    resend_confirmation_router,
-)
-from app.domains.auth.router import (
-    router as auth_router,
-)
+from app.domains.auth.router import resend_confirmation_router
+from app.domains.auth.router import router as auth_router
+from app.domains.inboxes.router import inbox_members_router
+from app.domains.inboxes.router import router as inboxes_router
+from app.domains.teams.router import router as teams_router
+from app.domains.teams.router import team_members_router
 from app.domains.users.router import router as profile_router
 
 
@@ -52,6 +51,10 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(resend_confirmation_router)
     app.include_router(profile_router)
+    app.include_router(inboxes_router)
+    app.include_router(inbox_members_router)
+    app.include_router(teams_router)
+    app.include_router(team_members_router)
     return app
 
 
