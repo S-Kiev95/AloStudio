@@ -63,7 +63,9 @@ AloStudio/
 | 1 | Accounts + Users + Auth        | ✅ done        | signup, login, profile, password reset, confirmation |
 | 2 | Inboxes + Agents + Teams (API channel only) | ✅ done        | inbox CRUD, member mgmt, team CRUD |
 | 3 | Contacts                       | ✅ done        | identify, merge, custom attrs, search |
-| 4 | Conversations + Messages       | ⬜ pending     | state machine, assignment, WS events, notes |
+| 4a | Conversations + Messages — core | ✅ done       | CRUD, state machine, merge reassignment, 15 HTTP endpoints |
+| 4b | Conversations + Messages — realtime & dispatch | ⬜ pending | WS pub/sub, ActivityMessageHandler, FilterService DSL |
+| 4c | Conversations + Messages — assignment | ⬜ pending | AutoAssignment round-robin, team-scope guard |
 | 5a | Channel: Website widget       | ⬜ pending     | widget auth, create conv from widget |
 | 5b | Channel: Email (IMAP/SMTP)    | ⬜ pending     | ingest threading, reply-to parse, outbound |
 | 5c | Channel: WhatsApp Cloud/360/Twilio | ⬜ pending | webhook ingest, outbound template |
@@ -417,21 +419,55 @@ Deferred intentionally:
 ## Phase 4 — Conversations + Messages
 
 The highest-risk phase — conversation lifecycle touches nearly every
-other subsystem. See detailed sub-plan under `PLAN.phase4.md` (created
-when Phase 4 starts — not yet).
+other subsystem. See detailed sub-plan under `PLAN.phase4.md`.
 
-High-level chunks:
+Split into three sub-phases to keep each shippable in isolation:
+
+### Phase 4a (done) — core CRUD + state machine + merge closure
+
+Shipped:
 - Model: `Conversation` state machine (`pending`/`open`/`resolved`/
   `snoozed`), `Message` (`incoming`/`outgoing`/`activity`/`template`),
-  `Attachment`, `Mention`, `Notification`.
-- Service: AutoAssignment (round-robin), Reopen on new incoming,
-  ResolveWithCsat, AssignTeam, SetPriority, SLA tick.
-- Realtime: replicate ActionCable channel names (
-  `RoomChannel` / `user-<id>` / `conversation-<uuid>`) over FastAPI
-  WebSockets + Redis pub/sub. Payload shape must match so existing
-  Chatwoot frontend could theoretically talk to AloStudio.
-- Jobs: ConversationAutoResolutionJob, RoundRobinAssignmentJob,
-  ConversationReplyMailer, NotificationDispatchJob.
+  `Attachment`, with per-account `display_id` sequence + BEFORE INSERT
+  trigger and the `uuid` column matching Rails.
+- Service: `ConversationBuilder` (incl. `lock_to_single_conversation`
+  reuse-latest branch), `MessageBuilder` (API-channel guard, flooding
+  cap, external_url attachments), `toggle_status`/`toggle_priority`/
+  `bot_handoff`/`update_custom_attributes`, `reassign_mergee_conversations`
+  (contact-merge closure).
+- Presenters: byte-parity with `_conversation.json.jbuilder`,
+  `_message.json.jbuilder`, `messages/index.json.jbuilder` — including
+  quirks (updated_at as FLOAT `.to_f` while everything else is INT `.to_i`;
+  `message_type` on the wire as integer `_before_type_cast`).
+- Router: 15 endpoints (12 conversation + 3 message) — create/index/meta/
+  show/update/toggle_status/toggle_priority/mute/unmute/custom_attributes/
+  update_last_seen/unread + messages index/create/destroy(soft-delete).
+- Dispatcher: stub `EventDispatcher` (logs only) so the post-create
+  callback cascade has an integration point ready for 4b.
+- Tests: 36 integration tests (24 conversations + 12 messages) — 176 tests
+  green in total.
+
+### Phase 4b (pending) — realtime + dispatch fan-out
+
+- Redis pub/sub wire for `EventDispatcher` (replace the no-op stub).
+- ActionCable channel-name parity (`RoomChannel` / `user-<id>` /
+  `conversation-<uuid>`) over FastAPI WebSockets.
+- `ActivityMessageHandler` fan-out (priority/team/label change activity
+  rows + push events).
+- `SendReplyJob` + `ConversationReplyMailer` scaffolding (real sends
+  land with Phase 5b once SMTP arrives).
+- `FilterService` DSL — arrives alongside conversation `index`/`search`
+  parity expansion (date ranges, labels, inbox/team filter, q search).
+- `toggle_typing_status`, `attachments` index, `transcript`,
+  `messages#update` / `retry` / `translate`.
+
+### Phase 4c (pending) — assignment + SLA
+
+- `AssignmentHandler` team-scope guard.
+- `AutoAssignmentHandler` round-robin service + `RoundRobinAssignmentJob`.
+- `/assignments` reassign endpoint.
+- SLA tick + CSAT resolve-with-CSAT path.
+- `ConversationAutoResolutionJob`, `NotificationDispatchJob`.
 
 ---
 

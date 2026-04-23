@@ -13,6 +13,8 @@ from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
 from app.domains.contacts.router import actions_router as contact_actions_router
 from app.domains.contacts.router import router as contacts_router
+from app.domains.conversations.router import messages_router as conversations_messages_router
+from app.domains.conversations.router import router as conversations_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
@@ -60,6 +62,8 @@ def create_app() -> FastAPI:
     app.include_router(team_members_router)
     app.include_router(contacts_router)
     app.include_router(contact_actions_router)
+    app.include_router(conversations_router)
+    app.include_router(conversations_messages_router)
     app.include_router(custom_attributes_router)
     return app
 

@@ -191,8 +191,19 @@ class ContactMergeAction:
 
         self._validate_same_account()
 
-        # TODO(phase4): Conversation.where(contact_id=mergee.id).update(contact_id=base.id)
-        # TODO(phase4): Message.where(sender_type='Contact', sender_id=mergee.id).update(sender_id=base.id)
+        # Conversation + Message reassignment (Phase 3 deferred → Phase 4a).
+        # Lives in the conversations service to keep the cross-domain
+        # import one-way (contacts depends on conversations, not the
+        # other direction).
+        from app.domains.conversations.service import (
+            reassign_mergee_conversations,
+        )
+
+        await reassign_mergee_conversations(
+            self.session,
+            mergee_contact_id=self.mergee.id,
+            base_contact_id=self.base.id,
+        )
 
         await self._merge_contact_inboxes()
         await self._merge_contact_notes()

@@ -17,6 +17,7 @@ from app.core.config import get_settings
 # As new domains are added, import their models module below.
 from app.domains.accounts import models as _accounts  # noqa: F401
 from app.domains.contacts import models as _contacts  # noqa: F401
+from app.domains.conversations import models as _conversations  # noqa: F401
 from app.domains.custom_attributes import models as _custom_attrs  # noqa: F401
 from app.domains.inboxes import models as _inboxes  # noqa: F401
 from app.domains.teams import models as _teams  # noqa: F401
