@@ -166,7 +166,7 @@ async def create_conversation(
     # ``display_id`` + ``uuid`` are server-assigned; refresh to pull them.
     await session.refresh(conv)
 
-    dispatcher.dispatch(CONVERSATION_CREATED, conversation=conv)
+    await dispatcher.dispatch(session, CONVERSATION_CREATED, conversation=conv)
     return conv
 
 
@@ -226,12 +226,19 @@ async def toggle_status(
 
     changed = prev_status != new_status
     if changed:
-        dispatcher.dispatch(CONVERSATION_STATUS_CHANGED, conversation=conversation)
+        await dispatcher.dispatch(
+            session, CONVERSATION_STATUS_CHANGED, conversation=conversation
+        )
         if new_status == CONVERSATION_STATUS_OPEN:
-            dispatcher.dispatch(CONVERSATION_OPENED, conversation=conversation)
+            await dispatcher.dispatch(
+                session, CONVERSATION_OPENED, conversation=conversation
+            )
         elif new_status == CONVERSATION_STATUS_RESOLVED:
-            dispatcher.dispatch(CONVERSATION_RESOLVED, conversation=conversation)
-        dispatcher.dispatch(
+            await dispatcher.dispatch(
+                session, CONVERSATION_RESOLVED, conversation=conversation
+            )
+        await dispatcher.dispatch(
+            session,
             CONVERSATION_UPDATED,
             conversation=conversation,
             changed_attributes={"status": [prev_status, new_status]},
@@ -256,7 +263,8 @@ async def toggle_priority(
     await session.flush()
     await session.refresh(conversation)
     if prev != conversation.priority:
-        dispatcher.dispatch(
+        await dispatcher.dispatch(
+            session,
             CONVERSATION_UPDATED,
             conversation=conversation,
             changed_attributes={"priority": [prev, conversation.priority]},
@@ -277,7 +285,7 @@ async def bot_handoff(
     session.add(conversation)
     await session.flush()
     await session.refresh(conversation)
-    dispatcher.dispatch(CONVERSATION_BOT_HANDOFF, conversation=conversation)
+    await dispatcher.dispatch(session, CONVERSATION_BOT_HANDOFF, conversation=conversation)
     return conversation
 
 
@@ -292,7 +300,8 @@ async def update_custom_attributes(
     session.add(conversation)
     await session.flush()
     await session.refresh(conversation)
-    dispatcher.dispatch(
+    await dispatcher.dispatch(
+        session,
         CONVERSATION_UPDATED,
         conversation=conversation,
         changed_attributes={"custom_attributes": [None, custom_attributes]},
@@ -615,10 +624,10 @@ async def _apply_message_post_create(
     await session.flush()
 
     # 3. dispatch_create_events + waiting_since / first_reply bookkeeping
-    dispatcher.dispatch(MESSAGE_CREATED, message=message)
+    await dispatcher.dispatch(session, MESSAGE_CREATED, message=message)
 
     if _valid_first_reply(message=message, conversation=conversation):
-        dispatcher.dispatch(FIRST_REPLY_CREATED, message=message)
+        await dispatcher.dispatch(session, FIRST_REPLY_CREATED, message=message)
         conversation.first_reply_created_at = message.created_at
         conversation.waiting_since = None
         session.add(conversation)
@@ -667,7 +676,8 @@ async def _update_waiting_since(
     changed = False
     if conversation.waiting_since is not None and not message.private:
         if _is_human_response(message):
-            dispatcher.dispatch(
+            await dispatcher.dispatch(
+                session,
                 REPLY_CREATED,
                 waiting_since=conversation.waiting_since,
                 message=message,

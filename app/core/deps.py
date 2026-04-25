@@ -40,6 +40,7 @@ from app.core.auth.devise_token_auth import (
     HEADER_UID,
     verify_auth_token,
 )
+from app.core.current import current_user_ctx
 from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.models import Account
@@ -184,6 +185,10 @@ async def account_context(
             detail={"error": "Resource could not be found"},
         )
     au, account = row
+    # Mirrors Rails' ``Current.user = current_user`` at the top of the
+    # ``Api::V1::Accounts::BaseController`` request cycle. Read by the
+    # ActionCableListener to stamp the ``performer`` field on broadcasts.
+    current_user_ctx.set(user)
     return AccountContext(user=user, account=account, account_user=au)
 
 

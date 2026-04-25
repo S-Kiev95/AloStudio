@@ -34,6 +34,14 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         await dispose_engine()
+        # The realtime broadcaster's underlying ``redis.asyncio.Redis``
+        # client is bound to the event loop active at first-use. Our
+        # per-test fixture spins up a new loop each time, so we must
+        # close+forget the singleton here to avoid "Future attached to
+        # a different loop" on the next test.
+        from app.core.realtime import reset_broadcaster
+
+        await reset_broadcaster()
         log.info("shutdown")
 
 

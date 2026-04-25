@@ -1,25 +1,27 @@
-"""Event dispatcher stub for Phase 4a.
+"""Conversation event dispatcher.
 
-Rails routes every state change through
-``Rails.configuration.dispatcher.dispatch(event_name, Time.zone.now,
-**payload)``. The dispatcher then fans out to listeners:
+Port of ``Rails.configuration.dispatcher.dispatch(event_name,
+Time.zone.now, **payload)``. Phase 4a shipped a no-op stub that only
+logged; Phase 4b.1 wires **real Redis pub/sub fan-out** via
+:class:`~app.domains.conversations.listeners.ActionCableListener`.
 
-  * ``ActionCableListener``   — WebSocket broadcasts (Phase 4b)
-  * ``NotificationListener``  — in-app + email notifications (Phase 4b)
-  * ``WebhookListener``       — outbound webhooks
-  * ``ReportingEventListener``— analytics (Phase 7)
-  * ``AgentBotListener``      — bot invocations (Phase 8)
-  * ``AutomationRuleListener``— rule engine (Phase 6)
-  * ``CampaignListener``      — campaign tracking (Phase 6)
-  * ``CsatSurveyListener``    — CSAT (Phase 5)
+Rails fans the event to many listeners (ActionCable, Notifications,
+Webhooks, Reporting, AgentBot, AutomationRule, Campaign, CsatSurvey).
+We port them phase-by-phase — 4b.1 ships only the ActionCable branch.
+The remaining listeners' event_name ↔ handler_method names all stay
+identical to Chatwoot's constants so each future listener plugs into
+the same dispatch path.
 
-Phase 4a ships a **no-op dispatcher** that only logs. Each later phase
-registers a real listener by importing the module. The callsites in
-services use the same event name + payload shape as Chatwoot, so when a
-real backend arrives we only swap the ``dispatch`` implementation.
+Signature change from the 4a stub:
 
-Event names match Chatwoot's constants exactly (uppercase snake_case):
-``reference/chatwoot/lib/events/types.rb`` is the canonical list.
+  4a:  ``dispatcher.dispatch(event_name, **payload)`` — synchronous, no-op.
+  4b:  ``await dispatcher.dispatch(session, event_name, **payload)`` —
+       async, requires the request's :class:`AsyncSession` because the
+       listener issues read queries (inbox members, administrators,
+       contact_inbox tokens) on that connection. Mirrors Rails' pattern
+       of running SyncDispatcher listeners on the request's AR connection.
+
+Event-name constants stay verbatim from ``lib/events/types.rb``.
 """
 
 from __future__ import annotations
@@ -27,7 +29,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:  # pragma: no cover
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 log = logging.getLogger(__name__)
 
@@ -61,8 +66,11 @@ class Event:
 
     Mirrors the Rails calling convention:
         ``dispatcher.dispatch(event_name, Time.zone.now, payload_kwargs)``
-    ``payload`` carries model references + ``changed_attributes`` /
-    ``previous_changes`` when the event has them.
+
+    We carry ``timestamp`` for parity — listeners that care about the
+    event wall-clock (Reporting, AutomationRule) will use it in later
+    phases. ``payload`` holds model references + ``changed_attributes``
+    / ``previous_changes`` when the event has them.
     """
 
     name: str
@@ -71,20 +79,39 @@ class Event:
 
 
 class EventDispatcher:
-    """No-op dispatcher for Phase 4a.
+    """4b dispatcher — fans out to the :class:`ActionCableListener`.
 
-    Phase 4b swaps the implementation for one that publishes to Redis
-    pub/sub and a WebSocket broadcast layer. Phase 4a logs at DEBUG so
-    the call-graph is visible without cluttering test output.
+    We keep the class so later phases can register additional listeners
+    on the same object (NotificationListener, WebhookListener, ...). The
+    current implementation simply forwards to
+    :func:`~app.domains.conversations.listeners.broadcast_event`.
+
+    Failure isolation: the listener wraps its work in a try/except so a
+    Redis outage or schema drift cannot break the request. The dispatch
+    method itself stays simple; the listener is responsible for keeping
+    the request cycle alive.
     """
 
-    def dispatch(self, name: str, **payload: Any) -> None:
-        event = Event(name=name, payload=payload)
-        log.debug("dispatcher.dispatch name=%s payload_keys=%s", event.name, list(payload.keys()))
+    async def dispatch(
+        self, session: "AsyncSession", name: str, **payload: Any
+    ) -> None:
+        log.debug(
+            "dispatcher.dispatch name=%s payload_keys=%s",
+            name,
+            list(payload.keys()),
+        )
+        # Late import keeps this module import-safe for tooling that
+        # loads ``events.py`` (for the name constants) before the full
+        # app is wired. Also sidesteps a cycle:
+        # listeners.py imports the constants from this module.
+        from app.domains.conversations.listeners import broadcast_event
+
+        await broadcast_event(session, name, **payload)
 
 
-# Singleton — matches ``Rails.configuration.dispatcher``. Tests can
-# monkeypatch ``dispatcher.dispatch`` to capture events.
+# Singleton — matches ``Rails.configuration.dispatcher``. Tests that
+# want to capture events instead of fanning them out can monkeypatch
+# ``dispatcher.dispatch`` directly.
 dispatcher = EventDispatcher()
 
 
