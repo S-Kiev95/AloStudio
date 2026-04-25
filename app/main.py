@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from fastapi import FastAPI
 
 from app.api.health import router as health_router
+from app.core.cable import router as cable_router
 from app.core.config import get_settings
 from app.core.db import dispose_engine
 from app.core.errors import ChatwootHTTPException, chatwoot_http_exception_handler
@@ -73,6 +74,9 @@ def create_app() -> FastAPI:
     app.include_router(conversations_router)
     app.include_router(conversations_messages_router)
     app.include_router(custom_attributes_router)
+    # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
+    # last so HTTP routes take precedence in any path-overlap edge.
+    app.include_router(cable_router)
     return app
 
 
