@@ -46,6 +46,7 @@ from app.domains.conversations.models import (
     conversation_priority_from_str,
     conversation_status_from_str,
 )
+from app.domains.conversations.permission import apply_permission_scope
 from app.domains.labels.models import Label
 
 # Mirror ``filter_keys.yml`` — operator allow-list per attribute. We
@@ -316,11 +317,23 @@ async def conversation_filter(
         .where(Conversation.account_id == account_id)
         .where(where_expr)
     )
+    base = await apply_permission_scope(
+        base,
+        session=session,
+        account_id=account_id,
+        current_user_id=current_user_id,
+    )
     count_base = (
         select(func.count())
         .select_from(Conversation)
         .where(Conversation.account_id == account_id)
         .where(where_expr)
+    )
+    count_base = await apply_permission_scope(
+        count_base,
+        session=session,
+        account_id=account_id,
+        current_user_id=current_user_id,
     )
 
     all_count = int((await session.exec(count_base)).one() or 0)

@@ -51,6 +51,7 @@ from app.domains.conversations.models import (
     Message,
     conversation_status_from_str,
 )
+from app.domains.conversations.permission import apply_permission_scope
 from app.domains.labels.models import Label
 
 DEFAULT_STATUS = "open"
@@ -169,6 +170,12 @@ async def conversation_finder(
         labels = [str(label) for label in labels if label]
 
     base = select(Conversation).where(Conversation.account_id == account_id)
+    base = await apply_permission_scope(
+        base,
+        session=session,
+        account_id=account_id,
+        current_user_id=current_user_id,
+    )
     # When ``q`` is set Rails skips the status filter entirely (search
     # spans every status). Match that.
     if not q:
@@ -178,11 +185,19 @@ async def conversation_finder(
     base = _apply_labels(base, labels=labels)
     base = _apply_query(base, q=q)
 
-    # Count block — pre-assignee_type, mirrors Rails ordering.
+    # Count block — pre-assignee_type, mirrors Rails ordering. The same
+    # permission scope must apply, so non-admins don't see a count of
+    # conversations they can't list.
     count_select = (
         select(func.count())
         .select_from(Conversation)
         .where(Conversation.account_id == account_id)
+    )
+    count_select = await apply_permission_scope(
+        count_select,
+        session=session,
+        account_id=account_id,
+        current_user_id=current_user_id,
     )
     if not q:
         count_select = _apply_status(count_select, status=status)
