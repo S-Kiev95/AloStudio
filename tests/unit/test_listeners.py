@@ -56,13 +56,19 @@ class _RecBroadcaster:
 # ---------------------------------------------------------------------------
 # Routing
 # ---------------------------------------------------------------------------
-def test_handler_dict_covers_4b1_subset() -> None:
-    """The 4b.1 milestone covers exactly five events. If the dict drifts
-    from this set the test fails so the divergence is intentional."""
+def test_handler_dict_covers_4b_subset() -> None:
+    """Pin the active handler set across 4b.
+
+    4b.1 added five events, 4b.5 added the two ``typing_*`` events.
+    If the dict drifts from this set the test fails so the divergence
+    is intentional.
+    """
     assert set(_HANDLERS.keys()) == {
         ev.CONVERSATION_CREATED,
         ev.CONVERSATION_UPDATED,
         ev.CONVERSATION_STATUS_CHANGED,
+        ev.CONVERSATION_TYPING_ON,
+        ev.CONVERSATION_TYPING_OFF,
         ev.MESSAGE_CREATED,
         ev.FIRST_REPLY_CREATED,
     }

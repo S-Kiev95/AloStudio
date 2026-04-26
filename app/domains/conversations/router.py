@@ -96,7 +96,7 @@ from app.domains.conversations.service import (
     update_labels,
     update_team,
 )
-from app.domains.inboxes.models import Inbox
+from app.domains.inboxes.models import CHANNEL_TYPE_API, Inbox
 
 RESULTS_PER_PAGE = 25
 
@@ -719,6 +719,151 @@ async def create_assignment(
     return None
 
 
+@router.post("/{display_id}/toggle_typing_status")
+async def toggle_typing_status(
+    display_id: Annotated[int, Path()],
+    payload: dict[str, Any],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    """``POST /conversations/:id/toggle_typing_status``.
+
+    Mirrors ``Conversations::TypingStatusManager#toggle_typing_status``
+    + ``ConversationsController#toggle_typing_status``: dispatches
+    ``CONVERSATION_TYPING_ON`` or ``CONVERSATION_TYPING_OFF`` and
+    returns ``head :ok``. Anything other than ``"on"`` / ``"off"`` is
+    a silent no-op (Rails' case statement falls through).
+    """
+    from app.domains.conversations.events import (
+        CONVERSATION_TYPING_OFF,
+        CONVERSATION_TYPING_ON,
+        dispatcher,
+    )
+
+    assert ctx.account.id is not None
+    conv = await _load_conversation_by_display_id(
+        session, account_id=ctx.account.id, display_id=display_id
+    )
+    typing_status = payload.get("typing_status")
+    is_private = bool(payload.get("is_private", False))
+    if typing_status == "on":
+        await dispatcher.dispatch(
+            session,
+            CONVERSATION_TYPING_ON,
+            conversation=conv,
+            user=ctx.user,
+            is_private=is_private,
+        )
+    elif typing_status == "off":
+        await dispatcher.dispatch(
+            session,
+            CONVERSATION_TYPING_OFF,
+            conversation=conv,
+            user=ctx.user,
+            is_private=is_private,
+        )
+    return Response(status_code=status.HTTP_200_OK)
+
+
+@router.get("/{display_id}/attachments")
+async def list_attachments(
+    display_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    page: int = Query(1, ge=1),
+) -> dict[str, Any]:
+    """``GET /conversations/:id/attachments``.
+
+    Mirrors ``ConversationsController#attachments`` +
+    ``attachments.json.jbuilder``. Returns the conversation's
+    attachments paginated at 100/page (Rails
+    ``ATTACHMENT_RESULTS_PER_PAGE``), newest first, each shaped via
+    ``Attachment#push_event_data`` plus ``message.created_at`` (unix)
+    + ``message.sender.push_event_data``.
+    """
+    from app.domains.conversations.models import Attachment
+    from app.domains.conversations.presenters import (
+        present_attachment_push_event,
+    )
+
+    ATTACHMENT_RESULTS_PER_PAGE = 100  # Rails constant — same name, same value.
+
+    assert ctx.account.id is not None
+    conv = await _load_conversation_by_display_id(
+        session, account_id=ctx.account.id, display_id=display_id
+    )
+
+    count_stmt = (
+        select(func.count())
+        .select_from(Attachment)
+        .join(Message, Message.id == Attachment.message_id)  # type: ignore[arg-type]
+        .where(Message.conversation_id == conv.id)
+    )
+    total_count = int((await session.exec(count_stmt)).one() or 0)
+
+    offset = (page - 1) * ATTACHMENT_RESULTS_PER_PAGE
+    list_stmt = (
+        select(Attachment, Message)
+        .join(Message, Message.id == Attachment.message_id)  # type: ignore[arg-type]
+        .where(Message.conversation_id == conv.id)
+        .order_by(Attachment.created_at.desc())  # type: ignore[attr-defined]
+        .offset(offset)
+        .limit(ATTACHMENT_RESULTS_PER_PAGE)
+    )
+    rows = list((await session.exec(list_stmt)).all())
+
+    payload: list[dict[str, Any]] = []
+    for att, msg in rows:
+        push = present_attachment_push_event(att)
+        payload.append(
+            {
+                "message_id": push.get("message_id"),
+                "thumb_url": push.get("thumb_url", ""),
+                "data_url": push.get("data_url"),
+                "file_size": push.get("file_size"),
+                "file_type": push.get("file_type"),
+                "extension": push.get("extension"),
+                "width": push.get("width"),
+                "height": push.get("height"),
+                # ``created_at`` here is the MESSAGE's created_at as a
+                # unix integer — mirrors the jbuilder.
+                "created_at": int(msg.created_at.timestamp()) if msg.created_at else 0,
+                # ``sender`` is dropped when the message has no sender
+                # (activity rows). The jbuilder uses ``if sender`` so
+                # we only include the key when it resolves.
+                **(
+                    {"sender": _attachment_sender_payload(msg)}
+                    if msg.sender_id is not None
+                    else {}
+                ),
+            }
+        )
+
+    return {
+        "meta": {"total_count": total_count},
+        "payload": payload,
+    }
+
+
+def _attachment_sender_payload(message: Message) -> dict[str, Any] | None:
+    """Best-effort sender stub for the attachments index.
+
+    The jbuilder calls ``sender.push_event_data`` — for User senders
+    that's the user push-event shape, for Contact senders it's the
+    contact one. Resolving the polymorphic sender here would require
+    another query; instead we emit ``{id, type}`` so the UI can render
+    a placeholder. The full presenter lives at
+    :func:`app.domains.conversations.presenters.present_message`'s
+    ``sender`` block — Phase 4c will hoist a shared helper.
+    """
+    if message.sender_id is None or message.sender_type is None:
+        return None
+    return {
+        "id": message.sender_id,
+        "type": message.sender_type,
+    }
+
+
 @router.get("/{display_id}/labels")
 async def list_labels(
     display_id: Annotated[int, Path()],
@@ -959,6 +1104,70 @@ async def destroy_message(
     await session.flush()
     await session.refresh(msg)
     return present_message_create(msg)
+
+
+@messages_router.patch("/{message_id}")
+async def update_message(
+    conversation_id: Annotated[int, Path(description="display_id")],
+    message_id: Annotated[int, Path()],
+    payload: dict[str, Any],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """``PATCH /conversations/:conv_id/messages/:id`` — API inbox only.
+
+    Permitted params: ``status``, ``external_error`` (mirrors Rails'
+    ``params.permit(:id, :target_language, :status, :external_error)``
+    minus ``target_language`` — translation lands Phase 5b).
+
+    The ``ensure_api_inbox`` before-action returns 403 with the Rails
+    message envelope ``{"error": "..."}`` for non-API conversations.
+    Status guard (read -> delivered is a silent no-op) lives in
+    :func:`update_message_status`.
+    """
+    from app.domains.conversations.models import Attachment  # noqa: F401  (registers mapper)
+    from app.domains.conversations.presenters import present_message
+    from app.domains.conversations.service import update_message_status
+
+    assert ctx.account.id is not None
+    conv = await _load_conversation_by_display_id(
+        session, account_id=ctx.account.id, display_id=conversation_id
+    )
+    if conv.inbox is None or conv.inbox.channel_type != CHANNEL_TYPE_API:
+        raise ChatwootHTTPException(
+            status_code=403,
+            detail={
+                "error": "Message status update is only allowed for API inboxes"
+            },
+        )
+
+    stmt = select(Message).where(
+        Message.id == message_id, Message.conversation_id == conv.id
+    )
+    msg = (await session.exec(stmt)).first()
+    if msg is None:
+        raise ChatwootHTTPException(
+            status_code=404,
+            detail={"error": "Resource could not be found"},
+        )
+
+    new_status = payload.get("status")
+    if new_status is None:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "status: parameter required"},
+        )
+    msg = await update_message_status(
+        session,
+        message=msg,
+        status=str(new_status),
+        external_error=payload.get("external_error"),
+    )
+    # Resolve sender so the presenter emits the ``sender`` block.
+    from app.domains.conversations.service import _attach_resolved_sender
+
+    await _attach_resolved_sender(session, message=msg, conversation=conv)
+    return present_message(msg)
 
 
 __all__ = ["messages_router", "router"]

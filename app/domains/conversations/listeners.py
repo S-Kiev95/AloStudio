@@ -160,6 +160,80 @@ class ActionCableListener:
             present_message_push_event(message),
         )
 
+    async def _conversation_typing_on(
+        self,
+        *,
+        conversation: Conversation,
+        user: Any,
+        is_private: bool = False,
+    ) -> None:
+        await self._broadcast_typing(
+            conversation=conversation,
+            user=user,
+            is_private=is_private,
+            event_name=ev.CONVERSATION_TYPING_ON,
+        )
+
+    async def _conversation_typing_off(
+        self,
+        *,
+        conversation: Conversation,
+        user: Any,
+        is_private: bool = False,
+    ) -> None:
+        await self._broadcast_typing(
+            conversation=conversation,
+            user=user,
+            is_private=is_private,
+            event_name=ev.CONVERSATION_TYPING_OFF,
+        )
+
+    async def _broadcast_typing(
+        self,
+        *,
+        conversation: Conversation,
+        user: Any,
+        is_private: bool,
+        event_name: str,
+    ) -> None:
+        """Mirror ``ActionCableListener#typing_event_listener_tokens``.
+
+        Tokens = inbox-member user tokens + the contact_inbox token,
+        MINUS the actor's own token (so the typer doesn't see their
+        own bubble). The payload is the conversation push-event +
+        the typer's push-event + ``is_private``.
+        """
+        from app.domains.users.models import User as _User
+
+        user_tokens = await self._user_tokens(conversation)
+        contact_tokens: list[str] = []
+        if conversation.contact_inbox is not None:
+            contact_tokens = await self._contact_inbox_tokens(
+                conversation.contact_inbox
+            )
+        all_tokens = list({*user_tokens, *contact_tokens})
+
+        # Determine the actor's token (User -> pubsub_token; Contact ->
+        # the contact_inbox pubsub_token). Contacts never trigger typing
+        # in 4b but Rails accepts it, so we mirror.
+        actor_token: str | None = None
+        if isinstance(user, _User):
+            actor_token = user.pubsub_token
+        elif conversation.contact_inbox is not None:
+            actor_token = conversation.contact_inbox.pubsub_token
+
+        if actor_token in all_tokens:
+            all_tokens = [t for t in all_tokens if t != actor_token]
+
+        payload = {
+            "conversation": present_conversation(conversation),
+            "user": _user_push_event_data(user) if user is not None else None,
+            "is_private": bool(is_private),
+        }
+        await self._broadcast(
+            conversation.account_id, all_tokens, event_name, payload
+        )
+
     async def _first_reply_created(self, *, message: Message) -> None:
         conversation = message.conversation
         if conversation is None:
@@ -282,6 +356,8 @@ _HANDLERS: dict[str, Callable[..., Awaitable[None]]] = {
     ev.CONVERSATION_CREATED: ActionCableListener._conversation_created,
     ev.CONVERSATION_UPDATED: ActionCableListener._conversation_updated,
     ev.CONVERSATION_STATUS_CHANGED: ActionCableListener._conversation_status_changed,
+    ev.CONVERSATION_TYPING_ON: ActionCableListener._conversation_typing_on,
+    ev.CONVERSATION_TYPING_OFF: ActionCableListener._conversation_typing_off,
     ev.MESSAGE_CREATED: ActionCableListener._message_created,
     ev.FIRST_REPLY_CREATED: ActionCableListener._first_reply_created,
 }

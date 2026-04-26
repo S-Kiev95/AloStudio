@@ -1156,13 +1156,44 @@ async def update_message_status(
     status: str,
     external_error: str | None = None,
 ) -> Message:
-    """Port of the controller's ``update`` action for messages (API
-    inbox only)."""
-    message.status = message_status_from_str(status)
-    if external_error is not None:
-        ca = dict(message.content_attributes or {})
-        ca["external_error"] = external_error
-        message.content_attributes = ca
+    """Port of ``Messages::StatusUpdateService#perform``.
+
+    Status enum: ``sent`` / ``delivered`` / ``read`` / ``failed``.
+    Transition guard mirrors Rails:
+      * unknown status -> reject (we raise ChatwootHTTPException(422)).
+      * already ``read`` and target ``delivered`` -> silent no-op
+        (Rails' ``return false``; controller renders the show partial
+        of the unmodified message).
+      * ``failed`` carries ``external_error``; other transitions clear it.
+    """
+    try:
+        new_status = message_status_from_str(status)
+    except ValueError as exc:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": f"Invalid message status: {status!r}"},
+        ) from exc
+
+    from app.domains.conversations.models import (
+        MESSAGE_STATUS_DELIVERED,
+        MESSAGE_STATUS_FAILED,
+        MESSAGE_STATUS_READ,
+    )
+
+    if message.status == MESSAGE_STATUS_READ and new_status == MESSAGE_STATUS_DELIVERED:
+        # Silent no-op — Rails returns ``false`` and the controller
+        # still renders the unchanged message.
+        return message
+
+    message.status = new_status
+    ca = dict(message.content_attributes or {})
+    if new_status == MESSAGE_STATUS_FAILED:
+        if external_error is not None:
+            ca["external_error"] = external_error
+    else:
+        # Status moved away from ``failed`` — drop the lingering error.
+        ca.pop("external_error", None)
+    message.content_attributes = ca
     session.add(message)
     await session.flush()
     await session.refresh(message)
