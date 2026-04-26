@@ -81,12 +81,18 @@ from app.domains.conversations.service import (
     ConversationBuilderParams,
     MessageBuilderParams,
     _AttachmentSpec,
+    _parse_label_csv,
     bot_handoff,
     create_conversation,
     create_message,
+    mute_conversation_with_activity,
     toggle_priority,
     toggle_status,
+    unmute_conversation_with_activity,
+    update_assignee,
     update_custom_attributes,
+    update_labels,
+    update_team,
 )
 from app.domains.inboxes.models import Inbox
 
@@ -505,21 +511,17 @@ async def mute_conversation(
 ) -> Response:
     """``POST /conversations/:id/mute`` — Rails returns ``head :ok``.
 
-    Semantics (``ConversationMuteHelpers#mute!``):
-      * resolve the conversation;
-      * block the contact (``contact.update(blocked: true)``);
-      * insert an activity message (Phase 4b — needs dispatcher fan-out).
+    Mirrors ``ConversationMuteHelpers#mute!``:
+      * resolve the conversation (status activity row from
+        ``toggle_status``);
+      * block the contact;
+      * insert the ``muted`` activity row.
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
         session, account_id=ctx.account.id, display_id=display_id
     )
-    if conv.contact is None:
-        return Response(status_code=status.HTTP_200_OK)
-    await toggle_status(session, conversation=conv, status="resolved")
-    conv.contact.blocked = True
-    session.add(conv.contact)
-    await session.flush()
+    await mute_conversation_with_activity(session, conversation=conv)
     return Response(status_code=status.HTTP_200_OK)
 
 
@@ -534,11 +536,7 @@ async def unmute_conversation(
     conv = await _load_conversation_by_display_id(
         session, account_id=ctx.account.id, display_id=display_id
     )
-    if conv.contact is None:
-        return Response(status_code=status.HTTP_200_OK)
-    conv.contact.blocked = False
-    session.add(conv.contact)
-    await session.flush()
+    await unmute_conversation_with_activity(session, conversation=conv)
     return Response(status_code=status.HTTP_200_OK)
 
 
@@ -562,6 +560,126 @@ async def set_custom_attributes(
         custom_attributes=payload.custom_attributes or {},
     )
     return present_conversation_show(conv)
+
+
+@router.post("/{display_id}/assignments")
+async def create_assignment(
+    display_id: Annotated[int, Path()],
+    payload: dict[str, Any],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Any:
+    """``POST /conversations/:id/assignments`` — assign agent or team.
+
+    Mirrors ``Api::V1::Accounts::Conversations::AssignmentsController#create``:
+      * ``assignee_id`` key present  -> set agent (User), render agent partial.
+      * ``team_id``     key present  -> set team, render team JSON.
+      * neither                       -> ``null``.
+
+    AgentBot assignments (``assignee_type == 'AgentBot'``) are deferred
+    to Phase 8.
+    """
+    from app.domains.inboxes.presenters import present_agent
+    from app.domains.users.models import AccountUser as _AccountUser
+
+    assert ctx.account.id is not None
+    conv = await _load_conversation_by_display_id(
+        session, account_id=ctx.account.id, display_id=display_id
+    )
+
+    if "assignee_id" in payload:
+        assignee_id_raw = payload.get("assignee_id")
+        assignee_id = (
+            int(assignee_id_raw) if assignee_id_raw is not None else None
+        )
+        user = await update_assignee(
+            session, conversation=conv, assignee_id=assignee_id
+        )
+        if user is None:
+            return None
+        # Look up the account_user row so we can render availability /
+        # auto_offline. Mirrors ``current_account_user`` on the Rails side.
+        au = (
+            await session.exec(
+                select(_AccountUser).where(
+                    _AccountUser.user_id == user.id,
+                    _AccountUser.account_id == ctx.account.id,
+                )
+            )
+        ).first()
+        return present_agent(
+            account_id=ctx.account.id,
+            account_user_availability=au.availability if au is not None else None,
+            account_user_auto_offline=au.auto_offline if au is not None else None,
+            user=user,
+        )
+
+    if "team_id" in payload:
+        team_id_raw = payload.get("team_id")
+        team_id = int(team_id_raw) if team_id_raw is not None else None
+        team = await update_team(
+            session, conversation=conv, team_id=team_id
+        )
+        if team is None:
+            return None
+        return {
+            "id": team.id,
+            "name": team.name,
+            "description": team.description,
+            "allow_auto_assign": team.allow_auto_assign,
+            "account_id": team.account_id,
+            "is_member": False,
+        }
+
+    return None
+
+
+@router.get("/{display_id}/labels")
+async def list_labels(
+    display_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """``GET /conversations/:id/labels`` — current label list.
+
+    Mirrors ``LabelsController#index`` + ``LabelConcern#index``: returns
+    ``{"payload": [...]}`` driven off ``model.label_list``.
+    """
+    assert ctx.account.id is not None
+    conv = await _load_conversation_by_display_id(
+        session, account_id=ctx.account.id, display_id=display_id
+    )
+    return {"payload": _parse_label_csv(conv.cached_label_list)}
+
+
+@router.post("/{display_id}/labels")
+async def set_labels(
+    display_id: Annotated[int, Path()],
+    payload: dict[str, Any],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """``POST /conversations/:id/labels`` — replace the label set.
+
+    Mirrors ``LabelsController#create`` + ``LabelConcern#create``:
+    ``model.update_labels(params[:labels])`` then render
+    ``{"payload": @labels}``. Permitted params: ``labels: []``.
+    """
+    assert ctx.account.id is not None
+    conv = await _load_conversation_by_display_id(
+        session, account_id=ctx.account.id, display_id=display_id
+    )
+    raw = payload.get("labels") or []
+    if not isinstance(raw, list):
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "labels: expected an array of strings"},
+        )
+    titles = [str(t) for t in raw if isinstance(t, (str, int, float))]
+    new_titles = await update_labels(
+        session, conversation=conv, titles=titles
+    )
+    return {"payload": new_titles}
 
 
 @router.post("/{display_id}/update_last_seen")

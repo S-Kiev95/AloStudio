@@ -868,6 +868,54 @@ class ConversationParticipant(TimestampMixin, table=True):
     )
 
 
+# =========================================================================
+# ConversationLabel — join row replacing ``acts_as_taggable_on`` taggings
+# =========================================================================
+class ConversationLabel(TimestampMixin, table=True):
+    """One row per (conversation, label) pair.
+
+    Chatwoot uses ``acts_as_taggable_on`` which writes a polymorphic
+    ``taggings`` row + a generic ``tags`` row per label. We collapse to
+    a direct join because conversations are the only taggable surface in
+    the API we ship — no other model uses ``acts_as_taggable_on``.
+
+    The ON DELETE CASCADE on both sides keeps orphan rows from forming
+    when a label or conversation is removed (Rails enforces this via
+    ``dependent: :destroy`` on the taggings association — we punt to
+    the database for the same effect).
+    """
+
+    __tablename__ = "conversation_labels"
+    __table_args__ = (
+        Index("index_conversation_labels_on_conversation_id", "conversation_id"),
+        Index("index_conversation_labels_on_label_id", "label_id"),
+        UniqueConstraint(
+            "conversation_id",
+            "label_id",
+            name="index_conversation_labels_on_conversation_and_label",
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    conversation_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("conversations.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    label_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("labels.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+
+
 __all__ = [
     # enums / constants
     "CONTENT_TYPE_ARTICLE",
@@ -918,6 +966,7 @@ __all__ = [
     # models
     "Attachment",
     "Conversation",
+    "ConversationLabel",
     "ConversationParticipant",
     "Mention",
     "Message",

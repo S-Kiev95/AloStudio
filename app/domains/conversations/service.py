@@ -43,13 +43,28 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:  # pragma: no cover
+    from app.domains.teams.models import Team
+    from app.domains.users.models import User
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.current import current_user_ctx
 from app.core.errors import ChatwootHTTPException
+from app.domains.conversations.activities import (
+    assignee_change_activity_content,
+    create_activity_message,
+    label_change_activity_content,
+    mute_change_activity_content,
+    priority_change_activity_content,
+    status_change_activity_content,
+    team_change_activity_content,
+)
 from app.domains.conversations.events import (
+    ASSIGNEE_CHANGED,
     CONVERSATION_BOT_HANDOFF,
     CONVERSATION_CREATED,
     CONVERSATION_OPENED,
@@ -59,6 +74,7 @@ from app.domains.conversations.events import (
     FIRST_REPLY_CREATED,
     MESSAGE_CREATED,
     REPLY_CREATED,
+    TEAM_CHANGED,
     dispatcher,
 )
 from app.domains.conversations.models import (
@@ -82,6 +98,7 @@ from app.domains.conversations.models import (
     message_type_from_str,
 )
 from app.domains.inboxes.models import CHANNEL_TYPE_API, Inbox
+from app.domains.users.models import AccountUser
 
 # Rails' ``Limits.conversation_message_per_minute_limit`` — Chatwoot sets
 # this via ``config/initializers/limits.rb`` (default 20). Mirrored here
@@ -94,6 +111,40 @@ NUMBER_OF_PERMITTED_ATTACHMENTS = 15
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+def _current_user_name() -> str | None:
+    """Mirror Rails ``Current.user&.name``.
+
+    The name is set via the ``account_context`` dependency (see
+    ``app.core.deps``) which seeds ``current_user_ctx``. Returning
+    ``None`` when no user is in scope mirrors the Rails behaviour: the
+    activity-message generators drop the row rather than emitting a
+    nameless string.
+    """
+    user = current_user_ctx.get()
+    return user.name if user is not None else None
+
+
+def _is_self_assign(user_id: int | None, assignee_id: int | None) -> bool:
+    """Mirror ``AssignmentHandler#self_assign?``.
+
+    Returns True when the actor and the new assignee are the same
+    person — controls the ``self_assigned`` template branch.
+    """
+    return assignee_id is not None and user_id is not None and user_id == assignee_id
+
+
+def _parse_label_csv(csv: str | None) -> list[str]:
+    """Mirror ``Conversation#cached_label_list_array``.
+
+    Splits on comma, strips whitespace, drops blanks. Order is
+    preserved — Chatwoot's label list is conceptually unordered but the
+    cached CSV is read back as-is.
+    """
+    if not csv:
+        return []
+    return [part.strip() for part in csv.split(",") if part.strip()]
 
 
 # =========================================================================
@@ -243,6 +294,19 @@ async def toggle_status(
             conversation=conversation,
             changed_attributes={"status": [prev_status, new_status]},
         )
+        # Activity row — mirrors ``ActivityMessageHandler#handle_status_change``.
+        from app.domains.conversations.models import (
+            conversation_status_to_str,
+        )
+
+        content = status_change_activity_content(
+            status=conversation_status_to_str(new_status),
+            user_name=_current_user_name(),
+        )
+        if content:
+            await create_activity_message(
+                session, conversation=conversation, content=content
+            )
     return conversation
 
 
@@ -269,6 +333,20 @@ async def toggle_priority(
             conversation=conversation,
             changed_attributes={"priority": [prev, conversation.priority]},
         )
+        # Activity row — mirrors ``PriorityActivityMessageHandler``.
+        from app.domains.conversations.models import (
+            conversation_priority_to_str,
+        )
+
+        content = priority_change_activity_content(
+            user_name=_current_user_name(),
+            old_priority=conversation_priority_to_str(prev),
+            new_priority=conversation_priority_to_str(conversation.priority),
+        )
+        if content:
+            await create_activity_message(
+                session, conversation=conversation, content=content
+            )
     return conversation
 
 
@@ -309,10 +387,362 @@ async def update_custom_attributes(
     return conversation
 
 
-# ``reassign_conversation`` (the ``/assignments`` nested endpoint) is
-# deferred to Phase 4c alongside the round-robin service — it needs the
-# team-scope guard from ``AssignmentHandler`` plus proper activity-message
-# dispatch that isn't worth stubbing half-way.
+# =========================================================================
+# Assignment / team / label / mute — paths that fire activity messages.
+# All ported from the same Ruby source that drives ``ActivityMessageHandler``:
+#   reference/chatwoot/app/services/conversations/assignment_service.rb
+#   reference/chatwoot/app/controllers/api/v1/accounts/conversations/{
+#     assignments_controller, labels_controller}.rb
+#   reference/chatwoot/app/models/concerns/{conversation_mute_helpers,
+#     labelable, assignment_handler}.rb
+# =========================================================================
+async def update_assignee(
+    session: AsyncSession,
+    *,
+    conversation: Conversation,
+    assignee_id: int | None,
+) -> "User | None":
+    """Port of ``Conversations::AssignmentService#assign_agent``.
+
+    Sets ``conversation.assignee_id`` (None to unassign), saves, fires
+    ``ASSIGNEE_CHANGED`` + ``CONVERSATION_UPDATED``, and inserts the
+    assignee activity row. AgentBot assignment is Phase 8.
+
+    Returns the resolved User instance (or None if unassigned / lookup
+    failed) so the controller can render the agent partial.
+    """
+    from app.domains.users.models import User
+
+    prev_id = conversation.assignee_id
+
+    new_user: "User | None" = None
+    if assignee_id is not None:
+        # Mirror Rails: ``conversation.account.users.find_by(id: assignee_id)``.
+        # Out-of-account users yield None (silently ignored, like Rails).
+        new_user = (
+            await session.exec(
+                select(User)
+                .join(AccountUser, AccountUser.user_id == User.id)
+                .where(
+                    User.id == assignee_id,
+                    AccountUser.account_id == conversation.account_id,
+                )
+            )
+        ).first()
+        if new_user is None:
+            return None
+        conversation.assignee_id = new_user.id
+    else:
+        conversation.assignee_id = None
+    conversation.assignee_agent_bot_id = None  # mirrors Rails' nil-out
+
+    session.add(conversation)
+    await session.flush()
+    await session.refresh(conversation)
+
+    if prev_id != conversation.assignee_id:
+        await dispatcher.dispatch(
+            session, ASSIGNEE_CHANGED, conversation=conversation
+        )
+        await dispatcher.dispatch(
+            session,
+            CONVERSATION_UPDATED,
+            conversation=conversation,
+            changed_attributes={
+                "assignee_id": [prev_id, conversation.assignee_id]
+            },
+        )
+        actor_user = current_user_ctx.get()
+        actor_id = actor_user.id if actor_user is not None else None
+        content = assignee_change_activity_content(
+            user_name=_current_user_name(),
+            assignee_name=new_user.name if new_user is not None else None,
+            self_assigned=_is_self_assign(actor_id, conversation.assignee_id),
+            is_assigned=conversation.assignee_id is not None,
+        )
+        if content:
+            await create_activity_message(
+                session, conversation=conversation, content=content
+            )
+    return new_user
+
+
+async def update_team(
+    session: AsyncSession,
+    *,
+    conversation: Conversation,
+    team_id: int | None,
+) -> "Team | None":
+    """Port of the ``set_team`` branch of ``AssignmentsController#create``.
+
+    Rails resolves ``Current.account.teams.find_by(id: team_id)`` and
+    nil-coerces an unknown id (no error). We mirror that and additionally
+    enforce ``ensure_assignee_is_from_team`` from ``AssignmentHandler``:
+    if the new team's members don't include the current assignee, clear
+    the assignee. (We DO NOT auto-assign from the team — the
+    ``AutoAssignment::AgentAssignmentService`` round-robin lands in 4c.)
+    """
+    from app.domains.teams.models import Team, TeamMember
+
+    prev_team_id = conversation.team_id
+    prev_assignee_id = conversation.assignee_id
+
+    new_team: "Team | None" = None
+    if team_id is not None:
+        new_team = (
+            await session.exec(
+                select(Team).where(
+                    Team.id == team_id,
+                    Team.account_id == conversation.account_id,
+                )
+            )
+        ).first()
+        # Rails: nil team is allowed (find_by returns nil) — the update
+        # then clears team_id. Match that.
+
+    conversation.team_id = new_team.id if new_team is not None else None
+
+    # ensure_assignee_is_from_team — if the assignee isn't a member of
+    # the new team, drop them. Skipped when we're clearing the team.
+    if new_team is not None and conversation.assignee_id is not None:
+        is_member = (
+            await session.exec(
+                select(TeamMember).where(
+                    TeamMember.team_id == new_team.id,
+                    TeamMember.user_id == conversation.assignee_id,
+                )
+            )
+        ).first()
+        if is_member is None:
+            conversation.assignee_id = None
+
+    session.add(conversation)
+    await session.flush()
+    await session.refresh(conversation)
+
+    team_changed = prev_team_id != conversation.team_id
+    assignee_changed = prev_assignee_id != conversation.assignee_id
+
+    if team_changed:
+        await dispatcher.dispatch(
+            session, TEAM_CHANGED, conversation=conversation
+        )
+        await dispatcher.dispatch(
+            session,
+            CONVERSATION_UPDATED,
+            conversation=conversation,
+            changed_attributes={"team_id": [prev_team_id, conversation.team_id]},
+        )
+
+        # Resolve previous-team name (used in the "Unassigned from X"
+        # template) before we leave the function.
+        prev_team_name: str | None = None
+        if prev_team_id is not None:
+            prev_team_obj = (
+                await session.exec(
+                    select(Team).where(Team.id == prev_team_id)
+                )
+            ).first()
+            if prev_team_obj is not None:
+                prev_team_name = prev_team_obj.name
+
+        # If the assignee was kept, look it up so the template can
+        # interpolate ``assignee_name``. (We cleared it above when
+        # team membership broke — leave assignee_name blank in that
+        # case so the "_with_assignee" branch doesn't fire.)
+        assignee_name: str | None = None
+        if (
+            assignee_changed
+            and conversation.assignee_id is not None
+        ):
+            from app.domains.users.models import User as _User
+
+            user = await session.get(_User, conversation.assignee_id)
+            assignee_name = user.name if user is not None else None
+
+        content = team_change_activity_content(
+            user_name=_current_user_name(),
+            new_team_name=new_team.name if new_team is not None else None,
+            previous_team_name=prev_team_name,
+            assignee_name=assignee_name,
+            assignee_changed=assignee_changed,
+        )
+        if content:
+            await create_activity_message(
+                session, conversation=conversation, content=content
+            )
+    return new_team
+
+
+async def update_labels(
+    session: AsyncSession,
+    *,
+    conversation: Conversation,
+    titles: list[str],
+) -> list[str]:
+    """Port of ``Labelable#update_labels`` + ``acts_as_taggable_on`` write.
+
+    Replaces the conversation's label set with ``titles``:
+      * Lower-cases each title (Rails ``before_validation`` on Label).
+      * Auto-creates missing :class:`Label` rows on this account
+        (acts-as-taggable-on creates ``Tag`` rows transparently — we do
+        the same here for labels).
+      * Replaces the rows in ``conversation_labels`` to match the new
+        set.
+      * Updates the denormalised ``cached_label_list`` CSV.
+
+    Fires ``CONVERSATION_UPDATED`` with a ``label_list`` change diff
+    and inserts ``added`` / ``removed`` activity rows (mirrors
+    ``LabelActivityMessageHandler``).
+
+    Returns the canonical (lower-cased, deduped) label list.
+    """
+    from app.domains.conversations.models import ConversationLabel
+    from app.domains.labels.models import Label
+
+    # Normalise input — lower-case + dedupe (preserve first-seen order).
+    seen: set[str] = set()
+    new_titles: list[str] = []
+    for t in titles:
+        if not isinstance(t, str):
+            continue
+        norm = t.strip().lower()
+        if not norm or norm in seen:
+            continue
+        seen.add(norm)
+        new_titles.append(norm)
+
+    prev_titles = _parse_label_csv(conversation.cached_label_list)
+    prev_set = set(prev_titles)
+    next_set = set(new_titles)
+
+    if prev_set == next_set:
+        # No diff — Rails still calls ``update!`` but ``saved_change_to_label_list?``
+        # returns false so no activity / event fires. Mirror that.
+        return new_titles
+
+    # Resolve / create Label rows for ``new_titles``.
+    label_ids: list[int] = []
+    for title in new_titles:
+        existing = (
+            await session.exec(
+                select(Label).where(
+                    Label.title == title,
+                    Label.account_id == conversation.account_id,
+                )
+            )
+        ).first()
+        if existing is None:
+            existing = Label(
+                title=title,
+                account_id=conversation.account_id,
+            )
+            session.add(existing)
+            await session.flush()
+            await session.refresh(existing)
+        assert existing.id is not None
+        label_ids.append(existing.id)
+
+    # Replace the join rows. We could compute deltas but a full sync is
+    # simpler and runs at most ``len(titles)`` deletes + inserts.
+    existing_joins = list(
+        (
+            await session.exec(
+                select(ConversationLabel).where(
+                    ConversationLabel.conversation_id == conversation.id
+                )
+            )
+        ).all()
+    )
+    for join in existing_joins:
+        await session.delete(join)
+    await session.flush()
+
+    for lid in label_ids:
+        session.add(
+            ConversationLabel(
+                conversation_id=conversation.id,
+                label_id=lid,
+            )
+        )
+
+    # Refresh the denormalised CSV cache.
+    conversation.cached_label_list = ",".join(new_titles) if new_titles else None
+    session.add(conversation)
+    await session.flush()
+    await session.refresh(conversation)
+
+    added = [t for t in new_titles if t not in prev_set]
+    removed = [t for t in prev_titles if t not in next_set]
+
+    await dispatcher.dispatch(
+        session,
+        CONVERSATION_UPDATED,
+        conversation=conversation,
+        changed_attributes={"label_list": [prev_titles, new_titles]},
+    )
+
+    user_name = _current_user_name()
+    if added:
+        content = label_change_activity_content(
+            user_name=user_name, change_type="added", labels=added
+        )
+        if content:
+            await create_activity_message(
+                session, conversation=conversation, content=content
+            )
+    if removed:
+        content = label_change_activity_content(
+            user_name=user_name, change_type="removed", labels=removed
+        )
+        if content:
+            await create_activity_message(
+                session, conversation=conversation, content=content
+            )
+    return new_titles
+
+
+async def mute_conversation_with_activity(
+    session: AsyncSession, *, conversation: Conversation
+) -> None:
+    """Port of ``ConversationMuteHelpers#mute!``.
+
+    Resolves the conversation, blocks the contact, and writes the
+    ``muted`` activity row. Was previously inlined in the router (4a)
+    without the activity emission — promoting it here for parity with
+    the Ruby helper.
+    """
+    if conversation.contact is None:
+        return
+    await toggle_status(session, conversation=conversation, status="resolved")
+    conversation.contact.blocked = True
+    session.add(conversation.contact)
+    await session.flush()
+    content = mute_change_activity_content(
+        user_name=_current_user_name(), change_type="muted"
+    )
+    if content:
+        await create_activity_message(
+            session, conversation=conversation, content=content
+        )
+
+
+async def unmute_conversation_with_activity(
+    session: AsyncSession, *, conversation: Conversation
+) -> None:
+    """Port of ``ConversationMuteHelpers#unmute!``."""
+    if conversation.contact is None:
+        return
+    conversation.contact.blocked = False
+    session.add(conversation.contact)
+    await session.flush()
+    content = mute_change_activity_content(
+        user_name=_current_user_name(), change_type="unmuted"
+    )
+    if content:
+        await create_activity_message(
+            session, conversation=conversation, content=content
+        )
 
 
 # =========================================================================
@@ -782,10 +1212,15 @@ __all__ = [
     "bot_handoff",
     "create_conversation",
     "create_message",
+    "mute_conversation_with_activity",
     "reassign_mergee_conversations",
     "soft_delete_message",
     "toggle_priority",
     "toggle_status",
+    "unmute_conversation_with_activity",
+    "update_assignee",
     "update_custom_attributes",
+    "update_labels",
     "update_message_status",
+    "update_team",
 ]

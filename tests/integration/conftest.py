@@ -25,6 +25,27 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import get_settings
 
 
+@pytest.fixture(autouse=True)
+async def _reset_broadcaster_per_test() -> AsyncIterator[None]:
+    """Tear down the realtime broadcaster between tests.
+
+    The :class:`RealtimeBroadcaster` lazily binds a ``redis.asyncio.Redis``
+    client to the event loop active at first publish. ``pytest-asyncio``
+    creates a fresh loop per test, so without this teardown the next
+    test would inherit a Redis client whose underlying writer references
+    the dead loop and crashes with ``RuntimeError: Event loop is closed``.
+
+    The lifespan version of this lives in :func:`app.main.lifespan` and
+    runs only when tests use ``alo_app`` / ``LifespanManager``. The 4a
+    integration suite imports the singleton ``app`` directly and never
+    fires lifespan, hence the explicit reset here.
+    """
+    yield
+    from app.core.realtime import reset_broadcaster
+
+    await reset_broadcaster()
+
+
 @pytest.fixture
 async def db_session() -> AsyncIterator[AsyncSession]:
     """Per-test AsyncSession with auto-rollback.
