@@ -77,6 +77,8 @@ from app.domains.conversations.schemas import (
     ConversationUpdateRequest,
     MessageCreateRequest,
 )
+from app.domains.conversations.filter import conversation_filter
+from app.domains.conversations.finder import conversation_finder
 from app.domains.conversations.service import (
     ConversationBuilderParams,
     MessageBuilderParams,
@@ -275,50 +277,133 @@ async def index_conversations(
     session: Annotated[AsyncSession, Depends(get_session)],
     assignee_type: str | None = Query(None, description="'me' | 'assigned' | 'unassigned'"),
     status_filter: str | None = Query(None, alias="status"),
+    inbox_id: int | None = Query(None),
+    team_id: int | None = Query(None),
+    labels: list[str] | None = Query(None),
+    q: str | None = Query(None),
     page: int = Query(1, ge=1),
 ) -> dict[str, Any]:
-    """``GET /conversations``.
+    """``GET /conversations`` — delegates to :func:`conversation_finder`.
 
-    Phase 4a subset: account-scope + optional ``assignee_type`` /
-    ``status`` filter. The full ``ConversationFinder`` DSL (date ranges,
-    labels, inbox/team filter, q search) lands in Phase 4b.
+    Phase 4b: full ConversationFinder subset (status / assignee_type /
+    inbox_id / team_id / labels / q). Conversation_type, source_id and
+    updated_within remain deferred — see ``finder.py`` docstring.
     """
     assert ctx.account.id is not None
-    filters = [Conversation.account_id == ctx.account.id]
-
-    if status_filter:
-        from app.domains.conversations.models import conversation_status_from_str
-
-        filters.append(Conversation.status == conversation_status_from_str(status_filter))
-    else:
-        # Rails defaults to ``status=open`` when nothing is specified.
-        filters.append(Conversation.status == CONVERSATION_STATUS_OPEN)
-
-    if assignee_type == "me":
-        filters.append(Conversation.assignee_id == ctx.user.id)
-    elif assignee_type == "assigned":
-        filters.append(Conversation.assignee_id.is_not(None))  # type: ignore[attr-defined]
-    elif assignee_type == "unassigned":
-        filters.append(Conversation.assignee_id.is_(None))  # type: ignore[attr-defined]
-
-    offset = (page - 1) * RESULTS_PER_PAGE
-    stmt = (
-        select(Conversation)
-        .where(and_(*filters))
-        .order_by(Conversation.last_activity_at.desc())  # type: ignore[attr-defined]
-        .offset(offset)
-        .limit(RESULTS_PER_PAGE)
-    )
-    conversations = list((await session.exec(stmt)).all())
-
-    counts = await _count_conversations(
+    result = await conversation_finder(
         session,
         account_id=ctx.account.id,
-        user_id=ctx.user.id,  # type: ignore[arg-type]
-        assignee_type=assignee_type,
-        status_str=status_filter,
+        current_user_id=ctx.user.id,  # type: ignore[arg-type]
+        params={
+            "assignee_type": assignee_type,
+            "status": status_filter,
+            "inbox_id": inbox_id,
+            "team_id": team_id,
+            "labels": labels,
+            "q": q,
+        },
+        page=page,
+        per_page=RESULTS_PER_PAGE,
     )
-    return present_conversations_index(conversations, **counts)
+    return present_conversations_index(
+        result["conversations"], **result["count"]
+    )
+
+
+@router.get("/search")
+async def search_conversations(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    q: str = Query(..., description="Free-text search on message content"),
+    assignee_type: str | None = Query(None),
+    page: int = Query(1, ge=1),
+) -> dict[str, Any]:
+    """``GET /conversations/search`` — text search across message content.
+
+    Mirrors ``ConversationsController#search``. Same finder, same wire
+    shape as ``GET /conversations`` — Rails uses identical jbuilders for
+    both. The only behavioural difference is that ``q`` removes the
+    default ``status=open`` filter (search must span every status), which
+    the finder handles internally.
+    """
+    assert ctx.account.id is not None
+    result = await conversation_finder(
+        session,
+        account_id=ctx.account.id,
+        current_user_id=ctx.user.id,  # type: ignore[arg-type]
+        params={"q": q, "assignee_type": assignee_type},
+        page=page,
+        per_page=RESULTS_PER_PAGE,
+    )
+    return _present_filter_or_search(result)
+
+
+@router.post("/filter")
+async def filter_conversations(
+    payload: dict[str, Any],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    page: int = Query(1, ge=1),
+) -> dict[str, Any]:
+    """``POST /conversations/filter`` — custom filter-DSL endpoint.
+
+    Body shape (mirrors ``params[:payload]`` in
+    ``ConversationsController#filter``)::
+
+        {"payload": [
+            {"attribute_key": "status",
+             "filter_operator": "equal_to",
+             "values": ["open"],
+             "query_operator": "AND"},
+            {"attribute_key": "labels",
+             "filter_operator": "equal_to",
+             "values": ["urgent"]}
+        ]}
+
+    The last condition's ``query_operator`` is ignored (no successor to
+    join with). Operator validation lives in
+    :mod:`app.domains.conversations.filter`; bad payloads return 400 with
+    the message envelope ``{"message": "..."}``.
+    """
+    assert ctx.account.id is not None
+    body_payload = payload.get("payload")
+    if not isinstance(body_payload, list):
+        raise ChatwootHTTPException(
+            status_code=400,
+            detail={"message": "payload key required and must be an array"},
+        )
+    result = await conversation_filter(
+        session,
+        account_id=ctx.account.id,
+        current_user_id=ctx.user.id,  # type: ignore[arg-type]
+        payload=body_payload,
+        page=page,
+        per_page=RESULTS_PER_PAGE,
+    )
+    return _present_filter_or_search(result)
+
+
+def _present_filter_or_search(result: dict[str, Any]) -> dict[str, Any]:
+    """Mirror ``filter.json.jbuilder`` / ``search.json.jbuilder``.
+
+    Both endpoints emit ``{meta: {mine, unassigned, all}, payload: [...]}``
+    (one envelope level less than the index endpoint, no ``data`` wrap,
+    no ``assigned_count``). We keep the shape identical to Chatwoot's
+    rendered output.
+    """
+    from app.domains.conversations.presenters import present_conversation
+
+    counts = result["count"]
+    return {
+        "meta": {
+            "mine_count": counts["mine_count"],
+            "unassigned_count": counts["unassigned_count"],
+            "all_count": counts["all_count"],
+        },
+        "payload": [
+            present_conversation(c) for c in result["conversations"]
+        ],
+    }
 
 
 @router.get("/meta")
