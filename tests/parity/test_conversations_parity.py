@@ -151,6 +151,101 @@ async def test_unread_without_auth_matches(alo_client, cw_client):
     assert cw.status_code == 401
 
 
+# ---------------------------------------------------------------------------
+# Phase 4b auth-gates — endpoints added in milestones 4b.3 / 4b.4 / 4b.5.
+# Each pins the unauthenticated 401 envelope so a Rails or FastAPI patch
+# that drifts the gate (e.g. routes to controller before authenticate)
+# fails here loudly.
+# ---------------------------------------------------------------------------
+async def test_assignments_without_auth_matches(alo_client, cw_client):
+    body = {"assignee_id": 1}
+    alo = await alo_client.post(
+        "/api/v1/accounts/1/conversations/1/assignments", json=body
+    )
+    cw = await cw_client.post(
+        "/api/v1/accounts/1/conversations/1/assignments", json=body
+    )
+    assert alo.status_code == 401
+    assert cw.status_code == 401
+
+
+async def test_labels_index_without_auth_matches(alo_client, cw_client):
+    alo = await alo_client.get("/api/v1/accounts/1/conversations/1/labels")
+    cw = await cw_client.get("/api/v1/accounts/1/conversations/1/labels")
+    assert alo.status_code == 401
+    assert cw.status_code == 401
+
+
+async def test_labels_create_without_auth_matches(alo_client, cw_client):
+    body = {"labels": ["urgent"]}
+    alo = await alo_client.post(
+        "/api/v1/accounts/1/conversations/1/labels", json=body
+    )
+    cw = await cw_client.post(
+        "/api/v1/accounts/1/conversations/1/labels", json=body
+    )
+    assert alo.status_code == 401
+    assert cw.status_code == 401
+
+
+async def test_search_without_auth_matches(alo_client, cw_client):
+    alo = await alo_client.get(
+        "/api/v1/accounts/1/conversations/search?q=hello"
+    )
+    cw = await cw_client.get("/api/v1/accounts/1/conversations/search?q=hello")
+    assert alo.status_code == 401
+    assert cw.status_code == 401
+
+
+async def test_filter_without_auth_matches(alo_client, cw_client):
+    body = {
+        "payload": [
+            {
+                "attribute_key": "status",
+                "filter_operator": "equal_to",
+                "values": ["open"],
+            }
+        ]
+    }
+    alo = await alo_client.post("/api/v1/accounts/1/conversations/filter", json=body)
+    cw = await cw_client.post("/api/v1/accounts/1/conversations/filter", json=body)
+    assert alo.status_code == 401
+    assert cw.status_code == 401
+
+
+async def test_toggle_typing_status_without_auth_matches(alo_client, cw_client):
+    body = {"typing_status": "on", "is_private": False}
+    alo = await alo_client.post(
+        "/api/v1/accounts/1/conversations/1/toggle_typing_status", json=body
+    )
+    cw = await cw_client.post(
+        "/api/v1/accounts/1/conversations/1/toggle_typing_status", json=body
+    )
+    assert alo.status_code == 401
+    assert cw.status_code == 401
+
+
+async def test_attachments_index_without_auth_matches(alo_client, cw_client):
+    alo = await alo_client.get(
+        "/api/v1/accounts/1/conversations/1/attachments"
+    )
+    cw = await cw_client.get("/api/v1/accounts/1/conversations/1/attachments")
+    assert alo.status_code == 401
+    assert cw.status_code == 401
+
+
+async def test_messages_update_without_auth_matches(alo_client, cw_client):
+    body = {"status": "delivered"}
+    alo = await alo_client.patch(
+        "/api/v1/accounts/1/conversations/1/messages/1", json=body
+    )
+    cw = await cw_client.patch(
+        "/api/v1/accounts/1/conversations/1/messages/1", json=body
+    )
+    assert alo.status_code == 401
+    assert cw.status_code == 401
+
+
 # Keep the unused import quiet — assert_json_parity is wired for future
 # body-envelope additions when we gain a seeded happy path.
 _ = assert_json_parity

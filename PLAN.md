@@ -64,7 +64,7 @@ AloStudio/
 | 2 | Inboxes + Agents + Teams (API channel only) | ✅ done        | inbox CRUD, member mgmt, team CRUD |
 | 3 | Contacts                       | ✅ done        | identify, merge, custom attrs, search |
 | 4a | Conversations + Messages — core | ✅ done       | CRUD, state machine, merge reassignment, 15 HTTP endpoints |
-| 4b | Conversations + Messages — realtime & dispatch | ⬜ pending | WS pub/sub, ActivityMessageHandler, FilterService DSL |
+| 4b | Conversations + Messages — realtime & dispatch | ✅ done       | /cable WS, activity messages, filter/search, assignments/labels/typing/attachments/messages#update auth-gates |
 | 4c | Conversations + Messages — assignment | ⬜ pending | AutoAssignment round-robin, team-scope guard |
 | 5a | Channel: Website widget       | ⬜ pending     | widget auth, create conv from widget |
 | 5b | Channel: Email (IMAP/SMTP)    | ⬜ pending     | ingest threading, reply-to parse, outbound |
