@@ -31,7 +31,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.errors import ChatwootHTTPException
 from app.domains.contacts.models import Contact, ContactInbox, Note
-from app.domains.inboxes.models import CHANNEL_TYPE_API, Inbox
+from app.domains.inboxes.models import (
+    CHANNEL_TYPE_API,
+    CHANNEL_TYPE_WEB_WIDGET,
+    Inbox,
+)
 
 # E.164 international phone number — mirrors Chatwoot's regex exactly
 # (``/\+[1-9]\d{1,14}\z/``). The Python port uses \Z to anchor at end-of-string
@@ -127,7 +131,10 @@ class ContactInboxBuilder:
         return await self._create_or_find(source_id)
 
     def _generate_source_id(self) -> str:
-        if self.inbox.channel_type == CHANNEL_TYPE_API:
+        if self.inbox.channel_type in (
+            CHANNEL_TYPE_API,
+            CHANNEL_TYPE_WEB_WIDGET,
+        ):
             return str(uuid.uuid4())
         raise NotImplementedError(
             f"ContactInboxBuilder doesn't support channel_type={self.inbox.channel_type!r} yet"
