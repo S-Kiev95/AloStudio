@@ -41,6 +41,31 @@ from app.domains.web_widget.service import (
     build_contact_inbox_with_token,
     valid_hmac,
 )
+from app.domains.conversations.events import (
+    CONVERSATION_TYPING_OFF,
+    CONVERSATION_TYPING_ON,
+    dispatcher,
+)
+from app.domains.conversations.models import (
+    CONVERSATION_STATUS_RESOLVED,
+    CONVERSATION_STATUS_OPEN,
+    Conversation,
+    Message,
+    MESSAGE_TYPE_INCOMING,
+)
+from app.domains.conversations.presenters import (
+    present_conversation,
+    present_message,
+    present_messages_index,
+)
+from app.domains.conversations.service import (
+    ConversationBuilderParams,
+    MessageBuilderParams,
+    create_conversation,
+    create_message,
+)
+from datetime import UTC, datetime
+from sqlmodel import select
 
 router = APIRouter(
     prefix="/api/v1/widget",
@@ -275,6 +300,236 @@ def _should_verify_hmac(ctx: WidgetContext, payload: dict[str, Any]) -> bool:
     ):
         return False
     return True
+
+
+# ===========================================================================
+# Conversations + messages (5a.3)
+# ===========================================================================
+async def _last_conversation_for(
+    session: AsyncSession, ctx: WidgetContext
+) -> Conversation | None:
+    """Mirror ``Api::V1::Widget::BaseController#conversation``.
+
+    Picks the most recent conversation linked to either the
+    contact_inbox (when not HMAC-verified) or any verified
+    contact_inbox of the same contact (when HMAC-verified). The
+    HMAC-verified branch matters for cross-device session resume.
+    """
+    assert ctx.contact_inbox is not None
+    assert ctx.inbox.id is not None
+    if ctx.contact_inbox.hmac_verified:
+        # All verified contact_inboxes for this contact + inbox.
+        from app.domains.contacts.models import ContactInbox as _CI
+
+        verified_ids_stmt = select(_CI.id).where(
+            _CI.contact_id == ctx.contact_inbox.contact_id,
+            _CI.inbox_id == ctx.inbox.id,
+            _CI.hmac_verified.is_(True),  # type: ignore[union-attr]
+        )
+        stmt = (
+            select(Conversation)
+            .where(Conversation.contact_inbox_id.in_(verified_ids_stmt))  # type: ignore[attr-defined]
+            .order_by(Conversation.id.desc())  # type: ignore[attr-defined]
+            .limit(1)
+        )
+    else:
+        stmt = (
+            select(Conversation)
+            .where(
+                Conversation.contact_inbox_id == ctx.contact_inbox.id,
+                Conversation.inbox_id == ctx.inbox.id,
+            )
+            .order_by(Conversation.id.desc())  # type: ignore[attr-defined]
+            .limit(1)
+        )
+    return (await session.exec(stmt)).first()
+
+
+@router.get("/conversations")
+async def widget_conversation_index(
+    ctx: Annotated[WidgetContext, Depends(widget_context_required)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any] | None:
+    """Mirror ``Api::V1::Widget::ConversationsController#index``.
+
+    Returns the most recent conversation in the verified set (or null
+    when the visitor has none). The Rails action sets ``@conversation``
+    + renders the partial, which produces ``null`` when nil.
+    """
+    conv = await _last_conversation_for(session, ctx)
+    if conv is None:
+        return None
+    return present_conversation(conv)
+
+
+@router.get("/messages")
+async def widget_messages_index(
+    ctx: Annotated[WidgetContext, Depends(widget_context_required)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    before: int | None = Query(None, description="Message id cursor"),
+) -> dict[str, Any]:
+    """Mirror ``Api::V1::Widget::MessagesController#index``.
+
+    Filters internal (private) messages — the widget never shows them.
+    Returns ``[]`` when the visitor has no conversation yet (Rails
+    short-circuits with ``conversation.nil? ? [] : ...``).
+    """
+    conv = await _last_conversation_for(session, ctx)
+    if conv is None:
+        return {"meta": {}, "payload": []}
+
+    stmt = select(Message).where(
+        Message.conversation_id == conv.id,
+        Message.private.is_(False),  # type: ignore[union-attr]
+    )
+    if before is not None:
+        stmt = stmt.where(Message.id < before)  # type: ignore[operator]
+    stmt = stmt.order_by(Message.id.desc()).limit(20)  # type: ignore[attr-defined]
+    rows = list((await session.exec(stmt)).all())
+    rows.reverse()  # oldest first, matches MessageFinder
+    return present_messages_index(rows, conversation=conv)
+
+
+@router.post("/messages")
+async def widget_messages_create(
+    payload: dict[str, Any],
+    ctx: Annotated[WidgetContext, Depends(widget_context_required)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Mirror ``Api::V1::Widget::MessagesController#create``.
+
+    Auto-creates a Conversation (via ConversationBuilder) when the
+    visitor has none yet, then writes the incoming message. The reply
+    is the message push-event shape used elsewhere.
+
+    Permitted payload (Rails):
+      ``{message: {content, referer_url, timestamp, echo_id, reply_to},
+         contact: {name, email}, custom_attributes: {}, labels: []}``
+    """
+    assert ctx.contact is not None and ctx.contact_inbox is not None
+
+    msg_in = payload.get("message") or {}
+    if not isinstance(msg_in, dict):
+        raise ChatwootHTTPException(
+            status_code=422, detail={"message": "message: invalid payload"}
+        )
+
+    content = msg_in.get("content")
+    echo_id = msg_in.get("echo_id")
+    referer = msg_in.get("referer_url")
+    reply_to = msg_in.get("reply_to")
+
+    conv = await _last_conversation_for(session, ctx)
+    if conv is None:
+        # Mirror ``set_conversation`` -> ``create_conversation`` —
+        # wraps additional_attributes + custom_attributes + initial labels.
+        additional: dict[str, Any] = {}
+        if referer:
+            additional["referer"] = referer
+        custom = (
+            payload.get("custom_attributes")
+            if isinstance(payload.get("custom_attributes"), dict)
+            else {}
+        )
+        conv = await create_conversation(
+            session,
+            contact_inbox=ctx.contact_inbox,
+            params=ConversationBuilderParams(
+                additional_attributes=additional or None,
+                custom_attributes=custom or None,
+            ),
+        )
+
+    content_attrs: dict[str, Any] = {}
+    if reply_to is not None:
+        content_attrs["in_reply_to"] = reply_to
+
+    # ``create_message`` expects ``user_id`` for outgoing — for the
+    # widget the sender is the contact, so we pass ``user_id=None`` and
+    # message_type=incoming. ``_resolve_sender`` handles the contact
+    # branch automatically.
+    msg = await create_message(
+        session,
+        conversation=conv,
+        params=MessageBuilderParams(
+            content=content,
+            message_type="incoming",
+            content_attributes=content_attrs or None,
+            echo_id=echo_id,
+        ),
+        user_id=None,
+    )
+    return present_message(msg, echo_id=echo_id)
+
+
+@router.post("/conversations/update_last_seen")
+async def widget_update_last_seen(
+    ctx: Annotated[WidgetContext, Depends(widget_context_required)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Mirror ``Api::V1::Widget::ConversationsController#update_last_seen``."""
+    conv = await _last_conversation_for(session, ctx)
+    if conv is None:
+        return {"status": "ok"}
+    conv.contact_last_seen_at = datetime.now(UTC)
+    session.add(conv)
+    await session.flush()
+    return {"status": "ok"}
+
+
+@router.post("/conversations/toggle_typing")
+async def widget_toggle_typing(
+    payload: dict[str, Any],
+    ctx: Annotated[WidgetContext, Depends(widget_context_required)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Mirror ``Api::V1::Widget::ConversationsController#toggle_typing``."""
+    conv = await _last_conversation_for(session, ctx)
+    if conv is None:
+        return {"status": "ok"}
+
+    typing_status = payload.get("typing_status")
+    if typing_status == "on":
+        await dispatcher.dispatch(
+            session,
+            CONVERSATION_TYPING_ON,
+            conversation=conv,
+            user=ctx.contact,
+        )
+    elif typing_status == "off":
+        await dispatcher.dispatch(
+            session,
+            CONVERSATION_TYPING_OFF,
+            conversation=conv,
+            user=ctx.contact,
+        )
+    return {"status": "ok"}
+
+
+@router.post("/conversations/toggle_status")
+async def widget_toggle_status(
+    ctx: Annotated[WidgetContext, Depends(widget_context_required)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Mirror ``Api::V1::Widget::ConversationsController#toggle_status``.
+
+    403 when the widget has ``end_conversation`` disabled (Rails:
+    ``return head :forbidden unless @web_widget.end_conversation?``).
+    Resolves the conversation otherwise.
+    """
+    if not ctx.web_widget.end_conversation:
+        raise ChatwootHTTPException(
+            status_code=403,
+            detail={"error": "End conversation is not enabled for this widget"},
+        )
+    conv = await _last_conversation_for(session, ctx)
+    if conv is None:
+        return {"status": "ok"}
+    if conv.status != CONVERSATION_STATUS_RESOLVED:
+        conv.status = CONVERSATION_STATUS_RESOLVED
+        session.add(conv)
+        await session.flush()
+    return {"status": "ok"}
 
 
 __all__ = ["router"]

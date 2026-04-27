@@ -97,7 +97,11 @@ from app.domains.conversations.models import (
     message_status_from_str,
     message_type_from_str,
 )
-from app.domains.inboxes.models import CHANNEL_TYPE_API, Inbox
+from app.domains.inboxes.models import (
+    CHANNEL_TYPE_API,
+    CHANNEL_TYPE_WEB_WIDGET,
+    Inbox,
+)
 from app.domains.users.models import AccountUser
 
 # Rails' ``Limits.conversation_message_per_minute_limit`` — Chatwoot sets
@@ -825,9 +829,18 @@ def _validate_message_type_for_inbox(
 
     Rails raises ``StandardError`` directly, the controller converts to
     422. Skip straight to 422 here.
+
+    The Rails validation only allows ``incoming`` from the agent-side
+    MessageBuilder when the inbox is ``Channel::Api``. The widget, SMS,
+    WhatsApp etc. controllers BYPASS MessageBuilder entirely (they call
+    ``conversation.messages.new(...)`` directly) — but our service
+    layer is shared, so we extend the allow-list to channels that
+    legitimately receive incoming messages from contacts via our own
+    code paths. Web_widget joins the list as of 5a.3.
     """
+    incoming_capable = {CHANNEL_TYPE_API, CHANNEL_TYPE_WEB_WIDGET}
     if (
-        inbox.channel_type != CHANNEL_TYPE_API
+        inbox.channel_type not in incoming_capable
         and message_type_str == "incoming"
     ):
         raise ChatwootHTTPException(
