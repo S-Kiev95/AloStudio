@@ -35,6 +35,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -64,6 +65,50 @@ _SENDER_NAME_STR_TO_INT: dict[str, int] = {v: k for k, v in _SENDER_NAME_INT_TO_
 # ``'Channel::Email'``, …). We keep the Ruby spelling so a side-by-side DB
 # dump against Chatwoot lines up identically.
 CHANNEL_TYPE_API = "Channel::Api"
+CHANNEL_TYPE_WEB_WIDGET = "Channel::WebWidget"
+
+
+# Default ``pre_chat_form_options`` JSON Chatwoot writes when a fresh
+# ``Channel::WebWidget`` row is created without explicit options. Kept
+# here (not on :class:`WebWidget` directly) so the InboxBuilder can
+# inject it without instantiating the SQLModel.
+WEB_WIDGET_DEFAULT_PRE_CHAT_FORM_OPTIONS: dict[str, Any] = {
+    "pre_chat_message": "Share your queries or comments here.",
+    "pre_chat_fields": [
+        {
+            "field_type": "standard",
+            "label": "Email Id",
+            "name": "emailAddress",
+            "type": "email",
+            "required": True,
+            "enabled": False,
+        },
+        {
+            "field_type": "standard",
+            "label": "Full name",
+            "name": "fullName",
+            "type": "text",
+            "required": False,
+            "enabled": False,
+        },
+        {
+            "field_type": "standard",
+            "label": "Phone number",
+            "name": "phoneNumber",
+            "type": "text",
+            "required": False,
+            "enabled": False,
+        },
+    ],
+}
+
+# ``feature_flags`` default — Chatwoot's FlagShihTzu maps
+# attachments=1, emoji_picker=2, end_conversation=3 -> default 7
+# (1+2+4 = first three flags on).
+WEB_WIDGET_DEFAULT_FEATURE_FLAGS = 7
+
+# ``widget_color`` default Chatwoot ships.
+WEB_WIDGET_DEFAULT_COLOR = "#1f93ff"
 
 
 def sender_name_type_to_str(value: int) -> str:
@@ -132,6 +177,144 @@ class ApiChannel(TimestampMixin, table=True):
         default_factory=dict,
         sa_column=Column(JSONB, nullable=True, server_default="{}"),
     )
+
+
+# =========================================================================
+# WebWidget (Channel::WebWidget)
+# =========================================================================
+class WebWidget(TimestampMixin, table=True):
+    """Concrete channel for ``Channel::WebWidget`` — the embedded
+    JS chat widget.
+
+    Schema mirrors ``channel_web_widgets`` from Chatwoot v4.13.0:
+    ``website_token`` is a per-inbox public id surfaced to the JS SDK,
+    ``hmac_token`` is the symmetric secret used by ``Contacts#set_user``
+    HMAC validation, and ``feature_flags`` is a bitmask (FlagShihTzu)
+    encoding attachments / emoji_picker / end_conversation /
+    use_inbox_avatar_for_bot / allow_mobile_webview.
+
+    The Rails model exposes booleans via FlagShihTzu's ``has_flags``;
+    we expose them as Python properties + helpers (see
+    :meth:`feature_flag` / :meth:`set_feature_flag`).
+    """
+
+    __tablename__ = "channel_web_widgets"
+    __table_args__ = (
+        Index(
+            "index_channel_web_widgets_on_website_token",
+            "website_token",
+            unique=True,
+        ),
+        Index(
+            "index_channel_web_widgets_on_hmac_token",
+            "hmac_token",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            Integer,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+    )
+
+    website_url: str = Field(sa_column=Column(String, nullable=False))
+    widget_color: str = Field(
+        default=WEB_WIDGET_DEFAULT_COLOR,
+        sa_column=Column(
+            String, nullable=False, server_default=WEB_WIDGET_DEFAULT_COLOR
+        ),
+    )
+    welcome_title: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    welcome_tagline: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+
+    # Rails ``has_secure_token :website_token`` / ``:hmac_token`` —
+    # auto-generated on insert. We mint Base58 strings here for parity
+    # with the rest of our token surface; Chatwoot uses URL-safe Base64
+    # via ``has_secure_token``, but the column is opaque.
+    website_token: str = Field(
+        default_factory=lambda: base58_token(24),
+        sa_column=Column(String, nullable=False),
+    )
+    hmac_token: str = Field(
+        default_factory=lambda: base58_token(24),
+        sa_column=Column(String, nullable=False),
+    )
+
+    hmac_mandatory: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=True, server_default="false"),
+    )
+    pre_chat_form_enabled: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=True, server_default="false"),
+    )
+    pre_chat_form_options: dict[str, Any] = Field(
+        default_factory=lambda: dict(WEB_WIDGET_DEFAULT_PRE_CHAT_FORM_OPTIONS),
+        sa_column=Column(JSONB, nullable=True),
+    )
+    continuity_via_email: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=False, server_default="true"),
+    )
+    feature_flags: int = Field(
+        default=WEB_WIDGET_DEFAULT_FEATURE_FLAGS,
+        sa_column=Column(
+            Integer,
+            nullable=False,
+            server_default=str(WEB_WIDGET_DEFAULT_FEATURE_FLAGS),
+        ),
+    )
+    reply_time: int = Field(
+        default=0,
+        sa_column=Column(Integer, nullable=True, server_default="0"),
+    )
+    allowed_domains: str | None = Field(
+        default="",
+        sa_column=Column(Text, nullable=True, server_default=""),
+    )
+
+    # FlagShihTzu bit positions (1-indexed, matching the Ruby ``has_flags``).
+    _FLAG_ATTACHMENTS = 1
+    _FLAG_EMOJI_PICKER = 2
+    _FLAG_END_CONVERSATION = 3
+    _FLAG_USE_INBOX_AVATAR_FOR_BOT = 4
+    _FLAG_ALLOW_MOBILE_WEBVIEW = 5
+
+    def feature_flag(self, position: int) -> bool:
+        """Read flag at 1-indexed bit position (mirrors FlagShihTzu)."""
+        return bool(self.feature_flags & (1 << (position - 1)))
+
+    @property
+    def attachments(self) -> bool:
+        return self.feature_flag(self._FLAG_ATTACHMENTS)
+
+    @property
+    def emoji_picker(self) -> bool:
+        return self.feature_flag(self._FLAG_EMOJI_PICKER)
+
+    @property
+    def end_conversation(self) -> bool:
+        return self.feature_flag(self._FLAG_END_CONVERSATION)
+
+    @property
+    def use_inbox_avatar_for_bot(self) -> bool:
+        return self.feature_flag(self._FLAG_USE_INBOX_AVATAR_FOR_BOT)
+
+    @property
+    def allow_mobile_webview(self) -> bool:
+        return self.feature_flag(self._FLAG_ALLOW_MOBILE_WEBVIEW)
 
 
 # =========================================================================
@@ -310,11 +493,16 @@ class InboxMember(TimestampMixin, table=True):
 
 __all__ = [
     "CHANNEL_TYPE_API",
+    "CHANNEL_TYPE_WEB_WIDGET",
     "INBOX_SENDER_NAME_FRIENDLY",
     "INBOX_SENDER_NAME_PROFESSIONAL",
+    "WEB_WIDGET_DEFAULT_COLOR",
+    "WEB_WIDGET_DEFAULT_FEATURE_FLAGS",
+    "WEB_WIDGET_DEFAULT_PRE_CHAT_FORM_OPTIONS",
     "ApiChannel",
     "Inbox",
     "InboxMember",
+    "WebWidget",
     "sender_name_type_from_str",
     "sender_name_type_to_str",
 ]

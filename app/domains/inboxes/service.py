@@ -33,9 +33,13 @@ from app.core.tokens import base58_token
 from app.domains.accounts.models import Account
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
+    CHANNEL_TYPE_WEB_WIDGET,
+    WEB_WIDGET_DEFAULT_COLOR,
+    WEB_WIDGET_DEFAULT_PRE_CHAT_FORM_OPTIONS,
     ApiChannel,
     Inbox,
     InboxMember,
+    WebWidget,
     sender_name_type_from_str,
 )
 
@@ -49,6 +53,7 @@ from app.domains.inboxes.models import (
 # name so inbox.channel_type lands on ``'Channel::Api'`` (exact parity).
 _CHANNEL_REGISTRY: dict[str, str] = {
     "api": CHANNEL_TYPE_API,
+    "web_widget": CHANNEL_TYPE_WEB_WIDGET,
 }
 
 
@@ -99,7 +104,7 @@ class InboxBuilderParams:
 @dataclass(slots=True)
 class InboxBuilderResult:
     inbox: Inbox
-    channel: ApiChannel
+    channel: ApiChannel | WebWidget
 
 
 class InboxBuilder:
@@ -144,7 +149,7 @@ class InboxBuilder:
         return InboxBuilderResult(inbox=inbox, channel=channel)
 
     # ---------------------------- internals ----------------------------
-    async def _build_channel(self) -> ApiChannel:
+    async def _build_channel(self) -> ApiChannel | WebWidget:
         assert self._params.account.id is not None
         if self._params.channel_type == "api":
             channel = ApiChannel(
@@ -159,14 +164,50 @@ class InboxBuilder:
             await self._session.flush()  # populate channel.id for the inbox row
             await self._session.refresh(channel)
             return channel
+        if self._params.channel_type == "web_widget":
+            params = self._params.channel_params
+            website_url = params.get("website_url")
+            if not website_url:
+                # Mirrors Rails ``validates :website_url, presence: true``.
+                raise ChatwootHTTPException(
+                    status_code=422,
+                    detail={
+                        "message": "Validation failed",
+                        "attributes": ["website_url"],
+                    },
+                )
+            web_widget = WebWidget(
+                account_id=self._params.account.id,
+                website_url=website_url,
+                widget_color=params.get(
+                    "widget_color", WEB_WIDGET_DEFAULT_COLOR
+                ),
+                welcome_title=params.get("welcome_title"),
+                welcome_tagline=params.get("welcome_tagline"),
+                hmac_mandatory=bool(params.get("hmac_mandatory", False)),
+                pre_chat_form_enabled=bool(
+                    params.get("pre_chat_form_enabled", False)
+                ),
+                pre_chat_form_options=(
+                    params.get("pre_chat_form_options")
+                    or dict(WEB_WIDGET_DEFAULT_PRE_CHAT_FORM_OPTIONS)
+                ),
+                continuity_via_email=bool(
+                    params.get("continuity_via_email", True)
+                ),
+                allowed_domains=params.get("allowed_domains") or "",
+            )
+            self._session.add(web_widget)
+            await self._session.flush()
+            await self._session.refresh(web_widget)
+            return web_widget
         # Unreachable because perform() gates on _allowed_channel_types().
-        # Defensive: keep the exception class-consistent for typing.
         raise ChatwootHTTPException(
             status_code=422,
             detail={"message": f"Unsupported channel type: {self._params.channel_type!r}"},
         )
 
-    def _build_inbox(self, channel: ApiChannel) -> Inbox:
+    def _build_inbox(self, channel: ApiChannel | WebWidget) -> Inbox:
         p = self._params
         assert p.account.id is not None and channel.id is not None
         data: dict[str, Any] = {
