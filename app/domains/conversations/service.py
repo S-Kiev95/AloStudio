@@ -218,6 +218,13 @@ async def create_conversation(
     await session.refresh(conv)
 
     await dispatcher.dispatch(session, CONVERSATION_CREATED, conversation=conv)
+    # Mirror Rails' ``after_save :run_auto_assignment`` — skipped when
+    # the builder set an assignee explicitly (the handler's
+    # ``should_run_auto_assignment?`` guard catches that internally,
+    # but we keep the call site readable).
+    from app.domains.conversations.auto_assignment import maybe_run_auto_assignment
+
+    await maybe_run_auto_assignment(session, conversation=conv)
     return conv
 
 
@@ -306,6 +313,19 @@ async def toggle_status(
         if content:
             await create_activity_message(
                 session, conversation=conversation, content=content
+            )
+
+        # When the conversation re-opens, re-run auto-assignment if the
+        # current assignee is no longer a member of the inbox (matches
+        # the v1 ``run_auto_assignment`` guard ``assignee.blank? ||
+        # inbox.members.exclude?(assignee)``).
+        if new_status == CONVERSATION_STATUS_OPEN:
+            from app.domains.conversations.auto_assignment import (
+                maybe_run_auto_assignment,
+            )
+
+            await maybe_run_auto_assignment(
+                session, conversation=conversation
             )
     return conversation
 
@@ -571,6 +591,15 @@ async def update_team(
             await create_activity_message(
                 session, conversation=conversation, content=content
             )
+
+        # Mirror ``after_save :run_auto_assignment`` — when team membership
+        # cleared the assignee (or the conversation never had one), pick
+        # a fresh agent from the team∩inbox intersection.
+        from app.domains.conversations.auto_assignment import (
+            maybe_run_auto_assignment,
+        )
+
+        await maybe_run_auto_assignment(session, conversation=conversation)
     return new_team
 
 
