@@ -66,7 +66,7 @@ AloStudio/
 | 4a | Conversations + Messages — core | ✅ done       | CRUD, state machine, merge reassignment, 15 HTTP endpoints |
 | 4b | Conversations + Messages — realtime & dispatch | ✅ done       | /cable WS, activity messages, filter/search, assignments/labels/typing/attachments/messages#update auth-gates |
 | 4c | Conversations + Messages — assignment | ✅ done       | PermissionFilterService scope, round-robin auto-assignment, team-scope guard |
-| 5a | Channel: Website widget       | ⬜ pending     | widget auth, create conv from widget |
+| 5a | Channel: Website widget       | ✅ done       | widget JWT auth + HMAC, config + contact + conversation + message endpoints, parity 404 envelopes |
 | 5b | Channel: Email (IMAP/SMTP)    | ⬜ pending     | ingest threading, reply-to parse, outbound |
 | 5c | Channel: WhatsApp Cloud/360/Twilio | ⬜ pending | webhook ingest, outbound template |
 | 5d | Channel: Facebook Messenger   | ⬜ pending     | webhook ingest, outbound |
