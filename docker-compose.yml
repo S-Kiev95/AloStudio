@@ -51,6 +51,31 @@ services:
       - "127.0.0.1:1025:1025"   # SMTP
       - "127.0.0.1:8025:8025"   # Web UI
 
+  # Fake IMAP+SMTP server backing the Phase 5b Email-channel test suite.
+  # The HTTP control API on 8081 lets tests seed inboxes / assert sent
+  # mails without running a real Postfix+Dovecot. Greenmail accepts any
+  # user/password combination, so test fixtures don't need to set up
+  # accounts ahead of time.
+  greenmail:
+    image: greenmail/standalone:2.1.4
+    container_name: alostudio-greenmail
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3025:3025"   # SMTP
+      - "127.0.0.1:3110:3110"   # POP3
+      - "127.0.0.1:3143:3143"   # IMAP
+      - "127.0.0.1:3465:3465"   # SMTPS
+      - "127.0.0.1:3993:3993"   # IMAPS
+      - "127.0.0.1:3587:3587"   # SMTP (submission, STARTTLS)
+      - "127.0.0.1:8081:8080"   # HTTP control API
+    environment:
+      # ``setup.test.all`` enables every protocol on the standard
+      # Greenmail test ports. ``hostname=0.0.0.0`` binds inside the
+      # container (host-port mapping exposes them to the test runner).
+      # ``auth.disabled`` accepts any user/password pair so tests skip
+      # the seed-the-account step.
+      GREENMAIL_OPTS: "-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled"
+
   minio:
     image: minio/minio:latest
     container_name: alostudio-minio

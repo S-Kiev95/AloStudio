@@ -33,10 +33,12 @@ from app.core.tokens import base58_token
 from app.domains.accounts.models import Account
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
+    CHANNEL_TYPE_EMAIL,
     CHANNEL_TYPE_WEB_WIDGET,
     WEB_WIDGET_DEFAULT_COLOR,
     WEB_WIDGET_DEFAULT_PRE_CHAT_FORM_OPTIONS,
     ApiChannel,
+    EmailChannel,
     Inbox,
     InboxMember,
     WebWidget,
@@ -53,6 +55,7 @@ from app.domains.inboxes.models import (
 # name so inbox.channel_type lands on ``'Channel::Api'`` (exact parity).
 _CHANNEL_REGISTRY: dict[str, str] = {
     "api": CHANNEL_TYPE_API,
+    "email": CHANNEL_TYPE_EMAIL,
     "web_widget": CHANNEL_TYPE_WEB_WIDGET,
 }
 
@@ -104,7 +107,7 @@ class InboxBuilderParams:
 @dataclass(slots=True)
 class InboxBuilderResult:
     inbox: Inbox
-    channel: ApiChannel | WebWidget
+    channel: ApiChannel | WebWidget | EmailChannel
 
 
 class InboxBuilder:
@@ -149,7 +152,7 @@ class InboxBuilder:
         return InboxBuilderResult(inbox=inbox, channel=channel)
 
     # ---------------------------- internals ----------------------------
-    async def _build_channel(self) -> ApiChannel | WebWidget:
+    async def _build_channel(self) -> ApiChannel | WebWidget | EmailChannel:
         assert self._params.account.id is not None
         if self._params.channel_type == "api":
             channel = ApiChannel(
@@ -201,13 +204,118 @@ class InboxBuilder:
             await self._session.flush()
             await self._session.refresh(web_widget)
             return web_widget
+        if self._params.channel_type == "email":
+            channel = await self._build_email_channel()
+            return channel
         # Unreachable because perform() gates on _allowed_channel_types().
         raise ChatwootHTTPException(
             status_code=422,
             detail={"message": f"Unsupported channel type: {self._params.channel_type!r}"},
         )
 
-    def _build_inbox(self, channel: ApiChannel | WebWidget) -> Inbox:
+    async def _build_email_channel(self) -> EmailChannel:
+        """Validate + persist a fresh ``Channel::Email`` row.
+
+        Validates ``email`` is present (Rails: ``validates :email,
+        presence: true``). When IMAP or SMTP is enabled, requires the
+        host triplet (address + port + login) so we can't ship a
+        broken inbox. ``forward_to_email`` falls back to a generated
+        ``<random>@inbound.local`` token because Phase 5b doesn't
+        wire SES/SendGrid inbound webhooks yet — the column has a
+        UNIQUE constraint and Rails generates the same kind of
+        placeholder.
+        """
+        params = self._params.channel_params
+        assert self._params.account.id is not None
+        email = params.get("email")
+        if not email:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Validation failed",
+                    "attributes": ["email"],
+                },
+            )
+
+        imap_enabled = bool(params.get("imap_enabled", False))
+        smtp_enabled = bool(params.get("smtp_enabled", False))
+        if imap_enabled:
+            for required in ("imap_address", "imap_port", "imap_login"):
+                if not params.get(required):
+                    raise ChatwootHTTPException(
+                        status_code=422,
+                        detail={
+                            "message": "Validation failed",
+                            "attributes": [required],
+                        },
+                    )
+        if smtp_enabled:
+            for required in ("smtp_address", "smtp_port", "smtp_login"):
+                if not params.get(required):
+                    raise ChatwootHTTPException(
+                        status_code=422,
+                        detail={
+                            "message": "Validation failed",
+                            "attributes": [required],
+                        },
+                    )
+
+        forward_to = params.get("forward_to_email") or (
+            f"{base58_token(16)}@inbound.local"
+        )
+
+        ch = EmailChannel(
+            account_id=self._params.account.id,
+            email=str(email).lower(),
+            forward_to_email=forward_to,
+            imap_enabled=imap_enabled,
+            imap_address=str(params.get("imap_address") or ""),
+            imap_port=int(params.get("imap_port") or 0),
+            imap_login=str(params.get("imap_login") or ""),
+            imap_password=str(params.get("imap_password") or ""),
+            imap_enable_ssl=bool(params.get("imap_enable_ssl", True)),
+            smtp_enabled=smtp_enabled,
+            smtp_address=str(params.get("smtp_address") or ""),
+            smtp_port=int(params.get("smtp_port") or 0),
+            smtp_login=str(params.get("smtp_login") or ""),
+            smtp_password=str(params.get("smtp_password") or ""),
+            smtp_domain=str(params.get("smtp_domain") or ""),
+            smtp_authentication=str(
+                params.get("smtp_authentication") or "login"
+            ),
+            smtp_enable_ssl_tls=bool(params.get("smtp_enable_ssl_tls", False)),
+            smtp_enable_starttls_auto=bool(
+                params.get("smtp_enable_starttls_auto", True)
+            ),
+            smtp_openssl_verify_mode=str(
+                params.get("smtp_openssl_verify_mode") or "none"
+            ),
+            verified_for_sending=False,
+        )
+        self._session.add(ch)
+        try:
+            await self._session.flush()
+        except Exception as exc:  # noqa: BLE001
+            # Surface UNIQUE-violation on email / forward_to_email as a
+            # clean 422; everything else re-raises.
+            from sqlalchemy.exc import IntegrityError
+
+            if isinstance(exc, IntegrityError):
+                await self._session.rollback()
+                raise ChatwootHTTPException(
+                    status_code=422,
+                    detail={
+                        "message": "Email is already taken",
+                        "attributes": ["email"],
+                    },
+                ) from exc
+            raise
+        await self._session.refresh(ch)
+        return ch
+
+    def _build_inbox(
+        self, channel: ApiChannel | WebWidget | EmailChannel
+    ) -> Inbox:
         p = self._params
         assert p.account.id is not None and channel.id is not None
         data: dict[str, Any] = {

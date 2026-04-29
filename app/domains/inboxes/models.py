@@ -65,6 +65,7 @@ _SENDER_NAME_STR_TO_INT: dict[str, int] = {v: k for k, v in _SENDER_NAME_INT_TO_
 # ``'Channel::Email'``, …). We keep the Ruby spelling so a side-by-side DB
 # dump against Chatwoot lines up identically.
 CHANNEL_TYPE_API = "Channel::Api"
+CHANNEL_TYPE_EMAIL = "Channel::Email"
 CHANNEL_TYPE_WEB_WIDGET = "Channel::WebWidget"
 
 
@@ -318,6 +319,133 @@ class WebWidget(TimestampMixin, table=True):
 
 
 # =========================================================================
+# EmailChannel (Channel::Email)
+# =========================================================================
+class EmailChannel(TimestampMixin, table=True):
+    """Concrete channel for ``Channel::Email``.
+
+    Schema mirrors ``channel_email`` from Chatwoot v4.13.0 — IMAP
+    inbound + SMTP outbound, both gated by per-side ``*_enabled``
+    flags so an inbox can be in send-only or receive-only mode.
+
+    The ``provider`` + ``provider_config`` fields ship empty in 5b
+    — they're the OAuth2 surface (Gmail / Microsoft Entra) which
+    lands with Phase 9 alongside the other OAuth integrations. The
+    columns are present so the schema is forward-compatible: enabling
+    OAuth then is a service-layer change, not a migration.
+
+    Password fields:
+      Rails encrypts ``imap_password`` + ``smtp_password`` via the
+      ``encrypts`` macro when ``Chatwoot.encryption_configured?``.
+      Our port leaves them as plain ``String`` for 5b — Phase 10
+      hardening adds at-rest encryption (libsodium / fernet keyed
+      off ``settings.secret_key``) once a deployment matters.
+    """
+
+    __tablename__ = "channel_email"
+    __table_args__ = (
+        Index("index_channel_email_on_email", "email", unique=True),
+        Index(
+            "index_channel_email_on_forward_to_email",
+            "forward_to_email",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+
+    # Public address customers send mail TO.
+    email: str = Field(sa_column=Column(String, nullable=False))
+    # Internal address generated for catch-all / fallback ingest. We
+    # set this at create-time to ``<random>@<account_domain>`` until
+    # the inbound webhook story (Phase 8b) gives it a real meaning.
+    forward_to_email: str = Field(sa_column=Column(String, nullable=False))
+
+    # IMAP inbound -----------------------------------------------------
+    imap_enabled: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=True, server_default="false"),
+    )
+    imap_address: str = Field(
+        default="", sa_column=Column(String, nullable=True, server_default="")
+    )
+    imap_port: int = Field(
+        default=0, sa_column=Column(Integer, nullable=True, server_default="0")
+    )
+    imap_login: str = Field(
+        default="", sa_column=Column(String, nullable=True, server_default="")
+    )
+    imap_password: str = Field(
+        default="", sa_column=Column(String, nullable=True, server_default="")
+    )
+    imap_enable_ssl: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=True, server_default="true"),
+    )
+
+    # SMTP outbound ----------------------------------------------------
+    smtp_enabled: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=True, server_default="false"),
+    )
+    smtp_address: str = Field(
+        default="", sa_column=Column(String, nullable=True, server_default="")
+    )
+    smtp_port: int = Field(
+        default=0, sa_column=Column(Integer, nullable=True, server_default="0")
+    )
+    smtp_login: str = Field(
+        default="", sa_column=Column(String, nullable=True, server_default="")
+    )
+    smtp_password: str = Field(
+        default="", sa_column=Column(String, nullable=True, server_default="")
+    )
+    smtp_domain: str = Field(
+        default="", sa_column=Column(String, nullable=True, server_default="")
+    )
+    smtp_authentication: str = Field(
+        default="login",
+        sa_column=Column(String, nullable=True, server_default="login"),
+    )
+    smtp_enable_ssl_tls: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=True, server_default="false"),
+    )
+    smtp_enable_starttls_auto: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=True, server_default="true"),
+    )
+    smtp_openssl_verify_mode: str = Field(
+        default="none",
+        sa_column=Column(String, nullable=True, server_default="none"),
+    )
+
+    verified_for_sending: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="false"),
+    )
+
+    # OAuth surface (Phase 9 — empty in 5b) ---------------------------
+    provider: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    provider_config: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=True),
+    )
+
+
+# =========================================================================
 # Inbox
 # =========================================================================
 class Inbox(TimestampMixin, table=True):
@@ -493,6 +621,7 @@ class InboxMember(TimestampMixin, table=True):
 
 __all__ = [
     "CHANNEL_TYPE_API",
+    "CHANNEL_TYPE_EMAIL",
     "CHANNEL_TYPE_WEB_WIDGET",
     "INBOX_SENDER_NAME_FRIENDLY",
     "INBOX_SENDER_NAME_PROFESSIONAL",
@@ -500,6 +629,7 @@ __all__ = [
     "WEB_WIDGET_DEFAULT_FEATURE_FLAGS",
     "WEB_WIDGET_DEFAULT_PRE_CHAT_FORM_OPTIONS",
     "ApiChannel",
+    "EmailChannel",
     "Inbox",
     "InboxMember",
     "WebWidget",
