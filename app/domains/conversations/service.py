@@ -99,6 +99,7 @@ from app.domains.conversations.models import (
 )
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
+    CHANNEL_TYPE_EMAIL,
     CHANNEL_TYPE_WEB_WIDGET,
     Inbox,
 )
@@ -1106,6 +1107,56 @@ async def _apply_message_post_create(
         await session.flush()
     else:
         await _update_waiting_since(session, message=message, conversation=conversation)
+
+    # 4. SMTP outbound (Phase 5b.3) ----------------------------------
+    # Mirrors Rails' ``ConversationReplyEmailWorker`` — fired for
+    # outgoing messages on ``Channel::Email`` inboxes. The Rails worker
+    # batches replies via a Sidekiq job; we send synchronously inline
+    # for simplicity. ARQ-backed retries land alongside the IMAP fetch
+    # job in 5b.4.
+    if message.message_type == MESSAGE_TYPE_OUTGOING and not message.private:
+        await _maybe_send_outbound_email(
+            session, message=message, conversation=conversation
+        )
+
+
+async def _maybe_send_outbound_email(
+    session: AsyncSession,
+    *,
+    message: Message,
+    conversation: Conversation,
+) -> None:
+    """Route the message through the email channel when applicable.
+
+    Defensive: the inbox might not be Email at all, the channel row
+    might be missing (orphaned inbox), SMTP might be disabled. Each
+    gate short-circuits without raising.
+    """
+    inbox = conversation.inbox
+    if inbox is None or inbox.channel_type != CHANNEL_TYPE_EMAIL:
+        return
+    from app.domains.email.mailer import send_email_reply
+    from app.domains.inboxes.models import EmailChannel
+
+    channel = await session.get(EmailChannel, inbox.channel_id)
+    if channel is None or not channel.smtp_enabled:
+        return
+    try:
+        await send_email_reply(
+            session,
+            message=message,
+            conversation=conversation,
+            channel=channel,
+        )
+    except Exception:  # noqa: BLE001
+        # ``send_email_reply`` already swallows transport errors; any
+        # remaining exception here is a programmer bug we want to
+        # capture in logs without breaking the request.
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "email.reply.dispatch_error message_id=%s", message.id
+        )
 
 
 def _is_human_response(message: Message) -> bool:

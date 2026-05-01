@@ -33,6 +33,7 @@ from app.core.errors import ChatwootHTTPException
 from app.domains.contacts.models import Contact, ContactInbox, Note
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
+    CHANNEL_TYPE_EMAIL,
     CHANNEL_TYPE_WEB_WIDGET,
     Inbox,
 )
@@ -136,6 +137,13 @@ class ContactInboxBuilder:
             CHANNEL_TYPE_WEB_WIDGET,
         ):
             return str(uuid.uuid4())
+        if self.inbox.channel_type == CHANNEL_TYPE_EMAIL:
+            # Rails uses the contact's email as source_id for Email
+            # channels — that's how the IMAP ingest finds the existing
+            # ContactInbox when a familiar address sends another mail.
+            # We mirror that exactly. Falls back to UUID when the
+            # contact has no email yet (rare; mostly seeded fixtures).
+            return self.contact.email or str(uuid.uuid4())
         raise NotImplementedError(
             f"ContactInboxBuilder doesn't support channel_type={self.inbox.channel_type!r} yet"
         )

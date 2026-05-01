@@ -24,6 +24,7 @@ dependencies = [
     "structlog>=24.4",
     "orjson>=3.10",
     "tenacity>=9.0",
+    "aiosmtplib>=5.1.0",
 ]
 
 [dependency-groups]
