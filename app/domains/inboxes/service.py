@@ -35,13 +35,18 @@ from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
     CHANNEL_TYPE_WEB_WIDGET,
+    CHANNEL_TYPE_WHATSAPP,
     WEB_WIDGET_DEFAULT_COLOR,
     WEB_WIDGET_DEFAULT_PRE_CHAT_FORM_OPTIONS,
+    WHATSAPP_PROVIDER_360DIALOG,
+    WHATSAPP_PROVIDER_CLOUD,
+    WHATSAPP_PROVIDERS,
     ApiChannel,
     EmailChannel,
     Inbox,
     InboxMember,
     WebWidget,
+    WhatsappChannel,
     sender_name_type_from_str,
 )
 
@@ -57,6 +62,7 @@ _CHANNEL_REGISTRY: dict[str, str] = {
     "api": CHANNEL_TYPE_API,
     "email": CHANNEL_TYPE_EMAIL,
     "web_widget": CHANNEL_TYPE_WEB_WIDGET,
+    "whatsapp": CHANNEL_TYPE_WHATSAPP,
 }
 
 
@@ -107,7 +113,7 @@ class InboxBuilderParams:
 @dataclass(slots=True)
 class InboxBuilderResult:
     inbox: Inbox
-    channel: ApiChannel | WebWidget | EmailChannel
+    channel: ApiChannel | WebWidget | EmailChannel | WhatsappChannel
 
 
 class InboxBuilder:
@@ -152,7 +158,9 @@ class InboxBuilder:
         return InboxBuilderResult(inbox=inbox, channel=channel)
 
     # ---------------------------- internals ----------------------------
-    async def _build_channel(self) -> ApiChannel | WebWidget | EmailChannel:
+    async def _build_channel(
+        self,
+    ) -> ApiChannel | WebWidget | EmailChannel | WhatsappChannel:
         assert self._params.account.id is not None
         if self._params.channel_type == "api":
             channel = ApiChannel(
@@ -207,6 +215,9 @@ class InboxBuilder:
         if self._params.channel_type == "email":
             channel = await self._build_email_channel()
             return channel
+        if self._params.channel_type == "whatsapp":
+            wa = await self._build_whatsapp_channel()
+            return wa
         # Unreachable because perform() gates on _allowed_channel_types().
         raise ChatwootHTTPException(
             status_code=422,
@@ -313,8 +324,111 @@ class InboxBuilder:
         await self._session.refresh(ch)
         return ch
 
+    async def _build_whatsapp_channel(self) -> WhatsappChannel:
+        """Validate + persist a fresh ``Channel::Whatsapp`` row.
+
+        Per-provider validation matches Rails' ``validate_provider_config``
+        side of the model:
+
+          * ``whatsapp_cloud`` -> requires ``api_key`` +
+            ``phone_number_id`` + ``business_account_id`` in
+            ``provider_config`` (Meta uses these to address the
+            Graph API).
+          * ``default`` (360dialog) -> requires ``api_key`` + ``url``.
+
+        Both providers get an auto-generated ``webhook_verify_token``
+        injected into ``provider_config`` so Meta's GET-handshake
+        check (5c.2) has something to compare against. Agents can
+        leave it blank in the create payload — the InboxBuilder mints
+        it once and that value is what they paste into the WhatsApp
+        Business Account webhook config.
+        """
+        params = self._params.channel_params
+        assert self._params.account.id is not None
+
+        phone_number = params.get("phone_number")
+        if not phone_number:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Validation failed",
+                    "attributes": ["phone_number"],
+                },
+            )
+
+        provider = str(params.get("provider") or WHATSAPP_PROVIDER_360DIALOG)
+        if provider not in WHATSAPP_PROVIDERS:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": (
+                        "Validation failed: provider must be one of "
+                        f"{list(WHATSAPP_PROVIDERS)!r}"
+                    ),
+                    "attributes": ["provider"],
+                },
+            )
+
+        provider_config: dict[str, Any] = dict(
+            params.get("provider_config") or {}
+        )
+        if provider == WHATSAPP_PROVIDER_CLOUD:
+            for required in ("api_key", "phone_number_id", "business_account_id"):
+                if not provider_config.get(required):
+                    raise ChatwootHTTPException(
+                        status_code=422,
+                        detail={
+                            "message": "Validation failed",
+                            "attributes": [f"provider_config.{required}"],
+                        },
+                    )
+        elif provider == WHATSAPP_PROVIDER_360DIALOG:
+            for required in ("api_key", "url"):
+                if not provider_config.get(required):
+                    raise ChatwootHTTPException(
+                        status_code=422,
+                        detail={
+                            "message": "Validation failed",
+                            "attributes": [f"provider_config.{required}"],
+                        },
+                    )
+
+        # Auto-generate the webhook verify token if the caller didn't
+        # supply one — Meta will compare this against what we echo on
+        # the GET handshake (5c.2).
+        provider_config.setdefault(
+            "webhook_verify_token", base58_token(24)
+        )
+
+        ch = WhatsappChannel(
+            account_id=self._params.account.id,
+            phone_number=str(phone_number),
+            provider=provider,
+            provider_config=provider_config,
+            message_templates=[],
+        )
+        self._session.add(ch)
+        try:
+            await self._session.flush()
+        except Exception as exc:  # noqa: BLE001
+            from sqlalchemy.exc import IntegrityError
+
+            if isinstance(exc, IntegrityError):
+                await self._session.rollback()
+                raise ChatwootHTTPException(
+                    status_code=422,
+                    detail={
+                        "message": "Phone number is already taken",
+                        "attributes": ["phone_number"],
+                    },
+                ) from exc
+            raise
+        await self._session.refresh(ch)
+        return ch
+
     def _build_inbox(
-        self, channel: ApiChannel | WebWidget | EmailChannel
+        self,
+        channel: ApiChannel | WebWidget | EmailChannel | WhatsappChannel,
     ) -> Inbox:
         p = self._params
         assert p.account.id is not None and channel.id is not None

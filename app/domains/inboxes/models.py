@@ -25,12 +25,14 @@ Notable omissions (deferred):
     presenter surfaces an empty schedule for now.
 """
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -67,6 +69,14 @@ _SENDER_NAME_STR_TO_INT: dict[str, int] = {v: k for k, v in _SENDER_NAME_INT_TO_
 CHANNEL_TYPE_API = "Channel::Api"
 CHANNEL_TYPE_EMAIL = "Channel::Email"
 CHANNEL_TYPE_WEB_WIDGET = "Channel::WebWidget"
+CHANNEL_TYPE_WHATSAPP = "Channel::Whatsapp"
+
+# Provider strings mirror Chatwoot exactly. ``default`` is 360dialog
+# (legacy naming kept for parity); ``whatsapp_cloud`` is Meta's
+# official Graph API.
+WHATSAPP_PROVIDER_360DIALOG = "default"
+WHATSAPP_PROVIDER_CLOUD = "whatsapp_cloud"
+WHATSAPP_PROVIDERS = (WHATSAPP_PROVIDER_360DIALOG, WHATSAPP_PROVIDER_CLOUD)
 
 
 # Default ``pre_chat_form_options`` JSON Chatwoot writes when a fresh
@@ -446,6 +456,83 @@ class EmailChannel(TimestampMixin, table=True):
 
 
 # =========================================================================
+# WhatsappChannel (Channel::Whatsapp)
+# =========================================================================
+class WhatsappChannel(TimestampMixin, table=True):
+    """Concrete channel for ``Channel::Whatsapp``.
+
+    Schema mirrors ``channel_whatsapp`` from Chatwoot v4.13.0.
+    ``provider`` is ``'default'`` for 360dialog (legacy naming) or
+    ``'whatsapp_cloud'`` for Meta's official Graph API. Each provider
+    stores different keys under ``provider_config``:
+
+      * ``whatsapp_cloud`` -> ``{api_key, phone_number_id,
+        business_account_id, webhook_verify_token, ...}``
+      * ``default`` (360dialog) -> ``{api_key, url,
+        webhook_verify_token, ...}``
+
+    ``message_templates`` is the cached list of approved templates
+    fetched from Meta's Graph API. Empty in 5c.1; populated by the
+    template sync service in 5c.6.
+
+    The webhook verify token is auto-generated at create time so the
+    InboxBuilder doesn't have to ask the agent for one — Meta's
+    subscription-setup handshake compares it to whatever they entered
+    in their app config.
+    """
+
+    __tablename__ = "channel_whatsapp"
+    __table_args__ = (
+        Index(
+            "index_channel_whatsapp_on_phone_number",
+            "phone_number",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+
+    phone_number: str = Field(sa_column=Column(String, nullable=False))
+    provider: str = Field(
+        default=WHATSAPP_PROVIDER_360DIALOG,
+        sa_column=Column(String, nullable=True, server_default=WHATSAPP_PROVIDER_360DIALOG),
+    )
+    provider_config: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=True),
+    )
+    message_templates: list[dict[str, Any]] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=True),
+    )
+    message_templates_last_updated: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+
+    @property
+    def webhook_verify_token(self) -> str | None:
+        """Convenience accessor — the token lives in ``provider_config``
+        but every webhook code path reads it as a top-level field.
+        """
+        cfg = self.provider_config or {}
+        if isinstance(cfg, dict):
+            tok = cfg.get("webhook_verify_token")
+            return str(tok) if tok else None
+        return None
+
+
+# =========================================================================
 # Inbox
 # =========================================================================
 class Inbox(TimestampMixin, table=True):
@@ -623,16 +710,21 @@ __all__ = [
     "CHANNEL_TYPE_API",
     "CHANNEL_TYPE_EMAIL",
     "CHANNEL_TYPE_WEB_WIDGET",
+    "CHANNEL_TYPE_WHATSAPP",
     "INBOX_SENDER_NAME_FRIENDLY",
     "INBOX_SENDER_NAME_PROFESSIONAL",
     "WEB_WIDGET_DEFAULT_COLOR",
     "WEB_WIDGET_DEFAULT_FEATURE_FLAGS",
     "WEB_WIDGET_DEFAULT_PRE_CHAT_FORM_OPTIONS",
+    "WHATSAPP_PROVIDER_360DIALOG",
+    "WHATSAPP_PROVIDER_CLOUD",
+    "WHATSAPP_PROVIDERS",
     "ApiChannel",
     "EmailChannel",
     "Inbox",
     "InboxMember",
     "WebWidget",
+    "WhatsappChannel",
     "sender_name_type_from_str",
     "sender_name_type_to_str",
 ]
