@@ -67,7 +67,7 @@ AloStudio/
 | 4b | Conversations + Messages — realtime & dispatch | ✅ done       | /cable WS, activity messages, filter/search, assignments/labels/typing/attachments/messages#update auth-gates |
 | 4c | Conversations + Messages — assignment | ✅ done       | PermissionFilterService scope, round-robin auto-assignment, team-scope guard |
 | 5a | Channel: Website widget       | ✅ done       | widget JWT auth + HMAC, config + contact + conversation + message endpoints, parity 404 envelopes |
-| 5b | Channel: Email (IMAP/SMTP)    | ⬜ pending     | ingest threading, reply-to parse, outbound |
+| 5b | Channel: Email (IMAP/SMTP)    | ✅ done       | EmailChannel model, RFC-2822 threading, SMTP outbound via ConversationReplyMailer, IMAP ingest via aioimaplib (Greenmail-tested). OAuth deferred to Phase 9 |
 | 5c | Channel: WhatsApp Cloud/360/Twilio | ⬜ pending | webhook ingest, outbound template |
 | 5d | Channel: Facebook Messenger   | ⬜ pending     | webhook ingest, outbound |
 | 5e | Channel: Instagram DM         | ⬜ pending     | webhook ingest, outbound |
