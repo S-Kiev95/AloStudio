@@ -101,6 +101,7 @@ from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
     CHANNEL_TYPE_WEB_WIDGET,
+    CHANNEL_TYPE_WHATSAPP,
     Inbox,
 )
 from app.domains.users.models import AccountUser
@@ -843,6 +844,7 @@ def _validate_message_type_for_inbox(
         CHANNEL_TYPE_API,
         CHANNEL_TYPE_EMAIL,
         CHANNEL_TYPE_WEB_WIDGET,
+        CHANNEL_TYPE_WHATSAPP,
     }
     if (
         inbox.channel_type not in incoming_capable
