@@ -1124,6 +1124,9 @@ async def _apply_message_post_create(
         await _maybe_send_outbound_email(
             session, message=message, conversation=conversation
         )
+        await _maybe_send_outbound_whatsapp(
+            session, message=message, conversation=conversation
+        )
 
 
 async def _maybe_send_outbound_email(
@@ -1162,6 +1165,62 @@ async def _maybe_send_outbound_email(
 
         logging.getLogger(__name__).exception(
             "email.reply.dispatch_error message_id=%s", message.id
+        )
+
+
+async def _maybe_send_outbound_whatsapp(
+    session: AsyncSession,
+    *,
+    message: Message,
+    conversation: Conversation,
+) -> None:
+    """Route the message through the WhatsApp channel when applicable.
+
+    Mirrors the email-side router in shape: short-circuits on
+    non-WhatsApp inboxes, missing channel rows, or unsupported
+    providers. 360dialog outbound lands in 5c.6.
+
+    The contact's phone is the destination — Meta wants it without a
+    leading ``+`` for the ``to`` field, so we strip it here. Stamping
+    the WAMID on ``source_id`` happens inside :func:`send_text_message
+    _cloud` so callers (including the message-create cascade) don't
+    have to thread the response back manually.
+    """
+    inbox = conversation.inbox
+    if inbox is None or inbox.channel_type != CHANNEL_TYPE_WHATSAPP:
+        return
+    from app.domains.inboxes.models import (
+        WHATSAPP_PROVIDER_CLOUD,
+        WhatsappChannel,
+    )
+
+    channel = await session.get(WhatsappChannel, inbox.channel_id)
+    if channel is None:
+        return
+    if channel.provider != WHATSAPP_PROVIDER_CLOUD:
+        # 360dialog provider lands with 5c.6.
+        return
+
+    contact = conversation.contact
+    if contact is None or not contact.phone_number:
+        return
+    # Meta's ``to`` field expects the bare wa_id (no ``+``).
+    to_phone = contact.phone_number.lstrip("+")
+
+    from app.domains.whatsapp.cloud_provider import send_text_message_cloud
+
+    try:
+        await send_text_message_cloud(
+            session,
+            channel=channel,
+            message=message,
+            to_phone=to_phone,
+        )
+    except Exception:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "whatsapp.send.dispatch_error message_id=%s", message.id
         )
 
 
