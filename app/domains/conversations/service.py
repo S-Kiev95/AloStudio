@@ -839,7 +839,11 @@ def _validate_message_type_for_inbox(
     legitimately receive incoming messages from contacts via our own
     code paths. Web_widget joins the list as of 5a.3.
     """
-    incoming_capable = {CHANNEL_TYPE_API, CHANNEL_TYPE_WEB_WIDGET}
+    incoming_capable = {
+        CHANNEL_TYPE_API,
+        CHANNEL_TYPE_EMAIL,
+        CHANNEL_TYPE_WEB_WIDGET,
+    }
     if (
         inbox.channel_type not in incoming_capable
         and message_type_str == "incoming"
