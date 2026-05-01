@@ -23,6 +23,7 @@ from app.domains.teams.router import router as teams_router
 from app.domains.teams.router import team_members_router
 from app.domains.users.router import router as profile_router
 from app.domains.web_widget.router import router as web_widget_router
+from app.domains.whatsapp.router import router as whatsapp_webhook_router
 
 
 @asynccontextmanager
@@ -78,6 +79,10 @@ def create_app() -> FastAPI:
     # Public widget surface (Phase 5a). Lives under ``/api/v1/widget``
     # — no devise auth, just the website_token + JWT scheme.
     app.include_router(web_widget_router)
+    # WhatsApp webhook surface (Phase 5c). ``/webhooks/whatsapp/*``
+    # — verify-token handshake (GET) + payload receive (POST). Auth
+    # is per-channel via ``provider_config['webhook_verify_token']``.
+    app.include_router(whatsapp_webhook_router)
     # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
     # last so HTTP routes take precedence in any path-overlap edge.
     app.include_router(cable_router)
