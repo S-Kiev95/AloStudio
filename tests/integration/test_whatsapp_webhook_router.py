@@ -131,7 +131,13 @@ async def test_verify_rejects_missing_token(client, db_session):
     assert resp.status_code == 401
 
 
-async def test_verify_unknown_phone_404s(client, db_session):
+async def test_verify_unknown_phone_returns_401_like_wrong_token(
+    client, db_session
+):
+    """Mirrors Rails' ``valid_token?`` — unknown phone short-circuits
+    to nil, the concern then renders 401 with the canonical envelope.
+    Same response as a wrong-token request. Doesn't leak whether the
+    phone is registered."""
     await _seed_whatsapp_inbox(
         db_session, phone_number="+15554445566", suffix="-other"
     )
@@ -143,8 +149,8 @@ async def test_verify_unknown_phone_404s(client, db_session):
             "hub.challenge": "1234",
         },
     )
-    assert resp.status_code == 404
-    assert resp.json() == {"error": "Phone number not found"}
+    assert resp.status_code == 401
+    assert resp.json() == {"error": "Error; wrong verify token"}
 
 
 # ---------------------------------------------------------------------------
@@ -185,13 +191,17 @@ async def test_receive_200s_for_known_phone(client, db_session):
     assert resp.json() == {"status": "ok"}
 
 
-async def test_receive_unknown_phone_404s(client):
+async def test_receive_unknown_phone_drops_silently(client):
+    """Rails ``WhatsappController#process_payload`` doesn't lookup the
+    channel before queuing the job — unknown phones get the same 200
+    as known ones. We mirror that so Meta doesn't retry on bogus
+    payloads."""
     resp = await client.post(
         "/webhooks/whatsapp/+19999999999",
         json={"object": "whatsapp_business_account", "entry": []},
     )
-    assert resp.status_code == 404
-    assert resp.json() == {"error": "Phone number not found"}
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
 
 
 async def test_receive_malformed_json_still_200s(client, db_session):

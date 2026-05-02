@@ -68,7 +68,7 @@ AloStudio/
 | 4c | Conversations + Messages — assignment | ✅ done       | PermissionFilterService scope, round-robin auto-assignment, team-scope guard |
 | 5a | Channel: Website widget       | ✅ done       | widget JWT auth + HMAC, config + contact + conversation + message endpoints, parity 404 envelopes |
 | 5b | Channel: Email (IMAP/SMTP)    | ✅ done       | EmailChannel model, RFC-2822 threading, SMTP outbound via ConversationReplyMailer, IMAP ingest via aioimaplib (Greenmail-tested). OAuth deferred to Phase 9 |
-| 5c | Channel: WhatsApp Cloud/360/Twilio | ⬜ pending | webhook ingest, outbound template |
+| 5c | Channel: WhatsApp Cloud/360/Twilio | 🟨 partial | Cloud API: model + InboxBuilder, Meta webhook handshake + receive, inbound text + status events, outbound text via Graph (respx-tested). 360dialog provider + templates + media + Twilio deferred to 5c.6 / later |
 | 5d | Channel: Facebook Messenger   | ⬜ pending     | webhook ingest, outbound |
 | 5e | Channel: Instagram DM         | ⬜ pending     | webhook ingest, outbound |
 | 5f | Channel: SMS (Twilio/Bandwidth) | ⬜ pending   | webhook, outbound, delivery status |

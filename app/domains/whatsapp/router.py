@@ -89,28 +89,30 @@ async def whatsapp_verify(
 ) -> Any:
     """Meta verification handshake.
 
-    Returns the raw ``hub.challenge`` value (not JSON-wrapped) when the
-    token matches — that's what Meta's docs require. FastAPI's
-    response auto-detection serializes a plain string as JSON which
-    technically still works for Meta, but we'd rather echo the
-    challenge verbatim.
+    Mirrors Rails' ``MetaTokenVerifyConcern#verify``:
+      * Look up the channel by phone_number.
+      * Compute the expected token from ``provider_config
+        ['webhook_verify_token']`` (None if channel missing).
+      * Token matches -> echo back ``hub.challenge``.
+      * Anything else (no channel, missing token, mismatch) -> 401
+        with the canonical error envelope. Unknown phones get the
+        same 401 as wrong tokens — matches Rails' ``valid_token?``
+        which short-circuits to nil + falls through to the 401 branch.
     """
-    channel, _inbox = await _resolve_channel(
+    expected = await _expected_verify_token(
         session, phone_number=phone_number
     )
     if (
         hub_verify_token is None
-        or channel.webhook_verify_token is None
-        or hub_verify_token != channel.webhook_verify_token
+        or expected is None
+        or hub_verify_token != expected
     ):
         raise ChatwootHTTPException(
             status_code=401,
             detail={"error": "Error; wrong verify token"},
         )
-    # Meta requires the challenge echoed back verbatim. Return as a
-    # plain string — FastAPI's default response will JSON-encode it,
-    # which Meta accepts (the actual handshake just compares the body
-    # value).
+    # Meta requires the challenge echoed back verbatim. FastAPI's
+    # default response JSON-encodes the string which Meta accepts.
     return hub_challenge or ""
 
 
@@ -122,24 +124,28 @@ async def whatsapp_receive(
 ) -> dict[str, Any]:
     """Receive a WhatsApp webhook payload.
 
-    5c.2 just acknowledges the request — actual ingest happens in
-    5c.3 once :func:`process_cloud_webhook` is wired here. We resolve
-    the channel up-front so unknown numbers 404 fast (matches Rails'
-    ``Channel::Whatsapp.find_by(phone_number:)`` lookup).
+    Always 200 — Rails' ``WhatsappController#process_payload`` doesn't
+    check whether the phone resolves before queuing the job, so an
+    unknown number gets the same ``head :ok`` as a known one. Meta
+    retries on 5xx; we never want to send 5xx for a malformed body
+    we can't parse either.
+
+    Unknown phones drop the payload silently (no Message rows). Known
+    phones run the per-provider processor (5c.3 implements the cloud
+    branch).
     """
-    channel, inbox = await _resolve_channel(
-        session, phone_number=phone_number
-    )
     try:
         payload = await request.json()
     except Exception:  # noqa: BLE001
-        # Malformed JSON — Rails just acks (Meta retries on 5xx, so a
-        # bad payload that we can't parse should still 200 to break
-        # the retry loop).
         return {"status": "ok"}
 
-    # 5c.3 will dispatch into the per-provider parser here. Keep the
-    # branch shape so the wiring is a one-line change.
+    channel_inbox = await _resolve_channel_optional(
+        session, phone_number=phone_number
+    )
+    if channel_inbox is None:
+        return {"status": "ok"}
+    channel, inbox = channel_inbox
+
     from app.domains.whatsapp.incoming_cloud import process_cloud_webhook
 
     if channel.provider == "whatsapp_cloud":
@@ -148,8 +154,6 @@ async def whatsapp_receive(
                 session, channel=channel, inbox=inbox, payload=payload
             )
         except Exception:  # noqa: BLE001
-            # The processor logs internally — we always 200 so Meta
-            # doesn't retry a payload we already partially handled.
             import logging
 
             logging.getLogger(__name__).exception(
@@ -157,6 +161,55 @@ async def whatsapp_receive(
             )
 
     return {"status": "ok"}
+
+
+async def _expected_verify_token(
+    session: AsyncSession, *, phone_number: str
+) -> str | None:
+    """Mirror Rails' ``valid_token?`` token-lookup half.
+
+    Returns ``None`` for unknown phone, missing channel, or missing
+    token — the caller treats any of these as "verification fails"
+    and renders 401.
+    """
+    channel = (
+        await session.exec(
+            select(WhatsappChannel).where(
+                WhatsappChannel.phone_number == phone_number
+            )
+        )
+    ).first()
+    if channel is None:
+        return None
+    return channel.webhook_verify_token
+
+
+async def _resolve_channel_optional(
+    session: AsyncSession, *, phone_number: str
+) -> tuple[WhatsappChannel, Inbox] | None:
+    """Same as :func:`_resolve_channel` but returns None instead of
+    raising. Used by the POST receive endpoint where unknown phones
+    drop silently."""
+    channel = (
+        await session.exec(
+            select(WhatsappChannel).where(
+                WhatsappChannel.phone_number == phone_number
+            )
+        )
+    ).first()
+    if channel is None:
+        return None
+    inbox = (
+        await session.exec(
+            select(Inbox).where(
+                Inbox.channel_type == CHANNEL_TYPE_WHATSAPP,
+                Inbox.channel_id == channel.id,
+            )
+        )
+    ).first()
+    if inbox is None:
+        return None
+    return channel, inbox
 
 
 __all__ = ["router"]
