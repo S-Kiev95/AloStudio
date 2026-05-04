@@ -1190,6 +1190,7 @@ async def _maybe_send_outbound_whatsapp(
     if inbox is None or inbox.channel_type != CHANNEL_TYPE_WHATSAPP:
         return
     from app.domains.inboxes.models import (
+        WHATSAPP_PROVIDER_360DIALOG,
         WHATSAPP_PROVIDER_CLOUD,
         WhatsappChannel,
     )
@@ -1197,30 +1198,43 @@ async def _maybe_send_outbound_whatsapp(
     channel = await session.get(WhatsappChannel, inbox.channel_id)
     if channel is None:
         return
-    if channel.provider != WHATSAPP_PROVIDER_CLOUD:
-        # 360dialog provider lands with 5c.6.
-        return
 
     contact = conversation.contact
     if contact is None or not contact.phone_number:
         return
-    # Meta's ``to`` field expects the bare wa_id (no ``+``).
+    # Both Cloud and 360dialog want the bare wa_id (no ``+``).
     to_phone = contact.phone_number.lstrip("+")
 
-    from app.domains.whatsapp.cloud_provider import send_text_message_cloud
-
     try:
-        await send_text_message_cloud(
-            session,
-            channel=channel,
-            message=message,
-            to_phone=to_phone,
-        )
+        if channel.provider == WHATSAPP_PROVIDER_CLOUD:
+            from app.domains.whatsapp.cloud_provider import (
+                send_text_message_cloud,
+            )
+
+            await send_text_message_cloud(
+                session,
+                channel=channel,
+                message=message,
+                to_phone=to_phone,
+            )
+        elif channel.provider == WHATSAPP_PROVIDER_360DIALOG:
+            from app.domains.whatsapp.dialog360_provider import (
+                send_text_message_360dialog,
+            )
+
+            await send_text_message_360dialog(
+                session,
+                channel=channel,
+                message=message,
+                to_phone=to_phone,
+            )
     except Exception:  # noqa: BLE001
         import logging
 
         logging.getLogger(__name__).exception(
-            "whatsapp.send.dispatch_error message_id=%s", message.id
+            "whatsapp.send.dispatch_error message_id=%s message_id=%s",
+            message.id,
+            channel.id,
         )
 
 

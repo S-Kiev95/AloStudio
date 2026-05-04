@@ -286,7 +286,46 @@ async def process_cloud_webhook(
     value = _value(payload)
     if not value:
         return []
+    return await _process_value(
+        session, channel=channel, inbox=inbox, value=value
+    )
 
+
+async def process_360dialog_webhook(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    inbox: Inbox,
+    payload: dict[str, Any],
+) -> list[Message]:
+    """Convert one 360dialog webhook payload to Message rows.
+
+    Mirrors Rails' ``Whatsapp::IncomingMessageService`` (which is just
+    ``IncomingMessageBaseService`` with no overrides — 360dialog ships
+    the value object at the top level instead of wrapping it in
+    ``entry[0].changes[0].value`` like Cloud).
+
+    Otherwise the inner shape (``messages``, ``statuses``, ``contacts``)
+    is identical, so we share :func:`_process_value` with the Cloud
+    branch.
+    """
+    if not isinstance(payload, dict):
+        return []
+    return await _process_value(
+        session, channel=channel, inbox=inbox, value=payload
+    )
+
+
+async def _process_value(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    inbox: Inbox,
+    value: dict[str, Any],
+) -> list[Message]:
+    """Shared inner — works on the unwrapped value dict that both
+    Cloud (after ``entry[0].changes[0].value`` peel) and 360dialog
+    (already at the top level) expose."""
     out: list[Message] = []
 
     # Status events get processed first — they reference messages we

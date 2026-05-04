@@ -146,19 +146,30 @@ async def whatsapp_receive(
         return {"status": "ok"}
     channel, inbox = channel_inbox
 
-    from app.domains.whatsapp.incoming_cloud import process_cloud_webhook
+    from app.domains.inboxes.models import (
+        WHATSAPP_PROVIDER_360DIALOG,
+        WHATSAPP_PROVIDER_CLOUD,
+    )
+    from app.domains.whatsapp.incoming_cloud import (
+        process_360dialog_webhook,
+        process_cloud_webhook,
+    )
 
-    if channel.provider == "whatsapp_cloud":
-        try:
+    try:
+        if channel.provider == WHATSAPP_PROVIDER_CLOUD:
             await process_cloud_webhook(
                 session, channel=channel, inbox=inbox, payload=payload
             )
-        except Exception:  # noqa: BLE001
-            import logging
-
-            logging.getLogger(__name__).exception(
-                "whatsapp.webhook.process_failed channel_id=%s", channel.id
+        elif channel.provider == WHATSAPP_PROVIDER_360DIALOG:
+            await process_360dialog_webhook(
+                session, channel=channel, inbox=inbox, payload=payload
             )
+    except Exception:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "whatsapp.webhook.process_failed channel_id=%s", channel.id
+        )
 
     return {"status": "ok"}
 
