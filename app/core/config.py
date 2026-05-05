@@ -54,6 +54,17 @@ class Settings(BaseSettings):
     chatwoot_ref_admin_email: str = "admin@alostudio.local"
     chatwoot_ref_admin_password: str = "Password123!"
 
+    # --- channels: Facebook Messenger (Phase 5d)
+    # Mirrors Rails' ``FB_VERIFY_TOKEN`` env var. Set this to the same
+    # value Meta has in the page's webhook subscription so the GET
+    # handshake matches. Empty = no Facebook channel will accept the
+    # verification (intentional — fail closed).
+    fb_verify_token: str = ""
+    # Graph API version Meta accepts for ``/me/messages`` calls. Bump
+    # in lock-step with what the Chatwoot reference uses so a real
+    # Meta-side validation passes against the same schema.
+    facebook_api_version: str = "v17.0"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

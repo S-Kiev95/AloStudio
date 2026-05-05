@@ -34,6 +34,7 @@ from app.domains.accounts.models import Account
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
+    CHANNEL_TYPE_FACEBOOK,
     CHANNEL_TYPE_WEB_WIDGET,
     CHANNEL_TYPE_WHATSAPP,
     WEB_WIDGET_DEFAULT_COLOR,
@@ -43,6 +44,7 @@ from app.domains.inboxes.models import (
     WHATSAPP_PROVIDERS,
     ApiChannel,
     EmailChannel,
+    FacebookPage,
     Inbox,
     InboxMember,
     WebWidget,
@@ -61,6 +63,7 @@ from app.domains.inboxes.models import (
 _CHANNEL_REGISTRY: dict[str, str] = {
     "api": CHANNEL_TYPE_API,
     "email": CHANNEL_TYPE_EMAIL,
+    "facebook": CHANNEL_TYPE_FACEBOOK,
     "web_widget": CHANNEL_TYPE_WEB_WIDGET,
     "whatsapp": CHANNEL_TYPE_WHATSAPP,
 }
@@ -113,7 +116,9 @@ class InboxBuilderParams:
 @dataclass(slots=True)
 class InboxBuilderResult:
     inbox: Inbox
-    channel: ApiChannel | WebWidget | EmailChannel | WhatsappChannel
+    channel: (
+        ApiChannel | WebWidget | EmailChannel | WhatsappChannel | FacebookPage
+    )
 
 
 class InboxBuilder:
@@ -160,7 +165,9 @@ class InboxBuilder:
     # ---------------------------- internals ----------------------------
     async def _build_channel(
         self,
-    ) -> ApiChannel | WebWidget | EmailChannel | WhatsappChannel:
+    ) -> (
+        ApiChannel | WebWidget | EmailChannel | WhatsappChannel | FacebookPage
+    ):
         assert self._params.account.id is not None
         if self._params.channel_type == "api":
             channel = ApiChannel(
@@ -218,6 +225,9 @@ class InboxBuilder:
         if self._params.channel_type == "whatsapp":
             wa = await self._build_whatsapp_channel()
             return wa
+        if self._params.channel_type == "facebook":
+            fb = await self._build_facebook_channel()
+            return fb
         # Unreachable because perform() gates on _allowed_channel_types().
         raise ChatwootHTTPException(
             status_code=422,
@@ -426,9 +436,91 @@ class InboxBuilder:
         await self._session.refresh(ch)
         return ch
 
+    async def _build_facebook_channel(self) -> FacebookPage:
+        """Validate + persist a fresh ``Channel::FacebookPage`` row.
+
+        Required params:
+          * ``page_id`` — Meta's numeric page id (string).
+          * ``page_access_token`` — long-lived token Meta returns
+            after the OAuth handshake. We don't run the OAuth flow
+            ourselves (Phase 9); the agent supplies the token via
+            the create-inbox payload until then.
+
+        Optional:
+          * ``user_access_token`` — admin's user token, used to
+            refresh ``page_access_token`` when it expires.
+            Defaults to the page token when omitted (the most common
+            case in test fixtures + simple deployments where the
+            admin grants both at the same moment).
+          * ``instagram_id`` — set when the FB page is connected to
+            an IG Business account, so the IG channel (Phase 5e)
+            can resolve back to this page row.
+
+        Uniqueness on ``(page_id, account_id)`` surfaces as a 422
+        with the canonical "already taken" envelope.
+        """
+        params = self._params.channel_params
+        assert self._params.account.id is not None
+
+        page_id = params.get("page_id")
+        page_token = params.get("page_access_token")
+        if not page_id:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Validation failed",
+                    "attributes": ["page_id"],
+                },
+            )
+        if not page_token:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Validation failed",
+                    "attributes": ["page_access_token"],
+                },
+            )
+        user_token = params.get("user_access_token") or page_token
+
+        ch = FacebookPage(
+            account_id=self._params.account.id,
+            page_id=str(page_id),
+            page_access_token=str(page_token),
+            user_access_token=str(user_token),
+            instagram_id=(
+                str(params["instagram_id"])
+                if params.get("instagram_id")
+                else None
+            ),
+        )
+        self._session.add(ch)
+        try:
+            await self._session.flush()
+        except Exception as exc:  # noqa: BLE001
+            from sqlalchemy.exc import IntegrityError
+
+            if isinstance(exc, IntegrityError):
+                await self._session.rollback()
+                raise ChatwootHTTPException(
+                    status_code=422,
+                    detail={
+                        "message": "Page id is already taken",
+                        "attributes": ["page_id"],
+                    },
+                ) from exc
+            raise
+        await self._session.refresh(ch)
+        return ch
+
     def _build_inbox(
         self,
-        channel: ApiChannel | WebWidget | EmailChannel | WhatsappChannel,
+        channel: (
+            ApiChannel
+            | WebWidget
+            | EmailChannel
+            | WhatsappChannel
+            | FacebookPage
+        ),
     ) -> Inbox:
         p = self._params
         assert p.account.id is not None and channel.id is not None

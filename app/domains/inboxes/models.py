@@ -68,6 +68,7 @@ _SENDER_NAME_STR_TO_INT: dict[str, int] = {v: k for k, v in _SENDER_NAME_INT_TO_
 # dump against Chatwoot lines up identically.
 CHANNEL_TYPE_API = "Channel::Api"
 CHANNEL_TYPE_EMAIL = "Channel::Email"
+CHANNEL_TYPE_FACEBOOK = "Channel::FacebookPage"
 CHANNEL_TYPE_WEB_WIDGET = "Channel::WebWidget"
 CHANNEL_TYPE_WHATSAPP = "Channel::Whatsapp"
 
@@ -533,6 +534,67 @@ class WhatsappChannel(TimestampMixin, table=True):
 
 
 # =========================================================================
+# FacebookPage (Channel::FacebookPage)
+# =========================================================================
+class FacebookPage(TimestampMixin, table=True):
+    """Concrete channel for ``Channel::FacebookPage``.
+
+    Schema mirrors ``channel_facebook_pages`` from Chatwoot v4.13.0.
+    ``page_id`` identifies the Facebook page on Meta's side (numeric
+    string), ``page_access_token`` is the long-lived token Meta returns
+    after the OAuth handshake, and ``user_access_token`` is the token
+    the page admin granted us — kept around so we can refresh
+    ``page_access_token`` when it expires (60 days for long-lived
+    tokens). ``instagram_id`` lights up when the page is connected to
+    an Instagram Business account, but the IG channel itself ships in
+    Phase 5e so we just store the value here.
+
+    Verify-token shape diverges from WhatsApp: Facebook uses an
+    installation-wide ``FB_VERIFY_TOKEN`` (env var) that's the same
+    for every page. We hold the value in :class:`Settings.fb_verify
+    _token`; the channel itself doesn't carry one.
+
+    Encryption: Rails' :class:`Channel::FacebookPage` encrypts both
+    access tokens at rest when ``Chatwoot.encryption_configured?``.
+    Phase 5d ports the columns as plain ``String``; Phase 10 hardening
+    adds at-rest encryption (libsodium / fernet keyed off
+    ``settings.secret_key``).
+    """
+
+    __tablename__ = "channel_facebook_pages"
+    __table_args__ = (
+        Index(
+            "index_channel_facebook_pages_on_page_id",
+            "page_id",
+        ),
+        Index(
+            "index_channel_facebook_pages_on_page_id_and_account_id",
+            "page_id",
+            "account_id",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    page_id: str = Field(sa_column=Column(String, nullable=False))
+    page_access_token: str = Field(sa_column=Column(String, nullable=False))
+    user_access_token: str = Field(sa_column=Column(String, nullable=False))
+    instagram_id: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+
+
+# =========================================================================
 # Inbox
 # =========================================================================
 class Inbox(TimestampMixin, table=True):
@@ -709,6 +771,7 @@ class InboxMember(TimestampMixin, table=True):
 __all__ = [
     "CHANNEL_TYPE_API",
     "CHANNEL_TYPE_EMAIL",
+    "CHANNEL_TYPE_FACEBOOK",
     "CHANNEL_TYPE_WEB_WIDGET",
     "CHANNEL_TYPE_WHATSAPP",
     "INBOX_SENDER_NAME_FRIENDLY",
@@ -721,6 +784,7 @@ __all__ = [
     "WHATSAPP_PROVIDERS",
     "ApiChannel",
     "EmailChannel",
+    "FacebookPage",
     "Inbox",
     "InboxMember",
     "WebWidget",
