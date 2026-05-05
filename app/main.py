@@ -22,6 +22,7 @@ from app.domains.inboxes.router import router as inboxes_router
 from app.domains.teams.router import router as teams_router
 from app.domains.teams.router import team_members_router
 from app.domains.users.router import router as profile_router
+from app.domains.facebook.router import router as facebook_webhook_router
 from app.domains.web_widget.router import router as web_widget_router
 from app.domains.whatsapp.router import router as whatsapp_webhook_router
 
@@ -83,6 +84,11 @@ def create_app() -> FastAPI:
     # — verify-token handshake (GET) + payload receive (POST). Auth
     # is per-channel via ``provider_config['webhook_verify_token']``.
     app.include_router(whatsapp_webhook_router)
+    # Facebook Messenger webhook (Phase 5d). ``/webhooks/fb_messenger``
+    # — installation-wide verify token via ``settings.fb_verify_token``
+    # (env var FB_VERIFY_TOKEN), single endpoint shared across every
+    # FB page.
+    app.include_router(facebook_webhook_router)
     # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
     # last so HTTP routes take precedence in any path-overlap edge.
     app.include_router(cable_router)
