@@ -35,6 +35,7 @@ from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
     CHANNEL_TYPE_FACEBOOK,
+    CHANNEL_TYPE_INSTAGRAM,
     CHANNEL_TYPE_WEB_WIDGET,
     Inbox,
 )
@@ -149,6 +150,10 @@ class ContactInboxBuilder:
             # Facebook always passes the PSID explicitly via
             # ``source_id``; this fallback only fires if the caller
             # forgot to. UUID is the safest punt.
+            return str(uuid.uuid4())
+        if self.inbox.channel_type == CHANNEL_TYPE_INSTAGRAM:
+            # Instagram, like Facebook, always passes the IGSID
+            # explicitly via ``source_id``. UUID fallback for safety.
             return str(uuid.uuid4())
         raise NotImplementedError(
             f"ContactInboxBuilder doesn't support channel_type={self.inbox.channel_type!r} yet"
