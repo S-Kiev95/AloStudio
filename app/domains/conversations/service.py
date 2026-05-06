@@ -1134,6 +1134,9 @@ async def _apply_message_post_create(
         await _maybe_send_outbound_facebook(
             session, message=message, conversation=conversation
         )
+        await _maybe_send_outbound_instagram(
+            session, message=message, conversation=conversation
+        )
 
 
 async def _maybe_send_outbound_email(
@@ -1300,6 +1303,60 @@ async def _maybe_send_outbound_facebook(
 
         logging.getLogger(__name__).exception(
             "facebook.send.dispatch_error message_id=%s channel_id=%s",
+            message.id,
+            channel.id,
+        )
+
+
+async def _maybe_send_outbound_instagram(
+    session: AsyncSession,
+    *,
+    message: Message,
+    conversation: Conversation,
+) -> None:
+    """Route the outgoing message through the Instagram Graph API.
+
+    Mirrors the FB router shape — short-circuits on non-IG inboxes,
+    missing channel rows, missing IGSID, or transport failures. The
+    IGSID lives on ``ContactInbox.source_id`` (5e.3 seeds it on
+    inbound).
+    """
+    inbox = conversation.inbox
+    if inbox is None or inbox.channel_type != CHANNEL_TYPE_INSTAGRAM:
+        return
+    from app.domains.contacts.models import ContactInbox
+    from app.domains.inboxes.models import InstagramChannel
+    from app.domains.instagram.sender import send_text_message_instagram
+
+    channel = await session.get(InstagramChannel, inbox.channel_id)
+    if channel is None:
+        return
+    if conversation.contact_id is None:
+        return
+
+    ci = (
+        await session.exec(
+            select(ContactInbox).where(
+                ContactInbox.contact_id == conversation.contact_id,
+                ContactInbox.inbox_id == inbox.id,
+            )
+        )
+    ).first()
+    if ci is None or not ci.source_id:
+        return
+
+    try:
+        await send_text_message_instagram(
+            session,
+            channel=channel,
+            message=message,
+            to_igsid=str(ci.source_id),
+        )
+    except Exception:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "instagram.send.dispatch_error message_id=%s channel_id=%s",
             message.id,
             channel.id,
         )
