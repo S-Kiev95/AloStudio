@@ -34,6 +34,7 @@ from app.domains.contacts.models import Contact, ContactInbox, Note
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
+    CHANNEL_TYPE_FACEBOOK,
     CHANNEL_TYPE_WEB_WIDGET,
     Inbox,
 )
@@ -144,6 +145,11 @@ class ContactInboxBuilder:
             # We mirror that exactly. Falls back to UUID when the
             # contact has no email yet (rare; mostly seeded fixtures).
             return self.contact.email or str(uuid.uuid4())
+        if self.inbox.channel_type == CHANNEL_TYPE_FACEBOOK:
+            # Facebook always passes the PSID explicitly via
+            # ``source_id``; this fallback only fires if the caller
+            # forgot to. UUID is the safest punt.
+            return str(uuid.uuid4())
         raise NotImplementedError(
             f"ContactInboxBuilder doesn't support channel_type={self.inbox.channel_type!r} yet"
         )
