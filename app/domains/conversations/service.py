@@ -1129,6 +1129,9 @@ async def _apply_message_post_create(
         await _maybe_send_outbound_whatsapp(
             session, message=message, conversation=conversation
         )
+        await _maybe_send_outbound_facebook(
+            session, message=message, conversation=conversation
+        )
 
 
 async def _maybe_send_outbound_email(
@@ -1235,6 +1238,66 @@ async def _maybe_send_outbound_whatsapp(
 
         logging.getLogger(__name__).exception(
             "whatsapp.send.dispatch_error message_id=%s message_id=%s",
+            message.id,
+            channel.id,
+        )
+
+
+async def _maybe_send_outbound_facebook(
+    session: AsyncSession,
+    *,
+    message: Message,
+    conversation: Conversation,
+) -> None:
+    """Route the outgoing message through the Messenger Graph API.
+
+    Mirrors the email + WhatsApp routers in shape — short-circuits
+    on non-Facebook inboxes, missing channel rows, missing PSID,
+    or transport failures.
+
+    The recipient's PSID lives on ``ContactInbox.source_id`` (5d.3
+    seeds it on inbound). We look it up by joining contact + inbox
+    so we don't have to drag the contact_inbox into the post-create
+    plumbing.
+    """
+    inbox = conversation.inbox
+    if inbox is None or inbox.channel_type != CHANNEL_TYPE_FACEBOOK:
+        return
+    from app.domains.contacts.models import ContactInbox
+    from app.domains.facebook.sender import send_text_message_facebook
+    from app.domains.inboxes.models import FacebookPage
+
+    channel = await session.get(FacebookPage, inbox.channel_id)
+    if channel is None:
+        return
+    if conversation.contact_id is None:
+        return
+
+    # Resolve the PSID via the ContactInbox row keyed on this contact +
+    # inbox. Mirrors Rails' ``contact.get_source_id(inbox.id)``.
+    ci = (
+        await session.exec(
+            select(ContactInbox).where(
+                ContactInbox.contact_id == conversation.contact_id,
+                ContactInbox.inbox_id == inbox.id,
+            )
+        )
+    ).first()
+    if ci is None or not ci.source_id:
+        return
+
+    try:
+        await send_text_message_facebook(
+            session,
+            channel=channel,
+            message=message,
+            to_psid=str(ci.source_id),
+        )
+    except Exception:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "facebook.send.dispatch_error message_id=%s channel_id=%s",
             message.id,
             channel.id,
         )
