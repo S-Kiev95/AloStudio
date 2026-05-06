@@ -30,12 +30,15 @@ from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
 
 router = APIRouter(
-    prefix="/webhooks",
     tags=["facebook-webhooks"],
 )
 
 
-@router.get("/fb_messenger")
+# Chatwoot mounts the ``facebook-messenger`` gem at ``/bot`` (see
+# ``reference/chatwoot/config/routes.rb`` line 568). We match the
+# path so a webhook URL the agent pasted into Meta's app config
+# works against either backend interchangeably.
+@router.get("/bot")
 async def facebook_verify(
     hub_mode: Annotated[str | None, Query(alias="hub.mode")] = None,
     hub_challenge: Annotated[str | None, Query(alias="hub.challenge")] = None,
@@ -64,7 +67,7 @@ async def facebook_verify(
     return hub_challenge or ""
 
 
-@router.post("/fb_messenger")
+@router.post("/bot")
 async def facebook_receive(
     request: Request,
     session: AsyncSession = Depends(get_session),

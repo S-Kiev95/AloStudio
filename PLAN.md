@@ -69,7 +69,7 @@ AloStudio/
 | 5a | Channel: Website widget       | ✅ done       | widget JWT auth + HMAC, config + contact + conversation + message endpoints, parity 404 envelopes |
 | 5b | Channel: Email (IMAP/SMTP)    | ✅ done       | EmailChannel model, RFC-2822 threading, SMTP outbound via ConversationReplyMailer, IMAP ingest via aioimaplib (Greenmail-tested). OAuth deferred to Phase 9 |
 | 5c | Channel: WhatsApp Cloud + 360dialog | ✅ done       | Both providers: webhook handshake + receive, inbound text + status events, outbound text + templates (sync + send). Twilio absorbed into 5f (SMS), media + interactive sends + CSAT templates + embedded signup deferred to phase 9 |
-| 5d | Channel: Facebook Messenger   | ⬜ pending     | webhook ingest, outbound |
+| 5d | Channel: Facebook Messenger   | ✅ done       | FacebookPage model + InboxBuilder, /bot webhook handshake (installation-wide FB_VERIFY_TOKEN), inbound text + echoes + delivery/read events, outbound text via Graph API (respx-tested). Attachments + postbacks + OAuth flow deferred to phase 9 |
 | 5e | Channel: Instagram DM         | ⬜ pending     | webhook ingest, outbound |
 | 5f | Channel: SMS (Twilio/Bandwidth) | ⬜ pending   | webhook, outbound, delivery status |
 | 5g | Channel: Telegram             | ⬜ pending     | webhook, outbound |
