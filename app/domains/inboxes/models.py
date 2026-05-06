@@ -69,6 +69,7 @@ _SENDER_NAME_STR_TO_INT: dict[str, int] = {v: k for k, v in _SENDER_NAME_INT_TO_
 CHANNEL_TYPE_API = "Channel::Api"
 CHANNEL_TYPE_EMAIL = "Channel::Email"
 CHANNEL_TYPE_FACEBOOK = "Channel::FacebookPage"
+CHANNEL_TYPE_INSTAGRAM = "Channel::Instagram"
 CHANNEL_TYPE_WEB_WIDGET = "Channel::WebWidget"
 CHANNEL_TYPE_WHATSAPP = "Channel::Whatsapp"
 
@@ -595,6 +596,54 @@ class FacebookPage(TimestampMixin, table=True):
 
 
 # =========================================================================
+# InstagramChannel (Channel::Instagram)
+# =========================================================================
+class InstagramChannel(TimestampMixin, table=True):
+    """Concrete channel for ``Channel::Instagram`` — the modern
+    "Direct Instagram Login" path.
+
+    Schema mirrors ``channel_instagram`` from Chatwoot v4.13.0.
+    ``instagram_id`` is the IG Business account id; ``access_token``
+    is the long-lived OAuth token Meta returns from the Instagram
+    Business app handshake. ``expires_at`` is the absolute timestamp
+    where the token rotates (Phase 9 reauthorization handles the
+    refresh — for 5e the column is set but not consumed).
+
+    Distinct from the legacy "Instagram via Facebook Page" path
+    (which lives on :class:`FacebookPage.instagram_id` — same Meta
+    surface, different routing). Phase 5e ports the standalone IG
+    channel only; the FB-page-IG branch lands in a later sub-phase
+    once we wire the dispatch-by-instagram-id router.
+    """
+
+    __tablename__ = "channel_instagram"
+    __table_args__ = (
+        Index(
+            "index_channel_instagram_on_instagram_id",
+            "instagram_id",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    instagram_id: str = Field(sa_column=Column(String, nullable=False))
+    access_token: str = Field(sa_column=Column(String, nullable=False))
+    expires_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
+# =========================================================================
 # Inbox
 # =========================================================================
 class Inbox(TimestampMixin, table=True):
@@ -772,6 +821,7 @@ __all__ = [
     "CHANNEL_TYPE_API",
     "CHANNEL_TYPE_EMAIL",
     "CHANNEL_TYPE_FACEBOOK",
+    "CHANNEL_TYPE_INSTAGRAM",
     "CHANNEL_TYPE_WEB_WIDGET",
     "CHANNEL_TYPE_WHATSAPP",
     "INBOX_SENDER_NAME_FRIENDLY",
@@ -787,6 +837,7 @@ __all__ = [
     "FacebookPage",
     "Inbox",
     "InboxMember",
+    "InstagramChannel",
     "WebWidget",
     "WhatsappChannel",
     "sender_name_type_from_str",

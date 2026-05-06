@@ -35,6 +35,7 @@ from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
     CHANNEL_TYPE_FACEBOOK,
+    CHANNEL_TYPE_INSTAGRAM,
     CHANNEL_TYPE_WEB_WIDGET,
     CHANNEL_TYPE_WHATSAPP,
     WEB_WIDGET_DEFAULT_COLOR,
@@ -47,6 +48,7 @@ from app.domains.inboxes.models import (
     FacebookPage,
     Inbox,
     InboxMember,
+    InstagramChannel,
     WebWidget,
     WhatsappChannel,
     sender_name_type_from_str,
@@ -64,6 +66,7 @@ _CHANNEL_REGISTRY: dict[str, str] = {
     "api": CHANNEL_TYPE_API,
     "email": CHANNEL_TYPE_EMAIL,
     "facebook": CHANNEL_TYPE_FACEBOOK,
+    "instagram": CHANNEL_TYPE_INSTAGRAM,
     "web_widget": CHANNEL_TYPE_WEB_WIDGET,
     "whatsapp": CHANNEL_TYPE_WHATSAPP,
 }
@@ -117,7 +120,12 @@ class InboxBuilderParams:
 class InboxBuilderResult:
     inbox: Inbox
     channel: (
-        ApiChannel | WebWidget | EmailChannel | WhatsappChannel | FacebookPage
+        ApiChannel
+        | WebWidget
+        | EmailChannel
+        | WhatsappChannel
+        | FacebookPage
+        | InstagramChannel
     )
 
 
@@ -166,7 +174,12 @@ class InboxBuilder:
     async def _build_channel(
         self,
     ) -> (
-        ApiChannel | WebWidget | EmailChannel | WhatsappChannel | FacebookPage
+        ApiChannel
+        | WebWidget
+        | EmailChannel
+        | WhatsappChannel
+        | FacebookPage
+        | InstagramChannel
     ):
         assert self._params.account.id is not None
         if self._params.channel_type == "api":
@@ -228,6 +241,9 @@ class InboxBuilder:
         if self._params.channel_type == "facebook":
             fb = await self._build_facebook_channel()
             return fb
+        if self._params.channel_type == "instagram":
+            ig = await self._build_instagram_channel()
+            return ig
         # Unreachable because perform() gates on _allowed_channel_types().
         raise ChatwootHTTPException(
             status_code=422,
@@ -512,6 +528,93 @@ class InboxBuilder:
         await self._session.refresh(ch)
         return ch
 
+    async def _build_instagram_channel(self) -> InstagramChannel:
+        """Validate + persist a fresh ``Channel::Instagram`` row.
+
+        Required params:
+          * ``instagram_id`` — IG Business account id (string).
+          * ``access_token`` — long-lived OAuth token Meta returns
+            from the IG Business app handshake.
+
+        Optional:
+          * ``expires_at`` — ISO-8601 timestamp where the token
+            rotates. Defaults to 60 days from now (Meta's standard
+            long-lived-token TTL) when the caller omits it. Phase 9
+            reauthorization handles refresh — for 5e the column is
+            set but never consumed.
+
+        Uniqueness on ``instagram_id`` (account-agnostic — Meta
+        only lets one app subscribe per IG id) surfaces as a 422
+        with the canonical "already taken" envelope.
+        """
+        from datetime import UTC, datetime, timedelta
+
+        params = self._params.channel_params
+        assert self._params.account.id is not None
+
+        ig_id = params.get("instagram_id")
+        access_token = params.get("access_token")
+        if not ig_id:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Validation failed",
+                    "attributes": ["instagram_id"],
+                },
+            )
+        if not access_token:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Validation failed",
+                    "attributes": ["access_token"],
+                },
+            )
+
+        # Default expires_at to 60 days out — Meta's long-lived
+        # IG-business-account token TTL.
+        expires_raw = params.get("expires_at")
+        if expires_raw is None:
+            expires_at = datetime.now(UTC) + timedelta(days=60)
+        elif isinstance(expires_raw, datetime):
+            expires_at = expires_raw
+        else:
+            try:
+                expires_at = datetime.fromisoformat(str(expires_raw))
+            except ValueError as exc:
+                raise ChatwootHTTPException(
+                    status_code=422,
+                    detail={
+                        "message": "Validation failed",
+                        "attributes": ["expires_at"],
+                    },
+                ) from exc
+
+        ch = InstagramChannel(
+            account_id=self._params.account.id,
+            instagram_id=str(ig_id),
+            access_token=str(access_token),
+            expires_at=expires_at,
+        )
+        self._session.add(ch)
+        try:
+            await self._session.flush()
+        except Exception as exc:  # noqa: BLE001
+            from sqlalchemy.exc import IntegrityError
+
+            if isinstance(exc, IntegrityError):
+                await self._session.rollback()
+                raise ChatwootHTTPException(
+                    status_code=422,
+                    detail={
+                        "message": "Instagram id is already taken",
+                        "attributes": ["instagram_id"],
+                    },
+                ) from exc
+            raise
+        await self._session.refresh(ch)
+        return ch
+
     def _build_inbox(
         self,
         channel: (
@@ -520,6 +623,7 @@ class InboxBuilder:
             | EmailChannel
             | WhatsappChannel
             | FacebookPage
+            | InstagramChannel
         ),
     ) -> Inbox:
         p = self._params

@@ -65,6 +65,12 @@ class Settings(BaseSettings):
     # Meta-side validation passes against the same schema.
     facebook_api_version: str = "v17.0"
 
+    # --- channels: Instagram DM (Phase 5e)
+    # Mirrors Rails' ``IG_VERIFY_TOKEN`` / ``INSTAGRAM_VERIFY_TOKEN``
+    # env vars (Chatwoot reads either; we ship one canonical name).
+    # Same fail-closed behaviour as ``fb_verify_token``.
+    ig_verify_token: str = ""
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
