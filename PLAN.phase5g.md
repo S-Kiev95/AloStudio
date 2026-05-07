@@ -56,49 +56,49 @@ httpx so no real Bot API call ever fires.
 ### 5g.1 — TelegramChannel model + migration + InboxBuilder branch
 
 **Tasks:**
-- [ ] `TelegramChannel` SQLModel — ``channel_telegram`` with
+- [x] `TelegramChannel` SQLModel — ``channel_telegram`` with
       bot_token UNIQUE + bot_name (read from Telegram's getMe;
       InboxBuilder accepts a caller-supplied value rather than
       calling Telegram on create — defer the live validation).
-- [ ] Alembic migration with the unique bot_token index.
-- [ ] Add `CHANNEL_TYPE_TELEGRAM = 'Channel::Telegram'`.
-- [ ] InboxBuilder ``telegram`` branch validating bot_token (and
+- [x] Alembic migration with the unique bot_token index.
+- [x] Add `CHANNEL_TYPE_TELEGRAM = 'Channel::Telegram'`.
+- [x] InboxBuilder ``telegram`` branch validating bot_token (and
       defaulting bot_name to ``"telegram-bot"`` if not supplied).
-- [ ] Tests: builder happy path + uniqueness.
+- [x] Tests: builder happy path + uniqueness.
 
 ### 5g.2 — Webhook receiver + inbound processor
 
 **Tasks:**
-- [ ] `app/domains/telegram/router.py` —
+- [x] `app/domains/telegram/router.py` —
         ``POST /webhooks/telegram/{bot_token}``.
-- [ ] `app/domains/telegram/incoming.py` —
+- [x] `app/domains/telegram/incoming.py` —
         ``process_telegram_webhook(session, *, bot_token, payload)``.
         Resolves channel by bot_token, walks message, creates
         Contact + ContactInbox keyed by ``from.id`` + Conversation
         with chat_id stamped in additional_attributes.
-- [ ] Idempotent on Telegram's ``message_id``.
-- [ ] Group chats dropped — only ``message.chat.type=='private'``
+- [x] Idempotent on Telegram's ``message_id``.
+- [x] Group chats dropped — only ``message.chat.type=='private'``
         proceeds.
-- [ ] Tests against canonical Telegram payloads.
+- [x] Tests against canonical Telegram payloads.
 
 ### 5g.3 — Outbound
 
 **Tasks:**
-- [ ] `app/domains/telegram/sender.py` —
+- [x] `app/domains/telegram/sender.py` —
         ``send_text_telegram(session, channel, message, chat_id)``.
         POSTs ``{chat_id, text}`` (and optional
         ``reply_to_message_id`` from
         ``content_attributes.in_reply_to_external_id``) to
         ``api.telegram.org/bot<token>/sendMessage``.
-- [ ] Stamps Telegram's returned ``message_id`` on
+- [x] Stamps Telegram's returned ``message_id`` on
         ``messages.source_id``.
-- [ ] Hooks into ``_apply_message_post_create``.
-- [ ] Tests via respx.
+- [x] Hooks into ``_apply_message_post_create``.
+- [x] Tests via respx.
 
 ### 5g.4 — Parity tests + close 5g
 
-- [ ] Cross-backend assertions on the webhook 200-ack invariant.
-- [ ] Update `PLAN.md` to mark 5g done.
+- [x] Cross-backend assertions on the webhook 200-ack invariant.
+- [x] Update `PLAN.md` to mark 5g done.
 
 ---
 

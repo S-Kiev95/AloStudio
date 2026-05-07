@@ -72,7 +72,7 @@ AloStudio/
 | 5d | Channel: Facebook Messenger   | ✅ done       | FacebookPage model + InboxBuilder, /bot webhook handshake (installation-wide FB_VERIFY_TOKEN), inbound text + echoes + delivery/read events, outbound text via Graph API (respx-tested). Attachments + postbacks + OAuth flow deferred to phase 9 |
 | 5e | Channel: Instagram DM         | ✅ done       | InstagramChannel (Direct IG Login) + InboxBuilder, /webhooks/instagram handshake (installation-wide IG_VERIFY_TOKEN) + ``object: instagram`` body gate, inbound text + echoes + read events, outbound via Graph API. Legacy IG-via-FB-page path + appsecret_proof + attachments deferred to phase 9 |
 | 5f | Channel: SMS (Twilio/Bandwidth) | ✅ done       | TwilioSms (form-encoded /twilio/callback + REST send) and Sms/Bandwidth (JSON /webhooks/sms/{phone} + REST send). Twilio's WhatsApp medium + delivery callbacks + MMS attachments deferred to 5f.6 / phase 9-10 |
-| 5g | Channel: Telegram             | ⬜ pending     | webhook, outbound |
+| 5g | Channel: Telegram             | ✅ done       | TelegramChannel + InboxBuilder, /webhooks/telegram/{bot_token} (bot_token in URL is the credential, no verify-token handshake), inbound text + caption fallback + reply_to threading + group-chat drop, outbound text via Bot API. Business mode + callbacks + attachments + setWebhook on create deferred to phase 9-10 |
 | 6 | Automation + Macros + Labels + CSAT | ⬜ pending | rule engine eval, macro apply, CSAT flow |
 | 7 | Reports                         | ⬜ pending     | agent/conversation/inbox reports |
 | 8 | Integrations (Slack, Dialogflow, Webhook apps, OpenAI) | ⬜ pending | per-integration webhook |
