@@ -1141,6 +1141,9 @@ async def _apply_message_post_create(
         await _maybe_send_outbound_instagram(
             session, message=message, conversation=conversation
         )
+        await _maybe_send_outbound_twilio(
+            session, message=message, conversation=conversation
+        )
 
 
 async def _maybe_send_outbound_email(
@@ -1361,6 +1364,69 @@ async def _maybe_send_outbound_instagram(
 
         logging.getLogger(__name__).exception(
             "instagram.send.dispatch_error message_id=%s channel_id=%s",
+            message.id,
+            channel.id,
+        )
+
+
+async def _maybe_send_outbound_twilio(
+    session: AsyncSession,
+    *,
+    message: Message,
+    conversation: Conversation,
+) -> None:
+    """Route the outgoing message through Twilio's REST API.
+
+    Mirrors the FB / IG router shape — short-circuits on non-Twilio
+    inboxes, missing channel rows, missing recipient phone, or
+    transport failures. The recipient phone lives on
+    ``ContactInbox.source_id`` (5f.2 seeds it on inbound).
+
+    SMS-medium-only for now — the WhatsApp medium ships in 5f.6
+    with its own ``whatsapp:+number`` ``To`` shape.
+    """
+    inbox = conversation.inbox
+    if inbox is None or inbox.channel_type != CHANNEL_TYPE_TWILIO_SMS:
+        return
+    from app.domains.contacts.models import ContactInbox
+    from app.domains.inboxes.models import (
+        TWILIO_MEDIUM_SMS,
+        TwilioSmsChannel,
+    )
+    from app.domains.twilio.sender import send_sms_twilio
+
+    channel = await session.get(TwilioSmsChannel, inbox.channel_id)
+    if channel is None:
+        return
+    if channel.medium != TWILIO_MEDIUM_SMS:
+        # WhatsApp medium routes via 5f.6's branch.
+        return
+    if conversation.contact_id is None:
+        return
+
+    ci = (
+        await session.exec(
+            select(ContactInbox).where(
+                ContactInbox.contact_id == conversation.contact_id,
+                ContactInbox.inbox_id == inbox.id,
+            )
+        )
+    ).first()
+    if ci is None or not ci.source_id:
+        return
+
+    try:
+        await send_sms_twilio(
+            session,
+            channel=channel,
+            message=message,
+            to_phone=str(ci.source_id),
+        )
+    except Exception:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "twilio.send.dispatch_error message_id=%s channel_id=%s",
             message.id,
             channel.id,
         )
