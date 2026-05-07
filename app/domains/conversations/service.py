@@ -1144,6 +1144,9 @@ async def _apply_message_post_create(
         await _maybe_send_outbound_twilio(
             session, message=message, conversation=conversation
         )
+        await _maybe_send_outbound_bandwidth(
+            session, message=message, conversation=conversation
+        )
 
 
 async def _maybe_send_outbound_email(
@@ -1427,6 +1430,58 @@ async def _maybe_send_outbound_twilio(
 
         logging.getLogger(__name__).exception(
             "twilio.send.dispatch_error message_id=%s channel_id=%s",
+            message.id,
+            channel.id,
+        )
+
+
+async def _maybe_send_outbound_bandwidth(
+    session: AsyncSession,
+    *,
+    message: Message,
+    conversation: Conversation,
+) -> None:
+    """Route the outgoing message through Bandwidth's API.
+
+    Same shape as the Twilio router. The recipient phone lives on
+    ``ContactInbox.source_id`` (5f.4 seeds it on inbound).
+    """
+    inbox = conversation.inbox
+    if inbox is None or inbox.channel_type != CHANNEL_TYPE_SMS:
+        return
+    from app.domains.contacts.models import ContactInbox
+    from app.domains.inboxes.models import SmsChannel
+    from app.domains.sms_bandwidth.sender import send_sms_bandwidth
+
+    channel = await session.get(SmsChannel, inbox.channel_id)
+    if channel is None:
+        return
+    if conversation.contact_id is None:
+        return
+
+    ci = (
+        await session.exec(
+            select(ContactInbox).where(
+                ContactInbox.contact_id == conversation.contact_id,
+                ContactInbox.inbox_id == inbox.id,
+            )
+        )
+    ).first()
+    if ci is None or not ci.source_id:
+        return
+
+    try:
+        await send_sms_bandwidth(
+            session,
+            channel=channel,
+            message=message,
+            to_phone=str(ci.source_id),
+        )
+    except Exception:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "bandwidth.send.dispatch_error message_id=%s channel_id=%s",
             message.id,
             channel.id,
         )
