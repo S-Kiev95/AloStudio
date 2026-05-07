@@ -71,7 +71,7 @@ AloStudio/
 | 5c | Channel: WhatsApp Cloud + 360dialog | ✅ done       | Both providers: webhook handshake + receive, inbound text + status events, outbound text + templates (sync + send). Twilio absorbed into 5f (SMS), media + interactive sends + CSAT templates + embedded signup deferred to phase 9 |
 | 5d | Channel: Facebook Messenger   | ✅ done       | FacebookPage model + InboxBuilder, /bot webhook handshake (installation-wide FB_VERIFY_TOKEN), inbound text + echoes + delivery/read events, outbound text via Graph API (respx-tested). Attachments + postbacks + OAuth flow deferred to phase 9 |
 | 5e | Channel: Instagram DM         | ✅ done       | InstagramChannel (Direct IG Login) + InboxBuilder, /webhooks/instagram handshake (installation-wide IG_VERIFY_TOKEN) + ``object: instagram`` body gate, inbound text + echoes + read events, outbound via Graph API. Legacy IG-via-FB-page path + appsecret_proof + attachments deferred to phase 9 |
-| 5f | Channel: SMS (Twilio/Bandwidth) | ⬜ pending   | webhook, outbound, delivery status |
+| 5f | Channel: SMS (Twilio/Bandwidth) | ✅ done       | TwilioSms (form-encoded /twilio/callback + REST send) and Sms/Bandwidth (JSON /webhooks/sms/{phone} + REST send). Twilio's WhatsApp medium + delivery callbacks + MMS attachments deferred to 5f.6 / phase 9-10 |
 | 5g | Channel: Telegram             | ⬜ pending     | webhook, outbound |
 | 6 | Automation + Macros + Labels + CSAT | ⬜ pending | rule engine eval, macro apply, CSAT flow |
 | 7 | Reports                         | ⬜ pending     | agent/conversation/inbox reports |
