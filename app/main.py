@@ -25,6 +25,7 @@ from app.domains.users.router import router as profile_router
 from app.domains.facebook.router import router as facebook_webhook_router
 from app.domains.instagram.router import router as instagram_webhook_router
 from app.domains.sms_bandwidth.router import router as bandwidth_webhook_router
+from app.domains.telegram.router import router as telegram_webhook_router
 from app.domains.twilio.router import router as twilio_webhook_router
 from app.domains.web_widget.router import router as web_widget_router
 from app.domains.whatsapp.router import router as whatsapp_webhook_router
@@ -103,6 +104,10 @@ def create_app() -> FastAPI:
     # Bandwidth SMS webhook (Phase 5f). ``/webhooks/sms/{phone}`` —
     # JSON array payload, channel resolved by URL phone.
     app.include_router(bandwidth_webhook_router)
+    # Telegram webhook (Phase 5g). ``/webhooks/telegram/{bot_token}``
+    # — bot token in URL path acts as the credential, no verify-token
+    # handshake. Body is a JSON Bot API Update object.
+    app.include_router(telegram_webhook_router)
     # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
     # last so HTTP routes take precedence in any path-overlap edge.
     app.include_router(cable_router)
