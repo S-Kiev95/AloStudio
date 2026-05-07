@@ -36,6 +36,8 @@ from app.domains.inboxes.models import (
     CHANNEL_TYPE_EMAIL,
     CHANNEL_TYPE_FACEBOOK,
     CHANNEL_TYPE_INSTAGRAM,
+    CHANNEL_TYPE_SMS,
+    CHANNEL_TYPE_TWILIO_SMS,
     CHANNEL_TYPE_WEB_WIDGET,
     Inbox,
 )
@@ -154,6 +156,14 @@ class ContactInboxBuilder:
         if self.inbox.channel_type == CHANNEL_TYPE_INSTAGRAM:
             # Instagram, like Facebook, always passes the IGSID
             # explicitly via ``source_id``. UUID fallback for safety.
+            return str(uuid.uuid4())
+        if self.inbox.channel_type in (
+            CHANNEL_TYPE_TWILIO_SMS,
+            CHANNEL_TYPE_SMS,
+        ):
+            # Twilio + Bandwidth ingest both pass the contact's phone
+            # number as source_id explicitly. UUID fallback for the
+            # rare path where the caller forgot.
             return str(uuid.uuid4())
         raise NotImplementedError(
             f"ContactInboxBuilder doesn't support channel_type={self.inbox.channel_type!r} yet"

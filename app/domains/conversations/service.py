@@ -102,6 +102,8 @@ from app.domains.inboxes.models import (
     CHANNEL_TYPE_EMAIL,
     CHANNEL_TYPE_FACEBOOK,
     CHANNEL_TYPE_INSTAGRAM,
+    CHANNEL_TYPE_SMS,
+    CHANNEL_TYPE_TWILIO_SMS,
     CHANNEL_TYPE_WEB_WIDGET,
     CHANNEL_TYPE_WHATSAPP,
     Inbox,
@@ -847,6 +849,8 @@ def _validate_message_type_for_inbox(
         CHANNEL_TYPE_EMAIL,
         CHANNEL_TYPE_FACEBOOK,
         CHANNEL_TYPE_INSTAGRAM,
+        CHANNEL_TYPE_SMS,
+        CHANNEL_TYPE_TWILIO_SMS,
         CHANNEL_TYPE_WEB_WIDGET,
         CHANNEL_TYPE_WHATSAPP,
     }
