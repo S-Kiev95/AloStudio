@@ -37,6 +37,7 @@ from app.domains.inboxes.models import (
     CHANNEL_TYPE_FACEBOOK,
     CHANNEL_TYPE_INSTAGRAM,
     CHANNEL_TYPE_SMS,
+    CHANNEL_TYPE_TELEGRAM,
     CHANNEL_TYPE_TWILIO_SMS,
     CHANNEL_TYPE_WEB_WIDGET,
     CHANNEL_TYPE_WHATSAPP,
@@ -53,6 +54,7 @@ from app.domains.inboxes.models import (
     InboxMember,
     InstagramChannel,
     SmsChannel,
+    TelegramChannel,
     TwilioSmsChannel,
     WebWidget,
     WhatsappChannel,
@@ -74,6 +76,7 @@ _CHANNEL_REGISTRY: dict[str, str] = {
     "facebook": CHANNEL_TYPE_FACEBOOK,
     "instagram": CHANNEL_TYPE_INSTAGRAM,
     "sms": CHANNEL_TYPE_SMS,
+    "telegram": CHANNEL_TYPE_TELEGRAM,
     "twilio_sms": CHANNEL_TYPE_TWILIO_SMS,
     "web_widget": CHANNEL_TYPE_WEB_WIDGET,
     "whatsapp": CHANNEL_TYPE_WHATSAPP,
@@ -136,6 +139,7 @@ class InboxBuilderResult:
         | InstagramChannel
         | TwilioSmsChannel
         | SmsChannel
+        | TelegramChannel
     )
 
 
@@ -192,6 +196,7 @@ class InboxBuilder:
         | InstagramChannel
         | TwilioSmsChannel
         | SmsChannel
+        | TelegramChannel
     ):
         assert self._params.account.id is not None
         if self._params.channel_type == "api":
@@ -262,6 +267,9 @@ class InboxBuilder:
         if self._params.channel_type == "sms":
             sms = await self._build_sms_channel()
             return sms
+        if self._params.channel_type == "telegram":
+            tg = await self._build_telegram_channel()
+            return tg
         # Unreachable because perform() gates on _allowed_channel_types().
         raise ChatwootHTTPException(
             status_code=422,
@@ -813,6 +821,64 @@ class InboxBuilder:
         await self._session.refresh(ch)
         return ch
 
+    async def _build_telegram_channel(self) -> TelegramChannel:
+        """Validate + persist a fresh ``Channel::Telegram`` row.
+
+        Required:
+          * ``bot_token`` — the secret BotFather hands the agent.
+            Lives in the webhook URL (Telegram requires it that way
+            so the bot can verify the request came from Telegram —
+            knowing the URL == knowing the token), so we treat
+            it as auth.
+
+        Optional:
+          * ``bot_name`` — the bot's @username. Rails fetches it via
+            ``getMe`` on create; we accept a caller-supplied value
+            and default to ``"telegram-bot"`` when omitted (Phase 9
+            deployment hardening adds the live ``getMe`` validation).
+
+        Uniqueness on ``bot_token`` (account-agnostic — the same
+        bot token can't auth two different inboxes; Telegram itself
+        enforces single-binding) surfaces as a 422.
+        """
+        params = self._params.channel_params
+        assert self._params.account.id is not None
+
+        bot_token = params.get("bot_token")
+        if not bot_token:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Validation failed",
+                    "attributes": ["bot_token"],
+                },
+            )
+        bot_name = params.get("bot_name") or "telegram-bot"
+
+        ch = TelegramChannel(
+            account_id=self._params.account.id,
+            bot_token=str(bot_token),
+            bot_name=str(bot_name),
+        )
+        self._session.add(ch)
+        try:
+            await self._session.flush()
+        except Exception as exc:  # noqa: BLE001
+            from sqlalchemy.exc import IntegrityError
+
+            if isinstance(exc, IntegrityError):
+                await self._session.rollback()
+                raise ChatwootHTTPException(
+                    status_code=422,
+                    detail={
+                        "message": "Bot token is already taken",
+                        "attributes": ["bot_token"],
+                    },
+                ) from exc
+            raise
+        await self._session.refresh(ch)
+        return ch
+
     def _build_inbox(
         self,
         channel: (
@@ -824,6 +890,7 @@ class InboxBuilder:
             | InstagramChannel
             | TwilioSmsChannel
             | SmsChannel
+            | TelegramChannel
         ),
     ) -> Inbox:
         p = self._params

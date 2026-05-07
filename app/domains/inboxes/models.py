@@ -71,6 +71,7 @@ CHANNEL_TYPE_EMAIL = "Channel::Email"
 CHANNEL_TYPE_FACEBOOK = "Channel::FacebookPage"
 CHANNEL_TYPE_INSTAGRAM = "Channel::Instagram"
 CHANNEL_TYPE_SMS = "Channel::Sms"
+CHANNEL_TYPE_TELEGRAM = "Channel::Telegram"
 CHANNEL_TYPE_TWILIO_SMS = "Channel::TwilioSms"
 CHANNEL_TYPE_WEB_WIDGET = "Channel::WebWidget"
 CHANNEL_TYPE_WHATSAPP = "Channel::Whatsapp"
@@ -800,6 +801,54 @@ class SmsChannel(TimestampMixin, table=True):
 
 
 # =========================================================================
+# TelegramChannel (Channel::Telegram)
+# =========================================================================
+class TelegramChannel(TimestampMixin, table=True):
+    """Concrete channel for ``Channel::Telegram`` — bot-token-based.
+
+    Schema mirrors ``channel_telegram`` from Chatwoot v4.13.0:
+    ``bot_token`` UNIQUE (the secret that auths the bot AND lives
+    in the webhook URL — knowing the URL == knowing the token, which
+    Telegram treats as proof the request came from them).
+    ``bot_name`` is the bot's username read from Telegram's
+    ``getMe`` endpoint at create time. Our InboxBuilder accepts a
+    caller-supplied value rather than calling Telegram on create —
+    the live ``getMe`` validation lands with phase 9 deployment
+    hardening.
+
+    The Rails model also runs ``setWebhook`` on save to register
+    the public webhook URL with Telegram. We defer that to deploy-
+    time tooling (the Telegram setup CLI / dashboard) since the
+    test environment has no public-facing URL.
+    """
+
+    __tablename__ = "channel_telegram"
+    __table_args__ = (
+        Index(
+            "index_channel_telegram_on_bot_token",
+            "bot_token",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    bot_token: str = Field(sa_column=Column(String, nullable=False))
+    bot_name: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+
+
+# =========================================================================
 # Inbox
 # =========================================================================
 class Inbox(TimestampMixin, table=True):
@@ -979,6 +1028,7 @@ __all__ = [
     "CHANNEL_TYPE_FACEBOOK",
     "CHANNEL_TYPE_INSTAGRAM",
     "CHANNEL_TYPE_SMS",
+    "CHANNEL_TYPE_TELEGRAM",
     "CHANNEL_TYPE_TWILIO_SMS",
     "CHANNEL_TYPE_WEB_WIDGET",
     "CHANNEL_TYPE_WHATSAPP",
@@ -999,6 +1049,7 @@ __all__ = [
     "InboxMember",
     "InstagramChannel",
     "SmsChannel",
+    "TelegramChannel",
     "TwilioSmsChannel",
     "WebWidget",
     "WhatsappChannel",
