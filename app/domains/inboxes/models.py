@@ -70,8 +70,30 @@ CHANNEL_TYPE_API = "Channel::Api"
 CHANNEL_TYPE_EMAIL = "Channel::Email"
 CHANNEL_TYPE_FACEBOOK = "Channel::FacebookPage"
 CHANNEL_TYPE_INSTAGRAM = "Channel::Instagram"
+CHANNEL_TYPE_SMS = "Channel::Sms"
+CHANNEL_TYPE_TWILIO_SMS = "Channel::TwilioSms"
 CHANNEL_TYPE_WEB_WIDGET = "Channel::WebWidget"
 CHANNEL_TYPE_WHATSAPP = "Channel::Whatsapp"
+
+# Rails ``Channel::TwilioSms#medium`` enum: 0=sms, 1=whatsapp.
+TWILIO_MEDIUM_SMS = 0
+TWILIO_MEDIUM_WHATSAPP = 1
+_TWILIO_MEDIUM_INT_TO_STR: dict[int, str] = {
+    TWILIO_MEDIUM_SMS: "sms",
+    TWILIO_MEDIUM_WHATSAPP: "whatsapp",
+}
+
+
+def twilio_medium_to_str(value: int) -> str:
+    return _TWILIO_MEDIUM_INT_TO_STR.get(value, "sms")
+
+
+def twilio_medium_from_str(value: str) -> int:
+    if value == "sms":
+        return TWILIO_MEDIUM_SMS
+    if value == "whatsapp":
+        return TWILIO_MEDIUM_WHATSAPP
+    raise ValueError(f"unknown twilio medium: {value!r}")
 
 # Provider strings mirror Chatwoot exactly. ``default`` is 360dialog
 # (legacy naming kept for parity); ``whatsapp_cloud`` is Meta's
@@ -644,6 +666,140 @@ class InstagramChannel(TimestampMixin, table=True):
 
 
 # =========================================================================
+# TwilioSmsChannel (Channel::TwilioSms)
+# =========================================================================
+class TwilioSmsChannel(TimestampMixin, table=True):
+    """Concrete channel for ``Channel::TwilioSms`` — Twilio's SMS
+    REST API. Also covers Twilio's WhatsApp (``medium=whatsapp``)
+    via the same row + REST endpoint; the WhatsApp medium ships in
+    sub-phase 5f.6.
+
+    Schema mirrors ``channel_twilio_sms`` from Chatwoot v4.13.0:
+    ``account_sid`` + ``auth_token`` are the Twilio account
+    credentials, ``phone_number`` is the agent-facing E.164 number
+    (e.g. ``+15551234567``), and ``messaging_service_sid`` is the
+    optional Messaging Service that lets Twilio pick a sender from
+    a pool.
+
+    Three unique indexes mirror Rails:
+      * ``phone_number`` (account-agnostic — Twilio only lets one
+        Account own a number).
+      * ``messaging_service_sid`` (account-agnostic — same reason).
+      * ``(account_sid, phone_number)`` (defensive).
+    """
+
+    __tablename__ = "channel_twilio_sms"
+    __table_args__ = (
+        Index(
+            "index_channel_twilio_sms_on_phone_number",
+            "phone_number",
+            unique=True,
+        ),
+        Index(
+            "index_channel_twilio_sms_on_messaging_service_sid",
+            "messaging_service_sid",
+            unique=True,
+        ),
+        Index(
+            "index_channel_twilio_sms_on_account_sid_and_phone_number",
+            "account_sid",
+            "phone_number",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    account_sid: str = Field(sa_column=Column(String, nullable=False))
+    auth_token: str = Field(sa_column=Column(String, nullable=False))
+    api_key_sid: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    phone_number: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    messaging_service_sid: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    medium: int = Field(
+        default=TWILIO_MEDIUM_SMS,
+        sa_column=Column(
+            Integer,
+            nullable=True,
+            server_default=str(TWILIO_MEDIUM_SMS),
+        ),
+    )
+    content_templates: list[dict[str, Any]] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=True),
+    )
+    content_templates_last_updated: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+
+    @property
+    def medium_str(self) -> str:
+        return twilio_medium_to_str(self.medium)
+
+
+# =========================================================================
+# SmsChannel (Channel::Sms — Bandwidth provider)
+# =========================================================================
+class SmsChannel(TimestampMixin, table=True):
+    """Concrete channel for ``Channel::Sms`` — Bandwidth's messaging
+    API (Chatwoot's ``provider='default'`` is Bandwidth; the
+    ``provider`` column exists for forward-compat with other
+    SMS-aggregator providers but only Bandwidth ships in 5f).
+
+    Schema mirrors ``channel_sms`` from Chatwoot v4.13.0:
+    ``phone_number`` UNIQUE, ``provider_config`` JSONB carrying
+    Bandwidth's ``account_id`` + ``api_token`` + ``api_secret`` +
+    ``application_id`` (the four values that authorise outbound +
+    correlate inbound).
+    """
+
+    __tablename__ = "channel_sms"
+    __table_args__ = (
+        Index(
+            "index_channel_sms_on_phone_number",
+            "phone_number",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    phone_number: str = Field(sa_column=Column(String, nullable=False))
+    provider: str = Field(
+        default="default",
+        sa_column=Column(String, nullable=True, server_default="default"),
+    )
+    provider_config: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=True),
+    )
+
+
+# =========================================================================
 # Inbox
 # =========================================================================
 class Inbox(TimestampMixin, table=True):
@@ -822,10 +978,14 @@ __all__ = [
     "CHANNEL_TYPE_EMAIL",
     "CHANNEL_TYPE_FACEBOOK",
     "CHANNEL_TYPE_INSTAGRAM",
+    "CHANNEL_TYPE_SMS",
+    "CHANNEL_TYPE_TWILIO_SMS",
     "CHANNEL_TYPE_WEB_WIDGET",
     "CHANNEL_TYPE_WHATSAPP",
     "INBOX_SENDER_NAME_FRIENDLY",
     "INBOX_SENDER_NAME_PROFESSIONAL",
+    "TWILIO_MEDIUM_SMS",
+    "TWILIO_MEDIUM_WHATSAPP",
     "WEB_WIDGET_DEFAULT_COLOR",
     "WEB_WIDGET_DEFAULT_FEATURE_FLAGS",
     "WEB_WIDGET_DEFAULT_PRE_CHAT_FORM_OPTIONS",
@@ -838,8 +998,12 @@ __all__ = [
     "Inbox",
     "InboxMember",
     "InstagramChannel",
+    "SmsChannel",
+    "TwilioSmsChannel",
     "WebWidget",
     "WhatsappChannel",
     "sender_name_type_from_str",
     "sender_name_type_to_str",
+    "twilio_medium_from_str",
+    "twilio_medium_to_str",
 ]

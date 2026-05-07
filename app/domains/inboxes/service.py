@@ -36,8 +36,11 @@ from app.domains.inboxes.models import (
     CHANNEL_TYPE_EMAIL,
     CHANNEL_TYPE_FACEBOOK,
     CHANNEL_TYPE_INSTAGRAM,
+    CHANNEL_TYPE_SMS,
+    CHANNEL_TYPE_TWILIO_SMS,
     CHANNEL_TYPE_WEB_WIDGET,
     CHANNEL_TYPE_WHATSAPP,
+    TWILIO_MEDIUM_SMS,
     WEB_WIDGET_DEFAULT_COLOR,
     WEB_WIDGET_DEFAULT_PRE_CHAT_FORM_OPTIONS,
     WHATSAPP_PROVIDER_360DIALOG,
@@ -49,9 +52,12 @@ from app.domains.inboxes.models import (
     Inbox,
     InboxMember,
     InstagramChannel,
+    SmsChannel,
+    TwilioSmsChannel,
     WebWidget,
     WhatsappChannel,
     sender_name_type_from_str,
+    twilio_medium_from_str,
 )
 
 
@@ -67,6 +73,8 @@ _CHANNEL_REGISTRY: dict[str, str] = {
     "email": CHANNEL_TYPE_EMAIL,
     "facebook": CHANNEL_TYPE_FACEBOOK,
     "instagram": CHANNEL_TYPE_INSTAGRAM,
+    "sms": CHANNEL_TYPE_SMS,
+    "twilio_sms": CHANNEL_TYPE_TWILIO_SMS,
     "web_widget": CHANNEL_TYPE_WEB_WIDGET,
     "whatsapp": CHANNEL_TYPE_WHATSAPP,
 }
@@ -126,6 +134,8 @@ class InboxBuilderResult:
         | WhatsappChannel
         | FacebookPage
         | InstagramChannel
+        | TwilioSmsChannel
+        | SmsChannel
     )
 
 
@@ -180,6 +190,8 @@ class InboxBuilder:
         | WhatsappChannel
         | FacebookPage
         | InstagramChannel
+        | TwilioSmsChannel
+        | SmsChannel
     ):
         assert self._params.account.id is not None
         if self._params.channel_type == "api":
@@ -244,6 +256,12 @@ class InboxBuilder:
         if self._params.channel_type == "instagram":
             ig = await self._build_instagram_channel()
             return ig
+        if self._params.channel_type == "twilio_sms":
+            tw = await self._build_twilio_sms_channel()
+            return tw
+        if self._params.channel_type == "sms":
+            sms = await self._build_sms_channel()
+            return sms
         # Unreachable because perform() gates on _allowed_channel_types().
         raise ChatwootHTTPException(
             status_code=422,
@@ -615,6 +633,186 @@ class InboxBuilder:
         await self._session.refresh(ch)
         return ch
 
+    async def _build_twilio_sms_channel(self) -> TwilioSmsChannel:
+        """Validate + persist a fresh ``Channel::TwilioSms`` row.
+
+        Required:
+          * ``account_sid`` — Twilio Account SID (``ACxxxx...``).
+          * ``auth_token`` — paired auth token.
+          * EITHER ``phone_number`` (E.164) OR
+            ``messaging_service_sid`` — Twilio routes via the latter
+            when set, falls back to the from-number otherwise.
+
+        Optional:
+          * ``api_key_sid`` — alternative auth path
+            (``Twilio::REST::Client.new(api_key_sid, auth_token,
+            account_sid)``).
+          * ``medium`` — ``'sms'`` (default) or ``'whatsapp'``. The
+            WhatsApp medium ships with sub-phase 5f.6 — we accept
+            it here so the column is set correctly when 5f.6 wires
+            the send path.
+
+        Uniqueness on ``phone_number`` and
+        ``messaging_service_sid`` (account-agnostic — Twilio only
+        lets one Account own each) surfaces as a 422.
+        """
+        from app.core.tokens import base58_token  # noqa: F401  (kept for parity)
+
+        params = self._params.channel_params
+        assert self._params.account.id is not None
+
+        account_sid = params.get("account_sid")
+        auth_token = params.get("auth_token")
+        phone_number = params.get("phone_number")
+        messaging_service_sid = params.get("messaging_service_sid")
+
+        if not account_sid:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Validation failed",
+                    "attributes": ["account_sid"],
+                },
+            )
+        if not auth_token:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Validation failed",
+                    "attributes": ["auth_token"],
+                },
+            )
+        if not phone_number and not messaging_service_sid:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": (
+                        "Validation failed: either phone_number or "
+                        "messaging_service_sid is required"
+                    ),
+                    "attributes": ["phone_number"],
+                },
+            )
+
+        medium_str = params.get("medium")
+        if medium_str is None:
+            medium = TWILIO_MEDIUM_SMS
+        else:
+            try:
+                medium = twilio_medium_from_str(str(medium_str))
+            except ValueError as exc:
+                raise ChatwootHTTPException(
+                    status_code=422,
+                    detail={
+                        "message": "Validation failed",
+                        "attributes": ["medium"],
+                    },
+                ) from exc
+
+        ch = TwilioSmsChannel(
+            account_id=self._params.account.id,
+            account_sid=str(account_sid),
+            auth_token=str(auth_token),
+            api_key_sid=(
+                str(params["api_key_sid"])
+                if params.get("api_key_sid")
+                else None
+            ),
+            phone_number=str(phone_number) if phone_number else None,
+            messaging_service_sid=(
+                str(messaging_service_sid)
+                if messaging_service_sid
+                else None
+            ),
+            medium=medium,
+            content_templates=[],
+        )
+        self._session.add(ch)
+        try:
+            await self._session.flush()
+        except Exception as exc:  # noqa: BLE001
+            from sqlalchemy.exc import IntegrityError
+
+            if isinstance(exc, IntegrityError):
+                await self._session.rollback()
+                raise ChatwootHTTPException(
+                    status_code=422,
+                    detail={
+                        "message": (
+                            "Phone number or messaging service SID is "
+                            "already taken"
+                        ),
+                        "attributes": ["phone_number"],
+                    },
+                ) from exc
+            raise
+        await self._session.refresh(ch)
+        return ch
+
+    async def _build_sms_channel(self) -> SmsChannel:
+        """Validate + persist a fresh ``Channel::Sms`` row (Bandwidth).
+
+        Required:
+          * ``phone_number`` (E.164).
+          * ``provider_config`` carrying Bandwidth's ``account_id``
+            + ``api_token`` + ``api_secret`` + ``application_id``.
+
+        ``phone_number`` is account-agnostic UNIQUE.
+        """
+        params = self._params.channel_params
+        assert self._params.account.id is not None
+
+        phone_number = params.get("phone_number")
+        if not phone_number:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Validation failed",
+                    "attributes": ["phone_number"],
+                },
+            )
+
+        provider_config = dict(params.get("provider_config") or {})
+        for required in (
+            "account_id",
+            "api_token",
+            "api_secret",
+            "application_id",
+        ):
+            if not provider_config.get(required):
+                raise ChatwootHTTPException(
+                    status_code=422,
+                    detail={
+                        "message": "Validation failed",
+                        "attributes": [f"provider_config.{required}"],
+                    },
+                )
+
+        ch = SmsChannel(
+            account_id=self._params.account.id,
+            phone_number=str(phone_number),
+            provider=str(params.get("provider") or "default"),
+            provider_config=provider_config,
+        )
+        self._session.add(ch)
+        try:
+            await self._session.flush()
+        except Exception as exc:  # noqa: BLE001
+            from sqlalchemy.exc import IntegrityError
+
+            if isinstance(exc, IntegrityError):
+                await self._session.rollback()
+                raise ChatwootHTTPException(
+                    status_code=422,
+                    detail={
+                        "message": "Phone number is already taken",
+                        "attributes": ["phone_number"],
+                    },
+                ) from exc
+            raise
+        await self._session.refresh(ch)
+        return ch
+
     def _build_inbox(
         self,
         channel: (
@@ -624,6 +822,8 @@ class InboxBuilder:
             | WhatsappChannel
             | FacebookPage
             | InstagramChannel
+            | TwilioSmsChannel
+            | SmsChannel
         ),
     ) -> Inbox:
         p = self._params
