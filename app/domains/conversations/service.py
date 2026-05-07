@@ -1149,6 +1149,9 @@ async def _apply_message_post_create(
         await _maybe_send_outbound_bandwidth(
             session, message=message, conversation=conversation
         )
+        await _maybe_send_outbound_telegram(
+            session, message=message, conversation=conversation
+        )
 
 
 async def _maybe_send_outbound_email(
@@ -1484,6 +1487,56 @@ async def _maybe_send_outbound_bandwidth(
 
         logging.getLogger(__name__).exception(
             "bandwidth.send.dispatch_error message_id=%s channel_id=%s",
+            message.id,
+            channel.id,
+        )
+
+
+async def _maybe_send_outbound_telegram(
+    session: AsyncSession,
+    *,
+    message: Message,
+    conversation: Conversation,
+) -> None:
+    """Route the outgoing message through Telegram's Bot API.
+
+    Same shape as the FB / IG / Twilio routers — short-circuits on
+    non-Telegram inboxes, missing channel rows, missing chat_id, or
+    transport failures.
+
+    Telegram identifies a destination by ``chat_id`` rather than a
+    ContactInbox ``source_id``; the inbound processor (5g.2) stamps
+    ``conversation.additional_attributes['chat_id']`` so the sender
+    can read it back here.
+    """
+    inbox = conversation.inbox
+    if inbox is None or inbox.channel_type != CHANNEL_TYPE_TELEGRAM:
+        return
+    from app.domains.inboxes.models import TelegramChannel
+    from app.domains.telegram.sender import (
+        chat_id_for,
+        send_text_telegram,
+    )
+
+    channel = await session.get(TelegramChannel, inbox.channel_id)
+    if channel is None:
+        return
+    chat_id = chat_id_for(conversation)
+    if chat_id is None:
+        return
+
+    try:
+        await send_text_telegram(
+            session,
+            channel=channel,
+            message=message,
+            chat_id=chat_id,
+        )
+    except Exception:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "telegram.send.dispatch_error message_id=%s channel_id=%s",
             message.id,
             channel.id,
         )
