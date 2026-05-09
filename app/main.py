@@ -20,6 +20,7 @@ from app.domains.custom_attributes.router import router as custom_attributes_rou
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
 from app.domains.labels.router import router as labels_router
+from app.domains.macros.router import router as macros_router
 from app.domains.teams.router import router as teams_router
 from app.domains.teams.router import team_members_router
 from app.domains.users.router import router as profile_router
@@ -87,6 +88,10 @@ def create_app() -> FastAPI:
     # ``update_labels`` could write through them — 6.1 promotes them
     # to a first-class CRUD surface and adds the rename cascade.
     app.include_router(labels_router)
+    # Macro CRUD + execute (Phase 6.2). Personal vs global visibility,
+    # author/admin policy gates, ``POST /macros/:id/execute`` runs the
+    # action plan against a given set of conversation_ids.
+    app.include_router(macros_router)
     # Public widget surface (Phase 5a). Lives under ``/api/v1/widget``
     # — no devise auth, just the website_token + JWT scheme.
     app.include_router(web_widget_router)
