@@ -10,6 +10,7 @@ from app.core.db import dispose_engine
 from app.core.errors import ChatwootHTTPException, chatwoot_http_exception_handler
 from app.core.logging import configure_logging, get_logger
 from app.domains.accounts.router import router as accounts_router
+from app.domains.automation.router import router as automation_rules_router
 from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
 from app.domains.contacts.router import actions_router as contact_actions_router
@@ -92,6 +93,12 @@ def create_app() -> FastAPI:
     # author/admin policy gates, ``POST /macros/:id/execute`` runs the
     # action plan against a given set of conversation_ids.
     app.include_router(macros_router)
+    # AutomationRule CRUD + clone (Phase 6.3). Admin-only. The actual
+    # listener wiring (which dispatcher event_name fires which rule)
+    # lands in 6.4 — for now the model + condition evaluator + action
+    # executor are exposed as a runnable surface that the listener can
+    # plug into without further refactoring.
+    app.include_router(automation_rules_router)
     # Public widget surface (Phase 5a). Lives under ``/api/v1/widget``
     # — no devise auth, just the website_token + JWT scheme.
     app.include_router(web_widget_router)
