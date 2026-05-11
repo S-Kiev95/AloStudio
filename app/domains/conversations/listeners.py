@@ -370,14 +370,29 @@ async def broadcast_event(
 ) -> None:
     """Entry point called from :class:`EventDispatcher.dispatch`.
 
-    Resolves the active broadcaster + reads the performer from the
-    request-scoped ContextVar, then hands off to a fresh
-    :class:`ActionCableListener` for the single dispatch.
+    Fans out to every registered listener — currently:
+
+      * :class:`ActionCableListener` — the realtime broadcast layer.
+      * :func:`app.domains.automation.listener.fan_out_to_automation`
+        — runs matching AutomationRules (Phase 6.4).
+
+    Each listener wraps its own work in a try/except so a failure on
+    one side never blocks the other.
     """
     broadcaster = await get_broadcaster()
     performer = current_user_ctx.get()
     listener = ActionCableListener(session, broadcaster, performer)
     await listener.dispatch(name, **payload)
+    # Automation rules subscribe to the same events. Late-import so the
+    # `conversations` package stays import-clean when automation isn't
+    # used (and avoids any circular reference from automation_listener
+    # touching ``app.domains.conversations`` indirectly).
+    from app.domains.automation.listener import fan_out_to_automation
+
+    try:
+        await fan_out_to_automation(session, name, **payload)
+    except Exception:  # noqa: BLE001
+        log.exception("automation_listener.error event=%s", name)
 
 
 __all__ = ["ActionCableListener", "broadcast_event"]
