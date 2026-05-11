@@ -393,6 +393,14 @@ async def broadcast_event(
         await fan_out_to_automation(session, name, **payload)
     except Exception:  # noqa: BLE001
         log.exception("automation_listener.error event=%s", name)
+    # CSAT survey emitter (Phase 6.5) — runs on ``CONVERSATION_RESOLVED``
+    # only. Same failure-isolation contract as the automation listener.
+    from app.domains.csat.listener import fan_out_to_csat
+
+    try:
+        await fan_out_to_csat(session, name, **payload)
+    except Exception:  # noqa: BLE001
+        log.exception("csat_listener.error event=%s", name)
 
 
 __all__ = ["ActionCableListener", "broadcast_event"]

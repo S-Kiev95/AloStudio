@@ -15,6 +15,8 @@ from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
 from app.domains.contacts.router import actions_router as contact_actions_router
 from app.domains.contacts.router import router as contacts_router
+from app.domains.csat.public_router import router as csat_public_router
+from app.domains.csat.router import router as csat_router
 from app.domains.conversations.router import messages_router as conversations_messages_router
 from app.domains.conversations.router import router as conversations_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
@@ -99,6 +101,11 @@ def create_app() -> FastAPI:
     # executor are exposed as a runnable surface that the listener can
     # plug into without further refactoring.
     app.include_router(automation_rules_router)
+    # CSAT survey dashboard + public submit (Phase 6.5).
+    # Dashboard: index + metrics (admin OR agent).
+    # Public:    show + submit, keyed on the conversation UUID.
+    app.include_router(csat_router)
+    app.include_router(csat_public_router)
     # Public widget surface (Phase 5a). Lives under ``/api/v1/widget``
     # — no devise auth, just the website_token + JWT scheme.
     app.include_router(web_widget_router)
