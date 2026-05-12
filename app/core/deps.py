@@ -12,8 +12,11 @@ Chatwoot's auth chain on an authenticated API hit:
   2. If valid, ``current_user`` is populated and the request continues; the
      rotated headers are sent back in the response via an after_action.
   3. If anything fails (missing headers, unknown uid, bad bcrypt compare,
-     expired entry) Rails renders 401 with the devise-token-auth envelope
-     ``{"errors": ["Invalid login credentials. Please try again."]}``.
+     expired entry) devise's ``authenticate_user!`` short-circuits with
+     401 + ``{"errors": ["You need to sign in or sign up before continuing."]}``.
+     The "Invalid login credentials" message Chatwoot uses comes from
+     the ``Auth::SessionsController#create`` path (bad-creds on sign_in)
+     — distinct surface, distinct body.
 
 Our ``current_user`` dependency does the same three things and yields a
 :class:`~app.domains.users.models.User`. A thinner ``optional_current_user``
@@ -30,7 +33,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from fastapi import Depends, HTTPException, Path, Request, status
+from fastapi import Depends, Path, Request, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -46,7 +49,12 @@ from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.models import Account
 from app.domains.users.models import ACCOUNT_USER_ROLE_ADMINISTRATOR, AccountUser, User
 
-_INVALID_CREDS = {"errors": ["Invalid login credentials. Please try again."]}
+# Mirrors devise's ``authenticate_user!`` 401 envelope. The distinct
+# "Invalid login credentials" body fires only on the ``/auth/sign_in``
+# bad-creds path — :mod:`app.domains.auth.router` owns that.
+_UNAUTHENTICATED = {
+    "errors": ["You need to sign in or sign up before continuing."]
+}
 
 
 def _read_auth_headers(request: Request) -> tuple[str, str, str] | None:
@@ -82,25 +90,31 @@ async def current_user(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> User:
-    """Require a valid devise-token-auth session. Raises 401 otherwise."""
+    """Require a valid devise-token-auth session. Raises 401 otherwise.
+
+    The 401 body uses :class:`ChatwootHTTPException` (unwrapped) so the
+    envelope matches devise's ``authenticate_user!`` byte-for-byte —
+    ``{"errors": ["You need to sign in or sign up before continuing."]}``
+    rather than FastAPI's default ``{"detail": ...}`` wrap.
+    """
     headers = _read_auth_headers(request)
     if headers is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=_INVALID_CREDS
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=_UNAUTHENTICATED
         )
     access_token, client, uid = headers
 
     user = await _load_user(session, uid)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=_INVALID_CREDS
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=_UNAUTHENTICATED
         )
 
     if not verify_auth_token(
         user.tokens, client=client, access_token=access_token
     ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=_INVALID_CREDS
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=_UNAUTHENTICATED
         )
 
     return user

@@ -63,84 +63,84 @@ playbooks (macros) + CSAT survey on top.
 ### 6.1 — Label CRUD + rename cascade
 
 **Tasks:**
-- [ ] `app/domains/labels/service.py` — create / update / destroy with
+- [x] `app/domains/labels/service.py` — create / update / destroy with
       title-rename cascade (when `title` changes, walk every
       `Conversation` whose `cached_label_list` includes the old title
       and rewrite the CSV).
-- [ ] `app/domains/labels/router.py` — `GET/POST /api/v1/accounts/{id}/labels`
+- [x] `app/domains/labels/router.py` — `GET/POST /api/v1/accounts/{id}/labels`
       + `GET/PATCH/DELETE /api/v1/accounts/{id}/labels/{id}`.
-- [ ] Presenter parity with `_label.json.jbuilder` (id/title/
+- [x] Presenter parity with `_label.json.jbuilder` (id/title/
       description/color/show_on_sidebar).
-- [ ] Tests: CRUD happy paths, title-uniqueness 422, rename cascade
+- [x] Tests: CRUD happy paths, title-uniqueness 422, rename cascade
       walks `cached_label_list`, label list shows up on conversation
       after rename.
 
 ### 6.2 — Macro: model + CRUD + executor
 
 **Tasks:**
-- [ ] `Macro` SQLModel — `(account_id, name, actions JSONB,
+- [x] `Macro` SQLModel — `(account_id, name, actions JSONB,
       visibility, created_by_id, updated_by_id)`. Visibility enum:
       `personal` / `global`.
-- [ ] Alembic migration.
-- [ ] CRUD endpoints — `/api/v1/accounts/{id}/macros` (index/show/
+- [x] Alembic migration.
+- [x] CRUD endpoints — `/api/v1/accounts/{id}/macros` (index/show/
       create/update/destroy/copy/execute).
-- [ ] `app/domains/macros/execution.py` — apply each action JSON
+- [x] `app/domains/macros/execution.py` — apply each action JSON
       verbatim, dispatching to the same action handlers the
       AutomationRule action_service uses (so 6.3's executor can lean
       on this directly).
-- [ ] Tests: CRUD, execution applies labels + status + priority,
+- [x] Tests: CRUD, execution applies labels + status + priority,
       `copy` clones into the caller's account.
 
 ### 6.3 — AutomationRule: model + condition evaluator + action executor
 
 **Tasks:**
-- [ ] `AutomationRule` SQLModel — `(account_id, name, description,
+- [x] `AutomationRule` SQLModel — `(account_id, name, description,
       event_name, conditions JSONB, actions JSONB, active)`.
-- [ ] Alembic migration.
-- [ ] `app/domains/automation/conditions.py` — operator dispatch
+- [x] Alembic migration.
+- [x] `app/domains/automation/conditions.py` — operator dispatch
       (`equal_to`, `not_equal_to`, `contains`, `does_not_contain`,
       `is_present`, `is_not_present`, `greater_than`, `lesser_than`,
       `is_greater_than`, `is_less_than`, `starts_with`).
-- [ ] `app/domains/automation/actions.py` — shared action executor
+- [x] `app/domains/automation/actions.py` — shared action executor
       reused by Macro.
-- [ ] CRUD endpoints, `clone`, `attach_file` for the
+- [x] CRUD endpoints, `clone`, `attach_file` for the
       `send_attachment` action.
-- [ ] Tests: condition matrix per operator, action execution end-to-end.
+- [x] Tests: condition matrix per operator, action execution end-to-end.
 
 ### 6.4 — AutomationRule listeners (event hooks)
 
 **Tasks:**
-- [ ] Hook the rule engine into the dispatcher events from Phase 4b:
+- [x] Hook the rule engine into the dispatcher events from Phase 4b:
       `CONVERSATION_CREATED`, `CONVERSATION_UPDATED`, `MESSAGE_CREATED`.
-- [ ] Map dispatcher event -> AutomationRule.event_name allow-list
+- [x] Map dispatcher event -> AutomationRule.event_name allow-list
       (Chatwoot's `EVENTS` constant).
-- [ ] Per-event filter: `event_name` matches → evaluate conditions →
+- [x] Per-event filter: `event_name` matches → evaluate conditions →
       execute actions.
-- [ ] Idempotency: skip rules that already fired on this conversation
+- [x] Idempotency: skip rules that already fired on this conversation
       for events with `re_run` semantics off (matches Rails'
       `processed_for_event` audit).
-- [ ] Tests: synthesised payload through dispatcher triggers rule;
+- [x] Tests: synthesised payload through dispatcher triggers rule;
       negative path (condition fails) produces no action.
 
 ### 6.5 — CSAT survey
 
 **Tasks:**
-- [ ] `CsatSurveyResponse` SQLModel — `(account_id, conversation_id,
+- [x] `CsatSurveyResponse` SQLModel — `(account_id, conversation_id,
       message_id, rating, feedback_message, contact_id, assigned_agent_id)`.
-- [ ] Alembic migration.
-- [ ] Dashboard endpoints — `index`, `metrics`, `download` (CSV).
-- [ ] Public response endpoint — `PUT /public/api/v1/csat_survey/{uuid}`.
-- [ ] Trigger: when conversation resolves, fire the
+- [x] Alembic migration.
+- [x] Dashboard endpoints — `index`, `metrics`, `download` (CSV).
+- [x] Public response endpoint — `PUT /public/api/v1/csat_survey/{uuid}`.
+- [x] Trigger: when conversation resolves, fire the
       "send_message" action with content_type `input_csat` if the
       inbox has CSAT enabled.
-- [ ] Tests: response submit creates row, metrics aggregation
+- [x] Tests: response submit creates row, metrics aggregation
       counts ratings, trigger fires on resolve.
 
 ### 6.6 — Parity tests + close Phase 6
 
-- [ ] Cross-backend parity for Label CRUD body shape.
-- [ ] Macro execution outcome parity.
-- [ ] Update `PLAN.md` to mark Phase 6 done.
+- [x] Cross-backend parity for Label CRUD body shape.
+- [x] Macro execution outcome parity.
+- [x] Update `PLAN.md` to mark Phase 6 done.
 
 ---
 

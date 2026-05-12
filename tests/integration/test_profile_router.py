@@ -74,8 +74,11 @@ async def authed(db_session):
 async def test_show_profile_requires_auth(client):
     resp = await client.get("/api/v1/profile")
     assert resp.status_code == 401
-    assert resp.json()["detail"] == {
-        "errors": ["Invalid login credentials. Please try again."]
+    # Mirrors devise's ``authenticate_user!`` envelope — unwrapped
+    # ``{"errors": [...]}`` (NOT the bad-creds string, which is
+    # reserved for the ``/auth/sign_in`` failure path).
+    assert resp.json() == {
+        "errors": ["You need to sign in or sign up before continuing."]
     }
 
 
