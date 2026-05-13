@@ -17,6 +17,7 @@ from app.domains.contacts.router import actions_router as contact_actions_router
 from app.domains.contacts.router import router as contacts_router
 from app.domains.csat.public_router import router as csat_public_router
 from app.domains.csat.router import router as csat_router
+from app.domains.reporting.router import router as reports_router
 from app.domains.conversations.router import messages_router as conversations_messages_router
 from app.domains.conversations.router import router as conversations_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
@@ -106,6 +107,9 @@ def create_app() -> FastAPI:
     # Public:    show + submit, keyed on the conversation UUID.
     app.include_router(csat_router)
     app.include_router(csat_public_router)
+    # V2 reports surface (Phase 7.2-7.5). admin OR agent. Summary
+    # cards, timeseries, live conversation metrics, per-entity summaries.
+    app.include_router(reports_router)
     # Public widget surface (Phase 5a). Lives under ``/api/v1/widget``
     # — no devise auth, just the website_token + JWT scheme.
     app.include_router(web_widget_router)
