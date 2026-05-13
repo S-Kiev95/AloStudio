@@ -47,6 +47,15 @@ router = APIRouter(
     tags=["reports"],
 )
 
+# Live reports live under a separate prefix in Chatwoot
+# (``/api/v2/accounts/{id}/live_reports/...``). One Python module
+# exports both — keeps the service/timeseries code paths
+# co-located with the rest of the reporting surface.
+live_reports_router = APIRouter(
+    prefix="/api/v2/accounts/{account_id}/live_reports",
+    tags=["reports"],
+)
+
 
 _SCOPE_TYPES = ("account", "inbox", "agent", "team", "label")
 
@@ -196,4 +205,102 @@ async def conversations_metrics(
     )
 
 
-__all__ = ["router"]
+# ---------------------------------------------------------------------------
+# Live reports
+# ---------------------------------------------------------------------------
+_LIVE_GROUP_BY = {"team_id", "assignee_id"}
+
+
+@live_reports_router.get("/conversation_metrics")
+async def live_conversation_metrics_endpoint(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    team_id: int | None = Query(None),
+) -> dict[str, int]:
+    """``GET /live_reports/conversation_metrics`` — current snapshot.
+
+    Mirrors Chatwoot's controller: ``{open, unattended, unassigned, pending}``
+    counters, optionally filtered to one team."""
+    assert ctx.account.id is not None
+    scope: ScopeType = "team" if team_id is not None else "account"
+    return await live_conversation_metrics(
+        session,
+        account_id=ctx.account.id,
+        type=scope,
+        id=team_id,
+    )
+
+
+@live_reports_router.get("/grouped_conversation_metrics")
+async def grouped_conversation_metrics(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    group_by: str | None = Query(None),
+    team_id: int | None = Query(None),
+) -> Any:
+    """``GET /live_reports/grouped_conversation_metrics?group_by=...``
+
+    Returns one row per group: ``{open, unattended, unassigned, <group_by>}``.
+    ``group_by`` is required and must be ``team_id`` or ``assignee_id``
+    — matches Rails' explicit allow-list (422 otherwise).
+    """
+    assert ctx.account.id is not None
+    if group_by not in _LIVE_GROUP_BY:
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": "invalid group_by"},
+        )
+    from sqlalchemy import case as sa_case, func as sa_func
+    from sqlmodel import select
+
+    from app.domains.conversations.models import (
+        CONVERSATION_STATUS_OPEN,
+        Conversation,
+    )
+
+    group_col = (
+        Conversation.team_id
+        if group_by == "team_id"
+        else Conversation.assignee_id
+    )
+    stmt = (
+        select(
+            group_col.label("group_id"),
+            sa_func.count(sa_func.distinct(Conversation.id)).label("open"),
+            sa_func.sum(
+                sa_case(
+                    (Conversation.first_reply_created_at.is_(None), 1),  # type: ignore[union-attr]
+                    else_=0,
+                )
+            ).label("unattended"),
+            sa_func.sum(
+                sa_case(
+                    (Conversation.assignee_id.is_(None), 1),  # type: ignore[union-attr]
+                    else_=0,
+                )
+            ).label("unassigned"),
+        )
+        .where(Conversation.account_id == ctx.account.id)
+        .where(Conversation.status == CONVERSATION_STATUS_OPEN)
+        .group_by(group_col)
+    )
+    if team_id is not None:
+        stmt = stmt.where(Conversation.team_id == team_id)
+    rows = list((await session.exec(stmt)).all())
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        gid = row[0]
+        if gid is None:
+            continue  # drop nulls — matches Rails' grouped count behaviour
+        out.append(
+            {
+                "open": int(row[1] or 0),
+                "unattended": int(row[2] or 0),
+                "unassigned": int(row[3] or 0),
+                group_by: gid,
+            }
+        )
+    return out
+
+
+__all__ = ["live_reports_router", "router"]
