@@ -35,6 +35,12 @@ from app.domains.reporting.service import (
     parse_unix_range,
     previous_window,
 )
+from app.domains.reporting.summary_builders import (
+    build_agent_summary,
+    build_inbox_summary,
+    build_label_summary,
+    build_team_summary,
+)
 from app.domains.reporting.timeseries import (
     ALL_METRICS,
     avg_timeseries,
@@ -53,6 +59,12 @@ router = APIRouter(
 # co-located with the rest of the reporting surface.
 live_reports_router = APIRouter(
     prefix="/api/v2/accounts/{account_id}/live_reports",
+    tags=["reports"],
+)
+
+# Per-entity summary reports — agent/team/inbox/label/channel.
+summary_reports_router = APIRouter(
+    prefix="/api/v2/accounts/{account_id}/summary_reports",
     tags=["reports"],
 )
 
@@ -303,4 +315,75 @@ async def grouped_conversation_metrics(
     return out
 
 
-__all__ = ["live_reports_router", "router"]
+# ---------------------------------------------------------------------------
+# Summary reports — per-entity
+# ---------------------------------------------------------------------------
+async def _entity_summary_args(
+    ctx: AccountContext,
+    since: str | None,
+    until: str | None,
+    business_hours: str | None,
+):
+    assert ctx.account.id is not None
+    cur_since, cur_until = parse_unix_range(since, until)
+    return {
+        "account_id": ctx.account.id,
+        "since": cur_since,
+        "until": cur_until,
+        "business_hours": _coerce_bool(business_hours),
+    }
+
+
+@summary_reports_router.get("/agent")
+async def agent_summary(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    since: str | None = Query(None),
+    until: str | None = Query(None),
+    business_hours: str | None = Query(None),
+) -> list[dict[str, Any]]:
+    args = await _entity_summary_args(ctx, since, until, business_hours)
+    return await build_agent_summary(session, **args)
+
+
+@summary_reports_router.get("/team")
+async def team_summary(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    since: str | None = Query(None),
+    until: str | None = Query(None),
+    business_hours: str | None = Query(None),
+) -> list[dict[str, Any]]:
+    args = await _entity_summary_args(ctx, since, until, business_hours)
+    return await build_team_summary(session, **args)
+
+
+@summary_reports_router.get("/inbox")
+async def inbox_summary(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    since: str | None = Query(None),
+    until: str | None = Query(None),
+    business_hours: str | None = Query(None),
+) -> list[dict[str, Any]]:
+    args = await _entity_summary_args(ctx, since, until, business_hours)
+    return await build_inbox_summary(session, **args)
+
+
+@summary_reports_router.get("/label")
+async def label_summary(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    since: str | None = Query(None),
+    until: str | None = Query(None),
+    business_hours: str | None = Query(None),
+) -> list[dict[str, Any]]:
+    args = await _entity_summary_args(ctx, since, until, business_hours)
+    return await build_label_summary(session, **args)
+
+
+__all__ = [
+    "live_reports_router",
+    "router",
+    "summary_reports_router",
+]
