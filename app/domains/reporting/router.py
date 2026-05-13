@@ -35,6 +35,12 @@ from app.domains.reporting.service import (
     parse_unix_range,
     previous_window,
 )
+from app.domains.reporting.timeseries import (
+    ALL_METRICS,
+    avg_timeseries,
+    count_timeseries,
+    timezone_from_offset,
+)
 
 router = APIRouter(
     prefix="/api/v2/accounts/{account_id}/reports",
@@ -62,6 +68,64 @@ def _coerce_bool(raw: str | None) -> bool:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+_AVG_METRICS = {
+    "avg_first_response_time",
+    "avg_resolution_time",
+    "reply_time",
+}
+
+
+@router.get("")
+async def timeseries(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    metric: str | None = Query(None),
+    type: str | None = Query(None),
+    id: int | None = Query(None),
+    since: str | None = Query(None),
+    until: str | None = Query(None),
+    timezone_offset: str | None = Query(None),
+    business_hours: str | None = Query(None),
+) -> list[dict[str, Any]]:
+    """``GET /reports?metric=...`` — daily buckets for the line chart.
+
+    Returns an empty list when ``metric`` isn't on the allow-list
+    (mirrors Rails' ``Rails.logger.error + return {}`` fallback)."""
+    assert ctx.account.id is not None
+    if metric is None or metric not in ALL_METRICS:
+        return []
+    scope_type = _coerce_type(type)
+    cur_since, cur_until = parse_unix_range(since, until)
+    try:
+        offset_float = float(timezone_offset) if timezone_offset else None
+    except (TypeError, ValueError):
+        offset_float = None
+    tz = timezone_from_offset(offset_float)
+    bh = _coerce_bool(business_hours)
+    if metric in _AVG_METRICS:
+        return await avg_timeseries(
+            session,
+            account_id=ctx.account.id,
+            metric=cast(Any, metric),
+            type=scope_type,
+            id=id,
+            since=cur_since,
+            until=cur_until,
+            tz=tz,
+            business_hours=bh,
+        )
+    return await count_timeseries(
+        session,
+        account_id=ctx.account.id,
+        metric=cast(Any, metric),
+        type=scope_type,
+        id=id,
+        since=cur_since,
+        until=cur_until,
+        tz=tz,
+    )
+
+
 @router.get("/summary")
 async def summary(
     ctx: Annotated[AccountContext, Depends(account_context)],
