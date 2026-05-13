@@ -401,6 +401,14 @@ async def broadcast_event(
         await fan_out_to_csat(session, name, **payload)
     except Exception:  # noqa: BLE001
         log.exception("csat_listener.error event=%s", name)
+    # Reporting event emitter (Phase 7.1) — writes a ReportingEvent row
+    # on resolve / first reply / reply / open. Source for dashboards.
+    from app.domains.reporting.listener import fan_out_to_reporting
+
+    try:
+        await fan_out_to_reporting(session, name, **payload)
+    except Exception:  # noqa: BLE001
+        log.exception("reporting_listener.error event=%s", name)
 
 
 __all__ = ["ActionCableListener", "broadcast_event"]
