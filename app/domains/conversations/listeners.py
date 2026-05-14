@@ -409,6 +409,14 @@ async def broadcast_event(
         await fan_out_to_reporting(session, name, **payload)
     except Exception:  # noqa: BLE001
         log.exception("reporting_listener.error event=%s", name)
+    # AgentBot relay (Phase 8.2) — POSTs the standard webhook envelope
+    # to each bot attached to the inbox / assigned to the conversation.
+    from app.domains.agent_bots.listener import fan_out_to_agent_bots
+
+    try:
+        await fan_out_to_agent_bots(session, name, **payload)
+    except Exception:  # noqa: BLE001
+        log.exception("agent_bot_listener.error event=%s", name)
 
 
 __all__ = ["ActionCableListener", "broadcast_event"]
