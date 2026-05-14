@@ -10,6 +10,10 @@ from app.core.db import dispose_engine
 from app.core.errors import ChatwootHTTPException, chatwoot_http_exception_handler
 from app.core.logging import configure_logging, get_logger
 from app.domains.accounts.router import router as accounts_router
+from app.domains.agent_bots.router import (
+    inbox_set_agent_bot_router,
+    router as agent_bots_router,
+)
 from app.domains.automation.router import router as automation_rules_router
 from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
@@ -116,6 +120,11 @@ def create_app() -> FastAPI:
     app.include_router(reports_router)
     app.include_router(live_reports_router)
     app.include_router(summary_reports_router)
+    # AgentBot CRUD (Phase 8.1). admin OR agent on read; admin-only on
+    # writes + reset_secret. The inbox-side attach/detach lives under
+    # ``/inboxes/{iid}/set_agent_bot`` per Chatwoot's member action.
+    app.include_router(agent_bots_router)
+    app.include_router(inbox_set_agent_bot_router)
     # Public widget surface (Phase 5a). Lives under ``/api/v1/widget``
     # — no devise auth, just the website_token + JWT scheme.
     app.include_router(web_widget_router)
