@@ -31,6 +31,7 @@ from app.domains.conversations.router import router as conversations_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
+from app.domains.integrations.router import router as integrations_router
 from app.domains.labels.router import router as labels_router
 from app.domains.macros.router import router as macros_router
 from app.domains.teams.router import router as teams_router
@@ -129,6 +130,10 @@ def create_app() -> FastAPI:
     # Outbound Webhook CRUD (Phase 8.3). admin-only. Listener auto-
     # delivers subscribed events to each row's URL.
     app.include_router(outbound_webhooks_router)
+    # Integration hooks scaffold (Phase 8.4). admin OR agent on read;
+    # admin-only on writes. Per-vendor adapters (Slack/Dialogflow/etc.)
+    # defer to vendor-specific follow-up commits.
+    app.include_router(integrations_router)
     # Public widget surface (Phase 5a). Lives under ``/api/v1/widget``
     # — no devise auth, just the website_token + JWT scheme.
     app.include_router(web_widget_router)
