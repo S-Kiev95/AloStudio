@@ -417,6 +417,14 @@ async def broadcast_event(
         await fan_out_to_agent_bots(session, name, **payload)
     except Exception:  # noqa: BLE001
         log.exception("agent_bot_listener.error event=%s", name)
+    # Webhook delivery (Phase 8.3) — POSTs to every account-configured
+    # Webhook subscribed to the event.
+    from app.domains.webhooks.listener import fan_out_to_webhooks
+
+    try:
+        await fan_out_to_webhooks(session, name, **payload)
+    except Exception:  # noqa: BLE001
+        log.exception("webhook_listener.error event=%s", name)
 
 
 __all__ = ["ActionCableListener", "broadcast_event"]

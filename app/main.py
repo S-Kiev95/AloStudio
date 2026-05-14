@@ -42,6 +42,7 @@ from app.domains.sms_bandwidth.router import router as bandwidth_webhook_router
 from app.domains.telegram.router import router as telegram_webhook_router
 from app.domains.twilio.router import router as twilio_webhook_router
 from app.domains.web_widget.router import router as web_widget_router
+from app.domains.webhooks.router import router as outbound_webhooks_router
 from app.domains.whatsapp.router import router as whatsapp_webhook_router
 
 
@@ -125,6 +126,9 @@ def create_app() -> FastAPI:
     # ``/inboxes/{iid}/set_agent_bot`` per Chatwoot's member action.
     app.include_router(agent_bots_router)
     app.include_router(inbox_set_agent_bot_router)
+    # Outbound Webhook CRUD (Phase 8.3). admin-only. Listener auto-
+    # delivers subscribed events to each row's URL.
+    app.include_router(outbound_webhooks_router)
     # Public widget surface (Phase 5a). Lives under ``/api/v1/widget``
     # — no devise auth, just the website_token + JWT scheme.
     app.include_router(web_widget_router)
