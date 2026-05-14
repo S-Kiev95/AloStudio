@@ -70,64 +70,64 @@ on and **defer per-vendor adapters** to dedicated follow-up phases.
 ### 8.1 — AgentBot CRUD + AgentBotInbox link
 
 **Tasks:**
-- [ ] `AgentBot` SQLModel + Alembic migration
+- [x] `AgentBot` SQLModel + Alembic migration
       (id, account_id, name, description, outgoing_url, bot_type,
       bot_config JSONB, secret).
-- [ ] `AgentBotInbox` SQLModel + migration
+- [x] `AgentBotInbox` SQLModel + migration
       (agent_bot_id, inbox_id, status).
-- [ ] CRUD endpoints `/api/v1/accounts/{id}/agent_bots`
+- [x] CRUD endpoints `/api/v1/accounts/{id}/agent_bots`
       (admin-only).
-- [ ] Inbox attach/detach endpoints:
+- [x] Inbox attach/detach endpoints:
       `POST /api/v1/accounts/{id}/inboxes/{iid}/set_agent_bot`
       `DELETE /api/v1/accounts/{id}/inboxes/{iid}/set_agent_bot`
       Mirrors Chatwoot's ``inboxes/set_agent_bot`` member action.
-- [ ] Tests: CRUD + attach/detach happy paths + auth gates.
+- [x] Tests: CRUD + attach/detach happy paths + auth gates.
 
 ### 8.2 — AgentBot listener (outbound POST on message_created)
 
 **Tasks:**
-- [ ] Listener subscribes to ``message.created`` and POSTs to the
+- [x] Listener subscribes to ``message.created`` and POSTs to the
       attached bot's ``outgoing_url`` with the canonical Chatwoot
       payload (``event: 'message_created'`` + message + conversation +
       contact + inbox).
-- [ ] Skip when the conversation has no bot attached, or the message
+- [x] Skip when the conversation has no bot attached, or the message
       is a private note, or the bot has no ``outgoing_url``.
-- [ ] HMAC signature: ``X-Chatwoot-Signature`` header = SHA-256 HMAC
+- [x] HMAC signature: ``X-Chatwoot-Signature`` header = SHA-256 HMAC
       of body bytes with ``bot.secret``.
-- [ ] respx-mocked tests for body shape + signature + skip conditions.
+- [x] respx-mocked tests for body shape + signature + skip conditions.
 
 ### 8.3 — Webhook CRUD + delivery listener
 
 **Tasks:**
-- [ ] `Webhook` SQLModel + Alembic migration
+- [x] `Webhook` SQLModel + Alembic migration
       (id, account_id, inbox_id (nullable), name, url, secret,
       webhook_type, subscriptions JSONB).
-- [ ] CRUD endpoints `/api/v1/accounts/{id}/webhooks` (admin-only).
-- [ ] Validation: URL format (http/https), subscriptions must be a
+- [x] CRUD endpoints `/api/v1/accounts/{id}/webhooks` (admin-only).
+- [x] Validation: URL format (http/https), subscriptions must be a
       non-empty subset of the allowed events list.
-- [ ] Listener subscribes to ALL events in the allowed list; for
+- [x] Listener subscribes to ALL events in the allowed list; for
       each event, POSTs to every Webhook whose ``subscriptions``
       includes the event name.
-- [ ] respx-mocked delivery tests.
+- [x] respx-mocked delivery tests.
 
 ### 8.4 — Integration hooks scaffold
 
 **Tasks:**
-- [ ] `IntegrationsHook` SQLModel + Alembic migration
+- [x] `IntegrationsHook` SQLModel + Alembic migration
       (id, account_id, app_id, hook_type, status, settings JSONB,
       reference_id, access_token, inbox_id (nullable)).
-- [ ] CRUD endpoints `/api/v1/accounts/{id}/integrations/hooks`
+- [x] CRUD endpoints `/api/v1/accounts/{id}/integrations/hooks`
       (admin-only).
-- [ ] `GET /api/v1/accounts/{id}/integrations/apps` — static
+- [x] `GET /api/v1/accounts/{id}/integrations/apps` — static
       catalogue listing the available integration apps. Mirrors
       Chatwoot's ``Integration::App.find_all``.
-- [ ] Per-vendor adapters deferred — the model + CRUD are what
+- [x] Per-vendor adapters deferred — the model + CRUD are what
       dashboards need to render the "Integrations" tab.
 
 ### 8.5 — Parity tests + close Phase 8
 
-- [ ] Stateless 401 parity on every endpoint surface added.
-- [ ] Update `PLAN.md` to mark Phase 8 done.
+- [x] Stateless 401 parity on every endpoint surface added.
+- [x] Update `PLAN.md` to mark Phase 8 done.
 
 ---
 
