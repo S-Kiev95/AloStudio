@@ -62,18 +62,18 @@ tests across the new endpoints.
 ### 9.1 — Working hours
 
 **Tasks:**
-- [ ] `WorkingHour` SQLModel + Alembic migration
+- [x] `WorkingHour` SQLModel + Alembic migration
       (id, inbox_id, account_id, day_of_week 0-6, open_hour,
       open_minutes, close_hour, close_minutes, closed_all_day,
       open_all_day, timezone). The ``timezone`` column lives on the
       inbox too — add via the Phase 2 inbox migration follow-up if
       missing.
-- [ ] CRUD `PATCH /api/v1/accounts/{id}/inboxes/{iid}/working_hours`
+- [x] CRUD `PATCH /api/v1/accounts/{id}/inboxes/{iid}/working_hours`
       (bulk update of all 7 rows).
-- [ ] Toggle `working_hours_enabled` on inbox.
-- [ ] Re-wire Phase 7.1's reporting listener to honour the inbox's
+- [x] Toggle `working_hours_enabled` on inbox.
+- [x] Re-wire Phase 7.1's reporting listener to honour the inbox's
       working hours when computing ``value_in_business_hours``.
-- [ ] Tests: CRUD + business-hours computation cases.
+- [x] Tests: CRUD + business-hours computation cases.
 
 ### 9.2 — SLA policies (DEFERRED — enterprise-only)
 
@@ -90,37 +90,37 @@ enterprise-side reactivation doesn't need another migration.
 ### 9.3 — Portal + Article + Category
 
 **Tasks:**
-- [ ] `Portal` + `Article` + `Category` SQLModels + Alembic migration.
-- [ ] CRUD `/api/v1/accounts/{id}/portals` (admin-only).
-- [ ] CRUD `/api/v1/accounts/{id}/portals/{slug}/articles`.
-- [ ] CRUD `/api/v1/accounts/{id}/portals/{slug}/categories`.
-- [ ] Tests.
+- [x] `Portal` + `Article` + `Category` SQLModels + Alembic migration.
+- [x] CRUD `/api/v1/accounts/{id}/portals` (admin-only).
+- [x] CRUD `/api/v1/accounts/{id}/portals/{slug}/articles`.
+- [x] CRUD `/api/v1/accounts/{id}/portals/{slug}/categories`.
+- [x] Tests.
 
 ### 9.4 — Campaigns
 
 **Tasks:**
-- [ ] `Campaign` SQLModel + Alembic migration
+- [x] `Campaign` SQLModel + Alembic migration
       (display_id, title, description, message, inbox_id,
       audience JSONB, scheduled_at, campaign_status, campaign_type,
       trigger_rules JSONB, account_id).
-- [ ] CRUD `/api/v1/accounts/{id}/campaigns` (admin-only).
-- [ ] Display_id sequence per account (Postgres BEFORE INSERT trigger).
-- [ ] Tests.
+- [x] CRUD `/api/v1/accounts/{id}/campaigns` (admin-only).
+- [x] Display_id sequence per account (Postgres BEFORE INSERT trigger).
+- [x] Tests.
 
-### 9.5 — Audit log read endpoint
+### 9.5 — Audit log read endpoint (DEFERRED — enterprise-only)
 
-**Tasks:**
-- [ ] `Audit` SQLModel mirroring the ``audited`` gem's ``audits``
-      table (auditable_id/type, user_id, user_type, action, audited_changes,
-      version, remote_address, request_uuid).
-- [ ] Alembic migration.
-- [ ] `GET /api/v1/accounts/{id}/audit_logs` — paginated, admin-only.
-- [ ] Tests.
+Same posture as 9.2 SLA: ``AuditLogsController`` lives in
+``reference/chatwoot/enterprise/`` not OSS. The ``audits`` table
+(provided by the ``audited`` gem) is shared schema but the read
+endpoint is enterprise-gated.
+
+We **defer** the audit log read endpoint from Phase 9. The
+``audits`` table lands with Phase 10's parity schema sweep.
 
 ### 9.6 — Parity tests + close Phase 9
 
-- [ ] Stateless 401 parity across every new endpoint.
-- [ ] Mark Phase 9 done in PLAN.md.
+- [x] Stateless 401 parity across every new endpoint.
+- [x] Mark Phase 9 done in PLAN.md.
 
 ---
 
