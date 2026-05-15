@@ -182,6 +182,16 @@ class InboxBuilder:
         self._session.add(inbox)
         await self._session.flush()
         await self._session.refresh(inbox)
+        # Mirror Rails' ``OutOfOffisable#after_create
+        # :create_default_working_hours`` callback — seed seven rows
+        # (Sun + Sat closed; Mon-Fri 09:00-17:00) so the working-hours
+        # update endpoints have something to PATCH and Phase 7's
+        # business-hours arithmetic has a schedule to consult.
+        from app.domains.working_hours.service import (
+            create_default_working_hours,
+        )
+
+        await create_default_working_hours(self._session, inbox=inbox)
         return InboxBuilderResult(inbox=inbox, channel=channel)
 
     # ---------------------------- internals ----------------------------

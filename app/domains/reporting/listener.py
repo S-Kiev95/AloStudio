@@ -35,7 +35,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.conversations import events as ev
 from app.domains.conversations.models import Conversation, Message
+from app.domains.inboxes.models import Inbox
 from app.domains.reporting.models import ReportingEvent
+from app.domains.working_hours.service import (
+    business_hours_between,
+    list_for_inbox,
+)
 
 log = logging.getLogger(__name__)
 
@@ -72,6 +77,42 @@ async def fan_out_to_reporting(
 
 
 # ---------------------------------------------------------------------------
+# Business-hours helper (Phase 9.1)
+# ---------------------------------------------------------------------------
+async def _business_hours_value(
+    session: AsyncSession,
+    *,
+    inbox_id: int | None,
+    start: datetime | None,
+    end: datetime | None,
+    raw_value: float,
+) -> float:
+    """Resolve ``value_in_business_hours`` for one event.
+
+    Falls back to ``raw_value`` when:
+      * inbox_id is missing
+      * inbox has no working_hours_enabled flag
+      * inbox has no working_hours rows
+
+    This is what makes Phase 7's ``value_in_business_hours`` column
+    finally meaningful — until 9.1, it always equalled ``value``."""
+    if inbox_id is None:
+        return raw_value
+    inbox = await session.get(Inbox, inbox_id)
+    if inbox is None or not inbox.working_hours_enabled:
+        return raw_value
+    rows = await list_for_inbox(session, inbox_id=inbox_id)
+    if not rows:
+        return raw_value
+    return business_hours_between(
+        rows=rows,
+        timezone_name=inbox.timezone,
+        start=start,
+        end=end,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Per-event handlers
 # ---------------------------------------------------------------------------
 async def _on_conversation_resolved(
@@ -82,10 +123,17 @@ async def _on_conversation_resolved(
         return
     end = _utcnow()
     duration = _seconds_between(conversation.created_at, end)
+    bh_value = await _business_hours_value(
+        session,
+        inbox_id=conversation.inbox_id,
+        start=conversation.created_at,
+        end=end,
+        raw_value=duration,
+    )
     event = ReportingEvent(
         name="conversation_resolved",
         value=duration,
-        value_in_business_hours=duration,
+        value_in_business_hours=bh_value,
         account_id=conversation.account_id,
         inbox_id=conversation.inbox_id,
         user_id=conversation.assignee_id,
@@ -108,10 +156,17 @@ async def _on_first_reply_created(
         return
     start = await _last_non_human_activity(session, conversation)
     duration = _seconds_between(start, message.created_at)
+    bh_value = await _business_hours_value(
+        session,
+        inbox_id=conversation.inbox_id,
+        start=start,
+        end=message.created_at,
+        raw_value=duration,
+    )
     event = ReportingEvent(
         name="first_response",
         value=duration,
-        value_in_business_hours=duration,
+        value_in_business_hours=bh_value,
         account_id=conversation.account_id,
         inbox_id=conversation.inbox_id,
         user_id=message.sender_id,
@@ -139,10 +194,17 @@ async def _on_reply_created(
     if not isinstance(conversation, Conversation):
         return
     duration = _seconds_between(waiting_since, message.created_at)
+    bh_value = await _business_hours_value(
+        session,
+        inbox_id=conversation.inbox_id,
+        start=waiting_since,
+        end=message.created_at,
+        raw_value=duration,
+    )
     event = ReportingEvent(
         name="reply_time",
         value=duration,
-        value_in_business_hours=duration,
+        value_in_business_hours=bh_value,
         account_id=conversation.account_id,
         inbox_id=conversation.inbox_id,
         user_id=conversation.assignee_id,
@@ -182,10 +244,17 @@ async def _on_conversation_opened(
     else:
         start = conversation.created_at
         duration = 0.0
+    bh_value = await _business_hours_value(
+        session,
+        inbox_id=conversation.inbox_id,
+        start=start,
+        end=end,
+        raw_value=duration,
+    )
     event = ReportingEvent(
         name="conversation_opened",
         value=duration,
-        value_in_business_hours=duration,
+        value_in_business_hours=bh_value,
         account_id=conversation.account_id,
         inbox_id=conversation.inbox_id,
         user_id=conversation.assignee_id,

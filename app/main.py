@@ -45,6 +45,10 @@ from app.domains.twilio.router import router as twilio_webhook_router
 from app.domains.web_widget.router import router as web_widget_router
 from app.domains.webhooks.router import router as outbound_webhooks_router
 from app.domains.whatsapp.router import router as whatsapp_webhook_router
+from app.domains.working_hours.router import (
+    inbox_router as working_hours_inbox_router,
+    single_router as working_hours_single_router,
+)
 
 
 @asynccontextmanager
@@ -134,6 +138,11 @@ def create_app() -> FastAPI:
     # admin-only on writes. Per-vendor adapters (Slack/Dialogflow/etc.)
     # defer to vendor-specific follow-up commits.
     app.include_router(integrations_router)
+    # Working hours (Phase 9.1). admin-only. Bulk schedule update
+    # under the inbox + single-row update at the account level.
+    # Powers Phase 7's value_in_business_hours math.
+    app.include_router(working_hours_single_router)
+    app.include_router(working_hours_inbox_router)
     # Public widget surface (Phase 5a). Lives under ``/api/v1/widget``
     # — no devise auth, just the website_token + JWT scheme.
     app.include_router(web_widget_router)
