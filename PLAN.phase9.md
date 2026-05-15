@@ -75,21 +75,17 @@ tests across the new endpoints.
       working hours when computing ``value_in_business_hours``.
 - [ ] Tests: CRUD + business-hours computation cases.
 
-### 9.2 — SLA policies + AppliedSla
+### 9.2 — SLA policies (DEFERRED — enterprise-only)
 
-**Tasks:**
-- [ ] `SlaPolicy` SQLModel + Alembic migration
-      (name, description, first_response_time_threshold,
-      next_response_time_threshold, only_during_business_hours,
-      account_id).
-- [ ] `AppliedSla` SQLModel + Alembic migration
-      (account, sla_policy, conversation, sla_status: hit/active/missed,
-      created_at, updated_at).
-- [ ] CRUD `/api/v1/accounts/{id}/sla_policies` (admin-only).
-- [ ] When a conversation is assigned a ``sla_policy_id``, create the
-      ``AppliedSla`` row. The breach-detection background sweep
-      defers to Phase 10's scheduler.
-- [ ] Tests for CRUD + applied-sla creation.
+After surveying the reference, ``SlaPolicy`` and ``AppliedSla`` live
+in ``reference/chatwoot/enterprise/`` — the controller, model and
+policy are all enterprise-gated. The DB schema includes the tables
+(both distributions share the schema) but the API surface is not
+OSS parity.
+
+We **defer** SLA from Phase 9. The schema columns + tables land
+with Phase 10 hardening's parity schema sweep so a future
+enterprise-side reactivation doesn't need another migration.
 
 ### 9.3 — Portal + Article + Category
 
