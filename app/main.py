@@ -17,6 +17,7 @@ from app.domains.agent_bots.router import (
 from app.domains.automation.router import router as automation_rules_router
 from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
+from app.domains.campaigns.router import router as campaigns_router
 from app.domains.contacts.router import actions_router as contact_actions_router
 from app.domains.contacts.router import router as contacts_router
 from app.domains.csat.public_router import router as csat_public_router
@@ -148,6 +149,10 @@ def create_app() -> FastAPI:
     # CRUD; public Help Center surface (``/hc/<slug>``) defers as a
     # Phase 9 follow-up.
     app.include_router(portals_router)
+    # Campaigns (Phase 9.4). admin-only. CRUD only — scheduler runtime
+    # (one_off fire on scheduled_at + ongoing widget triggers) defers
+    # to Phase 10 hardening.
+    app.include_router(campaigns_router)
     # Public widget surface (Phase 5a). Lives under ``/api/v1/widget``
     # — no devise auth, just the website_token + JWT scheme.
     app.include_router(web_widget_router)
