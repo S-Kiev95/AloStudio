@@ -17,11 +17,13 @@ def register_all(mcp: FastMCP) -> None:
     from app.mcp.tools.conversations import register as register_conversations
     from app.mcp.tools.health import register as register_health
     from app.mcp.tools.messages import register as register_messages
+    from app.mcp.tools.meta import register as register_meta
 
     register_health(mcp)
     register_conversations(mcp)
     register_messages(mcp)
     register_contacts(mcp)
+    register_meta(mcp)
 
 
 __all__ = ["register_all"]
