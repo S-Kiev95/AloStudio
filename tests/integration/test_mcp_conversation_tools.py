@@ -75,6 +75,9 @@ async def mcp_session() -> AsyncIterator[AsyncSession]:
 async def _seed(session: AsyncSession, *, suffix: str, scope: str = "write"):
     """Seed account + token + one inbox + one conversation. Returns
     (owner, token, conversation)."""
+    import secrets
+
+    suffix = f"{suffix}-{secrets.token_hex(4)}"
     owner = await AccountBuilder(
         session,
         AccountBuilderParams(

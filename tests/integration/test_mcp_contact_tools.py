@@ -67,6 +67,9 @@ async def mcp_session() -> AsyncIterator[AsyncSession]:
 async def _seed_account_token(
     session: AsyncSession, *, suffix: str, scope: str = "write"
 ):
+    import secrets
+
+    suffix = f"{suffix}-{secrets.token_hex(4)}"
     owner = await AccountBuilder(
         session,
         AccountBuilderParams(

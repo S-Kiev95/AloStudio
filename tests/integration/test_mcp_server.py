@@ -82,6 +82,9 @@ async def _seed_account_and_token(
 ):
     """Seed an account + a fresh MCP token; commit. Returns
     (account_id, user_id, token_value)."""
+    import secrets
+
+    suffix = f"{suffix}-{secrets.token_hex(4)}"
     owner = await AccountBuilder(
         session,
         AccountBuilderParams(
