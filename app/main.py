@@ -35,6 +35,7 @@ from app.domains.inboxes.router import router as inboxes_router
 from app.domains.integrations.router import router as integrations_router
 from app.domains.labels.router import router as labels_router
 from app.domains.macros.router import router as macros_router
+from app.domains.portals.public_router import public_router as portals_public_router
 from app.domains.portals.router import router as portals_router
 from app.domains.teams.router import router as teams_router
 from app.domains.teams.router import team_members_router
@@ -146,9 +147,11 @@ def create_app() -> FastAPI:
     app.include_router(working_hours_single_router)
     app.include_router(working_hours_inbox_router)
     # Help Center (Phase 9.3). admin-only. Portal + Category + Article
-    # CRUD; public Help Center surface (``/hc/<slug>``) defers as a
-    # Phase 9 follow-up.
+    # CRUD.
     app.include_router(portals_router)
+    # Public Help Center surface (Phase 10.2) — no auth, slug-keyed,
+    # only published articles surface.
+    app.include_router(portals_public_router)
     # Campaigns (Phase 9.4). admin-only. CRUD only — scheduler runtime
     # (one_off fire on scheduled_at + ongoing widget triggers) defers
     # to Phase 10 hardening.
