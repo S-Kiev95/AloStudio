@@ -70,43 +70,43 @@ Phase 10 makes it operationally ready. Three things land here:
 ### 10.1 — ARQ worker + scheduler
 
 **Tasks:**
-- [ ] `app/workers/__init__.py` + `app/workers/scheduler.py` —
+- [x] `app/workers/__init__.py` + `app/workers/scheduler.py` —
       ARQ ``WorkerSettings`` with the 5-min ``cron`` task that
       mirrors ``TriggerScheduledItemsJob``.
-- [ ] Job: fire one_off campaigns due in the window, marking each
+- [x] Job: fire one_off campaigns due in the window, marking each
       as ``campaign_status=completed`` once fired.
-- [ ] Job: reopen snoozed conversations whose
+- [x] Job: reopen snoozed conversations whose
       ``snoozed_until <= now()``.
-- [ ] Tests: scheduler runs against seeded state, mutates correctly.
+- [x] Tests: scheduler runs against seeded state, mutates correctly.
 
 ### 10.2 — Public Help Center surface
 
 **Tasks:**
-- [ ] `app/domains/portals/public_router.py` — read-only endpoints:
+- [x] `app/domains/portals/public_router.py` — read-only endpoints:
       * ``GET /hc/<slug>``
       * ``GET /hc/<slug>/articles[?locale=]``
       * ``GET /hc/<slug>/categories[?locale=]``
-- [ ] Only ``status=published`` articles surface on the public side.
-- [ ] Per-locale filtering.
-- [ ] Tests: published articles visible; drafts hidden; unknown slug
+- [x] Only ``status=published`` articles surface on the public side.
+- [x] Per-locale filtering.
+- [x] Tests: published articles visible; drafts hidden; unknown slug
       → 404; locale filter works.
 
 ### 10.3 — Observability
 
 **Tasks:**
-- [ ] Request-id middleware that reads/creates ``X-Request-Id`` and
+- [x] Request-id middleware that reads/creates ``X-Request-Id`` and
       binds it onto the structured-log context (matches Rails'
       ``ActionDispatch::RequestId``).
-- [ ] Beef up ``/health``: DB ping, Redis ping, uptime, version.
-- [ ] Add ``performer.id`` / ``account_id`` to log context when
+- [x] Beef up ``/health``: DB ping, Redis ping, uptime, version.
+- [x] Add ``performer.id`` / ``account_id`` to log context when
       ``account_context`` resolves.
-- [ ] Tests: middleware sets the header, ``/health`` carries the
+- [x] Tests: middleware sets the header, ``/health`` carries the
       live components.
 
 ### 10.4 — Enterprise-deferred schema sweep
 
 **Tasks:**
-- [ ] Migration only — no service/router code:
+- [x] Migration only — no service/router code:
       * ``audits`` table (auditable_id/type, user_id/type, action,
         audited_changes JSONB, version, remote_address, request_uuid).
       * ``sla_policies`` table (name, description,
@@ -115,16 +115,16 @@ Phase 10 makes it operationally ready. Three things land here:
         account_id).
       * ``applied_slas`` table (account/sla_policy/conversation +
         sla_status enum, UNIQUE composite index).
-- [ ] No SQLModel classes (defer to enterprise reactivation —
+- [x] No SQLModel classes (defer to enterprise reactivation —
       tables alone are enough for pg_dump parity).
-- [ ] Test: alembic upgrade head produces the three tables.
+- [x] Test: alembic upgrade head produces the three tables.
 
 ### 10.5 — Parity tests + close Phase 10
 
-- [ ] Parity 200/404 shape on `/hc/<slug>` against the reference.
-- [ ] Parity 401 across the auth-gated endpoints we still haven't
+- [x] Parity 200/404 shape on `/hc/<slug>` against the reference.
+- [x] Parity 401 across the auth-gated endpoints we still haven't
       pinned (any leftovers).
-- [ ] Mark Phase 10 done + roll up the all-phase summary in PLAN.md.
+- [x] Mark Phase 10 done + roll up the all-phase summary in PLAN.md.
 
 ---
 
