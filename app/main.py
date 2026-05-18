@@ -90,6 +90,13 @@ def create_app() -> FastAPI:
     app.add_exception_handler(
         ChatwootHTTPException, chatwoot_http_exception_handler  # type: ignore[arg-type]
     )
+    # Request-id middleware (Phase 10.3) — reads/mints ``X-Request-Id``
+    # and binds it onto the structured-log context so every log entry
+    # carries the correlation id. Mirrors Rails'
+    # ``ActionDispatch::RequestId``.
+    from app.core.middleware import RequestIdMiddleware
+
+    app.add_middleware(RequestIdMiddleware)
     app.include_router(health_router)
     app.include_router(accounts_router)
     app.include_router(auth_router)
