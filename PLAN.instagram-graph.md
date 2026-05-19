@@ -248,12 +248,12 @@ CREATE TABLE instagram_comments (
 
 ### I.1 — Schema + service skeletons
 
-- [ ] `instagram_posts`, `instagram_post_containers`,
+- [x] `instagram_posts`, `instagram_post_containers`,
       `instagram_comments` tables + Alembic migration.
-- [ ] SQLModel classes.
-- [ ] Service skeleton (no business logic yet): create_post,
+- [x] SQLModel classes.
+- [x] Service skeleton (no business logic yet): create_post,
       list_posts, get_post, delete_post.
-- [ ] Tests: model round-trip + cascade deletes.
+- [x] Tests: model round-trip + cascade deletes.
 
 ### I.2 — Single image publish
 
