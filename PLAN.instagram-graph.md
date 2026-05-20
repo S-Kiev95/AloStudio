@@ -311,13 +311,24 @@ CREATE TABLE instagram_comments (
 
 **Test tally:** 45 green (22 models + 14 publisher service + 9 router).
 
-### I.4 — Carousel publishing
+### I.4 — Carousel publishing ✅
 
-- [ ] Carousel parent + children orchestration in ARQ task.
-- [ ] Children polled in parallel; parent only created when all are
-      FINISHED.
-- [ ] ≤10 children enforced server-side (422 otherwise).
-- [ ] Tests for mixed image+video carousel.
+- [x] Carousel parent + children orchestration in
+      `_publish_carousel`: create one container per child →
+      poll each to FINISHED → create the parent referencing the
+      child ids → poll parent → publish.
+- [x] Parent only created once **all** children are FINISHED (a child
+      stuck in ERROR fails the post before any parent call). Children
+      polled sequentially (single async session + Meta's 60s cadence
+      make `asyncio.gather` unnecessary).
+- [x] ≤10 children + non-empty + per-child image_url/video_url
+      enforced at `create_post` (422); re-guarded defensively in
+      `_publish_carousel`. Container positions: parent=0, children=1..N.
+- [x] Tests: happy path (2 images), mixed image+video (asserts the
+      video child carries `media_type=VIDEO` + `is_carousel_item`),
+      child stuck in ERROR (no parent created), child create 400.
+
+**Test tally:** 48 green (22 models + 17 publisher service + 9 router).
 
 ### I.5 — Stories
 

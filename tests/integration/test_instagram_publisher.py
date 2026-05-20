@@ -415,30 +415,191 @@ async def test_publish_video_without_url_fails(db_session):
 
 
 # ---------------------------------------------------------------------------
-# Still-unsupported media types fail clearly (wired in later milestones)
+# Carousel (I.4)
 # ---------------------------------------------------------------------------
-async def test_publish_carousel_not_yet_supported(db_session):
-    owner, inbox, channel = await _seed(db_session, "-car")
-    post = await svc.create_post(
+async def _make_carousel_post(db_session, owner, inbox, channel, children):
+    return await svc.create_post(
         db_session,
         account_id=owner.account.id,
         inbox_id=inbox.id,
         channel_instagram_id=channel.id,
         media_type="CAROUSEL",
-        source={
-            "children": [
-                {"image_url": "https://cdn.example.com/1.jpg"},
-                {"image_url": "https://cdn.example.com/2.jpg"},
-            ]
-        },
+        source={"children": children},
+        caption="a carousel",
+    )
+
+
+@respx.mock
+async def test_publish_carousel_happy_path(db_session):
+    owner, inbox, channel = await _seed(db_session, "-car")
+    post = await _make_carousel_post(
+        db_session,
+        owner,
+        inbox,
+        channel,
+        [
+            {"image_url": "https://cdn.example.com/1.jpg"},
+            {"image_url": "https://cdn.example.com/2.jpg"},
+        ],
+    )
+    igid = channel.instagram_id
+    # 3 POSTs to /media: child1, child2, then the parent.
+    create_route = respx.post(f"{GRAPH}/{igid}/media").mock(
+        side_effect=[
+            httpx.Response(200, json={"id": "CC1"}),
+            httpx.Response(200, json={"id": "CC2"}),
+            httpx.Response(200, json={"id": "CPAR"}),
+        ]
+    )
+    respx.get(f"{GRAPH}/CC1").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
+    )
+    respx.get(f"{GRAPH}/CC2").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
+    )
+    respx.get(f"{GRAPH}/CPAR").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
+    )
+    respx.post(f"{GRAPH}/{igid}/media_publish").mock(
+        return_value=httpx.Response(200, json={"id": "CMID"})
+    )
+    respx.get(f"{GRAPH}/CMID").mock(
+        return_value=httpx.Response(200, json={"permalink": "x"})
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "published"
+    assert result.ig_media_id == "CMID"
+    assert create_route.call_count == 3
+    # Parent body (3rd create call) carries CAROUSEL + the child ids.
+    parent_body = create_route.calls[2].request.content.decode()
+    assert "CAROUSEL" in parent_body
+    assert "children" in parent_body
+    assert "CC1" in parent_body
+    assert "CC2" in parent_body
+    # Container rows: parent at position 0, children at 1 + 2.
+    containers = await svc.list_containers(db_session, post_id=post.id)
+    assert [c.position for c in containers] == [0, 1, 2]
+    assert {c.ig_container_id for c in containers} == {"CPAR", "CC1", "CC2"}
+
+
+@respx.mock
+async def test_publish_carousel_mixed_image_video(db_session):
+    owner, inbox, channel = await _seed(db_session, "-carmix")
+    post = await _make_carousel_post(
+        db_session,
+        owner,
+        inbox,
+        channel,
+        [
+            {"image_url": "https://cdn.example.com/1.jpg"},
+            {"video_url": "https://cdn.example.com/2.mp4"},
+        ],
+    )
+    igid = channel.instagram_id
+    create_route = respx.post(f"{GRAPH}/{igid}/media").mock(
+        side_effect=[
+            httpx.Response(200, json={"id": "MC1"}),
+            httpx.Response(200, json={"id": "MC2"}),
+            httpx.Response(200, json={"id": "MPAR"}),
+        ]
+    )
+    for cid in ("MC1", "MC2", "MPAR"):
+        respx.get(f"{GRAPH}/{cid}").mock(
+            return_value=httpx.Response(
+                200, json={"status_code": "FINISHED"}
+            )
+        )
+    respx.post(f"{GRAPH}/{igid}/media_publish").mock(
+        return_value=httpx.Response(200, json={"id": "MMID"})
+    )
+    respx.get(f"{GRAPH}/MMID").mock(
+        return_value=httpx.Response(200, json={"permalink": "x"})
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "published"
+    # First child = image, second child = video w/ is_carousel_item.
+    child1 = create_route.calls[0].request.content.decode()
+    child2 = create_route.calls[1].request.content.decode()
+    assert "image_url" in child1
+    assert "is_carousel_item" in child1
+    assert "video_url" in child2
+    assert "VIDEO" in child2
+    assert "is_carousel_item" in child2
+
+
+@respx.mock
+async def test_publish_carousel_fails_when_child_errors(db_session):
+    """A child stuck in ERROR fails the whole post; the parent is
+    never created."""
+    owner, inbox, channel = await _seed(db_session, "-carcerr")
+    post = await _make_carousel_post(
+        db_session,
+        owner,
+        inbox,
+        channel,
+        [
+            {"image_url": "https://cdn.example.com/1.jpg"},
+            {"image_url": "https://cdn.example.com/2.jpg"},
+        ],
+    )
+    igid = channel.instagram_id
+    create_route = respx.post(f"{GRAPH}/{igid}/media").mock(
+        side_effect=[
+            httpx.Response(200, json={"id": "EC1"}),
+            httpx.Response(200, json={"id": "EC2"}),
+        ]
+    )
+    respx.get(f"{GRAPH}/EC1").mock(
+        return_value=httpx.Response(200, json={"status_code": "ERROR"})
+    )
+    respx.get(f"{GRAPH}/EC2").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
     )
     result = await svc.publish_post(
         db_session, post_id=post.id, sleep_fn=_instant_sleep
     )
     assert result.state == "failed"
-    assert result.error_code == "unsupported_media_type"
+    assert result.error_code == "ERROR"
+    # Both children created, but no parent (only 2 create calls).
+    assert create_route.call_count == 2
 
 
+@respx.mock
+async def test_publish_carousel_fails_on_child_create_error(db_session):
+    owner, inbox, channel = await _seed(db_session, "-carcreate")
+    post = await _make_carousel_post(
+        db_session,
+        owner,
+        inbox,
+        channel,
+        [
+            {"image_url": "https://cdn.example.com/1.jpg"},
+            {"image_url": "https://cdn.example.com/2.jpg"},
+        ],
+    )
+    igid = channel.instagram_id
+    create_route = respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(
+            400,
+            json={"error": {"message": "Invalid image URL", "code": 9004}},
+        )
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "failed"
+    assert result.error_code == "9004"
+    # Bailed on the first child — no second child, no parent.
+    assert create_route.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Still-unsupported media types fail clearly (wired in later milestones)
+# ---------------------------------------------------------------------------
 async def test_publish_stories_not_yet_supported(db_session):
     owner, inbox, channel = await _seed(db_session, "-story")
     post = await svc.create_post(

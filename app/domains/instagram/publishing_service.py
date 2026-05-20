@@ -400,6 +400,235 @@ async def list_comments_for_media(
 # ---------------------------------------------------------------------------
 # Meta-side actions (Milestones I.2-I.7 wire these — stubs here)
 # ---------------------------------------------------------------------------
+async def _poll_container_and_record(
+    session: AsyncSession,
+    *,
+    post: InstagramPost,
+    channel: Any,
+    container_id: str,
+    sleep_fn=None,
+):
+    """Poll one container to a terminal status_code and stamp the
+    matching ``instagram_post_containers`` row for audit. Returns the
+    poller's :class:`StatusResult`."""
+    from app.domains.instagram import poller
+
+    poll_kwargs: dict[str, Any] = {}
+    if sleep_fn is not None:
+        poll_kwargs["sleep_fn"] = sleep_fn
+    status = await poller.poll_until_terminal(
+        channel, container_id=container_id, **poll_kwargs
+    )
+    containers = await list_containers(session, post_id=post.id)
+    for c in containers:
+        if c.ig_container_id == container_id:
+            c.status_code = status.status_code or "ERROR"
+            session.add(c)
+            await session.flush()
+            break
+    return status
+
+
+async def _finalize_publish(
+    session: AsyncSession,
+    *,
+    post: InstagramPost,
+    channel: Any,
+    creation_id: str,
+) -> InstagramPost:
+    """``/media_publish`` the FINISHED container, fetch the permalink
+    (best-effort), and flip the post to ``published`` — or to
+    ``failed`` if the publish call errors. Shared by the single-
+    container (IMAGE/VIDEO/REELS) and carousel paths."""
+    from datetime import UTC, datetime
+
+    from app.domains.instagram import publisher
+
+    publish_res = await publisher.publish_container(
+        channel, creation_id=creation_id
+    )
+    if not publish_res.ok or publish_res.ig_media_id is None:
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            error_code=publish_res.error_code,
+            error_message=publish_res.error_message,
+        )
+
+    permalink = await publisher.fetch_permalink(
+        channel, ig_media_id=publish_res.ig_media_id
+    )
+    return await transition_post_state(
+        session,
+        post=post,
+        new_state="published",
+        ig_media_id=publish_res.ig_media_id,
+        ig_permalink=permalink,
+        published_at=datetime.now(UTC),
+    )
+
+
+async def _publish_carousel(
+    session: AsyncSession,
+    *,
+    post: InstagramPost,
+    channel: Any,
+    sleep_fn=None,
+) -> InstagramPost:
+    """Carousel (I.4) — create one child container per source child,
+    poll each to FINISHED, then create + poll + publish the parent.
+
+    Container positions: children at ``1..N`` (creation order), parent
+    at ``0`` (created last, after every child is FINISHED — Meta rejects
+    a parent whose children aren't ready).
+
+    Children are polled sequentially. Meta's 60s cadence means real
+    videos finish around the same wall-clock time regardless; the
+    single async session also makes sequential the safe choice over
+    ``asyncio.gather`` here.
+    """
+    from app.domains.instagram import publisher
+
+    source = post.source or {}
+    children = source.get("children") or []
+    # ``create_post`` already enforced 1-10 children each carrying an
+    # image_url or video_url; re-guard defensively for direct callers.
+    if not isinstance(children, list) or not children:
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            error_code="missing_children",
+            error_message="source.children empty at publish time",
+        )
+    if len(children) > 10:
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            error_code="too_many_children",
+            error_message="CAROUSEL accepts at most 10 children",
+        )
+
+    # 1) Create every child container.
+    child_ids: list[str] = []
+    for idx, child in enumerate(children, start=1):
+        if not isinstance(child, dict):
+            child = {}
+        if child.get("video_url"):
+            params = publisher.build_video_container_params(
+                media_type="VIDEO",
+                video_url=child["video_url"],
+                is_carousel_item=True,
+            )
+        elif child.get("image_url"):
+            params = publisher.build_image_container_params(
+                image_url=child["image_url"], is_carousel_item=True
+            )
+        else:
+            return await transition_post_state(
+                session,
+                post=post,
+                new_state="failed",
+                error_code="bad_carousel_child",
+                error_message=(
+                    f"carousel child {idx} has no image_url/video_url"
+                ),
+            )
+        res = await publisher.create_container(channel, params=params)
+        if not res.ok or res.container_id is None:
+            return await transition_post_state(
+                session,
+                post=post,
+                new_state="failed",
+                error_code=res.error_code,
+                error_message=res.error_message,
+            )
+        await add_container(
+            session,
+            post=post,
+            ig_container_id=res.container_id,
+            position=idx,
+        )
+        child_ids.append(res.container_id)
+
+    # 2) Poll every child to FINISHED.
+    for cid in child_ids:
+        status = await _poll_container_and_record(
+            session,
+            post=post,
+            channel=channel,
+            container_id=cid,
+            sleep_fn=sleep_fn,
+        )
+        if status.status_code != "FINISHED":
+            return await transition_post_state(
+                session,
+                post=post,
+                new_state="failed",
+                error_code=status.status_code or status.error or "poll_failed",
+                error_message=(
+                    status.error or f"carousel child {cid} not FINISHED"
+                ),
+            )
+
+    # 3) Create the parent container referencing the FINISHED children.
+    parent_params: dict[str, Any] = {
+        "media_type": "CAROUSEL",
+        "children": ",".join(child_ids),
+    }
+    if post.caption:
+        parent_params["caption"] = post.caption
+    parent_res = await publisher.create_container(
+        channel, params=parent_params
+    )
+    if not parent_res.ok or parent_res.container_id is None:
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            error_code=parent_res.error_code,
+            error_message=parent_res.error_message,
+        )
+    await add_container(
+        session,
+        post=post,
+        ig_container_id=parent_res.container_id,
+        position=0,
+    )
+
+    # 4) Poll the parent, then publish.
+    parent_status = await _poll_container_and_record(
+        session,
+        post=post,
+        channel=channel,
+        container_id=parent_res.container_id,
+        sleep_fn=sleep_fn,
+    )
+    if parent_status.status_code != "FINISHED":
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            error_code=(
+                parent_status.status_code
+                or parent_status.error
+                or "poll_failed"
+            ),
+            error_message=(
+                parent_status.error or "carousel parent not FINISHED"
+            ),
+        )
+
+    return await _finalize_publish(
+        session,
+        post=post,
+        channel=channel,
+        creation_id=parent_res.container_id,
+    )
+
+
 async def publish_post(
     session: AsyncSession,
     *,
@@ -412,9 +641,11 @@ async def publish_post(
     Milestone I.2 handles ``media_type == "IMAGE"`` and I.3 adds
     ``VIDEO`` / ``REELS`` — all three share the single-container path
     (create → poll status_code → media_publish), differing only in the
-    container params. CAROUSEL (I.4, multi-container) and STORIES (I.5)
-    raise a clear ``not yet wired`` failure that flips the post to
-    ``failed`` rather than crashing the worker.
+    container params. CAROUSEL (I.4) takes the multi-container path in
+    :func:`_publish_carousel` (per-child container → poll all → parent
+    → publish). STORIES (I.5) still raises a clear ``not yet wired``
+    failure that flips the post to ``failed`` rather than crashing the
+    worker.
 
     The container is created HERE (in the task body), not at
     create-post time — Meta containers expire after 24h, so a post
@@ -427,10 +658,8 @@ async def publish_post(
     Never raises on Meta-side failures — stamps ``error_code`` /
     ``error_message`` + flips to ``failed`` instead.
     """
-    from datetime import UTC, datetime
-
     from app.domains.inboxes.models import InstagramChannel
-    from app.domains.instagram import poller, publisher
+    from app.domains.instagram import publisher
 
     post = await session.get(InstagramPost, post_id)
     if post is None:
@@ -461,10 +690,16 @@ async def publish_post(
         session, post=post, new_state="publishing"
     )
 
+    # ---- Carousel (I.4): multi-container orchestration ----
+    if post.media_type == "CAROUSEL":
+        return await _publish_carousel(
+            session, post=post, channel=channel, sleep_fn=sleep_fn
+        )
+
     # ---- Build the container params per media type ----
     # IMAGE (I.2) + VIDEO/REELS (I.3) all take the single-container
-    # path below — only the param dict differs. CAROUSEL (I.4, multi-
-    # container) and STORIES (I.5) still raise a clear ``failed`` here.
+    # path below — only the param dict differs. STORIES (I.5) still
+    # raises a clear ``failed`` here.
     source = post.source or {}
     params: dict[str, Any] | None = None
     missing_field_error: tuple[str, str] | None = None
@@ -498,7 +733,7 @@ async def publish_post(
                 audio_name=source.get("audio_name"),
             )
     else:
-        # CAROUSEL (I.4), STORIES (I.5) — not wired yet.
+        # STORIES (I.5) — not wired yet.
         return await transition_post_state(
             session,
             post=post,
@@ -506,7 +741,7 @@ async def publish_post(
             error_code="unsupported_media_type",
             error_message=(
                 f"{post.media_type} publishing wires in a later "
-                "milestone (I.4 carousel, I.5 stories)"
+                "milestone (I.5 stories)"
             ),
         )
 
@@ -539,21 +774,13 @@ async def publish_post(
         position=0,
     )
 
-    poll_kwargs: dict[str, Any] = {}
-    if sleep_fn is not None:
-        poll_kwargs["sleep_fn"] = sleep_fn
-    status = await poller.poll_until_terminal(
-        channel,
+    status = await _poll_container_and_record(
+        session,
+        post=post,
+        channel=channel,
         container_id=container_res.container_id,
-        **poll_kwargs,
+        sleep_fn=sleep_fn,
     )
-    # Refresh container row's status_code for audit.
-    containers = await list_containers(session, post_id=post.id)
-    if containers:
-        containers[0].status_code = status.status_code or "ERROR"
-        session.add(containers[0])
-        await session.flush()
-
     if status.status_code != "FINISHED":
         return await transition_post_state(
             session,
@@ -566,28 +793,11 @@ async def publish_post(
             error_message=status.error or "container not FINISHED",
         )
 
-    publish_res = await publisher.publish_container(
-        channel, creation_id=container_res.container_id
-    )
-    if not publish_res.ok or publish_res.ig_media_id is None:
-        return await transition_post_state(
-            session,
-            post=post,
-            new_state="failed",
-            error_code=publish_res.error_code,
-            error_message=publish_res.error_message,
-        )
-
-    permalink = await publisher.fetch_permalink(
-        channel, ig_media_id=publish_res.ig_media_id
-    )
-    return await transition_post_state(
+    return await _finalize_publish(
         session,
         post=post,
-        new_state="published",
-        ig_media_id=publish_res.ig_media_id,
-        ig_permalink=permalink,
-        published_at=datetime.now(UTC),
+        channel=channel,
+        creation_id=container_res.container_id,
     )
 
 
