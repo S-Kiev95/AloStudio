@@ -881,51 +881,206 @@ async def delete_media_on_meta(
     )
 
 
-async def post_comment_on_meta(
-    session: AsyncSession,  # noqa: ARG001
+def _parse_ig_timestamp(raw: str | None) -> datetime | None:
+    """Best-effort parse of Meta's comment ``timestamp`` (ISO 8601,
+    usually ``2026-05-20T12:00:00+0000``). Returns None if absent or
+    unparseable — the row just keeps a null ``ig_created_at``."""
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw)
+    except ValueError:
+        # Meta sometimes emits ``+0000`` instead of ``+00:00``.
+        try:
+            if len(raw) >= 5 and raw[-5] in "+-" and raw[-3] != ":":
+                return datetime.fromisoformat(f"{raw[:-2]}:{raw[-2:]}")
+        except ValueError:
+            return None
+    return None
+
+
+async def get_comment(
+    session: AsyncSession, *, account_id: int, comment_id: int
+) -> InstagramComment | None:
+    """Fetch a local comment row scoped to the account (the moderation
+    endpoints address comments by our row id, not the IG id)."""
+    return (
+        await session.exec(
+            select(InstagramComment).where(
+                InstagramComment.id == comment_id,
+                InstagramComment.account_id == account_id,
+            )
+        )
+    ).first()
+
+
+async def list_comments_on_meta(
+    session: AsyncSession,
     *,
-    ig_media_id: str,  # noqa: ARG001
-    message: str,  # noqa: ARG001
-) -> str:
-    """Call ``POST /{ig-media-id}/comments`` → returns the new
-    comment id. Wired in Milestone I.7.
-    """
-    raise NotImplementedError("post_comment_on_meta wires in Milestone I.7")
+    channel: Any,
+    account_id: int,
+    ig_media_id: str,
+) -> list[InstagramComment]:
+    """Live-fetch comments for a media from Meta, upsert each into the
+    local mirror, and return the stored rows (hidden included).
+
+    A Meta-side failure surfaces as a 422 — the caller is interactive."""
+    from app.domains.instagram import comments_client
+
+    res = await comments_client.fetch_comments(
+        channel, ig_media_id=ig_media_id
+    )
+    if not res.ok:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": res.error_message or "instagram comment fetch failed",
+                "code": res.error_code,
+            },
+        )
+    for node in res.comments:
+        await upsert_comment(
+            session,
+            account_id=account_id,
+            channel_instagram_id=channel.id,
+            ig_comment_id=node.ig_comment_id,
+            ig_media_id=ig_media_id,
+            parent_comment_id=node.parent_comment_id,
+            from_username=node.username,
+            from_id=node.from_id,
+            text=node.text,
+            hidden=node.hidden,
+            ig_created_at=_parse_ig_timestamp(node.timestamp),
+        )
+    return await list_comments_for_media(
+        session,
+        account_id=account_id,
+        ig_media_id=ig_media_id,
+        include_hidden=True,
+    )
+
+
+async def post_comment_on_meta(
+    session: AsyncSession,
+    *,
+    channel: Any,
+    account_id: int,
+    ig_media_id: str,
+    message: str,
+) -> InstagramComment:
+    """``POST /{ig-media-id}/comments`` then mirror the new comment
+    locally. Returns the stored row (Milestone I.7)."""
+    from app.domains.instagram import comments_client
+
+    res = await comments_client.create_comment(
+        channel, ig_media_id=ig_media_id, message=message
+    )
+    if not res.ok or res.ig_comment_id is None:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": res.error_message or "instagram comment failed",
+                "code": res.error_code,
+            },
+        )
+    return await upsert_comment(
+        session,
+        account_id=account_id,
+        channel_instagram_id=channel.id,
+        ig_comment_id=res.ig_comment_id,
+        ig_media_id=ig_media_id,
+        text=message,
+    )
 
 
 async def reply_comment_on_meta(
-    session: AsyncSession,  # noqa: ARG001
+    session: AsyncSession,
     *,
-    ig_parent_comment_id: str,  # noqa: ARG001
-    message: str,  # noqa: ARG001
-) -> str:
-    """Call ``POST /{ig-comment-id}/replies``. Wired in I.7."""
-    raise NotImplementedError(
-        "reply_comment_on_meta wires in Milestone I.7"
+    channel: Any,
+    account_id: int,
+    parent_comment: InstagramComment,
+    message: str,
+) -> InstagramComment:
+    """``POST /{ig-comment-id}/replies`` then mirror the reply locally
+    with ``parent_comment_id`` set (Milestone I.7)."""
+    from app.domains.instagram import comments_client
+
+    res = await comments_client.create_reply(
+        channel,
+        ig_comment_id=parent_comment.ig_comment_id,
+        message=message,
+    )
+    if not res.ok or res.ig_comment_id is None:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": res.error_message or "instagram reply failed",
+                "code": res.error_code,
+            },
+        )
+    return await upsert_comment(
+        session,
+        account_id=account_id,
+        channel_instagram_id=channel.id,
+        ig_comment_id=res.ig_comment_id,
+        ig_media_id=parent_comment.ig_media_id,
+        parent_comment_id=parent_comment.ig_comment_id,
+        text=message,
     )
 
 
 async def hide_comment_on_meta(
-    session: AsyncSession,  # noqa: ARG001
+    session: AsyncSession,
     *,
-    ig_comment_id: str,  # noqa: ARG001
-    hide: bool,  # noqa: ARG001
-) -> None:
-    """Call ``POST /{ig-comment-id}?hide=true|false``. Wired in I.7."""
-    raise NotImplementedError(
-        "hide_comment_on_meta wires in Milestone I.7"
+    channel: Any,
+    comment: InstagramComment,
+    hide: bool,
+) -> InstagramComment:
+    """``POST /{ig-comment-id}?hide=true|false`` then update the local
+    row's ``hidden`` flag (Milestone I.7)."""
+    from app.domains.instagram import comments_client
+
+    res = await comments_client.set_hidden(
+        channel, ig_comment_id=comment.ig_comment_id, hide=hide
     )
+    if not res.ok:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": res.error_message or "instagram hide failed",
+                "code": res.error_code,
+            },
+        )
+    comment.hidden = hide
+    session.add(comment)
+    await session.flush()
+    await session.refresh(comment)
+    return comment
 
 
 async def delete_comment_on_meta(
-    session: AsyncSession,  # noqa: ARG001
+    session: AsyncSession,
     *,
-    ig_comment_id: str,  # noqa: ARG001
+    channel: Any,
+    comment: InstagramComment,
 ) -> None:
-    """Call ``DELETE /{ig-comment-id}``. Wired in I.7."""
-    raise NotImplementedError(
-        "delete_comment_on_meta wires in Milestone I.7"
+    """``DELETE /{ig-comment-id}`` then drop the local mirror row
+    (Milestone I.7)."""
+    from app.domains.instagram import comments_client
+
+    res = await comments_client.delete_comment(
+        channel, ig_comment_id=comment.ig_comment_id
     )
+    if not res.ok:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": res.error_message or "instagram comment delete failed",
+                "code": res.error_code,
+            },
+        )
+    await session.delete(comment)
+    await session.flush()
 
 
 __all__ = [
@@ -933,9 +1088,11 @@ __all__ = [
     "create_post",
     "delete_comment_on_meta",
     "delete_media_on_meta",
+    "get_comment",
     "get_post",
     "hide_comment_on_meta",
     "list_comments_for_media",
+    "list_comments_on_meta",
     "list_containers",
     "list_posts",
     "post_comment_on_meta",

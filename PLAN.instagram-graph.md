@@ -366,12 +366,29 @@ CREATE TABLE instagram_comments (
 
 **Test tally:** 59 green (22 models + 24 publisher service + 13 router).
 
-### I.7 — Comments — read + write + moderation
+### I.7 — Comments — read + write + moderation ✅
 
-- [ ] List comments on a media (with `replies{...}` expansion).
-- [ ] Post comment / reply.
-- [ ] Hide (toggle) / delete.
-- [ ] CRUD endpoints + service tests.
+- [x] `comments_client.py` — Meta HTTP client (never raises): list
+      (`replies{...}` expansion, flattened so replies carry
+      `parent_comment_id`), post, reply, hide/unhide, delete.
+- [x] Service wires the 4 ex-stubs + `list_comments_on_meta` +
+      `get_comment`. List/post/reply upsert into the local
+      `instagram_comments` mirror; hide flips `hidden`; delete drops
+      the row. Meta-side failures surface as 422 (interactive surface).
+- [x] `comments_router.py` (admin-only, wired in main.py):
+      * `GET  /instagram_posts/{post_id}/comments` (live sync)
+      * `POST /instagram_posts/{post_id}/comments`
+      * `POST /instagram_comments/{comment_id}/replies`
+      * `POST /instagram_comments/{comment_id}/hide`
+      * `DELETE /instagram_comments/{comment_id}`
+- [x] `test_instagram_comments.py` — service layer (list sync incl.
+      reply linkage + ig_created_at parse, post, reply, hide, delete,
+      Meta-error 422) + endpoints (auth gate, index, unpublished-post
+      422, create, reply, hide, delete, unknown-comment 404).
+- [x] Stub-contract test removed — no NotImplementedError stubs remain.
+
+**Test tally:** 73 green (22 models + 24 publisher + 13 router +
+14 comments).
 
 ### I.8 — Webhook receiver for comments + mentions + story_insights
 

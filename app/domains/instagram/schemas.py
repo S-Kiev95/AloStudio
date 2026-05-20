@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class InstagramPostCreate(BaseModel):
@@ -33,4 +33,24 @@ class InstagramPostCreate(BaseModel):
     scheduled_for: datetime | None = None
 
 
-__all__ = ["InstagramPostCreate"]
+class InstagramCommentCreate(BaseModel):
+    """Body for posting a comment on a media or replying to a comment."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    message: str = Field(min_length=1, max_length=2200)
+
+
+class InstagramCommentHide(BaseModel):
+    """Body for the hide/unhide moderation action."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    hide: bool = True
+
+
+__all__ = [
+    "InstagramCommentCreate",
+    "InstagramCommentHide",
+    "InstagramPostCreate",
+]
