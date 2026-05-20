@@ -638,14 +638,13 @@ async def publish_post(
     """Drive ``post_id`` through container creation → polling →
     publish on Meta.
 
-    Milestone I.2 handles ``media_type == "IMAGE"`` and I.3 adds
-    ``VIDEO`` / ``REELS`` — all three share the single-container path
-    (create → poll status_code → media_publish), differing only in the
-    container params. CAROUSEL (I.4) takes the multi-container path in
-    :func:`_publish_carousel` (per-child container → poll all → parent
-    → publish). STORIES (I.5) still raises a clear ``not yet wired``
-    failure that flips the post to ``failed`` rather than crashing the
-    worker.
+    ``IMAGE`` (I.2), ``VIDEO`` / ``REELS`` (I.3) and ``STORIES`` (I.5)
+    all share the single-container path (create → poll status_code →
+    media_publish), differing only in the container params. CAROUSEL
+    (I.4) takes the multi-container path in :func:`_publish_carousel`
+    (per-child container → poll all → parent → publish). An unknown
+    media type (which create_post validation already rejects) flips the
+    post to ``failed`` rather than crashing the worker.
 
     The container is created HERE (in the task body), not at
     create-post time — Meta containers expire after 24h, so a post
@@ -732,17 +731,27 @@ async def publish_post(
                 share_to_feed=source.get("share_to_feed"),
                 audio_name=source.get("audio_name"),
             )
+    elif post.media_type == "STORIES":
+        image_url = source.get("image_url")
+        video_url = source.get("video_url")
+        if not (image_url or video_url):
+            missing_field_error = (
+                "missing_story_source",
+                "source.image_url or source.video_url absent at publish time",
+            )
+        else:
+            params = publisher.build_story_container_params(
+                image_url=image_url, video_url=video_url
+            )
     else:
-        # STORIES (I.5) — not wired yet.
+        # Defensive fallback — ``media_type`` is validated at
+        # create_post, so an unknown type shouldn't reach here.
         return await transition_post_state(
             session,
             post=post,
             new_state="failed",
             error_code="unsupported_media_type",
-            error_message=(
-                f"{post.media_type} publishing wires in a later "
-                "milestone (I.5 stories)"
-            ),
+            error_message=f"{post.media_type} is not a supported media type",
         )
 
     if missing_field_error is not None:

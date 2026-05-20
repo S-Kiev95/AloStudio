@@ -598,10 +598,11 @@ async def test_publish_carousel_fails_on_child_create_error(db_session):
 
 
 # ---------------------------------------------------------------------------
-# Still-unsupported media types fail clearly (wired in later milestones)
+# Stories (I.5)
 # ---------------------------------------------------------------------------
-async def test_publish_stories_not_yet_supported(db_session):
-    owner, inbox, channel = await _seed(db_session, "-story")
+@respx.mock
+async def test_publish_image_story_happy_path(db_session):
+    owner, inbox, channel = await _seed(db_session, "-istory")
     post = await svc.create_post(
         db_session,
         account_id=owner.account.id,
@@ -610,11 +611,81 @@ async def test_publish_stories_not_yet_supported(db_session):
         media_type="STORIES",
         source={"image_url": "https://cdn.example.com/s.jpg"},
     )
+    igid = channel.instagram_id
+    create_route = respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(200, json={"id": "SC1"})
+    )
+    respx.get(f"{GRAPH}/SC1").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
+    )
+    respx.post(f"{GRAPH}/{igid}/media_publish").mock(
+        return_value=httpx.Response(200, json={"id": "SM1"})
+    )
+    respx.get(f"{GRAPH}/SM1").mock(
+        return_value=httpx.Response(200, json={"permalink": "x"})
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "published"
+    assert result.ig_media_id == "SM1"
+    body = create_route.calls.last.request.content.decode()
+    assert "STORIES" in body
+    assert "image_url" in body
+
+
+@respx.mock
+async def test_publish_video_story_happy_path(db_session):
+    owner, inbox, channel = await _seed(db_session, "-vstory")
+    post = await svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=channel.id,
+        media_type="STORIES",
+        source={"video_url": "https://cdn.example.com/s.mp4"},
+    )
+    igid = channel.instagram_id
+    create_route = respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(200, json={"id": "VS1"})
+    )
+    respx.get(f"{GRAPH}/VS1").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
+    )
+    respx.post(f"{GRAPH}/{igid}/media_publish").mock(
+        return_value=httpx.Response(200, json={"id": "VSM1"})
+    )
+    respx.get(f"{GRAPH}/VSM1").mock(
+        return_value=httpx.Response(200, json={"permalink": "x"})
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "published"
+    body = create_route.calls.last.request.content.decode()
+    assert "STORIES" in body
+    assert "video_url" in body
+
+
+async def test_publish_story_without_source_fails(db_session):
+    owner, inbox, channel = await _seed(db_session, "-snourl")
+    post = await svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=channel.id,
+        media_type="STORIES",
+        source={"image_url": "https://cdn.example.com/s.jpg"},
+    )
+    # Simulate a malformed row reaching the worker.
+    post.source = {}
+    db_session.add(post)
+    await db_session.flush()
     result = await svc.publish_post(
         db_session, post_id=post.id, sleep_fn=_instant_sleep
     )
     assert result.state == "failed"
-    assert result.error_code == "unsupported_media_type"
+    assert result.error_code == "missing_story_source"
 
 
 # ---------------------------------------------------------------------------

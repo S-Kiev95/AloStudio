@@ -330,11 +330,22 @@ CREATE TABLE instagram_comments (
 
 **Test tally:** 48 green (22 models + 17 publisher service + 9 router).
 
-### I.5 — Stories
+### I.5 — Stories ✅
 
-- [ ] `media_type=STORIES` branch + 24h auto-expiry handling
-      (no manual delete needed; row stays for audit).
-- [ ] Tests.
+- [x] `media_type=STORIES` branch in `publish_post` — takes the
+      single-container path with `build_story_container_params`
+      (image **or** video, no caption). 24h auto-expiry needs no
+      handling: Meta drops the story automatically; the row stays
+      `published` for audit.
+- [x] Tests: image story happy path + video story happy path (assert
+      the container body carries `media_type=STORIES` + the right url),
+      story-without-source failure (`missing_story_source`).
+
+**Test tally:** 50 green (22 models + 19 publisher service + 9 router).
+
+> With I.5 done, **all five media types publish** (IMAGE, VIDEO, REELS,
+> CAROUSEL, STORIES). The remaining milestones are deletion (I.6),
+> comment moderation (I.7), webhooks (I.8), quota (I.9), OAuth (I.10).
 
 ### I.6 — Delete media
 

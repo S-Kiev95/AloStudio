@@ -175,6 +175,29 @@ def build_video_container_params(
     return params
 
 
+def build_story_container_params(
+    *,
+    image_url: str | None = None,
+    video_url: str | None = None,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Param dict for a STORIES container (image or video).
+
+    Stories always carry ``media_type=STORIES`` and take exactly one
+    of ``image_url`` / ``video_url`` (video wins if both are present —
+    callers validate upstream). Captions don't apply to stories, so
+    none is accepted here.
+    """
+    params: dict[str, Any] = {"media_type": "STORIES"}
+    if video_url:
+        params["video_url"] = video_url
+    elif image_url:
+        params["image_url"] = image_url
+    if extra:
+        params.update(extra)
+    return params
+
+
 async def create_container(
     channel: InstagramChannel,
     *,
@@ -350,6 +373,7 @@ __all__ = [
     "ContainerResult",
     "PublishResult",
     "build_image_container_params",
+    "build_story_container_params",
     "build_video_container_params",
     "create_container",
     "fetch_permalink",
