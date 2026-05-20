@@ -347,13 +347,24 @@ CREATE TABLE instagram_comments (
 > CAROUSEL, STORIES). The remaining milestones are deletion (I.6),
 > comment moderation (I.7), webhooks (I.8), quota (I.9), OAuth (I.10).
 
-### I.6 — Delete media
+### I.6 — Delete media ✅
 
-- [ ] `DELETE /api/v1/accounts/{id}/instagram_posts/{id}` →
-      `DELETE /{ig-media-id}` on Meta + update local row state to
-      ``deleted``.
-- [ ] Tests for the documented restrictions (carousel children can't
-      be individually deleted; live video can't be deleted).
+- [x] `DELETE /api/v1/accounts/{id}/instagram_posts/{post_id}` →
+      `publisher.delete_media` (`DELETE /{ig-media-id}`) + flip the row
+      `published → deleted`. Only `published` posts (which have an
+      `ig_media_id`) hit Meta; other states 422. Idempotent on an
+      already-`deleted` row (no second Meta call).
+- [x] Delete is interactive (not the worker), so a Meta-side failure
+      surfaces as a 422 carrying the Meta error code — but the row
+      still gets `error_code`/`error_message` stamped for audit and
+      keeps its `published` state.
+- [x] Tests (service + endpoint): happy path, non-published 422,
+      unknown 404, Meta-error surfaces+stamps (e.g. live video, code
+      10), idempotency, auth gate. The documented restrictions
+      (carousel children / live video / ad-promoted) are exactly the
+      Meta-error path — Meta returns 4xx, we relay it.
+
+**Test tally:** 59 green (22 models + 24 publisher service + 13 router).
 
 ### I.7 — Comments — read + write + moderation
 

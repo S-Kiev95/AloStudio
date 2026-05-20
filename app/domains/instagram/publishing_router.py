@@ -163,4 +163,22 @@ async def show_post(
     return present_post(post, containers=containers)
 
 
+@router.delete("/{post_id}")
+async def delete_post_endpoint(
+    post_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Delete a published post on Instagram + flip the row to
+    ``deleted``. Only ``published`` posts can be removed on Meta (other
+    states 422). Meta-side restrictions (carousel children, ad-promoted
+    posts, live video) surface as a 422 with the Meta error code.
+    """
+    assert ctx.account.id is not None
+    post = await svc.delete_media_on_meta(
+        session, account_id=ctx.account.id, post_id=post_id
+    )
+    return present_post(post)
+
+
 __all__ = ["router"]

@@ -18,6 +18,7 @@ import httpx
 import pytest
 import respx
 
+from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts import models as _contacts  # noqa: F401  (mapper)
 from app.domains.conversations import models as _conversations  # noqa: F401
@@ -721,3 +722,104 @@ async def test_publish_is_idempotent_on_non_pending(db_session):
     )
     assert result.state == "published"
     assert create_route.call_count == call_count_after_first
+
+
+# ---------------------------------------------------------------------------
+# Delete media (I.6)
+# ---------------------------------------------------------------------------
+async def _make_published_post(db_session, owner, inbox, channel, igmid):
+    """A post already in ``published`` state with an ig_media_id, as
+    the worker would leave it after a successful publish."""
+    post = await _make_image_post(db_session, owner, inbox, channel)
+    post.state = "published"
+    post.ig_media_id = igmid
+    db_session.add(post)
+    await db_session.flush()
+    return post
+
+
+@respx.mock
+async def test_delete_published_post_happy_path(db_session):
+    owner, inbox, channel = await _seed(db_session, "-del")
+    post = await _make_published_post(
+        db_session, owner, inbox, channel, "DELME_1"
+    )
+    del_route = respx.delete(f"{GRAPH}/DELME_1").mock(
+        return_value=httpx.Response(200, json={"success": True})
+    )
+    result = await svc.delete_media_on_meta(
+        db_session, account_id=owner.account.id, post_id=post.id
+    )
+    assert del_route.called
+    assert result.state == "deleted"
+
+
+async def test_delete_non_published_rejected(db_session):
+    owner, inbox, channel = await _seed(db_session, "-delpend")
+    post = await _make_image_post(db_session, owner, inbox, channel)
+    # Still pending — nothing on Meta to delete.
+    with pytest.raises(ChatwootHTTPException) as exc:
+        await svc.delete_media_on_meta(
+            db_session, account_id=owner.account.id, post_id=post.id
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_delete_unknown_post_404(db_session):
+    owner, _, _ = await _seed(db_session, "-delunk")
+    with pytest.raises(ChatwootHTTPException) as exc:
+        await svc.delete_media_on_meta(
+            db_session, account_id=owner.account.id, post_id=99999999
+        )
+    assert exc.value.status_code == 404
+
+
+@respx.mock
+async def test_delete_meta_error_surfaces_and_stamps(db_session):
+    """Meta rejects deleting e.g. a live video — the error surfaces as
+    422 and the row keeps its ``published`` state with the error
+    stamped for audit."""
+    owner, inbox, channel = await _seed(db_session, "-delerr")
+    post = await _make_published_post(
+        db_session, owner, inbox, channel, "DELERR_1"
+    )
+    respx.delete(f"{GRAPH}/DELERR_1").mock(
+        return_value=httpx.Response(
+            400,
+            json={
+                "error": {
+                    "message": "Cannot delete live video",
+                    "code": 10,
+                }
+            },
+        )
+    )
+    with pytest.raises(ChatwootHTTPException) as exc:
+        await svc.delete_media_on_meta(
+            db_session, account_id=owner.account.id, post_id=post.id
+        )
+    assert exc.value.status_code == 422
+    await db_session.refresh(post)
+    assert post.state == "published"  # unchanged
+    assert post.error_code == "10"
+
+
+@respx.mock
+async def test_delete_is_idempotent_on_already_deleted(db_session):
+    owner, inbox, channel = await _seed(db_session, "-delidem")
+    post = await _make_published_post(
+        db_session, owner, inbox, channel, "DELIDEM_1"
+    )
+    del_route = respx.delete(f"{GRAPH}/DELIDEM_1").mock(
+        return_value=httpx.Response(200, json={"success": True})
+    )
+    await svc.delete_media_on_meta(
+        db_session, account_id=owner.account.id, post_id=post.id
+    )
+    assert del_route.call_count == 1
+    # Second delete no-ops — already deleted, no second Meta call.
+    result = await svc.delete_media_on_meta(
+        db_session, account_id=owner.account.id, post_id=post.id
+    )
+    assert result.state == "deleted"
+    assert del_route.call_count == 1

@@ -811,12 +811,74 @@ async def publish_post(
 
 
 async def delete_media_on_meta(
-    session: AsyncSession, *, post_id: int  # noqa: ARG001
-) -> None:
+    session: AsyncSession,
+    *,
+    account_id: int,
+    post_id: int,
+) -> InstagramPost:
     """Call ``DELETE /{ig-media-id}`` on Meta + flip our row to
-    ``deleted``. Wired in Milestone I.6.
+    ``deleted`` (Milestone I.6).
+
+    Only ``published`` posts (which actually have an ``ig_media_id`` on
+    Meta) can be deleted. Other states have nothing on Meta to remove,
+    so they 422 here — the dashboard handles local-only cleanup of
+    pending/failed rows separately.
+
+    Unlike the publish path (a background worker that swallows errors
+    and stamps ``failed``), delete is an interactive admin action, so a
+    Meta-side failure surfaces as a ``ChatwootHTTPException`` for the
+    caller to see — but we still stamp ``error_code`` / ``error_message``
+    on the row for audit before raising.
     """
-    raise NotImplementedError("delete_media_on_meta wires in Milestone I.6")
+    from app.domains.inboxes.models import InstagramChannel
+    from app.domains.instagram import publisher
+
+    post = await get_post(session, account_id=account_id, post_id=post_id)
+    if post is None:
+        raise ChatwootHTTPException(
+            status_code=404,
+            detail={"error": "Resource could not be found"},
+        )
+    if post.state == "deleted":
+        # Idempotent: already gone on Meta.
+        return post
+    if post.state != "published" or not post.ig_media_id:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": "only published posts can be deleted on Instagram"
+            },
+        )
+
+    channel = await session.get(
+        InstagramChannel, post.channel_instagram_id
+    )
+    if channel is None:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "instagram channel row not found"},
+        )
+
+    res = await publisher.delete_media(
+        channel, ig_media_id=post.ig_media_id
+    )
+    if not res.ok:
+        # Stamp the failure for audit, then surface it to the caller.
+        post.error_code = res.error_code
+        post.error_message = res.error_message
+        session.add(post)
+        await session.flush()
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": res.error_message or "instagram delete failed",
+                "code": res.error_code,
+            },
+        )
+
+    return await transition_post_state(
+        session, post=post, new_state="deleted"
+    )
 
 
 async def post_comment_on_meta(

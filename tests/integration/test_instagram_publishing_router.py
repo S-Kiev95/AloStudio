@@ -12,18 +12,23 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 
+import httpx
 import pytest
+import respx
 from httpx import ASGITransport, AsyncClient
 
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+from app.domains.instagram import publishing_service as ig_svc
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
 from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser
 from app.main import app
 
 pytestmark = pytest.mark.integration
+
+GRAPH = "https://graph.facebook.com/v23.0"
 
 
 @pytest.fixture
@@ -295,3 +300,72 @@ async def test_index_and_show(client, db_session):
     assert show.status_code == 200
     assert show.json()["id"] == post_id
     assert "containers" in show.json()
+
+
+# ---------------------------------------------------------------------------
+# delete (I.6)
+# ---------------------------------------------------------------------------
+async def _seed_published_post(db_session, owner, inbox, ig_media_id: str):
+    post = await ig_svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=inbox.channel_id,
+        media_type="IMAGE",
+        source={"image_url": "https://x.example.com/p.jpg"},
+    )
+    post.state = "published"
+    post.ig_media_id = ig_media_id
+    db_session.add(post)
+    await db_session.flush()
+    return post
+
+
+@respx.mock
+async def test_delete_published_post(client, db_session):
+    owner, headers = await _seed_admin(db_session, "-delep")
+    inbox = await _seed_ig_inbox(db_session, owner, "-delep")
+    post = await _seed_published_post(db_session, owner, inbox, "EPDEL_1")
+    del_route = respx.delete(f"{GRAPH}/EPDEL_1").mock(
+        return_value=httpx.Response(200, json={"success": True})
+    )
+    resp = await client.delete(
+        f"/api/v1/accounts/{owner.account.id}/instagram_posts/{post.id}",
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["state"] == "deleted"
+    assert del_route.called
+
+
+async def test_delete_non_published_rejected(client, db_session):
+    owner, headers = await _seed_admin(db_session, "-delpend")
+    inbox = await _seed_ig_inbox(db_session, owner, "-delpend")
+    post = await ig_svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=inbox.channel_id,
+        media_type="IMAGE",
+        source={"image_url": "https://x.example.com/p.jpg"},
+    )
+    resp = await client.delete(
+        f"/api/v1/accounts/{owner.account.id}/instagram_posts/{post.id}",
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    assert "published" in resp.json()["message"]
+
+
+async def test_delete_unknown_404(client, db_session):
+    owner, headers = await _seed_admin(db_session, "-delunk")
+    resp = await client.delete(
+        f"/api/v1/accounts/{owner.account.id}/instagram_posts/99999999",
+        headers=headers,
+    )
+    assert resp.status_code == 404
+
+
+async def test_delete_requires_auth(client):
+    resp = await client.delete("/api/v1/accounts/1/instagram_posts/1")
+    assert resp.status_code == 401

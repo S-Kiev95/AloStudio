@@ -55,6 +55,13 @@ class PublishResult:
     error_message: str | None = None
 
 
+@dataclass(slots=True)
+class DeleteResult:
+    ok: bool
+    error_code: str | None = None
+    error_message: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # URL helpers
 # ---------------------------------------------------------------------------
@@ -337,6 +344,57 @@ async def publish_container(
 
 
 # ---------------------------------------------------------------------------
+# Delete media (I.6)
+# ---------------------------------------------------------------------------
+async def delete_media(
+    channel: InstagramChannel, *, ig_media_id: str
+) -> DeleteResult:
+    """``DELETE /{ig-media-id}`` — remove a published media object.
+
+    Per the verified spec this works for organic feed posts, stories,
+    reels and **whole** carousels — but Meta rejects deleting an
+    individual carousel child, an ad-promoted post, or a live video
+    (the call comes back 4xx, surfaced here as ``ok=False`` + the
+    Meta error code/message). Never raises.
+    """
+    if not channel.access_token:
+        return DeleteResult(
+            ok=False,
+            error_code="missing_access_token",
+            error_message="channel has no access token",
+        )
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.request(
+                "DELETE",
+                _media_object_url(ig_media_id),
+                params={"access_token": channel.access_token},
+            )
+    except (httpx.RequestError, httpx.TimeoutException) as exc:
+        log.warning(
+            "instagram.delete.transport_error channel_id=%s err=%s",
+            channel.id,
+            exc,
+        )
+        return DeleteResult(
+            ok=False,
+            error_code="transport_error",
+            error_message=str(exc)[:500],
+        )
+
+    if resp.status_code >= 400:
+        code, message = _extract_error(resp)
+        log.warning(
+            "instagram.delete.api_error channel_id=%s code=%s msg=%s",
+            channel.id,
+            code,
+            message,
+        )
+        return DeleteResult(ok=False, error_code=code, error_message=message)
+    return DeleteResult(ok=True)
+
+
+# ---------------------------------------------------------------------------
 # Permalink fetch (best-effort — not fatal if it fails)
 # ---------------------------------------------------------------------------
 async def fetch_permalink(
@@ -371,11 +429,13 @@ async def fetch_permalink(
 
 __all__ = [
     "ContainerResult",
+    "DeleteResult",
     "PublishResult",
     "build_image_container_params",
     "build_story_container_params",
     "build_video_container_params",
     "create_container",
+    "delete_media",
     "fetch_permalink",
     "publish_container",
 ]
