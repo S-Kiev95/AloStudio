@@ -7,7 +7,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # ``.env.local`` is layered AFTER ``.env`` so machine-local
+        # secrets (Meta app credentials, etc.) override the committed
+        # defaults without ever being checked in. pydantic-settings
+        # applies later files with higher precedence.
+        env_file=(".env", ".env.local"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -70,6 +74,26 @@ class Settings(BaseSettings):
     # env vars (Chatwoot reads either; we ship one canonical name).
     # Same fail-closed behaviour as ``fb_verify_token``.
     ig_verify_token: str = ""
+
+    # --- Instagram Graph publishing (feat/instagram-graph)
+    # App-level credentials from the Meta Developer Dashboard. The
+    # per-account Page access token + IG Business Account id live on
+    # the ``channel_instagram`` row (Phase 5e), NOT here — these are
+    # only the app identity used for the OAuth code exchange (I.10) +
+    # the X-Hub-Signature-256 webhook verification (I.8).
+    #
+    # Loaded from ``.env.local`` (gitignored). Empty defaults keep the
+    # app bootable without them; the publishing endpoints fail closed
+    # with a clear error when unset.
+    meta_app_id: str = ""
+    meta_app_secret: str = ""
+    # The user keeps a separate secret for the FB-Login app variant
+    # ("login" app) distinct from the main app secret. Optional.
+    meta_app_secret_login: str = ""
+    # Graph API version pinned for all Instagram publishing calls.
+    # Verified current-stable in the feat/instagram-graph research
+    # (see PLAN.instagram-graph.md). Bump deliberately.
+    meta_graph_api_version: str = "v23.0"
 
 
 @lru_cache(maxsize=1)

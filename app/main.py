@@ -41,6 +41,7 @@ from app.domains.teams.router import router as teams_router
 from app.domains.teams.router import team_members_router
 from app.domains.users.router import router as profile_router
 from app.domains.facebook.router import router as facebook_webhook_router
+from app.domains.instagram.publishing_router import router as instagram_publishing_router
 from app.domains.instagram.router import router as instagram_webhook_router
 from app.domains.sms_bandwidth.router import router as bandwidth_webhook_router
 from app.domains.telegram.router import router as telegram_webhook_router
@@ -179,6 +180,9 @@ def create_app() -> FastAPI:
     # installation-wide verify token via ``settings.ig_verify_token``
     # (env IG_VERIFY_TOKEN). Body must carry ``object: instagram``.
     app.include_router(instagram_webhook_router)
+    # Instagram publishing surface (feat/instagram-graph I.2). admin-only.
+    # Create/list/show posts; scheduling via ``scheduled_for``.
+    app.include_router(instagram_publishing_router)
     # Twilio SMS webhook (Phase 5f). ``/twilio/callback`` —
     # form-encoded payload, channel resolved by MessagingServiceSid
     # then (AccountSid, To). Twilio's WhatsApp medium ships in 5f.6.

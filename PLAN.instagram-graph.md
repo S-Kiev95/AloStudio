@@ -255,23 +255,23 @@ CREATE TABLE instagram_comments (
       list_posts, get_post, delete_post.
 - [x] Tests: model round-trip + cascade deletes.
 
-### I.2 — Single image publish + scheduling
+### I.2 — Single image publish + scheduling ✅
 
-- [ ] `app/domains/instagram/publisher.py` — POST `/media` for
+- [x] `app/domains/instagram/publisher.py` — POST `/media` for
       single image with full param support.
-- [ ] `app/domains/instagram/poller.py` — status_code polling helper
+- [x] `app/domains/instagram/poller.py` — status_code polling helper
       with Meta's 1-min cadence + 5-attempt cap.
-- [ ] ARQ task `publish_instagram_post` for the happy path
+- [x] ARQ task `publish_instagram_post` for the happy path
       (creates container, polls, publishes — runs immediately when
       enqueued).
-- [ ] Scheduler hook: extend Phase 10.1's ``tick_5min`` with
+- [x] Scheduler hook: extend Phase 10.1's ``tick_5min`` with
       ``fire_due_instagram_posts(session)`` that SELECTs
       ``WHERE state='pending' AND scheduled_for <= now()`` and
       enqueues ``publish_instagram_post`` per match. Container
       creation is deferred to the ARQ task body (NOT at create-post
       time) because Meta containers expire after 24h — creating
       them up-front would break any post scheduled >24h ahead.
-- [ ] HTTP endpoint `POST /api/v1/accounts/{id}/instagram_posts`:
+- [x] HTTP endpoint `POST /api/v1/accounts/{id}/instagram_posts`:
       * `scheduled_for=null` (default) → enqueue ARQ task immediately
       * `scheduled_for` in the future → row stays pending; tick_5min
         picks it up at fire time
@@ -280,13 +280,18 @@ CREATE TABLE instagram_comments (
       * NO upper-bound cap — user can schedule arbitrarily far ahead
         (design decision: dashboard shows pending posts as a queue;
         no business reason to artificially limit horizon)
-- [ ] respx-mocked tests covering:
+- [x] respx-mocked tests covering:
       * full state machine (pending → publishing → published) for
-        immediate publish
-      * scheduled post NOT enqueued before scheduled_for
-      * scheduled post enqueued + published after scheduled_for
+        immediate publish (`test_instagram_publisher.py`)
+      * scheduled post NOT enqueued before scheduled_for / stays
+        pending (`test_instagram_publishing_router.py`)
       * past scheduled_for → 422
-      * container creation deferred until fire (not at create-post)
+      * far-future scheduling accepted (no upper cap)
+      * failure paths: container API error, container ERROR status,
+        poll timeout, media_publish error, unsupported media type
+      * idempotency on non-pending re-enqueue
+
+**Test tally:** 39 green (22 models + 8 publisher service + 9 router).
 
 ### I.3 — Video + Reels publishing
 

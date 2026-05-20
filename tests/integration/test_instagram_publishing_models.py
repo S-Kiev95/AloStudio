@@ -562,10 +562,9 @@ async def test_list_comments_hides_hidden_by_default(db_session):
 # Stub contract — Meta-side callers must still raise NotImplementedError
 # ---------------------------------------------------------------------------
 async def test_meta_side_stubs_raise_until_wired():
-    """If someone accidentally promotes these stubs in I.1 they'd
-    ship with a fake-but-not-stub implementation. Lock them down."""
-    with pytest.raises(NotImplementedError, match="Milestone I.2"):
-        await svc.publish_post(None, post_id=1)  # type: ignore[arg-type]
+    """The remaining Meta-side stubs (delete + comments) raise until
+    their milestone wires them. ``publish_post`` was promoted in I.2
+    so it's no longer in this list."""
     with pytest.raises(NotImplementedError, match="Milestone I.6"):
         await svc.delete_media_on_meta(None, post_id=1)  # type: ignore[arg-type]
     with pytest.raises(NotImplementedError, match="Milestone I.7"):

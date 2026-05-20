@@ -401,13 +401,159 @@ async def list_comments_for_media(
 # Meta-side actions (Milestones I.2-I.7 wire these — stubs here)
 # ---------------------------------------------------------------------------
 async def publish_post(
-    session: AsyncSession, *, post_id: int  # noqa: ARG001
-) -> None:
+    session: AsyncSession,
+    *,
+    post_id: int,
+    sleep_fn=None,
+) -> InstagramPost:
     """Drive ``post_id`` through container creation → polling →
-    publish on Meta. Wired in Milestone I.2 (single image), extended
-    in I.3 (video/reels), I.4 (carousel), I.5 (stories).
+    publish on Meta.
+
+    Milestone I.2 handles ``media_type == "IMAGE"`` end-to-end.
+    VIDEO / REELS (I.3), CAROUSEL (I.4) and STORIES (I.5) raise a
+    clear ``not yet wired`` failure that flips the post to ``failed``
+    rather than crashing the worker.
+
+    The container is created HERE (in the task body), not at
+    create-post time — Meta containers expire after 24h, so a post
+    scheduled days ahead must defer container creation until fire
+    time. See PLAN.instagram-graph.md.
+
+    ``sleep_fn`` is forwarded to the poller so tests run instantly.
+
+    Returns the post in its terminal state (published / failed).
+    Never raises on Meta-side failures — stamps ``error_code`` /
+    ``error_message`` + flips to ``failed`` instead.
     """
-    raise NotImplementedError("publish_post wires in Milestone I.2")
+    from datetime import UTC, datetime
+
+    from app.domains.inboxes.models import InstagramChannel
+    from app.domains.instagram import poller, publisher
+
+    post = await session.get(InstagramPost, post_id)
+    if post is None:
+        raise ChatwootHTTPException(
+            status_code=404,
+            detail={"error": "instagram post not found"},
+        )
+
+    # Idempotency: only act on pending posts. A double-enqueue (REST +
+    # scheduler racing) finds the post already publishing/published and
+    # no-ops.
+    if post.state != "pending":
+        return post
+
+    channel = await session.get(
+        InstagramChannel, post.channel_instagram_id
+    )
+    if channel is None:
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            error_code="missing_channel",
+            error_message="instagram channel row not found",
+        )
+
+    await transition_post_state(
+        session, post=post, new_state="publishing"
+    )
+
+    # ---- I.2 scope: single image only ----
+    if post.media_type != "IMAGE":
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            error_code="unsupported_media_type",
+            error_message=(
+                f"{post.media_type} publishing wires in a later "
+                "milestone (I.3 video/reels, I.4 carousel, I.5 stories)"
+            ),
+        )
+
+    image_url = (post.source or {}).get("image_url")
+    if not image_url:
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            error_code="missing_image_url",
+            error_message="source.image_url absent at publish time",
+        )
+
+    params = publisher.build_image_container_params(
+        image_url=image_url, caption=post.caption
+    )
+    container_res = await publisher.create_container(
+        channel, params=params
+    )
+    if not container_res.ok or container_res.container_id is None:
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            error_code=container_res.error_code,
+            error_message=container_res.error_message,
+        )
+
+    await add_container(
+        session,
+        post=post,
+        ig_container_id=container_res.container_id,
+        position=0,
+    )
+
+    poll_kwargs: dict[str, Any] = {}
+    if sleep_fn is not None:
+        poll_kwargs["sleep_fn"] = sleep_fn
+    status = await poller.poll_until_terminal(
+        channel,
+        container_id=container_res.container_id,
+        **poll_kwargs,
+    )
+    # Refresh container row's status_code for audit.
+    containers = await list_containers(session, post_id=post.id)
+    if containers:
+        containers[0].status_code = status.status_code or "ERROR"
+        session.add(containers[0])
+        await session.flush()
+
+    if status.status_code != "FINISHED":
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            # Prefer the terminal status_code (ERROR / EXPIRED); fall
+            # back to the soft error label (timeout) when the poll
+            # never got a status_code at all.
+            error_code=status.status_code or status.error or "poll_failed",
+            error_message=status.error or "container not FINISHED",
+        )
+
+    publish_res = await publisher.publish_container(
+        channel, creation_id=container_res.container_id
+    )
+    if not publish_res.ok or publish_res.ig_media_id is None:
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            error_code=publish_res.error_code,
+            error_message=publish_res.error_message,
+        )
+
+    permalink = await publisher.fetch_permalink(
+        channel, ig_media_id=publish_res.ig_media_id
+    )
+    return await transition_post_state(
+        session,
+        post=post,
+        new_state="published",
+        ig_media_id=publish_res.ig_media_id,
+        ig_permalink=permalink,
+        published_at=datetime.now(UTC),
+    )
 
 
 async def delete_media_on_meta(
