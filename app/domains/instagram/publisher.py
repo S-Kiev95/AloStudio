@@ -124,6 +124,57 @@ def build_image_container_params(
     return params
 
 
+def build_video_container_params(
+    *,
+    media_type: str,
+    video_url: str,
+    caption: str | None = None,
+    cover_url: str | None = None,
+    thumb_offset: int | None = None,
+    share_to_feed: bool | None = None,
+    audio_name: str | None = None,
+    is_carousel_item: bool = False,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Param dict for a VIDEO or REELS container (or video carousel
+    child).
+
+    ``media_type`` is ``"VIDEO"`` or ``"REELS"`` — Meta requires it on
+    video containers (unlike single images, where the param is
+    omitted). ``video_url`` is mandatory.
+
+    Optional params per the verified spec (PLAN.instagram-graph.md):
+
+      * ``caption``      — feed caption (omitted on carousel children)
+      * ``cover_url``    — REELS cover image (overrides ``thumb_offset``)
+      * ``thumb_offset`` — VIDEO thumbnail offset in ms
+      * ``share_to_feed``— REELS: also surface in the main feed grid
+      * ``audio_name``   — REELS: name the audio track (write-once)
+
+    Booleans are serialised to Meta's ``"true"``/``"false"`` strings
+    because the request is form-encoded.
+    """
+    params: dict[str, Any] = {
+        "media_type": media_type,
+        "video_url": video_url,
+    }
+    if is_carousel_item:
+        params["is_carousel_item"] = "true"
+    elif caption:
+        params["caption"] = caption
+    if cover_url:
+        params["cover_url"] = cover_url
+    if thumb_offset is not None:
+        params["thumb_offset"] = thumb_offset
+    if share_to_feed is not None:
+        params["share_to_feed"] = "true" if share_to_feed else "false"
+    if audio_name:
+        params["audio_name"] = audio_name
+    if extra:
+        params.update(extra)
+    return params
+
+
 async def create_container(
     channel: InstagramChannel,
     *,
@@ -299,6 +350,7 @@ __all__ = [
     "ContainerResult",
     "PublishResult",
     "build_image_container_params",
+    "build_video_container_params",
     "create_container",
     "fetch_permalink",
     "publish_container",

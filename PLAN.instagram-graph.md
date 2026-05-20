@@ -293,13 +293,23 @@ CREATE TABLE instagram_comments (
 
 **Test tally:** 39 green (22 models + 8 publisher service + 9 router).
 
-### I.3 — Video + Reels publishing
+### I.3 — Video + Reels publishing ✅
 
-- [ ] Extend publisher to handle `media_type=VIDEO`/`REELS`.
-- [ ] Polling path actually exercised (videos take longer than the
-      test sandbox; we mock).
-- [ ] Reels-specific params (cover_url, share_to_feed, audio_name).
-- [ ] Tests for each variant + the `ERROR` / `EXPIRED` paths.
+- [x] Extend publisher to handle `media_type=VIDEO`/`REELS`
+      (`build_video_container_params`). `publish_post` now dispatches
+      on media_type — IMAGE/VIDEO/REELS share the single-container
+      path (create → poll → publish), only the param dict differs.
+- [x] Polling path actually exercised — `test_publish_video_polls_
+      until_finished` returns IN_PROGRESS twice then FINISHED
+      (poll_route.call_count == 3).
+- [x] Reels-specific params (cover_url, share_to_feed, audio_name,
+      thumb_offset) pulled from `source` JSONB; booleans serialised
+      to Meta's `"true"`/`"false"` for the form body.
+- [x] Tests: video happy path, reels params on container body, multi-
+      poll, `EXPIRED` terminal, video-without-url failure. CAROUSEL +
+      STORIES still assert `unsupported_media_type`.
+
+**Test tally:** 45 green (22 models + 14 publisher service + 9 router).
 
 ### I.4 — Carousel publishing
 

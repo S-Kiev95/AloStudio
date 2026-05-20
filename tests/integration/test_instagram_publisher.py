@@ -247,10 +247,11 @@ async def test_publish_fails_on_media_publish_error(db_session):
 
 
 # ---------------------------------------------------------------------------
-# Non-image media types fail clearly (wired in later milestones)
+# Video + Reels (I.3)
 # ---------------------------------------------------------------------------
-async def test_publish_video_not_yet_supported(db_session):
-    owner, inbox, channel = await _seed(db_session, "-vid")
+@respx.mock
+async def test_publish_video_happy_path(db_session):
+    owner, inbox, channel = await _seed(db_session, "-vidok")
     post = await svc.create_post(
         db_session,
         account_id=owner.account.id,
@@ -258,6 +259,195 @@ async def test_publish_video_not_yet_supported(db_session):
         channel_instagram_id=channel.id,
         media_type="VIDEO",
         source={"video_url": "https://cdn.example.com/v.mp4"},
+        caption="a clip",
+    )
+    igid = channel.instagram_id
+    create_route = respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(200, json={"id": "VC1"})
+    )
+    respx.get(f"{GRAPH}/VC1").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
+    )
+    respx.post(f"{GRAPH}/{igid}/media_publish").mock(
+        return_value=httpx.Response(200, json={"id": "VM1"})
+    )
+    respx.get(f"{GRAPH}/VM1").mock(
+        return_value=httpx.Response(
+            200, json={"permalink": "https://www.instagram.com/p/vid/"}
+        )
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "published"
+    assert result.ig_media_id == "VM1"
+    # Container body must carry media_type=VIDEO + video_url.
+    body = create_route.calls.last.request.content.decode()
+    assert "media_type" in body
+    assert "VIDEO" in body
+    assert "video_url" in body
+
+
+@respx.mock
+async def test_publish_reels_carries_reel_params(db_session):
+    owner, inbox, channel = await _seed(db_session, "-reel")
+    post = await svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=channel.id,
+        media_type="REELS",
+        source={
+            "video_url": "https://cdn.example.com/r.mp4",
+            "cover_url": "https://cdn.example.com/cover.jpg",
+            "share_to_feed": True,
+        },
+        caption="a reel",
+    )
+    igid = channel.instagram_id
+    create_route = respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(200, json={"id": "RC1"})
+    )
+    respx.get(f"{GRAPH}/RC1").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
+    )
+    respx.post(f"{GRAPH}/{igid}/media_publish").mock(
+        return_value=httpx.Response(200, json={"id": "RM1"})
+    )
+    respx.get(f"{GRAPH}/RM1").mock(
+        return_value=httpx.Response(200, json={"permalink": "x"})
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "published"
+    body = create_route.calls.last.request.content.decode()
+    assert "REELS" in body
+    assert "cover_url" in body
+    assert "share_to_feed" in body
+
+
+@respx.mock
+async def test_publish_video_polls_until_finished(db_session):
+    """Videos transcode slowly — the container sits IN_PROGRESS for a
+    poll or two before flipping to FINISHED. Exercises the real loop."""
+    owner, inbox, channel = await _seed(db_session, "-vpoll")
+    post = await svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=channel.id,
+        media_type="VIDEO",
+        source={"video_url": "https://cdn.example.com/v.mp4"},
+    )
+    igid = channel.instagram_id
+    respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(200, json={"id": "VP1"})
+    )
+    poll_route = respx.get(f"{GRAPH}/VP1").mock(
+        side_effect=[
+            httpx.Response(200, json={"status_code": "IN_PROGRESS"}),
+            httpx.Response(200, json={"status_code": "IN_PROGRESS"}),
+            httpx.Response(200, json={"status_code": "FINISHED"}),
+        ]
+    )
+    respx.post(f"{GRAPH}/{igid}/media_publish").mock(
+        return_value=httpx.Response(200, json={"id": "VPM1"})
+    )
+    respx.get(f"{GRAPH}/VPM1").mock(
+        return_value=httpx.Response(200, json={"permalink": "x"})
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "published"
+    assert poll_route.call_count == 3
+    containers = await svc.list_containers(db_session, post_id=post.id)
+    assert containers[0].status_code == "FINISHED"
+
+
+@respx.mock
+async def test_publish_video_fails_on_expired_container(db_session):
+    owner, inbox, channel = await _seed(db_session, "-vexp")
+    post = await svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=channel.id,
+        media_type="VIDEO",
+        source={"video_url": "https://cdn.example.com/v.mp4"},
+    )
+    igid = channel.instagram_id
+    respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(200, json={"id": "VE1"})
+    )
+    respx.get(f"{GRAPH}/VE1").mock(
+        return_value=httpx.Response(200, json={"status_code": "EXPIRED"})
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "failed"
+    assert result.error_code == "EXPIRED"
+
+
+async def test_publish_video_without_url_fails(db_session):
+    """create_post enforces video_url, but a row mutated to drop it
+    fails cleanly at publish time rather than crashing the worker."""
+    owner, inbox, channel = await _seed(db_session, "-vnourl")
+    post = await svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=channel.id,
+        media_type="VIDEO",
+        source={"video_url": "https://cdn.example.com/v.mp4"},
+    )
+    # Simulate a malformed row reaching the worker.
+    post.source = {}
+    db_session.add(post)
+    await db_session.flush()
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "failed"
+    assert result.error_code == "missing_video_url"
+
+
+# ---------------------------------------------------------------------------
+# Still-unsupported media types fail clearly (wired in later milestones)
+# ---------------------------------------------------------------------------
+async def test_publish_carousel_not_yet_supported(db_session):
+    owner, inbox, channel = await _seed(db_session, "-car")
+    post = await svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=channel.id,
+        media_type="CAROUSEL",
+        source={
+            "children": [
+                {"image_url": "https://cdn.example.com/1.jpg"},
+                {"image_url": "https://cdn.example.com/2.jpg"},
+            ]
+        },
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "failed"
+    assert result.error_code == "unsupported_media_type"
+
+
+async def test_publish_stories_not_yet_supported(db_session):
+    owner, inbox, channel = await _seed(db_session, "-story")
+    post = await svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=channel.id,
+        media_type="STORIES",
+        source={"image_url": "https://cdn.example.com/s.jpg"},
     )
     result = await svc.publish_post(
         db_session, post_id=post.id, sleep_fn=_instant_sleep

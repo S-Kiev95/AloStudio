@@ -409,10 +409,12 @@ async def publish_post(
     """Drive ``post_id`` through container creation → polling →
     publish on Meta.
 
-    Milestone I.2 handles ``media_type == "IMAGE"`` end-to-end.
-    VIDEO / REELS (I.3), CAROUSEL (I.4) and STORIES (I.5) raise a
-    clear ``not yet wired`` failure that flips the post to ``failed``
-    rather than crashing the worker.
+    Milestone I.2 handles ``media_type == "IMAGE"`` and I.3 adds
+    ``VIDEO`` / ``REELS`` — all three share the single-container path
+    (create → poll status_code → media_publish), differing only in the
+    container params. CAROUSEL (I.4, multi-container) and STORIES (I.5)
+    raise a clear ``not yet wired`` failure that flips the post to
+    ``failed`` rather than crashing the worker.
 
     The container is created HERE (in the task body), not at
     create-post time — Meta containers expire after 24h, so a post
@@ -459,8 +461,44 @@ async def publish_post(
         session, post=post, new_state="publishing"
     )
 
-    # ---- I.2 scope: single image only ----
-    if post.media_type != "IMAGE":
+    # ---- Build the container params per media type ----
+    # IMAGE (I.2) + VIDEO/REELS (I.3) all take the single-container
+    # path below — only the param dict differs. CAROUSEL (I.4, multi-
+    # container) and STORIES (I.5) still raise a clear ``failed`` here.
+    source = post.source or {}
+    params: dict[str, Any] | None = None
+    missing_field_error: tuple[str, str] | None = None
+
+    if post.media_type == "IMAGE":
+        image_url = source.get("image_url")
+        if not image_url:
+            missing_field_error = (
+                "missing_image_url",
+                "source.image_url absent at publish time",
+            )
+        else:
+            params = publisher.build_image_container_params(
+                image_url=image_url, caption=post.caption
+            )
+    elif post.media_type in ("VIDEO", "REELS"):
+        video_url = source.get("video_url")
+        if not video_url:
+            missing_field_error = (
+                "missing_video_url",
+                "source.video_url absent at publish time",
+            )
+        else:
+            params = publisher.build_video_container_params(
+                media_type=post.media_type,
+                video_url=video_url,
+                caption=post.caption,
+                cover_url=source.get("cover_url"),
+                thumb_offset=source.get("thumb_offset"),
+                share_to_feed=source.get("share_to_feed"),
+                audio_name=source.get("audio_name"),
+            )
+    else:
+        # CAROUSEL (I.4), STORIES (I.5) — not wired yet.
         return await transition_post_state(
             session,
             post=post,
@@ -468,23 +506,20 @@ async def publish_post(
             error_code="unsupported_media_type",
             error_message=(
                 f"{post.media_type} publishing wires in a later "
-                "milestone (I.3 video/reels, I.4 carousel, I.5 stories)"
+                "milestone (I.4 carousel, I.5 stories)"
             ),
         )
 
-    image_url = (post.source or {}).get("image_url")
-    if not image_url:
+    if missing_field_error is not None:
         return await transition_post_state(
             session,
             post=post,
             new_state="failed",
-            error_code="missing_image_url",
-            error_message="source.image_url absent at publish time",
+            error_code=missing_field_error[0],
+            error_message=missing_field_error[1],
         )
+    assert params is not None
 
-    params = publisher.build_image_container_params(
-        image_url=image_url, caption=post.caption
-    )
     container_res = await publisher.create_container(
         channel, params=params
     )
