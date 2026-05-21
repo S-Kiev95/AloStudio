@@ -352,6 +352,50 @@ class InstagramComment(TimestampMixin, table=True):
     )
 
 
+# ---------------------------------------------------------------------------
+# InstagramPostProduct — M2M link between a post/story and catalogue products.
+# ---------------------------------------------------------------------------
+class InstagramPostProduct(TimestampMixin, table=True):
+    """Join row linking an :class:`InstagramPost` to a ``products`` row.
+
+    A post (or story) can promote 0, 1 or N products. When an IG user
+    comments or DMs about that media, the service resolves
+    *media → post → products* so an AI agent answers with the right
+    product context (see ``products_for_media`` in the service).
+    """
+
+    __tablename__ = "instagram_post_products"
+    __table_args__ = (
+        UniqueConstraint(
+            "post_id",
+            "product_id",
+            name="index_instagram_post_products_post_product",
+        ),
+        Index(
+            "index_instagram_post_products_on_product_id", "product_id"
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    post_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("instagram_posts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    product_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("products.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+
+
 __all__ = [
     "INSTAGRAM_CONTAINER_STATUS_CODES",
     "INSTAGRAM_MEDIA_TYPES",
@@ -361,5 +405,6 @@ __all__ = [
     "InstagramMediaType",
     "InstagramPost",
     "InstagramPostContainer",
+    "InstagramPostProduct",
     "InstagramPostState",
 ]

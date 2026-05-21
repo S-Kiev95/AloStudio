@@ -36,6 +36,7 @@ from app.domains.inboxes.models import (
 from app.domains.instagram import publishing_service as svc
 from app.domains.instagram.presenters import present_post
 from app.domains.instagram.schemas import InstagramPostCreate
+from app.domains.products.presenters import present_product
 
 router = APIRouter(
     prefix="/api/v1/accounts/{account_id}/instagram_posts",
@@ -127,6 +128,7 @@ async def create_post_endpoint(
         source=payload.source,
         caption=payload.caption,
         scheduled_for=scheduled_for,
+        product_ids=payload.product_ids,
     )
 
     # Immediate publish → enqueue now. Scheduled → the 5-min
@@ -141,7 +143,8 @@ async def create_post_endpoint(
         # row for the response.
         await session.refresh(post)
 
-    return present_post(post)
+    products = await svc.products_for_post(session, post_id=post.id)
+    return present_post(post, products=products)
 
 
 @router.get("/{post_id}")
@@ -160,7 +163,28 @@ async def show_post(
             detail={"error": "Resource could not be found"},
         )
     containers = await svc.list_containers(session, post_id=post.id)
-    return present_post(post, containers=containers)
+    products = await svc.products_for_post(session, post_id=post.id)
+    return present_post(post, containers=containers, products=products)
+
+
+@router.get("/{post_id}/products")
+async def index_post_products(
+    post_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    """The catalogue products linked to a post/story (CRM/AI context)."""
+    assert ctx.account.id is not None
+    post = await svc.get_post(
+        session, account_id=ctx.account.id, post_id=post_id
+    )
+    if post is None:
+        raise ChatwootHTTPException(
+            status_code=404,
+            detail={"error": "Resource could not be found"},
+        )
+    products = await svc.products_for_post(session, post_id=post.id)
+    return [present_product(p) for p in products]
 
 
 @router.delete("/{post_id}")

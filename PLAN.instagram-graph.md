@@ -487,7 +487,7 @@ NOT have a Facebook Page** (verified May 2026 against Meta docs):
 > Meta app. Per-IG-account publish quota (100/24h) is independent;
 > only the app-level `X-App-Usage` is shared (already captured in I.9).
 
-### I.11 — Product / catalog association (CRM context)  ← added later
+### I.11 — Product / catalog association (CRM context) ✅
 
 **Why:** clients use AloStudio like a CRM — they keep a catalogue of
 products/services and promote them in IG posts + stories. A post (or
@@ -495,34 +495,30 @@ story) can be linked to **0, 1 or N products**. When an IG user comments
 or DMs about that media, the system resolves *media → post → products* so
 an AI agent answers with the right product context.
 
-- [ ] New **`products`** table — account-scoped catalogue, generic so it
-      can be reused beyond IG:
-      `id, account_id(FK→accounts CASCADE), name, description, sku?,
-       price?(numeric), currency?, url?, image_url?, enabled(bool=true),
-       created_at, updated_at`. Index on `account_id`; optional unique
-       `(account_id, sku)` when sku present. Lives in a small new domain
-       `app/domains/products/`.
-- [ ] New **`instagram_post_products`** join (M2M):
-      `id, post_id(FK→instagram_posts CASCADE),
-       product_id(FK→products CASCADE), UNIQUE(post_id, product_id)`,
-       index on `product_id`. Alembic migration for both tables.
-- [ ] **Product CRUD** (admin) under
-      `/api/v1/accounts/{id}/products` (index/create/show/update/delete).
-- [ ] **Link on publish:** `InstagramPostCreate` gains optional
-      `product_ids: list[int]`; `create_post` validates the ids belong to
-      the account and writes the join rows (`set_post_products`). Works
-      for every media type incl. STORIES (a story is just a post).
-- [ ] **Surface:** `present_post` includes `products: [...]`; add
-      `GET /instagram_posts/{id}/products`.
-- [ ] **AI-context resolver:** `products_for_media(account_id,
-      ig_media_id)` → the products linked to the post whose `ig_media_id`
-      matches. This is the hook an external AI agent (or the MCP server on
-      `feat/mcp-server`) calls to answer "what product(s) is this
-      post/story about?" when a comment/DM arrives. Optionally enrich the
-      webhook comment-routing path with it.
-- [ ] Tests: product CRUD, post↔product linking on create, `present_post`
-      includes products, media→products resolver, cascade on post +
-      product delete.
+- [x] New **`products`** table — account-scoped catalogue, generic
+      (`app/domains/products/`): `name, description, sku?, price?(numeric),
+      currency?, url?, image_url?, enabled`. Index on `account_id`.
+- [x] New **`instagram_post_products`** join (M2M) +
+      `UNIQUE(post_id, product_id)`. Migration `d2e3f4a5b6c7` (both
+      tables); applied to dev + test DBs.
+- [x] **Product CRUD** under `/api/v1/accounts/{id}/products`
+      (`products_router`, wired in main.py): read = admin OR agent,
+      writes = admin only.
+- [x] **Link on publish:** `InstagramPostCreate.product_ids: list[int]`;
+      `create_post` calls `set_post_products`, which validates the ids
+      belong to the account (422 on a foreign/unknown id) and replaces
+      the links idempotently. Works for every media type incl. STORIES.
+- [x] **Surface:** `present_post` includes `products: [...]` (show +
+      create); `GET /instagram_posts/{id}/products`.
+- [x] **AI-context resolver:** `products_for_media(account_id,
+      ig_media_id)` resolves *media → post → products* — the hook for an
+      AI agent / the MCP server when a comment/DM arrives.
+- [x] Tests (`test_products.py`): product CRUD (service + endpoints,
+      admin-gated, agent blocked), linking + foreign-id 422, both
+      resolvers, cascade on post + product delete, create-with-
+      product_ids endpoint, unknown-id 422.
+
+**Test tally:** product suite 12 green; full IG+products suite green.
 
 ### I.12 — Tests + close branch
 

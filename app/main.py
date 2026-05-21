@@ -37,6 +37,7 @@ from app.domains.labels.router import router as labels_router
 from app.domains.macros.router import router as macros_router
 from app.domains.portals.public_router import public_router as portals_public_router
 from app.domains.portals.router import router as portals_router
+from app.domains.products.router import router as products_router
 from app.domains.teams.router import router as teams_router
 from app.domains.teams.router import team_members_router
 from app.domains.users.router import router as profile_router
@@ -187,6 +188,9 @@ def create_app() -> FastAPI:
     # Instagram comment moderation (feat/instagram-graph I.7). admin-only.
     # List/post/reply/hide/delete comments on owned media.
     app.include_router(instagram_comments_router)
+    # Product catalogue (feat/instagram-graph I.11). Account-scoped CRUD;
+    # posts/stories link to products for AI/CRM context.
+    app.include_router(products_router)
     # Twilio SMS webhook (Phase 5f). ``/twilio/callback`` —
     # form-encoded payload, channel resolved by MessagingServiceSid
     # then (AccountSid, To). Twilio's WhatsApp medium ships in 5f.6.

@@ -20,7 +20,9 @@ from app.domains.contacts import models as _contacts  # noqa: F401
 from app.domains.conversations import models as _conversations  # noqa: F401
 from app.domains.custom_attributes import models as _custom_attrs  # noqa: F401
 from app.domains.inboxes import models as _inboxes  # noqa: F401
+from app.domains.instagram import models as _instagram  # noqa: F401
 from app.domains.labels import models as _labels  # noqa: F401
+from app.domains.products import models as _products  # noqa: F401
 from app.domains.teams import models as _teams  # noqa: F401
 from app.domains.users import models as _users  # noqa: F401
 

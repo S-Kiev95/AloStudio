@@ -15,6 +15,7 @@ def present_post(
     post: InstagramPost,
     *,
     containers: list[InstagramPostContainer] | None = None,
+    products: list[Any] | None = None,
 ) -> dict[str, Any]:
     body: dict[str, Any] = {
         "id": post.id,
@@ -51,6 +52,10 @@ def present_post(
             }
             for c in containers
         ]
+    if products is not None:
+        from app.domains.products.presenters import present_product
+
+        body["products"] = [present_product(p) for p in products]
     return body
 
 

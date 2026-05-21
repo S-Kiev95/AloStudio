@@ -182,12 +182,17 @@ async def create_post(
     source: dict[str, Any],
     caption: str | None = None,
     scheduled_for: datetime | None = None,
+    product_ids: list[int] | None = None,
 ) -> InstagramPost:
     """Persist a publish request in ``pending`` state.
 
     The ARQ task that actually creates Meta containers + polls + calls
     ``/media_publish`` is wired in Milestone I.2. Here we just persist
     + validate so the dashboard can show "Queued at HH:MM" immediately.
+
+    ``product_ids`` (I.11) optionally links the post/story to catalogue
+    products so an AI agent has product context when an IG user later
+    comments/DMs about it. The ids must belong to the same account.
     """
     media_type = _validate_media_type(media_type)
     source = _validate_source(media_type, source)
@@ -206,6 +211,13 @@ async def create_post(
     session.add(post)
     await session.flush()
     await session.refresh(post)
+    if product_ids:
+        await set_post_products(
+            session,
+            account_id=account_id,
+            post=post,
+            product_ids=product_ids,
+        )
     return post
 
 
@@ -315,6 +327,112 @@ async def list_containers(
             )
         ).all()
     )
+
+
+# ---------------------------------------------------------------------------
+# Products (I.11) — link a post/story to catalogue products + resolvers
+# ---------------------------------------------------------------------------
+async def set_post_products(
+    session: AsyncSession,
+    *,
+    account_id: int,
+    post: InstagramPost,
+    product_ids: list[int],
+) -> None:
+    """Replace the post's product links with ``product_ids``.
+
+    The ids must belong to ``account_id`` (422 otherwise). Idempotent —
+    existing links are cleared first, so this also works as an update.
+    """
+    from app.domains.instagram.models import InstagramPostProduct
+    from app.domains.products.models import Product
+
+    # Dedupe while keeping order.
+    ids = list(dict.fromkeys(product_ids))
+    if ids:
+        found = set(
+            (
+                await session.exec(
+                    select(Product.id).where(
+                        Product.account_id == account_id,
+                        Product.id.in_(ids),  # type: ignore[attr-defined]
+                    )
+                )
+            ).all()
+        )
+        missing = [i for i in ids if i not in found]
+        if missing:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={"message": f"unknown product ids: {missing}"},
+            )
+
+    existing = (
+        await session.exec(
+            select(InstagramPostProduct).where(
+                InstagramPostProduct.post_id == post.id
+            )
+        )
+    ).all()
+    for row in existing:
+        await session.delete(row)
+    await session.flush()
+    for pid in ids:
+        session.add(
+            InstagramPostProduct(post_id=post.id, product_id=pid)
+        )
+    await session.flush()
+
+
+async def products_for_post(
+    session: AsyncSession, *, post_id: int
+) -> list[Any]:
+    """The catalogue products linked to a post (ordered by id)."""
+    from app.domains.instagram.models import InstagramPostProduct
+    from app.domains.products.models import Product
+
+    stmt = (
+        select(Product)
+        .join(
+            InstagramPostProduct,
+            InstagramPostProduct.product_id == Product.id,  # type: ignore[arg-type]
+        )
+        .where(InstagramPostProduct.post_id == post_id)
+        .order_by(Product.id.asc())  # type: ignore[attr-defined]
+    )
+    return list((await session.exec(stmt)).all())
+
+
+async def products_for_media(
+    session: AsyncSession, *, account_id: int, ig_media_id: str
+) -> list[Any]:
+    """The products linked to the post whose ``ig_media_id`` matches.
+
+    This is the AI-context hook: when a comment/DM arrives on a media,
+    resolve *media → post → products* so an agent knows which product(s)
+    the conversation is about. Returns ``[]`` when the media isn't ours
+    or has no linked products.
+    """
+    from app.domains.instagram.models import InstagramPostProduct
+    from app.domains.products.models import Product
+
+    stmt = (
+        select(Product)
+        .join(
+            InstagramPostProduct,
+            InstagramPostProduct.product_id == Product.id,  # type: ignore[arg-type]
+        )
+        .join(
+            InstagramPost,
+            InstagramPost.id == InstagramPostProduct.post_id,  # type: ignore[arg-type]
+        )
+        .where(
+            InstagramPost.account_id == account_id,
+            InstagramPost.ig_media_id == ig_media_id,
+        )
+        .order_by(Product.id.asc())  # type: ignore[attr-defined]
+    )
+    return list((await session.exec(stmt)).all())
 
 
 # ---------------------------------------------------------------------------
@@ -1149,9 +1267,12 @@ __all__ = [
     "list_containers",
     "list_posts",
     "post_comment_on_meta",
+    "products_for_media",
+    "products_for_post",
     "publish_post",
     "reply_comment_on_meta",
     "reset_for_retry",
+    "set_post_products",
     "transition_post_state",
     "upsert_comment",
 ]

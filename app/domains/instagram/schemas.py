@@ -31,6 +31,9 @@ class InstagramPostCreate(BaseModel):
     source: dict[str, Any]
     caption: str | None = None
     scheduled_for: datetime | None = None
+    # I.11 — optionally link the post/story to catalogue products so an AI
+    # agent has product context when an IG user comments/DMs about it.
+    product_ids: list[int] | None = None
 
 
 class InstagramCommentCreate(BaseModel):
