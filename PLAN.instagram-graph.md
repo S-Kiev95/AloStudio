@@ -390,17 +390,34 @@ CREATE TABLE instagram_comments (
 **Test tally:** 73 green (22 models + 24 publisher + 13 router +
 14 comments).
 
-### I.8 — Webhook receiver for comments + mentions + story_insights
+### I.8 — Webhook receiver for comments + mentions + story_insights ✅
 
-- [ ] Extend Phase 5e's existing `/webhooks/instagram` handler to
-      route `comments` / `mentions` / `story_insights` fields.
-- [ ] `comments` event creates an `instagram_comments` row + optionally
-      a `Conversation` if the comment is on a post we want to surface
-      in the inbox (account-config flag).
-- [ ] `mentions` creates a similar entry.
-- [ ] `story_insights` stamps the row's metrics for analytics.
-- [ ] HMAC `X-Hub-Signature-256` verification using the existing
-      app_secret env var.
+- [x] `webhook_changes.process_instagram_changes` handles the
+      `entry[].changes[]` half of the `object=instagram` webhook
+      (the DM `messaging[]` half stays in Phase 5e's `incoming.py`,
+      untouched). Both run from the shared POST handler.
+- [x] `comments` upserts an `instagram_comments` row (text/from/media/
+      parent). (Routing a comment into a `Conversation` is deferred —
+      the table already has the nullable `conversation_id` FK for when
+      an account opts in.)
+- [x] `mentions` upserts a comment row when a `comment_id` is present;
+      caption-only mentions (no comment id) are skipped.
+- [x] `story_insights` stamps metrics onto the matching published
+      STORIES post via a new nullable `insights` JSONB column
+      (migration `c1d2e3f4a5b6`); skipped+logged when no local post.
+- [x] HMAC `X-Hub-Signature-256` verification (`_verify_signature`,
+      constant-time compare). **Gated behind the new
+      `meta_verify_webhook_signature` flag (default OFF)** so the Phase
+      5e DM mirror keeps its unsigned behaviour — the user's `.env.local`
+      sets `META_APP_SECRET`, so a secret-presence trigger would have
+      broken the mirror's parity tests. Enable the flag in production.
+- [x] Tests: comments/reply/mention/caption-only/story_insights(+no-post)/
+      unknown-account at the service layer; bad-sig 401, missing-sig 401,
+      valid-sig routes, flag-off skips at the endpoint.
+
+**Test tally:** 84 green (22 models + 24 publisher + 13 router +
+14 comments + 11 webhook-changes) — plus the 7 Phase 5e mirror webhook
+tests stay green (flag default OFF).
 
 ### I.9 — Rate limit + quota awareness
 

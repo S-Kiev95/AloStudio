@@ -188,6 +188,13 @@ class InstagramPost(TimestampMixin, table=True):
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True),
     )
+    # Story insights metrics stamped by the I.8 webhook receiver when
+    # Meta fires ``field=story_insights`` on story expiry (impressions,
+    # reach, taps_forward, taps_back, exits, replies). Null until then.
+    insights: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(JSONB, nullable=True),
+    )
 
 
 # ---------------------------------------------------------------------------

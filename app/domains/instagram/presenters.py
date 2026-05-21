@@ -35,6 +35,7 @@ def present_post(
         "published_at": (
             post.published_at.isoformat() if post.published_at else None
         ),
+        "insights": post.insights,
         "created_at": (
             int(post.created_at.timestamp()) if post.created_at else None
         ),

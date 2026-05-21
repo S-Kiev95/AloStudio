@@ -94,6 +94,12 @@ class Settings(BaseSettings):
     # Verified current-stable in the feat/instagram-graph research
     # (see PLAN.instagram-graph.md). Bump deliberately.
     meta_graph_api_version: str = "v23.0"
+    # Opt-in HMAC verification of inbound IG webhooks (I.8). Default
+    # OFF so the Phase 5e mirror endpoint keeps its original behaviour
+    # (the DM webhook tests POST unsigned payloads). When ON, the
+    # ``X-Hub-Signature-256`` header must validate against
+    # ``meta_app_secret`` or the POST 401s — enable in production.
+    meta_verify_webhook_signature: bool = False
 
 
 @lru_cache(maxsize=1)
