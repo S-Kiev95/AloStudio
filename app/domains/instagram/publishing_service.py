@@ -400,6 +400,32 @@ async def list_comments_for_media(
 # ---------------------------------------------------------------------------
 # Meta-side actions (Milestones I.2-I.7 wire these — stubs here)
 # ---------------------------------------------------------------------------
+def _augment_throttle(
+    error_code: str | None, error_message: str | None
+) -> str | None:
+    """Tag a failure message when the error is a Meta throttle code, so
+    the dashboard + the worker's retry path can recognise rate-limiting
+    distinctly from a hard failure."""
+    from app.domains.instagram.publisher import is_throttle_error
+
+    if is_throttle_error(error_code):
+        return f"[rate-limited] {error_message or ''}".strip()
+    return error_message
+
+
+async def reset_for_retry(
+    session: AsyncSession, *, post: InstagramPost
+) -> InstagramPost:
+    """Flip a ``failed`` post back to ``pending`` so the worker can
+    re-attempt it (used by the throttle backoff path). No-op on posts
+    that aren't ``failed``."""
+    if post.state != "failed":
+        return post
+    return await transition_post_state(
+        session, post=post, new_state="pending"
+    )
+
+
 async def _poll_container_and_record(
     session: AsyncSession,
     *,
@@ -453,7 +479,9 @@ async def _finalize_publish(
             post=post,
             new_state="failed",
             error_code=publish_res.error_code,
-            error_message=publish_res.error_message,
+            error_message=_augment_throttle(
+                publish_res.error_code, publish_res.error_message
+            ),
         )
 
     permalink = await publisher.fetch_permalink(
@@ -543,7 +571,9 @@ async def _publish_carousel(
                 post=post,
                 new_state="failed",
                 error_code=res.error_code,
-                error_message=res.error_message,
+                error_message=_augment_throttle(
+                    res.error_code, res.error_message
+                ),
             )
         await add_container(
             session,
@@ -589,7 +619,9 @@ async def _publish_carousel(
             post=post,
             new_state="failed",
             error_code=parent_res.error_code,
-            error_message=parent_res.error_message,
+            error_message=_augment_throttle(
+                parent_res.error_code, parent_res.error_message
+            ),
         )
     await add_container(
         session,
@@ -689,6 +721,25 @@ async def publish_post(
         session, post=post, new_state="publishing"
     )
 
+    # ---- Quota pre-check (I.9, opt-in) ----
+    # Saves a doomed container create when the 24h cap is already hit.
+    # Best-effort: a failed quota call doesn't block publishing.
+    from app.core.config import get_settings
+
+    if get_settings().meta_check_publishing_quota:
+        quota = await publisher.fetch_publishing_limit(channel)
+        if quota.exceeded:
+            return await transition_post_state(
+                session,
+                post=post,
+                new_state="failed",
+                error_code="quota_exceeded",
+                error_message=(
+                    f"publishing quota reached "
+                    f"({quota.quota_usage}/{quota.quota_total} in 24h)"
+                ),
+            )
+
     # ---- Carousel (I.4): multi-container orchestration ----
     if post.media_type == "CAROUSEL":
         return await _publish_carousel(
@@ -773,7 +824,9 @@ async def publish_post(
             post=post,
             new_state="failed",
             error_code=container_res.error_code,
-            error_message=container_res.error_message,
+            error_message=_augment_throttle(
+                container_res.error_code, container_res.error_message
+            ),
         )
 
     await add_container(
@@ -1098,6 +1151,7 @@ __all__ = [
     "post_comment_on_meta",
     "publish_post",
     "reply_comment_on_meta",
+    "reset_for_retry",
     "transition_post_state",
     "upsert_comment",
 ]

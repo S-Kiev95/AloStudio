@@ -103,15 +103,48 @@ async def _run_inline(post_id: int) -> None:
         await publish_post(session, post_id=post_id)
 
 
+# Throttle backoff: how long to defer a retry, and how many times.
+THROTTLE_RETRY_BACKOFF_SECONDS = 900  # 15 min — Meta windows are coarse
+THROTTLE_MAX_RETRIES = 3
+
+
 async def publish_instagram_post_task(
     ctx: dict[str, Any], post_id: int
 ) -> dict[str, Any]:
-    """ARQ task body. ``ctx`` is ARQ's per-job context."""
+    """ARQ task body. ``ctx`` is ARQ's per-job context.
+
+    On a Meta throttle (error codes 4 / 17 / 80001 / 80002) the post is
+    reset to ``pending`` and the job is retried with a coarse backoff,
+    up to ``THROTTLE_MAX_RETRIES`` attempts. Other failures are
+    terminal (the row stays ``failed`` for the operator to inspect).
+    """
     from app.domains.instagram.context import open_publish_session
-    from app.domains.instagram.publishing_service import publish_post
+    from app.domains.instagram.publishing_service import (
+        publish_post,
+        reset_for_retry,
+    )
+    from app.domains.instagram.publisher import is_throttle_error
 
     async with open_publish_session() as session:
         post = await publish_post(session, post_id=post_id)
+
+        if (
+            post.state == "failed"
+            and is_throttle_error(post.error_code)
+            and ctx.get("job_try", 1) <= THROTTLE_MAX_RETRIES
+        ):
+            await reset_for_retry(session, post=post)
+            log.warning(
+                "instagram.publish.throttled post_id=%s code=%s try=%s "
+                "— deferring retry",
+                post_id,
+                post.error_code,
+                ctx.get("job_try"),
+            )
+            from arq.worker import Retry
+
+            raise Retry(defer=THROTTLE_RETRY_BACKOFF_SECONDS)
+
         return {
             "post_id": post_id,
             "state": post.state,

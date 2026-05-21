@@ -18,12 +18,14 @@ import httpx
 import pytest
 import respx
 
+from app.core.config import get_settings
 from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts import models as _contacts  # noqa: F401  (mapper)
 from app.domains.conversations import models as _conversations  # noqa: F401
 from app.domains.inboxes.models import InstagramChannel
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+from app.domains.instagram import publisher as pub
 from app.domains.instagram import publishing_service as svc
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
 
@@ -823,3 +825,169 @@ async def test_delete_is_idempotent_on_already_deleted(db_session):
     )
     assert result.state == "deleted"
     assert del_route.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Rate limit + quota (I.9)
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def quota_check_on():
+    settings = get_settings()
+    original = settings.meta_check_publishing_quota
+    settings.meta_check_publishing_quota = True
+    try:
+        yield
+    finally:
+        settings.meta_check_publishing_quota = original
+
+
+@respx.mock
+async def test_fetch_publishing_limit_parses(db_session):
+    owner, inbox, channel = await _seed(db_session, "-quota")
+    igid = channel.instagram_id
+    respx.get(f"{GRAPH}/{igid}/content_publishing_limit").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {"quota_usage": 7, "config": {"quota_total": 100}}
+                ]
+            },
+        )
+    )
+    res = await pub.fetch_publishing_limit(channel)
+    assert res.ok
+    assert res.quota_usage == 7
+    assert res.quota_total == 100
+    assert res.exceeded is False
+
+
+@respx.mock
+async def test_publish_blocked_when_quota_exceeded(
+    db_session, quota_check_on
+):
+    owner, inbox, channel = await _seed(db_session, "-qexc")
+    post = await _make_image_post(db_session, owner, inbox, channel)
+    igid = channel.instagram_id
+    respx.get(f"{GRAPH}/{igid}/content_publishing_limit").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {"quota_usage": 100, "config": {"quota_total": 100}}
+                ]
+            },
+        )
+    )
+    create_route = respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(200, json={"id": "SHOULD_NOT_RUN"})
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "failed"
+    assert result.error_code == "quota_exceeded"
+    # Bailed before any container create.
+    assert create_route.call_count == 0
+
+
+@respx.mock
+async def test_publish_proceeds_when_quota_ok(db_session, quota_check_on):
+    owner, inbox, channel = await _seed(db_session, "-qok")
+    post = await _make_image_post(db_session, owner, inbox, channel)
+    igid = channel.instagram_id
+    respx.get(f"{GRAPH}/{igid}/content_publishing_limit").mock(
+        return_value=httpx.Response(
+            200,
+            json={"data": [{"quota_usage": 5, "config": {"quota_total": 100}}]},
+        )
+    )
+    respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(200, json={"id": "QC1"})
+    )
+    respx.get(f"{GRAPH}/QC1").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
+    )
+    respx.post(f"{GRAPH}/{igid}/media_publish").mock(
+        return_value=httpx.Response(200, json={"id": "QM1"})
+    )
+    respx.get(f"{GRAPH}/QM1").mock(
+        return_value=httpx.Response(200, json={"permalink": "x"})
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "published"
+
+
+@respx.mock
+async def test_publish_quota_check_best_effort_on_error(
+    db_session, quota_check_on
+):
+    """A failed quota call must not block publishing."""
+    owner, inbox, channel = await _seed(db_session, "-qbe")
+    post = await _make_image_post(db_session, owner, inbox, channel)
+    igid = channel.instagram_id
+    respx.get(f"{GRAPH}/{igid}/content_publishing_limit").mock(
+        return_value=httpx.Response(500, json={"error": {"message": "boom"}})
+    )
+    respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(200, json={"id": "BE1"})
+    )
+    respx.get(f"{GRAPH}/BE1").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
+    )
+    respx.post(f"{GRAPH}/{igid}/media_publish").mock(
+        return_value=httpx.Response(200, json={"id": "BEM1"})
+    )
+    respx.get(f"{GRAPH}/BEM1").mock(
+        return_value=httpx.Response(200, json={"permalink": "x"})
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "published"
+
+
+@respx.mock
+async def test_throttle_error_marks_message(db_session):
+    """A throttle code on container create flags the message as
+    rate-limited (so the worker's retry path recognises it)."""
+    owner, inbox, channel = await _seed(db_session, "-thr")
+    post = await _make_image_post(db_session, owner, inbox, channel)
+    igid = channel.instagram_id
+    respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(
+            400,
+            json={
+                "error": {
+                    "message": "Application request limit reached",
+                    "code": 80002,
+                }
+            },
+            headers={"X-App-Usage": '{"call_count":100}'},
+        )
+    )
+    result = await svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "failed"
+    assert result.error_code == "80002"
+    assert pub.is_throttle_error(result.error_code)
+    assert "[rate-limited]" in result.error_message
+    # Usage header was captured for diagnostics.
+    assert "X-App-Usage" in result.error_message
+
+
+async def test_reset_for_retry_flips_failed_to_pending(db_session):
+    owner, inbox, channel = await _seed(db_session, "-rst")
+    post = await _make_image_post(db_session, owner, inbox, channel)
+    post.state = "failed"
+    post.error_code = "80002"
+    db_session.add(post)
+    await db_session.flush()
+    out = await svc.reset_for_retry(db_session, post=post)
+    assert out.state == "pending"
+    # No-op on a non-failed post.
+    out2 = await svc.reset_for_retry(db_session, post=out)
+    assert out2.state == "pending"

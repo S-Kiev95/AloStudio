@@ -35,6 +35,21 @@ from app.domains.inboxes.models import InstagramChannel
 
 log = logging.getLogger(__name__)
 
+# Meta throttling error codes (verified spec, PLAN.instagram-graph.md):
+#   4     — application-level rate limit
+#   17    — user-level rate limit
+#   80001 — Page Business-Use-Case rate limit
+#   80002 — Instagram Business-Use-Case rate limit
+THROTTLE_ERROR_CODES: frozenset[str] = frozenset(
+    {"4", "17", "80001", "80002"}
+)
+
+
+def is_throttle_error(error_code: str | None) -> bool:
+    """True when ``error_code`` is one of Meta's documented throttle
+    codes — the signal for the worker to back off + retry."""
+    return error_code in THROTTLE_ERROR_CODES
+
 
 # ---------------------------------------------------------------------------
 # Result objects
@@ -62,6 +77,25 @@ class DeleteResult:
     error_message: str | None = None
 
 
+@dataclass(slots=True)
+class QuotaResult:
+    ok: bool
+    quota_usage: int | None = None
+    quota_total: int | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+
+    @property
+    def exceeded(self) -> bool:
+        """True when usage has reached the 24h publishing cap."""
+        return (
+            self.ok
+            and self.quota_usage is not None
+            and self.quota_total is not None
+            and self.quota_usage >= self.quota_total
+        )
+
+
 # ---------------------------------------------------------------------------
 # URL helpers
 # ---------------------------------------------------------------------------
@@ -85,26 +119,43 @@ def _media_object_url(media_id: str) -> str:
 # ---------------------------------------------------------------------------
 # Error extraction
 # ---------------------------------------------------------------------------
+def _usage_note(resp: httpx.Response) -> str:
+    """Surface Meta's rate-limit usage headers (``X-App-Usage`` +
+    ``X-Business-Use-Case-Usage``) so a throttle failure records *how*
+    saturated the app/BUC was at the time. Empty when neither header
+    is present (the common, non-throttled case)."""
+    parts: list[str] = []
+    app_usage = resp.headers.get("X-App-Usage")
+    buc_usage = resp.headers.get("X-Business-Use-Case-Usage")
+    if app_usage:
+        parts.append(f"X-App-Usage={app_usage}")
+    if buc_usage:
+        parts.append(f"X-Business-Use-Case-Usage={buc_usage}")
+    return f" [usage {'; '.join(parts)}]" if parts else ""
+
+
 def _extract_error(resp: httpx.Response) -> tuple[str | None, str | None]:
     """Pull (code, message) from Meta's error envelope.
 
     Meta returns ``{"error": {"message": "...", "code": N,
     "error_subcode": M, "fbtrace_id": "..."}}``. We surface code +
-    message; the subcode is folded into the message for context."""
+    message; the subcode is folded into the message for context, and
+    rate-limit usage headers are appended when present."""
+    usage = _usage_note(resp)
     try:
         payload = resp.json()
     except ValueError:
-        return str(resp.status_code), resp.text[:500]
+        return str(resp.status_code), (resp.text[:500] + usage)
     err = payload.get("error") if isinstance(payload, dict) else None
     if not isinstance(err, dict):
-        return str(resp.status_code), resp.text[:500]
+        return str(resp.status_code), (resp.text[:500] + usage)
     code = err.get("code")
     subcode = err.get("error_subcode")
     message = err.get("message", "")
     code_str = str(code) if code is not None else str(resp.status_code)
     if subcode is not None:
         message = f"{message} (subcode {subcode})"
-    return code_str, message[:500]
+    return code_str, (message + usage)[:600]
 
 
 # ---------------------------------------------------------------------------
@@ -395,6 +446,64 @@ async def delete_media(
 
 
 # ---------------------------------------------------------------------------
+# Publishing quota (I.9) — GET /{ig-user-id}/content_publishing_limit
+# ---------------------------------------------------------------------------
+async def fetch_publishing_limit(
+    channel: InstagramChannel,
+) -> QuotaResult:
+    """``GET /{ig-user-id}/content_publishing_limit`` — current 24h
+    publish usage vs the cap (100/account). Never raises; an
+    unreachable / errored quota call comes back ``ok=False`` so the
+    caller can treat the check as best-effort and proceed."""
+    if not channel.access_token or not channel.instagram_id:
+        return QuotaResult(
+            ok=False,
+            error_code="missing_credentials",
+            error_message="channel missing access token or instagram_id",
+        )
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                f"{_base()}/{channel.instagram_id}/content_publishing_limit",
+                params={
+                    "fields": "quota_usage,config",
+                    "access_token": channel.access_token,
+                },
+            )
+    except (httpx.RequestError, httpx.TimeoutException) as exc:
+        return QuotaResult(
+            ok=False,
+            error_code="transport_error",
+            error_message=str(exc)[:500],
+        )
+    if resp.status_code >= 400:
+        code, message = _extract_error(resp)
+        return QuotaResult(ok=False, error_code=code, error_message=message)
+    try:
+        payload = resp.json()
+    except ValueError:
+        return QuotaResult(
+            ok=False, error_code="bad_json", error_message=resp.text[:500]
+        )
+    data = payload.get("data") if isinstance(payload, dict) else None
+    row = data[0] if isinstance(data, list) and data else None
+    if not isinstance(row, dict):
+        return QuotaResult(
+            ok=False,
+            error_code="no_quota_data",
+            error_message=str(payload)[:500],
+        )
+    usage = row.get("quota_usage")
+    config = row.get("config") if isinstance(row.get("config"), dict) else {}
+    total = config.get("quota_total")
+    return QuotaResult(
+        ok=True,
+        quota_usage=int(usage) if usage is not None else None,
+        quota_total=int(total) if total is not None else None,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Permalink fetch (best-effort — not fatal if it fails)
 # ---------------------------------------------------------------------------
 async def fetch_permalink(
@@ -428,14 +537,18 @@ async def fetch_permalink(
 
 
 __all__ = [
+    "THROTTLE_ERROR_CODES",
     "ContainerResult",
     "DeleteResult",
     "PublishResult",
+    "QuotaResult",
     "build_image_container_params",
     "build_story_container_params",
     "build_video_container_params",
     "create_container",
     "delete_media",
     "fetch_permalink",
+    "fetch_publishing_limit",
+    "is_throttle_error",
     "publish_container",
 ]

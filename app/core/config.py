@@ -100,6 +100,12 @@ class Settings(BaseSettings):
     # ``X-Hub-Signature-256`` header must validate against
     # ``meta_app_secret`` or the POST 401s — enable in production.
     meta_verify_webhook_signature: bool = False
+    # Opt-in pre-publish quota check (I.9). When ON, the publisher
+    # queries ``content_publishing_limit`` before creating a container
+    # and fails the post ``quota_exceeded`` if the 24h cap is reached
+    # (saves a doomed container create). Default OFF so the publish
+    # path stays a single round-trip unless an operator enables it.
+    meta_check_publishing_quota: bool = False
 
 
 @lru_cache(maxsize=1)

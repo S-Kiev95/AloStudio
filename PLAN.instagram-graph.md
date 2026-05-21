@@ -419,13 +419,30 @@ CREATE TABLE instagram_comments (
 14 comments + 11 webhook-changes) — plus the 7 Phase 5e mirror webhook
 tests stay green (flag default OFF).
 
-### I.9 — Rate limit + quota awareness
+### I.9 — Rate limit + quota awareness ✅
 
-- [ ] Pre-publish check via `GET /{ig-user-id}/content_publishing_limit`.
-- [ ] Detect `X-App-Usage` + `X-Business-Use-Case-Usage` headers;
-      stamp into `instagram_posts.error_message` on throttle (codes
-      4, 17, 80001, 80002).
-- [ ] ARQ task backs off + retries on throttle errors.
+- [x] Pre-publish check via `publisher.fetch_publishing_limit`
+      (`GET /{ig-user-id}/content_publishing_limit`). Gated behind the
+      new `meta_check_publishing_quota` flag (default OFF so the publish
+      path stays one round-trip); when ON + cap reached, the post fails
+      `quota_exceeded` before any container create. Best-effort: a
+      failed quota call doesn't block publishing.
+- [x] `THROTTLE_ERROR_CODES = {4, 17, 80001, 80002}` + `is_throttle_error`.
+      `X-App-Usage` + `X-Business-Use-Case-Usage` headers captured into
+      the error message (`_usage_note`); throttle failures tagged
+      `[rate-limited]` (`_augment_throttle`) at every external-call
+      failure point (single + carousel create, publish).
+- [x] ARQ task backs off + retries on throttle: `reset_for_retry`
+      (failed→pending) + `arq.Retry(defer=900s)` up to
+      `THROTTLE_MAX_RETRIES=3`. Non-throttle failures stay terminal.
+- [x] Tests: quota parse, quota-exceeded blocks (no create call),
+      quota-ok proceeds, quota-error best-effort, throttle message tag
+      + usage capture, reset_for_retry.
+
+**Test tally:** 90 green (22 models + 30 publisher + 13 router +
+14 comments + 11 webhook-changes). (ARQ Retry mechanics use the
+worker's own engine — exercised in prod, not the mock suite, mirroring
+the existing immediate-publish worker path.)
 
 ### I.10 — OAuth flow
 
