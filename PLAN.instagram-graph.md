@@ -444,14 +444,48 @@ tests stay green (flag default OFF).
 worker's own engine — exercised in prod, not the mock suite, mirroring
 the existing immediate-publish worker path.)
 
-### I.10 — OAuth flow
+### I.10 — Connection flows (OAuth + Instagram Login + manual token)
 
-- [ ] `/api/v1/accounts/{id}/instagram_channels/connect/start` —
-      redirect to FB Login dialog with all scopes.
-- [ ] `/api/v1/accounts/{id}/instagram_channels/connect/callback` —
-      code exchange → long-lived user token → page tokens → store
-      Page token on `InstagramChannel.access_token`.
-- [ ] Tests with respx mocks for Meta's OAuth endpoints.
+**Three ways to connect a client's Instagram, because most clients do
+NOT have a Facebook Page** (verified May 2026 against Meta docs):
+
+| Flow | FB Page? | Publish | Comments | **Delete media** |
+|---|---|---|---|---|
+| **Facebook Login** (`graph.facebook.com`) | required | ✅ | ✅ | ✅ |
+| **Instagram Login** (`graph.instagram.com`) | not needed (Professional acct only) | ✅ | ✅ | ❌ API-unsupported |
+| **Manual / advanced** (paste token) | n/a | ✅ | ✅ | depends on token's login type |
+
+> **Verified:** `DELETE /{ig-media-id}` *"only supports Instagram API
+> with Facebook Login"* (Meta docs, instagram-media reference). Instagram
+> Login can publish + moderate but cannot delete media via API.
+
+- [ ] Add a `login_type` (`facebook` / `instagram` / `manual`) marker on
+      the channel so the app knows each connection's capabilities. The
+      I.6 delete endpoint gates on it: non-Facebook-Login channels return
+      a clear 422 ("delete unavailable on Instagram Login — remove it
+      from the IG app") instead of a confusing Meta `#10`.
+- [ ] **Facebook Login flow** (full capabilities):
+      * `…/instagram_channels/connect/start` → FB Login dialog w/ scopes.
+      * `…/connect/callback` → code → long-lived user token → page token
+        (non-expiring) + IG business id → store on the channel.
+- [ ] **Instagram Login flow** (no FB Page; lower friction):
+      * `…/instagram_channels/connect_ig/start` → IG OAuth dialog.
+      * `…/connect_ig/callback` → code → long-lived IG user token →
+        store on the channel (host `graph.instagram.com`). Requires the
+        publisher/comment clients to accept a per-channel base host.
+- [ ] **Manual / advanced mode:** an admin-only endpoint to paste an
+      `access_token` + `instagram_id` (+ pick `login_type`) straight onto
+      the channel — for System User tokens (permanent, from Business
+      Manager), agencies with their own token, and support/debug. Tiny:
+      it just writes the two fields the publisher already reads.
+- [ ] Tests with respx mocks for each flow's Meta endpoints + the
+      delete-capability gate.
+
+> **One Meta app, multitenant:** a single AloStudio Meta app (Live +
+> App Review / Advanced Access) serves unlimited client accounts — each
+> client connects *their* IG to *our* app; they never create their own
+> Meta app. Per-IG-account publish quota (100/24h) is independent;
+> only the app-level `X-App-Usage` is shared (already captured in I.9).
 
 ### I.11 — Product / catalog association (CRM context)  ← added later
 

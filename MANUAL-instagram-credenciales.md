@@ -198,3 +198,45 @@ salida — no hace falta pasárselo a nadie.
   `instagram_content_publish`, `instagram_manage_comments`, etc.
 - **Requisitos de la imagen:** Meta exige JPEG público, ancho mínimo
   ~320px y relación de aspecto entre 4:5 y 1.91:1 para el feed.
+
+---
+
+## 9. Cómo conectan los clientes (arquitectura)
+
+La cuenta de IG **siempre** tiene que ser **Profesional (Business o
+Creator)** — es gratis e instantáneo desde la app de Instagram
+(*Configuración → Tipo de cuenta y herramientas → Cambiar a profesional*).
+Eso es requisito de la API de publicación en cualquier flujo.
+
+A partir de ahí hay 3 formas de conectar (planificadas en el hito I.10):
+
+| Flujo | ¿Página de FB? | Publicar | Comentarios | **Borrar media** |
+|---|---|---|---|---|
+| **Facebook Login** | **requerida** | ✅ | ✅ | ✅ |
+| **Instagram Login** | **no** | ✅ | ✅ | ❌ (manual desde la app) |
+| **Manual / avanzado** (pegar token) | n/a | ✅ | ✅ | según el token |
+
+> **Verificado (mayo 2026, docs de Meta):** `DELETE /{ig-media-id}` *"solo
+> admite la API de Instagram con inicio de sesión con Facebook"*. Con
+> Instagram Login se puede publicar y moderar comentarios, pero **no
+> borrar** media por API.
+
+### Vincular IG a una Página de Facebook (solo para Facebook Login)
+1. Tener una **Página de Facebook** (creala gratis si no tenés).
+2. App de Instagram → *Configuración → Cuenta → Compartir en otras apps →
+   Facebook* → vincular la Página. (O desde la Página en FB →
+   *Configuración → Cuentas vinculadas → Instagram*.)
+3. Ser **admin** de esa Página.
+
+### Para TUS cuentas: System User token (permanente)
+Si la cuenta es tuya (o un cliente te da acceso de socio), lo más estable
+es un **token de Usuario del Sistema** del Business Manager con
+*Caducidad: Nunca* (ver pregunta frecuente). No depende de la sesión de
+una persona. Se carga por el **modo avanzado** (pegar token).
+
+### Para clientes (auto-servicio): OAuth (Facebook o Instagram Login)
+El cliente toca "Conectar Instagram", se loguea **una vez**, autoriza, y
+nuestro backend guarda un token de larga duración. No re-autoriza cada 60
+días salvo que revoque permisos o cambie la contraseña. **Una sola app de
+Meta** (en Live + App Review) sirve a todos los clientes — no crean su
+propia app.
