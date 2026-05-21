@@ -453,10 +453,47 @@ the existing immediate-publish worker path.)
       Page token on `InstagramChannel.access_token`.
 - [ ] Tests with respx mocks for Meta's OAuth endpoints.
 
-### I.11 — Tests + close branch
+### I.11 — Product / catalog association (CRM context)  ← added later
 
-- [ ] Full end-to-end scenario: create post → poll → publish → comment
-      → moderate → delete.
+**Why:** clients use AloStudio like a CRM — they keep a catalogue of
+products/services and promote them in IG posts + stories. A post (or
+story) can be linked to **0, 1 or N products**. When an IG user comments
+or DMs about that media, the system resolves *media → post → products* so
+an AI agent answers with the right product context.
+
+- [ ] New **`products`** table — account-scoped catalogue, generic so it
+      can be reused beyond IG:
+      `id, account_id(FK→accounts CASCADE), name, description, sku?,
+       price?(numeric), currency?, url?, image_url?, enabled(bool=true),
+       created_at, updated_at`. Index on `account_id`; optional unique
+       `(account_id, sku)` when sku present. Lives in a small new domain
+       `app/domains/products/`.
+- [ ] New **`instagram_post_products`** join (M2M):
+      `id, post_id(FK→instagram_posts CASCADE),
+       product_id(FK→products CASCADE), UNIQUE(post_id, product_id)`,
+       index on `product_id`. Alembic migration for both tables.
+- [ ] **Product CRUD** (admin) under
+      `/api/v1/accounts/{id}/products` (index/create/show/update/delete).
+- [ ] **Link on publish:** `InstagramPostCreate` gains optional
+      `product_ids: list[int]`; `create_post` validates the ids belong to
+      the account and writes the join rows (`set_post_products`). Works
+      for every media type incl. STORIES (a story is just a post).
+- [ ] **Surface:** `present_post` includes `products: [...]`; add
+      `GET /instagram_posts/{id}/products`.
+- [ ] **AI-context resolver:** `products_for_media(account_id,
+      ig_media_id)` → the products linked to the post whose `ig_media_id`
+      matches. This is the hook an external AI agent (or the MCP server on
+      `feat/mcp-server`) calls to answer "what product(s) is this
+      post/story about?" when a comment/DM arrives. Optionally enrich the
+      webhook comment-routing path with it.
+- [ ] Tests: product CRUD, post↔product linking on create, `present_post`
+      includes products, media→products resolver, cascade on post +
+      product delete.
+
+### I.12 — Tests + close branch
+
+- [ ] Full end-to-end scenario: create post (+products) → poll → publish
+      → comment → moderate → delete.
 - [ ] README section for the new endpoints.
 - [ ] Mark branch ready for merge.
 
@@ -487,11 +524,23 @@ implementation:
 
 ## Tracking
 
+### Real-Meta validation (done)
+
+- [x] **Publish path validated against the live Graph API** via
+      `scripts/ig_publish_smoke.py` — create container → poll →
+      `media_publish` → permalink + quota all succeed on the test
+      account (post `DYlgwWiDoyC`, IG business id `17841451736515320`).
+- [~] **Delete** reached Meta but returned `#10 insufficient permissions`
+      with the test token — code is correct (parsed the error + captured
+      `X-App-Usage`); needs the delete scope / App Review on Meta's side.
+- See `MANUAL-instagram-credenciales.md` for obtaining a non-expiring
+  Page token.
+
 Token rotation + Meta App setup checklist (user-side, outside this
 repo):
 
 - [ ] Rotate the leaked test token via Developer Dashboard.
-- [ ] Confirm test IG Business Account is linked to a test FB Page.
+- [x] Confirm test IG Business Account is linked to a test FB Page.
 - [ ] Confirm app review status: dev mode is fine for testing; for
       production we'll need `instagram_content_publish` reviewed.
-- [ ] Get `META_APP_ID` + `META_APP_SECRET` from Dashboard.
+- [x] Get `META_APP_ID` + `META_APP_SECRET` from Dashboard.
