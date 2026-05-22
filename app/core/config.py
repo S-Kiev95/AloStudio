@@ -7,7 +7,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # ``.env.local`` is layered AFTER ``.env`` so machine-local
+        # secrets (Meta app credentials, etc.) override the committed
+        # defaults without ever being checked in. pydantic-settings
+        # applies later files with higher precedence.
+        env_file=(".env", ".env.local"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -70,6 +74,48 @@ class Settings(BaseSettings):
     # env vars (Chatwoot reads either; we ship one canonical name).
     # Same fail-closed behaviour as ``fb_verify_token``.
     ig_verify_token: str = ""
+
+    # --- Instagram Graph publishing (feat/instagram-graph)
+    # App-level credentials from the Meta Developer Dashboard. The
+    # per-account Page access token + IG Business Account id live on
+    # the ``channel_instagram`` row (Phase 5e), NOT here — these are
+    # only the app identity used for the OAuth code exchange (I.10) +
+    # the X-Hub-Signature-256 webhook verification (I.8).
+    #
+    # Loaded from ``.env.local`` (gitignored). Empty defaults keep the
+    # app bootable without them; the publishing endpoints fail closed
+    # with a clear error when unset.
+    meta_app_id: str = ""
+    meta_app_secret: str = ""
+    # The user keeps a separate secret for the FB-Login app variant
+    # ("login" app) distinct from the main app secret. Optional.
+    meta_app_secret_login: str = ""
+    # Graph API version pinned for all Instagram publishing calls.
+    # Verified current-stable in the feat/instagram-graph research
+    # (see PLAN.instagram-graph.md). Bump deliberately.
+    meta_graph_api_version: str = "v23.0"
+    # Opt-in HMAC verification of inbound IG webhooks (I.8). Default
+    # OFF so the Phase 5e mirror endpoint keeps its original behaviour
+    # (the DM webhook tests POST unsigned payloads). When ON, the
+    # ``X-Hub-Signature-256`` header must validate against
+    # ``meta_app_secret`` or the POST 401s — enable in production.
+    meta_verify_webhook_signature: bool = False
+    # Opt-in pre-publish quota check (I.9). When ON, the publisher
+    # queries ``content_publishing_limit`` before creating a container
+    # and fails the post ``quota_exceeded`` if the 24h cap is reached
+    # (saves a doomed container create). Default OFF so the publish
+    # path stays a single round-trip unless an operator enables it.
+    meta_check_publishing_quota: bool = False
+    # OAuth redirect URI (I.10) — the callback registered in the Meta
+    # app. Must match byte-for-byte between the login dialog and the
+    # code exchange. Same URI serves both Facebook + Instagram Login.
+    meta_oauth_redirect_uri: str = ""
+    # Instagram Login flow (I.10c) — the *Instagram* app id + secret
+    # (under the app's "Instagram > API setup with Instagram login"),
+    # distinct from the Facebook app id/secret. Lets clients without a
+    # Facebook Page connect (host ``graph.instagram.com``).
+    meta_instagram_app_id: str = ""
+    meta_instagram_app_secret: str = ""
 
 
 @lru_cache(maxsize=1)

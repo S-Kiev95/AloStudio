@@ -37,10 +37,17 @@ from app.domains.labels.router import router as labels_router
 from app.domains.macros.router import router as macros_router
 from app.domains.portals.public_router import public_router as portals_public_router
 from app.domains.portals.router import router as portals_router
+from app.domains.products.router import router as products_router
 from app.domains.teams.router import router as teams_router
 from app.domains.teams.router import team_members_router
 from app.domains.users.router import router as profile_router
 from app.domains.facebook.router import router as facebook_webhook_router
+from app.domains.instagram.comments_router import router as instagram_comments_router
+from app.domains.instagram.connect_router import (
+    callback_router as instagram_oauth_callback_router,
+    router as instagram_connect_router,
+)
+from app.domains.instagram.publishing_router import router as instagram_publishing_router
 from app.domains.instagram.router import router as instagram_webhook_router
 from app.domains.sms_bandwidth.router import router as bandwidth_webhook_router
 from app.domains.telegram.router import router as telegram_webhook_router
@@ -179,6 +186,20 @@ def create_app() -> FastAPI:
     # installation-wide verify token via ``settings.ig_verify_token``
     # (env IG_VERIFY_TOKEN). Body must carry ``object: instagram``.
     app.include_router(instagram_webhook_router)
+    # Instagram publishing surface (feat/instagram-graph I.2). admin-only.
+    # Create/list/show posts; scheduling via ``scheduled_for``.
+    app.include_router(instagram_publishing_router)
+    # Instagram comment moderation (feat/instagram-graph I.7). admin-only.
+    # List/post/reply/hide/delete comments on owned media.
+    app.include_router(instagram_comments_router)
+    # Instagram connection (feat/instagram-graph I.10). admin-only.
+    # Manual/advanced connect (paste token) + channel capability view +
+    # OAuth start. The OAuth callback is account-less (state-authed).
+    app.include_router(instagram_connect_router)
+    app.include_router(instagram_oauth_callback_router)
+    # Product catalogue (feat/instagram-graph I.11). Account-scoped CRUD;
+    # posts/stories link to products for AI/CRM context.
+    app.include_router(products_router)
     # Twilio SMS webhook (Phase 5f). ``/twilio/callback`` —
     # form-encoded payload, channel resolved by MessagingServiceSid
     # then (AccountSid, To). Twilio's WhatsApp medium ships in 5f.6.

@@ -148,14 +148,27 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         campaigns_fired = await fire_due_oneoff_campaigns(session)
         conversations_reopened = await reopen_snoozed_conversations(session)
         await session.commit()
+
+    # Instagram scheduled posts (feat/instagram-graph I.2). Runs in its
+    # own session because ``fire_due_instagram_posts`` enqueues ARQ
+    # jobs (side-effects outside the tick transaction).
+    from app.workers.instagram import fire_due_instagram_posts
+
+    async with sessionmaker() as ig_session:
+        ig_fired = await fire_due_instagram_posts(ig_session)
+        await ig_session.commit()
+
     log.info(
-        "scheduler.tick.done campaigns_fired=%s conversations_reopened=%s",
+        "scheduler.tick.done campaigns_fired=%s conversations_reopened=%s "
+        "instagram_posts_fired=%s",
         campaigns_fired,
         conversations_reopened,
+        len(ig_fired),
     )
     return {
         "campaigns_fired": campaigns_fired,
         "conversations_reopened": conversations_reopened,
+        "instagram_posts_fired": len(ig_fired),
     }
 
 
@@ -196,16 +209,27 @@ class WorkerSettings:
         if engine is not None:
             await engine.dispose()
 
-    functions = [tick_5min]
+    # ``tick_5min`` is the cron task; ``publish_instagram_post_task`` is
+    # enqueued on-demand (immediate publish from the REST endpoint +
+    # scheduled fires from ``fire_due_instagram_posts``).
+    @staticmethod
+    def _functions() -> list:
+        from app.workers.instagram import publish_instagram_post_task
+
+        return [tick_5min, publish_instagram_post_task]
+
+    functions = []  # type: ignore[var-annotated]  # populated via configure()
     cron_jobs: list = []  # populated below via late import
 
     @classmethod
     def configure(cls) -> None:
-        """Late-init: building the cron list at class-body time would
-        pull in arq before we know the deployment wants the worker.
-        Call :meth:`configure` from the worker entry point."""
+        """Late-init: building the cron list + function list at
+        class-body time would pull in arq before we know the
+        deployment wants the worker. Call :meth:`configure` from the
+        worker entry point."""
         from arq.cron import cron
 
+        cls.functions = cls._functions()
         cls.cron_jobs = [
             cron(
                 tick_5min,
