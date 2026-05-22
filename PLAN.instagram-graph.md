@@ -534,12 +534,34 @@ an AI agent answers with the right product context.
 
 **Test tally:** product suite 12 green; full IG+products suite green.
 
-### I.12 — Tests + close branch
+### I.12 — Tests + close branch ✅
 
-- [ ] Full end-to-end scenario: create post (+products) → poll → publish
-      → comment → moderate → delete.
-- [ ] README section for the new endpoints.
-- [ ] Mark branch ready for merge.
+- [x] Full end-to-end scenario (`test_instagram_e2e.py`): connect →
+      product → create post (+product) → publish → show → media→product
+      resolver → comment → hide → delete.
+- [x] README section for the new endpoints (`app/domains/instagram/README.md`).
+- [ ] Mark branch ready for merge (after I.13).
+
+### I.13 — Instagram MCP tools (added) ✅
+
+Exposes the extension to AI agents via the MCP server (`feat/mcp-server`,
+merged into this branch).
+
+- [x] Merged `feat/mcp-server` → `feat/instagram-graph` (conflict-free;
+      only `app/mcp/*` + pyproject/uv.lock). Alembic two-heads unified
+      by merge migration `f4a5b6c7d8e9` (applied to both DBs).
+- [x] `app/mcp/tools/instagram.py` (account-scoped via the bearer token,
+      registered in `tools/__init__.py`):
+      * read: `list_instagram_posts`, `show_instagram_post`,
+        `list_instagram_products`, `instagram_products_for_media`
+        (**the AI context hook**), `list_instagram_comments`.
+      * write: `create_instagram_post` (schedules; omit `scheduled_for`
+        → next tick), `post_instagram_comment`,
+        `reply_to_instagram_comment`, `hide_instagram_comment`.
+- [x] Tests (`test_mcp_instagram_tools.py`): list, products_for_media,
+      scheduled create (+products), reply (respx), read-scope denial.
+
+**Then:** merge `feat/instagram-graph` → `main`.
 
 ---
 

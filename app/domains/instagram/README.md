@@ -107,6 +107,24 @@ The per-account Page token + IG id live on the channel row, never in env.
 | `webhook_changes.py` | comments/mentions/story_insights receiver |
 | `*_router.py` | publishing, comments, connect endpoints |
 
-> **MCP:** not included here. The MCP server (`feat/mcp-server`) exposes
-> conversation/CRM tools; surfacing these Instagram operations as MCP
-> tools for AI agents is a follow-up once both branches land on `main`.
+## MCP tools (I.13)
+
+After merging `feat/mcp-server`, these operations are exposed to AI
+agents as MCP tools (`app/mcp/tools/instagram.py`, account-scoped via
+the bearer token):
+
+| Tool | Scope | Purpose |
+|---|---|---|
+| `list_instagram_posts` | read | list posts (filter `state`) |
+| `show_instagram_post` | read | post + containers + products |
+| `list_instagram_products` | read | the catalogue |
+| `instagram_products_for_media` | read | **AI hook** — media → product(s) |
+| `list_instagram_comments` | read | local comment mirror for a media |
+| `create_instagram_post` | write | schedule/queue a post (+`product_ids`) |
+| `post_instagram_comment` | write | comment on a published post |
+| `reply_to_instagram_comment` | write | reply to a comment |
+| `hide_instagram_comment` | write | hide/unhide (moderation) |
+
+The headline is `instagram_products_for_media`: when an IG user comments
+or DMs about a post, the agent resolves the product(s) it promotes and
+answers with the right context.
