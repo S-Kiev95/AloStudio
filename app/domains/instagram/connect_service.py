@@ -387,13 +387,147 @@ async def complete_facebook_oauth(
     }
 
 
+# ---------------------------------------------------------------------------
+# OAuth — Instagram Login flow (no Facebook Page; host graph.instagram.com)
+# ---------------------------------------------------------------------------
+def start_instagram_oauth(account_id: int) -> str:
+    """Build the Instagram Login authorization URL (signed state).
+    422 if the Instagram app isn't configured."""
+    from app.domains.instagram import oauth
+
+    settings = get_settings()
+    if not (
+        settings.meta_instagram_app_id and settings.meta_oauth_redirect_uri
+    ):
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    "Instagram Login not configured "
+                    "(META_INSTAGRAM_APP_ID / META_OAUTH_REDIRECT_URI)"
+                )
+            },
+        )
+    state = sign_oauth_state(account_id, flow="instagram")
+    return oauth.build_instagram_login_url(
+        redirect_uri=settings.meta_oauth_redirect_uri, state=state
+    )
+
+
+async def complete_instagram_oauth(
+    session: AsyncSession, *, code: str, state: str
+) -> dict[str, Any]:
+    """Finish the Instagram Login handshake: code → IG user id +
+    long-lived token → create the inbox + channel (login_type=instagram,
+    so the delete path is gated off)."""
+    from app.domains.accounts.models import Account
+    from app.domains.instagram import oauth
+
+    payload = verify_oauth_state(state)
+    if payload.get("flow") != "instagram":
+        raise ChatwootHTTPException(
+            status_code=401, detail={"error": "oauth flow mismatch"}
+        )
+    account_id = int(payload["account_id"])
+    account = await session.get(Account, account_id)
+    if account is None:
+        raise ChatwootHTTPException(
+            status_code=404,
+            detail={"error": "Resource could not be found"},
+        )
+    redirect_uri = get_settings().meta_oauth_redirect_uri
+
+    short = await oauth.exchange_instagram_code(
+        code=code, redirect_uri=redirect_uri
+    )
+    if not short.ok or not short.access_token or not short.user_id:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": short.error_message or "code exchange failed",
+                "code": short.error_code,
+            },
+        )
+    long = await oauth.exchange_instagram_long_lived(
+        short_token=short.access_token
+    )
+    if not long.ok or not long.access_token:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": long.error_message or "long-lived exchange failed",
+                "code": long.error_code,
+            },
+        )
+
+    from app.domains.inboxes.service import (
+        InboxBuilder,
+        InboxBuilderParams,
+    )
+
+    result = await InboxBuilder(
+        session,
+        InboxBuilderParams(
+            account=account,
+            name="Instagram",
+            channel_type="instagram",
+            channel_params={
+                "instagram_id": short.user_id,
+                "access_token": long.access_token,
+            },
+        ),
+    ).perform()
+    await record_connection(
+        session,
+        channel_instagram_id=result.channel.id,
+        login_type="instagram",
+        connect_method="oauth",
+    )
+    return {
+        "inbox_id": result.inbox.id,
+        "channel_instagram_id": result.channel.id,
+        "instagram_id": short.user_id,
+        "login_type": "instagram",
+    }
+
+
+# ---------------------------------------------------------------------------
+# OAuth — flow dispatcher (the account-less callback delegates here)
+# ---------------------------------------------------------------------------
+async def complete_oauth(
+    session: AsyncSession,
+    *,
+    code: str,
+    state: str,
+    page_id: str | None = None,
+) -> dict[str, Any]:
+    """Verify the state, read its ``flow``, and run the matching
+    completion. Used by the OAuth callback endpoint."""
+    payload = verify_oauth_state(state)
+    flow = payload.get("flow")
+    if flow == "facebook":
+        return await complete_facebook_oauth(
+            session, code=code, state=state, page_id=page_id
+        )
+    if flow == "instagram":
+        return await complete_instagram_oauth(
+            session, code=code, state=state
+        )
+    raise ChatwootHTTPException(
+        status_code=401, detail={"error": "unknown oauth flow"}
+    )
+
+
 __all__ = [
     "can_delete_media",
     "complete_facebook_oauth",
+    "complete_instagram_oauth",
+    "complete_oauth",
     "connect_manual",
     "get_channel_setting",
     "record_connection",
     "sign_oauth_state",
     "start_facebook_oauth",
+    "start_instagram_oauth",
     "verify_oauth_state",
 ]

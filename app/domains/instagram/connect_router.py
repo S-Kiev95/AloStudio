@@ -57,10 +57,23 @@ async def connect_start(
     session: Annotated[AsyncSession, Depends(get_session)],  # noqa: ARG001
 ) -> dict[str, Any]:
     """Begin the Facebook Login OAuth — returns the dialog URL the
-    admin's browser should be redirected to (with a signed state)."""
+    admin's browser should be redirected to (with a signed state).
+    Full feature set incl. delete media (requires a Facebook Page)."""
     assert ctx.account.id is not None
     authorize_url = connect_service.start_facebook_oauth(ctx.account.id)
-    return {"authorize_url": authorize_url}
+    return {"authorize_url": authorize_url, "login_type": "facebook"}
+
+
+@router.get("/connect/start_instagram")
+async def connect_start_instagram(
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],  # noqa: ARG001
+) -> dict[str, Any]:
+    """Begin the Instagram Login OAuth — no Facebook Page required, but
+    DELETE media is not available on this flow."""
+    assert ctx.account.id is not None
+    authorize_url = connect_service.start_instagram_oauth(ctx.account.id)
+    return {"authorize_url": authorize_url, "login_type": "instagram"}
 
 
 @callback_router.get("/api/v1/instagram/oauth/callback")
@@ -87,7 +100,7 @@ async def oauth_callback(
             status_code=400,
             detail={"error": "missing code or state"},
         )
-    return await connect_service.complete_facebook_oauth(
+    return await connect_service.complete_oauth(
         session, code=code, state=state, page_id=page_id
     )
 

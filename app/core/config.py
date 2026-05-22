@@ -110,6 +110,12 @@ class Settings(BaseSettings):
     # app. Must match byte-for-byte between the login dialog and the
     # code exchange. Same URI serves both Facebook + Instagram Login.
     meta_oauth_redirect_uri: str = ""
+    # Instagram Login flow (I.10c) — the *Instagram* app id + secret
+    # (under the app's "Instagram > API setup with Instagram login"),
+    # distinct from the Facebook app id/secret. Lets clients without a
+    # Facebook Page connect (host ``graph.instagram.com``).
+    meta_instagram_app_id: str = ""
+    meta_instagram_app_secret: str = ""
 
 
 @lru_cache(maxsize=1)

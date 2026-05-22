@@ -44,6 +44,15 @@ FACEBOOK_LOGIN_SCOPES: tuple[str, ...] = (
     "business_management",
 )
 
+# Instagram Login scopes (the ``instagram_business_*`` family) — no
+# Facebook Page required. DELETE media is NOT available on this flow.
+INSTAGRAM_LOGIN_SCOPES: tuple[str, ...] = (
+    "instagram_business_basic",
+    "instagram_business_content_publish",
+    "instagram_business_manage_comments",
+    "instagram_business_manage_insights",
+)
+
 
 # ---------------------------------------------------------------------------
 # Result objects
@@ -69,6 +78,19 @@ class PageInfo:
 class PagesResult:
     ok: bool
     pages: list[PageInfo] = field(default_factory=list)
+    error_code: str | None = None
+    error_message: str | None = None
+
+
+@dataclass(slots=True)
+class InstagramTokenResult:
+    """Instagram Login token exchange — carries the IG user id (the
+    professional account id we publish to)."""
+
+    ok: bool
+    access_token: str | None = None
+    user_id: str | None = None
+    expires_in: int | None = None
     error_code: str | None = None
     error_message: str | None = None
 
@@ -261,14 +283,141 @@ async def get_page_ig_account(
     return None
 
 
+# ---------------------------------------------------------------------------
+# Instagram Login flow (host graph.instagram.com — no Facebook Page)
+# ---------------------------------------------------------------------------
+def build_instagram_login_url(*, redirect_uri: str, state: str) -> str:
+    """The Instagram Login authorization URL (no Facebook Page needed)."""
+    settings = get_settings()
+    query = urlencode(
+        {
+            "client_id": settings.meta_instagram_app_id,
+            "redirect_uri": redirect_uri,
+            "state": state,
+            "response_type": "code",
+            "scope": ",".join(INSTAGRAM_LOGIN_SCOPES),
+        }
+    )
+    return f"https://www.instagram.com/oauth/authorize?{query}"
+
+
+async def exchange_instagram_code(
+    *, code: str, redirect_uri: str
+) -> InstagramTokenResult:
+    """``POST https://api.instagram.com/oauth/access_token`` — code →
+    short-lived token + the IG user id."""
+    settings = get_settings()
+    body = {
+        "client_id": settings.meta_instagram_app_id,
+        "client_secret": settings.meta_instagram_app_secret,
+        "grant_type": "authorization_code",
+        "redirect_uri": redirect_uri,
+        "code": code,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://api.instagram.com/oauth/access_token", data=body
+            )
+    except (httpx.RequestError, httpx.TimeoutException) as exc:
+        return InstagramTokenResult(
+            ok=False,
+            error_code="transport_error",
+            error_message=str(exc)[:500],
+        )
+    if resp.status_code >= 400:
+        code_s, message = _extract_error(resp)
+        return InstagramTokenResult(
+            ok=False, error_code=code_s, error_message=message
+        )
+    try:
+        payload = resp.json()
+    except ValueError:
+        return InstagramTokenResult(
+            ok=False, error_code="bad_json", error_message=resp.text[:500]
+        )
+    # Newer API: flat ``{access_token, user_id, permissions}``.
+    # Older: ``{"data": [{...}]}``.
+    if (
+        isinstance(payload, dict)
+        and not payload.get("access_token")
+        and isinstance(payload.get("data"), list)
+        and payload["data"]
+    ):
+        payload = payload["data"][0]
+    token = payload.get("access_token") if isinstance(payload, dict) else None
+    user_id = payload.get("user_id") if isinstance(payload, dict) else None
+    if not token or not user_id:
+        return InstagramTokenResult(
+            ok=False,
+            error_code="no_access_token",
+            error_message=str(payload)[:500],
+        )
+    return InstagramTokenResult(
+        ok=True, access_token=str(token), user_id=str(user_id)
+    )
+
+
+async def exchange_instagram_long_lived(
+    *, short_token: str
+) -> InstagramTokenResult:
+    """``GET https://graph.instagram.com/access_token`` with
+    ``grant_type=ig_exchange_token`` → ~60-day token."""
+    settings = get_settings()
+    params = {
+        "grant_type": "ig_exchange_token",
+        "client_secret": settings.meta_instagram_app_secret,
+        "access_token": short_token,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(
+                "https://graph.instagram.com/access_token", params=params
+            )
+    except (httpx.RequestError, httpx.TimeoutException) as exc:
+        return InstagramTokenResult(
+            ok=False,
+            error_code="transport_error",
+            error_message=str(exc)[:500],
+        )
+    if resp.status_code >= 400:
+        code_s, message = _extract_error(resp)
+        return InstagramTokenResult(
+            ok=False, error_code=code_s, error_message=message
+        )
+    try:
+        payload = resp.json()
+    except ValueError:
+        return InstagramTokenResult(
+            ok=False, error_code="bad_json", error_message=resp.text[:500]
+        )
+    token = payload.get("access_token") if isinstance(payload, dict) else None
+    if not token:
+        return InstagramTokenResult(
+            ok=False,
+            error_code="no_access_token",
+            error_message=str(payload)[:500],
+        )
+    return InstagramTokenResult(
+        ok=True,
+        access_token=str(token),
+        expires_in=payload.get("expires_in"),
+    )
+
+
 __all__ = [
     "FACEBOOK_LOGIN_SCOPES",
+    "INSTAGRAM_LOGIN_SCOPES",
+    "InstagramTokenResult",
     "OAuthTokenResult",
     "PageInfo",
     "PagesResult",
     "build_facebook_login_url",
+    "build_instagram_login_url",
     "exchange_code_for_token",
     "exchange_for_long_lived",
+    "exchange_instagram_code",
+    "exchange_instagram_long_lived",
     "get_page_ig_account",
     "list_pages",
 ]

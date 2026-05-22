@@ -278,12 +278,16 @@ def meta_oauth_config():
         settings.meta_app_id,
         settings.meta_app_secret,
         settings.meta_oauth_redirect_uri,
+        settings.meta_instagram_app_id,
+        settings.meta_instagram_app_secret,
     )
     settings.meta_app_id = "APPID"
     settings.meta_app_secret = "APPSECRET"
     settings.meta_oauth_redirect_uri = (
         "https://app.example.com/api/v1/instagram/oauth/callback"
     )
+    settings.meta_instagram_app_id = "IGAPPID"
+    settings.meta_instagram_app_secret = "IGAPPSECRET"
     try:
         yield settings
     finally:
@@ -291,6 +295,8 @@ def meta_oauth_config():
             settings.meta_app_id,
             settings.meta_app_secret,
             settings.meta_oauth_redirect_uri,
+            settings.meta_instagram_app_id,
+            settings.meta_instagram_app_secret,
         ) = orig
 
 
@@ -450,3 +456,76 @@ async def test_oauth_callback_missing_code_400(client):
         "/api/v1/instagram/oauth/callback", params={"state": "x"}
     )
     assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# OAuth — Instagram Login (I.10c — no Facebook Page)
+# ---------------------------------------------------------------------------
+def test_build_instagram_login_url(meta_oauth_config):
+    url = ig_oauth.build_instagram_login_url(
+        redirect_uri="https://app.example.com/cb", state="IGST"
+    )
+    assert "client_id=IGAPPID" in url
+    assert "state=IGST" in url
+    assert "instagram_business_content_publish" in url
+    assert "oauth/authorize" in url
+
+
+@respx.mock
+async def test_complete_instagram_oauth_happy_path(db_session, meta_oauth_config):
+    owner, _ = await _seed(db_session, "-igok")
+    respx.post("https://api.instagram.com/oauth/access_token").mock(
+        return_value=httpx.Response(
+            200, json={"access_token": "IG_SHORT", "user_id": 178410001}
+        )
+    )
+    respx.get("https://graph.instagram.com/access_token").mock(
+        return_value=httpx.Response(
+            200, json={"access_token": "IG_LONG", "expires_in": 5183944}
+        )
+    )
+    state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
+    result = await csvc.complete_instagram_oauth(
+        db_session, code="IGCODE", state=state
+    )
+    assert result["login_type"] == "instagram"
+    assert result["instagram_id"] == "178410001"
+    # Instagram Login channels can't delete media.
+    assert (
+        await csvc.can_delete_media(
+            db_session, channel_instagram_id=result["channel_instagram_id"]
+        )
+        is False
+    )
+
+
+async def test_start_instagram_endpoint(client, db_session, meta_oauth_config):
+    owner, headers = await _seed(db_session, "-igstart")
+    resp = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/instagram_channels/connect/start_instagram",
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert "oauth/authorize" in resp.json()["authorize_url"]
+    assert resp.json()["login_type"] == "instagram"
+
+
+@respx.mock
+async def test_oauth_callback_dispatches_instagram(client, db_session, meta_oauth_config):
+    owner, _ = await _seed(db_session, "-igcb")
+    respx.post("https://api.instagram.com/oauth/access_token").mock(
+        return_value=httpx.Response(
+            200, json={"access_token": "S", "user_id": 178410002}
+        )
+    )
+    respx.get("https://graph.instagram.com/access_token").mock(
+        return_value=httpx.Response(200, json={"access_token": "L"})
+    )
+    state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
+    resp = await client.get(
+        "/api/v1/instagram/oauth/callback",
+        params={"code": "CODE", "state": state},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["login_type"] == "instagram"
+    assert resp.json()["instagram_id"] == "178410002"
