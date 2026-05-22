@@ -13,12 +13,19 @@ delete path gates on :func:`can_delete_media`.
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
+import json
+import secrets
+import time
 from datetime import datetime
 from typing import Any
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.core.errors import ChatwootHTTPException
 from app.domains.instagram.models import (
     INSTAGRAM_CONNECT_METHODS,
@@ -172,9 +179,221 @@ async def connect_manual(
     }
 
 
+# ---------------------------------------------------------------------------
+# OAuth — signed state (CSRF + carries the account through the callback)
+# ---------------------------------------------------------------------------
+def _state_secret() -> bytes:
+    return get_settings().secret_key.encode()
+
+
+def sign_oauth_state(account_id: int, *, flow: str) -> str:
+    """Sign ``{account_id, flow, nonce, ts}`` so the (account-less)
+    callback can trust it. HMAC-SHA256 over the base64 payload with the
+    app secret key."""
+    payload = {
+        "account_id": account_id,
+        "flow": flow,
+        "nonce": secrets.token_hex(8),
+        "ts": int(time.time()),
+    }
+    raw = json.dumps(payload, separators=(",", ":")).encode()
+    b = base64.urlsafe_b64encode(raw).decode().rstrip("=")
+    sig = hmac.new(
+        _state_secret(), b.encode(), hashlib.sha256
+    ).hexdigest()[:32]
+    return f"{b}.{sig}"
+
+
+def verify_oauth_state(state: str, *, max_age_seconds: int = 600) -> dict[str, Any]:
+    """Verify the signed state → its payload, or 401."""
+    try:
+        b, sig = state.split(".", 1)
+    except (ValueError, AttributeError):
+        raise ChatwootHTTPException(
+            status_code=401, detail={"error": "invalid oauth state"}
+        ) from None
+    expected = hmac.new(
+        _state_secret(), b.encode(), hashlib.sha256
+    ).hexdigest()[:32]
+    if not hmac.compare_digest(expected, sig):
+        raise ChatwootHTTPException(
+            status_code=401, detail={"error": "invalid oauth state"}
+        )
+    try:
+        raw = base64.urlsafe_b64decode(b + "=" * (-len(b) % 4))
+        payload = json.loads(raw)
+    except (ValueError, json.JSONDecodeError):
+        raise ChatwootHTTPException(
+            status_code=401, detail={"error": "invalid oauth state"}
+        ) from None
+    if int(time.time()) - int(payload.get("ts", 0)) > max_age_seconds:
+        raise ChatwootHTTPException(
+            status_code=401, detail={"error": "oauth state expired"}
+        )
+    return payload
+
+
+# ---------------------------------------------------------------------------
+# OAuth — Facebook Login flow
+# ---------------------------------------------------------------------------
+def start_facebook_oauth(account_id: int) -> str:
+    """Build the Facebook Login dialog URL (with signed state) the admin
+    is redirected to. 422 if Meta OAuth isn't configured."""
+    from app.domains.instagram import oauth
+
+    settings = get_settings()
+    if not (settings.meta_app_id and settings.meta_oauth_redirect_uri):
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    "Meta OAuth not configured "
+                    "(META_APP_ID / META_OAUTH_REDIRECT_URI)"
+                )
+            },
+        )
+    state = sign_oauth_state(account_id, flow="facebook")
+    return oauth.build_facebook_login_url(
+        redirect_uri=settings.meta_oauth_redirect_uri, state=state
+    )
+
+
+async def complete_facebook_oauth(
+    session: AsyncSession,
+    *,
+    code: str,
+    state: str,
+    page_id: str | None = None,
+) -> dict[str, Any]:
+    """Finish the Facebook Login handshake: verify state, exchange the
+    code for a (non-expiring) page token + IG id, create the inbox +
+    channel, and record the connection.
+
+    ``page_id`` optionally selects which Page when the user manages
+    several; otherwise the first Page with a linked IG account wins.
+    """
+    from app.domains.accounts.models import Account
+    from app.domains.instagram import oauth
+
+    payload = verify_oauth_state(state)
+    if payload.get("flow") != "facebook":
+        raise ChatwootHTTPException(
+            status_code=401, detail={"error": "oauth flow mismatch"}
+        )
+    account_id = int(payload["account_id"])
+    account = await session.get(Account, account_id)
+    if account is None:
+        raise ChatwootHTTPException(
+            status_code=404,
+            detail={"error": "Resource could not be found"},
+        )
+
+    redirect_uri = get_settings().meta_oauth_redirect_uri
+
+    short = await oauth.exchange_code_for_token(
+        code=code, redirect_uri=redirect_uri
+    )
+    if not short.ok or not short.access_token:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": short.error_message or "code exchange failed",
+                "code": short.error_code,
+            },
+        )
+    long = await oauth.exchange_for_long_lived(
+        short_token=short.access_token
+    )
+    if not long.ok or not long.access_token:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": long.error_message or "long-lived exchange failed",
+                "code": long.error_code,
+            },
+        )
+    pages = await oauth.list_pages(user_token=long.access_token)
+    if not pages.ok:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": pages.error_message or "could not list pages",
+                "code": pages.error_code,
+            },
+        )
+
+    chosen = None
+    if page_id:
+        chosen = next((p for p in pages.pages if p.id == page_id), None)
+    if chosen is None:
+        chosen = next(
+            (p for p in pages.pages if p.instagram_business_account_id),
+            None,
+        )
+    if chosen is None:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    "no Facebook Page with a linked Instagram business "
+                    "account was found"
+                )
+            },
+        )
+
+    ig_id = chosen.instagram_business_account_id
+    if not ig_id:
+        ig_id = await oauth.get_page_ig_account(
+            page_id=chosen.id, page_token=chosen.access_token
+        )
+    if not ig_id:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": "selected Page has no linked Instagram account"
+            },
+        )
+
+    from app.domains.inboxes.service import (
+        InboxBuilder,
+        InboxBuilderParams,
+    )
+
+    result = await InboxBuilder(
+        session,
+        InboxBuilderParams(
+            account=account,
+            name=chosen.name or "Instagram",
+            channel_type="instagram",
+            channel_params={
+                "instagram_id": ig_id,
+                "access_token": chosen.access_token,
+            },
+        ),
+    ).perform()
+    await record_connection(
+        session,
+        channel_instagram_id=result.channel.id,
+        login_type="facebook",
+        connect_method="oauth",
+        page_id=chosen.id,
+    )
+    return {
+        "inbox_id": result.inbox.id,
+        "channel_instagram_id": result.channel.id,
+        "instagram_id": ig_id,
+        "login_type": "facebook",
+        "page_id": chosen.id,
+    }
+
+
 __all__ = [
     "can_delete_media",
+    "complete_facebook_oauth",
     "connect_manual",
     "get_channel_setting",
     "record_connection",
+    "sign_oauth_state",
+    "start_facebook_oauth",
+    "verify_oauth_state",
 ]

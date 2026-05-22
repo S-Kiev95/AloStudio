@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import get_session
@@ -26,6 +26,10 @@ router = APIRouter(
     prefix="/api/v1/accounts/{account_id}/instagram_channels",
     tags=["instagram-connect"],
 )
+
+# OAuth callback is account-less (Meta redirects to one fixed URI; the
+# account travels in the signed ``state``). Separate router, no prefix.
+callback_router = APIRouter(tags=["instagram-connect"])
 
 
 @router.post("/connect_manual", status_code=status.HTTP_200_OK)
@@ -44,6 +48,47 @@ async def connect_manual_endpoint(
         access_token=payload.access_token,
         login_type=payload.login_type,
         expires_at=payload.expires_at,
+    )
+
+
+@router.get("/connect/start")
+async def connect_start(
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],  # noqa: ARG001
+) -> dict[str, Any]:
+    """Begin the Facebook Login OAuth — returns the dialog URL the
+    admin's browser should be redirected to (with a signed state)."""
+    assert ctx.account.id is not None
+    authorize_url = connect_service.start_facebook_oauth(ctx.account.id)
+    return {"authorize_url": authorize_url}
+
+
+@callback_router.get("/api/v1/instagram/oauth/callback")
+async def oauth_callback(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    code: Annotated[str | None, Query()] = None,
+    state: Annotated[str | None, Query()] = None,
+    page_id: Annotated[str | None, Query()] = None,
+    error: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    """Meta's OAuth redirect target. The account travels in the signed
+    ``state``; capability + channel creation happen here.
+
+    Production would 302 to a dashboard success/failure page; we return
+    JSON so the handshake is testable.
+    """
+    if error:
+        raise ChatwootHTTPException(
+            status_code=400,
+            detail={"error": f"oauth denied: {error}"},
+        )
+    if not code or not state:
+        raise ChatwootHTTPException(
+            status_code=400,
+            detail={"error": "missing code or state"},
+        )
+    return await connect_service.complete_facebook_oauth(
+        session, code=code, state=state, page_id=page_id
     )
 
 
@@ -73,4 +118,4 @@ async def show_channel_settings(
     }
 
 
-__all__ = ["router"]
+__all__ = ["callback_router", "router"]

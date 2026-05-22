@@ -15,8 +15,10 @@ import respx
 from httpx import ASGITransport, AsyncClient
 
 from app.core.auth.devise_token_auth import create_new_auth_token
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
+from app.domains.instagram import oauth as ig_oauth
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts import models as _contacts  # noqa: F401  (mapper)
 from app.domains.conversations import models as _conversations  # noqa: F401
@@ -264,3 +266,187 @@ async def test_connect_manual_invalid_login_type(client, db_session):
     )
     # Rejected by the schema Literal (422).
     assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# OAuth — Facebook Login (I.10b)
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def meta_oauth_config():
+    settings = get_settings()
+    orig = (
+        settings.meta_app_id,
+        settings.meta_app_secret,
+        settings.meta_oauth_redirect_uri,
+    )
+    settings.meta_app_id = "APPID"
+    settings.meta_app_secret = "APPSECRET"
+    settings.meta_oauth_redirect_uri = (
+        "https://app.example.com/api/v1/instagram/oauth/callback"
+    )
+    try:
+        yield settings
+    finally:
+        (
+            settings.meta_app_id,
+            settings.meta_app_secret,
+            settings.meta_oauth_redirect_uri,
+        ) = orig
+
+
+def test_oauth_state_sign_verify_roundtrip():
+    state = csvc.sign_oauth_state(42, flow="facebook")
+    payload = csvc.verify_oauth_state(state)
+    assert payload["account_id"] == 42
+    assert payload["flow"] == "facebook"
+
+
+def test_oauth_state_tampered_rejected():
+    state = csvc.sign_oauth_state(42, flow="facebook")
+    tampered = state[:-1] + ("0" if state[-1] != "0" else "1")
+    with pytest.raises(ChatwootHTTPException) as exc:
+        csvc.verify_oauth_state(tampered)
+    assert exc.value.status_code == 401
+
+
+def test_build_facebook_login_url(meta_oauth_config):
+    url = ig_oauth.build_facebook_login_url(
+        redirect_uri="https://app.example.com/cb", state="ST8"
+    )
+    assert "client_id=APPID" in url
+    assert "state=ST8" in url
+    assert "instagram_content_publish" in url
+    assert "dialog/oauth" in url
+
+
+@respx.mock
+async def test_complete_facebook_oauth_happy_path(db_session, meta_oauth_config):
+    owner, _ = await _seed(db_session, "-fbok")
+    # token exchange (short then long) hit the same URL.
+    respx.get(f"{GRAPH}/oauth/access_token").mock(
+        side_effect=[
+            httpx.Response(200, json={"access_token": "SHORT"}),
+            httpx.Response(
+                200, json={"access_token": "LONG", "expires_in": 5183944}
+            ),
+        ]
+    )
+    respx.get(f"{GRAPH}/me/accounts").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": "PAGE1",
+                        "name": "Mi Negocio",
+                        "access_token": "PAGE_TOKEN_PERMA",
+                        "instagram_business_account": {"id": "17841999"},
+                    }
+                ]
+            },
+        )
+    )
+    state = csvc.sign_oauth_state(owner.account.id, flow="facebook")
+    result = await csvc.complete_facebook_oauth(
+        db_session, code="CODE", state=state
+    )
+    assert result["login_type"] == "facebook"
+    assert result["instagram_id"] == "17841999"
+    assert result["page_id"] == "PAGE1"
+    setting = await csvc.get_channel_setting(
+        db_session, channel_instagram_id=result["channel_instagram_id"]
+    )
+    assert setting.connect_method == "oauth"
+    assert setting.login_type == "facebook"
+
+
+@respx.mock
+async def test_complete_facebook_oauth_no_ig_page_422(db_session, meta_oauth_config):
+    owner, _ = await _seed(db_session, "-fbnoig")
+    respx.get(f"{GRAPH}/oauth/access_token").mock(
+        side_effect=[
+            httpx.Response(200, json={"access_token": "S"}),
+            httpx.Response(200, json={"access_token": "L"}),
+        ]
+    )
+    respx.get(f"{GRAPH}/me/accounts").mock(
+        return_value=httpx.Response(
+            200,
+            json={"data": [{"id": "P", "name": "No IG", "access_token": "t"}]},
+        )
+    )
+    state = csvc.sign_oauth_state(owner.account.id, flow="facebook")
+    with pytest.raises(ChatwootHTTPException) as exc:
+        await csvc.complete_facebook_oauth(
+            db_session, code="CODE", state=state
+        )
+    assert exc.value.status_code == 422
+
+
+async def test_complete_facebook_oauth_bad_state(db_session, meta_oauth_config):
+    with pytest.raises(ChatwootHTTPException) as exc:
+        await csvc.complete_facebook_oauth(
+            db_session, code="CODE", state="garbage.sig"
+        )
+    assert exc.value.status_code == 401
+
+
+async def test_connect_start_endpoint(client, db_session, meta_oauth_config):
+    owner, headers = await _seed(db_session, "-start")
+    resp = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/instagram_channels/connect/start",
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert "dialog/oauth" in resp.json()["authorize_url"]
+    assert "client_id=APPID" in resp.json()["authorize_url"]
+
+
+async def test_connect_start_unconfigured_422(client, db_session):
+    owner, headers = await _seed(db_session, "-startno")
+    # No meta_oauth_config fixture → app_id/redirect_uri empty.
+    resp = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/instagram_channels/connect/start",
+        headers=headers,
+    )
+    assert resp.status_code == 422
+
+
+@respx.mock
+async def test_oauth_callback_endpoint(client, db_session, meta_oauth_config):
+    owner, _ = await _seed(db_session, "-cb")
+    respx.get(f"{GRAPH}/oauth/access_token").mock(
+        side_effect=[
+            httpx.Response(200, json={"access_token": "S"}),
+            httpx.Response(200, json={"access_token": "L"}),
+        ]
+    )
+    respx.get(f"{GRAPH}/me/accounts").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": "PG",
+                        "name": "Biz",
+                        "access_token": "PT",
+                        "instagram_business_account": {"id": "178412345"},
+                    }
+                ]
+            },
+        )
+    )
+    state = csvc.sign_oauth_state(owner.account.id, flow="facebook")
+    resp = await client.get(
+        "/api/v1/instagram/oauth/callback",
+        params={"code": "CODE", "state": state},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["instagram_id"] == "178412345"
+
+
+async def test_oauth_callback_missing_code_400(client):
+    resp = await client.get(
+        "/api/v1/instagram/oauth/callback", params={"state": "x"}
+    )
+    assert resp.status_code == 400

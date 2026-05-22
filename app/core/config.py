@@ -106,6 +106,10 @@ class Settings(BaseSettings):
     # (saves a doomed container create). Default OFF so the publish
     # path stays a single round-trip unless an operator enables it.
     meta_check_publishing_quota: bool = False
+    # OAuth redirect URI (I.10) — the callback registered in the Meta
+    # app. Must match byte-for-byte between the login dialog and the
+    # code exchange. Same URI serves both Facebook + Instagram Login.
+    meta_oauth_redirect_uri: str = ""
 
 
 @lru_cache(maxsize=1)
