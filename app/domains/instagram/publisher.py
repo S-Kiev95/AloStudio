@@ -30,7 +30,6 @@ from typing import Any
 
 import httpx
 
-from app.core.config import get_settings
 from app.domains.inboxes.models import InstagramChannel
 
 log = logging.getLogger(__name__)
@@ -100,8 +99,10 @@ class QuotaResult:
 # URL helpers
 # ---------------------------------------------------------------------------
 def _base() -> str:
-    settings = get_settings()
-    return f"https://graph.facebook.com/{settings.meta_graph_api_version}"
+    # Host is task-local (Facebook vs Instagram Login) — see graph.py.
+    from app.domains.instagram.graph import graph_base
+
+    return graph_base()
 
 
 def _media_url(channel: InstagramChannel) -> str:

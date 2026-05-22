@@ -444,7 +444,7 @@ tests stay green (flag default OFF).
 worker's own engine — exercised in prod, not the mock suite, mirroring
 the existing immediate-publish worker path.)
 
-### I.10 — Connection flows (OAuth + Instagram Login + manual token)
+### I.10 — Connection flows (OAuth + Instagram Login + manual token) ✅
 
 **Three ways to connect a client's Instagram, because most clients do
 NOT have a Facebook Page** (verified May 2026 against Meta docs):
@@ -480,6 +480,20 @@ NOT have a Facebook Page** (verified May 2026 against Meta docs):
       it just writes the two fields the publisher already reads.
 - [ ] Tests with respx mocks for each flow's Meta endpoints + the
       delete-capability gate.
+
+**Status — shipped in 4 chunks (all respx-mocked, 25 connect tests):**
+- [x] **ig.10a** — `instagram_channel_settings` (login_type) + manual
+      connect (paste token) + `can_delete_media` gate on the delete path.
+- [x] **ig.10b** — Facebook Login OAuth (signed state, code→long-lived
+      page token→IG id, inbox+channel creation), `connect/start` +
+      account-less `/api/v1/instagram/oauth/callback`.
+- [x] **ig.10c** — Instagram Login OAuth (no FB Page; host
+      graph.instagram.com), `connect/start_instagram` + callback
+      dispatch by `state.flow`.
+- [x] **ig.10d** — per-channel Graph host (task-local contextvar):
+      publish + comments route to graph.instagram.com for IG-login
+      channels, graph.facebook.com otherwise (default keeps every
+      existing call site unchanged).
 
 > **One Meta app, multitenant:** a single AloStudio Meta app (Live +
 > App Review / Advanced Access) serves unlimited client accounts — each

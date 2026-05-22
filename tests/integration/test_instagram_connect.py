@@ -31,6 +31,11 @@ from app.main import app
 pytestmark = pytest.mark.integration
 
 GRAPH = "https://graph.facebook.com/v23.0"
+IG_GRAPH = "https://graph.instagram.com/v23.0"
+
+
+async def _instant_sleep(_seconds: float) -> None:
+    return None
 
 
 @pytest.fixture
@@ -529,3 +534,96 @@ async def test_oauth_callback_dispatches_instagram(client, db_session, meta_oaut
     assert resp.status_code == 200, resp.text
     assert resp.json()["login_type"] == "instagram"
     assert resp.json()["instagram_id"] == "178410002"
+
+
+# ---------------------------------------------------------------------------
+# Per-channel Graph host (I.10d) — IG Login routes to graph.instagram.com
+# ---------------------------------------------------------------------------
+@respx.mock
+async def test_publish_uses_instagram_host_for_ig_login(db_session):
+    owner, _ = await _seed(db_session, "-ighost")
+    inbox, channel = await _ig_channel(db_session, owner, "-ighost")
+    await csvc.record_connection(
+        db_session, channel_instagram_id=channel.id, login_type="instagram"
+    )
+    igid = channel.instagram_id
+    create = respx.post(f"{IG_GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(200, json={"id": "IGC1"})
+    )
+    respx.get(f"{IG_GRAPH}/IGC1").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
+    )
+    respx.post(f"{IG_GRAPH}/{igid}/media_publish").mock(
+        return_value=httpx.Response(200, json={"id": "IGM1"})
+    )
+    respx.get(f"{IG_GRAPH}/IGM1").mock(
+        return_value=httpx.Response(200, json={"permalink": "x"})
+    )
+    post = await ig_svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=channel.id,
+        media_type="IMAGE",
+        source={"image_url": "https://x.example.com/p.jpg"},
+    )
+    result = await ig_svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "published", result.error_message
+    assert result.ig_media_id == "IGM1"
+    assert create.called  # hit graph.instagram.com, not facebook
+
+
+@respx.mock
+async def test_publish_uses_facebook_host_by_default(db_session):
+    """A channel with no settings row (legacy) stays on graph.facebook.com."""
+    owner, _ = await _seed(db_session, "-fbhost")
+    inbox, channel = await _ig_channel(db_session, owner, "-fbhost")
+    igid = channel.instagram_id
+    create = respx.post(f"{GRAPH}/{igid}/media").mock(
+        return_value=httpx.Response(200, json={"id": "FBC1"})
+    )
+    respx.get(f"{GRAPH}/FBC1").mock(
+        return_value=httpx.Response(200, json={"status_code": "FINISHED"})
+    )
+    respx.post(f"{GRAPH}/{igid}/media_publish").mock(
+        return_value=httpx.Response(200, json={"id": "FBM1"})
+    )
+    respx.get(f"{GRAPH}/FBM1").mock(
+        return_value=httpx.Response(200, json={"permalink": "x"})
+    )
+    post = await ig_svc.create_post(
+        db_session,
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        channel_instagram_id=channel.id,
+        media_type="IMAGE",
+        source={"image_url": "https://x.example.com/p.jpg"},
+    )
+    result = await ig_svc.publish_post(
+        db_session, post_id=post.id, sleep_fn=_instant_sleep
+    )
+    assert result.state == "published"
+    assert create.called
+
+
+@respx.mock
+async def test_comment_uses_instagram_host_for_ig_login(db_session):
+    owner, _ = await _seed(db_session, "-igcmt")
+    inbox, channel = await _ig_channel(db_session, owner, "-igcmt")
+    await csvc.record_connection(
+        db_session, channel_instagram_id=channel.id, login_type="instagram"
+    )
+    route = respx.post(f"{IG_GRAPH}/MED9/comments").mock(
+        return_value=httpx.Response(200, json={"id": "ICX1"})
+    )
+    c = await ig_svc.post_comment_on_meta(
+        db_session,
+        channel=channel,
+        account_id=owner.account.id,
+        ig_media_id="MED9",
+        message="hola",
+    )
+    assert route.called
+    assert c.ig_comment_id == "ICX1"

@@ -779,61 +779,19 @@ async def _publish_carousel(
     )
 
 
-async def publish_post(
+async def _publish_dispatch(
     session: AsyncSession,
     *,
-    post_id: int,
+    post: InstagramPost,
+    channel: Any,
     sleep_fn=None,
 ) -> InstagramPost:
-    """Drive ``post_id`` through container creation → polling →
-    publish on Meta.
-
-    ``IMAGE`` (I.2), ``VIDEO`` / ``REELS`` (I.3) and ``STORIES`` (I.5)
-    all share the single-container path (create → poll status_code →
-    media_publish), differing only in the container params. CAROUSEL
-    (I.4) takes the multi-container path in :func:`_publish_carousel`
-    (per-child container → poll all → parent → publish). An unknown
-    media type (which create_post validation already rejects) flips the
-    post to ``failed`` rather than crashing the worker.
-
-    The container is created HERE (in the task body), not at
-    create-post time — Meta containers expire after 24h, so a post
-    scheduled days ahead must defer container creation until fire
-    time. See PLAN.instagram-graph.md.
-
-    ``sleep_fn`` is forwarded to the poller so tests run instantly.
-
-    Returns the post in its terminal state (published / failed).
-    Never raises on Meta-side failures — stamps ``error_code`` /
-    ``error_message`` + flips to ``failed`` instead.
-    """
-    from app.domains.inboxes.models import InstagramChannel
+    """The publish state machine for one post, run inside the channel's
+    Graph host context (Facebook vs Instagram Login — see
+    :func:`publish_post`). Split out so the host contextvar wraps every
+    Meta call without re-indenting the whole body."""
+    from app.core.config import get_settings
     from app.domains.instagram import publisher
-
-    post = await session.get(InstagramPost, post_id)
-    if post is None:
-        raise ChatwootHTTPException(
-            status_code=404,
-            detail={"error": "instagram post not found"},
-        )
-
-    # Idempotency: only act on pending posts. A double-enqueue (REST +
-    # scheduler racing) finds the post already publishing/published and
-    # no-ops.
-    if post.state != "pending":
-        return post
-
-    channel = await session.get(
-        InstagramChannel, post.channel_instagram_id
-    )
-    if channel is None:
-        return await transition_post_state(
-            session,
-            post=post,
-            new_state="failed",
-            error_code="missing_channel",
-            error_message="instagram channel row not found",
-        )
 
     await transition_post_state(
         session, post=post, new_state="publishing"
@@ -842,8 +800,6 @@ async def publish_post(
     # ---- Quota pre-check (I.9, opt-in) ----
     # Saves a doomed container create when the 24h cap is already hit.
     # Best-effort: a failed quota call doesn't block publishing.
-    from app.core.config import get_settings
-
     if get_settings().meta_check_publishing_quota:
         quota = await publisher.fetch_publishing_limit(channel)
         if quota.exceeded:
@@ -981,6 +937,81 @@ async def publish_post(
     )
 
 
+async def publish_post(
+    session: AsyncSession,
+    *,
+    post_id: int,
+    sleep_fn=None,
+) -> InstagramPost:
+    """Drive ``post_id`` through container creation → polling →
+    publish on Meta.
+
+    ``IMAGE`` (I.2), ``VIDEO`` / ``REELS`` (I.3) and ``STORIES`` (I.5)
+    all share the single-container path (create → poll status_code →
+    media_publish), differing only in the container params. CAROUSEL
+    (I.4) takes the multi-container path in :func:`_publish_carousel`
+    (per-child container → poll all → parent → publish). An unknown
+    media type (which create_post validation already rejects) flips the
+    post to ``failed`` rather than crashing the worker.
+
+    The container is created HERE (in the task body), not at
+    create-post time — Meta containers expire after 24h, so a post
+    scheduled days ahead must defer container creation until fire
+    time. See PLAN.instagram-graph.md.
+
+    ``sleep_fn`` is forwarded to the poller so tests run instantly.
+
+    Returns the post in its terminal state (published / failed).
+    Never raises on Meta-side failures — stamps ``error_code`` /
+    ``error_message`` + flips to ``failed`` instead.
+
+    The whole state machine runs inside the channel's Graph host context
+    (Facebook Login → graph.facebook.com, Instagram Login →
+    graph.instagram.com) — see :func:`_publish_dispatch` + graph.py.
+    """
+    from app.domains.inboxes.models import InstagramChannel
+    from app.domains.instagram import connect_service, graph
+
+    post = await session.get(InstagramPost, post_id)
+    if post is None:
+        raise ChatwootHTTPException(
+            status_code=404,
+            detail={"error": "instagram post not found"},
+        )
+
+    # Idempotency: only act on pending posts. A double-enqueue (REST +
+    # scheduler racing) finds the post already publishing/published and
+    # no-ops.
+    if post.state != "pending":
+        return post
+
+    channel = await session.get(
+        InstagramChannel, post.channel_instagram_id
+    )
+    if channel is None:
+        return await transition_post_state(
+            session,
+            post=post,
+            new_state="failed",
+            error_code="missing_channel",
+            error_message="instagram channel row not found",
+        )
+
+    # Select the Graph host (Facebook vs Instagram Login) for the whole
+    # operation, then run the state machine inside it.
+    setting = await connect_service.get_channel_setting(
+        session, channel_instagram_id=post.channel_instagram_id
+    )
+    with graph.graph_host(
+        graph.host_for_login_type(
+            setting.login_type if setting else None
+        )
+    ):
+        return await _publish_dispatch(
+            session, post=post, channel=channel, sleep_fn=sleep_fn
+        )
+
+
 async def delete_media_on_meta(
     session: AsyncSession,
     *,
@@ -1088,6 +1119,19 @@ def _parse_ig_timestamp(raw: str | None) -> datetime | None:
     return None
 
 
+async def _graph_host_for_channel(session: AsyncSession, channel: Any) -> str:
+    """The Graph host for a channel, from its connection ``login_type``
+    (Facebook → graph.facebook.com, Instagram → graph.instagram.com)."""
+    from app.domains.instagram import connect_service, graph
+
+    setting = await connect_service.get_channel_setting(
+        session, channel_instagram_id=channel.id
+    )
+    return graph.host_for_login_type(
+        setting.login_type if setting else None
+    )
+
+
 async def get_comment(
     session: AsyncSession, *, account_id: int, comment_id: int
 ) -> InstagramComment | None:
@@ -1114,11 +1158,13 @@ async def list_comments_on_meta(
     local mirror, and return the stored rows (hidden included).
 
     A Meta-side failure surfaces as a 422 — the caller is interactive."""
-    from app.domains.instagram import comments_client
+    from app.domains.instagram import comments_client, graph
 
-    res = await comments_client.fetch_comments(
-        channel, ig_media_id=ig_media_id
-    )
+    host = await _graph_host_for_channel(session, channel)
+    with graph.graph_host(host):
+        res = await comments_client.fetch_comments(
+            channel, ig_media_id=ig_media_id
+        )
     if not res.ok:
         raise ChatwootHTTPException(
             status_code=422,
@@ -1159,11 +1205,13 @@ async def post_comment_on_meta(
 ) -> InstagramComment:
     """``POST /{ig-media-id}/comments`` then mirror the new comment
     locally. Returns the stored row (Milestone I.7)."""
-    from app.domains.instagram import comments_client
+    from app.domains.instagram import comments_client, graph
 
-    res = await comments_client.create_comment(
-        channel, ig_media_id=ig_media_id, message=message
-    )
+    host = await _graph_host_for_channel(session, channel)
+    with graph.graph_host(host):
+        res = await comments_client.create_comment(
+            channel, ig_media_id=ig_media_id, message=message
+        )
     if not res.ok or res.ig_comment_id is None:
         raise ChatwootHTTPException(
             status_code=422,
@@ -1192,13 +1240,15 @@ async def reply_comment_on_meta(
 ) -> InstagramComment:
     """``POST /{ig-comment-id}/replies`` then mirror the reply locally
     with ``parent_comment_id`` set (Milestone I.7)."""
-    from app.domains.instagram import comments_client
+    from app.domains.instagram import comments_client, graph
 
-    res = await comments_client.create_reply(
-        channel,
-        ig_comment_id=parent_comment.ig_comment_id,
-        message=message,
-    )
+    host = await _graph_host_for_channel(session, channel)
+    with graph.graph_host(host):
+        res = await comments_client.create_reply(
+            channel,
+            ig_comment_id=parent_comment.ig_comment_id,
+            message=message,
+        )
     if not res.ok or res.ig_comment_id is None:
         raise ChatwootHTTPException(
             status_code=422,
@@ -1227,11 +1277,13 @@ async def hide_comment_on_meta(
 ) -> InstagramComment:
     """``POST /{ig-comment-id}?hide=true|false`` then update the local
     row's ``hidden`` flag (Milestone I.7)."""
-    from app.domains.instagram import comments_client
+    from app.domains.instagram import comments_client, graph
 
-    res = await comments_client.set_hidden(
-        channel, ig_comment_id=comment.ig_comment_id, hide=hide
-    )
+    host = await _graph_host_for_channel(session, channel)
+    with graph.graph_host(host):
+        res = await comments_client.set_hidden(
+            channel, ig_comment_id=comment.ig_comment_id, hide=hide
+        )
     if not res.ok:
         raise ChatwootHTTPException(
             status_code=422,
@@ -1255,11 +1307,13 @@ async def delete_comment_on_meta(
 ) -> None:
     """``DELETE /{ig-comment-id}`` then drop the local mirror row
     (Milestone I.7)."""
-    from app.domains.instagram import comments_client
+    from app.domains.instagram import comments_client, graph
 
-    res = await comments_client.delete_comment(
-        channel, ig_comment_id=comment.ig_comment_id
-    )
+    host = await _graph_host_for_channel(session, channel)
+    with graph.graph_host(host):
+        res = await comments_client.delete_comment(
+            channel, ig_comment_id=comment.ig_comment_id
+        )
     if not res.ok:
         raise ChatwootHTTPException(
             status_code=422,

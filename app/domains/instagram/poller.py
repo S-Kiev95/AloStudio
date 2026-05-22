@@ -26,7 +26,6 @@ from dataclasses import dataclass
 
 import httpx
 
-from app.core.config import get_settings
 from app.domains.inboxes.models import InstagramChannel
 
 log = logging.getLogger(__name__)
@@ -52,11 +51,10 @@ class StatusResult:
 
 
 def _status_url(container_id: str) -> str:
-    settings = get_settings()
-    return (
-        f"https://graph.facebook.com/{settings.meta_graph_api_version}"
-        f"/{container_id}"
-    )
+    # Host is task-local (Facebook vs Instagram Login) — see graph.py.
+    from app.domains.instagram.graph import graph_base
+
+    return f"{graph_base()}/{container_id}"
 
 
 async def fetch_status(
