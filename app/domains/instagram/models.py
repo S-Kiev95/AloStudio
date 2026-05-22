@@ -353,6 +353,71 @@ class InstagramComment(TimestampMixin, table=True):
 
 
 # ---------------------------------------------------------------------------
+# InstagramChannelSetting — extension metadata for a connected channel.
+# ---------------------------------------------------------------------------
+# How a channel was connected, which determines its capabilities. Kept in
+# a separate table so the Phase 5e ``channel_instagram`` mirror model
+# stays untouched.
+#
+#   facebook  — Facebook Login flow (graph.facebook.com). Full feature
+#               set incl. DELETE media.
+#   instagram — Instagram Login flow (graph.instagram.com). Publish +
+#               moderate, but DELETE media is NOT supported by Meta.
+INSTAGRAM_LOGIN_TYPES: tuple[str, ...] = ("facebook", "instagram")
+
+# How the credentials were obtained (audit / UX only — capabilities key
+# off ``login_type``, not this).
+INSTAGRAM_CONNECT_METHODS: tuple[str, ...] = (
+    "oauth",
+    "manual",
+)
+
+
+class InstagramChannelSetting(TimestampMixin, table=True):
+    """1:1 extension row for a ``channel_instagram`` connection.
+
+    Records the ``login_type`` (capability dimension) + how it was
+    connected. The delete-media gate reads ``login_type`` — Instagram
+    Login channels can't delete media via Meta's API.
+    """
+
+    __tablename__ = "instagram_channel_settings"
+    __table_args__ = (
+        UniqueConstraint(
+            "channel_instagram_id",
+            name="index_instagram_channel_settings_on_channel_id",
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    channel_instagram_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("channel_instagram.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    login_type: str = Field(
+        default="facebook",
+        sa_column=Column(
+            String, nullable=False, server_default="facebook"
+        ),
+    )
+    connect_method: str = Field(
+        default="manual",
+        sa_column=Column(String, nullable=False, server_default="manual"),
+    )
+    # The FB Page id (Facebook Login flow only) — handy for audit + to
+    # re-derive the IG account if needed. Null for Instagram Login.
+    page_id: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+
+
+# ---------------------------------------------------------------------------
 # InstagramPostProduct — M2M link between a post/story and catalogue products.
 # ---------------------------------------------------------------------------
 class InstagramPostProduct(TimestampMixin, table=True):
@@ -397,9 +462,12 @@ class InstagramPostProduct(TimestampMixin, table=True):
 
 
 __all__ = [
+    "INSTAGRAM_CONNECT_METHODS",
     "INSTAGRAM_CONTAINER_STATUS_CODES",
+    "INSTAGRAM_LOGIN_TYPES",
     "INSTAGRAM_MEDIA_TYPES",
     "INSTAGRAM_POST_STATES",
+    "InstagramChannelSetting",
     "InstagramComment",
     "InstagramContainerStatus",
     "InstagramMediaType",

@@ -52,8 +52,26 @@ class InstagramCommentHide(BaseModel):
     hide: bool = True
 
 
+class InstagramManualConnect(BaseModel):
+    """Body for the advanced/manual connect — paste a token (e.g. a
+    permanent System User token) to create an Instagram inbox+channel.
+
+    ``login_type`` decides capabilities: ``facebook`` enables DELETE
+    media; ``instagram`` (Instagram Login) does not.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = Field(min_length=1, max_length=255)
+    instagram_id: str = Field(min_length=1)
+    access_token: str = Field(min_length=1)
+    login_type: Literal["facebook", "instagram"] = "facebook"
+    expires_at: datetime | None = None
+
+
 __all__ = [
     "InstagramCommentCreate",
     "InstagramCommentHide",
+    "InstagramManualConnect",
     "InstagramPostCreate",
 ]

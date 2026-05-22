@@ -43,6 +43,7 @@ from app.domains.teams.router import team_members_router
 from app.domains.users.router import router as profile_router
 from app.domains.facebook.router import router as facebook_webhook_router
 from app.domains.instagram.comments_router import router as instagram_comments_router
+from app.domains.instagram.connect_router import router as instagram_connect_router
 from app.domains.instagram.publishing_router import router as instagram_publishing_router
 from app.domains.instagram.router import router as instagram_webhook_router
 from app.domains.sms_bandwidth.router import router as bandwidth_webhook_router
@@ -188,6 +189,9 @@ def create_app() -> FastAPI:
     # Instagram comment moderation (feat/instagram-graph I.7). admin-only.
     # List/post/reply/hide/delete comments on owned media.
     app.include_router(instagram_comments_router)
+    # Instagram connection (feat/instagram-graph I.10). admin-only.
+    # Manual/advanced connect (paste token) + channel capability view.
+    app.include_router(instagram_connect_router)
     # Product catalogue (feat/instagram-graph I.11). Account-scoped CRUD;
     # posts/stories link to products for AI/CRM context.
     app.include_router(products_router)

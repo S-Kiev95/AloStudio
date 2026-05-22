@@ -1030,6 +1030,24 @@ async def delete_media_on_meta(
             detail={"message": "instagram channel row not found"},
         )
 
+    # Capability gate (I.10): Meta's DELETE media only works on Facebook
+    # Login connections. Instagram Login channels must remove the post
+    # from the IG app.
+    from app.domains.instagram.connect_service import can_delete_media
+
+    if not await can_delete_media(
+        session, channel_instagram_id=post.channel_instagram_id
+    ):
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    "delete unavailable on Instagram Login connections "
+                    "— remove the post from the Instagram app"
+                )
+            },
+        )
+
     res = await publisher.delete_media(
         channel, ig_media_id=post.ig_media_id
     )
