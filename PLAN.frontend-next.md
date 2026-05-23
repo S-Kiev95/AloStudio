@@ -57,16 +57,23 @@ surfaces:
   (`NEXT_PUBLIC_API_BASE`), normalises the backend's error envelopes
   (`{message}` / `{error}` / `{errors:[]}`), and redirects to login on 401.
 
-### Auth (devise-token-auth)
+### Auth (devise-token-auth) — **httpOnly cookies (decided)**
 - The backend authenticates via headers **`access-token`, `client`,
   `uid`** (+ `expiry`). Login (`POST /auth/sign_in`) returns them.
 - Backend does **not** rotate per request (`change_headers_on_each_request
   = false`), so the `(client, access-token)` pair is **stable after
-  login** — store the trio (secure cookie or `localStorage`) and attach
-  on every request. Refresh only on sign-in / password reset.
-- Auth guard (App Router middleware or a layout) → redirect unauthorised
-  users to `/login`. Multi-account: account id lives in the route
-  (`/app/accounts/{accountId}/...`), mirroring the backend's scoping.
+  login** — refresh only on sign-in / password reset.
+- **Storage = httpOnly cookies** set by Next **Route Handlers**
+  (`app/(auth)/.../route.ts`): the browser never sees the tokens (XSS-
+  safe). The login route handler calls the backend `/auth/sign_in`,
+  reads the 3 devise headers, and sets them as httpOnly cookies. A small
+  server-side adapter (route handler / server action **or** a BFF proxy
+  under `app/api/*`) reads those cookies and re-attaches them as the
+  custom devise **headers** on each backend call (devise uses headers,
+  not cookies — the cookie↔header bridge is the adapter's job).
+- Auth guard via App Router **middleware** (checks the cookie) → redirect
+  unauthorised users to `/login`. Multi-account: account id lives in the
+  route (`/accounts/{accountId}/...`), mirroring the backend's scoping.
 
 ### Realtime
 - One ActionCable connection; subscribe to the account/conversation
@@ -75,9 +82,9 @@ surfaces:
 
 ---
 
-## Repo layout
+## Repo layout — **monorepo subdir (decided)**
 
-Monorepo subdir (keeps backend + frontend together):
+`frontend/` lives in this repo (shared OpenAPI, one place to version):
 
 ```
 frontend/                     # Next app (its own package.json / node)
@@ -98,41 +105,46 @@ frontend/                     # Next app (its own package.json / node)
 
 ## Milestones
 
-### F.0 — Project setup
+> **v1 scope (decided):** F.0, F.1, F.2, F.3, F.5, F.6 — login + shell +
+> conversations (with realtime) + Instagram connection + publishing. The
+> rest (F.4, F.7–F.12) is v2. v1 makes the Instagram feature usable
+> end-to-end early.
+
+### F.0 — Project setup  · **v1**
 - [ ] `frontend/` Next App Router + TS + Tailwind + shadcn/ui.
 - [ ] TanStack Query provider, Zustand store skeleton, env config.
 - [ ] OpenAPI codegen wired (`npm run gen:api` → typed client/hooks).
 - [ ] Fetch wrapper (auth headers, error normaliser, 401 redirect).
 - [ ] Base layout + theme + CI (lint/typecheck/test).
 
-### F.1 — Auth
+### F.1 — Auth  · **v1**
 - [ ] Login, signup, email confirmation, password reset/forgot.
 - [ ] Token storage + attach + 401 handling; auth guard; logout.
 - [ ] Account bootstrap (`/profile`), account switcher.
 
-### F.2 — App shell
+### F.2 — App shell  · **v1**
 - [ ] Sidebar + topbar + routing under `/accounts/[accountId]`.
 - [ ] Agent profile, availability/status, notifications stub.
 
-### F.3 — Conversations (core)
+### F.3 — Conversations (core)  · **v1**
 - [ ] Inbox/folder list + conversation list with filters
       (status / assignee / team / labels / inbox).
 - [ ] Conversation view: message thread, reply box (incl. private notes),
       attachments, status / priority / assignee / team / labels.
 - [ ] **Realtime**: live new-message + conversation updates via WS.
 
-### F.4 — Contacts
+### F.4 — Contacts  · v2
 - [ ] Contact list + search, contact detail, custom attributes,
       contact-inbox / conversations history.
 
-### F.5 — Inboxes + channel connection
+### F.5 — Inboxes + channel connection  · **v1**
 - [ ] Inbox CRUD + members + settings.
 - [ ] **Instagram connection UI** — "Connect" buttons for Facebook Login
       + Instagram Login (hit `connect/start` / `start_instagram`), the
       manual-token form, and the capability view (`login_type`,
       `can_delete_media`).
 
-### F.6 — Instagram publishing (the new extension)
+### F.6 — Instagram publishing (the new extension)  · **v1**
 - [ ] Composer: image / video / reels / carousel / stories + caption.
 - [ ] Scheduling (`scheduled_for`) + a queue/calendar of pending posts.
 - [ ] Post list + detail (state, permalink, containers, errors).
@@ -165,15 +177,15 @@ frontend/                     # Next app (its own package.json / node)
 
 ---
 
-## Open questions (decide before/early)
-1. **Repo:** monorepo `frontend/` subdir (recommended) vs separate repo.
-2. **Token storage:** secure httpOnly cookie (via Next route handlers)
-   vs `localStorage`. Cookie is safer; devise headers are custom so it
-   needs a small adapter.
-3. **Design fidelity:** pixel-match Chatwoot, or AloStudio's own look on
-   the same information architecture?
-4. **Scope cut for v1:** which milestones ship first (suggest F.0–F.3 +
-   F.5–F.6 so the Instagram feature is usable end-to-end early).
+## Decisions (locked)
+1. **Repo:** ✅ monorepo `frontend/` subdir in this repo.
+2. **Token storage:** ✅ httpOnly cookies via Next Route Handlers
+   (cookie↔devise-header adapter on the server side).
+3. **v1 scope:** ✅ F.0–F.3 + F.5–F.6 (core + Instagram end-to-end).
+   F.4 + F.7–F.12 = v2.
+4. **Design fidelity:** _open_ — pixel-match Chatwoot vs AloStudio's own
+   look on the same IA. Decide at F.2 (app shell) when the design system
+   gets set; not blocking F.0/F.1.
 
 ---
 
