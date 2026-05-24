@@ -5,34 +5,34 @@ import { persistSessionFromResponse } from "@/lib/auth/session";
 const BACKEND = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8000";
 
 /**
- * Login route handler: calls the backend `/auth/sign_in`, captures the
- * devise response headers, and stores them as httpOnly cookies. The
- * browser only ever receives the user payload + the account to land on.
+ * Apply a password reset (`PUT /auth/password`). On success the backend
+ * mints a fresh session — we capture it into cookies and sign the user
+ * straight in.
  */
 export async function POST(req: Request): Promise<Response> {
-  let payload: unknown;
-  try {
-    payload = await req.json();
-  } catch {
-    return NextResponse.json({ error: "invalid body" }, { status: 400 });
-  }
-  const { email, password } = (payload ?? {}) as {
-    email?: string;
+  const { token, password, passwordConfirmation } = (await req
+    .json()
+    .catch(() => ({}))) as {
+    token?: string;
     password?: string;
+    passwordConfirmation?: string;
   };
-  if (!email || !password) {
+  if (!token || !password) {
     return NextResponse.json(
-      { errors: ["Email and password are required."] },
+      { errors: ["Token y contraseña son obligatorios."] },
       { status: 422 },
     );
   }
-
   let res: Response;
   try {
-    res = await fetch(`${BACKEND}/auth/sign_in`, {
-      method: "POST",
+    res = await fetch(`${BACKEND}/auth/password`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({
+        reset_password_token: token,
+        password,
+        password_confirmation: passwordConfirmation ?? password,
+      }),
     });
   } catch {
     return NextResponse.json(
@@ -40,13 +40,10 @@ export async function POST(req: Request): Promise<Response> {
       { status: 502 },
     );
   }
-
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    // Pass devise's error envelope straight through (e.g. invalid creds).
     return NextResponse.json(body, { status: res.status });
   }
-
   const accountId = await persistSessionFromResponse(res, body);
   if (accountId === false) {
     return NextResponse.json(
@@ -54,6 +51,5 @@ export async function POST(req: Request): Promise<Response> {
       { status: 502 },
     );
   }
-  const data = (body as { data?: Record<string, unknown> })?.data ?? {};
-  return NextResponse.json({ ok: true, accountId, user: data });
+  return NextResponse.json({ ok: true, accountId });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -102,6 +103,13 @@ export default function LoginPage() {
           <Button type="submit" className="w-full" loading={isSubmitting}>
             Entrar
           </Button>
+
+          <Link
+            href="/forgot-password"
+            className="block text-center text-sm text-info hover:underline"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
         </form>
       </CardContent>
     </Card>
