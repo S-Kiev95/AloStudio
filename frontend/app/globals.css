@@ -23,22 +23,22 @@
   --ring: #6366f1;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b1120;
-    --surface: #111827;
-    --surface-2: #1f2937;
-    --fg: #e5e7eb;
-    --fg-muted: #9ca3af;
-    --border: #283042;
-    --primary: #818cf8;
-    --primary-fg: #0b1120;
-    --success: #22c55e;
-    --warning: #f59e0b;
-    --danger: #f87171;
-    --info: #38bdf8;
-    --ring: #818cf8;
-  }
+/* Dark theme — applied via the `.dark` class (next-themes, attribute
+ * "class", enableSystem so it also follows the OS when set to system). */
+.dark {
+  --bg: #0b1120;
+  --surface: #111827;
+  --surface-2: #1f2937;
+  --fg: #e5e7eb;
+  --fg-muted: #9ca3af;
+  --border: #283042;
+  --primary: #818cf8;
+  --primary-fg: #0b1120;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #f87171;
+  --info: #38bdf8;
+  --ring: #818cf8;
 }
 
 @layer base {

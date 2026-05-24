@@ -1,11 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { LogoutButton } from "./logout-button";
-
 /**
- * Placeholder dashboard (F.1). Proves the auth round-trip: this route is
- * behind the middleware guard, so reaching it means the session cookie is
- * set. The real app shell (sidebar, nav) lands in F.2.
+ * Account overview (Inicio). Rendered inside the dashboard shell (F.2).
+ * Real overview widgets land alongside conversations/reports (F.3+).
  */
 export default async function AccountHome({
   params,
@@ -14,20 +11,22 @@ export default async function AccountHome({
 }) {
   const { accountId } = await params;
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-fg">AloStudio</h1>
-        <LogoutButton />
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-fg">Inicio</h1>
+        <p className="mt-1 text-sm text-fg-muted">
+          Cuenta <span className="tabular-nums">{accountId}</span>
+        </p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Sesión iniciada ✓</CardTitle>
+          <CardTitle>Bienvenido a AloStudio</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-fg-muted">
-          Cuenta activa: <span className="tabular-nums text-fg">{accountId}</span>.
-          El shell del dashboard (sidebar, conversaciones) llega en F.2/F.3.
+          Usá el menú lateral para navegar. Conversaciones (F.3) e Instagram
+          (F.5/6) llegan en los próximos hitos.
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }
