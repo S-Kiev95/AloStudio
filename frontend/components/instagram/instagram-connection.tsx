@@ -27,9 +27,7 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-2xl font-semibold text-fg">Instagram</h1>
-
+    <div className="space-y-6">
       {/* Connected channels */}
       <Card>
         <CardHeader>
