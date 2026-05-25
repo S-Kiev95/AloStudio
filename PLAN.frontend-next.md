@@ -175,6 +175,33 @@ frontend/                     # Next app (its own package.json / node)
 - [ ] Perf pass, error boundaries, empty/loading states, a11y.
 - [ ] README + deploy (Vercel or Docker) + point at the FastAPI backend.
 
+### F.13 — Chatwoot UI parity review
+
+The frontend analog of the backend's `parity` pytest tier — but
+**functional/behavioural**, not byte-for-byte (we chose React + our own
+design system, so this is *feature* parity, not a pixel clone). Uses the
+reference Chatwoot already wired in `docker-compose.yml`
+(`--profile reference` → `chatwoot-ref` on `127.0.0.1:3001`).
+
+- [ ] **Feature-parity matrix** — a screen-by-screen checklist mapping
+      every Chatwoot dashboard screen/feature → AloStudio status
+      (present / equivalent behaviour / gaps). The documentary parity
+      record. Commit as `docs/ui-parity.md`.
+- [ ] **Behavioural e2e parity (Playwright)** — the same user journeys
+      (login → conversation list → open → reply → message appears →
+      resolve; IG connect → publish → comment) run against **both** the
+      Chatwoot reference (`:3001`) and AloStudio (`:3000`), asserting
+      equivalent outcomes (framework-agnostic, not DOM-identical).
+- [ ] **Visual side-by-side** — Playwright screenshots of each screen in
+      both apps as a **design-review aid** (not an automated pixel diff —
+      different frameworks/design make pixel diffing pure noise).
+- [ ] Triage the matrix gaps into follow-up tasks.
+
+> Scope note: this is **functional + behavioural + visual-review** parity.
+> A pixel-perfect Chatwoot clone is explicitly out of scope (it would
+> contradict the AloStudio design system). Revisit only if the product
+> decision changes.
+
 ---
 
 ## Decisions (locked)
@@ -182,10 +209,11 @@ frontend/                     # Next app (its own package.json / node)
 2. **Token storage:** ✅ httpOnly cookies via Next Route Handlers
    (cookie↔devise-header adapter on the server side).
 3. **v1 scope:** ✅ F.0–F.3 + F.5–F.6 (core + Instagram end-to-end).
-   F.4 + F.7–F.12 = v2.
-4. **Design fidelity:** _open_ — pixel-match Chatwoot vs AloStudio's own
-   look on the same IA. Decide at F.2 (app shell) when the design system
-   gets set; not blocking F.0/F.1.
+   F.4 + F.7–F.13 = v2.
+4. **Design fidelity:** ✅ resolved — AloStudio's **own design system**
+   (`frontend/DESIGN-SYSTEM.md`) on the same information architecture as
+   Chatwoot; **not** a pixel clone. F.13 parity is therefore
+   functional/behavioural, not pixel-perfect.
 
 ---
 
