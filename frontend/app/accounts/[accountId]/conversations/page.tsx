@@ -1,5 +1,10 @@
-import { SectionPlaceholder } from "@/components/shell/section-placeholder";
+import { ConversationList } from "@/components/conversations/conversation-list";
 
-export default function ConversationsPage() {
-  return <SectionPlaceholder title="Conversaciones" milestone="F.3" />;
+export default async function ConversationsPage({
+  params,
+}: {
+  params: Promise<{ accountId: string }>;
+}) {
+  const { accountId } = await params;
+  return <ConversationList accountId={accountId} />;
 }
