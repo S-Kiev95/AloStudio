@@ -17,6 +17,7 @@ export type Profile = {
   name: string;
   email: string;
   availableName: string | null;
+  pubsubToken: string | null;
   activeAccountId: number | null;
   accounts: ProfileAccount[];
 };
@@ -41,6 +42,7 @@ export async function getProfile(): Promise<Profile | null> {
       name: data.name ?? "",
       email: data.email ?? "",
       availableName: data.available_name ?? null,
+      pubsubToken: data.pubsub_token ?? null,
       activeAccountId: data.account_id ?? null,
       accounts: (data.accounts ?? []).map(
         (a: { id: number; name: string; role?: string; availability?: string }) => ({

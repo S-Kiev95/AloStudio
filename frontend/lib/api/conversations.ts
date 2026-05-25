@@ -154,3 +154,51 @@ export function useToggleStatus(accountId: string, displayId: number) {
     },
   });
 }
+
+export type Priority = "none" | "low" | "medium" | "high" | "urgent";
+
+export function useTogglePriority(accountId: string, displayId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (priority: Priority) =>
+      apiFetch<unknown>(`${base(accountId)}/${displayId}/toggle_priority`, {
+        method: "POST",
+        body: JSON.stringify({
+          priority: priority === "none" ? null : priority,
+        }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["conversation", accountId, displayId] });
+      qc.invalidateQueries({ queryKey: ["conversations", accountId] });
+    },
+  });
+}
+
+export function useAssignAgent(accountId: string, displayId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (assigneeId: number | null) =>
+      apiFetch<unknown>(`${base(accountId)}/${displayId}/assignments`, {
+        method: "POST",
+        body: JSON.stringify({ assignee_id: assigneeId }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["conversation", accountId, displayId] });
+      qc.invalidateQueries({ queryKey: ["conversations", accountId] });
+    },
+  });
+}
+
+export function useSetLabels(accountId: string, displayId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (labels: string[]) =>
+      apiFetch<unknown>(`${base(accountId)}/${displayId}/labels`, {
+        method: "POST",
+        body: JSON.stringify({ labels }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["conversation", accountId, displayId] });
+    },
+  });
+}

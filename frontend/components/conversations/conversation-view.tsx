@@ -10,6 +10,7 @@ import {
   useToggleStatus,
 } from "@/lib/api/conversations";
 
+import { ConversationActions } from "./conversation-actions";
 import { MessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
 
@@ -65,6 +66,17 @@ export function ConversationView({
           )}
         </Button>
       </header>
+
+      {/* Actions (priority / assignee / labels) */}
+      {conv.data ? (
+        <ConversationActions
+          accountId={accountId}
+          displayId={displayId}
+          priority={conv.data.priority}
+          assigneeId={conv.data.meta?.assignee?.id ?? null}
+          labels={conv.data.labels ?? []}
+        />
+      ) : null}
 
       {/* Thread */}
       <div className="flex-1 space-y-2 overflow-y-auto py-4">

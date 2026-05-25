@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import type { Profile } from "@/lib/auth/profile";
+import { useCable } from "@/lib/realtime/use-cable";
 import { cn } from "@/lib/utils";
 
 import { AccountSwitcher } from "./account-switcher";
@@ -21,6 +22,13 @@ export function DashboardShell({
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Realtime: subscribe once per account; events invalidate query caches.
+  useCable({
+    pubsubToken: profile.pubsubToken,
+    userId: profile.id,
+    accountId,
+  });
 
   return (
     <div className="min-h-dvh bg-bg text-fg">
