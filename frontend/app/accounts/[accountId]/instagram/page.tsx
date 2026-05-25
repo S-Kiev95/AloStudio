@@ -1,5 +1,10 @@
-import { SectionPlaceholder } from "@/components/shell/section-placeholder";
+import { InstagramConnection } from "@/components/instagram/instagram-connection";
 
-export default function InstagramPage() {
-  return <SectionPlaceholder title="Instagram" milestone="F.5 / F.6" />;
+export default async function InstagramPage({
+  params,
+}: {
+  params: Promise<{ accountId: string }>;
+}) {
+  const { accountId } = await params;
+  return <InstagramConnection accountId={accountId} />;
 }
