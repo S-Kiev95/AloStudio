@@ -1,6 +1,7 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { ChevronRight, ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { type InstagramPost, useInstagramPosts } from "@/lib/api/instagram-posts";
@@ -55,7 +56,9 @@ export function PostList({ accountId }: { accountId: string }) {
           </p>
         ) : (
           <ul className="divide-y divide-border">
-            {data?.map((p) => <PostRow key={p.id} post={p} />)}
+            {data?.map((p) => (
+              <PostRow key={p.id} accountId={accountId} post={p} />
+            ))}
           </ul>
         )}
       </div>
@@ -63,7 +66,7 @@ export function PostList({ accountId }: { accountId: string }) {
   );
 }
 
-function PostRow({ post }: { post: InstagramPost }) {
+function PostRow({ accountId, post }: { accountId: string; post: InstagramPost }) {
   const when =
     post.state === "published" && post.published_at
       ? `Publicado ${new Date(post.published_at).toLocaleString()}`
@@ -72,31 +75,37 @@ function PostRow({ post }: { post: InstagramPost }) {
         : `Creado ${relativeTime(post.created_at)}`;
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase text-fg-muted">
-        {post.media_type}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-fg">
-          {post.caption?.trim() || <span className="text-fg-muted">(sin caption)</span>}
-        </p>
-        <p className="text-xs text-fg-muted">{when}</p>
-        {post.state === "failed" && post.error_message ? (
-          <p className="truncate text-xs text-danger">{post.error_message}</p>
-        ) : null}
-      </div>
-      <StateBadge state={post.state} />
+    <li className="flex items-center gap-1 pr-2 hover:bg-surface-2">
+      <Link
+        href={`/accounts/${accountId}/instagram/posts/${post.id}`}
+        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase text-fg-muted">
+          {post.media_type}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm text-fg">
+            {post.caption?.trim() || <span className="text-fg-muted">(sin caption)</span>}
+          </p>
+          <p className="text-xs text-fg-muted">{when}</p>
+          {post.state === "failed" && post.error_message ? (
+            <p className="truncate text-xs text-danger">{post.error_message}</p>
+          ) : null}
+        </div>
+        <StateBadge state={post.state} />
+      </Link>
       {post.ig_permalink ? (
         <a
           href={post.ig_permalink}
           target="_blank"
           rel="noreferrer"
           aria-label="Ver en Instagram"
-          className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2"
+          className="rounded-md p-1.5 text-fg-muted hover:bg-surface"
         >
           <ExternalLink className="h-4 w-4" aria-hidden />
         </a>
       ) : null}
+      <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
     </li>
   );
 }
