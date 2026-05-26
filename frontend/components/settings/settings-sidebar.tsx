@@ -21,7 +21,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     milestone: "F.9c",
     done: false,
   },
-  { segment: "macros", label: "Macros", milestone: "F.9c", done: false },
+  { segment: "macros", label: "Macros", milestone: "F.9c", done: true },
   {
     segment: "working_hours",
     label: "Horarios laborales",
