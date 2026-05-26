@@ -1,5 +1,10 @@
-import { SectionPlaceholder } from "@/components/shell/section-placeholder";
+import { ProductsView } from "@/components/products/products-view";
 
-export default function ProductsPage() {
-  return <SectionPlaceholder title="Productos" milestone="F.7" />;
+export default async function ProductsPage({
+  params,
+}: {
+  params: Promise<{ accountId: string }>;
+}) {
+  const { accountId } = await params;
+  return <ProductsView accountId={accountId} />;
 }

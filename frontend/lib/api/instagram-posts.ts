@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
+import { type Product } from "./products";
+
+// `products.ts` is the single source of truth for the catalogue type/hook;
+// re-export so existing `from "./instagram-posts"` imports keep working.
+export { useProducts } from "./products";
+export type { Product };
 
 export type MediaType = "IMAGE" | "VIDEO" | "REELS" | "CAROUSEL" | "STORIES";
 export type PostState =
@@ -9,14 +15,6 @@ export type PostState =
   | "published"
   | "failed"
   | "deleted";
-
-export type Product = {
-  id: number;
-  name: string;
-  price: number | null;
-  currency: string | null;
-  enabled: boolean;
-};
 
 export type Container = {
   id: number;
@@ -110,14 +108,5 @@ export function useDeletePost(accountId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["instagram-posts", accountId] });
     },
-  });
-}
-
-export function useProducts(accountId: string) {
-  return useQuery({
-    queryKey: ["products", accountId],
-    queryFn: () =>
-      apiFetch<Product[]>(`/api/v1/accounts/${accountId}/products`),
-    staleTime: 5 * 60_000,
   });
 }
