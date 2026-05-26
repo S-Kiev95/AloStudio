@@ -14,7 +14,7 @@ export type SettingsItem = {
 
 export const SETTINGS_ITEMS: SettingsItem[] = [
   { segment: "labels", label: "Etiquetas", milestone: "F.9a", done: true },
-  { segment: "teams", label: "Equipos", milestone: "F.9b", done: false },
+  { segment: "teams", label: "Equipos", milestone: "F.9b", done: true },
   {
     segment: "canned_responses",
     label: "Respuestas predefinidas",
