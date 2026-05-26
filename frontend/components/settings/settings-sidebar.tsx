@@ -26,13 +26,13 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     segment: "working_hours",
     label: "Horarios laborales",
     milestone: "F.9d",
-    done: false,
+    done: true,
   },
   {
     segment: "custom_attributes",
     label: "Atributos personalizados",
     milestone: "F.9d",
-    done: false,
+    done: true,
   },
   {
     segment: "automation",
