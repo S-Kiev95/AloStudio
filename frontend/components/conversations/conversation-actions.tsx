@@ -95,9 +95,9 @@ export function ConversationActions({
         </select>
       </label>
 
-      {accountLabels.data?.payload.length ? (
+      {accountLabels.data?.length ? (
         <div className="flex flex-wrap items-center gap-1.5">
-          {accountLabels.data.payload.map((l) => {
+          {accountLabels.data.map((l) => {
             const on = current.has(l.title);
             return (
               <button

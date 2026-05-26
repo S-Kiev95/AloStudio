@@ -1,5 +1,10 @@
-import { SectionPlaceholder } from "@/components/shell/section-placeholder";
+import { redirect } from "next/navigation";
 
-export default function SettingsPage() {
-  return <SectionPlaceholder title="Ajustes" milestone="F.9" />;
+export default async function SettingsPage({
+  params,
+}: {
+  params: Promise<{ accountId: string }>;
+}) {
+  const { accountId } = await params;
+  redirect(`/accounts/${accountId}/settings/labels`);
 }
