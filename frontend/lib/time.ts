@@ -21,3 +21,33 @@ export function clockTime(unixSeconds: number | null | undefined): string {
     minute: "2-digit",
   });
 }
+
+/**
+ * Human duration from a number of seconds (report averages). Returns "—"
+ * for 0/empty, since the backend emits 0 when no events matched.
+ */
+export function formatDuration(seconds: number | null | undefined): string {
+  if (!seconds || seconds <= 0) return "—";
+  const s = Math.round(seconds);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) {
+    const rem = s % 60;
+    return rem ? `${m}m ${rem}s` : `${m}m`;
+  }
+  const h = Math.floor(m / 60);
+  const remM = m % 60;
+  if (h < 24) return remM ? `${h}h ${remM}m` : `${h}h`;
+  const d = Math.floor(h / 24);
+  const remH = h % 24;
+  return remH ? `${d}d ${remH}h` : `${d}d`;
+}
+
+/** Short date label (e.g. "12 may") for chart axes from unix seconds. */
+export function shortDate(unixSeconds: number | null | undefined): string {
+  if (!unixSeconds) return "";
+  return new Date(unixSeconds * 1000).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+  });
+}

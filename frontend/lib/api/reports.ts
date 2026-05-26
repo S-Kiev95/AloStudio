@@ -1,0 +1,106 @@
+import { useQuery } from "@tanstack/react-query";
+
+import { apiFetch } from "./fetcher";
+
+/** Dashboard summary cards (mirrors V2::ReportBuilder#summary). */
+export type ReportSummary = {
+  conversations_count: number;
+  incoming_messages_count: number;
+  outgoing_messages_count: number;
+  avg_first_response_time: number; // seconds
+  avg_resolution_time: number; // seconds
+  resolutions_count: number;
+  reply_time: number; // seconds
+};
+
+export type ReportSummaryWithPrev = ReportSummary & {
+  previous: ReportSummary;
+};
+
+/** Live current-state counters. unassigned/pending only present for account scope. */
+export type LiveMetrics = {
+  open: number;
+  unattended: number;
+  unassigned?: number;
+  pending?: number;
+};
+
+export type TimeseriesPoint = {
+  value: number;
+  timestamp: number; // unix seconds (bucket start)
+  count?: number; // present for avg metrics
+};
+
+export type ReportRange = { since: number; until: number };
+
+/** All metrics the backend allow-lists for the timeseries endpoint. */
+export const TIMESERIES_METRICS = [
+  { key: "conversations_count", label: "Conversaciones", kind: "count" },
+  { key: "incoming_messages_count", label: "Mensajes entrantes", kind: "count" },
+  { key: "outgoing_messages_count", label: "Mensajes salientes", kind: "count" },
+  { key: "resolutions_count", label: "Resoluciones", kind: "count" },
+  { key: "avg_first_response_time", label: "Primera respuesta", kind: "avg" },
+  { key: "avg_resolution_time", label: "Tiempo de resolución", kind: "avg" },
+  { key: "reply_time", label: "Tiempo de respuesta", kind: "avg" },
+] as const;
+
+export type MetricKey = (typeof TIMESERIES_METRICS)[number]["key"];
+
+function base(accountId: string): string {
+  return `/api/v2/accounts/${accountId}`;
+}
+
+/** Build a [now-Ndays, now] window in unix seconds. */
+export function rangeForDays(days: number): ReportRange {
+  const until = Math.floor(Date.now() / 1000);
+  return { since: until - days * 86_400, until };
+}
+
+export function useReportSummary(accountId: string, range: ReportRange) {
+  return useQuery({
+    queryKey: ["report-summary", accountId, range.since, range.until],
+    queryFn: () => {
+      const sp = new URLSearchParams({
+        type: "account",
+        since: String(range.since),
+        until: String(range.until),
+      });
+      return apiFetch<ReportSummaryWithPrev>(
+        `${base(accountId)}/reports/summary?${sp}`,
+      );
+    },
+  });
+}
+
+export function useLiveMetrics(accountId: string) {
+  return useQuery({
+    queryKey: ["live-metrics", accountId],
+    queryFn: () =>
+      apiFetch<LiveMetrics>(
+        `${base(accountId)}/live_reports/conversation_metrics`,
+      ),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useReportTimeseries(
+  accountId: string,
+  metric: MetricKey,
+  range: ReportRange,
+) {
+  // Backend expects timezone_offset in *hours east of UTC*.
+  const offsetHours = -new Date().getTimezoneOffset() / 60;
+  return useQuery({
+    queryKey: ["report-timeseries", accountId, metric, range.since, range.until],
+    queryFn: () => {
+      const sp = new URLSearchParams({
+        metric,
+        type: "account",
+        since: String(range.since),
+        until: String(range.until),
+        timezone_offset: String(offsetHours),
+      });
+      return apiFetch<TimeseriesPoint[]>(`${base(accountId)}/reports?${sp}`);
+    },
+  });
+}

@@ -1,5 +1,10 @@
-import { SectionPlaceholder } from "@/components/shell/section-placeholder";
+import { ReportsView } from "@/components/reports/reports-view";
 
-export default function ReportsPage() {
-  return <SectionPlaceholder title="Reportes" milestone="F.8" />;
+export default async function ReportsPage({
+  params,
+}: {
+  params: Promise<{ accountId: string }>;
+}) {
+  const { accountId } = await params;
+  return <ReportsView accountId={accountId} />;
 }
