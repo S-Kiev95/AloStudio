@@ -40,13 +40,13 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     milestone: "F.9e",
     done: true,
   },
-  { segment: "webhooks", label: "Webhooks", milestone: "F.9f", done: false },
-  { segment: "agent_bots", label: "Bots", milestone: "F.9f", done: false },
+  { segment: "webhooks", label: "Webhooks", milestone: "F.9f", done: true },
+  { segment: "agent_bots", label: "Bots", milestone: "F.9f", done: true },
   {
     segment: "integrations",
     label: "Integraciones",
     milestone: "F.9f",
-    done: false,
+    done: true,
   },
   { segment: "csat", label: "CSAT", milestone: "F.9g", done: false },
 ];
