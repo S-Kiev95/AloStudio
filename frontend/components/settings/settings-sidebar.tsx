@@ -38,7 +38,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     segment: "automation",
     label: "Automatización",
     milestone: "F.9e",
-    done: false,
+    done: true,
   },
   { segment: "webhooks", label: "Webhooks", milestone: "F.9f", done: false },
   { segment: "agent_bots", label: "Bots", milestone: "F.9f", done: false },

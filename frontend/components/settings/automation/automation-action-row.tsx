@@ -3,36 +3,23 @@
 import { Trash2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
-import { MACRO_ACTIONS, type MacroActionName } from "@/lib/api/macros";
-
 import {
-  ACTION_META,
-  paramsToText as sharedParamsToText,
-  textToParams as sharedTextToParams,
-} from "../shared/action-meta";
+  AUTOMATION_ACTIONS,
+  type AutomationActionName,
+} from "@/lib/api/automation-rules";
 
-// Re-exported so the existing macros-view.test.tsx import path still works.
-export { ACTION_META };
-export function paramsToText(
-  actionName: MacroActionName,
-  params: unknown[],
-): string {
-  return sharedParamsToText(actionName, params);
-}
-export function textToParams(
-  actionName: MacroActionName,
-  text: string,
-): unknown[] {
-  return sharedTextToParams(actionName, text);
-}
+import { ACTION_META } from "../shared/action-meta";
 
-export function MacroActionRow({
+export function AutomationActionRow({
   value,
   onChange,
   onRemove,
 }: {
-  value: { action_name: MacroActionName; text: string };
-  onChange: (next: { action_name: MacroActionName; text: string }) => void;
+  value: { action_name: AutomationActionName; text: string };
+  onChange: (next: {
+    action_name: AutomationActionName;
+    text: string;
+  }) => void;
   onRemove: () => void;
 }) {
   const meta = ACTION_META[value.action_name];
@@ -44,22 +31,22 @@ export function MacroActionRow({
         value={value.action_name}
         onChange={(e) =>
           onChange({
-            action_name: e.target.value as MacroActionName,
+            action_name: e.target.value as AutomationActionName,
             text: "",
           })
         }
         className="h-9 rounded-md border border-border bg-surface px-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {MACRO_ACTIONS.map((a) => (
+        {AUTOMATION_ACTIONS.map((a) => (
           <option key={a} value={a}>
-            {ACTION_META[a].label}
+            {ACTION_META[a]?.label ?? a}
           </option>
         ))}
       </select>
 
-      {meta.kind === "none" ? (
+      {meta?.kind === "none" ? (
         <p className="self-center text-xs text-fg-muted">Sin parámetros</p>
-      ) : meta.kind === "enum" ? (
+      ) : meta?.kind === "enum" ? (
         <select
           aria-label="Valor"
           value={value.text || (meta.options?.[0] ?? "")}
@@ -77,7 +64,7 @@ export function MacroActionRow({
           aria-label="Parámetros"
           value={value.text}
           onChange={(e) => onChange({ ...value, text: e.target.value })}
-          placeholder={meta.placeholder}
+          placeholder={meta?.placeholder}
           className="h-9 min-w-44 flex-1"
         />
       )}
