@@ -48,7 +48,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     milestone: "F.9f",
     done: true,
   },
-  { segment: "csat", label: "CSAT", milestone: "F.9g", done: false },
+  { segment: "csat", label: "CSAT", milestone: "F.9g", done: true },
 ];
 
 export function SettingsSidebar({ accountId }: { accountId: string }) {
