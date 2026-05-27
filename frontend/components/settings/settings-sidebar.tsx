@@ -49,6 +49,12 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     done: true,
   },
   { segment: "csat", label: "CSAT", milestone: "F.9g", done: true },
+  {
+    segment: "mcp_tokens",
+    label: "Tokens MCP",
+    milestone: "F.9h",
+    done: true,
+  },
 ];
 
 export function SettingsSidebar({ accountId }: { accountId: string }) {
