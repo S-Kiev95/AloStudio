@@ -35,6 +35,7 @@ from app.domains.inboxes.router import router as inboxes_router
 from app.domains.integrations.router import router as integrations_router
 from app.domains.labels.router import router as labels_router
 from app.domains.macros.router import router as macros_router
+from app.mcp.router import router as mcp_tokens_router
 from app.domains.portals.public_router import public_router as portals_public_router
 from app.domains.portals.router import router as portals_router
 from app.domains.products.router import router as products_router
@@ -123,6 +124,10 @@ def create_app() -> FastAPI:
     # ``update_labels`` could write through them — 6.1 promotes them
     # to a first-class CRUD surface and adds the rename cascade.
     app.include_router(labels_router)
+    # MCP token admin CRUD (own extension, not a Chatwoot mirror).
+    # Account-scoped Bearer tokens consumed by the MCP server for AI
+    # agents; this is the dashboard side admins use to manage them.
+    app.include_router(mcp_tokens_router)
     # Macro CRUD + execute (Phase 6.2). Personal vs global visibility,
     # author/admin policy gates, ``POST /macros/:id/execute`` runs the
     # action plan against a given set of conversation_ids.

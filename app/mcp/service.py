@@ -76,6 +76,39 @@ async def revoke_token(
     await session.flush()
 
 
+async def update_token(
+    session: AsyncSession,
+    *,
+    token: MCPToken,
+    name: str | None = None,
+    scope: str | None = None,
+) -> MCPToken:
+    """Rename / re-scope an existing token. Leaves the secret untouched."""
+    if name is not None:
+        token.name = name
+    if scope is not None:
+        if scope not in {"read", "write", "admin"}:
+            raise ValueError(f"invalid scope: {scope!r}")
+        token.scope = scope
+    session.add(token)
+    await session.flush()
+    await session.refresh(token)
+    return token
+
+
+async def rotate_token(
+    session: AsyncSession, *, token: MCPToken
+) -> MCPToken:
+    """Mint a fresh secret in place. Returns the same row with the new
+    ``token`` value — the old one is gone, any client still using it
+    will fail to authenticate."""
+    token.token = mint_token()
+    session.add(token)
+    await session.flush()
+    await session.refresh(token)
+    return token
+
+
 async def resolve_token(
     session: AsyncSession, *, token_value: str
 ) -> MCPContext:
@@ -137,4 +170,6 @@ __all__ = [
     "mint_token",
     "resolve_token",
     "revoke_token",
+    "rotate_token",
+    "update_token",
 ]
