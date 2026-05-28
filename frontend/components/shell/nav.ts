@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  BookOpen,
   Home,
   Instagram,
   type LucideIcon,
@@ -25,6 +26,12 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { key: "instagram", label: "Instagram", icon: Instagram, segment: "instagram" },
   { key: "products", label: "Productos", icon: Package, segment: "products" },
+  {
+    key: "help-center",
+    label: "Help Center",
+    icon: BookOpen,
+    segment: "help-center",
+  },
   { key: "reports", label: "Reportes", icon: BarChart3, segment: "reports" },
   { key: "settings", label: "Ajustes", icon: Settings, segment: "settings" },
 ];
