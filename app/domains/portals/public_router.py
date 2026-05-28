@@ -100,6 +100,37 @@ async def index_articles(
     return [present_article(a) for a in rows]
 
 
+@public_router.get("/{slug}/articles/{article_slug}")
+async def show_article(
+    slug: Annotated[str, Path()],
+    article_slug: Annotated[str, Path()],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    locale: str | None = Query(None),
+) -> dict[str, Any]:
+    """``GET /hc/<slug>/articles/<article_slug>`` — single published article.
+
+    404 when the portal is archived, the article is missing, or it is
+    not published (drafts + archived articles never surface). When
+    ``locale`` is supplied it scopes the lookup to that locale —
+    Chatwoot allows the same article_slug in multiple locales.
+    """
+    portal = await _resolve_portal(session, slug)
+    stmt = select(Article).where(
+        Article.portal_id == portal.id,
+        Article.slug == article_slug,
+        Article.status == ARTICLE_STATUS_PUBLISHED,
+    )
+    if locale is not None:
+        stmt = stmt.where(Article.locale == locale)
+    article = (await session.exec(stmt)).first()
+    if article is None:
+        raise ChatwootHTTPException(
+            status_code=404,
+            detail={"error": "Resource could not be found"},
+        )
+    return present_article(article)
+
+
 @public_router.get("/{slug}/categories")
 async def index_categories(
     slug: Annotated[str, Path()],

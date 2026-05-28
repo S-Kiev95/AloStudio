@@ -234,6 +234,88 @@ async def test_articles_filters_by_category_slug(client, db_session):
 
 
 # ---------------------------------------------------------------------------
+# Article show
+# ---------------------------------------------------------------------------
+async def test_article_show_returns_published(client, db_session):
+    owner, headers, slug = await _seed_admin_and_portal(
+        db_session, client, "-as", portal_slug="as-portal"
+    )
+    base = f"/api/v1/accounts/{owner.account.id}/portals/{slug}/articles"
+    await client.post(
+        base,
+        json={
+            "article": {
+                "title": "How to install",
+                "slug": "how-to-install",
+                "content": "# Install\n\nRun the binary.",
+                "status": "published",
+            }
+        },
+        headers=headers,
+    )
+    resp = await client.get(f"/hc/{slug}/articles/how-to-install")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["slug"] == "how-to-install"
+    assert body["status"] == "published"
+    assert body["content"].startswith("# Install")
+
+
+async def test_article_show_404_when_draft(client, db_session):
+    owner, headers, slug = await _seed_admin_and_portal(
+        db_session, client, "-ad", portal_slug="ad-portal"
+    )
+    await client.post(
+        f"/api/v1/accounts/{owner.account.id}/portals/{slug}/articles",
+        json={
+            "article": {
+                "title": "Draft only",
+                "slug": "draft-only",
+                "status": "draft",
+            }
+        },
+        headers=headers,
+    )
+    resp = await client.get(f"/hc/{slug}/articles/draft-only")
+    assert resp.status_code == 404
+
+
+async def test_article_show_404_when_unknown_slug(client, db_session):
+    owner, headers, slug = await _seed_admin_and_portal(
+        db_session, client, "-an", portal_slug="an-portal"
+    )
+    resp = await client.get(f"/hc/{slug}/articles/no-such-article")
+    assert resp.status_code == 404
+
+
+async def test_article_show_locale_filter_misses(client, db_session):
+    """``?locale=`` scopes the lookup — a locale mismatch 404s even if
+    the slug exists in another locale. (NOTE: the DB has a global slug
+    uniqueness, so we can't test the multi-locale case Chatwoot supports;
+    we test the filter direction that *does* exist.)"""
+    owner, headers, slug = await _seed_admin_and_portal(
+        db_session, client, "-al", portal_slug="al-portal"
+    )
+    await client.post(
+        f"/api/v1/accounts/{owner.account.id}/portals/{slug}/articles",
+        json={
+            "article": {
+                "title": "Welcome",
+                "slug": "welcome-en",
+                "status": "published",
+                "locale": "en",
+            }
+        },
+        headers=headers,
+    )
+    hit = await client.get(f"/hc/{slug}/articles/welcome-en?locale=en")
+    miss = await client.get(f"/hc/{slug}/articles/welcome-en?locale=es")
+    assert hit.status_code == 200
+    assert hit.json()["title"] == "Welcome"
+    assert miss.status_code == 404
+
+
+# ---------------------------------------------------------------------------
 # Categories
 # ---------------------------------------------------------------------------
 async def test_categories_index_returns_all(client, db_session):
