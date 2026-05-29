@@ -88,7 +88,7 @@ export function DashboardShell({
           </div>
         </header>
 
-        <main className="p-4 sm:p-6">{children}</main>
+        <main id="main-content" className="p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );
