@@ -55,3 +55,6 @@ reference/
 # Agent skills installed via `npx skills add` (local tooling; one ships
 # Windows symlink-as-text pointers that don't resolve cross-machine).
 .agents/
+
+# Local scratch (auth headers from manual API probes, etc.)
+.tmp/
