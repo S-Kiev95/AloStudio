@@ -1,6 +1,13 @@
 # Frontend — Next.js dashboard (mirror of the Chatwoot UI)
 
-**Branch:** `feat/frontend-next`
+> **Status (2026-05-30):** v1 closed and merged to `main` at commit
+> `9267143`. F.4 (Contacts) and the deeper Chatwoot surfaces are now
+> tracked in [`PLAN.frontend-v2.md`](PLAN.frontend-v2.md). The v1
+> verdict + the audit-by-surface lives in
+> [`PLAN.parity-review.md`](PLAN.parity-review.md).
+
+**Branch (v1):** `feat/frontend-next` (merged).
+**Branch (v2):** `feat/v2` (to be created from `main`).
 
 **Goal:** A Next.js (React + TypeScript) frontend with **feature parity**
 to Chatwoot's dashboard, consuming the AloStudio FastAPI backend. Same
@@ -133,9 +140,12 @@ frontend/                     # Next app (its own package.json / node)
       attachments, status / priority / assignee / team / labels.
 - [ ] **Realtime**: live new-message + conversation updates via WS.
 
-### F.4 — Contacts  · v2
+### F.4 — Contacts  · v2 → see [`PLAN.frontend-v2.md`](PLAN.frontend-v2.md)
 - [ ] Contact list + search, contact detail, custom attributes,
-      contact-inbox / conversations history.
+      contact-inbox / conversations history. **Promoted to its own
+      v2 plan** — splits into `fe.14a` (list/search/create/detail)
+      and `fe.14b` (merge + inline panel in conversation detail).
+      Backend is fully ported (`app/domains/contacts/router.py`).
 
 ### F.5 — Inboxes + channel connection  · **v1**
 - [ ] Inbox CRUD + members + settings.
