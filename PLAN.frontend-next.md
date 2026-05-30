@@ -170,10 +170,17 @@ frontend/                     # Next app (its own package.json / node)
 - [ ] One-off + ongoing campaign CRUD.
 
 ### F.12 — Hardening + close
-- [ ] Playwright e2e on the core flows (login → conversation → reply;
-      IG connect → publish → comment).
-- [ ] Perf pass, error boundaries, empty/loading states, a11y.
-- [ ] README + deploy (Vercel or Docker) + point at the FastAPI backend.
+- [x] Playwright e2e on the core flows (fe.12b — 6 specs in
+      `frontend/tests/e2e/`: auth, labels CRUD, help-center admin + ISR
+      public, Instagram connection UI). IG-publish + conversation-reply
+      e2e land alongside an inbox-CRUD UI in a follow-up.
+- [x] Error boundaries, loading skeletons, branded 404s, skip-link
+      (fe.12a — `app/error.tsx` at root + per-account + per-`/hc` plus
+      `loading.tsx` + `not-found.tsx`). Perf pass piggy-backed on
+      fe.12c — all dashboard routes under 10 kB route-specific JS,
+      public `/hc/<slug>` ships ~176 B.
+- [x] Frontend README + DEPLOY.md (Vercel + Docker, with a
+      production-ready `Dockerfile` + `.dockerignore`) — fe.12c.
 
 ### F.13 — Chatwoot UI parity review
 
@@ -183,19 +190,26 @@ design system, so this is *feature* parity, not a pixel clone). Uses the
 reference Chatwoot already wired in `docker-compose.yml`
 (`--profile reference` → `chatwoot-ref` on `127.0.0.1:3001`).
 
-- [ ] **Feature-parity matrix** — a screen-by-screen checklist mapping
-      every Chatwoot dashboard screen/feature → AloStudio status
-      (present / equivalent behaviour / gaps). The documentary parity
-      record. Commit as `docs/ui-parity.md`.
-- [ ] **Behavioural e2e parity (Playwright)** — the same user journeys
-      (login → conversation list → open → reply → message appears →
-      resolve; IG connect → publish → comment) run against **both** the
-      Chatwoot reference (`:3001`) and AloStudio (`:3000`), asserting
-      equivalent outcomes (framework-agnostic, not DOM-identical).
+- [x] **Feature-parity matrix** — screen-by-screen checklist mapping
+      every Chatwoot dashboard surface → AloStudio status (present /
+      equivalent / partial / deferred / missing). Landed as
+      [`PLAN.parity-review.md`](PLAN.parity-review.md). Verdict:
+      common-flow parity reached; gaps are at the power-user end
+      (bulk actions, saved views, full search) and on Contacts which
+      stays as v2.
+- [ ] **Behavioural e2e parity (Playwright)** — same user journeys
+      against both `:3001` (Chatwoot ref) and `:3000` (AloStudio).
+      Deferred: building selectors that work in both DOMs is its own
+      project; the cross-framework e2e is the natural next step *after*
+      Contacts + the notifications inbox land, when the missing surfaces
+      stop dominating the diff.
 - [ ] **Visual side-by-side** — Playwright screenshots of each screen in
-      both apps as a **design-review aid** (not an automated pixel diff —
-      different frameworks/design make pixel diffing pure noise).
-- [ ] Triage the matrix gaps into follow-up tasks.
+      both apps as a design-review aid (not a pixel diff). Deferred for
+      the same reason; pairs naturally with the cross-app e2e above.
+- [x] Triage the matrix gaps into follow-up tasks. See
+      [`PLAN.parity-review.md` §12](PLAN.parity-review.md) — 10 ranked
+      quick wins from "~30 min" (Run-macro-on-conversation) to "~2-3 days"
+      (saved views / custom filters).
 
 > Scope note: this is **functional + behavioural + visual-review** parity.
 > A pixel-perfect Chatwoot clone is explicitly out of scope (it would
