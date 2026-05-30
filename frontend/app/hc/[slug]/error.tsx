@@ -13,7 +13,6 @@ export default function HelpCenterError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // eslint-disable-next-line no-console
     console.error("AloStudio /hc error", error);
   }, [error]);
 
