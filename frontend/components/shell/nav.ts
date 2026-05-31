@@ -8,6 +8,7 @@ import {
   MessagesSquare,
   Package,
   Settings,
+  Users,
 } from "lucide-react";
 
 export type NavItem = {
@@ -25,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: MessagesSquare,
     segment: "conversations",
   },
+  { key: "contacts", label: "Contactos", icon: Users, segment: "contacts" },
   { key: "instagram", label: "Instagram", icon: Instagram, segment: "instagram" },
   { key: "products", label: "Productos", icon: Package, segment: "products" },
   {
