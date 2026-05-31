@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowLeft, Mail, Phone, User as UserIcon } from "lucide-react";
+import { ArrowLeft, GitMerge, Mail, Phone, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   type ContactInput,
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 
 import { ContactForm } from "./contact-form";
 import { ContactableInboxesPanel } from "./contactable-inboxes-panel";
+import { MergeDialog } from "./merge-dialog";
 import { NotesPanel } from "./notes-panel";
 
 type Tab = "info" | "notes" | "inboxes";
@@ -39,6 +41,7 @@ export function ContactDetailView({
   );
   const update = useUpdateContact(accountId);
   const [tab, setTab] = useState<Tab>("info");
+  const [mergeOpen, setMergeOpen] = useState(false);
 
   async function handleUpdate(input: ContactInput) {
     await update.mutateAsync({ id: contactId, patch: input });
@@ -94,7 +97,27 @@ export function ContactDetailView({
                 Bloqueado
               </span>
             ) : null}
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setMergeOpen(true)}
+            >
+              <GitMerge className="h-4 w-4" aria-hidden />
+              Combinar
+            </Button>
           </div>
+
+          <MergeDialog
+            accountId={accountId}
+            base={contact}
+            open={mergeOpen}
+            onClose={() => setMergeOpen(false)}
+            onMerged={() => {
+              // Post-merge the base contact stays put — just bounce back
+              // to the list since the form state is stale by then.
+              router.push(`/accounts/${accountId}/contacts`);
+            }}
+          />
 
           <div className="flex gap-1 border-b border-border">
             {TABS.map((t) => (

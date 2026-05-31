@@ -180,6 +180,24 @@ export function useDeleteContact(accountId: string) {
   });
 }
 
+/**
+ * ``POST /api/v1/accounts/{id}/actions/contact_merge`` — fold ``mergee``
+ * into ``base``. The mergee's conversations + notes + JSONB attrs move
+ * over and the mergee row is destroyed. Returns the post-merge ``base``
+ * contact (bare, no envelope).
+ */
+export function useMergeContacts(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { base_contact_id: number; mergee_contact_id: number }) =>
+      apiFetch<Contact>(
+        `/api/v1/accounts/${accountId}/actions/contact_merge`,
+        { method: "POST", body: JSON.stringify(input) },
+      ),
+    onSuccess: () => invalidate(qc, accountId),
+  });
+}
+
 /** Drop one or more custom-attribute keys from the contact's blob. */
 export function useDestroyContactCustomAttributes(accountId: string) {
   const qc = useQueryClient();

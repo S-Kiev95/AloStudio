@@ -10,6 +10,7 @@ import {
   useToggleStatus,
 } from "@/lib/api/conversations";
 
+import { ContactPanel } from "./contact-panel";
 import { ConversationActions } from "./conversation-actions";
 import { MessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
@@ -27,10 +28,12 @@ export function ConversationView({
 
   const status = conv.data?.status;
   const contactName = conv.data?.meta?.sender?.name ?? `#${displayId}`;
+  const contactId = conv.data?.meta?.sender?.id ?? null;
   const resolved = status === "resolved";
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem-2rem)] flex-col sm:h-[calc(100dvh-3.5rem-3rem)]">
+    <div className="flex h-[calc(100dvh-3.5rem-2rem)] gap-0 sm:h-[calc(100dvh-3.5rem-3rem)] lg:gap-4">
+      <div className="flex min-w-0 flex-1 flex-col">
       {/* Header */}
       <header className="flex items-center gap-3 border-b border-border pb-3">
         <Link
@@ -96,6 +99,14 @@ export function ConversationView({
       </div>
 
       <MessageComposer accountId={accountId} displayId={displayId} />
+      </div>
+
+      {/* Right-hand contact panel (lg+ only). */}
+      <ContactPanel
+        accountId={accountId}
+        contactId={contactId}
+        currentDisplayId={displayId}
+      />
     </div>
   );
 }
