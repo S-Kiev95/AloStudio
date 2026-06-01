@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     smtp_tls: bool = False
     mail_from: str = "noreply@alostudio.local"
 
+    # Public origin of the dashboard — used to build links inside
+    # transactional emails (password reset, agent invitations). Override
+    # in production via env (``APP_BASE_URL=https://app.midominio.com``).
+    app_base_url: str = "http://localhost:3000"
+
     # --- storage
     storage_backend: Literal["s3", "local"] = "s3"
     s3_endpoint_url: str = "http://localhost:9100"
