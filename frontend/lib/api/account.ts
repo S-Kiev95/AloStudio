@@ -13,7 +13,18 @@ export type Agent = {
   name: string;
   available_name?: string;
   email?: string;
+  /** Backend emits an int: 0 = agent, 1 = administrator. */
+  role?: number;
+  account_id?: number;
+  availability_status?: "online" | "offline" | "busy";
+  auto_offline?: boolean;
+  confirmed?: boolean;
+  thumbnail?: string;
 };
+
+/** Role enum on the wire (``AccountUser.role`` int). */
+export const ROLE_AGENT = 0;
+export const ROLE_ADMINISTRATOR = 1;
 
 export function useAgents(accountId: string) {
   return useQuery({

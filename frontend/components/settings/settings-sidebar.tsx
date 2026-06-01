@@ -13,6 +13,14 @@ export type SettingsItem = {
 };
 
 export const SETTINGS_ITEMS: SettingsItem[] = [
+  { segment: "agents", label: "Agentes", milestone: "fe.14c", done: true },
+  { segment: "profile", label: "Mi perfil", milestone: "fe.14c", done: true },
+  {
+    segment: "security",
+    label: "Seguridad",
+    milestone: "fe.14c",
+    done: true,
+  },
   { segment: "labels", label: "Etiquetas", milestone: "F.9a", done: true },
   { segment: "teams", label: "Equipos", milestone: "F.9b", done: true },
   {
