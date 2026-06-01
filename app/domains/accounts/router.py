@@ -31,7 +31,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
-from app.core.deps import current_user
+from app.core.deps import AccountContext, current_user, require_admin
+from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.exceptions import (
     AccountSignupError,
     InvalidParams,
@@ -40,6 +41,16 @@ from app.domains.accounts.models import Account
 from app.domains.accounts.presenters import present_account_show
 from app.domains.accounts.schemas import AccountCreateRequest
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
+from app.domains.agents.schemas import (
+    AgentCreateRequest,
+    AgentUpdateRequest,
+)
+from app.domains.agents.service import (
+    AgentAlreadyInAccount,
+    invite_agent,
+    remove_account_user,
+    update_account_user_role,
+)
 from app.domains.users.models import AccountUser, User
 from app.domains.users.presenters import (
     _availability_status,
@@ -302,6 +313,115 @@ def _agent_view(account_id: int, au: AccountUser, u: User) -> dict:
     if u.custom_attributes:
         body["custom_attributes"] = u.custom_attributes
     return body
+
+
+# ===========================================================================
+# Agent admin: invite, role-change, remove
+# ===========================================================================
+async def _find_account_user(
+    session: AsyncSession, account_id: int, user_id: int
+) -> tuple[AccountUser, User]:
+    """Account-scoped lookup for an agent. 404 on miss."""
+    stmt = (
+        select(AccountUser, User)
+        .join(User, User.id == AccountUser.user_id)  # type: ignore[arg-type]
+        .where(
+            AccountUser.account_id == account_id,
+            AccountUser.user_id == user_id,
+        )
+    )
+    row = (await session.exec(stmt)).first()
+    if row is None:
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"message": "Resource could not be found"},
+        )
+    return row
+
+
+def _ensure_path_matches_ctx(account_id: int, ctx: AccountContext) -> None:
+    """Defensive 404 when the URL account_id doesn't match the auth
+    context's account (account_context already vouches for the pair —
+    this is belt-and-suspenders so an off-account id never leaks)."""
+    if ctx.account.id != account_id:
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"message": "Resource could not be found"},
+        )
+
+
+@router.post("/{account_id}/agents", status_code=status.HTTP_200_OK)
+async def create_agent(
+    account_id: int,
+    payload: AgentCreateRequest,
+    ctx: AccountContext = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """``POST /api/v1/accounts/:account_id/agents`` — invite an agent.
+
+    Mirrors Chatwoot's ``AgentBuilder`` flow but collapses confirm +
+    password-reset into one click via a reset_password_token in the
+    invitation email.
+    """
+    _ensure_path_matches_ctx(account_id, ctx)
+    body = payload.agent
+    try:
+        user, au, _raw = await invite_agent(
+            session,
+            account=ctx.account,
+            inviter=ctx.user,
+            email=body.email,
+            name=body.name,
+            role=body.role,
+        )
+    except AgentAlreadyInAccount:
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"message": "Email has already been taken"},
+        ) from None
+    return _agent_view(account_id, au, user)
+
+
+@router.patch("/{account_id}/agents/{user_id}")
+async def update_agent(
+    account_id: int,
+    user_id: int,
+    payload: AgentUpdateRequest,
+    ctx: AccountContext = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """``PATCH /api/v1/accounts/:account_id/agents/:id``."""
+    _ensure_path_matches_ctx(account_id, ctx)
+    au, u = await _find_account_user(session, account_id, user_id)
+    body = payload.agent
+    u, au = await update_account_user_role(
+        session,
+        account_user=au,
+        name=body.name,
+        role=body.role,
+        availability=None,
+        auto_offline=body.auto_offline,
+        user=u,
+    )
+    return _agent_view(account_id, au, u)
+
+
+@router.delete(
+    "/{account_id}/agents/{user_id}", status_code=status.HTTP_200_OK
+)
+async def destroy_agent(
+    account_id: int,
+    user_id: int,
+    ctx: AccountContext = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """``DELETE /api/v1/accounts/:account_id/agents/:id`` — remove the
+    account membership. The User row stays (it may belong to other
+    accounts; orphan sweep is a follow-up worker)."""
+    _ensure_path_matches_ctx(account_id, ctx)
+    au, _u = await _find_account_user(session, account_id, user_id)
+    await remove_account_user(session, account_user=au)
+    return {}
 
 
 async def _find_authorised_account(
