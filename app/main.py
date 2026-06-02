@@ -35,6 +35,10 @@ from app.domains.inboxes.router import router as inboxes_router
 from app.domains.integrations.router import router as integrations_router
 from app.domains.labels.router import router as labels_router
 from app.domains.macros.router import router as macros_router
+from app.domains.notifications.router import (
+    router as notifications_router,
+    settings_router as notification_settings_router,
+)
 from app.mcp.router import router as mcp_tokens_router
 from app.domains.portals.public_router import public_router as portals_public_router
 from app.domains.portals.router import router as portals_router
@@ -216,6 +220,12 @@ def create_app() -> FastAPI:
     # — bot token in URL path acts as the credential, no verify-token
     # handshake. Body is a JSON Bot API Update object.
     app.include_router(telegram_webhook_router)
+    # In-app notifications inbox (v2.5). Per-user rows produced by the
+    # listener on CONVERSATION_CREATED / ASSIGNEE_CHANGED /
+    # MESSAGE_CREATED; the bell badge polls /unread_count and the
+    # cable channel emits notification.created for live updates.
+    app.include_router(notifications_router)
+    app.include_router(notification_settings_router)
     # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
     # last so HTTP routes take precedence in any path-overlap edge.
     app.include_router(cable_router)
