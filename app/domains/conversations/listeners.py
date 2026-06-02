@@ -417,6 +417,16 @@ async def broadcast_event(
         await fan_out_to_agent_bots(session, name, **payload)
     except Exception:  # noqa: BLE001
         log.exception("agent_bot_listener.error event=%s", name)
+    # In-app notifications inbox (v2.5) — inserts a Notification row
+    # per recipient (inbox members on create, assignee on assign /
+    # new incoming message) and broadcasts ``notification.created``
+    # to the recipient's cable channel so the bell badge updates live.
+    from app.domains.notifications.listener import fan_out_to_notifications
+
+    try:
+        await fan_out_to_notifications(session, name, **payload)
+    except Exception:  # noqa: BLE001
+        log.exception("notifications_listener.error event=%s", name)
     # Webhook delivery (Phase 8.3) — POSTs to every account-configured
     # Webhook subscribed to the event.
     from app.domains.webhooks.listener import fan_out_to_webhooks
