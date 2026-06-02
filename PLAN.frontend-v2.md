@@ -2,7 +2,9 @@
 
 **Goal.** Take the AloStudio frontend from "v1 = common-flow parity"
 (merged on `main` as of commit `9267143`) to **full functional parity**
-with Chatwoot OSS v4.13.0 for what a real customer needs day-to-day.
+with Chatwoot OSS v4.13.0 for what a real customer needs day-to-day,
+and tighten the MCP + webhook surface so an external AI agent can
+plug in cleanly.
 
 **What "complete" means for v2.** The remaining honest gaps flagged in
 [`PLAN.parity-review.md`](PLAN.parity-review.md) §1–§8 close. After v2
@@ -14,6 +16,16 @@ power-user backlog in [`PLAN.parity-review.md §12`](PLAN.parity-review.md).
 agent in a separate Claude Code account that will consume it. Once v2
 closes, the dashboard reaches a state worth auditing with Claude 4.8
 (backend audit → frontend audit) before any UI-polish pass.
+
+**Layout of the plan.** Sub-milestones come in two clusters:
+
+* **v2.1–v2.6 — human-side parity** (Contacts, Agents+Profile+Security,
+  Notifications inbox). What a human operator misses today vs Chatwoot.
+* **v2.7–v2.9 — AI-agent integration polish** (HTTP MCP transport,
+  webhook event_id + signature header alias + `sender_type`,
+  `ai_mode` to prevent self-loops, ARQ-backed delivery retries). Sharper-
+  edge improvements surfaced by the external agent ("Alicia") trying to
+  consume the MCP + webhooks the v1 backend already exposes.
 
 ---
 
@@ -242,6 +254,130 @@ notification lands me in the conversation.
 
 ---
 
+## AI-agent integration polish (post-notifications)
+
+The MCP server + outbound webhooks already exist (v1). When a second
+Claude session started building an AI agent ("Alicia") that consumes
+the MCP, it surfaced four sharp integration questions. The pieces
+below close those gaps. They land *after* v2.5/v2.6 so the human-side
+notifications surface ships first.
+
+### v2.7 — `be.ai-integration-prep` (backend)
+
+Lowest-hanging fixes. Roughly one focused session.
+
+**Scope:**
+
+* **HTTP MCP transport.** `app/mcp/README.md:101-106` documents
+  `python -m app.mcp http --host 0.0.0.0 --port 8765` but the
+  entry point isn't shipped — agents on a different host can only
+  consume the MCP via stdio today. Add `app/mcp/__main__.py` that
+  dispatches between `stdio` and `http` (streamable-http per fastmcp);
+  same `build_server()` + `AuthMiddleware` instance for both.
+* **`event_id` in the webhook body.** Today the per-delivery UUID
+  lives in the `X-Chatwoot-Delivery` header
+  (`app/domains/agent_bots/listener.py:135`). Mirror it into the
+  JSON body so receivers can dedupe without parsing headers.
+* **Dual signature header.** Today: `X-Chatwoot-Signature: <bare-hex>`
+  (legacy Chatwoot parity). Emit *both*:
+  `X-Chatwoot-Signature: <hex>` (kept for backward compat) **and**
+  `X-AloStudio-Signature: sha256=<hex>` (the prefix form is what most
+  modern receivers expect, GitHub-style). Same secret, same HMAC.
+* **`sender_type` in message webhook body.** Resolve the STI on
+  `Message.sender_type` (User / Contact / AgentBot / api) and emit
+  it. Lets the receiver know who sent the message without an extra
+  MCP round-trip.
+* **`INTEGRATIONS.md` doc** at the repo root: payload shape (signed
+  with examples), HMAC verification snippet, anti-loop guidance
+  (*"filter on `message_type === \"incoming\"` — the webhook fires
+  for both incoming and outgoing per Chatwoot parity"*), retry
+  semantics (none today — see v2.9), and the auth model
+  (Bearer token from `/settings/mcp_tokens`).
+
+**Tests:**
+
+* HTTP transport: integration test boots the MCP HTTP server in a
+  thread, makes a real `Authorization: Bearer` call against it.
+* Body fields: extend the existing webhook delivery tests to assert
+  the new keys.
+* Dual header: assert both headers appear, with matching hex digest.
+
+**Definition of done:** Alicia (or any external agent) can do
+*both* of these against a running AloStudio:
+1. Open an MCP session over HTTP with a `write`-scope Bearer token,
+   call `send_message`.
+2. Stand up a webhook receiver, verify the `X-AloStudio-Signature`
+   header, dedupe by `event_id`, and skip messages where
+   `message_type === "outgoing"`.
+
+### v2.8 — `be.ai-mode` (backend)
+
+Mediano. Lets an AI agent "take over" a conversation and prevents
+our own automation rules / macros from firing on top.
+
+**Scope:**
+
+* Migration: add `Conversation.ai_mode` (bool, default `false`) and
+  optional `Conversation.ai_assignee` (string identifier of which
+  AI took it, informational).
+* Two new MCP tools in `app/mcp/tools/conversations.py`:
+  * `get_ai_mode(conversation_id) -> {ai_mode, ai_assignee}`.
+  * `set_ai_mode(conversation_id, on, ai_assignee?)` —
+    scope=`write` required, fires a `conversation_updated` event so
+    the human-side cable invalidates the cache.
+* **Suppression hook:** automation rule listener
+  (`app/domains/automation/listener.py`) skips when the conversation
+  has `ai_mode=true`. Macros executed *manually* by a human agent
+  are unaffected (the human knows what they're doing); macros chained
+  *automatically* via an automation rule get skipped via the rule
+  short-circuit.
+* Optional: a `🤖 IA activa` badge in the conversation header on the
+  frontend (could land as a follow-up — backend ships standalone).
+
+**Tests:**
+
+* `set_ai_mode(on)` flips the column and emits the cable event.
+* Automation listener test: a rule that would otherwise fire skips
+  when the conversation is in ai_mode.
+* Permission test: a `read`-scope token can `get_ai_mode` but not
+  `set_ai_mode`.
+
+**Definition of done:** Alicia calls `set_ai_mode(conv, on=true)`,
+takes over the conversation, our automation doesn't fight her. She
+calls `set_ai_mode(conv, on=false)` when she hands back to a human.
+
+### v2.9 — `be.webhook-retries` (backend)
+
+Smallest-priority and largest-effort. Today
+`app/domains/webhooks/listener.py:131-154` and
+`app/domains/agent_bots/listener.py:277-305` deliver inline with a
+10 s timeout and **no retries** — a non-2xx or transport error logs
+and gives up.
+
+**Scope:**
+
+* Move webhook + agent-bot delivery to an ARQ job:
+  `app/workers/jobs/deliver_webhook.py`.
+* Exponential backoff: 4 retries at 5 s / 30 s / 5 min / 30 min,
+  matching Chatwoot's `WebhookJob` `retry_on` config.
+* Per-receiver dead-letter log (so an operator can see which
+  receivers are misbehaving without reading the application log).
+* Listener fan-out enqueues instead of calling `_deliver` directly.
+
+**Tests:**
+
+* Happy path: enqueue → ARQ worker runs → POST succeeds → no retry.
+* Backoff: stub the HTTP client to return 500 twice then 200,
+  assert 3 attempts spread across the schedule.
+* Dead-letter: 5xx forever → row in the dead-letter table after
+  the 4th retry exhausts.
+
+**Definition of done:** A receiver that 500s once recovers without
+human intervention; a receiver that 500s forever gets quarantined
+and the operator has visibility.
+
+---
+
 ## Out of scope for v2 (explicit defer)
 
 Mirroring `PLAN.parity-review.md §13`:
@@ -265,7 +401,7 @@ Mirroring `PLAN.parity-review.md §13`:
 
 ## Definition of done for v2
 
-After all 6 sub-milestones land and v2 merges to `main`:
+After all 9 sub-milestones land and v2 merges to `main`:
 
 * [ ] **`PLAN.parity-review.md`** updates: every `⚠️ Contacts` /
       `⚠️ Notifications` / `⚠️ Agents` flips to `✅`. The remaining
@@ -273,24 +409,53 @@ After all 6 sub-milestones land and v2 merges to `main`:
 * [ ] **Tests** — Vitest stays green, Playwright e2e gets at least
       one new spec per major surface (`contacts.spec.ts`,
       `agents-invite.spec.ts`, `notifications.spec.ts`). Backend
-      pytest stays green.
-* [ ] **DEPLOY.md** — no changes needed; the new routes inherit the
-      Vercel / Docker recipes.
-* [ ] **Smoke check** — I can run the seeded demo account end-to-end:
-      log in → invite a teammate (catch the email in MailHog) →
-      they sign in → I assign them a conversation → their bell
-      badge increments → they see the contact panel inline → they
-      reply → I get a notification back.
+      pytest stays green; new integration tests cover the MCP HTTP
+      transport, dual signature header, and ai_mode suppression.
+* [ ] **DEPLOY.md** — extend with the MCP HTTP transport recipe
+      (port + reverse-proxy notes). Vercel/Docker frontend section
+      unchanged.
+* [ ] **INTEGRATIONS.md** lands at the repo root, documenting the
+      MCP + webhook contract for external AI agents (Alicia and
+      whatever else plugs in).
+* [ ] **Human smoke check**: log in → invite a teammate → they sign
+      in → I assign them a conversation → their bell badge
+      increments → they see the contact panel inline → they reply →
+      I get a notification back.
+* [ ] **AI smoke check**: an external agent with a `write` Bearer
+      token can (1) open an HTTP MCP session and call `send_message`,
+      (2) receive a `message_created` webhook, verify the
+      `X-AloStudio-Signature: sha256=<hex>` header, dedupe by
+      `event_id`, filter outgoing, and reply; (3) call
+      `set_ai_mode(conv, on=true)` and watch automation rules stop
+      firing on that conversation.
 
-When that passes, v2 closes and the dashboard is ready for the
-Claude 4.8 backend + frontend audit.
+When both pass, v2 closes and the dashboard is ready for the Claude
+4.8 backend + frontend audit.
 
 ---
 
 ## Estimated cadence
 
-6 sessions, **none combined**. Each backend session ends with the
-domain test-covered and merged to `main` so the next frontend session
-has a clean target. Order matches the milestone numbering: Contacts
-list → Contacts merge → backend agents → frontend agents → backend
-notifications → frontend notifications.
+**9 sub-milestones, none combined.** Each backend session ends with
+the domain test-covered and merged to `main` so the next frontend (or
+next backend) session has a clean target.
+
+Order:
+
+1. ✅ `fe.14a` — Contacts list/search/create/detail
+2. ✅ `fe.14b` — Contact merge + inline panel
+3. ✅ `be.agents` — agents admin (invite + role + remove)
+4. ✅ `fe.14c` — Settings → Agents + Profile + Security
+5. ⏳ `be.notifications` — Notification model + router + listener
+6. ⏳ `fe.14d` — Notification bell + inbox + prefs
+7. ⏳ `be.ai-integration-prep` — MCP HTTP transport + webhook polish
+8. ⏳ `be.ai-mode` — ai_mode column + tools + automation suppression
+9. ⏳ `be.webhook-retries` — ARQ-backed retries with exponential
+   backoff and dead-letter visibility
+
+Items 7–9 are the AI-agent integration tail. They land after the
+notifications surface because (a) the MCP + webhook plumbing already
+works for the common case — these are sharper-edge improvements
+surfaced by an external agent (Alicia) trying to consume it; and
+(b) the notification inbox is what an *operator* uses while testing
+the AI integration, so it makes sense to ship that first.
