@@ -33,7 +33,14 @@ export function useCable({
         user_id: userId,
         account_id: Number(accountId),
       },
-      () => {
+      (msg) => {
+        // Coarse-but-correct: refetch the affected query buckets. The bell
+        // badge tracks ``notification.created`` specifically so we don't
+        // wait the 60s poll interval to update.
+        if (msg.event === "notification.created") {
+          qc.invalidateQueries({ queryKey: ["notifications", accountId] });
+          return;
+        }
         qc.invalidateQueries({ queryKey: ["conversations", accountId] });
         qc.invalidateQueries({ queryKey: ["messages", accountId] });
         qc.invalidateQueries({ queryKey: ["conversation", accountId] });

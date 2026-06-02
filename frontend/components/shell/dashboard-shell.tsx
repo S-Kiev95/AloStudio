@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 
 import { AccountSwitcher } from "./account-switcher";
 import { AgentMenu } from "./agent-menu";
+import { NotificationBell } from "./notification-bell";
 import { SidebarNav } from "./sidebar-nav";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -83,6 +84,7 @@ export function DashboardShell({
           </button>
           <AccountSwitcher accountId={accountId} accounts={profile.accounts} />
           <div className="ml-auto flex items-center gap-1">
+            <NotificationBell accountId={accountId} />
             <ThemeToggle />
             <AgentMenu name={profile.name} email={profile.email} />
           </div>

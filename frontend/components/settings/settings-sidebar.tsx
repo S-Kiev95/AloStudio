@@ -21,6 +21,12 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     milestone: "fe.14c",
     done: true,
   },
+  {
+    segment: "notifications",
+    label: "Notificaciones",
+    milestone: "fe.14d",
+    done: true,
+  },
   { segment: "labels", label: "Etiquetas", milestone: "F.9a", done: true },
   { segment: "teams", label: "Equipos", milestone: "F.9b", done: true },
   {
