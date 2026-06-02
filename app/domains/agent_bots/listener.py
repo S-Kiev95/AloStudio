@@ -55,6 +55,27 @@ from app.domains.conversations.models import (
     message_type_to_str,
 )
 
+
+def _resolve_sender_type(message: Message) -> str | None:
+    """Normalize ``Message.sender_type`` to a short string for webhooks.
+
+    Chatwoot's STI yields values like ``User`` / ``Contact`` /
+    ``AgentBot`` (and the channel-injected synthetic ``api`` value for
+    messages produced by API-channel posts without a user). We emit the
+    lowercase form so receivers can branch on a stable contract.
+    """
+    raw = message.sender_type
+    if not raw:
+        return None
+    lower = raw.lower()
+    if lower in {"user", "contact", "agentbot", "agent_bot", "api"}:
+        # Normalize ``AgentBot`` → ``agent_bot`` for snake-case parity
+        # with the rest of the webhook body.
+        if lower == "agentbot":
+            return "agent_bot"
+        return lower
+    return lower
+
 log = logging.getLogger(__name__)
 
 # Dispatcher event name → AgentBot webhook envelope event name.
@@ -132,12 +153,15 @@ async def _relay_message_event(
     bots = await _bots_for(session, conversation=conversation)
     if not bots:
         return
-    body = _build_message_webhook_body(
-        conversation=conversation,
-        message=message,
-        event_name=event_name,
-    )
     for bot in bots:
+        # ``event_id`` is per-delivery, NOT per-event — each receiver
+        # gets its own UUID so retries (v2.9) can be deduped per hook.
+        body = _build_message_webhook_body(
+            conversation=conversation,
+            message=message,
+            event_name=event_name,
+            event_id=str(uuid.uuid4()),
+        )
         await _deliver(bot, body)
 
 
@@ -151,12 +175,13 @@ async def _relay_conversation_event(
     bots = await _bots_for(session, conversation=conversation)
     if not bots:
         return
-    body = _build_conversation_webhook_body(
-        conversation=conversation,
-        event_name=event_name,
-        changed_attributes=changed_attributes,
-    )
     for bot in bots:
+        body = _build_conversation_webhook_body(
+            conversation=conversation,
+            event_name=event_name,
+            changed_attributes=changed_attributes,
+            event_id=str(uuid.uuid4()),
+        )
         await _deliver(bot, body)
 
 
@@ -222,14 +247,24 @@ def _build_message_webhook_body(
     conversation: Conversation,
     message: Message,
     event_name: str,
+    event_id: str | None = None,
 ) -> dict[str, Any]:
-    """Mirror ``Message#webhook_data`` merged with ``event``."""
+    """Mirror ``Message#webhook_data`` merged with ``event`` + a v2.7
+    ``event_id`` (UUID) that mirrors the ``X-Chatwoot-Delivery`` header
+    so receivers can dedupe purely from the body.
+
+    ``sender_type`` (v2.7) is the lowercase STI label — ``user`` /
+    ``contact`` / ``agent_bot`` / ``api`` — emitted so receivers can
+    branch without an MCP round-trip.
+    """
     body: dict[str, Any] = {
         "event": event_name,
         "id": message.id,
         "content": message.content,
         "content_type": message.content_type,
         "message_type": message_type_to_str(message.message_type),
+        "sender_type": _resolve_sender_type(message),
+        "sender_id": message.sender_id,
         "private": bool(message.private),
         "source_id": message.source_id,
         "content_attributes": message.content_attributes or {},
@@ -239,6 +274,8 @@ def _build_message_webhook_body(
         else None,
         "conversation": _conversation_webhook_data(conversation),
     }
+    if event_id is not None:
+        body["event_id"] = event_id
     return body
 
 
@@ -247,6 +284,7 @@ def _build_conversation_webhook_body(
     conversation: Conversation,
     event_name: str,
     changed_attributes: Any,
+    event_id: str | None = None,
 ) -> dict[str, Any]:
     body: dict[str, Any] = {
         "event": event_name,
@@ -254,6 +292,8 @@ def _build_conversation_webhook_body(
     }
     if changed_attributes is not None:
         body["changed_attributes"] = changed_attributes
+    if event_id is not None:
+        body["event_id"] = event_id
     return body
 
 
@@ -279,11 +319,18 @@ async def _deliver(bot: AgentBot, payload: dict[str, Any]) -> None:
         return
     body_bytes = json.dumps(payload).encode("utf-8")
     signature = _sign_body(body_bytes, bot.secret)
-    delivery_id = str(uuid.uuid4())
+    # ``X-Chatwoot-Delivery`` already lives on the body as ``event_id``
+    # (v2.7) — keep both for transitional ergonomics. Modern receivers
+    # should prefer ``event_id`` + ``X-AloStudio-Signature``.
+    delivery_id = payload.get("event_id") or str(uuid.uuid4())
     headers = {
         "Content-Type": "application/json",
         "X-Chatwoot-Delivery": delivery_id,
+        # Legacy Chatwoot-parity header: bare hex digest.
         "X-Chatwoot-Signature": signature,
+        # v2.7 modern alias: ``sha256=<hex>`` (GitHub-style). Same
+        # HMAC, same secret — receivers can verify EITHER header.
+        "X-AloStudio-Signature": f"sha256={signature}" if signature else "",
     }
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:

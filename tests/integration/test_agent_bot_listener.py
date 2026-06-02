@@ -128,6 +128,17 @@ async def test_message_created_posts_to_outgoing_url(db_session):
     assert payload["message_type"] == "incoming"
     assert payload["conversation"]["id"] == conv.id
     assert payload["conversation"]["account_id"] == owner.account.id
+    # v2.7: ``event_id`` mirrors the delivery header so receivers can
+    # dedupe straight from the body.
+    assert "event_id" in payload
+    assert len(payload["event_id"]) == 36
+    delivery_header = route.calls.last.request.headers["X-Chatwoot-Delivery"]
+    assert delivery_header == payload["event_id"]
+    # v2.7: ``sender_type`` is the lowercase STI label. The incoming
+    # message above was created without a sender, so the channel layer
+    # leaves the field NULL — verify the key still appears (so
+    # receivers can branch without a hasattr check).
+    assert "sender_type" in payload
 
 
 @respx.mock
@@ -177,6 +188,8 @@ async def test_signature_header_is_hmac_sha256_of_body(db_session):
         b"my-bot-secret", req.content, hashlib.sha256
     ).hexdigest()
     assert req.headers["X-Chatwoot-Signature"] == expected_sig
+    # v2.7 dual header: modern ``sha256=<hex>`` form, same digest.
+    assert req.headers["X-AloStudio-Signature"] == f"sha256={expected_sig}"
     # Delivery ID present + UUID-shaped.
     assert "X-Chatwoot-Delivery" in req.headers
     assert len(req.headers["X-Chatwoot-Delivery"]) == 36

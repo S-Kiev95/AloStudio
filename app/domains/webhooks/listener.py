@@ -71,8 +71,8 @@ async def fan_out_to_webhooks(
     if subscribed_name is None:
         return
 
-    account_id, body = _resolve_subject(subscribed_name, payload)
-    if account_id is None or body is None:
+    account_id, builder = _resolve_subject(subscribed_name, payload)
+    if account_id is None or builder is None:
         return
 
     webhooks = await webhooks_subscribed_to(
@@ -81,13 +81,17 @@ async def fan_out_to_webhooks(
     if not webhooks:
         return
     for hook in webhooks:
-        await _deliver(hook, body)
+        # Per-delivery event_id (v2.7) so the same logical event sent
+        # to multiple subscribers carries distinct dedupe keys.
+        await _deliver(hook, builder(event_id=str(uuid.uuid4())))
 
 
+# A builder closure here keeps the per-hook ``event_id`` injection clean
+# without re-walking the payload for each receiver.
 def _resolve_subject(
     subscribed_name: str, payload: dict[str, Any]
-) -> tuple[int | None, dict[str, Any] | None]:
-    """Build (account_id, webhook_body) for the event.
+) -> tuple[int | None, Any]:
+    """Build (account_id, body_builder(event_id) → dict) for the event.
 
     Returns ``(None, None)`` when the payload doesn't carry the
     expected subject (defensive — listeners must never raise)."""
@@ -100,24 +104,32 @@ def _resolve_subject(
         conversation = message.conversation
         if not isinstance(conversation, Conversation):
             return None, None
-        body = _build_message_webhook_body(
-            conversation=conversation,
-            message=message,
-            event_name=subscribed_name,
-        )
-        return conversation.account_id, body
+
+        def _build(*, event_id: str) -> dict[str, Any]:
+            return _build_message_webhook_body(
+                conversation=conversation,
+                message=message,
+                event_name=subscribed_name,
+                event_id=event_id,
+            )
+
+        return conversation.account_id, _build
 
     # Conversation-level events.
     conversation = payload.get("conversation")
     if not isinstance(conversation, Conversation):
         return None, None
     changed_attributes = payload.get("changed_attributes")
-    body = _build_conversation_webhook_body(
-        conversation=conversation,
-        event_name=subscribed_name,
-        changed_attributes=changed_attributes,
-    )
-    return conversation.account_id, body
+
+    def _build_conv(*, event_id: str) -> dict[str, Any]:
+        return _build_conversation_webhook_body(
+            conversation=conversation,
+            event_name=subscribed_name,
+            changed_attributes=changed_attributes,
+            event_id=event_id,
+        )
+
+    return conversation.account_id, _build_conv
 
 
 def _sign(body_bytes: bytes, secret: str | None) -> str:
@@ -130,10 +142,18 @@ def _sign(body_bytes: bytes, secret: str | None) -> str:
 
 async def _deliver(hook: Webhook, payload: dict[str, Any]) -> None:
     body_bytes = json.dumps(payload).encode("utf-8")
+    signature = _sign(body_bytes, hook.secret)
+    # ``event_id`` already lives on the body — reuse it as the
+    # ``X-Chatwoot-Delivery`` header so receivers that dedupe by either
+    # see the same value.
+    delivery_id = payload.get("event_id") or str(uuid.uuid4())
     headers = {
         "Content-Type": "application/json",
-        "X-Chatwoot-Delivery": str(uuid.uuid4()),
-        "X-Chatwoot-Signature": _sign(body_bytes, hook.secret),
+        "X-Chatwoot-Delivery": delivery_id,
+        # Legacy Chatwoot-parity bare-hex header.
+        "X-Chatwoot-Signature": signature,
+        # v2.7 modern alias (GitHub-style ``sha256=<hex>``).
+        "X-AloStudio-Signature": f"sha256={signature}" if signature else "",
     }
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:

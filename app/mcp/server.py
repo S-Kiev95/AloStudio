@@ -94,22 +94,28 @@ class AuthMiddleware(Middleware):
 def _extract_token(context: MiddlewareContext[Any]) -> str:
     """Pull the Bearer token from the MCP request context.
 
-    fastmcp 3.x stores HTTP headers on ``context.fastmcp_context`` or
-    falls through to env vars for stdio. The ``MCP_BEARER_TOKEN`` env
-    var override is useful for stdio transport where there's no
-    header to read.
+    fastmcp 3.x exposes HTTP headers via :func:`get_http_headers` from
+    its dependencies module — that's the supported way to read inbound
+    headers. ``include_all=True`` is required because ``authorization``
+    is stripped from the default view (fastmcp considers it a
+    forwarding-sensitive header). For stdio transport there's no HTTP
+    request and the helper returns ``{}``, so we fall back to the
+    ``MCP_BEARER_TOKEN`` env var.
     """
     import os
 
-    # HTTP transport — headers via fastmcp_context.
-    fc = getattr(context, "fastmcp_context", None)
-    if fc is not None:
-        request = getattr(fc, "request_context", None)
-        if request is not None:
-            headers = getattr(request, "headers", None) or {}
-            auth = headers.get("authorization") or headers.get("Authorization")
-            if auth and auth.lower().startswith("bearer "):
-                return auth[7:].strip()
+    # HTTP transport — read headers via the supported fastmcp helper
+    # (the older ``context.fastmcp_context.request_context.headers`` path
+    # disappeared in fastmcp 3.x).
+    try:
+        from fastmcp.server.dependencies import get_http_headers
+
+        headers = get_http_headers(include_all=True)
+    except Exception:  # noqa: BLE001 — never raise from auth path
+        headers = {}
+    auth = headers.get("authorization") or headers.get("Authorization")
+    if auth and auth.lower().startswith("bearer "):
+        return auth[7:].strip()
 
     # stdio fallback — env var.
     env_token = os.environ.get("MCP_BEARER_TOKEN")

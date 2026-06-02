@@ -100,10 +100,18 @@ Set `MCP_BEARER_TOKEN` in the env block:
 
 ### As an HTTP MCP server (remote agents)
 
-The HTTP-server entry point isn't shipped yet — that's part of the
-deployment-layer follow-up since it needs a TLS terminator,
-rate-limiter, etc. For now, run via stdio or roll your own
-`fastmcp run` invocation with HTTP transport.
+```bash
+python -m app.mcp http --host 0.0.0.0 --port 8765
+#   → URL: http://<host>:8765/mcp
+```
+
+Agents connect with a Bearer token in the `Authorization` header
+(same token they'd set in `MCP_BEARER_TOKEN` for stdio). Put a TLS
+terminator (Caddy / nginx / Cloudflare) in front of the HTTP transport
+in production — fastmcp's HTTP server doesn't do TLS or rate-limiting
+itself. See [`INTEGRATIONS.md`](../../INTEGRATIONS.md#1-mcp-server)
+for the external-agent contract (auth, scope hierarchy, recommended
+client setup).
 
 ## Architecture
 

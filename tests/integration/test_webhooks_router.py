@@ -349,9 +349,24 @@ async def test_message_created_event_delivers_to_subscribed_webhook(
         user_id=None,
     )
     assert route.called
-    body = json.loads(route.calls.last.request.content)
+    req = route.calls.last.request
+    body = json.loads(req.content)
     assert body["event"] == "message_created"
     assert body["content"] == "hi"
+    # v2.7: event_id appears in body + mirrors the delivery header.
+    assert len(body["event_id"]) == 36
+    assert req.headers["X-Chatwoot-Delivery"] == body["event_id"]
+    # v2.7: dual signature header. Legacy + GitHub-style ``sha256=<hex>``.
+    import hashlib
+    import hmac
+
+    expected = hmac.new(
+        b"hooksecret", req.content, hashlib.sha256
+    ).hexdigest()
+    assert req.headers["X-Chatwoot-Signature"] == expected
+    assert req.headers["X-AloStudio-Signature"] == f"sha256={expected}"
+    # v2.7: sender_type on message webhooks.
+    assert "sender_type" in body
 
 
 @respx.mock
