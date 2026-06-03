@@ -68,11 +68,18 @@ The gaps are power-user features (bulk, search, saved views).
 
 ---
 
-## 3. Contacts ⏸
+## 3. Contacts ✅
 
-Whole domain deferred per the planning decisions. Backend has contacts
-endpoints; frontend doesn't expose a contacts list / detail / segments
-/ companies surface yet. v2 work.
+Landed in v2.1 (`fe.14a`) + v2.2 (`fe.14b`).
+
+| Surface | Chatwoot | Us | Notes |
+|---|:---:|:---:|---|
+| List + search + pagination | ✅ | ✅ | `/accounts/{id}/contacts` — search by name/email/phone/identifier, 15/page. |
+| Create + edit + delete | ✅ | ✅ | Form supports name/email/phone/identifier + blocked toggle + custom attributes. |
+| Detail view | ✅ | ✅ | Conversations list, notes, custom-attribute editor, contactable-inboxes panel. |
+| Merge | ✅ | ✅ | Pick "merge target" dialog from the detail header. |
+| Inline panel in conversation | ✅ | ✅ | Right-hand panel in conversation detail (fe.14b). |
+| Segments + companies | ✅ | ❌ | Power-user features; ⏸ for now. |
 
 ---
 
@@ -133,8 +140,8 @@ when the backend ports the campaign scheduler.
 
 | Sub-section | Chatwoot | Us | File / Notes |
 |---|:---:|:---:|---|
-| Account / Profile / Security | ✅ | ⚠️ | We surface the agent-menu (top-right) for sign-out and theme. Profile editing + security pages (`account-settings.vue`, `security.vue`) ⏸. **Mediano follow-up.** |
-| Agents (invite + role management) | ✅ | ❌ | `AgentsController` exists on the backend; frontend has no invite UI. **Mediano follow-up** — devise + invitations need wiring. |
+| Account / Profile / Security | ✅ | ✅ | `settings/profile` (name/email/phone/signature) + `settings/security` (password change). Landed in fe.14c. |
+| Agents (invite + role management) | ✅ | ✅ | `settings/agents` — invite form, role promote/demote, remove. Backend `be.agents` ships the mailer + invitation link. Landed in v2.3 + v2.4. |
 | Teams ✅ | ✅ | ✅ | `settings/teams` with members panel. |
 | Inboxes (channel CRUD) | ✅ | ⚠️ | We list inboxes via `useInboxes` for pickers and the Instagram flow shows IG-channel detail; we don't surface a generic per-channel CRUD page. Chatwoot has wizards for 10+ channels. **Tier 1 of v2.** |
 | Labels ✅ | ✅ | ✅ | `settings/labels`. |
@@ -159,13 +166,17 @@ agents. Mirrors GitHub-PAT UX (secret revealed once).
 
 ---
 
-## 8. Notifications
+## 8. Notifications ✅
 
-Chatwoot has an in-app notifications inbox (mentions, assignments, etc.).
-Backend has `NotificationsController` + `NotificationSettingsController`.
-We **do not** surface this — there's no notification bell, no
-in-app inbox. ⏸ — mediano follow-up. The realtime cable infrastructure
-is already in place, so it's mostly a UI gap.
+Landed in v2.5 (`be.notifications`) + v2.6 (`fe.14d`).
+
+| Surface | Chatwoot | Us | Notes |
+|---|:---:|:---:|---|
+| Backend model + listener | ✅ | ✅ | `Notification` polymorphic actor + `NotificationSetting` (JSONB arrays instead of bit-packed ints). Listener fires on `conversation.created`, `assignee.changed`, `message.created`. |
+| Realtime cable broadcast | ✅ | ✅ | `notification.created` event published to the user's pubsub_token channel → bell updates without polling. |
+| Topbar bell + badge + dropdown | ✅ | ✅ | `components/shell/notification-bell.tsx` — unread count poll + live invalidation. Mark-read / delete / mark-all-read actions. |
+| Full inbox page | ✅ | ✅ | `/accounts/{id}/notifications` — paginated with all/unread filter tabs. |
+| Per-user preferences | ✅ | ✅ | `settings/notifications` — checkbox matrix (5 types × email/push). |
 
 ---
 
@@ -254,9 +265,11 @@ v1.1 closer.
 
 ---
 
-## 13. Explicit out-of-scope (v1)
+## 13. Explicit out-of-scope (v1, now mostly closed in v2)
 
-* **Contacts domain** — deferred to v2.
+* ~~**Contacts domain** — deferred to v2.~~ ✅ Shipped in v2.1 / v2.2.
+* ~~**Notifications inbox** — runtime infra ready, UI gap.~~ ✅ Shipped in v2.5 / v2.6.
+* ~~**Agent invitations + profile / security pages.**~~ ✅ Shipped in v2.3 / v2.4.
 * **SaaS billing** — not relevant for self-hosted.
 * **Enterprise tiers** (audit logs, custom roles, SSO sometimes) —
   defer indefinitely; revisit when there's a customer.
@@ -275,12 +288,17 @@ common workflows** an agent or admin uses day to day — conversations
 (read/reply/route), settings (all the admin CRUD that lets the
 account work), reports overview, campaigns, help-center authoring.
 
-The honest gaps are:
+The honest gaps **after v2 closeout** are:
 
-* **No Contacts surface** (the biggest visible omission — flagged as v2 from the start).
-* **No notification inbox** (medium — has runtime infrastructure, needs UI).
-* **No agent invitations / profile editing** (medium — backend ready, UI work).
-* **Power-user features** (bulk actions, saved views, full search) — small per-item, several items.
+* ~~No Contacts surface~~ — closed in v2.1/v2.2.
+* ~~No notification inbox~~ — closed in v2.5/v2.6.
+* ~~No agent invitations / profile editing~~ — closed in v2.3/v2.4.
+* **AI-agent integration polish (v2.7–v2.9)** — closed: HTTP MCP
+  transport, dual signature header, `event_id` in body, `sender_type`,
+  `Conversation.ai_mode` + tools + automation suppression, ARQ-backed
+  webhook retries with exponential backoff + dead-letter visibility.
+* **Power-user features** (bulk actions, saved views, full search) —
+  small per-item, several items. **Remaining ⏸.**
 
 **Net result:** an end user moving from Chatwoot would find every
 common feature where they expect it; the gaps are at the depth /

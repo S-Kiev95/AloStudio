@@ -182,3 +182,123 @@ Both Vercel and the Docker recipe ship immutable artifacts (Vercel by
 build id, Docker by image tag). Rolling back is "promote previous
 deployment" / "redeploy previous image" — the database is owned by the
 backend, so frontend rollbacks are safe.
+
+---
+
+## MCP HTTP transport (backend, v2.7+)
+
+The MCP server can run alongside the FastAPI app for AI agents that
+prefer HTTP over stdio (the stdio transport is for Claude Desktop /
+local-loop dev). Same `build_server()`, same `AuthMiddleware`, same
+tool surface — just a different wire protocol.
+
+### Launching
+
+```bash
+# Foreground for testing
+python -m app.mcp http --host 0.0.0.0 --port 8765
+
+# Production (systemd unit / docker container)
+python -m app.mcp http --host 127.0.0.1 --port 8765 --path /mcp
+```
+
+Bind to `127.0.0.1` and put a TLS terminator (nginx / Caddy / Traefik)
+in front. The MCP transport speaks **streamable HTTP** — modern
+fastmcp clients expect this; older `http`-only clients won't work.
+
+### Auth
+
+Agents pass `Authorization: Bearer <mcp_token>` on every request.
+Tokens are issued from the dashboard at `Settings → Tokens MCP`
+(`/accounts/{id}/settings/mcp_tokens`) and resolve to one account
+plus a scope (`read` / `write` / `admin`).
+
+### Reverse proxy recipe (nginx)
+
+```nginx
+# /etc/nginx/conf.d/mcp.conf
+upstream mcp_backend {
+    server 127.0.0.1:8765;
+    keepalive 16;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name mcp.midominio.com;
+    ssl_certificate     /etc/letsencrypt/live/mcp.midominio.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mcp.midominio.com/privkey.pem;
+
+    # MCP streamable-http needs HTTP/1.1 + long timeouts for tool
+    # invocations that run long (e.g. ``list_conversations`` over a
+    # busy account).
+    location /mcp {
+        proxy_pass         http://mcp_backend;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        # Pass the Authorization header through unmodified — the MCP
+        # auth middleware reads it via fastmcp's get_http_headers.
+        proxy_set_header   Authorization     $http_authorization;
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_buffering    off;  # streamable-http expects flush-as-you-go
+    }
+}
+```
+
+Connect to it with a fastmcp client:
+
+```python
+from fastmcp import Client
+from fastmcp.client.auth import BearerAuth
+
+async with Client(
+    "https://mcp.midominio.com/mcp",
+    auth=BearerAuth("<your-mcp-token>"),
+) as client:
+    result = await client.call_tool("whoami", {})
+    print(result.structured_content)
+```
+
+### docker-compose snippet (MCP HTTP service)
+
+If you containerise the backend, add a sidecar service for the MCP
+HTTP transport so it scales independently from the FastAPI workers:
+
+```yaml
+services:
+  mcp-http:
+    image: alostudio-backend:latest      # same image as the API
+    command:
+      ["python", "-m", "app.mcp", "http",
+       "--host", "0.0.0.0", "--port", "8765", "--path", "/mcp"]
+    environment:
+      DATABASE_URL:  ${DATABASE_URL}
+      REDIS_URL:     ${REDIS_URL}
+      # No MCP_BEARER_TOKEN — HTTP transport reads the header instead
+    ports:
+      - "127.0.0.1:8765:8765"
+    restart: unless-stopped
+```
+
+### Webhook receiver requirements (v2.7+)
+
+External agents that subscribe to AloStudio webhooks (account-level
+or per-bot) need to:
+
+* Verify either `X-Chatwoot-Signature: <hex>` (legacy bare-hex) **or**
+  `X-AloStudio-Signature: sha256=<hex>` (GitHub-style — recommended
+  for new integrations). Same HMAC-SHA-256 digest over the raw body
+  bytes, keyed on the webhook/bot secret.
+* Dedupe by `event_id` in the JSON body (mirrors the
+  `X-Chatwoot-Delivery` header).
+* Filter `message_type === "incoming"` if they only want inbound
+  customer messages — the webhook fires for both directions per
+  Chatwoot parity.
+* Tolerate retries: v2.9 retries 5s / 30s / 5min / 30min on non-2xx
+  or transport errors before quarantining in `webhook_dead_letters`.
+
+See `INTEGRATIONS.md` at the repo root for the full payload shape +
+HMAC verification snippets in Python / Node / Go.
