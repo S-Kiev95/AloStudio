@@ -30,14 +30,10 @@ needs the widget's ContactInbox lifecycle event which isn't yet wired).
 
 from __future__ import annotations
 
-import hashlib
-import hmac
-import json
 import logging
 import uuid
 from typing import Any
 
-import httpx
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.agent_bots.models import AgentBot
@@ -54,6 +50,8 @@ from app.domains.conversations.models import (
     conversation_status_to_str,
     message_type_to_str,
 )
+from app.domains.webhooks.models import RECEIVER_KIND_AGENT_BOT
+from app.workers.deliver_webhook import enqueue_delivery
 
 
 def _resolve_sender_type(message: Message) -> str | None:
@@ -155,14 +153,16 @@ async def _relay_message_event(
         return
     for bot in bots:
         # ``event_id`` is per-delivery, NOT per-event — each receiver
-        # gets its own UUID so retries (v2.9) can be deduped per hook.
+        # gets its own UUID so retries can be deduped per hook.
         body = _build_message_webhook_body(
             conversation=conversation,
             message=message,
             event_name=event_name,
             event_id=str(uuid.uuid4()),
         )
-        await _deliver(bot, body)
+        await _enqueue_bot_delivery(
+            session, bot=bot, body=body, event_name=event_name
+        )
 
 
 async def _relay_conversation_event(
@@ -182,7 +182,33 @@ async def _relay_conversation_event(
             changed_attributes=changed_attributes,
             event_id=str(uuid.uuid4()),
         )
-        await _deliver(bot, body)
+        await _enqueue_bot_delivery(
+            session, bot=bot, body=body, event_name=event_name
+        )
+
+
+async def _enqueue_bot_delivery(
+    session: AsyncSession,
+    *,
+    bot: AgentBot,
+    body: dict[str, Any],
+    event_name: str,
+) -> None:
+    """Push the bot relay onto the ARQ delivery queue (v2.9). Skips
+    when the bot has no outgoing_url configured — that mirrors the
+    pre-v2.9 inline path."""
+    if not bot.outgoing_url:
+        return
+    await enqueue_delivery(
+        session=session,
+        account_id=bot.account_id,  # type: ignore[arg-type]
+        receiver_kind=RECEIVER_KIND_AGENT_BOT,
+        receiver_id=bot.id,
+        url=bot.outgoing_url,
+        event_name=event_name,
+        body=body,
+        secret=bot.secret,
+    )
 
 
 async def _bots_for(
@@ -295,61 +321,6 @@ def _build_conversation_webhook_body(
     if event_id is not None:
         body["event_id"] = event_id
     return body
-
-
-# ---------------------------------------------------------------------------
-# HTTP delivery
-# ---------------------------------------------------------------------------
-def _sign_body(body_bytes: bytes, secret: str | None) -> str:
-    """Build the ``X-Chatwoot-Signature`` header value.
-
-    Empty secret yields an empty signature header — Chatwoot leaves it
-    blank when the bot hasn't generated a secret yet."""
-    if not secret:
-        return ""
-    return hmac.new(
-        secret.encode("utf-8"),
-        body_bytes,
-        hashlib.sha256,
-    ).hexdigest()
-
-
-async def _deliver(bot: AgentBot, payload: dict[str, Any]) -> None:
-    if not bot.outgoing_url:
-        return
-    body_bytes = json.dumps(payload).encode("utf-8")
-    signature = _sign_body(body_bytes, bot.secret)
-    # ``X-Chatwoot-Delivery`` already lives on the body as ``event_id``
-    # (v2.7) — keep both for transitional ergonomics. Modern receivers
-    # should prefer ``event_id`` + ``X-AloStudio-Signature``.
-    delivery_id = payload.get("event_id") or str(uuid.uuid4())
-    headers = {
-        "Content-Type": "application/json",
-        "X-Chatwoot-Delivery": delivery_id,
-        # Legacy Chatwoot-parity header: bare hex digest.
-        "X-Chatwoot-Signature": signature,
-        # v2.7 modern alias: ``sha256=<hex>`` (GitHub-style). Same
-        # HMAC, same secret — receivers can verify EITHER header.
-        "X-AloStudio-Signature": f"sha256={signature}" if signature else "",
-    }
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                bot.outgoing_url, content=body_bytes, headers=headers
-            )
-        if resp.status_code >= 400:
-            log.warning(
-                "agent_bot.delivery.non_2xx bot_id=%s status=%s body=%s",
-                bot.id,
-                resp.status_code,
-                resp.text[:500],
-            )
-    except (httpx.TimeoutException, httpx.RequestError) as exc:
-        log.warning(
-            "agent_bot.delivery.transport_error bot_id=%s err=%s",
-            bot.id,
-            exc,
-        )
 
 
 __all__ = ["fan_out_to_agent_bots"]

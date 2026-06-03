@@ -214,9 +214,10 @@ class WorkerSettings:
     # scheduled fires from ``fire_due_instagram_posts``).
     @staticmethod
     def _functions() -> list:
+        from app.workers.deliver_webhook import deliver_webhook_task
         from app.workers.instagram import publish_instagram_post_task
 
-        return [tick_5min, publish_instagram_post_task]
+        return [tick_5min, publish_instagram_post_task, deliver_webhook_task]
 
     functions = []  # type: ignore[var-annotated]  # populated via configure()
     cron_jobs: list = []  # populated below via late import

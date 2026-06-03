@@ -33,14 +33,10 @@ Deferred:
 
 from __future__ import annotations
 
-import hashlib
-import hmac
-import json
 import logging
 import uuid
 from typing import Any
 
-import httpx
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.agent_bots.listener import (
@@ -50,8 +46,9 @@ from app.domains.agent_bots.listener import (
 )
 from app.domains.conversations import events as ev
 from app.domains.conversations.models import Conversation, Message
-from app.domains.webhooks.models import Webhook
+from app.domains.webhooks.models import RECEIVER_KIND_WEBHOOK
 from app.domains.webhooks.service import webhooks_subscribed_to
+from app.workers.deliver_webhook import enqueue_delivery
 
 log = logging.getLogger(__name__)
 
@@ -83,7 +80,21 @@ async def fan_out_to_webhooks(
     for hook in webhooks:
         # Per-delivery event_id (v2.7) so the same logical event sent
         # to multiple subscribers carries distinct dedupe keys.
-        await _deliver(hook, builder(event_id=str(uuid.uuid4())))
+        body = builder(event_id=str(uuid.uuid4()))
+        # v2.9: enqueue instead of POSTing inline. The ARQ task handles
+        # retries + dead-letter; the inline-fallback path (no ARQ pool)
+        # delivers once and writes the dead-letter row directly on
+        # failure so dev + test envs still see end-to-end behaviour.
+        await enqueue_delivery(
+            session=session,
+            account_id=account_id,
+            receiver_kind=RECEIVER_KIND_WEBHOOK,
+            receiver_id=hook.id,
+            url=hook.url,
+            event_name=subscribed_name,
+            body=body,
+            secret=hook.secret,
+        )
 
 
 # A builder closure here keeps the per-hook ``event_id`` injection clean
@@ -130,48 +141,6 @@ def _resolve_subject(
         )
 
     return conversation.account_id, _build_conv
-
-
-def _sign(body_bytes: bytes, secret: str | None) -> str:
-    if not secret:
-        return ""
-    return hmac.new(
-        secret.encode("utf-8"), body_bytes, hashlib.sha256
-    ).hexdigest()
-
-
-async def _deliver(hook: Webhook, payload: dict[str, Any]) -> None:
-    body_bytes = json.dumps(payload).encode("utf-8")
-    signature = _sign(body_bytes, hook.secret)
-    # ``event_id`` already lives on the body — reuse it as the
-    # ``X-Chatwoot-Delivery`` header so receivers that dedupe by either
-    # see the same value.
-    delivery_id = payload.get("event_id") or str(uuid.uuid4())
-    headers = {
-        "Content-Type": "application/json",
-        "X-Chatwoot-Delivery": delivery_id,
-        # Legacy Chatwoot-parity bare-hex header.
-        "X-Chatwoot-Signature": signature,
-        # v2.7 modern alias (GitHub-style ``sha256=<hex>``).
-        "X-AloStudio-Signature": f"sha256={signature}" if signature else "",
-    }
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                hook.url, content=body_bytes, headers=headers
-            )
-        if resp.status_code >= 400:
-            log.warning(
-                "webhook.delivery.non_2xx webhook_id=%s status=%s",
-                hook.id,
-                resp.status_code,
-            )
-    except (httpx.TimeoutException, httpx.RequestError) as exc:
-        log.warning(
-            "webhook.delivery.transport_error webhook_id=%s err=%s",
-            hook.id,
-            exc,
-        )
 
 
 __all__ = ["fan_out_to_webhooks"]

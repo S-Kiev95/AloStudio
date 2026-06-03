@@ -16,9 +16,13 @@ schema column is preserved for parity).
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any
+
 from sqlalchemy import (
     BigInteger,
     Column,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -27,9 +31,14 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field
+from sqlalchemy.sql import func as sa_func
+from sqlmodel import Field, SQLModel
 
 from app.core.base_model import TimestampMixin
+
+# v2.9 — receiver kinds for ``WebhookDeadLetter.receiver_kind``.
+RECEIVER_KIND_WEBHOOK = "webhook"
+RECEIVER_KIND_AGENT_BOT = "agent_bot"
 
 # enum webhook_type: {account_type: 0, inbox_type: 1}
 WEBHOOK_TYPE_ACCOUNT = 0
@@ -95,9 +104,76 @@ class Webhook(TimestampMixin, table=True):
     secret: str | None = Field(default=None, sa_column=Column(String, nullable=True))
 
 
+class WebhookDeadLetter(SQLModel, table=True):
+    """Quarantine row for a webhook delivery that exhausted its
+    retries (v2.9). Not a ``TimestampMixin`` subclass because the
+    ``updated_at`` semantics don't apply — once a row lands, it's a
+    forensic record and shouldn't bump on read.
+    """
+
+    __tablename__ = "webhook_dead_letters"
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(Integer, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    # ``webhook`` | ``agent_bot`` — string for forward-compat with new
+    # receiver kinds (Instagram bot, etc.) that may land later.
+    receiver_kind: str = Field(
+        sa_column=Column(String(32), nullable=False),
+    )
+    # Not a real FK — the receiver may be deleted while the dead-letter
+    # row sticks around. We still index it so dashboards can group by
+    # receiver.
+    receiver_id: int | None = Field(
+        default=None, sa_column=Column(Integer, nullable=True)
+    )
+    url: str = Field(sa_column=Column(String, nullable=False))
+    event_name: str = Field(sa_column=Column(String(64), nullable=False))
+    event_id: str | None = Field(
+        default=None, sa_column=Column(String(64), nullable=True)
+    )
+    body: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
+    last_status_code: int | None = Field(
+        default=None, sa_column=Column(Integer, nullable=True)
+    )
+    last_error: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+    attempts: int = Field(
+        default=0,
+        sa_column=Column(Integer, nullable=False, server_default="0"),
+    )
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default=sa_func.now(),
+        ),
+    )
+    last_attempted_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+
+
 __all__ = [
     "ALLOWED_WEBHOOK_EVENTS",
+    "RECEIVER_KIND_AGENT_BOT",
+    "RECEIVER_KIND_WEBHOOK",
     "WEBHOOK_TYPE_ACCOUNT",
     "WEBHOOK_TYPE_INBOX",
     "Webhook",
+    "WebhookDeadLetter",
 ]
