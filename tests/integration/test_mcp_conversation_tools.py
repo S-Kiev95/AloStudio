@@ -268,7 +268,10 @@ async def test_add_label_then_remove_label(mcp_session):
 # ---------------------------------------------------------------------------
 # get_ai_mode / set_ai_mode
 # ---------------------------------------------------------------------------
-async def test_ai_mode_defaults_to_manual_and_round_trips(mcp_session):
+async def test_ai_mode_defaults_off_and_round_trips(mcp_session):
+    """v2.8: ``ai_mode`` is a real bool column; default is ``false``
+    (no AI in charge). ``set_ai_mode(on=true, ai_assignee=...)`` flips
+    both fields and the next ``get_ai_mode`` reflects them."""
     owner, token, conv = await _seed(mcp_session, suffix="-ai")
     os.environ["MCP_BEARER_TOKEN"] = token
     mcp = build_server()
@@ -277,19 +280,37 @@ async def test_ai_mode_defaults_to_manual_and_round_trips(mcp_session):
             client, "get_ai_mode", conversation_id=conv.id
         )
         body = initial.structured_content or initial.data
-        assert body["ai_mode"] == "manual"
+        assert body["ai_mode"] is False
+        assert body["ai_assignee"] is None
 
         await _call(
             client,
             "set_ai_mode",
             conversation_id=conv.id,
-            mode="auto",
+            on=True,
+            ai_assignee="alicia-v3",
         )
         after = await _call(
             client, "get_ai_mode", conversation_id=conv.id
         )
         body = after.structured_content or after.data
-        assert body["ai_mode"] == "auto"
+        assert body["ai_mode"] is True
+        assert body["ai_assignee"] == "alicia-v3"
+
+        # Hand back to humans — empty string clears the slot.
+        await _call(
+            client,
+            "set_ai_mode",
+            conversation_id=conv.id,
+            on=False,
+            ai_assignee="",
+        )
+        back = await _call(
+            client, "get_ai_mode", conversation_id=conv.id
+        )
+        body = back.structured_content or back.data
+        assert body["ai_mode"] is False
+        assert body["ai_assignee"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -312,6 +333,32 @@ async def test_read_token_cannot_resolve(mcp_session):
                 client,
                 "resolve_conversation",
                 conversation_id=conv.id,
+            )
+
+
+async def test_read_token_can_get_but_not_set_ai_mode(mcp_session):
+    """v2.8: ``get_ai_mode`` is read-scope (observability) but
+    ``set_ai_mode`` is write-scope — a misconfigured read-only token
+    must not be able to flip the AI takeover flag."""
+    owner, token, conv = await _seed(
+        mcp_session, suffix="-airead", scope="read"
+    )
+    os.environ["MCP_BEARER_TOKEN"] = token
+    mcp = build_server()
+    async with Client(mcp) as client:
+        # GET works — read-scope is sufficient.
+        body = (
+            await _call(client, "get_ai_mode", conversation_id=conv.id)
+        ).structured_content
+        assert body is not None
+        assert body["ai_mode"] is False
+        # SET fails on permission.
+        with pytest.raises(Exception, match="requires 'write'"):
+            await _call(
+                client,
+                "set_ai_mode",
+                conversation_id=conv.id,
+                on=True,
             )
 
 

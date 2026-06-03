@@ -27,8 +27,13 @@ embedding an orchestrator in this process.
   * `assign_team(conversation_id, team_id|null)` — write
   * `add_label(conversation_id, labels[])` — write
   * `remove_label(conversation_id, labels[])` — write
-  * `get_ai_mode(conversation_id)` — read
-  * `set_ai_mode(conversation_id, "auto"|"manual")` — write
+  * `get_ai_mode(conversation_id)` — read; returns
+    `{ai_mode: bool, ai_assignee: str|null}`.
+  * `set_ai_mode(conversation_id, on, ai_assignee?)` — write; sets the
+    takeover flag and (optionally) stamps which AI is on duty. Empty
+    `ai_assignee` clears the slot. Dispatches `conversation.updated`
+    so live dashboards refresh. While `ai_mode=true` the
+    automation-rule listener stands down on this conversation.
 
 ### Messages — read + write
 

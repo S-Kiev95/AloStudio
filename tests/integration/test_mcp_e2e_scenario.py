@@ -321,10 +321,14 @@ async def test_agent_handoff_via_set_ai_mode(mcp_session):
     conv = await create_conversation(
         mcp_session,
         contact_inbox=ci,
-        params=ConversationBuilderParams(
-            additional_attributes={"ai_mode": "auto"},
-        ),
+        params=ConversationBuilderParams(),
     )
+    # Start the scenario with the AI in charge (v2.8 contract: real
+    # column, not ``additional_attributes`` JSON).
+    conv.ai_mode = True
+    conv.ai_assignee = "alicia-v3"
+    mcp_session.add(conv)
+    await mcp_session.flush()
     token = await create_token(
         mcp_session,
         account_id=owner.account.id,
@@ -351,14 +355,15 @@ async def test_agent_handoff_via_set_ai_mode(mcp_session):
                 },
             )
         )
-        # Flip to manual.
+        # Hand back to humans.
         flipped = _body(
             await client.call_tool(
                 "set_ai_mode",
-                {"conversation_id": conv.id, "mode": "manual"},
+                {"conversation_id": conv.id, "on": False, "ai_assignee": ""},
             )
         )
-        assert flipped["ai_mode"] == "manual"
+        assert flipped["ai_mode"] is False
+        assert flipped["ai_assignee"] is None
 
     # Verify state.
     async with mcp_session.bind.connect() as conn:
@@ -370,7 +375,8 @@ async def test_agent_handoff_via_set_ai_mode(mcp_session):
         async with sm() as s:
             fresh = await s.get(Conversation, conv.id)
             assert fresh is not None
-            assert fresh.additional_attributes["ai_mode"] == "manual"
+            assert fresh.ai_mode is False
+            assert fresh.ai_assignee is None
             # The private note landed as a message.
             notes = list(
                 (

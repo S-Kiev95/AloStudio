@@ -514,6 +514,20 @@ class Conversation(TimestampMixin, table=True):
     )
     identifier: str | None = Field(default=None, sa_column=Column(String, nullable=True))
 
+    # v2.8 AI takeover flag. When ``ai_mode`` is true, an external AI
+    # agent has claimed this conversation and our own automation rules
+    # MUST stand down to avoid fighting it. ``ai_assignee`` is a free-form
+    # string the agent stamps on takeover (e.g. ``"alicia-v3"``) so the
+    # UI can show which AI is on duty. Both default permissively so
+    # existing rows behave exactly as before the migration.
+    ai_mode: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="false"),
+    )
+    ai_assignee: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+
     # Relationships
     account: "Account" = Relationship(sa_relationship_kwargs={"lazy": "selectin"})
     inbox: "Inbox" = Relationship(sa_relationship_kwargs={"lazy": "selectin"})

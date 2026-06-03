@@ -31,6 +31,10 @@ from app.domains.conversations.models import (
     conversation_status_to_str,
     message_type_to_str,
 )
+from app.domains.conversations.events import (
+    CONVERSATION_UPDATED,
+    dispatcher,
+)
 from app.domains.conversations.service import (
     toggle_priority,
     toggle_status,
@@ -317,33 +321,76 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool(name="get_ai_mode")
     @requires("read")
     async def get_ai_mode(conversation_id: int) -> dict[str, Any]:
-        """Read the ``ai_mode`` flag from the conversation's
-        ``additional_attributes``. Returns ``"manual"`` when missing
-        (manual is the safe default — agents stay out unless flipped)."""
+        """Read the AI takeover flag from the conversation.
+
+        Returns ``ai_mode`` (bool, default ``false`` = human-controlled)
+        plus the optional ``ai_assignee`` string an agent stamped on
+        takeover (e.g. ``"alicia-v3"``). Both come from real columns
+        added in migration ``c2d3e4f5a6b7``; pre-existing rows default
+        to off via the ``server_default``.
+        """
         conv = await _find_conversation(conversation_id)
-        attrs = conv.additional_attributes or {}
-        mode = attrs.get("ai_mode", "manual")
-        return {"conversation_id": conv.id, "ai_mode": mode}
+        return {
+            "conversation_id": conv.id,
+            "ai_mode": bool(conv.ai_mode),
+            "ai_assignee": conv.ai_assignee,
+        }
 
     @mcp.tool(name="set_ai_mode")
     @requires("write")
     async def set_ai_mode(
         conversation_id: int,
-        mode: Literal["auto", "manual"],
+        on: bool,
+        ai_assignee: str | None = None,
     ) -> dict[str, Any]:
-        """Toggle ``ai_mode`` on the conversation. Setting to ``manual``
-        is the agent's way of asking a human to take over —
-        agents should self-set ``manual`` when they detect they're
-        out of their depth (the inverse is rarely useful from the
-        agent's side; admins set ``auto`` from the dashboard)."""
+        """Flip the AI takeover flag.
+
+        Setting ``on=true`` is the AI agent's way of telling the platform
+        "I've got this — please don't fire automation rules on top of me."
+        Setting ``on=false`` hands the conversation back to the human
+        agents and re-enables the normal automation cascade.
+
+        ``ai_assignee`` is a free-form identifier the agent stamps on
+        takeover (e.g. ``"alicia-v3"``) so the dashboard can show which
+        AI is on duty. Clearing the field requires passing the empty
+        string (``""``) — passing ``None`` leaves the existing value
+        untouched, which matches PATCH-merge semantics elsewhere.
+
+        Dispatches ``conversation.updated`` with a ``changed_attributes``
+        diff so the cable layer invalidates the conversation cache on
+        every connected human dashboard.
+        """
         conv = await _find_conversation(conversation_id)
         ctx = current_mcp_context()
-        attrs = dict(conv.additional_attributes or {})
-        attrs["ai_mode"] = mode
-        conv.additional_attributes = attrs
+        prev_mode = bool(conv.ai_mode)
+        prev_assignee = conv.ai_assignee
+        conv.ai_mode = bool(on)
+        if ai_assignee is not None:
+            # Empty string clears the slot; non-empty stamps the new owner.
+            conv.ai_assignee = ai_assignee or None
         ctx.session.add(conv)
         await ctx.session.flush()
-        return {"conversation_id": conv.id, "ai_mode": mode}
+
+        # Only emit when something actually changed — avoids cable churn
+        # when an agent re-asserts its existing claim.
+        changed: dict[str, Any] = {}
+        if prev_mode != conv.ai_mode:
+            changed["ai_mode"] = [prev_mode, conv.ai_mode]
+        if prev_assignee != conv.ai_assignee:
+            changed["ai_assignee"] = [prev_assignee, conv.ai_assignee]
+        if changed:
+            await dispatcher.dispatch(
+                ctx.session,
+                CONVERSATION_UPDATED,
+                conversation=conv,
+                changed_attributes=changed,
+            )
+
+        return {
+            "conversation_id": conv.id,
+            "ai_mode": bool(conv.ai_mode),
+            "ai_assignee": conv.ai_assignee,
+        }
 
 
 __all__ = ["register"]

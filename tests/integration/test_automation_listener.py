@@ -393,3 +393,68 @@ async def test_listener_runs_send_message_action(db_session):
     )
     assert len(outgoing) == 1
     assert outgoing[0].content == "Auto reply: we got your message."
+
+
+# ---------------------------------------------------------------------------
+# v2.8 — ai_mode suppression
+# ---------------------------------------------------------------------------
+async def test_listener_skips_when_conversation_in_ai_mode(db_session):
+    """A rule that would otherwise fire on ``conversation_updated``
+    short-circuits when ``conversation.ai_mode`` is true — the AI
+    agent has taken over and our automation must stand down."""
+    owner = await _seed_account(db_session, suffix="-aimode")
+    conv = await _seed_conversation(db_session, owner)
+    # Flip ai_mode on BEFORE the trigger event fires.
+    conv.ai_mode = True
+    conv.ai_assignee = "alicia-v3"
+    db_session.add(conv)
+    await db_session.flush()
+
+    await _make_rule(
+        db_session,
+        account_id=owner.account.id,
+        event_name="conversation_updated",
+        conditions=[],
+        actions=[
+            {"action_name": "add_label", "action_params": ["should-not-fire"]}
+        ],
+    )
+    # Trigger CONVERSATION_UPDATED via toggle_priority.
+    await toggle_priority(
+        db_session, conversation=conv, priority="high"
+    )
+    fresh = await db_session.get(Conversation, conv.id)
+    assert fresh is not None
+    await db_session.refresh(fresh)
+    # Priority did flip (toggle_priority itself runs unconditionally),
+    # but the rule's label action was suppressed.
+    assert fresh.priority == CONVERSATION_PRIORITY_HIGH
+    assert (fresh.cached_label_list or "") == ""
+
+
+async def test_listener_resumes_when_ai_mode_turned_off(db_session):
+    """Flipping ``ai_mode`` back to false re-enables the automation
+    cascade — the same rule + trigger that was suppressed in the
+    previous test now fires normally."""
+    owner = await _seed_account(db_session, suffix="-aiback")
+    conv = await _seed_conversation(db_session, owner)
+    conv.ai_mode = False
+    db_session.add(conv)
+    await db_session.flush()
+
+    await _make_rule(
+        db_session,
+        account_id=owner.account.id,
+        event_name="conversation_updated",
+        conditions=[],
+        actions=[
+            {"action_name": "add_label", "action_params": ["sla-watch"]}
+        ],
+    )
+    await toggle_priority(
+        db_session, conversation=conv, priority="high"
+    )
+    fresh = await db_session.get(Conversation, conv.id)
+    assert fresh is not None
+    await db_session.refresh(fresh)
+    assert (fresh.cached_label_list or "") == "sla-watch"

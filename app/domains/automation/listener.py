@@ -122,6 +122,18 @@ async def fan_out_to_automation(
         return
     if rule_event_name == "message_created" and _ignore_message(message):
         return
+    # v2.8 suppression: an external AI agent has claimed this
+    # conversation (via ``set_ai_mode(on=true)`` over MCP). Standing
+    # down here matches the contract — automation rules and the AI
+    # would otherwise fight over assignments, status flips, replies,
+    # etc. Macros invoked MANUALLY by a human stay unaffected; only
+    # rules chained automatically through this listener short-circuit.
+    if bool(conversation.ai_mode):
+        log.debug(
+            "automation.listener.ai_mode_suppressed conversation_id=%s",
+            conversation.id,
+        )
+        return
 
     rules = await _active_rules_for(
         session,
