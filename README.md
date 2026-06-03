@@ -174,9 +174,32 @@ row, **never** in env.
 ---
 
 ## Documentation index
+
+### For an audit / fresh session — start here
+1. [`PLAN.parity-review.md`](PLAN.parity-review.md) — what's done vs
+   Chatwoot, where the remaining gaps are. **The audit-base document.**
+2. [`PLAN.frontend-v2.md`](PLAN.frontend-v2.md) — the v2 roadmap;
+   all 9 sub-milestones marked ✅ as of the last commit.
+3. [`INTEGRATIONS.md`](INTEGRATIONS.md) — external-agent contract
+   (MCP + webhooks): payload shape, dual signature header, retry
+   semantics, anti-loop guidance.
+4. [`frontend/DEPLOY.md`](frontend/DEPLOY.md) — production deploy +
+   MCP HTTP transport recipe (nginx + docker-compose sidecar).
+
+### Roadmap + phase docs
 - [`PLAN.md`](PLAN.md) — overall migration plan + phase index
+- [`PLAN.frontend-next.md`](PLAN.frontend-next.md) — v1 frontend roadmap (closed)
+- [`PLAN.frontend-v2.md`](PLAN.frontend-v2.md) — v2 roadmap (closed)
+- [`PLAN.parity-review.md`](PLAN.parity-review.md) — Chatwoot OSS parity audit
 - [`PLAN.instagram-graph.md`](PLAN.instagram-graph.md) — Instagram module
-- [`PLAN.mcp-server.md`](PLAN.mcp-server.md) — MCP server
-- [`PLAN.frontend-next.md`](PLAN.frontend-next.md) — frontend roadmap
+- [`PLAN.mcp-server.md`](PLAN.mcp-server.md) — MCP server design
+- `PLAN.phase{1..10}.md` — per-phase backend porting plans
+
+### Subsystem READMEs + contracts
+- [`INTEGRATIONS.md`](INTEGRATIONS.md) — external-agent contract (MCP + webhooks)
+- [`app/mcp/README.md`](app/mcp/README.md) — MCP tool surface + transport options
+- [`app/domains/instagram/README.md`](app/domains/instagram/README.md) — Instagram pipeline
+- [`frontend/README.md`](frontend/README.md) — frontend dev guide
+- [`frontend/DEPLOY.md`](frontend/DEPLOY.md) — frontend deploy + MCP HTTP backend recipe
+- [`frontend/DESIGN-SYSTEM.md`](frontend/DESIGN-SYSTEM.md) — token system + component conventions
 - [`MANUAL-instagram-credenciales.md`](MANUAL-instagram-credenciales.md) — Meta credentials how-to
-- [`app/domains/instagram/README.md`](app/domains/instagram/README.md) · [`app/mcp/README.md`](app/mcp/README.md) · [`frontend/README.md`](frontend/README.md) · [`frontend/DESIGN-SYSTEM.md`](frontend/DESIGN-SYSTEM.md)
