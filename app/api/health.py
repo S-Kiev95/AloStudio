@@ -59,7 +59,9 @@ async def health(
     db_status = "down"
     db_error: str | None = None
     try:
-        await session.execute(text("SELECT 1"))
+        # ``session.exec`` (SQLModel) instead of ``session.execute``
+        # (raw SQLAlchemy) — the latter emits a SQLModel DeprecationWarning.
+        await session.exec(text("SELECT 1"))  # type: ignore[call-overload]
         db_status = "up"
     except Exception as exc:  # noqa: BLE001
         db_error = type(exc).__name__
