@@ -89,7 +89,9 @@ async def _add_member(db_session, account, user, role: int = ACCOUNT_USER_ROLE_A
     await db_session.flush()
 
 
-async def _make_inbox_with_member(db_session, owner, member_user):
+async def _make_inbox_with_member(
+    db_session, owner, member_user, *, auto_assign: bool = False
+):
     result = await InboxBuilder(
         db_session,
         InboxBuilderParams(
@@ -99,10 +101,12 @@ async def _make_inbox_with_member(db_session, owner, member_user):
             channel_params={"webhook_url": "https://x.example.com"},
         ),
     ).perform()
-    # Disable auto-assignment so ``create_conversation`` doesn't fire
-    # an extra ASSIGNEE_CHANGED event for the only inbox member,
-    # which would otherwise pollute the per-test notification count.
-    result.inbox.enable_auto_assignment = False
+    # By default disable auto-assignment so ``create_conversation``
+    # doesn't fire an extra ASSIGNEE_CHANGED event for the only inbox
+    # member, which would otherwise pollute the per-test notification
+    # count. ``auto_assign=True`` opts into the realistic default path
+    # (see ``test_default_auto_assign_produces_two_notifications``).
+    result.inbox.enable_auto_assignment = auto_assign
     db_session.add(result.inbox)
     db_session.add(InboxMember(inbox_id=result.inbox.id, user_id=member_user.id))
     await db_session.flush()
@@ -162,6 +166,58 @@ async def test_conversation_created_notifies_every_inbox_member(
     )
     assert rows[0].primary_actor_type == "Conversation"
     assert rows[0].primary_actor_id == conv.id
+
+
+async def test_default_auto_assign_produces_two_notifications(
+    client, db_session
+):
+    """Realistic default path (auto-assignment ON, the production
+    default). Creating a conversation on an inbox whose only member is
+    eligible auto-assigns it to that member, so they receive BOTH:
+
+      * ``conversation_creation`` (from CONVERSATION_CREATED → members)
+      * ``conversation_assignment`` (from the auto-assignment's
+        ASSIGNEE_CHANGED dispatch)
+
+    The listener intentionally does NOT dedup these — they're distinct
+    events, matching Chatwoot. This documents/locks that behaviour so a
+    future dedup change is a conscious decision, and covers the path the
+    other tests skip by disabling auto-assignment.
+    """
+    owner, _ = await _seed_user(db_session, "-aa-o")
+    member, _ = await _seed_user(db_session, "-aa-m")
+    await _add_member(db_session, owner.account, member.user)
+    inbox = await _make_inbox_with_member(
+        db_session, owner, member.user, auto_assign=True
+    )
+    conv, _contact = await _make_conversation(db_session, owner, inbox)
+
+    # The auto-assignment must actually have happened for this test to be
+    # meaningful — guard against a silent regression where the member
+    # stops being an eligible candidate.
+    await db_session.refresh(conv)
+    assert conv.assignee_id == member.user.id, (
+        "expected auto-assignment to pick the sole inbox member"
+    )
+
+    rows = list(
+        (
+            await db_session.exec(
+                select(Notification)
+                .where(
+                    Notification.account_id == owner.account.id,
+                    Notification.user_id == member.user.id,
+                )
+                .order_by(Notification.notification_type)  # type: ignore[arg-type]
+            )
+        ).all()
+    )
+    types = {r.notification_type for r in rows}
+    assert len(rows) == 2, f"expected creation + assignment, got {types}"
+    assert NOTIFICATION_TYPE_CONVERSATION_CREATION in types
+    assert NOTIFICATION_TYPE_CONVERSATION_ASSIGNMENT in types
+    # Both point at the same conversation.
+    assert all(r.primary_actor_id == conv.id for r in rows)
 
 
 async def test_assignee_changed_notifies_the_new_assignee(

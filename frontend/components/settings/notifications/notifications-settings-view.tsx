@@ -73,6 +73,11 @@ export function NotificationsSettingsView({
         Elegí qué eventos te van a llegar por email o como notificación en la
         app. La campanita del topbar muestra todas, independiente de esto.
       </p>
+      <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-fg-muted">
+        Nota: el envío por email y push todavía no está activo — estas
+        preferencias se guardan y se aplicarán cuando se habilite la entrega.
+        La campanita en la app funciona ahora mismo.
+      </p>
 
       <Card>
         <CardHeader>

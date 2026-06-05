@@ -176,7 +176,7 @@ Landed in v2.5 (`be.notifications`) + v2.6 (`fe.14d`).
 | Realtime cable broadcast | ✅ | ✅ | `notification.created` event published to the user's pubsub_token channel → bell updates without polling. |
 | Topbar bell + badge + dropdown | ✅ | ✅ | `components/shell/notification-bell.tsx` — unread count poll + live invalidation. Mark-read / delete / mark-all-read actions. |
 | Full inbox page | ✅ | ✅ | `/accounts/{id}/notifications` — paginated with all/unread filter tabs. |
-| Per-user preferences | ✅ | ✅ | `settings/notifications` — checkbox matrix (5 types × email/push). |
+| Per-user preferences | ✅ | ⚠️ | `settings/notifications` — checkbox matrix (5 types × email/push). The preferences **persist** but are **not yet enforced**: the in-app row is always created (correct, matches Chatwoot), and the email/push delivery these flags gate is deferred (`listener.py` docstring). So toggling has no runtime effect today — it's wired for when the email/push worker lands. |
 
 ---
 

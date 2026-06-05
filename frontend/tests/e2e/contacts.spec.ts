@@ -55,23 +55,21 @@ test.describe("contacts", () => {
     ).toBeVisible();
 
     // ----- delete (cleanup so the demo account doesn't accrete ghosts) -----
+    // Delete lives on the LIST row, not the detail view. Go back to the
+    // list, search to narrow to our contact, then delete its row.
+    await page.goto(`/accounts/${accountId}/contacts`);
+    await page.getByLabel(/buscar contactos/i).fill(fullName);
+    const row = page.locator("li", { hasText: fullName });
+    await expect(row).toBeVisible({ timeout: 10_000 });
+
+    // Each row has an aria-label="Eliminar" button guarded by a
+    // window.confirm() — auto-accept it (same pattern as labels.spec.ts).
     page.once("dialog", (d) => d.accept());
-    // Detail page exposes a "Borrar" / trash action — pick the first
-    // matching control so we don't conflict with row-level deletes if
-    // the test gets extended.
-    const deleteBtn = page.getByRole("button", {
-      name: /borrar|eliminar/i,
-    });
-    if (await deleteBtn.first().isVisible().catch(() => false)) {
-      await deleteBtn.first().click();
-      // After delete the user lands back on the list and the row is gone.
-      await expect(page).toHaveURL(/\/contacts$/, { timeout: 10_000 });
-      await expect(
-        page.getByText(fullName, { exact: true }),
-      ).toBeHidden();
-    }
-    // If the detail view doesn't expose a delete control (UI choice
-    // can change without breaking the create/search flow above), the
-    // happy-path assertions still cover the milestone.
+    await row.getByRole("button", { name: /eliminar/i }).click();
+
+    // …and the row disappears from the (still-filtered) list.
+    await expect(
+      page.getByText(fullName, { exact: true }),
+    ).toBeHidden({ timeout: 10_000 });
   });
 });

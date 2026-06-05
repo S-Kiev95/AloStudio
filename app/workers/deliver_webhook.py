@@ -26,9 +26,10 @@ Backoff schedule mirrors Chatwoot's ``WebhookJob``::
        4    |   30 min  |
        5    | dead-letter — give up
 
-Total tries = 4 (= ``MAX_ATTEMPTS``); the 5th call writes the
-quarantine row. ARQ's ``ctx['job_try']`` is 1-indexed, which matches
-the attempt counter above.
+5 total attempts (= ``MAX_ATTEMPTS``): the initial try + 4 retries at
+the waits above; attempt 5's failure writes the quarantine row instead
+of deferring again. ARQ's ``ctx['job_try']`` is 1-indexed, which
+matches the attempt counter above.
 """
 
 from __future__ import annotations
@@ -69,9 +70,11 @@ BACKOFF_SECONDS: dict[int, int | None] = {
     5: None,
 }
 
-#: How many attempts before we quarantine. 4 attempts spread across
-#: the schedule above; the 5th call resolves to dead-letter.
-MAX_ATTEMPTS = 4
+#: How many attempts before we quarantine. 5 total attempts: the
+#: initial try + 4 retries (5s / 30s / 5min / 30min). On attempt 5 the
+#: ``attempt < MAX_ATTEMPTS`` guard is False, so it dead-letters instead
+#: of deferring — i.e. the 30-min tier (attempt 4 → wait) IS exercised.
+MAX_ATTEMPTS = 5
 
 #: HTTP timeout per attempt. Matches the pre-v2.9 inline delivery
 #: timeout so receivers that were just slow (not 5xx) get the same

@@ -138,6 +138,11 @@ services:
 
 Before pointing real users at it:
 
+* [ ] **Backend:** set `META_VERIFY_WEBHOOK_SIGNATURE=true` **and**
+      `META_APP_SECRET=<secret>`. With verification OFF, anyone who
+      learns the Instagram webhook URL can POST forged events. The
+      check fails closed (401s) if the secret is missing, so set both
+      together. (`.env.example` already ships this ON.)
 * [ ] Rotate `BACKEND_INTERNAL_URL` to HTTPS — the BFF proxy strips
       hop-by-hop headers but tokens still travel over the wire.
 * [ ] Confirm `NEXT_PUBLIC_CABLE_URL` uses `wss://` (TLS).

@@ -99,11 +99,15 @@ class Settings(BaseSettings):
     # Verified current-stable in the feat/instagram-graph research
     # (see PLAN.instagram-graph.md). Bump deliberately.
     meta_graph_api_version: str = "v23.0"
-    # Opt-in HMAC verification of inbound IG webhooks (I.8). Default
-    # OFF so the Phase 5e mirror endpoint keeps its original behaviour
-    # (the DM webhook tests POST unsigned payloads). When ON, the
-    # ``X-Hub-Signature-256`` header must validate against
-    # ``meta_app_secret`` or the POST 401s — enable in production.
+    # HMAC verification of inbound IG webhooks (I.8).
+    # SECURITY: leave this ON in production. With it OFF, anyone who
+    # learns the webhook URL can POST forged Instagram events that the
+    # receiver will process. ``.env.example`` ships it as ``true`` so
+    # fresh deployments are secure by default; the *code* default is
+    # ``False`` only for backward-compat with the original unsigned
+    # Phase 5e DM mirror (whose tests POST unsigned payloads). When ON,
+    # the ``X-Hub-Signature-256`` header must validate against
+    # ``meta_app_secret`` or the POST 401s (fails closed if unset).
     meta_verify_webhook_signature: bool = False
     # Opt-in pre-publish quota check (I.9). When ON, the publisher
     # queries ``content_publishing_limit`` before creating a container

@@ -142,7 +142,39 @@ def test_backoff_schedule_matches_chatwoot_webhook_job():
     assert BACKOFF_SECONDS[2] == 30
     assert BACKOFF_SECONDS[3] == 5 * 60
     assert BACKOFF_SECONDS[4] == 30 * 60
-    assert MAX_ATTEMPTS == 4
+    assert MAX_ATTEMPTS == 5
+
+
+@respx.mock
+async def test_retry_schedule_is_actually_applied_at_runtime():
+    """Behavioural lock (not just the dict literal): walk a forever-500
+    receiver through every attempt and assert the *returned* backoffs are
+    5s / 30s / 5min / 30min — i.e. all four retries fire, including the
+    30-min tier — then attempt 5 dead-letters. This is the test the
+    original suite lacked: it asserted the schedule dict existed but never
+    that 1800s was ever returned, which masked an off-by-one (MAX_ATTEMPTS
+    was 4, so the 30-min tier was dead code)."""
+    respx.post("https://hook.example.com/sched").mock(
+        return_value=httpx.Response(500, text="forever")
+    )
+    seen_backoffs: list[int | None] = []
+    kinds: list[str] = []
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        o = await deliver_webhook_now(
+            url="https://hook.example.com/sched",
+            body={"event": "ping"},
+            secret="s",
+            attempt=attempt,
+        )
+        kinds.append(o.kind)
+        seen_backoffs.append(o.next_backoff_seconds)
+
+    # Four retries with the documented waits, then quarantine.
+    assert kinds == ["retry", "retry", "retry", "retry", "dead_letter"]
+    assert seen_backoffs == [5, 30, 300, 1800, None]
+    # The 30-min tier is genuinely exercised (regression guard for the
+    # off-by-one).
+    assert 1800 in seen_backoffs
 
 
 # ---------------------------------------------------------------------------

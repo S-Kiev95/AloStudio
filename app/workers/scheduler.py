@@ -214,10 +214,23 @@ class WorkerSettings:
     # scheduled fires from ``fire_due_instagram_posts``).
     @staticmethod
     def _functions() -> list:
+        from arq import func
+
+        from app.workers.deliver_webhook import (
+            MAX_ATTEMPTS as WEBHOOK_MAX_ATTEMPTS,
+        )
         from app.workers.deliver_webhook import deliver_webhook_task
         from app.workers.instagram import publish_instagram_post_task
 
-        return [tick_5min, publish_instagram_post_task, deliver_webhook_task]
+        return [
+            tick_5min,
+            publish_instagram_post_task,
+            # Pin ARQ's ``max_tries`` to the webhook delivery's own cap so
+            # the final attempt (which writes the dead-letter row) is never
+            # preempted by ARQ's default give-up. Keeps the quarantine
+            # record guaranteed even if MAX_ATTEMPTS is bumped later.
+            func(deliver_webhook_task, max_tries=WEBHOOK_MAX_ATTEMPTS),
+        ]
 
     functions = []  # type: ignore[var-annotated]  # populated via configure()
     cron_jobs: list = []  # populated below via late import

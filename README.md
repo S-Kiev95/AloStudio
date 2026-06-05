@@ -8,15 +8,15 @@ extended with:
 - an **MCP server** (FastMCP) that exposes the backend to AI agents, and
 - a **Next.js** dashboard frontend (feature-parity port of the Chatwoot UI).
 
-> **Branches** — the repo is split by surface:
+> **Branches:**
 > | Branch | Contents |
 > |---|---|
-> | **`main`** | Backend (FastAPI) + Instagram module + MCP server |
-> | **`feat/frontend-next`** | Next.js frontend (in progress — F.0–F.2) |
+> | **`main`** | Backend (FastAPI) + Instagram module + MCP server + the merged v1 Next.js frontend (F.0–F.13). |
+> | **`feat/v2`** | v2 work on top of `main`: Contacts, Agents admin, Notifications, the AI-integration polish (HTTP MCP transport, webhook retries, ai_mode), and the new e2e specs. |
 >
-> The frontend isn't merged into `main` yet (still under active milestones),
-> so the GitHub default view shows the backend only — switch to
-> `feat/frontend-next` to see the UI.
+> The v1 frontend was merged into `main`; `feat/v2` carries the latest
+> milestones. See the **audit / fresh-session entry point** in the
+> [Documentation index](#documentation-index) below.
 
 ---
 

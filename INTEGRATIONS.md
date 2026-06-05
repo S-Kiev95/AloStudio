@@ -213,14 +213,31 @@ if body["sender_type"] == "agent_bot":
 
 ### Retry semantics
 
-**Today (v2.7):** delivery is fire-and-forget with a 10-second HTTP
-timeout. Non-2xx responses and transport errors are logged and
-discarded. There is **no retry**.
+**Durable retry (v2.9+).** Delivery runs on the ARQ queue with a
+10-second HTTP timeout per attempt. On a non-2xx response **or** a
+transport error the delivery is retried with exponential backoff:
 
-**Future (v2.9):** durable retry with exponential backoff via ARQ,
-dead-letter visibility in the dashboard. Receivers that idempotently
-dedupe on `event_id` today will be retry-safe by then with no
-changes.
+| Attempt | On failure, wait |
+|--------:|------------------|
+| 1 (initial) | 5 s |
+| 2 | 30 s |
+| 3 | 5 min |
+| 4 | 30 min |
+| 5 | **dead-letter** — quarantined, no further attempts |
+
+So a receiver gets up to **5 delivery attempts** (initial + 4 retries)
+spanning ~35 minutes before AloStudio gives up and records the failure
+in a per-receiver dead-letter log (`webhook_dead_letters`) that an
+operator can inspect.
+
+The same `event_id` is reused across all retries (and mirrored in the
+`X-Chatwoot-Delivery` header), so a receiver that **dedupes on
+`event_id` is automatically retry-safe** — a duplicate delivery after a
+slow/failed ACK is a no-op on your side.
+
+> Deployments without an ARQ worker fall back to a single inline
+> attempt; a terminal failure there still writes a dead-letter row, so
+> the operator-visible signal is identical.
 
 ### Recommended receiver checklist
 
