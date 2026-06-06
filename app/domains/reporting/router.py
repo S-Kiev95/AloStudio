@@ -45,7 +45,6 @@ from app.domains.reporting.timeseries import (
     ALL_METRICS,
     avg_timeseries,
     count_timeseries,
-    timezone_from_offset,
 )
 
 router = APIRouter(
@@ -121,7 +120,9 @@ async def timeseries(
         offset_float = float(timezone_offset) if timezone_offset else None
     except (TypeError, ValueError):
         offset_float = None
-    tz = timezone_from_offset(offset_float)
+    # Carry the offset in MINUTES so sub-hour zones (IST +5:30, etc.)
+    # bucket at the correct local midnight (see timeseries._date_bucket).
+    offset_minutes = round(offset_float * 60) if offset_float is not None else 0
     bh = _coerce_bool(business_hours)
     if metric in _AVG_METRICS:
         return await avg_timeseries(
@@ -132,7 +133,7 @@ async def timeseries(
             id=id,
             since=cur_since,
             until=cur_until,
-            tz=tz,
+            offset_minutes=offset_minutes,
             business_hours=bh,
         )
     return await count_timeseries(
@@ -143,7 +144,7 @@ async def timeseries(
         id=id,
         since=cur_since,
         until=cur_until,
-        tz=tz,
+        offset_minutes=offset_minutes,
     )
 
 
@@ -156,7 +157,7 @@ async def summary(
     since: str | None = Query(None),
     until: str | None = Query(None),
     business_hours: str | None = Query(None),
-    timezone_offset: str | None = Query(None),  # noqa: ARG001 — for parity
+    timezone_offset: str | None = Query(None),
 ) -> dict[str, Any]:
     """``GET /reports/summary`` — the dashboard cards.
 
@@ -262,7 +263,8 @@ async def grouped_conversation_metrics(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"error": "invalid group_by"},
         )
-    from sqlalchemy import case as sa_case, func as sa_func
+    from sqlalchemy import case as sa_case
+    from sqlalchemy import func as sa_func
     from sqlmodel import select
 
     from app.domains.conversations.models import (

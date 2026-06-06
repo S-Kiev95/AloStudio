@@ -145,6 +145,63 @@ async def test_conversations_count_buckets_by_day(client, db_session):
     assert "count" not in body[0]
 
 
+# ---------------------------------------------------------------------------
+# Timezone bucketing (regression: R1 half-hour zones + R2 label off-by-one)
+# ---------------------------------------------------------------------------
+async def test_bucket_timestamp_is_true_local_midnight_negative_offset(
+    client, db_session
+):
+    """R2 regression. An event at 02:00 UTC is the previous day in UTC-3
+    (the Americas). The bucket must be that local day, and the emitted
+    timestamp must be the day's TRUE local midnight (03:00Z for UTC-3) —
+    not the naive midnight labelled UTC, which rendered one day early on
+    a UTC-3 client. The pre-fix code only used tz=UTC in tests, so this
+    boundary was never exercised."""
+    owner, headers = await _seed_admin(db_session, "-tzneg")
+    conv = await _seed_conversation(db_session, owner)
+    conv.created_at = datetime(2026, 5, 15, 2, 0, tzinfo=UTC)
+    db_session.add(conv)
+    await db_session.flush()
+
+    resp = await client.get(
+        f"/api/v2/accounts/{owner.account.id}/reports"
+        "?metric=conversations_count&timezone_offset=-3",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 1
+    # 2026-05-14 23:00 in UTC-3 → local day 14-may → true midnight
+    # 2026-05-14 00:00 −03:00 = 2026-05-14 03:00 UTC.
+    expected = int(datetime(2026, 5, 14, 3, 0, tzinfo=UTC).timestamp())
+    assert body[0]["timestamp"] == expected
+
+
+async def test_bucket_handles_half_hour_offset(client, db_session):
+    """R1 regression. A +5:30 (IST) offset must bucket at the half-hour,
+    not rounded to +6. Event 2026-05-14 18:15 UTC is 23:45 IST (14-may);
+    rounding to +6 would push it to 00:15 (15-may) — the wrong day. The
+    fix carries the offset in minutes so the local day is 14-may."""
+    owner, headers = await _seed_admin(db_session, "-tzhalf")
+    conv = await _seed_conversation(db_session, owner)
+    conv.created_at = datetime(2026, 5, 14, 18, 15, tzinfo=UTC)
+    db_session.add(conv)
+    await db_session.flush()
+
+    resp = await client.get(
+        f"/api/v2/accounts/{owner.account.id}/reports"
+        "?metric=conversations_count&timezone_offset=5.5",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 1
+    # IST local day 14-may → true midnight 2026-05-14 00:00 +05:30 =
+    # 2026-05-13 18:30 UTC.
+    expected = int(datetime(2026, 5, 13, 18, 30, tzinfo=UTC).timestamp())
+    assert body[0]["timestamp"] == expected
+
+
 async def test_incoming_outgoing_messages_count(client, db_session):
     owner, headers = await _seed_admin(db_session, "-im")
     conv = await _seed_conversation(db_session, owner)

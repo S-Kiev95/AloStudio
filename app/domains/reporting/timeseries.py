@@ -29,22 +29,23 @@ Avg metrics:
   * avg_resolution_time        → avg(value) over conversation_resolved
   * reply_time                 → avg(value) over reply_time events
 
-Bucketing: we use ``date_trunc('day', column AT TIME ZONE tz)`` so the
-bucket boundaries land at midnight in the caller's timezone (matches
-Rails' ``group_by_period(..., time_zone: tz)``).
+Bucketing: we snap to local midnight for a fixed UTC offset (in
+minutes, so sub-hour zones work) and emit the true unix seconds of that
+boundary — see :func:`_date_bucket`. Matches Rails'
+``group_by_period(..., time_zone: tz)`` + ``.to_i``.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timezone
+from datetime import datetime
 from typing import Any, Literal
 
 from sqlalchemy import (
     Float,
-    case,
     cast,
+)
+from sqlalchemy import (
     func as sa_func,
-    text,
 )
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -98,26 +99,6 @@ _AVG_TO_EVENT: dict[str, str] = {
 }
 
 
-def timezone_from_offset(offset: float | None) -> str:
-    """Mirror ``TimezoneHelper#timezone_name_from_offset``.
-
-    Rails resolves ``ActiveSupport::TimeZone[offset].name`` from a
-    float-degrees offset. We synthesise an ISO-8601 ``Etc/GMT±N`` zone
-    name that Postgres' ``date_trunc`` accepts — same bucket math.
-    """
-    if offset is None:
-        return "UTC"
-    # Convert hours-offset to integer GMT zone. Postgres uses POSIX
-    # convention (Etc/GMT+N is N hours WEST), so we invert the sign.
-    try:
-        hours = int(round(float(offset)))
-    except (TypeError, ValueError):
-        return "UTC"
-    if hours == 0:
-        return "UTC"
-    return f"Etc/GMT{'+' if hours < 0 else '-'}{abs(hours)}"
-
-
 async def count_timeseries(
     session: AsyncSession,
     *,
@@ -127,12 +108,12 @@ async def count_timeseries(
     id: int | None,
     since: datetime | None,
     until: datetime | None,
-    tz: str = "UTC",
+    offset_minutes: int = 0,
 ) -> list[dict[str, Any]]:
     """Build the daily bucket list for a count-style metric."""
     if metric == "conversations_count":
         # Bucket by Conversation.created_at, scoped by type+id.
-        bucket = _date_bucket(Conversation.created_at, tz)
+        bucket = _date_bucket(Conversation.created_at, offset_minutes)
         stmt = select(
             bucket.label("bucket"),
             sa_func.count(sa_func.distinct(Conversation.id)).label("value"),
@@ -154,7 +135,7 @@ async def count_timeseries(
             if metric == "incoming_messages_count"
             else MESSAGE_TYPE_OUTGOING
         )
-        bucket = _date_bucket(Message.created_at, tz)
+        bucket = _date_bucket(Message.created_at, offset_minutes)
         stmt = select(
             bucket.label("bucket"),
             sa_func.count(sa_func.distinct(Message.id)).label("value"),
@@ -178,7 +159,7 @@ async def count_timeseries(
         "bot_handoffs_count": "conversation_bot_handoff",
     }[metric]
 
-    bucket = _date_bucket(ReportingEvent.created_at, tz)
+    bucket = _date_bucket(ReportingEvent.created_at, offset_minutes)
     stmt = select(
         bucket.label("bucket"),
         sa_func.count(sa_func.distinct(ReportingEvent.id)).label("value"),
@@ -205,7 +186,7 @@ async def avg_timeseries(
     id: int | None,
     since: datetime | None,
     until: datetime | None,
-    tz: str = "UTC",
+    offset_minutes: int = 0,
     business_hours: bool = False,
 ) -> list[dict[str, Any]]:
     """Daily buckets of ``avg(value)`` for a ReportingEvent-backed
@@ -217,7 +198,7 @@ async def avg_timeseries(
         if business_hours
         else ReportingEvent.value
     )
-    bucket = _date_bucket(ReportingEvent.created_at, tz)
+    bucket = _date_bucket(ReportingEvent.created_at, offset_minutes)
     stmt = select(
         bucket.label("bucket"),
         sa_func.avg(cast(value_col, Float)).label("value"),
@@ -239,17 +220,38 @@ async def avg_timeseries(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _date_bucket(column: Any, tz: str):
-    """Build the ``date_trunc('day', column AT TIME ZONE tz)`` expression.
+def _date_bucket(column: Any, offset_minutes: int):
+    """Build the daily-bucket expression as **true unix seconds of the
+    local midnight**, for a fixed UTC offset in minutes.
 
-    Postgres' ``AT TIME ZONE`` flips the column from timestamptz to
-    timestamp in the given zone; ``date_trunc('day', ...)`` then snaps
-    to midnight in that zone. The output is a timestamp at the bucket
-    boundary — :func:`_serialize` casts back to unix seconds.
+    Three steps, all in SQL:
+
+      1. ``timezone(offset, col)`` — convert the ``timestamptz`` column
+         to the wall-clock time at ``offset``, as a naive timestamp.
+      2. ``date_trunc('day', …)`` — snap to local midnight (naive).
+      3. ``timezone(offset, …)`` — re-interpret that naive midnight as
+         being at ``offset``, yielding the absolute ``timestamptz`` of
+         the bucket boundary; ``extract(epoch …)`` gives unix seconds.
+
+    Using a numeric **offset in minutes** (not an ``Etc/GMT±N`` zone
+    name) preserves sub-hour offsets — IST (+5:30), Nepal (+5:45),
+    Newfoundland (-3:30) bucket at the correct local midnight. And
+    applying the offset on the way out (step 3) emits the *true*
+    midnight-in-offset epoch — matching Rails' ``…in_time_zone(tz).to_i``
+    — so a client in that offset renders the correct day. (The previous
+    version rounded to whole hours AND labelled the naive midnight as
+    UTC, which shifted the chart's day-axis by the offset for non-UTC
+    accounts.)
+
+    ``offset_minutes`` is a server-derived int (parsed from the
+    ``timezone_offset`` query param), so inlining it as an interval
+    literal carries no injection risk.
     """
-    return sa_func.date_trunc(
-        "day", sa_func.timezone(tz, column)
-    )
+    iv = sa_func.make_interval(0, 0, 0, 0, 0, offset_minutes)
+    local_naive = sa_func.timezone(iv, column)
+    day_naive = sa_func.date_trunc("day", local_naive)
+    boundary_tz = sa_func.timezone(iv, day_naive)
+    return sa_func.extract("epoch", boundary_tz)
 
 
 def _serialize(
@@ -257,23 +259,11 @@ def _serialize(
 ) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for row in rows:
+        # ``row[0]`` is already the bucket boundary in unix seconds
+        # (see :func:`_date_bucket`) — no datetime reconstruction needed.
         bucket = row[0]
         value = row[1]
-        # The bucket comes back as a naive datetime (Postgres strips
-        # the tz after ``date_trunc``). Treat it as UTC seconds —
-        # matches Rails' ``event_date.in_time_zone(timezone).to_i``
-        # because both sides agree the bucket boundary is the midnight
-        # moment.
-        if bucket is None:
-            timestamp = 0
-        else:
-            if isinstance(bucket, datetime):
-                # tz-naive → assume UTC
-                if bucket.tzinfo is None:
-                    bucket = bucket.replace(tzinfo=UTC)
-                timestamp = int(bucket.timestamp())
-            else:
-                timestamp = 0
+        timestamp = int(bucket) if bucket is not None else 0
         entry: dict[str, Any] = {
             "value": float(value) if value is not None else 0,
             "timestamp": timestamp,
@@ -290,5 +280,4 @@ __all__ = [
     "CountMetric",
     "avg_timeseries",
     "count_timeseries",
-    "timezone_from_offset",
 ]
