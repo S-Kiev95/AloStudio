@@ -1,16 +1,21 @@
-"""Service layer for Instagram publishing (skeleton — Milestone I.1).
+"""Service layer for Instagram publishing.
 
-This file ships the **read + state-machine** surface only. Every
-function that would call Meta's Graph API raises ``NotImplementedError``
-with a reference to the milestone that wires it. The full publisher
-lives in :mod:`app.domains.instagram.publisher` (Milestone I.2+).
+Read + validation + the full publish state machine. The Meta Graph
+HTTP calls live in :mod:`app.domains.instagram.publisher` (which never
+raises — it returns result dataclasses with ``ok``/``error_code``); this
+module orchestrates them: ``create_post`` → ``publish_post`` drives a
+post through container creation → polling → ``media_publish``, stamping
+``error_code`` + flipping to ``failed`` on any Meta-side failure instead
+of raising into the worker.
 
-Why split:
-  * I.1 lets the dashboard render the publish history list and the
-    state machine for an already-pending post without needing a Meta
-    sandbox or env vars set.
-  * Tests in I.1 exercise schema + service signatures only — they
-    don't depend on ``respx`` because no HTTP call lands.
+State machine (see :func:`_validate_state_transition`):
+  pending → publishing → published → deleted, with failed as the
+  catch-all and ``failed → pending`` for operator/throttle retries.
+
+History note: I.1 shipped this as a read+state-machine skeleton (Meta
+calls stubbed); I.2–I.6 wired the real publisher, carousel, stories,
+and delete paths. The skeleton framing is historical — every path here
+is live.
 """
 
 from __future__ import annotations
