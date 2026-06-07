@@ -25,8 +25,10 @@ from fastapi import APIRouter, Depends, Path, Query, Request
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
+from app.core.meta_signature import verify_sha256_signature
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_WHATSAPP,
     Inbox,
@@ -134,9 +136,30 @@ async def whatsapp_receive(
     phones run the per-provider processor (5c.3 implements the cloud
     branch).
     """
+    raw = await request.body()
+
+    # Per-POST signature gate (CH-1). Opt-in via
+    # ``meta_verify_webhook_signature`` (default OFF for backward-compat,
+    # ON in .env.example). The GET hub.verify_token handshake only gates
+    # subscription setup; this rejects forged inbound WhatsApp payloads.
+    # Fails closed when the secret is unset. WhatsApp Cloud signs with
+    # the Meta app secret, same as Instagram/Messenger.
+    settings = get_settings()
+    if settings.meta_verify_webhook_signature and not verify_sha256_signature(
+        raw,
+        request.headers.get("X-Hub-Signature-256"),
+        settings.meta_app_secret,
+    ):
+        raise ChatwootHTTPException(
+            status_code=401,
+            detail={"error": "Invalid signature"},
+        )
+
+    import json
+
     try:
-        payload = await request.json()
-    except Exception:  # noqa: BLE001
+        payload = json.loads(raw)
+    except Exception:
         return {"status": "ok"}
 
     channel_inbox = await _resolve_channel_optional(
@@ -164,7 +187,7 @@ async def whatsapp_receive(
             await process_360dialog_webhook(
                 session, channel=channel, inbox=inbox, payload=payload
             )
-    except Exception:  # noqa: BLE001
+    except Exception:
         import logging
 
         logging.getLogger(__name__).exception(

@@ -28,6 +28,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
+from app.core.meta_signature import verify_sha256_signature
 
 router = APIRouter(
     tags=["facebook-webhooks"],
@@ -79,9 +80,30 @@ async def facebook_receive(
     the processor. Malformed bodies also 200 (Meta retries on 5xx,
     we want the retry loop to break).
     """
+    raw = await request.body()
+
+    # Per-POST signature gate (CH-1). Opt-in via
+    # ``meta_verify_webhook_signature`` (default OFF for backward-compat,
+    # ON in .env.example). The GET hub.verify_token handshake only gates
+    # subscription setup — it does NOT authenticate each POST, so with
+    # this ON we reject forged Messenger payloads. Fails closed when the
+    # secret is unset. Same primitive as the Instagram receiver.
+    settings = get_settings()
+    if settings.meta_verify_webhook_signature and not verify_sha256_signature(
+        raw,
+        request.headers.get("X-Hub-Signature-256"),
+        settings.meta_app_secret,
+    ):
+        raise ChatwootHTTPException(
+            status_code=401,
+            detail={"error": "Invalid signature"},
+        )
+
+    import json
+
     try:
-        payload = await request.json()
-    except Exception:  # noqa: BLE001
+        payload = json.loads(raw)
+    except Exception:
         return {"status": "ok"}
 
     if not isinstance(payload, dict):
@@ -91,7 +113,7 @@ async def facebook_receive(
 
     try:
         await process_facebook_webhook(session, payload=payload)
-    except Exception:  # noqa: BLE001
+    except Exception:
         import logging
 
         logging.getLogger(__name__).exception(

@@ -217,3 +217,88 @@ async def test_receive_malformed_json_still_200s(client, db_session):
         headers={"Content-Type": "application/json"},
     )
     assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# POST — X-Hub-Signature-256 gate (CH-1, opt-in)
+# ---------------------------------------------------------------------------
+import hashlib  # noqa: E402
+import hmac  # noqa: E402
+
+from app.core.config import get_settings  # noqa: E402
+
+
+@pytest.fixture
+def meta_secret():
+    """Turn ON per-POST HMAC verification + stamp the signing secret,
+    restoring both afterwards (default-OFF tests stay unaffected)."""
+    settings = get_settings()
+    orig_secret = settings.meta_app_secret
+    orig_flag = settings.meta_verify_webhook_signature
+    settings.meta_app_secret = "wa-test-secret"
+    settings.meta_verify_webhook_signature = True
+    try:
+        yield "wa-test-secret"
+    finally:
+        settings.meta_app_secret = orig_secret
+        settings.meta_verify_webhook_signature = orig_flag
+
+
+def _sign(body: bytes, secret: str) -> str:
+    return "sha256=" + hmac.new(
+        secret.encode(), body, hashlib.sha256
+    ).hexdigest()
+
+
+async def test_receive_valid_signature_passes(
+    client, db_session, meta_secret
+):
+    ch = await _seed_whatsapp_inbox(
+        db_session, phone_number="+15557778899", suffix="-sig-ok"
+    )
+    body = b'{"object":"whatsapp_business_account","entry":[]}'
+    resp = await client.post(
+        f"/webhooks/whatsapp/{ch.phone_number}",
+        content=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Hub-Signature-256": _sign(body, meta_secret),
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+
+
+async def test_receive_invalid_signature_401(
+    client, db_session, meta_secret
+):
+    ch = await _seed_whatsapp_inbox(
+        db_session, phone_number="+15558889900", suffix="-sig-bad"
+    )
+    body = b'{"object":"whatsapp_business_account","entry":[]}'
+    resp = await client.post(
+        f"/webhooks/whatsapp/{ch.phone_number}",
+        content=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Hub-Signature-256": "sha256=deadbeef",
+        },
+    )
+    assert resp.status_code == 401
+    assert resp.json() == {"error": "Invalid signature"}
+
+
+async def test_receive_missing_signature_401_when_enabled(
+    client, db_session, meta_secret
+):
+    """Flag ON + no header → reject (the handshake token can't stand in
+    for a per-POST signature)."""
+    ch = await _seed_whatsapp_inbox(
+        db_session, phone_number="+15559990011", suffix="-sig-missing"
+    )
+    resp = await client.post(
+        f"/webhooks/whatsapp/{ch.phone_number}",
+        content=b'{"object":"x","entry":[]}',
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 401

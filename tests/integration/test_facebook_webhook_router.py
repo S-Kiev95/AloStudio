@@ -178,3 +178,71 @@ async def test_receive_non_object_payload_still_200s(client):
         "/bot", json=["not", "an", "object"]
     )
     assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# POST — X-Hub-Signature-256 gate (CH-1, opt-in)
+# ---------------------------------------------------------------------------
+import hashlib  # noqa: E402
+import hmac  # noqa: E402
+
+
+@pytest.fixture
+def meta_secret():
+    """Turn ON per-POST HMAC verification + stamp the signing secret,
+    restoring both afterwards."""
+    settings = get_settings()
+    orig_secret = settings.meta_app_secret
+    orig_flag = settings.meta_verify_webhook_signature
+    settings.meta_app_secret = "fb-test-secret"
+    settings.meta_verify_webhook_signature = True
+    try:
+        yield "fb-test-secret"
+    finally:
+        settings.meta_app_secret = orig_secret
+        settings.meta_verify_webhook_signature = orig_flag
+
+
+def _sign(body: bytes, secret: str) -> str:
+    return "sha256=" + hmac.new(
+        secret.encode(), body, hashlib.sha256
+    ).hexdigest()
+
+
+async def test_receive_valid_signature_passes(client, meta_secret):
+    body = b'{"object":"page","entry":[]}'
+    resp = await client.post(
+        "/bot",
+        content=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Hub-Signature-256": _sign(body, meta_secret),
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+
+
+async def test_receive_invalid_signature_401(client, meta_secret):
+    body = b'{"object":"page","entry":[]}'
+    resp = await client.post(
+        "/bot",
+        content=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Hub-Signature-256": "sha256=deadbeef",
+        },
+    )
+    assert resp.status_code == 401
+    assert resp.json() == {"error": "Invalid signature"}
+
+
+async def test_receive_missing_signature_401_when_enabled(
+    client, meta_secret
+):
+    resp = await client.post(
+        "/bot",
+        content=b'{"object":"page","entry":[]}',
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 401
