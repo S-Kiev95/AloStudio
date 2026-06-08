@@ -178,7 +178,9 @@ async def _token_get(url: str, params: dict[str, Any]) -> OAuthTokenResult:
         return OAuthTokenResult(
             ok=False,
             error_code="transport_error",
-            error_message=str(exc)[:500],
+            # Use the exception CLASS name, never str(exc), so a secret can
+            # never leak into a persisted/surfaced error (IG-2 hardening).
+            error_message=type(exc).__name__,
         )
     if resp.status_code >= 400:
         code, message = _extract_error(resp)
@@ -222,7 +224,9 @@ async def list_pages(*, user_token: str) -> PagesResult:
         return PagesResult(
             ok=False,
             error_code="transport_error",
-            error_message=str(exc)[:500],
+            # Use the exception CLASS name, never str(exc), so a secret can
+            # never leak into a persisted/surfaced error (IG-2 hardening).
+            error_message=type(exc).__name__,
         )
     if resp.status_code >= 400:
         code, message = _extract_error(resp)
@@ -323,7 +327,9 @@ async def exchange_instagram_code(
         return InstagramTokenResult(
             ok=False,
             error_code="transport_error",
-            error_message=str(exc)[:500],
+            # Use the exception CLASS name, never str(exc), so a secret can
+            # never leak into a persisted/surfaced error (IG-2 hardening).
+            error_message=type(exc).__name__,
         )
     if resp.status_code >= 400:
         code_s, message = _extract_error(resp)
@@ -378,7 +384,9 @@ async def exchange_instagram_long_lived(
         return InstagramTokenResult(
             ok=False,
             error_code="transport_error",
-            error_message=str(exc)[:500],
+            # Use the exception CLASS name, never str(exc), so a secret can
+            # never leak into a persisted/surfaced error (IG-2 hardening).
+            error_message=type(exc).__name__,
         )
     if resp.status_code >= 400:
         code_s, message = _extract_error(resp)
