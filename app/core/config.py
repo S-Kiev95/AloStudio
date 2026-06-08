@@ -109,6 +109,15 @@ class Settings(BaseSettings):
     # the ``X-Hub-Signature-256`` header must validate against
     # ``meta_app_secret`` or the POST 401s (fails closed if unset).
     meta_verify_webhook_signature: bool = False
+    # HMAC verification of inbound Twilio webhooks (CH-1).
+    # SECURITY: leave this ON in production. With it OFF, anyone who
+    # learns the /twilio/callback URL can POST forged SMS events.
+    # When ON, the ``X-Twilio-Signature`` header must validate against
+    # the resolved channel's ``auth_token`` or the POST 403s (fails
+    # closed when the channel/secret can't be resolved). ``.env.example``
+    # ships it ON; code default OFF for backward-compat with the
+    # original unsigned receiver.
+    twilio_verify_signature: bool = False
     # Opt-in pre-publish quota check (I.9). When ON, the publisher
     # queries ``content_publishing_limit`` before creating a container
     # and fails the post ``quota_exceeded`` if the 24h cap is reached

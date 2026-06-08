@@ -96,7 +96,7 @@ async def _seed(
 # Inbound processor — direct
 # ---------------------------------------------------------------------------
 async def test_text_creates_contact_and_conversation(db_session):
-    channel, _inbox = await _seed(db_session, suffix="-text")
+    _channel, _inbox = await _seed(db_session, suffix="-text")
     msg = await process_twilio_webhook(
         db_session,
         params={
@@ -274,3 +274,106 @@ async def test_webhook_unknown_account_still_200s(client):
         },
     )
     assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# X-Twilio-Signature gate (CH-1, opt-in)
+# ---------------------------------------------------------------------------
+import base64 as _b64  # noqa: E402
+import hashlib as _hashlib  # noqa: E402
+import hmac as _hmac  # noqa: E402
+
+from app.core.config import get_settings  # noqa: E402
+
+# The URL the ASGI test client presents to the app (base_url=http://test).
+_CALLBACK_URL = "http://test/twilio/callback"
+
+
+@pytest.fixture
+def twilio_sig_on():
+    settings = get_settings()
+    orig = settings.twilio_verify_signature
+    settings.twilio_verify_signature = True
+    try:
+        yield
+    finally:
+        settings.twilio_verify_signature = orig
+
+
+def _twilio_sign(auth_token: str, url: str, params: dict[str, str]) -> str:
+    """Independent reference impl of Twilio's algorithm (not the app's
+    helper) so the test validates the helper against the spec."""
+    signing = url + "".join(f"{k}{params[k]}" for k in sorted(params))
+    return _b64.b64encode(
+        _hmac.new(
+            auth_token.encode(), signing.encode(), _hashlib.sha1
+        ).digest()
+    ).decode()
+
+
+async def test_valid_signature_passes(client, db_session, twilio_sig_on):
+    await _seed(db_session, suffix="-sig-ok")
+    data = {
+        "AccountSid": "AC1234567890",
+        "To": "+15551234567",
+        "From": "+15551112222",
+        "Body": "signed",
+        "SmsSid": "SM-sig-ok",
+        "MessageSid": "SM-sig-ok",
+    }
+    sig = _twilio_sign("atok", _CALLBACK_URL, data)
+    resp = await client.post(
+        "/twilio/callback", data=data, headers={"X-Twilio-Signature": sig}
+    )
+    assert resp.status_code == 200
+    msg = (
+        await db_session.exec(
+            select(Message).where(Message.source_id == "SM-sig-ok")
+        )
+    ).first()
+    assert msg is not None
+
+
+async def test_invalid_signature_403(client, db_session, twilio_sig_on):
+    await _seed(db_session, suffix="-sig-bad")
+    resp = await client.post(
+        "/twilio/callback",
+        data={
+            "AccountSid": "AC1234567890",
+            "To": "+15551234567",
+            "From": "+15551112222",
+            "Body": "forged",
+            "SmsSid": "SM-sig-bad",
+        },
+        headers={"X-Twilio-Signature": "totally-wrong"},
+    )
+    assert resp.status_code == 403
+    assert resp.json() == {"error": "Invalid signature"}
+
+
+async def test_missing_signature_403_when_enabled(
+    client, db_session, twilio_sig_on
+):
+    await _seed(db_session, suffix="-sig-missing")
+    resp = await client.post(
+        "/twilio/callback",
+        data={
+            "AccountSid": "AC1234567890",
+            "To": "+15551234567",
+            "From": "+15551112222",
+            "Body": "no sig",
+            "SmsSid": "SM-sig-missing",
+        },
+    )
+    assert resp.status_code == 403
+
+
+async def test_unknown_channel_403_when_enabled(client, twilio_sig_on):
+    """Verification ON + unverifiable channel → fail closed (no
+    auth_token to check against)."""
+    resp = await client.post(
+        "/twilio/callback",
+        data={"AccountSid": "ACnope", "To": "+19999999999", "Body": "x"},
+        headers={"X-Twilio-Signature": "anything"},
+    )
+    assert resp.status_code == 403
