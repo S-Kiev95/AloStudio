@@ -72,8 +72,13 @@ test.describe("settings › agents › invite", () => {
     await page.goto(`/accounts/${accountId}/settings/agents`);
 
     await page.getByRole("button", { name: /invitar agente/i }).click();
-    // Submit with both fields empty → inline error.
+    // Submit with both fields empty → inline error. Assert the specific
+    // error text rather than getByRole("alert") — Next.js renders its own
+    // role="alert" route-announcer, which would make a bare alert query
+    // ambiguous (strict-mode violation).
     await page.getByRole("button", { name: /enviar invitación/i }).click();
-    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(
+      page.getByText(/nombre y el email son obligatorios/i),
+    ).toBeVisible();
   });
 });

@@ -22,9 +22,10 @@ test.describe("notifications", () => {
     await login(page);
     const accountId = accountIdFromUrl(page.url());
 
-    // The bell carries an aria-label that includes "Notificaciones".
-    // Match by label so we don't depend on the icon DOM.
-    const bell = page.getByRole("button", { name: /^notificaciones/i });
+    // The bell is a <summary> with an aria-label starting "Notificaciones"
+    // (a native disclosure widget — not a button role, so target the
+    // element + its label directly).
+    const bell = page.locator('summary[aria-label^="Notificaciones"]');
     await expect(bell).toBeVisible();
     await bell.click();
 
