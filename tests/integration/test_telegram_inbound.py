@@ -117,7 +117,7 @@ def _msg_payload(
 # Inbound processor
 # ---------------------------------------------------------------------------
 async def test_text_creates_contact_and_conversation(db_session):
-    channel, _inbox = await _seed(
+    _channel, _inbox = await _seed(
         db_session, bot_token="aa:1", suffix="-text"
     )
     msg = await process_telegram_webhook(
@@ -130,7 +130,10 @@ async def test_text_creates_contact_and_conversation(db_session):
     assert msg is not None
     assert msg.message_type == MESSAGE_TYPE_INCOMING
     assert msg.content == "hi from tg"
-    assert msg.source_id == "1"
+    # source_id is chat-composite ("{chat_id}.{message_id}") so the
+    # dedup is unique per chat — Telegram message_ids only count within
+    # a chat, not globally.
+    assert msg.source_id == "67890.1"
 
     ci = (
         await db_session.exec(
@@ -190,6 +193,40 @@ async def test_duplicate_message_id_is_idempotent(db_session):
     )
     assert first is not None
     assert second is None
+
+
+async def test_same_message_id_different_chats_both_ingested(db_session):
+    """Regression: Telegram message_id is unique only within a chat, so
+    two different users of the same bot routinely share message_id=1.
+    The dedup must be chat-scoped (composite source_id) — both messages
+    must land, not be dropped as false duplicates. Before the fix the
+    second was silently lost."""
+    await _seed(db_session, bot_token="coll:1", suffix="-coll")
+    first = await process_telegram_webhook(
+        db_session,
+        bot_token="coll:1",
+        payload=_msg_payload(
+            user_id=111, chat_id=111, message_id=1, text="from user A"
+        ),
+    )
+    second = await process_telegram_webhook(
+        db_session,
+        bot_token="coll:1",
+        payload=_msg_payload(
+            user_id=222, chat_id=222, message_id=1, text="from user B"
+        ),
+    )
+    assert first is not None
+    assert second is not None, (
+        "second user's message dropped as false duplicate — dedup not "
+        "chat-scoped"
+    )
+    assert first.source_id == "111.1"
+    assert second.source_id == "222.1"
+    assert first.content == "from user A"
+    assert second.content == "from user B"
+    # Distinct chats → distinct conversations.
+    assert first.conversation_id != second.conversation_id
 
 
 async def test_two_messages_share_conversation(db_session):
@@ -268,7 +305,7 @@ async def test_webhook_accepts_json_payload(client, db_session):
     assert resp.status_code == 200
     msg = (
         await db_session.exec(
-            select(Message).where(Message.source_id == "99")
+            select(Message).where(Message.source_id == "84.99")
         )
     ).first()
     assert msg is not None

@@ -53,9 +53,11 @@ from app.domains.conversations.models import (
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
-    MessageBuilderParams as _MessageBuilderParams,
     create_conversation,
     create_message,
+)
+from app.domains.conversations.service import (
+    MessageBuilderParams as _MessageBuilderParams,
 )
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_TELEGRAM,
@@ -234,7 +236,16 @@ async def process_telegram_webhook(
         return None
     channel, inbox = resolved
 
-    source_id = str(tg_message_id)
+    # Telegram's ``message_id`` is unique only *within a chat* (Bot API:
+    # "Unique message identifier inside this chat"), so two different
+    # users of the same bot routinely share low message_ids (each chat
+    # counts from 1). Deduping on the bare id scoped to the account would
+    # drop a second user's message as a false "duplicate" — and could
+    # even collide with an outbound bot message that stamped the same
+    # bare id. Compose the source_id with the chat_id so the dedup is
+    # chat-unique. (Meta channels don't need this: WAMID / mid are
+    # globally unique.)
+    source_id = f"{chat_id}.{tg_message_id}"
     already = (
         await session.exec(
             select(Message.id).where(
@@ -245,7 +256,7 @@ async def process_telegram_webhook(
     ).first()
     if already is not None:
         log.info(
-            "telegram.inbound.skip reason=duplicate message_id=%s",
+            "telegram.inbound.skip reason=duplicate source_id=%s",
             source_id,
         )
         return None
@@ -289,7 +300,7 @@ async def process_telegram_webhook(
             ),
             user_id=None,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception(
             "telegram.inbound.create_message_failed message_id=%s",
             source_id,
