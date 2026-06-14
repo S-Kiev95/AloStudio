@@ -157,7 +157,7 @@ def _bw_inbound(
 # Inbound — process_bandwidth_webhook
 # ===========================================================================
 async def test_inbound_creates_contact_and_message(db_session):
-    channel, _inbox, _conv, _user = await _seed(
+    _channel, _inbox, _conv, _user = await _seed(
         db_session, suffix="-in", phone_number="+15551234567"
     )
     out = await process_bandwidth_webhook(
@@ -279,6 +279,99 @@ async def test_webhook_malformed_json_still_200s(client):
     assert resp.status_code == 200
 
 
+# ---------------------------------------------------------------------------
+# Optional per-channel HTTP Basic Auth (CH-1)
+# ---------------------------------------------------------------------------
+import base64 as _base64  # noqa: E402
+
+
+async def _enable_basic_auth(
+    db_session, channel: SmsChannel, *, user: str, password: str
+) -> None:
+    """Stamp Bandwidth callback Basic-Auth creds into provider_config."""
+    channel.provider_config = {
+        **(channel.provider_config or {}),
+        "webhook_user": user,
+        "webhook_pass": password,
+    }
+    db_session.add(channel)
+    await db_session.flush()
+
+
+def _basic(user: str, password: str) -> str:
+    return "Basic " + _base64.b64encode(
+        f"{user}:{password}".encode()
+    ).decode()
+
+
+async def test_webhook_basic_auth_valid_passes(client, db_session):
+    channel, *_ = await _seed(
+        db_session, suffix="-ba-ok", phone_number="+15550001111"
+    )
+    await _enable_basic_auth(db_session, channel, user="bw", password="s3cr3t")
+    resp = await client.post(
+        "/webhooks/sms/+15550001111",
+        json=_bw_inbound(
+            bw_id="bw-ba-ok",
+            from_phone="+15551112222",
+            to_phone="+15550001111",
+            text="authed",
+        ),
+        headers={"Authorization": _basic("bw", "s3cr3t")},
+    )
+    assert resp.status_code == 200
+    msg = (
+        await db_session.exec(
+            select(Message).where(Message.source_id == "bw-ba-ok")
+        )
+    ).first()
+    assert msg is not None
+
+
+async def test_webhook_basic_auth_invalid_401(client, db_session):
+    channel, *_ = await _seed(
+        db_session, suffix="-ba-bad", phone_number="+15550002222"
+    )
+    await _enable_basic_auth(db_session, channel, user="bw", password="s3cr3t")
+    resp = await client.post(
+        "/webhooks/sms/+15550002222",
+        json=_bw_inbound(
+            bw_id="bw-ba-bad",
+            from_phone="+15551112222",
+            to_phone="+15550002222",
+            text="forged",
+        ),
+        headers={"Authorization": _basic("bw", "wrong")},
+    )
+    assert resp.status_code == 401
+    # The forged payload must NOT have been ingested.
+    msg = (
+        await db_session.exec(
+            select(Message).where(Message.source_id == "bw-ba-bad")
+        )
+    ).first()
+    assert msg is None
+
+
+async def test_webhook_basic_auth_missing_401_when_configured(
+    client, db_session
+):
+    channel, *_ = await _seed(
+        db_session, suffix="-ba-miss", phone_number="+15550003333"
+    )
+    await _enable_basic_auth(db_session, channel, user="bw", password="s3cr3t")
+    resp = await client.post(
+        "/webhooks/sms/+15550003333",
+        json=_bw_inbound(
+            bw_id="bw-ba-miss",
+            from_phone="+15551112222",
+            to_phone="+15550003333",
+            text="no auth",
+        ),
+    )
+    assert resp.status_code == 401
+
+
 # ===========================================================================
 # Outbound — send_sms_bandwidth
 # ===========================================================================
@@ -367,7 +460,7 @@ async def test_send_text_4xx_returns_false_no_stamp(db_session):
 # ===========================================================================
 @respx.mock
 async def test_outgoing_via_create_message_hits_bandwidth(db_session):
-    channel, inbox, conv, user = await _seed(
+    _channel, _inbox, conv, user = await _seed(
         db_session, suffix="-cascade", phone_number="+15559990000"
     )
     route = respx.post(_bw_url()).mock(
