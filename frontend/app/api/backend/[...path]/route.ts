@@ -16,14 +16,25 @@ import { AUTH_COOKIES, AUTH_HEADERS } from "@/lib/auth/cookies";
  * client turns into a /login redirect).
  */
 const BACKEND = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8000";
+const BACKEND_ORIGIN = new URL(BACKEND).origin;
 
 // Hop-by-hop / unsafe headers we must not forward upstream.
+//
+// SECURITY: the four devise auth headers are stripped here too — they
+// must come ONLY from the httpOnly cookies (set below), never from a
+// client-supplied header, so the browser can't bypass the cookie model
+// by sending its own ``access-token`` etc. (defence in depth for the
+// httpOnly-token invariant).
 const STRIP = new Set([
   "host",
   "connection",
   "content-length",
   "cookie",
   "transfer-encoding",
+  "access-token",
+  "client",
+  "uid",
+  "expiry",
 ]);
 
 async function handle(req: NextRequest, path: string[]): Promise<Response> {
@@ -32,6 +43,18 @@ async function handle(req: NextRequest, path: string[]): Promise<Response> {
     `/${path.join("/")}${req.nextUrl.search}`,
     BACKEND,
   );
+
+  // SECURITY: never let a crafted path (e.g. a leading empty segment
+  // turning the relative ref into ``//evil.com``) resolve the target to
+  // a different origin — we attach the user's auth headers below, so an
+  // off-origin target would exfiltrate their devise token. Pin to the
+  // backend origin.
+  if (target.origin !== BACKEND_ORIGIN) {
+    return new NextResponse(
+      JSON.stringify({ error: "Bad gateway" }),
+      { status: 502, headers: { "content-type": "application/json" } },
+    );
+  }
 
   const headers = new Headers();
   req.headers.forEach((value, key) => {
