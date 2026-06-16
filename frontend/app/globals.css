@@ -3,42 +3,45 @@
 @tailwind utilities;
 
 /*
- * Semantic design tokens (see DESIGN-SYSTEM.md). Light is the default;
- * dark applies automatically via prefers-color-scheme. A manual theme
- * toggle (.dark class) lands in F.2.
+ * Semantic design tokens — Binance-style visual language (see
+ * .claude/skills/binance-design + DESIGN-SYSTEM.md). One high-voltage
+ * accent: Binance Yellow (--primary #fcd535) with black text on it, over a
+ * near-black canvas in dark mode; clean white/ink in light mode. The same
+ * yellow + black primary button reads identically in both themes. Dark is
+ * the default (Binance is dark-first); next-themes toggles the `.dark` class.
  */
 :root {
-  --bg: #f8fafc;
+  --bg: #fafafa;
   --surface: #ffffff;
-  --surface-2: #f1f5f9;
-  --fg: #0f172a;
-  --fg-muted: #475569;
-  --border: #e2e8f0;
-  --primary: #4f46e5;
-  --primary-fg: #ffffff;
-  --success: #16a34a;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --info: #0284c7;
-  --ring: #6366f1;
+  --surface-2: #f5f5f5;
+  --fg: #181a20;
+  --fg-muted: #707a8a;
+  --border: #eaecef;
+  --primary: #fcd535;
+  --primary-fg: #181a20;
+  --success: #0b9d63;
+  --warning: #c2520c;
+  --danger: #d9344a;
+  --info: #2563eb;
+  --ring: #2563eb;
 }
 
-/* Dark theme — applied via the `.dark` class (next-themes, attribute
- * "class", enableSystem so it also follows the OS when set to system). */
+/* Dark theme (Binance signature) — near-black canvas, surface steps as
+ * borders, single yellow accent. Applied via the `.dark` class. */
 .dark {
-  --bg: #0b1120;
-  --surface: #111827;
-  --surface-2: #1f2937;
-  --fg: #e5e7eb;
-  --fg-muted: #9ca3af;
-  --border: #283042;
-  --primary: #818cf8;
-  --primary-fg: #0b1120;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #f87171;
-  --info: #38bdf8;
-  --ring: #818cf8;
+  --bg: #0b0e11;
+  --surface: #1e2329;
+  --surface-2: #2b3139;
+  --fg: #eaecef;
+  --fg-muted: #848e9c;
+  --border: #2b3139;
+  --primary: #fcd535;
+  --primary-fg: #181a20;
+  --success: #0ecb81;
+  --warning: #ff9f43;
+  --danger: #f6465d;
+  --info: #3b82f6;
+  --ring: #3b82f6;
 }
 
 @layer base {

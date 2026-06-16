@@ -13,10 +13,12 @@ the **next-best-practices** skill for implementation. Every screen
 - **Type:** B2B SaaS / admin **dashboard** — data-dense (conversation
   inboxes, tables, forms) + a content composer (Instagram publishing).
 - **Tone:** professional, calm, content-first. Not playful, not flashy.
-- **Style:** **minimal / flat** with subtle elevation. No glassmorphism /
-  brutalism / skeuomorphism. Consistency over decoration.
-- **Must-haves:** light **and** dark mode (designed together),
-  accessibility-first, responsive (sidebar desktop ≥1024 → drawer mobile).
+- **Style:** **Binance-style** — a single high-voltage yellow accent
+  (`#fcd535`, black text on it) over a near-black canvas (dark-first); flat
+  color-block separation, no glassmorphism / atmospheric gradients. See the
+  `binance-design` skill for the full token set + component specs.
+- **Must-haves:** dark **and** light mode (dark is the default — Binance is
+  dark-first), accessibility-first, responsive (sidebar desktop ≥1024 → drawer mobile).
 
 ---
 
@@ -28,18 +30,18 @@ Define as CSS variables in `app/globals.css`, mapped to Tailwind via
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--bg` | `#f8fafc` | `#0b1120` | app background |
-| `--surface` | `#ffffff` | `#111827` | cards, panels |
-| `--surface-2` | `#f1f5f9` | `#1f2937` | subtle fills, hover |
-| `--fg` | `#0f172a` | `#e5e7eb` | primary text |
-| `--fg-muted` | `#475569` | `#9ca3af` | secondary text (≥3:1) |
-| `--border` | `#e2e8f0` | `#283042` | dividers, inputs |
-| `--primary` | `#4f46e5` | `#818cf8` | brand / primary CTA |
-| `--primary-fg` | `#ffffff` | `#0b1120` | text on primary |
-| `--success` | `#16a34a` | `#22c55e` | published, online |
-| `--warning` | `#d97706` | `#f59e0b` | pending, scheduled |
-| `--danger` | `#dc2626` | `#f87171` | failed, destructive |
-| `--info` | `#0284c7` | `#38bdf8` | info, links |
+| `--bg` | `#fafafa` | `#0b0e11` | app background (Binance canvas) |
+| `--surface` | `#ffffff` | `#1e2329` | cards, panels |
+| `--surface-2` | `#f5f5f5` | `#2b3139` | subtle fills, hover, elevated |
+| `--fg` | `#181a20` | `#eaecef` | primary text |
+| `--fg-muted` | `#707a8a` | `#848e9c` | secondary text (≥3:1) |
+| `--border` | `#eaecef` | `#2b3139` | dividers, inputs (hairline) |
+| `--primary` | `#fcd535` | `#fcd535` | Binance Yellow — brand / primary CTA |
+| `--primary-fg` | `#181a20` | `#181a20` | text on primary (black on yellow) |
+| `--success` | `#0b9d63` | `#0ecb81` | published, online (trading-up green) |
+| `--warning` | `#c2520c` | `#ff9f43` | pending, scheduled |
+| `--danger` | `#d9344a` | `#f6465d` | failed, destructive (trading-down red) |
+| `--info` | `#2563eb` | `#3b82f6` | info, links, focus ring |
 
 Rules: dark mode uses **desaturated/lighter tonal variants** (not
 inverted); functional color **always** pairs with icon/text (color is
@@ -58,7 +60,8 @@ token + label.
 ## 3. Spacing, layout, radius, elevation
 - **4 / 8 spacing rhythm** (Tailwind default). Section tiers 16/24/32/48.
 - Container `max-w-7xl`; content gutters scale up on wide screens.
-- Radius: `sm 4 · md 8 · lg 12` (one scale). Inputs/buttons `md`.
+- Radius (Binance scale): `sm 4 · md 6 · lg 8 · xl 12 · pill 9999`.
+  Inputs/buttons `md` (6px); cards `lg`/`xl`; pill for top-of-page CTAs.
 - **Elevation scale** (don't invent shadows): `e0` flat border · `e1`
   cards · `e2` dropdowns/popovers · `e3` modals. Dark mode leans on
   border + `surface-2`, lighter shadows.

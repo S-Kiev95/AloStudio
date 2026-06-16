@@ -5,13 +5,24 @@ import { useState, type ReactNode } from "react";
 
 import type { Profile } from "@/lib/auth/profile";
 import { useCable } from "@/lib/realtime/use-cable";
-import { cn } from "@/lib/utils";
 
 import { AccountSwitcher } from "./account-switcher";
 import { AgentMenu } from "./agent-menu";
 import { NotificationBell } from "./notification-bell";
 import { SidebarNav } from "./sidebar-nav";
 import { ThemeToggle } from "./theme-toggle";
+
+/** Yellow brand mark + wordmark, shared by the desktop sidebar + mobile drawer. */
+function Brand() {
+  return (
+    <span className="flex items-center gap-2">
+      <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-sm font-bold text-primary-fg">
+        A
+      </span>
+      <span className="text-lg font-semibold tracking-tight">AloStudio</span>
+    </span>
+  );
+}
 
 export function DashboardShell({
   accountId,
@@ -35,8 +46,8 @@ export function DashboardShell({
     <div className="min-h-dvh bg-bg text-fg">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-surface lg:block">
-        <div className="flex h-14 items-center px-5 text-lg font-semibold">
-          AloStudio
+        <div className="flex h-14 items-center border-b border-border px-5">
+          <Brand />
         </div>
         <SidebarNav accountId={accountId} />
       </aside>
@@ -50,8 +61,8 @@ export function DashboardShell({
             onClick={() => setMobileOpen(false)}
           />
           <aside className="absolute inset-y-0 left-0 w-64 border-r border-border bg-surface">
-            <div className="flex h-14 items-center justify-between px-5">
-              <span className="text-lg font-semibold">AloStudio</span>
+            <div className="flex h-14 items-center justify-between border-b border-border px-5">
+              <Brand />
               <button
                 aria-label="Cerrar menú"
                 onClick={() => setMobileOpen(false)}
@@ -69,12 +80,9 @@ export function DashboardShell({
       ) : null}
 
       <div className="lg:pl-64">
-        {/* Topbar */}
-        <header
-          className={cn(
-            "sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur",
-          )}
-        >
+        {/* Topbar — flat on the canvas with a hairline divider (no
+            glassmorphism: Binance trusts color-block contrast over blur). */}
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-bg px-4">
           <button
             aria-label="Abrir menú"
             onClick={() => setMobileOpen(true)}
