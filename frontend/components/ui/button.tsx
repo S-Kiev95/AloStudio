@@ -13,7 +13,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-fg hover:opacity-90",
+        primary: "bg-primary text-primary-fg hover:bg-primary-active",
         secondary:
           "border border-border bg-surface text-fg hover:bg-surface-2",
         ghost: "text-fg hover:bg-surface-2",

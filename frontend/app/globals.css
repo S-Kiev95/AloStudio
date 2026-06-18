@@ -18,6 +18,7 @@
   --fg-muted: #707a8a;
   --border: #eaecef;
   --primary: #fcd535;
+  --primary-active: #f0b90b;
   --primary-fg: #181a20;
   --success: #0b9d63;
   --warning: #c2520c;
@@ -36,6 +37,7 @@
   --fg-muted: #848e9c;
   --border: #2b3139;
   --primary: #fcd535;
+  --primary-active: #f0b90b;
   --primary-fg: #181a20;
   --success: #0ecb81;
   --warning: #ff9f43;

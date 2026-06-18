@@ -37,7 +37,7 @@ export function MessageComposer({
           aria-pressed={!isPrivate}
           className={cn(
             "rounded-md px-2 py-1 text-xs font-medium",
-            !isPrivate ? "bg-primary text-primary-fg" : "text-fg-muted hover:bg-surface-2",
+            !isPrivate ? "bg-surface-2 font-semibold text-fg" : "text-fg-muted hover:bg-surface-2",
           )}
         >
           Responder
@@ -48,7 +48,7 @@ export function MessageComposer({
           aria-pressed={isPrivate}
           className={cn(
             "rounded-md px-2 py-1 text-xs font-medium",
-            isPrivate ? "bg-warning text-white" : "text-fg-muted hover:bg-surface-2",
+            isPrivate ? "bg-warning/15 font-semibold text-warning" : "text-fg-muted hover:bg-surface-2",
           )}
         >
           Nota privada

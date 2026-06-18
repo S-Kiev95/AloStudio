@@ -133,8 +133,8 @@ function FilterButton({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "disabled:opacity-40",
         active
-          ? "bg-primary text-primary-fg"
-          : "border border-border bg-surface text-fg hover:bg-surface-2",
+          ? "border border-border bg-surface-2 font-semibold text-fg"
+          : "border border-border bg-surface text-fg-muted hover:bg-surface-2 hover:text-fg",
       )}
     >
       {children}
@@ -161,6 +161,9 @@ function ConversationRow({
         href={`/accounts/${accountId}/conversations/${conv.id}`}
         className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2"
       >
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-xs font-semibold text-fg-muted">
+          {name.charAt(0).toUpperCase()}
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-medium text-fg">{name}</span>

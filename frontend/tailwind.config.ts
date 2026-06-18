@@ -17,6 +17,7 @@ const config: Config = {
         "fg-muted": "var(--fg-muted)",
         border: "var(--border)",
         primary: "var(--primary)",
+        "primary-active": "var(--primary-active)",
         "primary-fg": "var(--primary-fg)",
         success: "var(--success)",
         warning: "var(--warning)",
