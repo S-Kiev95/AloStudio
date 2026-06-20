@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 
 import { Providers } from "./providers";
 import "./globals.css";
@@ -7,6 +7,14 @@ import "./globals.css";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
+});
+
+// BinancePlex substitute: monospace tabular numerals for prices, counts,
+// metrics, timestamps. Exposed as --font-numeric (Tailwind `font-numeric`).
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-numeric",
   display: "swap",
 });
 
@@ -19,7 +27,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={inter.variable} suppressHydrationWarning>
+    <html
+      lang="es"
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
       <body>
         {/* Skip-link for keyboard users. Visible only when focused. */}
         <a

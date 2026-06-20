@@ -64,7 +64,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
               className={cn(
                 "rounded px-3 py-1 text-xs font-medium",
                 filter === "all"
-                  ? "bg-primary text-primary-fg"
+                  ? "bg-surface-2 font-semibold text-fg"
                   : "text-fg-muted hover:text-fg",
               )}
             >
@@ -80,7 +80,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
               className={cn(
                 "rounded px-3 py-1 text-xs font-medium",
                 filter === "unread"
-                  ? "bg-primary text-primary-fg"
+                  ? "bg-surface-2 font-semibold text-fg"
                   : "text-fg-muted hover:text-fg",
               )}
             >

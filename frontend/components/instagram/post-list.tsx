@@ -34,7 +34,7 @@ export function PostList({ accountId }: { accountId: string }) {
               "rounded-md px-3 py-1.5 text-sm font-medium",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               state === t.key
-                ? "bg-primary text-primary-fg"
+                ? "bg-surface-2 font-semibold text-fg"
                 : "border border-border bg-surface text-fg hover:bg-surface-2",
             )}
           >

@@ -35,6 +35,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        numeric: ["var(--font-numeric)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
     },
   },

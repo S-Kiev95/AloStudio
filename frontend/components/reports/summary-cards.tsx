@@ -76,7 +76,7 @@ function SummaryCard({
       <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
         {def.label}
       </p>
-      <p className="mt-1 text-2xl font-semibold text-fg">{value}</p>
+      <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">{value}</p>
       <Delta pct={pct} lowerIsBetter={def.lowerIsBetter} />
     </Card>
   );
@@ -106,7 +106,9 @@ function Delta({
       )}
     >
       <Icon className="h-3 w-3" aria-hidden />
-      {Math.abs(Math.round(pct))}%
+      <span className="font-numeric tabular-nums">
+        {Math.abs(Math.round(pct))}%
+      </span>
       <span className="font-normal text-fg-muted">vs. período previo</span>
     </p>
   );

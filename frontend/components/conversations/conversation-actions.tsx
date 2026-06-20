@@ -109,7 +109,7 @@ export function ConversationActions({
                 className={cn(
                   "rounded-full border px-2 py-0.5 text-xs",
                   on
-                    ? "border-primary bg-primary text-primary-fg"
+                    ? "border-primary bg-surface-2 font-semibold text-fg"
                     : "border-border text-fg-muted hover:bg-surface-2",
                 )}
               >
