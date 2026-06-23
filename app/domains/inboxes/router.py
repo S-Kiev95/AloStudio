@@ -44,7 +44,7 @@ guard in Ruby is a no-op for OSS installs.
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, status
 from sqlmodel import select
@@ -59,9 +59,25 @@ from app.core.deps import (
 from app.core.errors import ChatwootHTTPException
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
+    CHANNEL_TYPE_EMAIL,
+    CHANNEL_TYPE_FACEBOOK,
+    CHANNEL_TYPE_INSTAGRAM,
+    CHANNEL_TYPE_SMS,
+    CHANNEL_TYPE_TELEGRAM,
+    CHANNEL_TYPE_TWILIO_SMS,
+    CHANNEL_TYPE_WEB_WIDGET,
+    CHANNEL_TYPE_WHATSAPP,
     ApiChannel,
+    EmailChannel,
+    FacebookPage,
     Inbox,
     InboxMember,
+    InstagramChannel,
+    SmsChannel,
+    TelegramChannel,
+    TwilioSmsChannel,
+    WebWidget,
+    WhatsappChannel,
 )
 from app.domains.inboxes.presenters import (
     present_agent,
@@ -149,11 +165,10 @@ async def create_inbox(
             account=ctx.account,
             name=payload.name,
             channel_type=payload.channel.type,
-            channel_params={
-                "webhook_url": payload.channel.webhook_url,
-                "hmac_mandatory": payload.channel.hmac_mandatory,
-                "additional_attributes": payload.channel.additional_attributes,
-            },
+            # Forward every channel field (not just the Api trio) so the
+            # builder's per-type paths (telegram bot_token, whatsapp
+            # provider_config, twilio account_sid, …) receive their params.
+            channel_params=payload.channel.model_dump(exclude={"type"}),
             greeting_enabled=payload.greeting_enabled,
             greeting_message=payload.greeting_message,
             enable_email_collect=payload.enable_email_collect,
@@ -170,7 +185,11 @@ async def create_inbox(
             csat_config=payload.csat_config,
         ),
     ).perform()
-    return present_inbox(result.inbox, channel=result.channel, is_administrator=True)
+    # ``present_inbox`` renders Channel::Api detail; other channel types get
+    # the base keys (per-channel detail in the response is a follow-up). Pass
+    # the Api row only when that's what we built so the presenter stays typed.
+    api_channel = result.channel if isinstance(result.channel, ApiChannel) else None
+    return present_inbox(result.inbox, channel=api_channel, is_administrator=True)
 
 
 @router.get("/{inbox_id}")
@@ -231,7 +250,7 @@ async def destroy_inbox(
     see the difference.
     """
     inbox = await _find_inbox_in_account(session, ctx, inbox_id)
-    channel = await _load_channel(session, inbox)
+    channel = await _load_channel_row(session, inbox)
 
     # Cascade: FK ondelete='CASCADE' on inbox_members clears the join
     # rows. The polymorphic channel_api row has no FK to inbox_id so we
@@ -396,10 +415,40 @@ async def _authorize_inbox_show(
 
 
 async def _load_channel(session: AsyncSession, inbox: Inbox) -> ApiChannel | None:
-    """Resolve the polymorphic channel row for one inbox."""
+    """Resolve the polymorphic channel row for one inbox (Channel::Api only)."""
     if inbox.channel_type != CHANNEL_TYPE_API:
         return None
     stmt = select(ApiChannel).where(ApiChannel.id == inbox.channel_id)
+    return (await session.exec(stmt)).first()
+
+
+# Channel-type → concrete model, for resolving the polymorphic channel row of
+# ANY type. Used by delete so a non-Api inbox doesn't orphan its channel row.
+_CHANNEL_MODEL_BY_TYPE: dict[str, type] = {
+    CHANNEL_TYPE_API: ApiChannel,
+    CHANNEL_TYPE_WEB_WIDGET: WebWidget,
+    CHANNEL_TYPE_EMAIL: EmailChannel,
+    CHANNEL_TYPE_WHATSAPP: WhatsappChannel,
+    CHANNEL_TYPE_FACEBOOK: FacebookPage,
+    CHANNEL_TYPE_INSTAGRAM: InstagramChannel,
+    CHANNEL_TYPE_TWILIO_SMS: TwilioSmsChannel,
+    CHANNEL_TYPE_SMS: SmsChannel,
+    CHANNEL_TYPE_TELEGRAM: TelegramChannel,
+}
+
+
+async def _load_channel_row(session: AsyncSession, inbox: Inbox) -> Any | None:
+    """Resolve the concrete channel row for an inbox of *any* channel type.
+
+    ``_load_channel`` is Channel::Api-only (the presenter needs that exact
+    type). This sibling resolves whichever per-type table the inbox points at
+    — used by ``destroy_inbox`` so deleting a non-Api inbox also removes its
+    channel row (Rails' ``dependent: :destroy_async``).
+    """
+    model = _CHANNEL_MODEL_BY_TYPE.get(inbox.channel_type or "")
+    if model is None:
+        return None
+    stmt = select(model).where(model.id == inbox.channel_id)  # type: ignore[attr-defined]
     return (await session.exec(stmt)).first()
 
 

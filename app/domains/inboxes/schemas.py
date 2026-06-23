@@ -21,12 +21,17 @@ from pydantic import BaseModel, ConfigDict, Field
 class ChannelCreate(BaseModel):
     """The ``channel:`` sub-hash in ``POST /inboxes``.
 
-    ``type`` is the short tag (``"api"``, ``"email"``, …) — we only accept
-    ``"api"`` in Phase 2 but keep the field open-string so 400s come from
-    the service layer with the same body Chatwoot would emit.
+    ``type`` is the short tag (``"api"``, ``"telegram"``, ``"whatsapp"``,
+    ``"sms"``, ``"twilio_sms"``, ``"email"``, ``"web_widget"``,
+    ``"facebook"``, ``"instagram"``). ``extra="allow"`` lets the
+    per-channel fields (``bot_token``, ``phone_number``, ``provider_config``,
+    ``account_sid``, …) flow through to :class:`InboxBuilder`, which
+    validates the required set per channel type. Mirrors Rails' permissive
+    ``params.permit`` on the channel sub-hash; unknown keys are harmless
+    because the builder only reads the ones it knows.
     """
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="allow")
 
     type: str
     webhook_url: str | None = None

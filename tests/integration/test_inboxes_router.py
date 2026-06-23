@@ -131,6 +131,81 @@ async def test_admin_creates_api_inbox(client, seeded):
         assert k in body
 
 
+async def test_admin_creates_telegram_inbox(client, seeded):
+    """Non-Api create path: channel-specific fields (bot_token) now flow
+    through the HTTP schema to the builder (was dropped by extra='ignore')."""
+    owner, _, admin_h, _ = seeded
+    resp = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/inboxes",
+        json={
+            "name": "TG Inbox",
+            "channel": {
+                "type": "telegram",
+                "bot_token": "987654321:HTTP-telegram-token",
+                "bot_name": "HttpBot",
+            },
+        },
+        headers=admin_h,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["name"] == "TG Inbox"
+    assert body["channel_type"] == "Channel::Telegram"
+
+
+async def test_create_telegram_requires_bot_token(client, seeded):
+    """Missing bot_token surfaces the builder's 422 through HTTP."""
+    owner, _, admin_h, _ = seeded
+    resp = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/inboxes",
+        json={"name": "bad tg", "channel": {"type": "telegram"}},
+        headers=admin_h,
+    )
+    assert resp.status_code == 422, resp.text
+    assert "bot_token" in resp.text
+
+
+async def test_destroy_telegram_inbox_removes_channel_row(client, seeded, db_session):
+    """Deleting a non-Api inbox must also drop its channel row — before the
+    ``_load_channel_row`` fix the row was orphaned."""
+    from sqlmodel import select
+
+    from app.domains.inboxes.models import TelegramChannel
+
+    owner, _, admin_h, _ = seeded
+    created = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/inboxes",
+        json={
+            "name": "TG ephemeral",
+            "channel": {"type": "telegram", "bot_token": "555:DELETE-ME"},
+        },
+        headers=admin_h,
+    )
+    assert created.status_code == 200, created.text
+    channel_id = created.json()["channel_id"]
+    inbox_id = created.json()["id"]
+
+    pre = (
+        await db_session.exec(
+            select(TelegramChannel).where(TelegramChannel.id == channel_id)
+        )
+    ).first()
+    assert pre is not None
+
+    deleted = await client.delete(
+        f"/api/v1/accounts/{owner.account.id}/inboxes/{inbox_id}",
+        headers=admin_h,
+    )
+    assert deleted.status_code == 200, deleted.text
+
+    post = (
+        await db_session.exec(
+            select(TelegramChannel).where(TelegramChannel.id == channel_id)
+        )
+    ).first()
+    assert post is None
+
+
 async def test_agent_cannot_create_inbox(client, seeded):
     owner, _, _, agent_h = seeded
     resp = await client.post(
