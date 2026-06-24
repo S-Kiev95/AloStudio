@@ -104,19 +104,26 @@ function InboxRow({
   }
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-        <Icon className="h-4 w-4" aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-fg">{inbox.name}</p>
-        <p className="text-xs text-fg-muted">{channelLabel(inbox.channel_type)}</p>
-        {error ? (
-          <p role="alert" className="text-xs text-danger">
-            {error}
+    <li className="flex items-center gap-1 pr-2 hover:bg-surface-2">
+      <Link
+        href={`/accounts/${accountId}/settings/inboxes/${inbox.id}`}
+        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+          <Icon className="h-4 w-4" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-fg">{inbox.name}</p>
+          <p className="text-xs text-fg-muted">
+            {channelLabel(inbox.channel_type)}
           </p>
-        ) : null}
-      </div>
+          {error ? (
+            <p role="alert" className="text-xs text-danger">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      </Link>
       <button
         type="button"
         aria-label="Eliminar"
