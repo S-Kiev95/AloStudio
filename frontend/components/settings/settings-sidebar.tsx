@@ -30,6 +30,12 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
   { segment: "labels", label: "Etiquetas", milestone: "F.9a", done: true },
   { segment: "teams", label: "Equipos", milestone: "F.9b", done: true },
   {
+    segment: "inboxes",
+    label: "Bandejas de entrada",
+    milestone: "v2",
+    done: true,
+  },
+  {
     segment: "canned_responses",
     label: "Respuestas predefinidas",
     milestone: "F.9c",
