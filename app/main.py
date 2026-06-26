@@ -12,58 +12,69 @@ from app.core.logging import configure_logging, get_logger
 from app.domains.accounts.router import router as accounts_router
 from app.domains.agent_bots.router import (
     inbox_set_agent_bot_router,
+)
+from app.domains.agent_bots.router import (
     router as agent_bots_router,
 )
-from app.domains.automation.router import router as automation_rules_router
 from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
+from app.domains.automation.router import router as automation_rules_router
+from app.domains.bulk_actions.router import router as bulk_actions_router
 from app.domains.campaigns.router import router as campaigns_router
 from app.domains.contacts.router import actions_router as contact_actions_router
 from app.domains.contacts.router import router as contacts_router
-from app.domains.csat.public_router import router as csat_public_router
-from app.domains.csat.router import router as csat_router
-from app.domains.reporting.router import (
-    live_reports_router,
-    router as reports_router,
-    summary_reports_router,
-)
 from app.domains.conversations.router import messages_router as conversations_messages_router
 from app.domains.conversations.router import router as conversations_router
+from app.domains.csat.public_router import router as csat_public_router
+from app.domains.csat.router import router as csat_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
+from app.domains.facebook.router import router as facebook_webhook_router
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
+from app.domains.instagram.comments_router import router as instagram_comments_router
+from app.domains.instagram.connect_router import (
+    callback_router as instagram_oauth_callback_router,
+)
+from app.domains.instagram.connect_router import (
+    router as instagram_connect_router,
+)
+from app.domains.instagram.publishing_router import router as instagram_publishing_router
+from app.domains.instagram.router import router as instagram_webhook_router
 from app.domains.integrations.router import router as integrations_router
 from app.domains.labels.router import router as labels_router
 from app.domains.macros.router import router as macros_router
 from app.domains.notifications.router import (
     router as notifications_router,
+)
+from app.domains.notifications.router import (
     settings_router as notification_settings_router,
 )
-from app.mcp.router import router as mcp_tokens_router
 from app.domains.portals.public_router import public_router as portals_public_router
 from app.domains.portals.router import router as portals_router
 from app.domains.products.router import router as products_router
+from app.domains.reporting.router import (
+    live_reports_router,
+    summary_reports_router,
+)
+from app.domains.reporting.router import (
+    router as reports_router,
+)
+from app.domains.sms_bandwidth.router import router as bandwidth_webhook_router
 from app.domains.teams.router import router as teams_router
 from app.domains.teams.router import team_members_router
-from app.domains.users.router import router as profile_router
-from app.domains.facebook.router import router as facebook_webhook_router
-from app.domains.instagram.comments_router import router as instagram_comments_router
-from app.domains.instagram.connect_router import (
-    callback_router as instagram_oauth_callback_router,
-    router as instagram_connect_router,
-)
-from app.domains.instagram.publishing_router import router as instagram_publishing_router
-from app.domains.instagram.router import router as instagram_webhook_router
-from app.domains.sms_bandwidth.router import router as bandwidth_webhook_router
 from app.domains.telegram.router import router as telegram_webhook_router
 from app.domains.twilio.router import router as twilio_webhook_router
+from app.domains.users.router import router as profile_router
 from app.domains.web_widget.router import router as web_widget_router
 from app.domains.webhooks.router import router as outbound_webhooks_router
 from app.domains.whatsapp.router import router as whatsapp_webhook_router
 from app.domains.working_hours.router import (
     inbox_router as working_hours_inbox_router,
+)
+from app.domains.working_hours.router import (
     single_router as working_hours_single_router,
 )
+from app.mcp.router import router as mcp_tokens_router
 
 
 @asynccontextmanager
@@ -122,6 +133,7 @@ def create_app() -> FastAPI:
     app.include_router(contact_actions_router)
     app.include_router(conversations_router)
     app.include_router(conversations_messages_router)
+    app.include_router(bulk_actions_router)
     app.include_router(custom_attributes_router)
     # Label CRUD (Phase 6.1). admin-only on writes; admin OR agent on
     # index. The Label model + ConversationLabel join landed in 4a so

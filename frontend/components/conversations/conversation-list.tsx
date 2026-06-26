@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import {
   type Conversation,
+  useBulkAction,
   useConversations,
   useSearchConversations,
 } from "@/lib/api/conversations";
@@ -33,11 +34,11 @@ export function ConversationList({ accountId }: { accountId: string }) {
   );
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const trimmed = q.trim();
   const searching = trimmed.length > 0;
 
-  // Index or search — only one is enabled at a time (search is gated on q).
   const indexQ = useConversations(accountId, { status, assigneeType, page });
   const searchQ = useSearchConversations(accountId, trimmed, page);
   const active = searching ? searchQ : indexQ;
@@ -45,6 +46,26 @@ export function ConversationList({ accountId }: { accountId: string }) {
   const items: Conversation[] = searching
     ? (searchQ.data?.payload ?? [])
     : (indexQ.data?.data.payload ?? []);
+
+  const bulk = useBulkAction(accountId);
+
+  function clearSelected() {
+    setSelected(new Set());
+  }
+  function toggleSelected(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  async function bulkStatus(newStatus: string) {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    await bulk.mutateAsync({ ids, fields: { status: newStatus } });
+    clearSelected();
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -62,6 +83,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
           onChange={(e) => {
             setQ(e.target.value);
             setPage(1);
+            clearSelected();
           }}
           placeholder="Buscar en los mensajes…"
           className="h-11 w-full rounded-md border border-border bg-surface pl-9 pr-9 text-sm text-fg placeholder:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
@@ -73,6 +95,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
             onClick={() => {
               setQ("");
               setPage(1);
+              clearSelected();
             }}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-surface-2 hover:text-fg"
           >
@@ -81,7 +104,43 @@ export function ConversationList({ accountId }: { accountId: string }) {
         ) : null}
       </div>
 
-      {searching ? (
+      {selected.size > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
+          <span className="text-sm font-medium tabular-nums text-fg">
+            {selected.size} seleccionada{selected.size === 1 ? "" : "s"}
+          </span>
+          <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+          <FilterButton
+            active={false}
+            disabled={bulk.isPending}
+            onClick={() => bulkStatus("resolved")}
+          >
+            Resolver
+          </FilterButton>
+          <FilterButton
+            active={false}
+            disabled={bulk.isPending}
+            onClick={() => bulkStatus("open")}
+          >
+            Reabrir
+          </FilterButton>
+          <FilterButton
+            active={false}
+            disabled={bulk.isPending}
+            onClick={() => bulkStatus("pending")}
+          >
+            Pendiente
+          </FilterButton>
+          <button
+            type="button"
+            onClick={clearSelected}
+            aria-label="Cancelar selección"
+            className="ml-auto rounded-md p-1 text-fg-muted hover:bg-surface hover:text-fg"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      ) : searching ? (
         <p className="mb-3 text-sm text-fg-muted">
           Resultados para{" "}
           <span className="font-medium text-fg">“{trimmed}”</span>
@@ -95,6 +154,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
               onClick={() => {
                 setStatus(t.key);
                 setPage(1);
+                clearSelected();
               }}
             >
               {t.label}
@@ -108,6 +168,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
               onClick={() => {
                 setAssigneeType(t.key);
                 setPage(1);
+                clearSelected();
               }}
             >
               {t.label}
@@ -132,7 +193,13 @@ export function ConversationList({ accountId }: { accountId: string }) {
         ) : (
           <ul className="divide-y divide-border">
             {items.map((c) => (
-              <ConversationRow key={c.id} accountId={accountId} conv={c} />
+              <ConversationRow
+                key={c.id}
+                accountId={accountId}
+                conv={c}
+                selected={selected.has(c.id)}
+                onToggle={() => toggleSelected(c.id)}
+              />
             ))}
           </ul>
         )}
@@ -142,7 +209,10 @@ export function ConversationList({ accountId }: { accountId: string }) {
         <FilterButton
           active={false}
           disabled={page <= 1}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          onClick={() => {
+            setPage((p) => Math.max(1, p - 1));
+            clearSelected();
+          }}
         >
           Anterior
         </FilterButton>
@@ -150,7 +220,10 @@ export function ConversationList({ accountId }: { accountId: string }) {
         <FilterButton
           active={false}
           disabled={items.length < PER_PAGE}
-          onClick={() => setPage((p) => p + 1)}
+          onClick={() => {
+            setPage((p) => p + 1);
+            clearSelected();
+          }}
         >
           Siguiente
         </FilterButton>
@@ -193,9 +266,13 @@ function FilterButton({
 function ConversationRow({
   accountId,
   conv,
+  selected,
+  onToggle,
 }: {
   accountId: string;
   conv: Conversation;
+  selected: boolean;
+  onToggle: () => void;
 }) {
   const name = conv.meta?.sender?.name ?? `Conversación #${conv.id}`;
   const last =
@@ -204,10 +281,19 @@ function ConversationRow({
     "";
 
   return (
-    <li>
+    <li className="flex items-center hover:bg-surface-2">
+      <label className="flex shrink-0 cursor-pointer items-center py-3 pl-4 pr-1">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggle}
+          aria-label={`Seleccionar ${name}`}
+          className="h-4 w-4 rounded border-border accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+      </label>
       <Link
         href={`/accounts/${accountId}/conversations/${conv.id}`}
-        className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2"
+        className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-xs font-semibold text-fg-muted">
           {name.charAt(0).toUpperCase()}

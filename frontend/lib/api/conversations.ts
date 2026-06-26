@@ -169,6 +169,32 @@ export function useSendMessage(accountId: string, displayId: number) {
   });
 }
 
+/** Bulk action over many conversations (`POST /bulk_actions`). */
+export function useBulkAction(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      ids: number[];
+      fields: { status?: string; assignee_id?: number | null };
+    }) =>
+      apiFetch<{ payload: { updated: number[] } }>(
+        `/api/v1/accounts/${accountId}/bulk_actions`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            type: "Conversation",
+            ids: input.ids,
+            fields: input.fields,
+          }),
+        },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["conversations", accountId] });
+      qc.invalidateQueries({ queryKey: ["conversations-search", accountId] });
+    },
+  });
+}
+
 export function useToggleStatus(accountId: string, displayId: number) {
   const qc = useQueryClient();
   return useMutation({
