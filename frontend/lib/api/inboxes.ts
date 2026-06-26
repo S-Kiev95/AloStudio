@@ -10,7 +10,9 @@ export type ChannelType =
   | "twilio_sms"
   | "email"
   | "web_widget"
-  | "api";
+  | "api"
+  | "facebook"
+  | "instagram";
 
 /** Inbox row — list view (any channel). */
 export type Inbox = {

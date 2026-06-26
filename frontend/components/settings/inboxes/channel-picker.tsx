@@ -2,7 +2,9 @@
 
 import {
   ArrowLeft,
+  Facebook,
   Globe,
+  Instagram,
   type LucideIcon,
   Mail,
   MessageCircle,
@@ -23,6 +25,8 @@ const ICON: Record<string, LucideIcon> = {
   email: Mail,
   web_widget: Globe,
   api: Webhook,
+  facebook: Facebook,
+  instagram: Instagram,
 };
 
 export function ChannelPicker({ accountId }: { accountId: string }) {

@@ -211,6 +211,57 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
       },
     ],
   },
+  {
+    type: "facebook",
+    label: "Facebook Messenger",
+    blurb: "Página de Facebook (token manual; el flujo OAuth llega después).",
+    fields: [
+      {
+        name: "page_id",
+        label: "Page ID",
+        type: "text",
+        required: true,
+      },
+      {
+        name: "page_access_token",
+        label: "Page access token",
+        type: "password",
+        required: true,
+      },
+      {
+        name: "user_access_token",
+        label: "User access token",
+        type: "password",
+        help: "Opcional — para refrescar el token de página al expirar.",
+      },
+      {
+        name: "instagram_id",
+        label: "Instagram ID",
+        type: "text",
+        help: "Opcional — si la página está conectada a una cuenta de IG.",
+      },
+    ],
+  },
+  {
+    type: "instagram",
+    label: "Instagram (Direct)",
+    blurb:
+      "IG Business por token. Para publicar y moderar comentarios, usá la sección Instagram del menú.",
+    fields: [
+      {
+        name: "instagram_id",
+        label: "Instagram ID",
+        type: "text",
+        required: true,
+      },
+      {
+        name: "access_token",
+        label: "Access token",
+        type: "password",
+        required: true,
+      },
+    ],
+  },
 ];
 
 export function channelDef(type: string): ChannelDef | undefined {
