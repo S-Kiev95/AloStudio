@@ -101,6 +101,35 @@ export function useConversations(
   });
 }
 
+/** Search/filter envelope — one level less than the index (no `data` wrap). */
+export type ConversationsSearch = {
+  meta: {
+    mine_count: number;
+    unassigned_count: number;
+    all_count: number;
+  };
+  payload: Conversation[];
+};
+
+/** Free-text search across message content (`GET /conversations/search`). */
+export function useSearchConversations(
+  accountId: string,
+  q: string,
+  page = 1,
+) {
+  const trimmed = q.trim();
+  return useQuery({
+    queryKey: ["conversations-search", accountId, trimmed, page],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      sp.set("q", trimmed);
+      sp.set("page", String(page));
+      return apiFetch<ConversationsSearch>(`${base(accountId)}/search?${sp}`);
+    },
+    enabled: trimmed.length > 0,
+  });
+}
+
 export function useConversation(accountId: string, displayId: number) {
   return useQuery({
     queryKey: ["conversation", accountId, displayId],

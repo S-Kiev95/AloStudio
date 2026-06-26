@@ -1,11 +1,13 @@
 "use client";
 
+import { Search, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import {
   type Conversation,
   useConversations,
+  useSearchConversations,
 } from "@/lib/api/conversations";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -30,56 +32,102 @@ export function ConversationList({ accountId }: { accountId: string }) {
     undefined,
   );
   const [page, setPage] = useState(1);
+  const [q, setQ] = useState("");
 
-  const { data, isLoading, isError } = useConversations(accountId, {
-    status,
-    assigneeType,
-    page,
-  });
-  const items = data?.data.payload ?? [];
+  const trimmed = q.trim();
+  const searching = trimmed.length > 0;
+
+  // Index or search — only one is enabled at a time (search is gated on q).
+  const indexQ = useConversations(accountId, { status, assigneeType, page });
+  const searchQ = useSearchConversations(accountId, trimmed, page);
+  const active = searching ? searchQ : indexQ;
+
+  const items: Conversation[] = searching
+    ? (searchQ.data?.payload ?? [])
+    : (indexQ.data?.data.payload ?? []);
 
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="mb-4 text-2xl font-semibold text-fg">Conversaciones</h1>
 
-      <div className="mb-3 flex flex-wrap gap-2">
-        {STATUS_TABS.map((t) => (
-          <FilterButton
-            key={t.key}
-            active={status === t.key}
+      <div className="relative mb-3">
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-muted"
+          aria-hidden
+        />
+        <input
+          type="search"
+          aria-label="Buscar en los mensajes"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(1);
+          }}
+          placeholder="Buscar en los mensajes…"
+          className="h-11 w-full rounded-md border border-border bg-surface pl-9 pr-9 text-sm text-fg placeholder:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+        />
+        {q ? (
+          <button
+            type="button"
+            aria-label="Limpiar búsqueda"
             onClick={() => {
-              setStatus(t.key);
+              setQ("");
               setPage(1);
             }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-surface-2 hover:text-fg"
           >
-            {t.label}
-          </FilterButton>
-        ))}
-        <span className="mx-1 w-px self-stretch bg-border" aria-hidden />
-        {ASSIGNEE_TABS.map((t) => (
-          <FilterButton
-            key={t.label}
-            active={assigneeType === t.key}
-            onClick={() => {
-              setAssigneeType(t.key);
-              setPage(1);
-            }}
-          >
-            {t.label}
-          </FilterButton>
-        ))}
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        ) : null}
       </div>
 
+      {searching ? (
+        <p className="mb-3 text-sm text-fg-muted">
+          Resultados para{" "}
+          <span className="font-medium text-fg">“{trimmed}”</span>
+        </p>
+      ) : (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {STATUS_TABS.map((t) => (
+            <FilterButton
+              key={t.key}
+              active={status === t.key}
+              onClick={() => {
+                setStatus(t.key);
+                setPage(1);
+              }}
+            >
+              {t.label}
+            </FilterButton>
+          ))}
+          <span className="mx-1 w-px self-stretch bg-border" aria-hidden />
+          {ASSIGNEE_TABS.map((t) => (
+            <FilterButton
+              key={t.label}
+              active={assigneeType === t.key}
+              onClick={() => {
+                setAssigneeType(t.key);
+                setPage(1);
+              }}
+            >
+              {t.label}
+            </FilterButton>
+          ))}
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-lg border border-border bg-surface">
-        {isLoading ? (
+        {active.isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
-        ) : isError ? (
+        ) : active.isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
             No se pudieron cargar las conversaciones.
           </p>
         ) : items.length === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay conversaciones en este filtro.
+            {searching
+              ? `No hay resultados para “${trimmed}”.`
+              : "No hay conversaciones en este filtro."}
           </p>
         ) : (
           <ul className="divide-y divide-border">
