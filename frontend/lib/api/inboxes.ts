@@ -32,6 +32,7 @@ export type InboxDetail = Inbox & {
   inbox_identifier?: string | null;
   hmac_token?: string | null;
   callback_webhook_url?: string | null;
+  webhook_verify_token?: string | null;
 };
 
 /** The `channel:` sub-hash: a `type` plus whatever fields that channel needs. */

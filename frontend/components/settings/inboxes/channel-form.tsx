@@ -56,11 +56,13 @@ export function ChannelForm({
       }
     }
     try {
-      await create.mutateAsync({
+      const created = await create.mutateAsync({
         name: name.trim(),
         channel: buildChannel(def!, values),
       });
-      router.push(inboxesHref);
+      // Land on the detail page so the webhook URL + verify token (what the
+      // user pastes into the provider) are immediately visible.
+      router.push(`${inboxesHref}/${created.id}`);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "No se pudo crear el canal.",

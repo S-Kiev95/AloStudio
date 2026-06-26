@@ -185,11 +185,9 @@ async def create_inbox(
             csat_config=payload.csat_config,
         ),
     ).perform()
-    # ``present_inbox`` renders Channel::Api detail; other channel types get
-    # the base keys (per-channel detail in the response is a follow-up). Pass
-    # the Api row only when that's what we built so the presenter stays typed.
-    api_channel = result.channel if isinstance(result.channel, ApiChannel) else None
-    return present_inbox(result.inbox, channel=api_channel, is_administrator=True)
+    # The presenter handles every channel type (Api detail, plus the callback
+    # webhook URL + WhatsApp verify token for the messaging channels).
+    return present_inbox(result.inbox, channel=result.channel, is_administrator=True)
 
 
 @router.get("/{inbox_id}")
@@ -205,7 +203,7 @@ async def show_inbox(
     """
     inbox = await _find_inbox_in_account(session, ctx, inbox_id)
     await _authorize_inbox_show(session, ctx, inbox)
-    channel = await _load_channel(session, inbox)
+    channel = await _load_channel_row(session, inbox)
     return present_inbox(inbox, channel=channel, is_administrator=ctx.is_administrator)
 
 

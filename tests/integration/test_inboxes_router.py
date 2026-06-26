@@ -151,6 +151,38 @@ async def test_admin_creates_telegram_inbox(client, seeded):
     body = resp.json()
     assert body["name"] == "TG Inbox"
     assert body["channel_type"] == "Channel::Telegram"
+    # Telegram surfaces its callback URL (bot token in the path).
+    assert "/webhooks/telegram/" in (body.get("callback_webhook_url") or "")
+
+
+async def test_whatsapp_inbox_surfaces_webhook_info(client, seeded):
+    """WhatsApp create surfaces the callback URL + auto-generated verify
+    token — the values the admin pastes into Meta's webhook config."""
+    owner, _, admin_h, _ = seeded
+    resp = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/inboxes",
+        json={
+            "name": "WA Inbox",
+            "channel": {
+                "type": "whatsapp",
+                "provider": "whatsapp_cloud",
+                "phone_number": "+15551234567",
+                "provider_config": {
+                    "api_key": "k",
+                    "phone_number_id": "p",
+                    "business_account_id": "b",
+                },
+            },
+        },
+        headers=admin_h,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["channel_type"] == "Channel::Whatsapp"
+    assert body["phone_number"] == "+15551234567"
+    assert "/webhooks/whatsapp/+15551234567" in (body.get("callback_webhook_url") or "")
+    assert isinstance(body.get("webhook_verify_token"), str)
+    assert len(body["webhook_verify_token"]) > 0
 
 
 async def test_create_telegram_requires_bot_token(client, seeded):

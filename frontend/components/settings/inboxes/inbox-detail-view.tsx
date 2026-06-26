@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Copy, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
@@ -137,14 +137,23 @@ export function InboxDetailView({
         </CardContent>
       </Card>
 
-      {inbox.callback_webhook_url || inbox.inbox_identifier ? (
+      {inbox.callback_webhook_url ||
+      inbox.inbox_identifier ||
+      inbox.webhook_verify_token ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Webhook</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <p className="text-xs text-fg-muted">
+              Pegá estos valores en la configuración del proveedor (Meta,
+              Telegram, etc.) para recibir los mensajes.
+            </p>
             {inbox.callback_webhook_url ? (
               <CodeRow label="Callback URL" value={inbox.callback_webhook_url} />
+            ) : null}
+            {inbox.webhook_verify_token ? (
+              <CodeRow label="Verify token" value={inbox.webhook_verify_token} />
             ) : null}
             {inbox.inbox_identifier ? (
               <CodeRow label="Inbox identifier" value={inbox.inbox_identifier} />
@@ -177,12 +186,32 @@ export function InboxDetailView({
 }
 
 function CodeRow({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
   return (
     <div className="space-y-1">
       <p className="text-xs font-medium uppercase text-fg-muted">{label}</p>
-      <code className="block truncate rounded bg-surface-2 px-2 py-1 font-numeric text-xs text-fg">
-        {value}
-      </code>
+      <div className="flex items-center gap-2">
+        <code className="block min-w-0 flex-1 truncate rounded bg-surface-2 px-2 py-1 font-numeric text-xs text-fg">
+          {value}
+        </code>
+        <button
+          type="button"
+          aria-label={`Copiar ${label}`}
+          title="Copiar"
+          onClick={() => {
+            void navigator.clipboard.writeText(value);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+          className="shrink-0 rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {copied ? (
+            <Check className="h-4 w-4 text-success" aria-hidden />
+          ) : (
+            <Copy className="h-4 w-4" aria-hidden />
+          )}
+        </button>
+      </div>
     </div>
   );
 }

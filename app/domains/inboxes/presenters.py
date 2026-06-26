@@ -16,8 +16,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.core.config import get_settings
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
+    CHANNEL_TYPE_SMS,
+    CHANNEL_TYPE_TELEGRAM,
+    CHANNEL_TYPE_TWILIO_SMS,
+    CHANNEL_TYPE_WHATSAPP,
     ApiChannel,
     Inbox,
     sender_name_type_to_str,
@@ -32,21 +37,34 @@ def _avatar_url(_inbox: Inbox) -> str:
     return ""
 
 
-def _callback_webhook_url(inbox: Inbox) -> str | None:
-    """Chatwoot's ``Inbox#callback_webhook_url`` only returns a URL for
-    Twilio, SMS, Line, and WhatsApp channels. For Channel::Api the method
-    falls through to ``nil`` — same behaviour here.
+def _callback_webhook_url(inbox: Inbox, channel: Any) -> str | None:
+    """The public URL the provider posts inbound events to — what the user
+    pastes into Meta / Bandwidth / Twilio when wiring the channel up.
+
+    Mirrors Chatwoot's ``Inbox#callback_webhook_url`` (Twilio / SMS / WhatsApp);
+    we also surface Telegram, whose webhook carries the bot token in the path.
+    Built off ``settings.app_base_url`` (Chatwoot's ``FRONTEND_URL``).
     """
-    # Phase 2 has only Channel::Api — always nil. Once other channels
-    # land we'll branch on inbox.channel_type.
-    _ = inbox
+    if channel is None:
+        return None
+    base = get_settings().app_base_url.rstrip("/")
+    ct = inbox.channel_type
+    if ct == CHANNEL_TYPE_TWILIO_SMS:
+        return f"{base}/twilio/callback"
+    if ct == CHANNEL_TYPE_SMS:
+        phone = (getattr(channel, "phone_number", "") or "").lstrip("+")
+        return f"{base}/webhooks/sms/{phone}"
+    if ct == CHANNEL_TYPE_WHATSAPP:
+        return f"{base}/webhooks/whatsapp/{getattr(channel, 'phone_number', '') or ''}"
+    if ct == CHANNEL_TYPE_TELEGRAM:
+        return f"{base}/webhooks/telegram/{getattr(channel, 'bot_token', '') or ''}"
     return None
 
 
 def present_inbox(
     inbox: Inbox,
     *,
-    channel: ApiChannel | None,
+    channel: Any | None,
     is_administrator: bool,
 ) -> dict[str, Any]:
     """Emit the inbox row in Chatwoot wire shape.
@@ -80,7 +98,7 @@ def present_inbox(
         # list until the working_hours table lands (Phase 6+).
         "working_hours": [],
         "timezone": inbox.timezone,
-        "callback_webhook_url": _callback_webhook_url(inbox),
+        "callback_webhook_url": _callback_webhook_url(inbox, channel),
         "allow_messages_after_resolved": inbox.allow_messages_after_resolved,
         "lock_to_single_conversation": inbox.lock_to_single_conversation,
         # ``sender_name_type`` wire shape is the *string*, not the int enum
@@ -98,7 +116,7 @@ def present_inbox(
             "allowed_domains": None,
             "widget_color": None,
             "website_url": None,
-            "hmac_mandatory": (channel.hmac_mandatory if channel is not None else None),
+            "hmac_mandatory": getattr(channel, "hmac_mandatory", None),
             "welcome_title": None,
             "welcome_tagline": None,
             "web_widget_script": None,
@@ -106,8 +124,8 @@ def present_inbox(
             "selected_feature_flags": None,
             "reply_time": None,
             "messaging_service_sid": None,
-            "phone_number": None,
-            "provider": None,
+            "phone_number": getattr(channel, "phone_number", None),
+            "provider": getattr(channel, "provider", None),
         }
     )
 
@@ -119,6 +137,13 @@ def present_inbox(
         if is_administrator:
             body["hmac_token"] = channel.hmac_token
             body["secret"] = channel.secret
+
+    # WhatsApp's verify token — the value the user enters in Meta's webhook
+    # config. Admin-only, like the Api hmac_token / secret.
+    if is_administrator:
+        verify_token = getattr(channel, "webhook_verify_token", None)
+        if verify_token:
+            body["webhook_verify_token"] = verify_token
 
     return body
 
