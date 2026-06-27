@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   type MetricKey,
+  SUMMARY_SCOPES,
+  type SummaryScope,
   TIMESERIES_METRICS,
   rangeForDays,
   useLiveMetrics,
@@ -16,6 +18,7 @@ import { cn } from "@/lib/utils";
 
 import { MetricChart } from "./metric-chart";
 import { SummaryCards } from "./summary-cards";
+import { SummaryTable } from "./summary-table";
 
 const RANGES = [
   { days: 7, label: "7 días" },
@@ -33,6 +36,7 @@ const LIVE_CARDS = [
 export function ReportsView({ accountId }: { accountId: string }) {
   const [days, setDays] = useState<number>(30);
   const [metric, setMetric] = useState<MetricKey>("conversations_count");
+  const [scope, setScope] = useState<SummaryScope>("agent");
   const range = useMemo(() => rangeForDays(days), [days]);
 
   const live = useLiveMetrics(accountId);
@@ -123,6 +127,37 @@ export function ReportsView({ accountId }: { accountId: string }) {
           ) : (
             <MetricChart data={series.data ?? []} formatValue={formatValue} />
           )}
+        </CardContent>
+      </Card>
+
+      {/* Per-entity breakdown */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle>Desglose</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              {SUMMARY_SCOPES.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setScope(s.key)}
+                  aria-pressed={scope === s.key}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-sm font-medium",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    scope === s.key
+                      ? "bg-surface-2 font-semibold text-fg"
+                      : "border border-border bg-surface text-fg hover:bg-surface-2",
+                  )}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <SummaryTable accountId={accountId} scope={scope} range={range} />
         </CardContent>
       </Card>
     </div>

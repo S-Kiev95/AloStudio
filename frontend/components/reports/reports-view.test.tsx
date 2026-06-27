@@ -43,6 +43,24 @@ const server = setupServer(
       { value: 14, timestamp: 1_700_086_400 },
     ]),
   ),
+  // Breakdown section (default scope = agent) + agent-name lookup.
+  http.get("*/agents", () =>
+    HttpResponse.json([{ id: 2, name: "Demo Admin" }]),
+  ),
+  http.get("*/summary_reports/agent", () =>
+    HttpResponse.json([
+      {
+        // Values kept distinct from the summary-card fixture above so the
+        // breakdown table doesn't duplicate any text the test asserts.
+        id: 2,
+        conversations_count: 8,
+        resolved_conversations_count: 5,
+        avg_resolution_time: 3600,
+        avg_first_response_time: 42,
+        avg_reply_time: 120,
+      },
+    ]),
+  ),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));

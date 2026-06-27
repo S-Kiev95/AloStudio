@@ -83,6 +83,53 @@ export function useLiveMetrics(accountId: string) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Per-entity summary reports (drill-down tables)
+// ---------------------------------------------------------------------------
+/** The four breakdown axes exposed by ``/summary_reports/{scope}``. */
+export const SUMMARY_SCOPES = [
+  { key: "agent", label: "Agentes", entityLabel: "Agente" },
+  { key: "team", label: "Equipos", entityLabel: "Equipo" },
+  { key: "inbox", label: "Bandejas", entityLabel: "Bandeja" },
+  { key: "label", label: "Etiquetas", entityLabel: "Etiqueta" },
+] as const;
+
+export type SummaryScope = (typeof SUMMARY_SCOPES)[number]["key"];
+
+/**
+ * One row of a per-entity summary report. The agent builder emits only
+ * `id` (the user id) with no `name`, so the caller resolves it from the
+ * agents list; team/inbox/label rows carry their own `name`.
+ */
+export type SummaryRow = {
+  id: number;
+  name?: string;
+  conversations_count: number;
+  resolved_conversations_count: number;
+  avg_resolution_time: number; // seconds
+  avg_first_response_time: number; // seconds
+  avg_reply_time: number; // seconds
+};
+
+export function useSummaryReport(
+  accountId: string,
+  scope: SummaryScope,
+  range: ReportRange,
+) {
+  return useQuery({
+    queryKey: ["summary-report", accountId, scope, range.since, range.until],
+    queryFn: () => {
+      const sp = new URLSearchParams({
+        since: String(range.since),
+        until: String(range.until),
+      });
+      return apiFetch<SummaryRow[]>(
+        `${base(accountId)}/summary_reports/${scope}?${sp}`,
+      );
+    },
+  });
+}
+
 export function useReportTimeseries(
   accountId: string,
   metric: MetricKey,
