@@ -130,6 +130,43 @@ export function useSearchConversations(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Advanced filter DSL (`POST /conversations/filter`)
+// ---------------------------------------------------------------------------
+export type FilterOperator =
+  | "equal_to"
+  | "not_equal_to"
+  | "is_present"
+  | "is_not_present";
+
+/** One condition row of the filter DSL (mirrors the Ruby payload entry). */
+export type FilterCondition = {
+  attribute_key: string;
+  filter_operator: FilterOperator;
+  values: (string | number)[];
+  query_operator?: "AND" | "OR";
+};
+
+/**
+ * Run the filter DSL. Same `{meta, payload}` envelope as search. Disabled
+ * until at least one condition exists so the index stays in charge.
+ */
+export function useFilterConversations(
+  accountId: string,
+  conditions: FilterCondition[],
+  page = 1,
+) {
+  return useQuery({
+    queryKey: ["conversations-filter", accountId, JSON.stringify(conditions), page],
+    queryFn: () =>
+      apiFetch<ConversationsSearch>(`${base(accountId)}/filter?page=${page}`, {
+        method: "POST",
+        body: JSON.stringify({ payload: conditions }),
+      }),
+    enabled: conditions.length > 0,
+  });
+}
+
 export function useConversation(accountId: string, displayId: number) {
   return useQuery({
     queryKey: ["conversation", accountId, displayId],

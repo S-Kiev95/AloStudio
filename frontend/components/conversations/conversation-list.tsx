@@ -1,17 +1,21 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import {
   type Conversation,
+  type FilterCondition,
   useBulkAction,
   useConversations,
+  useFilterConversations,
   useSearchConversations,
 } from "@/lib/api/conversations";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
+
+import { ConversationFilters } from "./conversation-filters";
 
 const STATUS_TABS = [
   { key: "open", label: "Abiertas" },
@@ -35,17 +39,30 @@ export function ConversationList({ accountId }: { accountId: string }) {
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [filters, setFilters] = useState<FilterCondition[]>([]);
+  const [filterMatch, setFilterMatch] = useState<"AND" | "OR">("AND");
+  const [showFilters, setShowFilters] = useState(false);
 
   const trimmed = q.trim();
   const searching = trimmed.length > 0;
+  // Search wins over filters when both are set, so the index, search, and
+  // filter modes stay mutually exclusive.
+  const filtering = !searching && filters.length > 0;
 
   const indexQ = useConversations(accountId, { status, assigneeType, page });
   const searchQ = useSearchConversations(accountId, trimmed, page);
-  const active = searching ? searchQ : indexQ;
+  const filterQ = useFilterConversations(
+    accountId,
+    filtering ? filters : [],
+    page,
+  );
+  const active = searching ? searchQ : filtering ? filterQ : indexQ;
 
   const items: Conversation[] = searching
     ? (searchQ.data?.payload ?? [])
-    : (indexQ.data?.data.payload ?? []);
+    : filtering
+      ? (filterQ.data?.payload ?? [])
+      : (indexQ.data?.data.payload ?? []);
 
   const bulk = useBulkAction(accountId);
 
@@ -66,42 +83,81 @@ export function ConversationList({ accountId }: { accountId: string }) {
     await bulk.mutateAsync({ ids, fields: { status: newStatus } });
     clearSelected();
   }
+  function applyFilters(conds: FilterCondition[], match: "AND" | "OR") {
+    setFilters(conds);
+    setFilterMatch(match);
+    setShowFilters(false);
+    setQ(""); // filters and search are mutually exclusive
+    setPage(1);
+    clearSelected();
+  }
+  function clearFilters() {
+    setFilters([]);
+    setShowFilters(false);
+    setPage(1);
+    clearSelected();
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="mb-4 text-2xl font-semibold text-fg">Conversaciones</h1>
 
-      <div className="relative mb-3">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-muted"
-          aria-hidden
-        />
-        <input
-          type="search"
-          aria-label="Buscar en los mensajes"
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setPage(1);
-            clearSelected();
-          }}
-          placeholder="Buscar en los mensajes…"
-          className="h-11 w-full rounded-md border border-border bg-surface pl-9 pr-9 text-sm text-fg placeholder:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-        />
-        {q ? (
-          <button
-            type="button"
-            aria-label="Limpiar búsqueda"
-            onClick={() => {
-              setQ("");
+      <div className="mb-3 flex gap-2">
+        <div className="relative flex-1">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-muted"
+            aria-hidden
+          />
+          <input
+            type="search"
+            aria-label="Buscar en los mensajes"
+            value={q}
+            onChange={(e) => {
+              const v = e.target.value;
+              setQ(v);
               setPage(1);
               clearSelected();
+              if (v.trim()) setFilters([]); // search and filters are exclusive
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-surface-2 hover:text-fg"
-          >
-            <X className="h-4 w-4" aria-hidden />
-          </button>
-        ) : null}
+            placeholder="Buscar en los mensajes…"
+            className="h-11 w-full rounded-md border border-border bg-surface pl-9 pr-9 text-sm text-fg placeholder:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+          />
+          {q ? (
+            <button
+              type="button"
+              aria-label="Limpiar búsqueda"
+              onClick={() => {
+                setQ("");
+                setPage(1);
+                clearSelected();
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-surface-2 hover:text-fg"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowFilters((s) => !s)}
+          aria-pressed={showFilters}
+          aria-label="Filtros"
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 text-sm font-medium transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            showFilters || filtering
+              ? "bg-surface-2 text-fg"
+              : "bg-surface text-fg-muted hover:bg-surface-2 hover:text-fg",
+          )}
+        >
+          <SlidersHorizontal className="h-4 w-4" aria-hidden />
+          Filtros
+          {filters.length > 0 ? (
+            <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-fg tabular-nums">
+              {filters.length}
+            </span>
+          ) : null}
+        </button>
       </div>
 
       {selected.size > 0 ? (
@@ -140,11 +196,41 @@ export function ConversationList({ accountId }: { accountId: string }) {
             <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
+      ) : showFilters ? (
+        <ConversationFilters
+          accountId={accountId}
+          initial={filters}
+          initialMatch={filterMatch}
+          onApply={applyFilters}
+          onClear={clearFilters}
+          onCancel={() => setShowFilters(false)}
+        />
       ) : searching ? (
         <p className="mb-3 text-sm text-fg-muted">
           Resultados para{" "}
           <span className="font-medium text-fg">“{trimmed}”</span>
         </p>
+      ) : filtering ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2 text-sm">
+          <span className="font-medium text-fg">
+            {filters.length} filtro{filters.length === 1 ? "" : "s"} activo
+            {filters.length === 1 ? "" : "s"}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowFilters(true)}
+            className="ml-auto rounded-md px-2 py-1 font-medium text-fg-muted hover:text-fg"
+          >
+            Editar
+          </button>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="rounded-md px-2 py-1 font-medium text-fg-muted hover:text-fg"
+          >
+            Limpiar
+          </button>
+        </div>
       ) : (
         <div className="mb-3 flex flex-wrap gap-2">
           {STATUS_TABS.map((t) => (
@@ -188,7 +274,9 @@ export function ConversationList({ accountId }: { accountId: string }) {
           <p className="p-8 text-center text-sm text-fg-muted">
             {searching
               ? `No hay resultados para “${trimmed}”.`
-              : "No hay conversaciones en este filtro."}
+              : filtering
+                ? "No hay conversaciones que coincidan con los filtros."
+                : "No hay conversaciones en este filtro."}
           </p>
         ) : (
           <ul className="divide-y divide-border">
