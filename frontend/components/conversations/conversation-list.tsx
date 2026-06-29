@@ -12,6 +12,12 @@ import {
   useFilterConversations,
   useSearchConversations,
 } from "@/lib/api/conversations";
+import {
+  type CustomView,
+  useCreateCustomView,
+  useCustomViews,
+  useDeleteCustomView,
+} from "@/lib/api/custom-views";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +71,9 @@ export function ConversationList({ accountId }: { accountId: string }) {
       : (indexQ.data?.data.payload ?? []);
 
   const bulk = useBulkAction(accountId);
+  const views = useCustomViews(accountId, "conversation");
+  const createView = useCreateCustomView(accountId);
+  const deleteView = useDeleteCustomView(accountId);
 
   function clearSelected() {
     setSelected(new Set());
@@ -96,6 +105,20 @@ export function ConversationList({ accountId }: { accountId: string }) {
     setShowFilters(false);
     setPage(1);
     clearSelected();
+  }
+  async function saveView(
+    name: string,
+    conds: FilterCondition[],
+    match: "AND" | "OR",
+  ) {
+    await createView.mutateAsync({ name, query: { payload: conds } });
+    applyFilters(conds, match);
+  }
+  function applyView(view: CustomView) {
+    const conds = view.query?.payload ?? [];
+    if (conds.length === 0) return;
+    const match = conds[0]?.query_operator === "OR" ? "OR" : "AND";
+    applyFilters(conds, match);
   }
 
   return (
@@ -160,6 +183,37 @@ export function ConversationList({ accountId }: { accountId: string }) {
         </button>
       </div>
 
+      {!searching &&
+      !showFilters &&
+      selected.size === 0 &&
+      (views.data?.length ?? 0) > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-fg-muted">Vistas:</span>
+          {views.data!.map((v) => (
+            <span
+              key={v.id}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-surface py-1 pl-3 pr-1 text-xs"
+            >
+              <button
+                type="button"
+                onClick={() => applyView(v)}
+                className="font-medium text-fg hover:text-primary"
+              >
+                {v.name}
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteView.mutate(v.id)}
+                aria-label={`Eliminar vista ${v.name}`}
+                className="rounded-full p-0.5 text-fg-muted hover:bg-surface-2 hover:text-danger"
+              >
+                <X className="h-3 w-3" aria-hidden />
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       {selected.size > 0 ? (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
           <span className="text-sm font-medium tabular-nums text-fg">
@@ -204,6 +258,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
           onApply={applyFilters}
           onClear={clearFilters}
           onCancel={() => setShowFilters(false)}
+          onSaveView={saveView}
         />
       ) : searching ? (
         <p className="mb-3 text-sm text-fg-muted">

@@ -92,6 +92,7 @@ export function ConversationFilters({
   onApply,
   onClear,
   onCancel,
+  onSaveView,
 }: {
   accountId: string;
   initial: FilterCondition[];
@@ -99,11 +100,17 @@ export function ConversationFilters({
   onApply: (conditions: FilterCondition[], match: "AND" | "OR") => void;
   onClear: () => void;
   onCancel: () => void;
+  onSaveView: (
+    name: string,
+    conditions: FilterCondition[],
+    match: "AND" | "OR",
+  ) => void;
 }) {
   const [rows, setRows] = useState<DraftRow[]>(
     initial.length > 0 ? initial.map(toDraft) : [blankRow()],
   );
   const [match, setMatch] = useState<"AND" | "OR">(initialMatch);
+  const [saveName, setSaveName] = useState("");
 
   const agents = useAgents(accountId);
   const inboxes = useInboxes(accountId);
@@ -121,7 +128,7 @@ export function ConversationFilters({
     setRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== i)));
   }
 
-  function apply() {
+  function buildConditions(): FilterCondition[] {
     const conds: FilterCondition[] = [];
     for (const r of rows) {
       const wantsValue = needsValue(r.filter_operator);
@@ -133,11 +140,24 @@ export function ConversationFilters({
         query_operator: match,
       });
     }
+    return conds;
+  }
+
+  function apply() {
+    const conds = buildConditions();
     if (conds.length === 0) {
       onClear();
       return;
     }
     onApply(conds, match);
+  }
+
+  function save() {
+    const name = saveName.trim();
+    const conds = buildConditions();
+    if (!name || conds.length === 0) return;
+    onSaveView(name, conds, match);
+    setSaveName("");
   }
 
   return (
@@ -245,6 +265,26 @@ export function ConversationFilters({
             Limpiar filtros
           </button>
         ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+        <input
+          type="text"
+          value={saveName}
+          onChange={(e) => setSaveName(e.target.value)}
+          placeholder="Guardar como vista…"
+          aria-label="Nombre de la vista"
+          className={cn(SELECT_CLS, "min-w-[10rem] flex-1")}
+        />
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={save}
+          disabled={!saveName.trim() || buildConditions().length === 0}
+        >
+          Guardar vista
+        </Button>
       </div>
     </div>
   );

@@ -45,6 +45,7 @@ describe("ConversationFilters", () => {
         onApply={onApply}
         onClear={noop}
         onCancel={noop}
+        onSaveView={noop}
       />,
     );
 
@@ -76,6 +77,7 @@ describe("ConversationFilters", () => {
         onApply={onApply}
         onClear={noop}
         onCancel={noop}
+        onSaveView={noop}
       />,
     );
 
@@ -95,6 +97,42 @@ describe("ConversationFilters", () => {
           attribute_key: "assignee_id",
           filter_operator: "is_present",
           values: [],
+          query_operator: "AND",
+        },
+      ],
+      "AND",
+    );
+  });
+
+  it("saves the current filter as a named view", () => {
+    const onSaveView = vi.fn();
+    wrap(
+      <ConversationFilters
+        accountId="1"
+        initial={[]}
+        initialMatch="AND"
+        onApply={noop}
+        onClear={noop}
+        onCancel={noop}
+        onSaveView={onSaveView}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Valor"), {
+      target: { value: "open" },
+    });
+    fireEvent.change(screen.getByLabelText("Nombre de la vista"), {
+      target: { value: "Abiertas" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar vista" }));
+
+    expect(onSaveView).toHaveBeenCalledWith(
+      "Abiertas",
+      [
+        {
+          attribute_key: "status",
+          filter_operator: "equal_to",
+          values: ["open"],
           query_operator: "AND",
         },
       ],

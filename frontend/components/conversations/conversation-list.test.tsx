@@ -29,6 +29,7 @@ const conversation = {
 };
 
 const server = setupServer(
+  http.get("*/custom_filters", () => HttpResponse.json([])),
   http.get("*/conversations", () =>
     HttpResponse.json({
       data: {

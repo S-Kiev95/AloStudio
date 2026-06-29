@@ -28,6 +28,7 @@ from app.domains.conversations.router import router as conversations_router
 from app.domains.csat.public_router import router as csat_public_router
 from app.domains.csat.router import router as csat_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
+from app.domains.custom_views.router import router as custom_views_router
 from app.domains.facebook.router import router as facebook_webhook_router
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
@@ -135,6 +136,10 @@ def create_app() -> FastAPI:
     app.include_router(conversations_messages_router)
     app.include_router(bulk_actions_router)
     app.include_router(custom_attributes_router)
+    # Saved views (``custom_filters``). Per-user named filter-DSL views;
+    # any account member manages their own. Backs the conversation list's
+    # "save this filter" affordance.
+    app.include_router(custom_views_router)
     # Label CRUD (Phase 6.1). admin-only on writes; admin OR agent on
     # index. The Label model + ConversationLabel join landed in 4a so
     # ``update_labels`` could write through them — 6.1 promotes them
