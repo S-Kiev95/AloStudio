@@ -11,10 +11,9 @@ Two tasks run every 5 minutes:
 
   1. ``fire_due_oneoff_campaigns``  — find every ``one_off`` campaign
      in ``[now - 3d, now]`` whose ``campaign_status == active``,
-     mark it as ``completed``. (The actual per-channel send pipeline —
-     Twilio/Sms/WhatsApp ``OneoffCampaignService`` in Rails — defers
-     to a per-channel follow-up; Phase 10 ships the state flip + the
-     scheduler skeleton.)
+     deliver it to its audience (one conversation + outgoing message
+     per Contact, via ``_deliver_oneoff_campaign``), then mark it
+     ``completed``.
   2. ``reopen_snoozed_conversations`` — flip every snoozed
      conversation whose ``snoozed_until <= now()`` back to ``open``.
      Mirrors ``Conversations::ReopenSnoozedConversationsJob``.
@@ -41,7 +40,6 @@ from app.domains.campaigns.models import (
     Campaign,
 )
 from app.domains.conversations.models import (
-    CONVERSATION_STATUS_OPEN,
     CONVERSATION_STATUS_SNOOZED,
     Conversation,
 )
@@ -82,16 +80,122 @@ async def fire_due_oneoff_campaigns(session: AsyncSession) -> int:
     )
     rows = list((await session.exec(stmt)).all())
     for campaign in rows:
+        sent = await _deliver_oneoff_campaign(session, campaign)
         campaign.campaign_status = CAMPAIGN_STATUS_COMPLETED
         session.add(campaign)
         log.info(
-            "scheduler.campaign.fired campaign_id=%s display_id=%s",
+            "scheduler.campaign.fired campaign_id=%s display_id=%s sent=%s",
             campaign.id,
             campaign.display_id,
+            sent,
         )
     if rows:
         await session.flush()
     return len(rows)
+
+
+async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) -> int:
+    """Create a conversation + outgoing message per audience Contact.
+
+    Ports ``Campaigns::CampaignConversationBuilder``: for each
+    ``{type: 'Contact', id: ...}`` in ``campaign.audience`` we find (or
+    create) the ContactInbox in the campaign's inbox, skip it when a
+    conversation is already present (idempotency — don't re-send), then
+    create a fresh conversation stamped with ``campaign_id`` plus an
+    outgoing message carrying the campaign body. The sender is the
+    campaign's ``sender_id`` (nil → an unattributed outgoing message,
+    matching ``campaign.sender`` being nil in Rails).
+
+    A failure on one contact is logged and skipped — it never aborts the
+    rest of the audience (mirrors the builder's ``rescue StandardError``).
+    Returns the number of conversations actually created.
+    """
+    from app.domains.contacts.models import Contact, ContactInbox
+    from app.domains.contacts.service import ContactInboxBuilder
+    from app.domains.conversations.service import (
+        ConversationBuilderParams,
+        MessageBuilderParams,
+        create_conversation,
+        create_message,
+    )
+    from app.domains.inboxes.models import Inbox
+
+    inbox = (
+        await session.exec(select(Inbox).where(Inbox.id == campaign.inbox_id))
+    ).first()
+    if inbox is None:
+        return 0
+
+    sent = 0
+    for entry in campaign.audience or []:
+        if not isinstance(entry, dict) or entry.get("type") != "Contact":
+            continue
+        contact_id = entry.get("id")
+        try:
+            contact = (
+                await session.exec(
+                    select(Contact).where(
+                        Contact.id == contact_id,
+                        Contact.account_id == campaign.account_id,
+                    )
+                )
+            ).first()
+            if contact is None:
+                continue
+            contact_inbox = (
+                await session.exec(
+                    select(ContactInbox).where(
+                        ContactInbox.contact_id == contact.id,
+                        ContactInbox.inbox_id == inbox.id,
+                    )
+                )
+            ).first()
+            if contact_inbox is None:
+                contact_inbox = await ContactInboxBuilder(
+                    session=session, contact=contact, inbox=inbox
+                ).perform()
+            # Skip when a conversation already exists on this ContactInbox.
+            existing = (
+                await session.exec(
+                    select(Conversation).where(
+                        Conversation.contact_inbox_id == contact_inbox.id
+                    )
+                )
+            ).first()
+            if existing is not None:
+                continue
+            # create_conversation reads contact_inbox.inbox — load it in the
+            # async context first to avoid a sync lazy-load (MissingGreenlet).
+            await session.refresh(contact_inbox, ["inbox"])
+            conv = await create_conversation(
+                session,
+                contact_inbox=contact_inbox,
+                params=ConversationBuilderParams(),
+            )
+            conv.campaign_id = campaign.id
+            session.add(conv)
+            await session.flush()
+            await create_message(
+                session,
+                conversation=conv,
+                params=MessageBuilderParams(
+                    content=campaign.message,
+                    message_type="outgoing",
+                    campaign_id=campaign.id,
+                ),
+                user_id=campaign.sender_id,
+            )
+            sent += 1
+        except Exception as exc:
+            log.warning(
+                "scheduler.campaign.contact_failed campaign_id=%s "
+                "contact_id=%s err=%s",
+                campaign.id,
+                contact_id,
+                exc,
+            )
+            continue
+    return sent
 
 
 # ---------------------------------------------------------------------------

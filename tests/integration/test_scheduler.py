@@ -30,7 +30,9 @@ from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
     CONVERSATION_STATUS_OPEN,
     CONVERSATION_STATUS_SNOOZED,
+    MESSAGE_TYPE_OUTGOING,
     Conversation,
+    Message,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
@@ -177,6 +179,95 @@ async def test_does_not_refire_completed_oneoff(db_session):
 
     fired = await fire_due_oneoff_campaigns(db_session)
     assert fired == 0
+
+
+async def test_oneoff_delivers_to_audience(db_session):
+    owner = await _seed_account(db_session, "-aud")
+    inbox = await _seed_inbox(db_session, owner)
+    c1 = Contact(account_id=owner.account.id, name="A", email="a@aud.example.com")
+    c2 = Contact(account_id=owner.account.id, name="B", email="b@aud.example.com")
+    db_session.add(c1)
+    db_session.add(c2)
+    await db_session.flush()
+
+    campaign = _make_campaign(
+        owner, inbox, scheduled_at=datetime.now(UTC) - timedelta(hours=1)
+    )
+    campaign.audience = [
+        {"type": "Contact", "id": c1.id},
+        {"type": "Contact", "id": c2.id},
+    ]
+    db_session.add(campaign)
+    await db_session.flush()
+
+    fired = await fire_due_oneoff_campaigns(db_session)
+    assert fired == 1
+
+    # One conversation per audience contact, each stamped with campaign_id
+    # and carrying the campaign body as an outgoing message.
+    convs = list(
+        (
+            await db_session.exec(
+                select(Conversation).where(
+                    Conversation.campaign_id == campaign.id
+                )
+            )
+        ).all()
+    )
+    assert len(convs) == 2
+    for conv in convs:
+        msgs = list(
+            (
+                await db_session.exec(
+                    select(Message).where(Message.conversation_id == conv.id)
+                )
+            ).all()
+        )
+        assert any(
+            m.content == "Hi" and m.message_type == MESSAGE_TYPE_OUTGOING
+            for m in msgs
+        )
+
+
+async def test_oneoff_skips_contact_with_existing_conversation(db_session):
+    owner = await _seed_account(db_session, "-skip")
+    inbox = await _seed_inbox(db_session, owner)
+    contact = Contact(
+        account_id=owner.account.id, name="A", email="a@skip.example.com"
+    )
+    db_session.add(contact)
+    await db_session.flush()
+    ci = await ContactInboxBuilder(
+        session=db_session,
+        contact=contact,
+        inbox=inbox,
+        source_id=f"src-{contact.id}",
+    ).perform()
+    # Pre-existing conversation on this ContactInbox — the campaign must
+    # not create a second one for the same contact.
+    await create_conversation(
+        db_session, contact_inbox=ci, params=ConversationBuilderParams()
+    )
+
+    campaign = _make_campaign(
+        owner, inbox, scheduled_at=datetime.now(UTC) - timedelta(hours=1)
+    )
+    campaign.audience = [{"type": "Contact", "id": contact.id}]
+    db_session.add(campaign)
+    await db_session.flush()
+
+    fired = await fire_due_oneoff_campaigns(db_session)
+    assert fired == 1
+    camp_convs = list(
+        (
+            await db_session.exec(
+                select(Conversation).where(
+                    Conversation.campaign_id == campaign.id
+                )
+            )
+        ).all()
+    )
+    assert camp_convs == []
 
 
 # ---------------------------------------------------------------------------
