@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
@@ -30,6 +30,7 @@ const conversation = {
 
 const server = setupServer(
   http.get("*/custom_filters", () => HttpResponse.json([])),
+  http.get("*/agents", () => HttpResponse.json([])),
   http.get("*/conversations", () =>
     HttpResponse.json({
       data: {
@@ -67,5 +68,32 @@ describe("ConversationList", () => {
     ).toBeInTheDocument();
     // unread badge
     expect(await screen.findByText("2")).toBeInTheDocument();
+  });
+
+  it("bulk-assigns selected conversations to an agent", async () => {
+    let assignBody: unknown = null;
+    server.use(
+      http.get("*/agents", () =>
+        HttpResponse.json([{ id: 9, name: "Pedro" }]),
+      ),
+      http.post("*/bulk_actions", async ({ request }) => {
+        assignBody = await request.json();
+        return HttpResponse.json({ payload: { updated: [42] } });
+      }),
+    );
+    renderWithQuery(<ConversationList accountId="1" />);
+
+    // Select the conversation, then pick an agent in the bulk toolbar.
+    fireEvent.click(await screen.findByLabelText("Seleccionar Diana"));
+    fireEvent.change(await screen.findByLabelText("Asignar a"), {
+      target: { value: "9" },
+    });
+
+    await waitFor(() => expect(assignBody).not.toBeNull());
+    expect(assignBody).toEqual({
+      type: "Conversation",
+      ids: [42],
+      fields: { assignee_id: 9 },
+    });
   });
 });

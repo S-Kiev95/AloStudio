@@ -4,6 +4,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { useAgents } from "@/lib/api/account";
 import {
   type Conversation,
   type FilterCondition,
@@ -74,6 +75,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
   const views = useCustomViews(accountId, "conversation");
   const createView = useCreateCustomView(accountId);
   const deleteView = useDeleteCustomView(accountId);
+  const agents = useAgents(accountId);
 
   function clearSelected() {
     setSelected(new Set());
@@ -90,6 +92,12 @@ export function ConversationList({ accountId }: { accountId: string }) {
     const ids = [...selected];
     if (ids.length === 0) return;
     await bulk.mutateAsync({ ids, fields: { status: newStatus } });
+    clearSelected();
+  }
+  async function bulkAssign(assigneeId: number | null) {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    await bulk.mutateAsync({ ids, fields: { assignee_id: assigneeId } });
     clearSelected();
   }
   function applyFilters(conds: FilterCondition[], match: "AND" | "OR") {
@@ -241,6 +249,27 @@ export function ConversationList({ accountId }: { accountId: string }) {
           >
             Pendiente
           </FilterButton>
+          <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+          <select
+            aria-label="Asignar a"
+            value=""
+            disabled={bulk.isPending}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v) return;
+              void bulkAssign(v === "none" ? null : Number(v));
+              e.currentTarget.value = "";
+            }}
+            className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm font-medium text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
+          >
+            <option value="">Asignar a…</option>
+            <option value="none">Sin asignar</option>
+            {(agents.data ?? []).map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             onClick={clearSelected}
