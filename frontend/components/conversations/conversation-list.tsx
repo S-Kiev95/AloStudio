@@ -4,7 +4,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { useAgents } from "@/lib/api/account";
+import { useAgents, useLabels } from "@/lib/api/account";
 import {
   type Conversation,
   type FilterCondition,
@@ -76,6 +76,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
   const createView = useCreateCustomView(accountId);
   const deleteView = useDeleteCustomView(accountId);
   const agents = useAgents(accountId);
+  const labels = useLabels(accountId);
 
   function clearSelected() {
     setSelected(new Set());
@@ -98,6 +99,12 @@ export function ConversationList({ accountId }: { accountId: string }) {
     const ids = [...selected];
     if (ids.length === 0) return;
     await bulk.mutateAsync({ ids, fields: { assignee_id: assigneeId } });
+    clearSelected();
+  }
+  async function bulkAddLabel(title: string) {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    await bulk.mutateAsync({ ids, labels: { add: [title] } });
     clearSelected();
   }
   function applyFilters(conds: FilterCondition[], match: "AND" | "OR") {
@@ -270,6 +277,27 @@ export function ConversationList({ accountId }: { accountId: string }) {
               </option>
             ))}
           </select>
+          {(labels.data?.length ?? 0) > 0 ? (
+            <select
+              aria-label="Etiquetar"
+              value=""
+              disabled={bulk.isPending}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!v) return;
+                void bulkAddLabel(v);
+                e.currentTarget.value = "";
+              }}
+              className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm font-medium text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
+            >
+              <option value="">Etiquetar…</option>
+              {labels.data!.map((l) => (
+                <option key={l.id} value={l.title}>
+                  {l.title}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <button
             type="button"
             onClick={clearSelected}

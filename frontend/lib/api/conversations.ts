@@ -212,7 +212,8 @@ export function useBulkAction(accountId: string) {
   return useMutation({
     mutationFn: (input: {
       ids: number[];
-      fields: { status?: string; assignee_id?: number | null };
+      fields?: { status?: string; assignee_id?: number | null };
+      labels?: { add?: string[]; remove?: string[] };
     }) =>
       apiFetch<{ payload: { updated: number[] } }>(
         `/api/v1/accounts/${accountId}/bulk_actions`,
@@ -221,13 +222,15 @@ export function useBulkAction(accountId: string) {
           body: JSON.stringify({
             type: "Conversation",
             ids: input.ids,
-            fields: input.fields,
+            fields: input.fields ?? {},
+            labels: input.labels,
           }),
         },
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["conversations", accountId] });
       qc.invalidateQueries({ queryKey: ["conversations-search", accountId] });
+      qc.invalidateQueries({ queryKey: ["conversations-filter", accountId] });
     },
   });
 }

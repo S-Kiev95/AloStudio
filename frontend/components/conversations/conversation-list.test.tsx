@@ -31,6 +31,7 @@ const conversation = {
 const server = setupServer(
   http.get("*/custom_filters", () => HttpResponse.json([])),
   http.get("*/agents", () => HttpResponse.json([])),
+  http.get("*/labels", () => HttpResponse.json({ payload: [] })),
   http.get("*/conversations", () =>
     HttpResponse.json({
       data: {
@@ -94,6 +95,33 @@ describe("ConversationList", () => {
       type: "Conversation",
       ids: [42],
       fields: { assignee_id: 9 },
+    });
+  });
+
+  it("bulk-adds a label to selected conversations", async () => {
+    let labelBody: unknown = null;
+    server.use(
+      http.get("*/labels", () =>
+        HttpResponse.json({ payload: [{ id: 3, title: "urgent" }] }),
+      ),
+      http.post("*/bulk_actions", async ({ request }) => {
+        labelBody = await request.json();
+        return HttpResponse.json({ payload: { updated: [42] } });
+      }),
+    );
+    renderWithQuery(<ConversationList accountId="1" />);
+
+    fireEvent.click(await screen.findByLabelText("Seleccionar Diana"));
+    fireEvent.change(await screen.findByLabelText("Etiquetar"), {
+      target: { value: "urgent" },
+    });
+
+    await waitFor(() => expect(labelBody).not.toBeNull());
+    expect(labelBody).toEqual({
+      type: "Conversation",
+      ids: [42],
+      fields: {},
+      labels: { add: ["urgent"] },
     });
   });
 });

@@ -161,3 +161,36 @@ async def test_bulk_ignores_out_of_account_ids(client, seeded, db_session):
     assert resp.status_code == 200, resp.text
     # Only the real conversation is touched; the bogus id is skipped.
     assert resp.json()["payload"]["updated"] == [c1.display_id]
+
+
+async def test_bulk_add_and_remove_labels(client, seeded, db_session):
+    owner, ci, admin_h = seeded
+    c1 = await _make_conv(db_session, contact_inbox=ci)
+
+    # Add two labels (delta on the empty set).
+    resp = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/bulk_actions",
+        json={
+            "type": "Conversation",
+            "ids": [c1.display_id],
+            "labels": {"add": ["urgent", "vip"]},
+        },
+        headers=admin_h,
+    )
+    assert resp.status_code == 200, resp.text
+    await db_session.refresh(c1)
+    assert set((c1.cached_label_list or "").split(",")) == {"urgent", "vip"}
+
+    # Remove one — the other survives.
+    resp = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/bulk_actions",
+        json={
+            "type": "Conversation",
+            "ids": [c1.display_id],
+            "labels": {"remove": ["urgent"]},
+        },
+        headers=admin_h,
+    )
+    assert resp.status_code == 200, resp.text
+    await db_session.refresh(c1)
+    assert c1.cached_label_list == "vip"

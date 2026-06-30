@@ -24,7 +24,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context
 from app.domains.conversations.models import Conversation
-from app.domains.conversations.service import toggle_status, update_assignee
+from app.domains.conversations.service import (
+    toggle_status,
+    update_assignee,
+    update_labels,
+)
 
 router = APIRouter(
     prefix="/api/v1/accounts/{account_id}/bulk_actions",
@@ -68,6 +72,19 @@ async def create_bulk_action(
     has_assignee = "assignee_id" in fields
     assignee_id = fields.get("assignee_id")
 
+    # ``labels`` is a top-level key in Chatwoot's bulk params:
+    # ``{"labels": {"add": ["urgent"], "remove": ["spam"]}}``. Add/remove
+    # are applied as a delta on top of each conversation's current set.
+    labels_arg = payload.get("labels")
+    add_labels: list[str] = []
+    remove_labels: set[str] = set()
+    if isinstance(labels_arg, dict):
+        add_labels = [str(x) for x in (labels_arg.get("add") or [])]
+        remove_labels = {
+            str(x).strip().lower() for x in (labels_arg.get("remove") or [])
+        }
+    has_labels = bool(add_labels or remove_labels)
+
     updated: list[int] = []
     for display_id in ids:
         # Load one at a time — the same path the per-conversation endpoints
@@ -93,6 +110,15 @@ async def create_bulk_action(
                 conversation=conv,
                 assignee_id=int(assignee_id) if assignee_id is not None else None,
             )
+        if has_labels:
+            # Delta on top of the current set (CSV is stored lower-cased);
+            # update_labels normalises + dedupes the final list.
+            current = [t for t in (conv.cached_label_list or "").split(",") if t]
+            new_titles = [
+                t for t in (*current, *add_labels)
+                if t.strip().lower() not in remove_labels
+            ]
+            await update_labels(session, conversation=conv, titles=new_titles)
         updated.append(display_id)
 
     return {"payload": {"updated": updated}}
