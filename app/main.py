@@ -65,6 +65,7 @@ from app.domains.teams.router import router as teams_router
 from app.domains.teams.router import team_members_router
 from app.domains.telegram.router import router as telegram_webhook_router
 from app.domains.twilio.router import router as twilio_webhook_router
+from app.domains.uploads.router import router as uploads_router
 from app.domains.users.router import router as profile_router
 from app.domains.web_widget.router import router as web_widget_router
 from app.domains.webhooks.router import router as outbound_webhooks_router
@@ -140,6 +141,9 @@ def create_app() -> FastAPI:
     # any account member manages their own. Backs the conversation list's
     # "save this filter" affordance.
     app.include_router(custom_views_router)
+    # Attachment uploads — mint a pre-signed direct-upload URL (MinIO/S3)
+    # the dashboard composer PUTs the file to before sending the message.
+    app.include_router(uploads_router)
     # Label CRUD (Phase 6.1). admin-only on writes; admin OR agent on
     # index. The Label model + ConversationLabel join landed in 4a so
     # ``update_labels`` could write through them — 6.1 promotes them
