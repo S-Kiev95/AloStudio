@@ -46,6 +46,7 @@ from app.domains.conversations.models import (
     Message,
 )
 from app.domains.inboxes.models import InboxMember
+from app.domains.notifications.mailer import enqueue_notification_email
 from app.domains.notifications.models import (
     NOTIFICATION_TYPE_ASSIGNED_CONVERSATION_NEW_MESSAGE,
     NOTIFICATION_TYPE_CONVERSATION_ASSIGNMENT,
@@ -70,7 +71,7 @@ async def fan_out_to_notifications(
             await _on_assignee_changed(session, payload)
         elif event_name == ev.MESSAGE_CREATED:
             await _on_message_created(session, payload)
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("notifications.listener.error event=%s", event_name)
 
 
@@ -196,6 +197,12 @@ async def _broadcast_created(
     ``app/domains/conversations/listeners.py``'s broadcaster pattern);
     we publish to that single channel rather than an account-wide one
     so an admin watching multiple accounts doesn't get cross-talk."""
+    # Email side-effect — a best-effort ARQ enqueue that runs regardless of
+    # whether the recipient currently has a live cable connection for the
+    # badge (the send task re-checks the user's email subscription).
+    if notification.id is not None:
+        await enqueue_notification_email(notification.id)
+
     user = await session.get(User, notification.user_id)
     if user is None or not user.pubsub_token:
         return
@@ -210,7 +217,7 @@ async def _broadcast_created(
                 "notification": body,
             },
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception(
             "notifications.broadcast.error notification_id=%s",
             notification.id,
