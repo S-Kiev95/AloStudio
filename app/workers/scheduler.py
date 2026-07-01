@@ -110,14 +110,9 @@ async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) ->
     rest of the audience (mirrors the builder's ``rescue StandardError``).
     Returns the number of conversations actually created.
     """
+    from app.domains.campaigns.builder import build_campaign_conversation
     from app.domains.contacts.models import Contact, ContactInbox
     from app.domains.contacts.service import ContactInboxBuilder
-    from app.domains.conversations.service import (
-        ConversationBuilderParams,
-        MessageBuilderParams,
-        create_conversation,
-        create_message,
-    )
     from app.domains.inboxes.models import Inbox
 
     inbox = (
@@ -154,38 +149,11 @@ async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) ->
                 contact_inbox = await ContactInboxBuilder(
                     session=session, contact=contact, inbox=inbox
                 ).perform()
-            # Skip when a conversation already exists on this ContactInbox.
-            existing = (
-                await session.exec(
-                    select(Conversation).where(
-                        Conversation.contact_inbox_id == contact_inbox.id
-                    )
-                )
-            ).first()
-            if existing is not None:
-                continue
-            # create_conversation reads contact_inbox.inbox — load it in the
-            # async context first to avoid a sync lazy-load (MissingGreenlet).
-            await session.refresh(contact_inbox, ["inbox"])
-            conv = await create_conversation(
-                session,
-                contact_inbox=contact_inbox,
-                params=ConversationBuilderParams(),
+            conv = await build_campaign_conversation(
+                session, campaign=campaign, contact_inbox=contact_inbox
             )
-            conv.campaign_id = campaign.id
-            session.add(conv)
-            await session.flush()
-            await create_message(
-                session,
-                conversation=conv,
-                params=MessageBuilderParams(
-                    content=campaign.message,
-                    message_type="outgoing",
-                    campaign_id=campaign.id,
-                ),
-                user_id=campaign.sender_id,
-            )
-            sent += 1
+            if conv is not None:
+                sent += 1
         except Exception as exc:
             log.warning(
                 "scheduler.campaign.contact_failed campaign_id=%s "

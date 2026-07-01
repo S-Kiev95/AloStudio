@@ -22,25 +22,20 @@ Anchors:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, Header
+from fastapi import APIRouter, Depends, Query
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
 from app.core.widget_token import encode_widget_token
+from app.domains.campaigns.builder import build_campaign_conversation
+from app.domains.campaigns.models import CAMPAIGN_TYPE_ONGOING, Campaign
 from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactIdentifyAction
-from app.domains.web_widget.deps import (
-    WidgetContext,
-    widget_context,
-    widget_context_required,
-)
-from app.domains.web_widget.service import (
-    build_contact_inbox_with_token,
-    valid_hmac,
-)
 from app.domains.conversations.events import (
     CONVERSATION_TYPING_OFF,
     CONVERSATION_TYPING_ON,
@@ -48,10 +43,8 @@ from app.domains.conversations.events import (
 )
 from app.domains.conversations.models import (
     CONVERSATION_STATUS_RESOLVED,
-    CONVERSATION_STATUS_OPEN,
     Conversation,
     Message,
-    MESSAGE_TYPE_INCOMING,
 )
 from app.domains.conversations.presenters import (
     present_conversation,
@@ -64,8 +57,15 @@ from app.domains.conversations.service import (
     create_conversation,
     create_message,
 )
-from datetime import UTC, datetime
-from sqlmodel import select
+from app.domains.web_widget.deps import (
+    WidgetContext,
+    widget_context,
+    widget_context_required,
+)
+from app.domains.web_widget.service import (
+    build_contact_inbox_with_token,
+    valid_hmac,
+)
 
 router = APIRouter(
     prefix="/api/v1/widget",
@@ -530,6 +530,103 @@ async def widget_toggle_status(
         session.add(conv)
         await session.flush()
     return {"status": "ok"}
+
+
+# ===========================================================================
+# Campaigns (ongoing) — list + trigger
+# ===========================================================================
+def _present_widget_campaign(campaign: Campaign) -> dict[str, Any]:
+    """Mirror ``api/v1/widget/campaigns/index.json.jbuilder``."""
+    return {
+        "id": campaign.display_id,
+        "trigger_rules": campaign.trigger_rules or {},
+        "trigger_only_during_business_hours": (
+            campaign.trigger_only_during_business_hours
+        ),
+        "message": campaign.message,
+        # sender.push_event_data — deferred; the SDK tolerates a null sender.
+        "sender": None,
+    }
+
+
+@router.get("/campaigns")
+async def widget_campaigns_index(
+    ctx: Annotated[WidgetContext, Depends(widget_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    """Mirror ``Api::V1::Widget::CampaignsController#index`` — the enabled
+    ongoing campaigns on this widget's inbox. The SDK evaluates each
+    campaign's ``trigger_rules`` client-side and posts a
+    ``campaign.triggered`` event back when one matches."""
+    rows = list(
+        (
+            await session.exec(
+                select(Campaign).where(
+                    Campaign.inbox_id == ctx.inbox.id,
+                    Campaign.campaign_type == CAMPAIGN_TYPE_ONGOING,
+                    Campaign.enabled.is_(True),  # type: ignore[union-attr]
+                )
+            )
+        ).all()
+    )
+    return [_present_widget_campaign(c) for c in rows]
+
+
+@router.post("/events")
+async def widget_events(
+    payload: dict[str, Any],
+    ctx: Annotated[WidgetContext, Depends(widget_context_required)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Mirror ``Api::V1::Widget::EventsController#create`` — the widget's
+    generic event bus. Today only ``campaign.triggered`` is handled: it
+    runs the campaign conversation builder for the visitor's ContactInbox
+    (ports ``CampaignListener#campaign_triggered``)."""
+    if payload.get("name") == "campaign.triggered":
+        await _on_campaign_triggered(
+            session, ctx, payload.get("event_info") or {}
+        )
+    return {"status": "ok"}
+
+
+async def _on_campaign_triggered(
+    session: AsyncSession, ctx: WidgetContext, event_info: dict[str, Any]
+) -> None:
+    """Port of ``CampaignListener#campaign_triggered`` — resolve the
+    ongoing campaign by display id (scoped to the widget's inbox) and run
+    the builder for the visitor's ContactInbox."""
+    if ctx.contact_inbox is None:
+        return
+    raw_id = event_info.get("campaign_id")
+    try:
+        display_id = int(raw_id)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return
+    campaign = (
+        await session.exec(
+            select(Campaign).where(
+                Campaign.inbox_id == ctx.inbox.id,
+                Campaign.display_id == display_id,
+                Campaign.campaign_type == CAMPAIGN_TYPE_ONGOING,
+                Campaign.enabled.is_(True),  # type: ignore[union-attr]
+            )
+        )
+    ).first()
+    if campaign is None:
+        return
+    additional = {
+        k: v
+        for k, v in event_info.items()
+        if k not in ("campaign_id", "custom_attributes")
+    }
+    custom = event_info.get("custom_attributes")
+    await build_campaign_conversation(
+        session,
+        campaign=campaign,
+        contact_inbox=ctx.contact_inbox,
+        additional_attributes=additional or None,
+        custom_attributes=custom if isinstance(custom, dict) else None,
+    )
 
 
 __all__ = ["router"]
