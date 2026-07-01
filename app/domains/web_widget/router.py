@@ -54,9 +54,11 @@ from app.domains.conversations.presenters import (
 from app.domains.conversations.service import (
     ConversationBuilderParams,
     MessageBuilderParams,
+    _AttachmentSpec,
     create_conversation,
     create_message,
 )
+from app.domains.uploads.service import presign_upload
 from app.domains.web_widget.deps import (
     WidgetContext,
     widget_context,
@@ -444,6 +446,20 @@ async def widget_messages_create(
     if reply_to is not None:
         content_attrs["in_reply_to"] = reply_to
 
+    # URL-metadata attachments the visitor uploaded via ``/widget/uploads``.
+    raw_atts = msg_in.get("attachments")
+    specs: list[_AttachmentSpec] | None = None
+    if isinstance(raw_atts, list):
+        built = [
+            _AttachmentSpec(
+                file_type=a.get("file_type", "file") or "file",
+                external_url=a.get("external_url"),
+            )
+            for a in raw_atts
+            if isinstance(a, dict) and a.get("external_url")
+        ]
+        specs = built or None
+
     # ``create_message`` expects ``user_id`` for outgoing — for the
     # widget the sender is the contact, so we pass ``user_id=None`` and
     # message_type=incoming. ``_resolve_sender`` handles the contact
@@ -456,10 +472,33 @@ async def widget_messages_create(
             message_type="incoming",
             content_attributes=content_attrs or None,
             echo_id=echo_id,
+            attachments=specs,
         ),
         user_id=None,
     )
     return present_message(msg, echo_id=echo_id)
+
+
+@router.post("/uploads")
+async def widget_upload(
+    payload: dict[str, Any],
+    ctx: Annotated[WidgetContext, Depends(widget_context_required)],
+) -> dict[str, Any]:
+    """Pre-signed direct-upload URL for a widget visitor's attachment.
+
+    Gated on the widget's ``attachments`` feature flag (Rails:
+    ``head :forbidden unless @web_widget.attachments?``). The key is
+    namespaced under the widget's account, identical to the dashboard
+    surface — the agent then sees the file via the signed-read presenter.
+    """
+    if not ctx.web_widget.attachments:
+        raise ChatwootHTTPException(
+            status_code=403,
+            detail={"error": "Attachments are not enabled for this widget"},
+        )
+    assert ctx.inbox.account_id is not None
+    filename = payload.get("filename") if isinstance(payload, dict) else None
+    return presign_upload(ctx.inbox.account_id, filename)
 
 
 @router.post("/conversations/update_last_seen")
