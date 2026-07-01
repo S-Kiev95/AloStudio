@@ -10,10 +10,14 @@ import { uploadAttachment } from "@/lib/api/uploads";
 import { cn } from "@/lib/utils";
 
 type PendingAttachment = {
+  key: string;
   external_url: string;
   file_type: string;
   name: string;
 };
+
+// Matches the backend's NUMBER_OF_PERMITTED_ATTACHMENTS cap.
+const MAX_ATTACHMENTS = 15;
 
 export function MessageComposer({
   accountId,
@@ -24,48 +28,61 @@ export function MessageComposer({
 }) {
   const [content, setContent] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
-  const [attachment, setAttachment] = useState<PendingAttachment | null>(null);
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const keyRef = useRef(0);
   const send = useSendMessage(accountId, displayId);
 
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // let the same file be re-picked after removal
-    if (!file) return;
+    const picked = [...(e.target.files ?? [])];
+    e.target.value = ""; // let the same files be re-picked after removal
+    if (picked.length === 0) return;
+    const room = MAX_ATTACHMENTS - attachments.length;
+    const files = picked.slice(0, Math.max(0, room));
+    if (files.length === 0) return;
+
     setUploadError(false);
     setUploading(true);
-    try {
-      const up = await uploadAttachment(accountId, file);
-      setAttachment({ ...up, name: file.name });
-    } catch {
-      setUploadError(true);
-    } finally {
-      setUploading(false);
-    }
+    const results = await Promise.allSettled(
+      files.map(async (file) => {
+        const up = await uploadAttachment(accountId, file);
+        return { ...up, name: file.name, key: String(keyRef.current++) };
+      }),
+    );
+    const ok = results
+      .filter((r): r is PromiseFulfilledResult<PendingAttachment> => r.status === "fulfilled")
+      .map((r) => r.value);
+    if (ok.length > 0) setAttachments((prev) => [...prev, ...ok]);
+    if (ok.length < files.length) setUploadError(true);
+    setUploading(false);
+  }
+
+  function removeAttachment(key: string) {
+    setAttachments((prev) => prev.filter((a) => a.key !== key));
   }
 
   function submit() {
     const text = content.trim();
-    if ((!text && !attachment) || send.isPending || uploading) return;
+    if ((!text && attachments.length === 0) || send.isPending || uploading) {
+      return;
+    }
     send.mutate(
       {
         content: text || undefined,
         isPrivate,
-        attachments: attachment
-          ? [
-              {
-                external_url: attachment.external_url,
-                file_type: attachment.file_type,
-              },
-            ]
+        attachments: attachments.length
+          ? attachments.map((a) => ({
+              external_url: a.external_url,
+              file_type: a.file_type,
+            }))
           : undefined,
       },
       {
         onSuccess: () => {
           setContent("");
-          setAttachment(null);
+          setAttachments([]);
         },
       },
     );
@@ -98,20 +115,25 @@ export function MessageComposer({
         </button>
       </div>
 
-      {attachment ? (
-        <div className="mb-2 flex items-center gap-2 rounded-md border border-border bg-surface-2 px-2 py-1 text-xs">
-          <Paperclip className="h-3 w-3 shrink-0 text-fg-muted" aria-hidden />
-          <span className="max-w-[16rem] truncate text-fg">
-            {attachment.name}
-          </span>
-          <button
-            type="button"
-            onClick={() => setAttachment(null)}
-            aria-label="Quitar adjunto"
-            className="ml-auto rounded p-0.5 text-fg-muted hover:text-danger"
-          >
-            <X className="h-3 w-3" aria-hidden />
-          </button>
+      {attachments.length > 0 ? (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {attachments.map((att) => (
+            <span
+              key={att.key}
+              className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-2 py-1 text-xs"
+            >
+              <Paperclip className="h-3 w-3 shrink-0 text-fg-muted" aria-hidden />
+              <span className="max-w-[12rem] truncate text-fg">{att.name}</span>
+              <button
+                type="button"
+                onClick={() => removeAttachment(att.key)}
+                aria-label={`Quitar ${att.name}`}
+                className="rounded p-0.5 text-fg-muted hover:text-danger"
+              >
+                <X className="h-3 w-3" aria-hidden />
+              </button>
+            </span>
+          ))}
         </div>
       ) : null}
 
@@ -119,9 +141,10 @@ export function MessageComposer({
         <input
           ref={fileRef}
           type="file"
+          multiple
           onChange={onPickFile}
           className="hidden"
-          aria-label="Adjuntar archivo"
+          aria-label="Adjuntar archivos"
           tabIndex={-1}
         />
         <Button
@@ -130,8 +153,8 @@ export function MessageComposer({
           size="icon"
           onClick={() => fileRef.current?.click()}
           loading={uploading}
-          disabled={uploading || send.isPending}
-          aria-label="Adjuntar archivo"
+          disabled={uploading || send.isPending || attachments.length >= MAX_ATTACHMENTS}
+          aria-label="Adjuntar archivos"
         >
           <Paperclip className="h-4 w-4" aria-hidden />
         </Button>
@@ -153,7 +176,7 @@ export function MessageComposer({
         <Button
           onClick={submit}
           loading={send.isPending}
-          disabled={uploading || (!content.trim() && !attachment)}
+          disabled={uploading || (!content.trim() && attachments.length === 0)}
           size="icon"
           aria-label="Enviar"
         >
@@ -163,7 +186,7 @@ export function MessageComposer({
 
       {uploadError ? (
         <p role="alert" className="mt-1 text-xs text-danger">
-          No se pudo subir el archivo. Reintentá.
+          No se pudieron subir algunos archivos. Reintentá.
         </p>
       ) : null}
       {send.isError ? (
