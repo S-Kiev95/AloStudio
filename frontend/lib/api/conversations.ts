@@ -187,16 +187,23 @@ export function useMessages(accountId: string, displayId: number) {
 // ---------------------------------------------------------------------------
 // Mutations
 // ---------------------------------------------------------------------------
+export type OutgoingAttachment = { external_url: string; file_type: string };
+
 export function useSendMessage(accountId: string, displayId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { content: string; isPrivate?: boolean }) =>
+    mutationFn: (input: {
+      content?: string;
+      isPrivate?: boolean;
+      attachments?: OutgoingAttachment[];
+    }) =>
       apiFetch<Message>(`${base(accountId)}/${displayId}/messages`, {
         method: "POST",
         body: JSON.stringify({
           content: input.content,
           message_type: "outgoing",
           private: Boolean(input.isPrivate),
+          attachments: input.attachments,
         }),
       }),
     onSuccess: () => {

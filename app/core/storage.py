@@ -141,4 +141,21 @@ def object_url(key: str) -> str:
     return f"{endpoint}{_canonical_uri(settings.s3_bucket, key)}"
 
 
-__all__ = ["object_url", "presigned_put_url"]
+def signed_read_url(stored_url: str, *, expires: int = 3600) -> str:
+    """Pre-sign a GET for a stored object URL so a *private* bucket's
+    attachment still renders in the browser.
+
+    URLs that don't point at our own bucket (external embeds, legacy direct
+    links, or a non-configured store) pass through unchanged — so existing
+    non-store ``external_url`` values are unaffected.
+    """
+    from urllib.parse import unquote
+
+    marker = object_url("") + "/"
+    if not stored_url.startswith(marker):
+        return stored_url
+    key = unquote(stored_url[len(marker) :])
+    return presigned_put_url(key, method="GET", expires=expires)
+
+
+__all__ = ["object_url", "presigned_put_url", "signed_read_url"]

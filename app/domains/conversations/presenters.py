@@ -41,18 +41,19 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from app.core.storage import signed_read_url
 from app.domains.conversations.models import (
-    Attachment,
-    Conversation,
     FILE_TYPE_AUDIO,
     FILE_TYPE_CONTACT,
     FILE_TYPE_EMBED,
     FILE_TYPE_FALLBACK,
     FILE_TYPE_LOCATION,
-    Message,
     SENDER_TYPE_AGENT_BOT,
     SENDER_TYPE_CONTACT,
     SENDER_TYPE_USER,
+    Attachment,
+    Conversation,
+    Message,
     content_type_to_str,
     conversation_priority_to_str,
     conversation_status_to_str,
@@ -93,7 +94,7 @@ def _unix_float(dt: datetime | None) -> float | None:
 # ---------------------------------------------------------------------------
 # Sender push_event_data
 # ---------------------------------------------------------------------------
-def _contact_push_event_data(contact: "Contact") -> dict[str, Any]:
+def _contact_push_event_data(contact: Contact) -> dict[str, Any]:
     """Mirror of ``Contact#push_event_data``."""
     return {
         "additional_attributes": contact.additional_attributes or {},
@@ -109,7 +110,7 @@ def _contact_push_event_data(contact: "Contact") -> dict[str, Any]:
     }
 
 
-def _user_push_event_data(user: "User") -> dict[str, Any]:
+def _user_push_event_data(user: User) -> dict[str, Any]:
     """Mirror of ``User#push_event_data``."""
     return {
         "id": user.id,
@@ -168,17 +169,20 @@ def _attachment_metadata(att: Attachment) -> dict[str, Any]:
     ``{data_url: external_url, thumb_url: ''}`` branch — same here.
     """
     ft = att.file_type
+    read_url = (
+        signed_read_url(att.external_url) if att.external_url else att.external_url
+    )
     if ft == FILE_TYPE_LOCATION:
         return {
             "coordinates_lat": att.coordinates_lat,
             "coordinates_long": att.coordinates_long,
             "fallback_title": att.fallback_title,
-            "data_url": att.external_url,
+            "data_url": read_url,
         }
     if ft == FILE_TYPE_FALLBACK:
         return {
             "fallback_title": att.fallback_title,
-            "data_url": att.external_url,
+            "data_url": read_url,
         }
     if ft == FILE_TYPE_CONTACT:
         return {
@@ -186,7 +190,7 @@ def _attachment_metadata(att: Attachment) -> dict[str, Any]:
             "meta": att.meta or {},
         }
     if ft == FILE_TYPE_EMBED:
-        return {"data_url": att.external_url}
+        return {"data_url": read_url}
     if ft == FILE_TYPE_AUDIO:
         # Audio merges base_data + file_metadata + transcribed_text.
         # Phase 4a has no blob pipeline, so the file_metadata half
@@ -194,13 +198,13 @@ def _attachment_metadata(att: Attachment) -> dict[str, Any]:
         meta = att.meta or {}
         return {
             "extension": att.extension,
-            "data_url": att.external_url,
+            "data_url": read_url,
             "thumb_url": "",
             "transcribed_text": meta.get("transcribed_text", ""),
         }
     # image / video / file / share / story_mention / ig_* — default branch.
     return {
-        "data_url": att.external_url,
+        "data_url": read_url,
         "thumb_url": "",
     }
 
@@ -370,7 +374,7 @@ def _unread_incoming_count(conv: Conversation) -> int:
 # ---------------------------------------------------------------------------
 # Conversation — meta sub-block
 # ---------------------------------------------------------------------------
-def _present_team(team: "Team") -> dict[str, Any]:
+def _present_team(team: Team) -> dict[str, Any]:
     """Mirror of ``_team.json.jbuilder``.
 
     The ``is_member`` key needs ``Current.user`` — we can't compute it
