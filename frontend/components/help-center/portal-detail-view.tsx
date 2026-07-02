@@ -34,6 +34,14 @@ export function PortalDetailView({
   const { data: portal, isLoading, isError } = usePortal(accountId, slug);
   const update = useUpdatePortal(accountId);
   const [tab, setTab] = useState<Tab>("articles");
+  const [locale, setLocale] = useState("");
+
+  const rawLocales = (
+    portal?.config as { allowed_locales?: unknown } | undefined
+  )?.allowed_locales;
+  const allowedLocales = Array.isArray(rawLocales)
+    ? rawLocales.filter((x): x is string => typeof x === "string")
+    : [];
 
   async function handleUpdate(input: PortalInput) {
     await update.mutateAsync({ slug, patch: input });
@@ -72,6 +80,21 @@ export function PortalDetailView({
               </h2>
               <p className="truncate text-xs text-fg-muted">/{portal.slug}</p>
             </div>
+            {tab !== "settings" && allowedLocales.length > 1 ? (
+              <select
+                value={locale}
+                onChange={(e) => setLocale(e.target.value)}
+                aria-label="Idioma"
+                className="h-9 shrink-0 rounded-md border border-border bg-surface px-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">Todos los idiomas</option>
+                {allowedLocales.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            ) : null}
           </div>
 
           <div className="flex gap-1 border-b border-border">
@@ -95,9 +118,17 @@ export function PortalDetailView({
           </div>
 
           {tab === "articles" ? (
-            <ArticlesPanel accountId={accountId} slug={slug} />
+            <ArticlesPanel
+              accountId={accountId}
+              slug={slug}
+              locale={locale || undefined}
+            />
           ) : tab === "categories" ? (
-            <CategoriesPanel accountId={accountId} slug={slug} />
+            <CategoriesPanel
+              accountId={accountId}
+              slug={slug}
+              locale={locale || undefined}
+            />
           ) : (
             <Card>
               <CardHeader>

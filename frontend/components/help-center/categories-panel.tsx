@@ -19,11 +19,13 @@ import { CategoryForm } from "./category-form";
 export function CategoriesPanel({
   accountId,
   slug,
+  locale,
 }: {
   accountId: string;
   slug: string;
+  locale?: string;
 }) {
-  const { data, isLoading, isError } = useCategories(accountId, slug);
+  const { data, isLoading, isError } = useCategories(accountId, slug, locale);
   const create = useCreateCategory(accountId, slug);
   const update = useUpdateCategory(accountId, slug);
 

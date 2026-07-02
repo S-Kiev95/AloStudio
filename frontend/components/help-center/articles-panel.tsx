@@ -35,12 +35,17 @@ const STATUS_LABEL: Record<ArticleStatus, string> = {
 export function ArticlesPanel({
   accountId,
   slug,
+  locale,
 }: {
   accountId: string;
   slug: string;
+  locale?: string;
 }) {
   const [status, setStatus] = useState<ArticleStatus | undefined>(undefined);
-  const { data, isLoading, isError } = useArticles(accountId, slug, { status });
+  const { data, isLoading, isError } = useArticles(accountId, slug, {
+    status,
+    locale,
+  });
 
   return (
     <div className="space-y-4">
