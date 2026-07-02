@@ -127,6 +127,7 @@ export function useDeleteMacro(accountId: string) {
 
 /** POST /macros/:id/execute — body {conversation_ids: number[]}, returns 200 + {}. */
 export function useExecuteMacro(accountId: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { id: number; conversation_ids: number[] }) =>
       apiFetch<Record<string, never>>(
@@ -136,5 +137,14 @@ export function useExecuteMacro(accountId: string) {
           body: JSON.stringify({ conversation_ids: input.conversation_ids }),
         },
       ),
+    // A macro applies labels/status/priority/assignment + may add a
+    // message, so refresh the affected conversations + their threads.
+    onSuccess: (_data, input) => {
+      qc.invalidateQueries({ queryKey: ["conversations", accountId] });
+      for (const id of input.conversation_ids) {
+        qc.invalidateQueries({ queryKey: ["conversation", accountId, id] });
+        qc.invalidateQueries({ queryKey: ["messages", accountId, id] });
+      }
+    },
   });
 }

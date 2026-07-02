@@ -7,6 +7,7 @@ import {
   useSetLabels,
   useTogglePriority,
 } from "@/lib/api/conversations";
+import { useExecuteMacro, useMacros } from "@/lib/api/macros";
 import { cn } from "@/lib/utils";
 
 const PRIORITIES: Priority[] = ["none", "low", "medium", "high", "urgent"];
@@ -46,6 +47,8 @@ export function ConversationActions({
   const setPriority = useTogglePriority(accountId, displayId);
   const assign = useAssignAgent(accountId, displayId);
   const setLabels = useSetLabels(accountId, displayId);
+  const macros = useMacros(accountId);
+  const execMacro = useExecuteMacro(accountId);
 
   const current = new Set(labels);
 
@@ -94,6 +97,31 @@ export function ConversationActions({
           ))}
         </select>
       </label>
+
+      {macros.data?.length ? (
+        <label className="flex items-center gap-1.5 text-xs text-fg-muted">
+          Macro
+          <select
+            className={selectClass}
+            value=""
+            onChange={(e) => {
+              const id = Number(e.target.value);
+              if (!id) return;
+              execMacro.mutate({ id, conversation_ids: [displayId] });
+              e.currentTarget.value = "";
+            }}
+            disabled={execMacro.isPending}
+            aria-label="Correr macro"
+          >
+            <option value="">Correr macro…</option>
+            {macros.data.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       {accountLabels.data?.length ? (
         <div className="flex flex-wrap items-center gap-1.5">
