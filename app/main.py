@@ -21,6 +21,7 @@ from app.domains.auth.router import router as auth_router
 from app.domains.automation.router import router as automation_rules_router
 from app.domains.bulk_actions.router import router as bulk_actions_router
 from app.domains.campaigns.router import router as campaigns_router
+from app.domains.canned_responses.router import router as canned_responses_router
 from app.domains.contacts.router import actions_router as contact_actions_router
 from app.domains.contacts.router import router as contacts_router
 from app.domains.conversations.router import messages_router as conversations_messages_router
@@ -149,6 +150,10 @@ def create_app() -> FastAPI:
     # ``update_labels`` could write through them — 6.1 promotes them
     # to a first-class CRUD surface and adds the rename cascade.
     app.include_router(labels_router)
+    # CannedResponse CRUD (Phase 6.x). ``/short_code`` reply snippets any
+    # account member manages; ``?search=`` ranks short_code prefix > substring
+    # > content substring. Backs the composer's ``/`` quick-insert.
+    app.include_router(canned_responses_router)
     # MCP token admin CRUD (own extension, not a Chatwoot mirror).
     # Account-scoped Bearer tokens consumed by the MCP server for AI
     # agents; this is the dashboard side admins use to manage them.

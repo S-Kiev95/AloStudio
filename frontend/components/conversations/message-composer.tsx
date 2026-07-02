@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useCannedResponses } from "@/lib/api/canned-responses";
 import { useSendMessage } from "@/lib/api/conversations";
 import { uploadAttachment } from "@/lib/api/uploads";
 import { cn } from "@/lib/utils";
@@ -32,8 +33,27 @@ export function MessageComposer({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const keyRef = useRef(0);
   const send = useSendMessage(accountId, displayId);
+  const canned = useCannedResponses(accountId);
+
+  // Canned-response quick-insert: while the whole draft is a single
+  // "/token", offer the matching responses (Chatwoot's "/" shortcut).
+  const slashMatch = /^\/(\S*)$/.exec(content);
+  const slashQuery = slashMatch ? slashMatch[1].toLowerCase() : null;
+  const cannedMatches =
+    slashQuery !== null
+      ? (canned.data ?? [])
+          .filter((c) => c.short_code.toLowerCase().includes(slashQuery))
+          .slice(0, 6)
+      : [];
+
+  function insertCanned(text: string) {
+    setContent(text);
+    // Refocus so the agent keeps editing right after inserting.
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }
 
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = [...(e.target.files ?? [])];
@@ -158,21 +178,48 @@ export function MessageComposer({
         >
           <Paperclip className="h-4 w-4" aria-hidden />
         </Button>
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              submit();
+        <div className="relative flex-1">
+          {cannedMatches.length > 0 ? (
+            <ul
+              role="listbox"
+              aria-label="Respuestas predefinidas"
+              className="absolute bottom-full left-0 z-10 mb-1 max-h-56 w-full overflow-auto rounded-md border border-border bg-surface shadow-lg"
+            >
+              {cannedMatches.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => insertCanned(c.content)}
+                    className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none"
+                  >
+                    <code className="text-xs font-semibold text-primary">
+                      /{c.short_code}
+                    </code>
+                    <span className="w-full truncate text-xs text-fg-muted">
+                      {c.content}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <Textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            rows={2}
+            placeholder={
+              isPrivate ? "Nota interna (no la ve el cliente)…" : "Escribí una respuesta…"
             }
-          }}
-          rows={2}
-          placeholder={
-            isPrivate ? "Nota interna (no la ve el cliente)…" : "Escribí una respuesta…"
-          }
-          aria-label={isPrivate ? "Nota privada" : "Respuesta"}
-        />
+            aria-label={isPrivate ? "Nota privada" : "Respuesta"}
+          />
+        </div>
         <Button
           onClick={submit}
           loading={send.isPending}

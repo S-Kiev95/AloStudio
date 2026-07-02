@@ -39,7 +39,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     segment: "canned_responses",
     label: "Respuestas predefinidas",
     milestone: "F.9c",
-    done: false,
+    done: true,
   },
   { segment: "macros", label: "Macros", milestone: "F.9c", done: true },
   {
