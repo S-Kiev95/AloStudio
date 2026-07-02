@@ -44,7 +44,7 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, Response, status
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -53,12 +53,19 @@ from app.core.deps import AccountContext, account_context
 from app.core.errors import ChatwootHTTPException
 from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.contacts.service import ContactInboxBuilder
+from app.domains.conversations.filter import conversation_filter
+from app.domains.conversations.finder import conversation_finder
 from app.domains.conversations.models import (
     CONVERSATION_STATUS_OPEN,
-    MESSAGE_TYPE_ACTIVITY,
     MESSAGE_TYPE_INCOMING,
     Conversation,
     Message,
+)
+from app.domains.conversations.participants import (
+    add_participants,
+    list_participant_users,
+    remove_participants,
+    set_participants,
 )
 from app.domains.conversations.presenters import (
     present_conversation_create,
@@ -76,15 +83,13 @@ from app.domains.conversations.schemas import (
     ConversationToggleStatusRequest,
     ConversationUpdateRequest,
     MessageCreateRequest,
+    ParticipantsRequest,
 )
-from app.domains.conversations.filter import conversation_filter
-from app.domains.conversations.finder import conversation_finder
 from app.domains.conversations.service import (
     ConversationBuilderParams,
     MessageBuilderParams,
     _AttachmentSpec,
     _parse_label_csv,
-    bot_handoff,
     create_conversation,
     create_message,
     mute_conversation_with_activity,
@@ -97,6 +102,8 @@ from app.domains.conversations.service import (
     update_team,
 )
 from app.domains.inboxes.models import CHANNEL_TYPE_API, Inbox
+from app.domains.inboxes.presenters import present_agent
+from app.domains.users.models import AccountUser, User
 
 RESULTS_PER_PAGE = 25
 
@@ -108,6 +115,11 @@ router = APIRouter(
 messages_router = APIRouter(
     prefix="/api/v1/accounts/{account_id}/conversations/{conversation_id}/messages",
     tags=["messages"],
+)
+
+participants_router = APIRouter(
+    prefix="/api/v1/accounts/{account_id}/conversations/{conversation_id}/participants",
+    tags=["participants"],
 )
 
 
@@ -1072,11 +1084,12 @@ async def destroy_message(
     ``content_attributes[deleted] = true``, then destroying all
     attachments. The message row stays.
     """
-    from app.domains.conversations.models import (
-        Attachment,
-        CONTENT_TYPE_TEXT,
-    )
     from sqlalchemy import delete
+
+    from app.domains.conversations.models import (
+        CONTENT_TYPE_TEXT,
+        Attachment,
+    )
 
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
@@ -1170,4 +1183,130 @@ async def update_message(
     return present_message(msg)
 
 
-__all__ = ["messages_router", "router"]
+# =========================================================================
+# Participants — agents "watching" a conversation (notifications only)
+# =========================================================================
+async def _present_participants(
+    session: AsyncSession, *, account_id: int, users: list[User]
+) -> list[dict[str, Any]]:
+    """Render each participant user as an ``_agent`` partial.
+
+    Fetches the participants' AccountUser rows in one query to fill the
+    availability / auto_offline fields without an N+1.
+    """
+    if not users:
+        return []
+    user_ids = [u.id for u in users]
+    au_rows = (
+        await session.exec(
+            select(AccountUser).where(
+                AccountUser.account_id == account_id,
+                AccountUser.user_id.in_(user_ids),  # type: ignore[union-attr]
+            )
+        )
+    ).all()
+    au_by_user = {au.user_id: au for au in au_rows}
+    out: list[dict[str, Any]] = []
+    for u in users:
+        au = au_by_user.get(u.id)
+        out.append(
+            present_agent(
+                account_id=account_id,
+                account_user_availability=au.availability if au else None,
+                account_user_auto_offline=au.auto_offline if au else None,
+                user=u,
+            )
+        )
+    return out
+
+
+async def _participants_payload(
+    session: AsyncSession, *, account_id: int, conversation_id: int
+) -> list[dict[str, Any]]:
+    users = await list_participant_users(
+        session, conversation_id=conversation_id
+    )
+    return await _present_participants(
+        session, account_id=account_id, users=users
+    )
+
+
+@participants_router.get("")
+async def show_participants(
+    conversation_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    """``GET .../participants`` — the conversation's watcher list."""
+    assert ctx.account.id is not None
+    conv = await _load_conversation_by_display_id(
+        session, account_id=ctx.account.id, display_id=conversation_id
+    )
+    assert conv.id is not None
+    return await _participants_payload(
+        session, account_id=ctx.account.id, conversation_id=conv.id
+    )
+
+
+@participants_router.post("", status_code=status.HTTP_200_OK)
+async def create_participants(
+    conversation_id: Annotated[int, Path()],
+    payload: ParticipantsRequest,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    """``POST .../participants`` — add ``user_ids``; renders the full list."""
+    assert ctx.account.id is not None
+    conv = await _load_conversation_by_display_id(
+        session, account_id=ctx.account.id, display_id=conversation_id
+    )
+    assert conv.id is not None
+    await add_participants(
+        session, conversation=conv, user_ids=payload.user_ids
+    )
+    return await _participants_payload(
+        session, account_id=ctx.account.id, conversation_id=conv.id
+    )
+
+
+@participants_router.patch("")
+async def update_participants(
+    conversation_id: Annotated[int, Path()],
+    payload: ParticipantsRequest,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    """``PATCH .../participants`` — reconcile the set to exactly ``user_ids``."""
+    assert ctx.account.id is not None
+    conv = await _load_conversation_by_display_id(
+        session, account_id=ctx.account.id, display_id=conversation_id
+    )
+    assert conv.id is not None
+    await set_participants(
+        session, conversation=conv, user_ids=payload.user_ids
+    )
+    return await _participants_payload(
+        session, account_id=ctx.account.id, conversation_id=conv.id
+    )
+
+
+@participants_router.delete("", status_code=status.HTTP_200_OK)
+async def destroy_participants(
+    conversation_id: Annotated[int, Path()],
+    payload: ParticipantsRequest,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """``DELETE .../participants`` — remove ``user_ids`` → Rails ``head :ok``."""
+    assert ctx.account.id is not None
+    conv = await _load_conversation_by_display_id(
+        session, account_id=ctx.account.id, display_id=conversation_id
+    )
+    assert conv.id is not None
+    await remove_participants(
+        session, conversation=conv, user_ids=payload.user_ids
+    )
+    return {}
+
+
+__all__ = ["messages_router", "participants_router", "router"]

@@ -12,6 +12,7 @@ import {
 
 import { ContactPanel } from "./contact-panel";
 import { ConversationActions } from "./conversation-actions";
+import { ConversationParticipants } from "./conversation-participants";
 import { MessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
 
@@ -79,6 +80,11 @@ export function ConversationView({
           assigneeId={conv.data.meta?.assignee?.id ?? null}
           labels={conv.data.labels ?? []}
         />
+      ) : null}
+
+      {/* Participants (agents watching this conversation) */}
+      {conv.data ? (
+        <ConversationParticipants accountId={accountId} displayId={displayId} />
       ) : null}
 
       {/* Thread */}

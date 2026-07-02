@@ -25,6 +25,9 @@ from app.domains.canned_responses.router import router as canned_responses_route
 from app.domains.contacts.router import actions_router as contact_actions_router
 from app.domains.contacts.router import router as contacts_router
 from app.domains.conversations.router import messages_router as conversations_messages_router
+from app.domains.conversations.router import (
+    participants_router as conversations_participants_router,
+)
 from app.domains.conversations.router import router as conversations_router
 from app.domains.csat.public_router import router as csat_public_router
 from app.domains.csat.router import router as csat_router
@@ -136,6 +139,10 @@ def create_app() -> FastAPI:
     app.include_router(contact_actions_router)
     app.include_router(conversations_router)
     app.include_router(conversations_messages_router)
+    # Conversation participants — the agent "watcher" set (show/create/
+    # update/destroy). A participant must be an assignable agent of the
+    # conversation's inbox (inbox member or account admin).
+    app.include_router(conversations_participants_router)
     app.include_router(bulk_actions_router)
     app.include_router(custom_attributes_router)
     # Saved views (``custom_filters``). Per-user named filter-DSL views;

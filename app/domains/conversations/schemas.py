@@ -205,6 +205,19 @@ class MessageUpdateRequest(BaseModel):
     external_error: str | None = None
 
 
+class ParticipantsRequest(BaseModel):
+    """Body for the participants create/update/destroy actions.
+
+    Chatwoot takes a bare ``user_ids: [1, 2, 3]`` on all three verbs
+    (``params[:user_ids]``). Defaults to an empty list so a missing key
+    is a no-op rather than a 422.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    user_ids: list[int] = []
+
+
 __all__ = [
     "ConversationCreateRequest",
     "ConversationCustomAttributesRequest",
@@ -214,4 +227,5 @@ __all__ = [
     "MessageCreateRequest",
     "MessageInConversationCreate",
     "MessageUpdateRequest",
+    "ParticipantsRequest",
 ]
