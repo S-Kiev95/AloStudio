@@ -232,6 +232,7 @@ export type ArticleFilters = {
   locale?: string;
   status?: ArticleStatus;
   category_id?: number;
+  query?: string;
 };
 
 export function useArticles(
@@ -247,6 +248,7 @@ export function useArticles(
       filters.locale ?? null,
       filters.status ?? null,
       filters.category_id ?? null,
+      filters.query ?? null,
     ],
     queryFn: () => {
       const sp = new URLSearchParams();
@@ -254,6 +256,7 @@ export function useArticles(
       if (filters.status) sp.set("status", filters.status);
       if (filters.category_id !== undefined)
         sp.set("category_id", String(filters.category_id));
+      if (filters.query) sp.set("query", filters.query);
       const qs = sp.toString();
       return apiFetch<Article[]>(
         `${articlesBase(accountId, slug)}${qs ? `?${qs}` : ""}`,

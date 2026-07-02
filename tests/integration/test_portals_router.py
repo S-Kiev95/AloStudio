@@ -345,3 +345,56 @@ async def test_article_slug_globally_unique(client, db_session):
         headers=headers,
     )
     assert r2.status_code == 422
+
+
+async def test_article_index_search_by_query(client, db_session):
+    """Dashboard ``GET .../articles?query=`` filters via ILIKE over
+    title/description/content — and, unlike the public surface, keeps
+    drafts in the results."""
+    owner, headers = await _seed_admin(db_session, "-qsrch")
+    await client.post(
+        f"/api/v1/accounts/{owner.account.id}/portals",
+        json={"portal": {"name": "Q", "slug": "qsrch-portal"}},
+        headers=headers,
+    )
+    base = (
+        f"/api/v1/accounts/{owner.account.id}/portals/qsrch-portal/articles"
+    )
+    await client.post(
+        base,
+        json={
+            "article": {
+                "title": "Refund policy",
+                "slug": "qsrch-refund",
+                "status": "draft",
+            }
+        },
+        headers=headers,
+    )
+    await client.post(
+        base,
+        json={
+            "article": {
+                "title": "Onboarding guide",
+                "slug": "qsrch-onboard",
+                "content": "How to refund a charge is covered in billing.",
+                "status": "published",
+            }
+        },
+        headers=headers,
+    )
+    await client.post(
+        base,
+        json={
+            "article": {
+                "title": "Release notes",
+                "slug": "qsrch-notes",
+                "status": "published",
+            }
+        },
+        headers=headers,
+    )
+
+    rows = (await client.get(f"{base}?query=refund", headers=headers)).json()
+    # Draft (title match) + published (content match); the draft is kept.
+    assert sorted(a["slug"] for a in rows) == ["qsrch-onboard", "qsrch-refund"]

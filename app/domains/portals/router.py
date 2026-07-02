@@ -266,6 +266,7 @@ async def index_articles(
     locale: str | None = Query(None),
     status: str | None = Query(None),
     category_id: int | None = Query(None),
+    query: str | None = Query(None),
 ) -> list[dict[str, Any]]:
     assert ctx.account.id is not None
     portal = await _find_portal(
@@ -286,6 +287,7 @@ async def index_articles(
         locale=locale,
         status=status_int,
         category_id=category_id,
+        query=query,
     )
     return [present_article(a) for a in rows]
 

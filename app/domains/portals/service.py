@@ -13,7 +13,7 @@ import re
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.errors import ChatwootHTTPException
@@ -257,6 +257,7 @@ async def list_articles(
     locale: str | None = None,
     status: int | None = None,
     category_id: int | None = None,
+    query: str | None = None,
 ) -> list[Article]:
     stmt = select(Article).where(Article.portal_id == portal_id)
     if locale is not None:
@@ -265,6 +266,17 @@ async def list_articles(
         stmt = stmt.where(Article.status == status)
     if category_id is not None:
         stmt = stmt.where(Article.category_id == category_id)
+    if query and query.strip():
+        # ILIKE over title/description/content — mirrors Chatwoot's
+        # Article.text_search (against title/description/content).
+        needle = f"%{query.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Article.title.ilike(needle),  # type: ignore[attr-defined]
+                Article.description.ilike(needle),  # type: ignore[attr-defined]
+                Article.content.ilike(needle),  # type: ignore[attr-defined]
+            )
+        )
     stmt = stmt.order_by(Article.id.desc())  # type: ignore[attr-defined]
     return list((await session.exec(stmt)).all())
 

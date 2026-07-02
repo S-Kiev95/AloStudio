@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query
-from sqlmodel import select
+from sqlmodel import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import get_session
@@ -80,9 +80,12 @@ async def index_articles(
     session: Annotated[AsyncSession, Depends(get_session)],
     locale: str | None = Query(None),
     category_slug: str | None = Query(None),
+    query: str | None = Query(None),
 ) -> list[dict[str, Any]]:
-    """Published articles for a portal, optionally filtered by locale
-    or category slug. Drafts + archived articles never surface here."""
+    """Published articles for a portal, optionally filtered by locale,
+    category slug, or a free-text ``query``. Drafts + archived articles
+    never surface here. ``query`` runs an ILIKE over the article's
+    title/description/content — mirrors Chatwoot's ``Article.text_search``."""
     portal = await _resolve_portal(session, slug)
     stmt = select(Article).where(
         Article.portal_id == portal.id,
@@ -95,6 +98,15 @@ async def index_articles(
         stmt = stmt.join(
             Category, Category.id == Article.category_id
         ).where(Category.slug == category_slug)
+    if query and query.strip():
+        needle = f"%{query.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Article.title.ilike(needle),  # type: ignore[attr-defined]
+                Article.description.ilike(needle),  # type: ignore[attr-defined]
+                Article.content.ilike(needle),  # type: ignore[attr-defined]
+            )
+        )
     stmt = stmt.order_by(Article.position.asc(), Article.id.desc())  # type: ignore[attr-defined]
     rows = list((await session.exec(stmt)).all())
     return [present_article(a) for a in rows]

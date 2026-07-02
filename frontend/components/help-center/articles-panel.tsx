@@ -1,8 +1,16 @@
 "use client";
 
-import { ChevronRight, Eye, FileText, Plus, Trash2 } from "lucide-react";
+import {
+  ChevronRight,
+  Eye,
+  FileText,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -42,9 +50,17 @@ export function ArticlesPanel({
   locale?: string;
 }) {
   const [status, setStatus] = useState<ArticleStatus | undefined>(undefined);
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => clearTimeout(id);
+  }, [query]);
+
   const { data, isLoading, isError } = useArticles(accountId, slug, {
     status,
     locale,
+    query: debouncedQuery || undefined,
   });
 
   return (
@@ -58,6 +74,31 @@ export function ArticlesPanel({
           <Plus className="h-4 w-4" aria-hidden />
           Nuevo artículo
         </Link>
+      </div>
+
+      <div className="relative">
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-muted"
+          aria-hidden
+        />
+        <input
+          type="search"
+          aria-label="Buscar artículos"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar artículos…"
+          className="h-11 w-full rounded-md border border-border bg-surface pl-9 pr-9 text-sm text-fg placeholder:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+        />
+        {query ? (
+          <button
+            type="button"
+            aria-label="Limpiar búsqueda"
+            onClick={() => setQuery("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-surface-2 hover:text-fg"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -89,7 +130,9 @@ export function ArticlesPanel({
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-6 text-center text-sm text-fg-muted">
-            No hay artículos todavía.
+            {debouncedQuery
+              ? "No se encontraron artículos."
+              : "No hay artículos todavía."}
           </p>
         ) : (
           <ul className="divide-y divide-border">

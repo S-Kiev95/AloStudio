@@ -233,6 +233,78 @@ async def test_articles_filters_by_category_slug(client, db_session):
     assert rows[0]["slug"] == "cs-install"
 
 
+async def test_articles_search_by_query(client, db_session):
+    """``?query=`` runs a case-insensitive ILIKE over title + content."""
+    owner, headers, slug = await _seed_admin_and_portal(
+        db_session, client, "-q", portal_slug="q-portal"
+    )
+    base = f"/api/v1/accounts/{owner.account.id}/portals/{slug}/articles"
+    # Title match, content match (upper-case → tests case-insensitivity),
+    # and a non-matching article.
+    await client.post(
+        base,
+        json={
+            "article": {
+                "title": "How to request a refund",
+                "slug": "q-refund",
+                "content": "Steps to get your money back.",
+                "status": "published",
+            }
+        },
+        headers=headers,
+    )
+    await client.post(
+        base,
+        json={
+            "article": {
+                "title": "Billing overview",
+                "slug": "q-billing",
+                "content": "You can request a REFUND from the invoice page.",
+                "status": "published",
+            }
+        },
+        headers=headers,
+    )
+    await client.post(
+        base,
+        json={
+            "article": {
+                "title": "Keyboard shortcuts",
+                "slug": "q-shortcuts",
+                "content": "Press ? for help.",
+                "status": "published",
+            }
+        },
+        headers=headers,
+    )
+
+    rows = (await client.get(f"/hc/{slug}/articles?query=refund")).json()
+    assert sorted(a["slug"] for a in rows) == ["q-billing", "q-refund"]
+
+    empty = (await client.get(f"/hc/{slug}/articles?query=zzznope")).json()
+    assert empty == []
+
+
+async def test_articles_search_still_hides_drafts(client, db_session):
+    """A draft matching the query stays hidden — published-only wins."""
+    owner, headers, slug = await _seed_admin_and_portal(
+        db_session, client, "-qd", portal_slug="qd-portal"
+    )
+    await client.post(
+        f"/api/v1/accounts/{owner.account.id}/portals/{slug}/articles",
+        json={
+            "article": {
+                "title": "Secret draft about refunds",
+                "slug": "qd-draft",
+                "status": "draft",
+            }
+        },
+        headers=headers,
+    )
+    rows = (await client.get(f"/hc/{slug}/articles?query=refund")).json()
+    assert rows == []
+
+
 # ---------------------------------------------------------------------------
 # Article show
 # ---------------------------------------------------------------------------
