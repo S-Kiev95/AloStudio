@@ -1,5 +1,6 @@
 "use client";
 
+import { Download } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import {
   type SummaryScope,
   TIMESERIES_METRICS,
   rangeForDays,
+  summaryExportUrl,
   useLiveMetrics,
   useReportSummary,
   useReportTimeseries,
@@ -135,7 +137,7 @@ export function ReportsView({ accountId }: { accountId: string }) {
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle>Desglose</CardTitle>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {SUMMARY_SCOPES.map((s) => (
                 <button
                   key={s.key}
@@ -153,6 +155,26 @@ export function ReportsView({ accountId }: { accountId: string }) {
                   {s.label}
                 </button>
               ))}
+              <span
+                className="mx-1 hidden h-6 w-px bg-border sm:block"
+                aria-hidden
+              />
+              <a
+                href={summaryExportUrl(accountId, scope, range, "csv")}
+                download
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                CSV
+              </a>
+              <a
+                href={summaryExportUrl(accountId, scope, range, "xlsx")}
+                download
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                Excel
+              </a>
             </div>
           </div>
         </CardHeader>

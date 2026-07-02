@@ -22,12 +22,19 @@ from __future__ import annotations
 
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context
 from app.core.errors import ChatwootHTTPException
+from app.core.exporters import (
+    CSV_MEDIA_TYPE,
+    XLSX_MEDIA_TYPE,
+    rows_to_csv,
+    rows_to_xlsx,
+)
+from app.domains.reporting.export import EXPORT_SCOPES, build_summary_export
 from app.domains.reporting.service import (
     ScopeType,
     build_summary,
@@ -382,6 +389,43 @@ async def label_summary(
 ) -> list[dict[str, Any]]:
     args = await _entity_summary_args(ctx, since, until, business_hours)
     return await build_label_summary(session, **args)
+
+
+@summary_reports_router.get("/{scope}/export")
+async def export_summary_report(
+    scope: Annotated[str, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    fmt: str = Query("csv", alias="format"),
+    since: str | None = Query(None),
+    until: str | None = Query(None),
+    business_hours: str | None = Query(None),
+) -> Response:
+    """``GET /summary_reports/{scope}/export?format=csv|xlsx`` — download
+    the per-entity summary (agent/team/inbox/label) as a spreadsheet."""
+    if scope not in EXPORT_SCOPES:
+        raise ChatwootHTTPException(
+            status_code=404, detail={"error": "Resource could not be found"}
+        )
+    fmt_l = (fmt or "csv").lower()
+    if fmt_l not in ("csv", "xlsx"):
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "format must be 'csv' or 'xlsx'"},
+        )
+    args = await _entity_summary_args(ctx, since, until, business_hours)
+    headers, table = await build_summary_export(session, scope=scope, **args)
+    if fmt_l == "csv":
+        body = rows_to_csv(headers, table)
+        media, filename = CSV_MEDIA_TYPE, f"reporte-{scope}.csv"
+    else:
+        body = rows_to_xlsx(f"Reporte {scope}", headers, table)
+        media, filename = XLSX_MEDIA_TYPE, f"reporte-{scope}.xlsx"
+    return Response(
+        content=body,
+        media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 __all__ = [

@@ -111,6 +111,26 @@ export type SummaryRow = {
   avg_reply_time: number; // seconds
 };
 
+/**
+ * Same-origin BFF URL for downloading a per-entity summary as CSV/XLSX.
+ * Used as an ``<a href download>`` target so the httpOnly auth cookie
+ * rides along automatically (the proxy re-attaches devise headers).
+ */
+export function summaryExportUrl(
+  accountId: string,
+  scope: SummaryScope,
+  range: ReportRange,
+  format: "csv" | "xlsx",
+): string {
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "/api/backend";
+  const sp = new URLSearchParams({
+    since: String(range.since),
+    until: String(range.until),
+    format,
+  });
+  return `${apiBase}${base(accountId)}/summary_reports/${scope}/export?${sp}`;
+}
+
 export function useSummaryReport(
   accountId: string,
   scope: SummaryScope,

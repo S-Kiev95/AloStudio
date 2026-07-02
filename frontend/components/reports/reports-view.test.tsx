@@ -84,4 +84,17 @@ describe("ReportsView", () => {
     // Live snapshot label is present.
     expect(screen.getByText("Sin atender")).toBeInTheDocument();
   });
+
+  it("offers CSV + Excel export links for the current scope", async () => {
+    renderWithQuery(<ReportsView accountId="1" />);
+
+    const csv = await screen.findByRole("link", { name: /CSV/i });
+    const excel = await screen.findByRole("link", { name: /Excel/i });
+    // Default scope is agent; the BFF export path + format ride the href.
+    expect(csv.getAttribute("href")).toContain(
+      "/summary_reports/agent/export?",
+    );
+    expect(csv.getAttribute("href")).toContain("format=csv");
+    expect(excel.getAttribute("href")).toContain("format=xlsx");
+  });
 });
