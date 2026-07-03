@@ -18,8 +18,23 @@ stack (see [frontend/README.md](frontend/README.md) for setup).
 | ✅ | Functional parity — a Chatwoot user finds the feature where they expect it. |
 | ⚠️ | Partial — works for the common case but Chatwoot has more depth (filters, bulk actions, edge cases). |
 | ⏸ | Deferred — explicit decision documented elsewhere (v2 backlog). |
-| ❌ | Missing — should have but doesn't. None in this audit; the gaps are all in ⚠️ or ⏸. |
+| ❌ | Missing — the few left are backend-blocked report/policy types (see §12). |
 | 🚀 | Net-new on our side (no Chatwoot equivalent). |
+
+---
+
+> **Refreshed 2026-07-03** — a feature batch closed most of the ⚠️/❌ gaps
+> the original audit found. Shipped since the v2 closeout: full inbox
+> onboarding UI (list + add wizard + detail + channel picker), conversation
+> full-text search, bulk actions (status/assign/labels), advanced filter
+> builder + saved views, run-macro-on-conversation, conversation
+> participants, per-entity report drill-downs, report CSV + Excel export,
+> one-off + ongoing campaign delivery + per-campaign analytics, notification
+> email worker, attachment uploads (dashboard composer + public widget),
+> Help Center portal locale picker + article search, canned responses,
+> contact companies, and the integrations Connect flow. Rows below are
+> updated in place; the quick-win backlog (§12) is largely cleared and the
+> genuinely-remaining gaps are consolidated in §12 + §13.
 
 ---
 
@@ -32,7 +47,7 @@ Chatwoot upstream nav (left rail icons):
 
 Our nav (`frontend/components/shell/nav.ts`):
 
-- Inicio · Conversaciones · Instagram 🚀 · Productos 🚀 · Help Center · Campañas · Reportes · Ajustes.
+- Inicio · Conversaciones · Contactos · Instagram 🚀 · Productos 🚀 · Help Center · Campañas · Reportes · Ajustes.
 
 **Differences:**
 
@@ -40,8 +55,9 @@ Our nav (`frontend/components/shell/nav.ts`):
   own publishing + comments tooling (not just message routing like Chatwoot).
 * We add a **Productos** catalogue at the top level (own extension, links
   into IG posts).
-* We omit **Contacts** (⏸ deferred to v2).
-* We omit **Captain / Notifications** as top-level items (⏸; below).
+* **Contacts** is a top-level item (shipped in v2.1/v2.2).
+* **Notifications** is a topbar bell rather than a left-rail item; **Captain**
+  is out of scope (⏸; below).
 * "Inicio" is our account home placeholder — Chatwoot defaults straight into
   conversations.
 
@@ -56,15 +72,17 @@ Our nav (`frontend/components/shell/nav.ts`):
 | Realtime updates | ✅ | ✅ | `useCable` invalidates the query keys on cable events. |
 | Assignee / team / labels actions | ✅ | ✅ | `conversation-actions.tsx` — assign agent, assign team, toggle labels, set priority. |
 | Status toggle (open / resolved / pending / snoozed) | ✅ | ✅ | `useToggleStatus`. |
-| Bulk actions (assign N convos, etc.) | ✅ | ⚠️ | We expose per-conversation actions; no bulk-select UI. (Chatwoot's `BulkActionsController`.) |
-| Custom filters / saved views | ✅ | ⚠️ | We have status/priority filters but no save-view feature. Chatwoot's `customviews/`. |
-| Inline customer details panel | ✅ | ⚠️ | The detail page focuses on the thread; Chatwoot has a right-hand contact panel. Lands with Contacts (F.4 / v2). |
-| Macros applied from conversation | ✅ | ⚠️ | Backend has `POST /macros/:id/execute`; frontend doesn't expose the "Run macro on this conversation" UI yet. **Quick win.** |
-| Conversation participants (additional agents) | ✅ | ❌ | `ConversationParticipant.vue` upstream; not exposed. ⏸ to follow-up. |
-| Search across messages | ✅ | ❌ | `SearchController`; not in our UI. ⏸. |
+| Bulk actions (assign N convos, etc.) | ✅ | ✅ | Multi-select toolbar → bulk status / assign-agent / add+remove labels over `BulkActionsController`. |
+| Custom filters / saved views | ✅ | ✅ | Advanced filter builder UI + saved views (`custom_filters`); the list's "save this filter" affordance. |
+| Inline customer details panel | ✅ | ✅ | Right-hand `contact-panel.tsx` in the conversation detail (fe.14b). |
+| Macros applied from conversation | ✅ | ✅ | "Correr macro…" dropdown in `conversation-actions.tsx` → `POST /macros/:id/execute`. |
+| Conversation participants (additional agents) | ✅ | ✅ | `conversation-participants.tsx` — watcher chips + add picker (inbox-access enforced backend-side). |
+| Search across messages | ✅ | ✅ | Full-text (ILIKE) message search in the conversation list, permission-scoped. |
+| Attachment uploads in composer | ✅ | ✅ 🚀 | Multi-file picker → pre-signed direct upload (SigV4) → message attachments; also enabled on the public widget. |
 
-**Verdict:** core flow (read + reply + label + assign + resolve) is parity.
-The gaps are power-user features (bulk, search, saved views).
+**Verdict:** full parity for the day-to-day flow **and** the power-user
+surface — read/reply/route, bulk actions, search, saved views, macros,
+participants. No remaining ⚠️ in this section.
 
 ---
 
@@ -79,7 +97,8 @@ Landed in v2.1 (`fe.14a`) + v2.2 (`fe.14b`).
 | Detail view | ✅ | ✅ | Conversations list, notes, custom-attribute editor, contactable-inboxes panel. |
 | Merge | ✅ | ✅ | Pick "merge target" dialog from the detail header. |
 | Inline panel in conversation | ✅ | ✅ | Right-hand panel in conversation detail (fe.14b). |
-| Segments + companies | ✅ | ❌ | Power-user features; ⏸ for now. |
+| Companies | ✅ | ✅ | Roll-up over `additional_attributes.company_name` (`GET /contacts/companies`) + company chips that filter the list via `?company=`. Chatwoot ships no Company model either — same derived approach. |
+| Segments (saved contact filters) | ✅ | ⚠️ | `CustomView` supports `filter_type: contact`, but the contact filter DSL + segments UI aren't wired (contacts index defers the sort/filter DSL). ⏸. |
 
 ---
 
@@ -90,12 +109,14 @@ Landed in v2.1 (`fe.14a`) + v2.2 (`fe.14b`).
 | Overview cards | ✅ | ✅ | `frontend/components/reports/reports-view.tsx` — 4 live counters + 7 summary cards with vs-previous delta. |
 | Conversations report (timeseries) | ✅ | ✅ | Daily-bucketed bar chart, metric selector (7/30/90 d range). |
 | CSAT report | ✅ | ✅ | Under Ajustes → CSAT (`settings/csat`). Includes metrics + per-rating distribution + response list with feedback. |
-| Agent / Team / Inbox / Label reports | ✅ | ⚠️ | Backend has `/summary_reports/{agent,team,inbox,label}`; we expose the global summary but no per-entity drill-down UI. **Mediano follow-up.** |
+| Agent / Team / Inbox / Label reports | ✅ | ✅ | Per-entity drill-down tables under the "Desglose" scope switcher. |
+| Report export (CSV) | ✅ | ✅ | Per-entity summary download (`/summary_reports/{scope}/export?format=csv`), UTF-8 BOM for Excel. |
+| Report export (Excel .xlsx) | ✅ | ✅ 🚀 | Same endpoint, `format=xlsx` — a dependency-free hand-rolled single-sheet workbook. Chatwoot only offers CSV. |
 | Bot / SLA / Conversation-traffic | ✅ | ❌ | Chatwoot has these; backend skipped them in Phase 7. ⏸ until backend ports. |
-| CSV export | ✅ | ❌ | `csat_survey_responses_controller#download` exists on the backend (deferred). ⏸. |
 
-**Verdict:** the dashboard's main "what's happening" surface is covered.
-The per-entity drill-downs are the obvious gap.
+**Verdict:** overview + per-entity drill-downs + CSV/Excel export = parity
+(export exceeds it). Only the Bot/SLA/traffic report types remain, blocked
+on the backend porting those metrics.
 
 ---
 
@@ -107,14 +128,16 @@ The per-entity drill-downs are the obvious gap.
 | Categories CRUD per portal | ✅ | ✅ | `categories-panel.tsx` (within portal detail). |
 | Articles CRUD with status (draft/published/archived) | ✅ | ✅ | `article-form.tsx`, filter chips, status badges. |
 | Article author + views meta | ✅ | ✅ | View count rendered; author_id comes from the backend. |
-| Locale switcher per portal | ✅ | ⚠️ | Locale is editable per article/category; we don't surface a portal-level locale picker like Chatwoot's. **Quick win.** |
+| Locale switcher per portal | ✅ | ✅ | Portal-level locale `<select>` (from `config.allowed_locales`) filtering the article + category panels. |
 | Public Help Center site | ✅ | ✅ 🚀 | We ship our own SSG/ISR version (`/hc/<slug>` with `revalidate=300`), with `react-markdown` + remark-gfm + `robots.txt`. Chatwoot's is a Rails-rendered HTML view; ours is more SEO-friendly. |
-| Public search | ✅ | ❌ | Chatwoot has client-side article search on the public site. ⏸. |
+| Article search (dashboard + public) | ✅ | ✅ | ILIKE search over title/description/content — a debounced box in the dashboard `ArticlesPanel` and `?query=` on the public `/hc/<slug>/articles` endpoint. |
 | Article embeddings (pgvector) | ✅ enterprise | ❌ | Backend `portals/router.py` notes this is Phase 10 deferred. ⏸. |
 | Logo upload | ✅ | ❌ | Backend defers ActiveStorage uploads to Phase 10. ⏸. |
 
-**Verdict:** admin CRUD + public site = parity. Public search is the
-most-missed gap; logo upload is blocked on backend ActiveStorage.
+**Verdict:** admin CRUD + public site + locale picker + article search =
+parity. The remaining gaps are logo upload (needs the article-logo /
+avatar column wired to the now-shipped MinIO uploads) and pgvector
+article embeddings (backend Phase 10).
 
 ---
 
@@ -126,11 +149,14 @@ most-missed gap; logo upload is blocked on backend ActiveStorage.
 | One-off campaigns (scheduled blasts) | ✅ | ✅ | `scheduled_at` datetime + audience label multi-select. |
 | Enable / disable toggle | ✅ | ✅ | In the form; the list shows the badge. |
 | Sender + inbox pickers | ✅ | ✅ | Reuses `useAgents` + `useInboxes`. |
-| Template params (WhatsApp, etc.) | ✅ | ⚠️ | Backend has `template_params`; frontend form doesn't expose it (no WhatsApp inbox to use it on). ⏸ until WhatsApp inbox lands. |
-| Campaign analytics / delivery stats | ✅ | ❌ | Chatwoot shows sent/clicked counts per campaign; no equivalent on our side. The scheduler runtime is deferred (backend Phase 10). ⏸. |
+| One-off delivery runtime | ✅ | ✅ | The ARQ scheduler builds a conversation + outgoing message per audience contact (`CampaignConversationBuilder`). |
+| Ongoing trigger runtime | ✅ | ✅ | Widget `campaign.triggered` event → `CampaignListener` fires the ongoing campaign for a visitor. |
+| Campaign analytics / delivery stats | ✅ | ✅ 🚀 | `GET /campaigns/:id/analytics` → conversations created + a sent/delivered/read/failed breakdown, surfaced as an "Entrega" panel on the campaign detail. Chatwoot's is thinner. |
+| Template params (WhatsApp, etc.) | ✅ | ⚠️ | Backend has `template_params`; the form doesn't expose it (no WhatsApp inbox to use it on yet). ⏸ until WhatsApp inbox lands. |
 
-**Verdict:** CRUD + audience definition = parity. The runtime stats land
-when the backend ports the campaign scheduler.
+**Verdict:** CRUD + audience + one-off/ongoing delivery runtime + per-campaign
+analytics = parity (analytics exceeds it). Only WhatsApp `template_params`
+remains, gated on a WhatsApp inbox.
 
 ---
 
@@ -143,14 +169,14 @@ when the backend ports the campaign scheduler.
 | Account / Profile / Security | ✅ | ✅ | `settings/profile` (name/email/phone/signature) + `settings/security` (password change). Landed in fe.14c. |
 | Agents (invite + role management) | ✅ | ✅ | `settings/agents` — invite form, role promote/demote, remove. Backend `be.agents` ships the mailer + invitation link. Landed in v2.3 + v2.4. |
 | Teams ✅ | ✅ | ✅ | `settings/teams` with members panel. |
-| Inboxes (channel CRUD) | ✅ | ⚠️ | We list inboxes via `useInboxes` for pickers and the Instagram flow shows IG-channel detail; we don't surface a generic per-channel CRUD page. Chatwoot has wizards for 10+ channels. **Tier 1 of v2.** |
+| Inboxes (channel CRUD) | ✅ | ✅ | `settings/inboxes` — list + add wizard (channel picker incl. FB/IG), per-inbox detail/settings page with agent assignment + webhook URL / verify token surfaced. |
 | Labels ✅ | ✅ | ✅ | `settings/labels`. |
 | Macros ✅ | ✅ | ✅ | `settings/macros` with the actions editor. |
-| Canned responses | ✅ | ⏸ | Backend not ported (sidebar shows it as pending with milestone "F.9C"). |
+| Canned responses | ✅ | ✅ | `settings/canned_responses` — CRUD + `?search=` ranking; composer `/short_code` quick-insert picker. |
 | Automation rules ✅ | ✅ | ✅ | `settings/automation` with the conditions + actions editor, clone, active-toggle. |
 | Webhooks ✅ | ✅ | ✅ | `settings/webhooks` with subscription chips. |
 | Agent bots ✅ | ✅ | ✅ | `settings/agent_bots` with the reveal-once secret pattern. |
-| Integrations ✅ | ✅ | ⚠️ | `settings/integrations` lists the app catalogue + can delete hooks. The "Connect" flow per provider (OAuth dance) is explicitly noted as future work in the UI. |
+| Integrations | ✅ | ⚠️ | `settings/integrations` — app catalogue + hook CRUD + a **Connect** affordance: OAuth link for external apps (Slack/Linear, resolved from `slack_client_id`/`linear_client_id`) and an inline settings form for API-key apps (openai/dialogflow/webhook/dyte). The OAuth **callback** (code→token exchange) is the per-vendor follow-up — needs real provider credentials. |
 | Custom attributes ✅ | ✅ | ✅ | `settings/custom_attributes` with list-type values + regex. |
 | Working hours ✅ | ✅ | ✅ | `settings/working_hours` with the bulk 7-day editor. |
 | CSAT ✅ | ✅ | ✅ | `settings/csat` — see Reports section. |
@@ -176,7 +202,8 @@ Landed in v2.5 (`be.notifications`) + v2.6 (`fe.14d`).
 | Realtime cable broadcast | ✅ | ✅ | `notification.created` event published to the user's pubsub_token channel → bell updates without polling. |
 | Topbar bell + badge + dropdown | ✅ | ✅ | `components/shell/notification-bell.tsx` — unread count poll + live invalidation. Mark-read / delete / mark-all-read actions. |
 | Full inbox page | ✅ | ✅ | `/accounts/{id}/notifications` — paginated with all/unread filter tabs. |
-| Per-user preferences | ✅ | ⚠️ | `settings/notifications` — checkbox matrix (5 types × email/push). The preferences **persist** but are **not yet enforced**: the in-app row is always created (correct, matches Chatwoot), and the email/push delivery these flags gate is deferred (`listener.py` docstring). So toggling has no runtime effect today — it's wired for when the email/push worker lands. |
+| Email delivery worker | ✅ | ✅ | ARQ task sends the notification email (aiosmtplib → MailHog in dev), gated on the user's email preference. |
+| Per-user preferences | ✅ | ⚠️ | `settings/notifications` — checkbox matrix (5 types × email/push). The **email** column is now enforced by the delivery worker; **push** (web-push) delivery is still deferred, so those toggles are wired-but-inert until a push worker lands. |
 
 ---
 
@@ -230,38 +257,39 @@ These aren't gaps — they're explicit divergences from Chatwoot.
 
 ---
 
-## 12. Quick-win backlog
+## 12. Backlog
 
-Concrete follow-ups, ordered by effort:
+**The original 10 quick-wins are all shipped** (run-macro-on-conversation,
+portal locale picker, profile/security pages, notification bell, agent
+invitations, generic inbox CRUD, bulk-actions toolbar, saved views,
+per-entity report drill-downs, public Help Center search).
 
-1. **Run-macro-on-conversation button.** Add a "Macros" dropdown to
-   `conversation-actions.tsx` that lists global+personal macros, calls
-   `POST /macros/:id/execute` with `{conversation_ids: [displayId]}`.
-   Backend + hook (`useExecuteMacro`) already exist. ~30 min.
-2. **Portal locale picker.** Add a locale select to the portal-level
-   admin header so categories/articles list filtered by locale.
-   Backend supports `?locale=`. ~45 min.
-3. **Profile / security pages.** Add a client-side profile hook (today
-   `lib/auth/profile.ts:getProfile` is server-only), wire it into
-   `/settings/profile` and `/settings/security`. Devise has the routes
-   (`/auth/password`, profile update via `/api/v1/profile`). ~3 h.
-4. **Notification bell.** Top-right of the dashboard shell. Backend has
-   `/notifications`. ~3-4 h (component + popover + mark-read).
-5. **Agent invitations.** Settings → Agents page with the invite form.
-   Backend has the controller. ~3-4 h.
-6. **Inbox CRUD (generic).** Per-channel forms (Email / API / Website
-   widget). The backend wires several channel types. Big — ~1-2 days.
-7. **Bulk-actions toolbar in conversations.** Selectable rows + bulk
-   assign / label / status. ~1 day.
-8. **Custom filters / saved views.** Power-user feature; sizeable.
-   ~2-3 days.
-9. **Per-entity reports drill-downs** (`/reports/agents`,
-   `/reports/teams`, etc.). Backend endpoints exist. ~1-2 days.
-10. **Public Help Center search.** Algolia-style or Postgres FTS.
-    ~1-2 days.
+What genuinely remains, grouped by what blocks it:
 
-Items 1-3 could land as a single `fe.14` polish commit if we want a
-v1.1 closer.
+**Shippable now (no external dependency):**
+
+1. **Contacts segments.** Saved contact filters (`CustomView` already
+   supports `filter_type: contact`) — needs the contact filter DSL (the
+   contacts index still defers sort/filter) + a segments UI. ~2-3 days.
+2. **Article logo / agent avatar uploads.** The MinIO SigV4 upload
+   pipeline now exists (composer + widget use it); wiring it to an
+   article-logo / `users.avatar_url` column is the remaining work. ~1 day.
+
+**Blocked on external credentials:**
+
+3. **Integrations OAuth callback.** Per-vendor `code → token` exchange +
+   hook creation (Slack, Linear, Shopify). The Connect *start* is wired;
+   the return leg needs registered provider apps + secrets. Per vendor.
+
+**Blocked on a backend port:**
+
+4. **Bot / SLA / conversation-traffic reports** — those metrics were
+   skipped in backend Phase 7.
+5. **Assignment policy / SLA** — `AssignmentPolicy` + `SLA` not ported.
+6. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
+7. **Web-push notification delivery** — the email worker shipped; a
+   web-push worker would enforce the push preference column.
+8. **Article embeddings (pgvector)** — backend Phase 10.
 
 ---
 
@@ -274,10 +302,11 @@ v1.1 closer.
 * **Enterprise tiers** (audit logs, custom roles, SSO sometimes) —
   defer indefinitely; revisit when there's a customer.
 * **Captain AI** — conceptual overlap with MCP; defer.
-* **SLA / Assignment policy** — backend not ported.
-* **Article embeddings (pgvector)** — backend Phase 10.
-* **File uploads on articles / agent avatars** — ActiveStorage
-  equivalent not ported (MinIO is in Docker but not wired).
+* **SLA / Assignment policy** — backend not ported (§12 #5).
+* **Article embeddings (pgvector)** — backend Phase 10 (§12 #8).
+* **File uploads on articles / agent avatars** — the MinIO SigV4 upload
+  pipeline is now wired (message + widget attachments); only the
+  article-logo / avatar column wiring remains (§12 #2).
 
 ---
 
@@ -288,18 +317,23 @@ common workflows** an agent or admin uses day to day — conversations
 (read/reply/route), settings (all the admin CRUD that lets the
 account work), reports overview, campaigns, help-center authoring.
 
-The honest gaps **after v2 closeout** are:
+The honest gaps **after the 2026-07-03 batch** are:
 
-* ~~No Contacts surface~~ — closed in v2.1/v2.2.
-* ~~No notification inbox~~ — closed in v2.5/v2.6.
+* ~~No Contacts surface~~ — closed in v2.1/v2.2 (+ companies, this batch).
+* ~~No notification inbox~~ — closed in v2.5/v2.6 (+ email worker, this batch).
 * ~~No agent invitations / profile editing~~ — closed in v2.3/v2.4.
-* **AI-agent integration polish (v2.7–v2.9)** — closed: HTTP MCP
-  transport, dual signature header, `event_id` in body, `sender_type`,
-  `Conversation.ai_mode` + tools + automation suppression, ARQ-backed
-  webhook retries with exponential backoff + dead-letter visibility.
-* **Power-user features** (bulk actions, saved views, full search) —
-  small per-item, several items. **Remaining ⏸.**
+* ~~Power-user conversation features~~ (bulk actions, saved views, full
+  search, macros-on-conversation, participants) — **all closed this batch.**
+* ~~Inbox onboarding, report drill-downs + export, campaign delivery +
+  analytics, Help Center locale + search, canned responses~~ — **closed
+  this batch.**
 
-**Net result:** an end user moving from Chatwoot would find every
-common feature where they expect it; the gaps are at the depth /
-power-user end, not at the surface level.
+What's left is now **narrow and mostly dependency-gated** (see §12): contact
+segments + the article/avatar upload wiring (shippable), the integrations
+OAuth callback (needs provider credentials), and a handful of report/policy
+types + web-push that wait on backend ports. The indefinitely-deferred set
+(Captain AI, enterprise audit/roles/SSO, SaaS billing) is unchanged.
+
+**Net result:** an end user moving from Chatwoot finds every common **and**
+most power-user features where they expect them; the remaining gaps are at
+the enterprise / external-credential / not-yet-ported-backend edge.
