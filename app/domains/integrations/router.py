@@ -23,13 +23,16 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Path, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
 from app.domains.inboxes.models import Inbox
 from app.domains.integrations.models import (
     INTEGRATION_APPS,
+    IntegrationApp,
     find_app,
+    resolve_action,
 )
 from app.domains.integrations.presenters import (
     present_app,
@@ -73,6 +76,19 @@ async def _present_hook(
     )
 
 
+def _app_action(app: IntegrationApp) -> str | None:
+    """Resolve an app's Connect action against the account's config."""
+    settings = get_settings()
+    return resolve_action(
+        app,
+        client_ids={
+            "slack": settings.slack_client_id,
+            "linear": settings.linear_client_id,
+        },
+        app_base_url=settings.app_base_url,
+    )
+
+
 # ===========================================================================
 # Apps
 # ===========================================================================
@@ -91,6 +107,7 @@ async def index_apps(
             app,
             account_hooks=hooks,
             show_admin_fields=ctx.is_administrator,
+            action=_app_action(app),
         )
         for app in INTEGRATION_APPS
     ]
@@ -115,6 +132,7 @@ async def show_app(
         app,
         account_hooks=hooks,
         show_admin_fields=ctx.is_administrator,
+        action=_app_action(app),
     )
 
 

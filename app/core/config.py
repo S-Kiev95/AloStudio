@@ -49,6 +49,14 @@ class Settings(BaseSettings):
     # in production via env (``APP_BASE_URL=https://app.midominio.com``).
     app_base_url: str = "http://localhost:3000"
 
+    # --- integrations OAuth (Connect flow)
+    # OAuth-based integration apps (Slack, Linear) are only "connectable"
+    # when their client id is configured; the dashboard hides the Connect
+    # link otherwise. Secrets + the callback token-exchange land with each
+    # vendor's follow-up.
+    slack_client_id: str | None = None
+    linear_client_id: str | None = None
+
     # --- storage
     storage_backend: Literal["s3", "local"] = "s3"
     s3_endpoint_url: str = "http://localhost:9100"

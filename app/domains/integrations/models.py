@@ -114,22 +114,43 @@ class IntegrationApp:
     short_description: str
     enabled: bool = True
     allow_multiple_hooks: bool = False
+    # ``action`` mirrors ``config/integration/apps.yml``: a relative path
+    # (``/openai``) means an inline settings form; an absolute URL means an
+    # external OAuth authorize endpoint; ``None`` means "no Connect action".
+    # ``hook_type`` scopes a connection to the whole account or one inbox.
+    action: str | None = None
+    hook_type: str = "account"
 
 
 # Order mirrors ``config/integrations.yml`` in Chatwoot — keeps the
 # dashboard's tab order consistent.
+# OAuth apps: ``action`` is an external authorize URL the presenter
+# augments with the configured client id + redirect uri.
+OAUTH_APPS: frozenset[str] = frozenset({"slack", "linear"})
+
+# Order mirrors ``config/integration/apps.yml`` in Chatwoot.
 INTEGRATION_APPS: tuple[IntegrationApp, ...] = (
     IntegrationApp(
         id="slack",
         name="Slack",
         description="Chat with users directly from Slack channels.",
         short_description="Slack thread relay",
+        action=(
+            "https://slack.com/oauth/v2/authorize?scope=commands,chat:write,"
+            "channels:read,channels:manage,channels:join,groups:read,"
+            "groups:write,im:write,mpim:write,users:read,users:read.email,"
+            "chat:write.customize,channels:history,groups:history,"
+            "mpim:history,im:history,files:read,files:write"
+        ),
+        hook_type="account",
     ),
     IntegrationApp(
         id="dialogflow",
         name="Dialogflow",
         description="Route incoming messages through a Dialogflow agent.",
         short_description="Dialogflow router",
+        action="/dialogflow",
+        hook_type="inbox",
     ),
     IntegrationApp(
         id="webhook",
@@ -137,38 +158,76 @@ INTEGRATION_APPS: tuple[IntegrationApp, ...] = (
         description="Generic outbound webhook receiver.",
         short_description="HTTP receiver",
         allow_multiple_hooks=True,
+        action="/webhook",
+        hook_type="account",
     ),
     IntegrationApp(
         id="openai",
         name="OpenAI",
         description="AI-assisted reply suggestions powered by OpenAI.",
         short_description="OpenAI reply assist",
+        action="/openai",
+        hook_type="account",
     ),
     IntegrationApp(
         id="linear",
         name="Linear",
         description="Link conversations to Linear issues.",
         short_description="Linear issue link",
+        action="https://linear.app/oauth/authorize",
+        hook_type="account",
     ),
     IntegrationApp(
         id="shopify",
         name="Shopify",
         description="Show contact orders and account from Shopify.",
         short_description="Shopify customer info",
+        hook_type="account",
     ),
     IntegrationApp(
         id="notion",
         name="Notion",
         description="Surface Notion docs in the agent sidebar.",
         short_description="Notion knowledge",
+        hook_type="account",
     ),
     IntegrationApp(
         id="dyte",
         name="Dyte",
         description="Start a video call inside the conversation.",
         short_description="Embedded video",
+        action="/dyte",
+        hook_type="account",
     ),
 )
+
+
+def resolve_action(
+    app: IntegrationApp,
+    *,
+    client_ids: dict[str, str | None],
+    app_base_url: str,
+) -> str | None:
+    """Mirror ``Integrations::App#action``.
+
+    Inline apps return their relative action verbatim. OAuth apps get their
+    authorize URL augmented with the configured ``client_id`` + our callback
+    ``redirect_uri`` — or ``None`` when no client id is configured (the app
+    isn't connectable, matching Chatwoot's ``active?`` gate).
+    """
+    if app.action is None:
+        return None
+    if app.id in OAUTH_APPS:
+        client_id = client_ids.get(app.id)
+        if not client_id:
+            return None
+        redirect_uri = f"{app_base_url}/api/v1/integrations/{app.id}/callback"
+        sep = "&" if "?" in app.action else "?"
+        return (
+            f"{app.action}{sep}client_id={client_id}"
+            f"&redirect_uri={redirect_uri}"
+        )
+    return app.action
 
 
 def find_app(app_id: str) -> IntegrationApp | None:
@@ -184,9 +243,11 @@ __all__ = [
     "HOOK_TYPE_ACCOUNT",
     "HOOK_TYPE_INBOX",
     "INTEGRATION_APPS",
+    "OAUTH_APPS",
     "IntegrationApp",
     "IntegrationsHook",
     "find_app",
     "hook_type_from_str",
     "hook_type_to_str",
+    "resolve_action",
 ]

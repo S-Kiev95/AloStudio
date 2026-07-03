@@ -46,16 +46,22 @@ def present_app(
     *,
     account_hooks: list[IntegrationsHook],
     show_admin_fields: bool = False,
+    action: str | None = None,
 ) -> dict[str, Any]:
     """Mirror ``_app.json.jbuilder``.
 
-    ``hooks`` is the array of this account's hooks scoped to the app."""
+    ``hooks`` is the array of this account's hooks scoped to the app.
+    ``action`` is the resolved Connect target (relative form path, external
+    OAuth URL, or ``None`` when not connectable) — the caller resolves it
+    with the account's config so the presenter stays pure."""
     body: dict[str, Any] = {
         "id": app.id,
         "name": app.name,
         "description": app.description,
         "short_description": app.short_description,
         "enabled": app.enabled,
+        "action": action,
+        "hook_type": app.hook_type,
     }
     if show_admin_fields:
         body["allow_multiple_hooks"] = app.allow_multiple_hooks

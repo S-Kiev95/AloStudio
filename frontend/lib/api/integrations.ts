@@ -20,6 +20,13 @@ export type IntegrationApp = {
   short_description: string;
   enabled: boolean;
   allow_multiple_hooks?: boolean;
+  /**
+   * Connect target: an absolute URL means external OAuth, a relative path
+   * means an inline settings form, `null` means not connectable (unconfigured
+   * OAuth app or an app with no self-serve connect).
+   */
+  action: string | null;
+  hook_type: string;
   hooks: IntegrationHook[];
 };
 

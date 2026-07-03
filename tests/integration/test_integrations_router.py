@@ -123,6 +123,27 @@ async def test_apps_show_404_unknown_id(client, db_session):
     assert resp.status_code == 404
 
 
+async def test_apps_expose_connect_action_and_hook_type(client, db_session):
+    """Each app carries the Connect metadata the dashboard drives off."""
+    owner, headers = await _seed_admin(db_session, "-act")
+    resp = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/integrations/apps",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    by_id = {app["id"]: app for app in resp.json()["payload"]}
+    # Inline app → relative action + inbox hook_type.
+    assert by_id["dialogflow"]["action"] == "/dialogflow"
+    assert by_id["dialogflow"]["hook_type"] == "inbox"
+    assert by_id["webhook"]["action"] == "/webhook"
+    assert by_id["webhook"]["hook_type"] == "account"
+    # OAuth app with no client id configured → not connectable (null action).
+    assert by_id["slack"]["action"] is None
+    assert by_id["slack"]["hook_type"] == "account"
+    # An app with no action stays null.
+    assert by_id["shopify"]["action"] is None
+
+
 async def test_apps_index_includes_account_hooks(client, db_session):
     owner, headers = await _seed_admin(db_session, "-hk")
     create = await client.post(
