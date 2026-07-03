@@ -24,7 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy import delete, update
+from sqlalchemy import delete, func, update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -546,12 +546,48 @@ def _uniqueness_422(exc: IntegrityError) -> ChatwootHTTPException:
     return ChatwootHTTPException(status_code=422, detail={"message": field_msg})
 
 
+def company_name_expr():
+    """The ``additional_attributes->>'company_name'`` text expression.
+
+    Chatwoot has no Company model — an organisation is just the free-text
+    ``company_name`` contact attribute, so both the companies aggregation
+    and the ``?company=`` list filter key off this JSONB path.
+    """
+    return Contact.additional_attributes["company_name"].astext  # type: ignore[index]
+
+
+async def list_companies(
+    session: AsyncSession, *, account_id: int
+) -> list[dict[str, Any]]:
+    """Group the account's contacts by ``company_name`` (blanks ignored).
+
+    Returns ``[{"name", "count"}, ...]`` ordered by count desc, then name —
+    the "companies" view is a derived roll-up, not a stored entity.
+    """
+    name = company_name_expr()
+    rows = (
+        await session.exec(
+            select(name.label("name"), func.count().label("count"))
+            .where(
+                Contact.account_id == account_id,
+                name.isnot(None),
+                name != "",
+            )
+            .group_by(name)
+            .order_by(func.count().desc(), name.asc())
+        )
+    ).all()
+    return [{"name": r[0], "count": int(r[1])} for r in rows]
+
+
 __all__ = [
     "ContactIdentifyAction",
     "ContactInboxBuilder",
     "ContactMergeAction",
     "assert_valid_contact_identity",
+    "company_name_expr",
     "create_contact",
+    "list_companies",
     "normalize_contact_write",
     "update_contact",
 ]

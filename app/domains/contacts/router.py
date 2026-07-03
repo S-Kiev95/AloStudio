@@ -41,7 +41,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy import func, or_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -75,7 +75,9 @@ from app.domains.contacts.schemas import (
 from app.domains.contacts.service import (
     ContactInboxBuilder,
     ContactMergeAction,
+    company_name_expr,
     create_contact,
+    list_companies,
     update_contact,
 )
 from app.domains.inboxes.models import CHANNEL_TYPE_API, Inbox
@@ -106,18 +108,24 @@ async def index_contacts(
     session: Annotated[AsyncSession, Depends(get_session)],
     page: int = Query(1, ge=1),
     include_contact_inboxes: bool = Query(True),
+    company: str | None = Query(None),
 ) -> dict[str, Any]:
-    """``GET /contacts`` — paginated list.
+    """``GET /contacts`` — paginated list, optionally filtered by company.
 
-    Chatwoot orders by ``(company_name, email)`` via its ``sort_on`` DSL
-    default. Phase 3 defers the full sort/filter DSL; we keep the
-    deterministic ``id DESC`` order the Rails scope falls back to when
-    no sort param is supplied.
+    ``?company=`` narrows to contacts whose
+    ``additional_attributes['company_name']`` equals the value (the
+    "companies" roll-up drills down through this). Chatwoot orders by
+    ``(company_name, email)`` via its ``sort_on`` DSL default; Phase 3
+    defers the full sort/filter DSL, so we keep the deterministic
+    ``id DESC`` fallback order.
     """
     assert ctx.account.id is not None
+    conds: list[Any] = [Contact.account_id == ctx.account.id]
+    if company:
+        conds.append(company_name_expr() == company)
     total = (
         await session.exec(
-            select(func.count()).select_from(Contact).where(Contact.account_id == ctx.account.id)  # type: ignore[arg-type]
+            select(func.count()).select_from(Contact).where(*conds)  # type: ignore[arg-type]
         )
     ).one()
     total = _count_scalar(total)
@@ -125,7 +133,7 @@ async def index_contacts(
     offset = (page - 1) * RESULTS_PER_PAGE
     stmt = (
         select(Contact)
-        .where(Contact.account_id == ctx.account.id)
+        .where(*conds)
         .order_by(Contact.id.desc())  # type: ignore[attr-defined]
         .offset(offset)
         .limit(RESULTS_PER_PAGE)
@@ -137,6 +145,22 @@ async def index_contacts(
         current_page=page,
         with_contact_inboxes=include_contact_inboxes,
     )
+
+
+@router.get("/companies")
+async def index_companies(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    """``GET /contacts/companies`` — the account's contacts rolled up by
+    ``company_name`` (``[{"name", "count"}, ...]``, count desc).
+
+    Not a Chatwoot port: an organisation is just the free-text
+    ``company_name`` contact attribute, so this is a derived view. Declared
+    before ``/{contact_id}`` so the literal path wins the route match.
+    """
+    assert ctx.account.id is not None
+    return await list_companies(session, account_id=ctx.account.id)
 
 
 @router.get("/search")

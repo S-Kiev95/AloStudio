@@ -85,13 +85,27 @@ function base(accountId: string): string {
 // ---------------------------------------------------------------------------
 // List + search
 // ---------------------------------------------------------------------------
-/** ``GET /contacts`` — paginated. */
-export function useContacts(accountId: string, page = 1) {
+/** One row of the companies roll-up (``GET /contacts/companies``). */
+export type Company = { name: string; count: number };
+
+/** ``GET /contacts`` — paginated, optionally filtered by company. */
+export function useContacts(accountId: string, page = 1, company?: string) {
   return useQuery({
-    queryKey: ["contacts", accountId, "list", page],
-    queryFn: () =>
-      apiFetch<ContactsPage>(`${base(accountId)}?page=${page}`),
+    queryKey: ["contacts", accountId, "list", page, company ?? null],
+    queryFn: () => {
+      const sp = new URLSearchParams({ page: String(page) });
+      if (company) sp.set("company", company);
+      return apiFetch<ContactsPage>(`${base(accountId)}?${sp}`);
+    },
     placeholderData: (prev) => prev,
+  });
+}
+
+/** ``GET /contacts/companies`` — contacts rolled up by company_name. */
+export function useContactCompanies(accountId: string) {
+  return useQuery({
+    queryKey: ["contact-companies", accountId],
+    queryFn: () => apiFetch<Company[]>(`${base(accountId)}/companies`),
   });
 }
 

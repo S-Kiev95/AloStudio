@@ -9,6 +9,7 @@ import {
   Search,
   Trash2,
   User as UserIcon,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -17,6 +18,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   type Contact,
+  useContactCompanies,
   useContacts,
   useDeleteContact,
   useSearchContacts,
@@ -28,12 +30,14 @@ const PAGE_SIZE = 15; // mirrors backend RESULTS_PER_PAGE
 export function ContactsView({ accountId }: { accountId: string }) {
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
+  const [company, setCompany] = useState<string | null>(null);
 
   const trimmed = q.trim();
   const searching = trimmed.length > 0;
 
-  // Either index or search; only one is enabled at a time.
-  const indexQ = useContacts(accountId, page);
+  const companies = useContactCompanies(accountId);
+  // Either index (optionally company-filtered) or search — one at a time.
+  const indexQ = useContacts(accountId, page, company ?? undefined);
   const searchQ = useSearchContacts(accountId, trimmed, page);
   const active = searching ? searchQ : indexQ;
 
@@ -69,12 +73,44 @@ export function ContactsView({ accountId }: { accountId: string }) {
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
+            setCompany(null);
             setPage(1);
           }}
           placeholder="Buscar por nombre, email, teléfono o identificador…"
           className="pl-9"
         />
       </div>
+
+      {!searching && (companies.data?.length ?? 0) > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-fg-muted">Empresas:</span>
+          {companies.data?.map((co) => {
+            const on = company === co.name;
+            return (
+              <button
+                key={co.name}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  setCompany(on ? null : co.name);
+                  setPage(1);
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  on
+                    ? "border-primary bg-surface-2 font-semibold text-fg"
+                    : "border-border text-fg-muted hover:bg-surface-2",
+                )}
+              >
+                {co.name}
+                <span className="text-fg-muted">{co.count}</span>
+                {on ? <X className="h-3 w-3" aria-hidden /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-lg border border-border bg-surface">
         {active.isLoading ? (
@@ -87,7 +123,9 @@ export function ContactsView({ accountId }: { accountId: string }) {
           <p className="p-8 text-center text-sm text-fg-muted">
             {searching
               ? `No hay resultados para "${trimmed}".`
-              : "No hay contactos todavía."}
+              : company
+                ? `No hay contactos en ${company}.`
+                : "No hay contactos todavía."}
           </p>
         ) : (
           <ul className="divide-y divide-border">
