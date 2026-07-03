@@ -11,6 +11,7 @@ import {
   useUpdateCampaign,
 } from "@/lib/api/campaigns";
 
+import { CampaignAnalyticsPanel } from "./campaign-analytics-panel";
 import { CampaignForm } from "./campaign-form";
 
 export function CampaignDetailView({
@@ -47,22 +48,25 @@ export function CampaignDetailView({
           No se pudo cargar la campaña.
         </p>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>{campaign.title ?? "Campaña sin título"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CampaignForm
-              accountId={accountId}
-              initial={campaign}
-              submitting={update.isPending}
-              onSubmit={handleUpdate}
-              onCancel={() =>
-                router.push(`/accounts/${accountId}/campaigns`)
-              }
-            />
-          </CardContent>
-        </Card>
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>{campaign.title ?? "Campaña sin título"}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CampaignForm
+                accountId={accountId}
+                initial={campaign}
+                submitting={update.isPending}
+                onSubmit={handleUpdate}
+                onCancel={() =>
+                  router.push(`/accounts/${accountId}/campaigns`)
+                }
+              />
+            </CardContent>
+          </Card>
+          <CampaignAnalyticsPanel accountId={accountId} displayId={displayId} />
+        </>
       )}
     </div>
   );

@@ -20,6 +20,11 @@ from app.domains.campaigns.models import (
     Campaign,
     campaign_type_from_str,
 )
+from app.domains.conversations.models import (
+    Conversation,
+    Message,
+    message_status_to_str,
+)
 from app.domains.inboxes.models import Inbox
 
 
@@ -268,8 +273,54 @@ async def destroy_campaign(
     await session.flush()
 
 
+async def campaign_analytics(
+    session: AsyncSession, *, campaign: Campaign
+) -> dict[str, Any]:
+    """Delivery metrics for one campaign.
+
+    Not a Chatwoot port (v4.13 ships no campaign-reports API) — a
+    value-add surface over two things the campaign builder writes: the
+    ``conversations.campaign_id`` column (one row per recipient reached)
+    and the ``messages.additional_attributes['campaign_id']`` stamp on
+    each outgoing campaign message (whose ``status`` carries the
+    sent/delivered/read/failed delivery state).
+    """
+    conversations_count = (
+        await session.exec(
+            select(sa_func.count())
+            .select_from(Conversation)
+            .where(
+                Conversation.account_id == campaign.account_id,
+                Conversation.campaign_id == campaign.id,
+            )
+        )
+    ).one()
+    rows = (
+        await session.exec(
+            select(Message.status, sa_func.count())
+            .where(
+                Message.account_id == campaign.account_id,
+                Message.additional_attributes["campaign_id"].astext  # type: ignore[index]
+                == str(campaign.id),
+            )
+            .group_by(Message.status)  # type: ignore[arg-type]
+        )
+    ).all()
+    delivery = {"sent": 0, "delivered": 0, "read": 0, "failed": 0}
+    for status_int, count in rows:
+        delivery[message_status_to_str(status_int)] = count
+    return {
+        "campaign_id": campaign.display_id,
+        "audience_count": len(campaign.audience or []),
+        "conversations_count": conversations_count,
+        "messages_count": sum(delivery.values()),
+        "delivery": delivery,
+    }
+
+
 __all__ = [
     "CAMPAIGN_TYPE_ONE_OFF",
+    "campaign_analytics",
     "create_campaign",
     "destroy_campaign",
     "fetch_campaign_by_display_id",

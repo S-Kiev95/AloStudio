@@ -69,6 +69,31 @@ export function useCampaign(accountId: string, displayId: number) {
   });
 }
 
+/** Per-campaign delivery metrics (conversations + message-status breakdown). */
+export type CampaignAnalytics = {
+  campaign_id: number;
+  audience_count: number;
+  conversations_count: number;
+  messages_count: number;
+  delivery: {
+    sent: number;
+    delivered: number;
+    read: number;
+    failed: number;
+  };
+};
+
+export function useCampaignAnalytics(accountId: string, displayId: number) {
+  return useQuery({
+    queryKey: ["campaign-analytics", accountId, displayId],
+    queryFn: () =>
+      apiFetch<CampaignAnalytics>(
+        `${base(accountId)}/${displayId}/analytics`,
+      ),
+    enabled: Number.isFinite(displayId),
+  });
+}
+
 function invalidate(
   qc: ReturnType<typeof useQueryClient>,
   accountId: string,
