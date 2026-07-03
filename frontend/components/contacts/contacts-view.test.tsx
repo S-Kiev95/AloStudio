@@ -43,6 +43,25 @@ const contacts = [
 ];
 
 let lastCompany: string | null = null;
+let filterPayload: unknown = null;
+
+const contactSegments = [
+  {
+    id: 10,
+    name: "VIP",
+    filter_type: "contact",
+    query: {
+      payload: [
+        {
+          attribute_key: "name",
+          filter_operator: "contains",
+          values: ["a"],
+          query_operator: "AND",
+        },
+      ],
+    },
+  },
+];
 
 const server = setupServer(
   http.get("*/contacts/companies", () =>
@@ -51,6 +70,14 @@ const server = setupServer(
       { name: "Globex", count: 1 },
     ]),
   ),
+  http.get("*/custom_filters", () => HttpResponse.json(contactSegments)),
+  http.post("*/contacts/filter", async ({ request }) => {
+    filterPayload = await request.json();
+    return HttpResponse.json({
+      meta: { count: 1, current_page: 1 },
+      payload: [contacts[0]],
+    });
+  }),
   http.get("*/contacts", ({ request }) => {
     lastCompany = new URL(request.url).searchParams.get("company");
     return HttpResponse.json({
@@ -64,6 +91,7 @@ beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
 afterEach(() => {
   server.resetHandlers();
   lastCompany = null;
+  filterPayload = null;
 });
 afterAll(() => server.close());
 
@@ -97,5 +125,43 @@ describe("ContactsView", () => {
     fireEvent.click(acme);
 
     await waitFor(() => expect(lastCompany).toBe("Acme"));
+  });
+
+  it("applies an advanced filter via the builder", async () => {
+    renderWithQuery(<ContactsView accountId="1" />);
+    await screen.findByText("Ana Lovelace");
+
+    fireEvent.click(screen.getByRole("button", { name: /Filtros/i }));
+    // Default row is name/contains; just fill the value and apply.
+    fireEvent.change(screen.getByLabelText("Valor"), {
+      target: { value: "ana" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    await waitFor(() =>
+      expect(filterPayload).toEqual({
+        payload: [
+          {
+            attribute_key: "name",
+            filter_operator: "contains",
+            values: ["ana"],
+            query_operator: "AND",
+          },
+        ],
+      }),
+    );
+  });
+
+  it("applies a saved segment when its chip is clicked", async () => {
+    renderWithQuery(<ContactsView accountId="1" />);
+
+    // Segment chips come from GET /custom_filters?filter_type=contact.
+    fireEvent.click(await screen.findByRole("button", { name: "VIP" }));
+
+    await waitFor(() =>
+      expect(filterPayload).toEqual({
+        payload: contactSegments[0].query.payload,
+      }),
+    );
   });
 });

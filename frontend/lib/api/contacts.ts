@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { Agent } from "./account";
+import type { FilterCondition } from "./conversations";
 import { apiFetch } from "./fetcher";
 
 /** Slim inbox shape returned by contactable_inboxes. */
@@ -123,6 +124,30 @@ export function useSearchContacts(
       return apiFetch<ContactsSearchPage>(`${base(accountId)}/search?${sp}`);
     },
     enabled: trimmed.length > 0,
+    placeholderData: (prev) => prev,
+  });
+}
+
+/** ``POST /contacts/filter`` — advanced filter DSL (backs segments). */
+export function useFilterContacts(
+  accountId: string,
+  conditions: FilterCondition[],
+  page = 1,
+) {
+  return useQuery({
+    queryKey: [
+      "contacts",
+      accountId,
+      "filter",
+      JSON.stringify(conditions),
+      page,
+    ],
+    queryFn: () =>
+      apiFetch<ContactsPage>(`${base(accountId)}/filter?page=${page}`, {
+        method: "POST",
+        body: JSON.stringify({ payload: conditions }),
+      }),
+    enabled: conditions.length > 0,
     placeholderData: (prev) => prev,
   });
 }

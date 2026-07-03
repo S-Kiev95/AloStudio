@@ -53,6 +53,7 @@ from app.core.deps import (
     require_admin,
 )
 from app.core.errors import ChatwootHTTPException
+from app.domains.contacts.filter import contact_filter
 from app.domains.contacts.models import Contact, ContactInbox, Note
 from app.domains.contacts.presenters import (
     _present_inbox_slim,
@@ -161,6 +162,38 @@ async def index_companies(
     """
     assert ctx.account.id is not None
     return await list_companies(session, account_id=ctx.account.id)
+
+
+@router.post("/filter")
+async def filter_contacts_endpoint(
+    body: dict[str, Any],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    page: int = Query(1, ge=1),
+) -> dict[str, Any]:
+    """``POST /contacts/filter`` — contact filter-DSL (backs segments).
+
+    Body ``{"payload": [<condition>, ...]}`` — same condition shape as the
+    conversation filter, over contact attributes. Bad payloads → 400 with
+    ``{"message": "..."}``. Declared before ``/{contact_id}`` so the literal
+    path wins the route match.
+    """
+    assert ctx.account.id is not None
+    conditions = body.get("payload")
+    if not isinstance(conditions, list):
+        raise ChatwootHTTPException(
+            status_code=400,
+            detail={"message": "payload key required and must be an array"},
+        )
+    rows, count = await contact_filter(
+        session,
+        account_id=ctx.account.id,
+        payload=conditions,
+        page=page,
+    )
+    return present_contacts_index(
+        rows, count=count, current_page=page, with_contact_inboxes=True
+    )
 
 
 @router.get("/search")

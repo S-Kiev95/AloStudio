@@ -136,8 +136,13 @@ export function useSearchConversations(
 export type FilterOperator =
   | "equal_to"
   | "not_equal_to"
+  | "contains"
+  | "does_not_contain"
+  | "starts_with"
   | "is_present"
-  | "is_not_present";
+  | "is_not_present"
+  | "is_greater_than"
+  | "is_less_than";
 
 /** One condition row of the filter DSL (mirrors the Ruby payload entry). */
 export type FilterCondition = {

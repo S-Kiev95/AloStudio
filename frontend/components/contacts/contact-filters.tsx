@@ -3,14 +3,12 @@
 import { X } from "lucide-react";
 import { useState } from "react";
 
-import { type Agent, type Label, useAgents, useLabels } from "@/lib/api/account";
-import type { FilterCondition, FilterOperator } from "@/lib/api/conversations";
-import { type Inbox, useInboxes } from "@/lib/api/inboxes";
-import { type Team, useTeams } from "@/lib/api/teams";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import type { FilterCondition, FilterOperator } from "@/lib/api/conversations";
 import { cn } from "@/lib/utils";
 
-type ValueKind = "status" | "priority" | "agent" | "inbox" | "team" | "label";
+type ValueKind = "text" | "date" | "bool";
 
 type AttrDef = {
   key: string;
@@ -19,20 +17,30 @@ type AttrDef = {
   value: ValueKind;
 };
 
-const ALL_OPS: FilterOperator[] = [
+const TEXT_OPS: FilterOperator[] = [
   "equal_to",
   "not_equal_to",
+  "contains",
+  "does_not_contain",
+  "starts_with",
   "is_present",
   "is_not_present",
 ];
+const DATE_OPS: FilterOperator[] = [
+  "is_greater_than",
+  "is_less_than",
+  "equal_to",
+];
+const BOOL_OPS: FilterOperator[] = ["equal_to"];
 
 const ATTRIBUTES: AttrDef[] = [
-  { key: "status", label: "Estado", ops: ["equal_to", "not_equal_to"], value: "status" },
-  { key: "priority", label: "Prioridad", ops: ALL_OPS, value: "priority" },
-  { key: "assignee_id", label: "Asignado a", ops: ALL_OPS, value: "agent" },
-  { key: "inbox_id", label: "Bandeja", ops: ALL_OPS, value: "inbox" },
-  { key: "team_id", label: "Equipo", ops: ALL_OPS, value: "team" },
-  { key: "labels", label: "Etiqueta", ops: ALL_OPS, value: "label" },
+  { key: "name", label: "Nombre", ops: TEXT_OPS, value: "text" },
+  { key: "email", label: "Email", ops: TEXT_OPS, value: "text" },
+  { key: "phone_number", label: "Teléfono", ops: TEXT_OPS, value: "text" },
+  { key: "identifier", label: "Identificador", ops: TEXT_OPS, value: "text" },
+  { key: "company_name", label: "Empresa", ops: TEXT_OPS, value: "text" },
+  { key: "blocked", label: "Bloqueado", ops: BOOL_OPS, value: "bool" },
+  { key: "created_at", label: "Creado", ops: DATE_OPS, value: "date" },
 ];
 
 const OP_LABELS: Record<FilterOperator, string> = {
@@ -47,24 +55,11 @@ const OP_LABELS: Record<FilterOperator, string> = {
   is_less_than: "antes de",
 };
 
-const STATUS_OPTS = [
-  { v: "open", l: "Abierta" },
-  { v: "pending", l: "Pendiente" },
-  { v: "resolved", l: "Resuelta" },
-  { v: "snoozed", l: "Pospuesta" },
-];
-const PRIORITY_OPTS = [
-  { v: "low", l: "Baja" },
-  { v: "medium", l: "Media" },
-  { v: "high", l: "Alta" },
-  { v: "urgent", l: "Urgente" },
-];
-
 const SELECT_CLS =
   "h-9 rounded-md border border-border bg-surface px-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const needsValue = (op: FilterOperator) =>
-  op === "equal_to" || op === "not_equal_to";
+  op !== "is_present" && op !== "is_not_present";
 
 type DraftRow = {
   attribute_key: string;
@@ -76,6 +71,12 @@ function attrDef(key: string): AttrDef {
   return ATTRIBUTES.find((a) => a.key === key) ?? ATTRIBUTES[0];
 }
 
+const blankRow = (): DraftRow => ({
+  attribute_key: "name",
+  filter_operator: "contains",
+  value: "",
+});
+
 function toDraft(c: FilterCondition): DraftRow {
   return {
     attribute_key: c.attribute_key,
@@ -84,28 +85,20 @@ function toDraft(c: FilterCondition): DraftRow {
   };
 }
 
-const blankRow = (): DraftRow => ({
-  attribute_key: "status",
-  filter_operator: "equal_to",
-  value: "",
-});
-
-export function ConversationFilters({
-  accountId,
+export function ContactFilters({
   initial,
   initialMatch,
   onApply,
   onClear,
   onCancel,
-  onSaveView,
+  onSaveSegment,
 }: {
-  accountId: string;
   initial: FilterCondition[];
   initialMatch: "AND" | "OR";
   onApply: (conditions: FilterCondition[], match: "AND" | "OR") => void;
   onClear: () => void;
   onCancel: () => void;
-  onSaveView: (
+  onSaveSegment: (
     name: string,
     conditions: FilterCondition[],
     match: "AND" | "OR",
@@ -117,11 +110,6 @@ export function ConversationFilters({
   const [match, setMatch] = useState<"AND" | "OR">(initialMatch);
   const [saveName, setSaveName] = useState("");
 
-  const agents = useAgents(accountId);
-  const inboxes = useInboxes(accountId);
-  const teams = useTeams(accountId);
-  const labels = useLabels(accountId);
-
   function updateRow(i: number, patch: Partial<DraftRow>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
@@ -130,7 +118,9 @@ export function ConversationFilters({
     updateRow(i, { attribute_key: key, filter_operator: def.ops[0], value: "" });
   }
   function removeRow(i: number) {
-    setRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== i)));
+    setRows((prev) =>
+      prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== i),
+    );
   }
 
   function buildConditions(): FilterCondition[] {
@@ -161,7 +151,7 @@ export function ConversationFilters({
     const name = saveName.trim();
     const conds = buildConditions();
     if (!name || conds.length === 0) return;
-    onSaveView(name, conds, match);
+    onSaveSegment(name, conds, match);
     setSaveName("");
   }
 
@@ -204,10 +194,6 @@ export function ConversationFilters({
                 def={def}
                 value={row.value}
                 onChange={(v) => updateRow(i, { value: v })}
-                agents={agents.data ?? []}
-                inboxes={inboxes.data ?? []}
-                teams={teams.data ?? []}
-                labels={labels.data ?? []}
               />
             ) : null}
             <button
@@ -277,8 +263,8 @@ export function ConversationFilters({
           type="text"
           value={saveName}
           onChange={(e) => setSaveName(e.target.value)}
-          placeholder="Guardar como vista…"
-          aria-label="Nombre de la vista"
+          placeholder="Guardar como segmento…"
+          aria-label="Nombre del segmento"
           className={cn(SELECT_CLS, "min-w-[10rem] flex-1")}
         />
         <Button
@@ -288,7 +274,7 @@ export function ConversationFilters({
           onClick={save}
           disabled={!saveName.trim() || buildConditions().length === 0}
         >
-          Guardar vista
+          Guardar segmento
         </Button>
       </div>
     </div>
@@ -306,44 +292,32 @@ function ValueControl({
   def,
   value,
   onChange,
-  agents,
-  inboxes,
-  teams,
-  labels,
 }: {
   def: AttrDef;
   value: string;
   onChange: (v: string) => void;
-  agents: Agent[];
-  inboxes: Inbox[];
-  teams: Team[];
-  labels: Label[];
 }) {
-  let options: { v: string; l: string }[] = [];
-  if (def.value === "status") options = STATUS_OPTS;
-  else if (def.value === "priority") options = PRIORITY_OPTS;
-  else if (def.value === "agent")
-    options = agents.map((a) => ({ v: String(a.id), l: a.name }));
-  else if (def.value === "inbox")
-    options = inboxes.map((i) => ({ v: String(i.id), l: i.name }));
-  else if (def.value === "team")
-    options = teams.map((t) => ({ v: String(t.id), l: t.name }));
-  else if (def.value === "label")
-    options = labels.map((l) => ({ v: l.title, l: l.title }));
-
+  if (def.value === "bool") {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label="Valor"
+        className={SELECT_CLS}
+      >
+        <option value="">Seleccionar…</option>
+        <option value="true">Sí</option>
+        <option value="false">No</option>
+      </select>
+    );
+  }
   return (
-    <select
+    <Input
+      type={def.value === "date" ? "date" : "text"}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label="Valor"
-      className={SELECT_CLS}
-    >
-      <option value="">Seleccionar…</option>
-      {options.map((o) => (
-        <option key={o.v} value={o.v}>
-          {o.l}
-        </option>
-      ))}
-    </select>
+      className="h-9 w-auto"
+    />
   );
 }
