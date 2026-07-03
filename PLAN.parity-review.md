@@ -98,7 +98,7 @@ Landed in v2.1 (`fe.14a`) + v2.2 (`fe.14b`).
 | Merge | ✅ | ✅ | Pick "merge target" dialog from the detail header. |
 | Inline panel in conversation | ✅ | ✅ | Right-hand panel in conversation detail (fe.14b). |
 | Companies | ✅ | ✅ | Roll-up over `additional_attributes.company_name` (`GET /contacts/companies`) + company chips that filter the list via `?company=`. Chatwoot ships no Company model either — same derived approach. |
-| Segments (saved contact filters) | ✅ | ⚠️ | `CustomView` supports `filter_type: contact`, but the contact filter DSL + segments UI aren't wired (contacts index defers the sort/filter DSL). ⏸. |
+| Segments (saved contact filters) | ✅ | ✅ | `POST /contacts/filter` (contact filter DSL over name/email/phone/identifier/company_name/blocked/created_at) + a "Filtros" builder and saved segment chips backed by `CustomView(filter_type: contact)`. |
 
 ---
 
@@ -262,34 +262,32 @@ These aren't gaps — they're explicit divergences from Chatwoot.
 **The original 10 quick-wins are all shipped** (run-macro-on-conversation,
 portal locale picker, profile/security pages, notification bell, agent
 invitations, generic inbox CRUD, bulk-actions toolbar, saved views,
-per-entity report drill-downs, public Help Center search).
+per-entity report drill-downs, public Help Center search). **Contacts
+segments** shipped too (contact filter DSL + saved segments).
 
 What genuinely remains, grouped by what blocks it:
 
 **Shippable now (no external dependency):**
 
-1. **Contacts segments.** Saved contact filters (`CustomView` already
-   supports `filter_type: contact`) — needs the contact filter DSL (the
-   contacts index still defers sort/filter) + a segments UI. ~2-3 days.
-2. **Article logo / agent avatar uploads.** The MinIO SigV4 upload
+1. **Article logo / agent avatar uploads.** The MinIO SigV4 upload
    pipeline now exists (composer + widget use it); wiring it to an
    article-logo / `users.avatar_url` column is the remaining work. ~1 day.
 
 **Blocked on external credentials:**
 
-3. **Integrations OAuth callback.** Per-vendor `code → token` exchange +
+2. **Integrations OAuth callback.** Per-vendor `code → token` exchange +
    hook creation (Slack, Linear, Shopify). The Connect *start* is wired;
    the return leg needs registered provider apps + secrets. Per vendor.
 
 **Blocked on a backend port:**
 
-4. **Bot / SLA / conversation-traffic reports** — those metrics were
+3. **Bot / SLA / conversation-traffic reports** — those metrics were
    skipped in backend Phase 7.
-5. **Assignment policy / SLA** — `AssignmentPolicy` + `SLA` not ported.
-6. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
-7. **Web-push notification delivery** — the email worker shipped; a
+4. **Assignment policy / SLA** — `AssignmentPolicy` + `SLA` not ported.
+5. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
+6. **Web-push notification delivery** — the email worker shipped; a
    web-push worker would enforce the push preference column.
-8. **Article embeddings (pgvector)** — backend Phase 10.
+7. **Article embeddings (pgvector)** — backend Phase 10.
 
 ---
 
