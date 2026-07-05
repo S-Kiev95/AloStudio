@@ -23,6 +23,7 @@ export type Portal = {
   homepage_link: string | null;
   page_title: string | null;
   header_text: string | null;
+  logo: string | null;
   config: Record<string, unknown>;
   archived: boolean;
 };
@@ -66,6 +67,7 @@ export type PortalInput = {
   homepage_link?: string | null;
   page_title?: string | null;
   header_text?: string | null;
+  logo?: string | null;
   archived?: boolean;
 };
 

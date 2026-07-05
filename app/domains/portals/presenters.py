@@ -23,6 +23,7 @@ def present_portal(portal: Portal) -> dict[str, Any]:
         "homepage_link": portal.homepage_link,
         "page_title": portal.page_title,
         "header_text": portal.header_text,
+        "logo": portal.logo,
         "config": portal.config or {},
         "archived": portal.archived,
     }

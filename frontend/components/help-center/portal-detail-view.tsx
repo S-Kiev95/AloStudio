@@ -66,14 +66,25 @@ export function PortalDetailView({
       ) : (
         <>
           <div className="flex items-center gap-3">
-            <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
-              style={{ backgroundColor: portal.color ?? "#1f93ff" }}
-            >
-              <span className="text-lg font-semibold">
-                {portal.name.slice(0, 1).toUpperCase()}
+            {portal.logo ? (
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={portal.logo}
+                  alt={portal.name}
+                  className="h-full w-full object-cover"
+                />
               </span>
-            </span>
+            ) : (
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
+                style={{ backgroundColor: portal.color ?? "#1f93ff" }}
+              >
+                <span className="text-lg font-semibold">
+                  {portal.name.slice(0, 1).toUpperCase()}
+                </span>
+              </span>
+            )}
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-xl font-semibold text-fg">
                 {portal.name}
@@ -136,6 +147,7 @@ export function PortalDetailView({
               </CardHeader>
               <CardContent>
                 <PortalForm
+                  accountId={accountId}
                   initial={portal}
                   submitting={update.isPending}
                   onSubmit={handleUpdate}

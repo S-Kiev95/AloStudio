@@ -398,3 +398,39 @@ async def test_article_index_search_by_query(client, db_session):
     rows = (await client.get(f"{base}?query=refund", headers=headers)).json()
     # Draft (title match) + published (content match); the draft is kept.
     assert sorted(a["slug"] for a in rows) == ["qsrch-onboard", "qsrch-refund"]
+
+
+async def test_portal_logo_set_update_and_clear(client, db_session):
+    owner, headers = await _seed_admin(db_session, "-logo")
+    base = f"/api/v1/accounts/{owner.account.id}/portals"
+
+    created = await client.post(
+        base,
+        json={
+            "portal": {
+                "name": "Docs",
+                "slug": "docs-logo",
+                "logo": "https://cdn.example.com/logo.png",
+            }
+        },
+        headers=headers,
+    )
+    assert created.status_code == 200, created.text
+    assert created.json()["logo"] == "https://cdn.example.com/logo.png"
+
+    upd = await client.patch(
+        f"{base}/docs-logo",
+        json={"portal": {"logo": "https://cdn.example.com/new.png"}},
+        headers=headers,
+    )
+    assert upd.status_code == 200, upd.text
+    assert upd.json()["logo"] == "https://cdn.example.com/new.png"
+
+    # Empty string clears the logo (stored as NULL).
+    cleared = await client.patch(
+        f"{base}/docs-logo",
+        json={"portal": {"logo": ""}},
+        headers=headers,
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["logo"] is None

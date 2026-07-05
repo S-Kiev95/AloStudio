@@ -1,19 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { Image as ImageIcon } from "lucide-react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Portal, PortalInput } from "@/lib/api/portals";
+import { uploadAttachment } from "@/lib/api/uploads";
 
 export function PortalForm({
+  accountId,
   initial,
   submitting,
   onSubmit,
   onCancel,
 }: {
+  accountId: string;
   initial?: Portal;
   submitting?: boolean;
   onSubmit: (input: PortalInput) => Promise<void> | void;
@@ -27,7 +31,28 @@ export function PortalForm({
   const [pageTitle, setPageTitle] = useState(initial?.page_title ?? "");
   const [headerText, setHeaderText] = useState(initial?.header_text ?? "");
   const [archived, setArchived] = useState(initial?.archived ?? false);
+  const [logo, setLogo] = useState(initial?.logo ?? "");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+
+  async function onPickLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError(null);
+    setUploadingLogo(true);
+    try {
+      const up = await uploadAttachment(accountId, file);
+      setLogo(up.external_url);
+    } catch (err) {
+      setError(
+        (err as { message?: string })?.message ?? "No se pudo subir el logo.",
+      );
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
 
   async function submit() {
     setError(null);
@@ -41,6 +66,7 @@ export function PortalForm({
         homepage_link: homepageLink.trim() || null,
         page_title: pageTitle.trim() || null,
         header_text: headerText.trim() || null,
+        logo: logo.trim() || null,
         archived,
       });
     } catch (e) {
@@ -113,6 +139,54 @@ export function PortalForm({
             onChange={(e) => setCustomDomain(e.target.value)}
             placeholder="ayuda.midominio.com"
           />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Logo</Label>
+        <div className="flex items-center gap-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2 text-fg-muted">
+            {logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logo}
+                alt="Logo del portal"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <ImageIcon className="h-6 w-6" aria-hidden />
+            )}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <input
+              ref={logoRef}
+              type="file"
+              accept="image/*"
+              onChange={onPickLogo}
+              className="hidden"
+              aria-label="Subir logo"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => logoRef.current?.click()}
+              loading={uploadingLogo}
+            >
+              Subir logo
+            </Button>
+            {logo ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setLogo("")}
+                disabled={uploadingLogo}
+              >
+                Quitar
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
 

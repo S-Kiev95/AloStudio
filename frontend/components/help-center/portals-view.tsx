@@ -47,6 +47,7 @@ export function PortalsView({ accountId }: { accountId: string }) {
           </CardHeader>
           <CardContent>
             <PortalForm
+              accountId={accountId}
               submitting={create.isPending}
               onSubmit={handleCreate}
               onCancel={() => setCreating(false)}

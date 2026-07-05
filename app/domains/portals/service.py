@@ -96,6 +96,7 @@ async def create_portal(
         homepage_link=payload.get("homepage_link"),
         page_title=payload.get("page_title"),
         header_text=payload.get("header_text"),
+        logo=payload.get("logo"),
         config=payload.get("config") or {"allowed_locales": ["en"]},
     )
     session.add(portal)
@@ -128,9 +129,12 @@ async def update_portal(
         "homepage_link",
         "page_title",
         "header_text",
+        "logo",
     ):
         if key in payload:
-            setattr(portal, key, payload.get(key))
+            # Empty string clears the field (logo maps back to NULL).
+            value = payload.get(key)
+            setattr(portal, key, value if value != "" or key != "logo" else None)
     if "config" in payload:
         config = payload.get("config")
         if config is not None and not isinstance(config, dict):

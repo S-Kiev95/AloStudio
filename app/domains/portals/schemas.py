@@ -17,6 +17,7 @@ class PortalBody(BaseModel):
     homepage_link: str | None = None
     page_title: str | None = None
     header_text: str | None = None
+    logo: str | None = None
     config: dict[str, Any] | None = None
     archived: bool | None = None
 

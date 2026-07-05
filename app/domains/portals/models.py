@@ -99,6 +99,12 @@ class Portal(TimestampMixin, table=True):
     header_text: str | None = Field(
         default=None, sa_column=Column(Text, nullable=True)
     )
+    # Portal logo — URL of an uploaded image (our MinIO/S3 pipeline).
+    # Chatwoot models this as an ActiveStorage attachment; we store the
+    # resolved URL directly, set via the portal update after a direct upload.
+    logo: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
     config: dict = Field(
         default_factory=lambda: {"allowed_locales": ["en"]},
         sa_column=Column(
