@@ -132,12 +132,11 @@ on the backend porting those metrics.
 | Public Help Center site | ✅ | ✅ 🚀 | We ship our own SSG/ISR version (`/hc/<slug>` with `revalidate=300`), with `react-markdown` + remark-gfm + `robots.txt`. Chatwoot's is a Rails-rendered HTML view; ours is more SEO-friendly. |
 | Article search (dashboard + public) | ✅ | ✅ | ILIKE search over title/description/content — a debounced box in the dashboard `ArticlesPanel` and `?query=` on the public `/hc/<slug>/articles` endpoint. |
 | Article embeddings (pgvector) | ✅ enterprise | ❌ | Backend `portals/router.py` notes this is Phase 10 deferred. ⏸. |
-| Logo upload | ✅ | ❌ | The MinIO upload pipeline is wired (agent avatars use it); the portal needs a `logo` column + upload control. ⏸ (§12 #1). |
+| Logo upload | ✅ | ✅ | `portals.logo` + a Logo field in the portal form (uploads via the MinIO pipeline); the detail header shows it. |
 
-**Verdict:** admin CRUD + public site + locale picker + article search =
-parity. Remaining: the portal `logo` upload (the upload pipeline itself now
-works — agent avatars use it — so it's just the column + control) and
-pgvector article embeddings (backend Phase 10).
+**Verdict:** admin CRUD + public site + locale picker + article search +
+logo upload = parity. The only remaining item is pgvector article
+embeddings (backend Phase 10).
 
 ---
 
@@ -263,31 +262,25 @@ These aren't gaps — they're explicit divergences from Chatwoot.
 portal locale picker, profile/security pages, notification bell, agent
 invitations, generic inbox CRUD, bulk-actions toolbar, saved views,
 per-entity report drill-downs, public Help Center search). **Contacts
-segments** shipped too (contact filter DSL + saved segments).
-
-What genuinely remains, grouped by what blocks it:
-
-**Shippable now (no external dependency):**
-
-1. **Portal / article logo upload.** The MinIO SigV4 pipeline is now wired
-   to it for **agent avatars** (`users.avatar_url` + the profile page); the
-   remaining piece is a `portals.logo` column + upload control. ~half a day.
+segments**, **agent avatars**, and **portal logos** shipped too — the
+"shippable now" bucket is now empty; every remaining item is gated on an
+external credential or a backend port.
 
 **Blocked on external credentials:**
 
-2. **Integrations OAuth callback.** Per-vendor `code → token` exchange +
+1. **Integrations OAuth callback.** Per-vendor `code → token` exchange +
    hook creation (Slack, Linear, Shopify). The Connect *start* is wired;
    the return leg needs registered provider apps + secrets. Per vendor.
 
 **Blocked on a backend port:**
 
-3. **Bot / SLA / conversation-traffic reports** — those metrics were
+2. **Bot / SLA / conversation-traffic reports** — those metrics were
    skipped in backend Phase 7.
-4. **Assignment policy / SLA** — `AssignmentPolicy` + `SLA` not ported.
-5. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
-6. **Web-push notification delivery** — the email worker shipped; a
+3. **Assignment policy / SLA** — `AssignmentPolicy` + `SLA` not ported.
+4. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
+5. **Web-push notification delivery** — the email worker shipped; a
    web-push worker would enforce the push preference column.
-7. **Article embeddings (pgvector)** — backend Phase 10.
+6. **Article embeddings (pgvector)** — backend Phase 10.
 
 ---
 
@@ -302,9 +295,9 @@ What genuinely remains, grouped by what blocks it:
 * **Captain AI** — conceptual overlap with MCP; defer.
 * **SLA / Assignment policy** — backend not ported (§12 #4).
 * **Article embeddings (pgvector)** — backend Phase 10 (§12 #7).
-* **File uploads on articles / agent avatars** — the MinIO SigV4 upload
-  pipeline is wired for message/widget attachments **and agent avatars**;
-  only the portal `logo` column wiring remains (§12 #1).
+* ~~**File uploads (attachments / agent avatars / portal logos)**~~ — the
+  MinIO SigV4 pipeline is wired for message + widget attachments, agent
+  avatars, and portal logos. **Done.**
 
 ---
 
@@ -326,11 +319,11 @@ The honest gaps **after the 2026-07-03 batch** are:
   analytics, Help Center locale + search, canned responses~~ — **closed
   this batch.**
 
-What's left is now **narrow and mostly dependency-gated** (see §12): the
-portal `logo` upload (shippable — the upload pipeline works), the integrations
-OAuth callback (needs provider credentials), and a handful of report/policy
-types + web-push that wait on backend ports. The indefinitely-deferred set
-(Captain AI, enterprise audit/roles/SSO, SaaS billing) is unchanged.
+What's left is now **entirely dependency-gated** (see §12): the "shippable
+now" bucket is empty. The integrations OAuth callback needs provider
+credentials; a handful of report/policy types + WhatsApp + web-push wait on
+backend ports. The indefinitely-deferred set (Captain AI, enterprise
+audit/roles/SSO, SaaS billing) is unchanged.
 
 **Net result:** an end user moving from Chatwoot finds every common **and**
 most power-user features where they expect them; the remaining gaps are at
