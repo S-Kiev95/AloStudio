@@ -202,7 +202,8 @@ Landed in v2.5 (`be.notifications`) + v2.6 (`fe.14d`).
 | Topbar bell + badge + dropdown | ✅ | ✅ | `components/shell/notification-bell.tsx` — unread count poll + live invalidation. Mark-read / delete / mark-all-read actions. |
 | Full inbox page | ✅ | ✅ | `/accounts/{id}/notifications` — paginated with all/unread filter tabs. |
 | Email delivery worker | ✅ | ✅ | ARQ task sends the notification email (aiosmtplib → MailHog in dev), gated on the user's email preference. |
-| Per-user preferences | ✅ | ⚠️ | `settings/notifications` — checkbox matrix (5 types × email/push). The **email** column is now enforced by the delivery worker; **push** (web-push) delivery is still deferred, so those toggles are wired-but-inert until a push worker lands. |
+| Web-push delivery worker | ✅ | ✅ | Hand-rolled RFC 8291 / VAPID crypto (`app/core/webpush.py`, verified vs the RFC test vector) + a `NotificationSubscription` model + an ARQ send task + a service-worker toggle. Needs `VAPID_*` env keys configured (else it no-ops). |
+| Per-user preferences | ✅ | ✅ | `settings/notifications` — checkbox matrix (5 types × email/push); both columns are now enforced by their delivery workers. |
 
 ---
 
@@ -278,9 +279,10 @@ external credential or a backend port.
    skipped in backend Phase 7.
 3. **Assignment policy / SLA** — `AssignmentPolicy` + `SLA` not ported.
 4. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
-5. **Web-push notification delivery** — the email worker shipped; a
-   web-push worker would enforce the push preference column.
-6. **Article embeddings (pgvector)** — backend Phase 10.
+5. **Article embeddings (pgvector)** — backend Phase 10.
+
+(Web-push notification delivery shipped — RFC 8291 + VAPID; needs
+``VAPID_*`` keys configured.)
 
 ---
 
@@ -321,8 +323,8 @@ The honest gaps **after the 2026-07-03 batch** are:
 
 What's left is now **entirely dependency-gated** (see §12): the "shippable
 now" bucket is empty. The integrations OAuth callback needs provider
-credentials; a handful of report/policy types + WhatsApp + web-push wait on
-backend ports. The indefinitely-deferred set (Captain AI, enterprise
+credentials; a handful of report/policy types + WhatsApp + pgvector embeddings
+wait on backend ports. The indefinitely-deferred set (Captain AI, enterprise
 audit/roles/SSO, SaaS billing) is unchanged.
 
 **Net result:** an end user moving from Chatwoot finds every common **and**
