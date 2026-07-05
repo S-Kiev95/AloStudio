@@ -54,6 +54,7 @@ from app.domains.notifications.models import (
     Notification,
 )
 from app.domains.notifications.presenters import present_notification
+from app.domains.notifications.push import enqueue_notification_push
 from app.domains.notifications.service import create_notification
 from app.domains.users.models import User
 
@@ -197,11 +198,12 @@ async def _broadcast_created(
     ``app/domains/conversations/listeners.py``'s broadcaster pattern);
     we publish to that single channel rather than an account-wide one
     so an admin watching multiple accounts doesn't get cross-talk."""
-    # Email side-effect — a best-effort ARQ enqueue that runs regardless of
-    # whether the recipient currently has a live cable connection for the
-    # badge (the send task re-checks the user's email subscription).
+    # Email + web-push side-effects — best-effort ARQ enqueues that run
+    # regardless of whether the recipient has a live cable connection for the
+    # badge (each send task re-checks the user's own subscription preference).
     if notification.id is not None:
         await enqueue_notification_email(notification.id)
+        await enqueue_notification_push(notification.id)
 
     user = await session.get(User, notification.user_id)
     if user is None or not user.pubsub_token:

@@ -57,6 +57,14 @@ class Settings(BaseSettings):
     slack_client_id: str | None = None
     linear_client_id: str | None = None
 
+    # --- web push (VAPID)
+    # Generate a keypair once with ``app.core.webpush.generate_vapid_keys()``
+    # and set these via env. Empty ``vapid_private_key`` disables web-push
+    # delivery (the send task no-ops and the frontend hides the toggle).
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:ops@alostudio.local"
+
     # --- storage
     storage_backend: Literal["s3", "local"] = "s3"
     s3_endpoint_url: str = "http://localhost:9100"

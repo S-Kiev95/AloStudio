@@ -187,7 +187,57 @@ class NotificationSetting(TimestampMixin, table=True):
     )
 
 
+# ---------------------------------------------------------------------------
+# NotificationSubscription — a registered browser Push API endpoint
+# ---------------------------------------------------------------------------
+NOTIFICATION_SUBSCRIPTION_BROWSER_PUSH = 1
+NOTIFICATION_SUBSCRIPTION_FCM = 2
+
+
+class NotificationSubscription(TimestampMixin, table=True):
+    """A push endpoint the user's browser registered (RFC 8291 web push).
+
+    Ported from ``reference/chatwoot/app/models/notification_subscription.rb``.
+    ``identifier`` is the (unique) push endpoint URL; ``subscription_attributes``
+    holds the full browser ``PushSubscription`` JSON
+    (``{endpoint, keys: {p256dh, auth}}``). We only implement
+    ``browser_push`` (type 1); FCM (2) stays unported.
+    """
+
+    __tablename__ = "notification_subscriptions"
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    user_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    identifier: str = Field(
+        sa_column=Column(String, nullable=False, unique=True),
+    )
+    subscription_type: int = Field(
+        default=NOTIFICATION_SUBSCRIPTION_BROWSER_PUSH,
+        sa_column=Column(
+            Integer,
+            nullable=False,
+            server_default=str(NOTIFICATION_SUBSCRIPTION_BROWSER_PUSH),
+        ),
+    )
+    subscription_attributes: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON, nullable=False),
+    )
+
+
 __all__ = [
+    "NOTIFICATION_SUBSCRIPTION_BROWSER_PUSH",
+    "NOTIFICATION_SUBSCRIPTION_FCM",
     "NOTIFICATION_TYPE_ASSIGNED_CONVERSATION_NEW_MESSAGE",
     "NOTIFICATION_TYPE_CONVERSATION_ASSIGNMENT",
     "NOTIFICATION_TYPE_CONVERSATION_CREATION",
@@ -198,6 +248,7 @@ __all__ = [
     "NOTIFICATION_TYPE_SLA_MISSED_RESOLUTION",
     "Notification",
     "NotificationSetting",
+    "NotificationSubscription",
     "notification_type_from_str",
     "notification_type_to_str",
 ]

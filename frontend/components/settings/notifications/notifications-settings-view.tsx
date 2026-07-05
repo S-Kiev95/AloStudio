@@ -13,6 +13,8 @@ import {
 } from "@/lib/api/notifications";
 import { cn } from "@/lib/utils";
 
+import { PushToggle } from "./push-toggle";
+
 /**
  * Per-user notification preferences. Two checkbox columns (email / push)
  * × N notification types; toggling persists on save via
@@ -74,10 +76,19 @@ export function NotificationsSettingsView({
         app. La campanita del topbar muestra todas, independiente de esto.
       </p>
       <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-fg-muted">
-        Nota: el envío por email y push todavía no está activo — estas
-        preferencias se guardan y se aplicarán cuando se habilite la entrega.
-        La campanita en la app funciona ahora mismo.
+        El email se envía cuando activás un evento en la columna Email. Para
+        recibir push en este dispositivo, activalo abajo y marcá los eventos en
+        la columna Push. La campanita en la app funciona siempre.
       </p>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Este dispositivo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PushToggle />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

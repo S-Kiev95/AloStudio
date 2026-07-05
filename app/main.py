@@ -54,6 +54,9 @@ from app.domains.notifications.router import (
 from app.domains.notifications.router import (
     settings_router as notification_settings_router,
 )
+from app.domains.notifications.subscriptions_router import (
+    router as notification_subscriptions_router,
+)
 from app.domains.portals.public_router import public_router as portals_public_router
 from app.domains.portals.router import router as portals_router
 from app.domains.products.router import router as products_router
@@ -259,6 +262,9 @@ def create_app() -> FastAPI:
     # cable channel emits notification.created for live updates.
     app.include_router(notifications_router)
     app.include_router(notification_settings_router)
+    # Web-push subscriptions (RFC 8291) — the current user's browser push
+    # endpoints + the VAPID public key the browser subscribes with.
+    app.include_router(notification_subscriptions_router)
     # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
     # last so HTTP routes take precedence in any path-overlap edge.
     app.include_router(cable_router)
