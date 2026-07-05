@@ -199,7 +199,7 @@ def present_agent(
         "available_name": user.display_name or user.name,
         "name": user.name,
         "role": _account_user_role_for(user, account_id),
-        "thumbnail": "",
+        "thumbnail": getattr(user, "avatar_url", None) or "",
     }
     if user.custom_attributes:
         body["custom_attributes"] = user.custom_attributes

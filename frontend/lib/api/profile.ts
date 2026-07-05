@@ -15,6 +15,7 @@ export type ProfileUser = {
   email: string;
   available_name?: string;
   display_name?: string | null;
+  avatar_url?: string | null;
   message_signature?: string | null;
   pubsub_token?: string;
   ui_settings?: Record<string, unknown>;
@@ -36,6 +37,7 @@ export type ProfileUpdateInput = {
   name?: string;
   email?: string;
   display_name?: string | null;
+  avatar_url?: string | null;
   message_signature?: string | null;
   phone_number?: string | null;
 };

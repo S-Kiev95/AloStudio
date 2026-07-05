@@ -26,14 +26,13 @@ from app.domains.users.models import (
 
 
 def _avatar_url(user: User) -> str:
-    """Stand-in for Rails ``Avatarable#avatar_url``.
+    """Port of Rails ``Avatarable#avatar_url``.
 
-    Chatwoot's helper returns the stored ActiveStorage URL or a Gravatar
-    URL built from the email. For Phase 1 we return an empty string —
-    matches Chatwoot's behaviour for users without an uploaded avatar and
-    without Gravatar configured.
+    Returns the user's uploaded avatar URL (our MinIO/S3 pipeline) when set.
+    Chatwoot additionally falls back to a Gravatar URL built from the email;
+    we don't (no Gravatar dependency) — an unset avatar returns ``""``.
     """
-    return ""
+    return user.avatar_url or ""
 
 
 def _available_name(user: User) -> str:

@@ -48,6 +48,7 @@ class _ProfileAttrs(BaseModel):
     name: str | None = None
     display_name: str | None = None
     message_signature: str | None = None
+    avatar_url: str | None = None
     ui_settings: dict | None = None
     # password rotation
     current_password: str | None = None
@@ -127,6 +128,9 @@ async def update_profile(
         user.display_name = attrs.display_name
     if attrs.message_signature is not None:
         user.message_signature = attrs.message_signature
+    if attrs.avatar_url is not None:
+        # Empty string clears the avatar (the presenter maps None → "").
+        user.avatar_url = attrs.avatar_url or None
     if attrs.ui_settings is not None:
         # Rails behaviour: `json.ui_settings resource.ui_settings` serialises
         # the full hash, and `assign_attributes(ui_settings: ...)` replaces

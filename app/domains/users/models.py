@@ -121,6 +121,13 @@ class User(TimestampMixin, table=True):
     name: str = Field(sa_column=Column(String, nullable=False))
     display_name: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     message_signature: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    # Avatar — the URL of an uploaded image (our MinIO/S3 pipeline). Chatwoot
+    # uses an ActiveStorage attachment + ``Avatarable#avatar_url``; we store
+    # the resolved URL directly, set via the profile update after a direct
+    # upload. ``None`` → the presenter falls back to an empty string.
+    avatar_url: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
 
     # devise-token-auth persistent session tokens (JSON blob keyed by client id).
     # For Phase 1 we keep the column for schema parity but don't serialise into

@@ -190,3 +190,43 @@ async def test_update_profile_merges_custom_attributes(client, authed, db_sessio
         await db_session.exec(select(User).where(User.id == user.id))
     ).one()
     assert fresh.custom_attributes == {"industry": "saas", "phone_number": "+1-555-0100"}
+
+
+async def test_update_profile_sets_and_clears_avatar(client, authed, db_session):
+    user, headers = authed
+    url = "https://cdn.example.com/avatars/me.png"
+    resp = await client.put(
+        "/api/v1/profile", headers=headers, json={"profile": {"avatar_url": url}}
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["avatar_url"] == url
+    await db_session.refresh(user)
+    assert user.avatar_url == url
+
+    # An empty string clears the avatar (stored as NULL, presented as "").
+    cleared = await client.put(
+        "/api/v1/profile", headers=headers, json={"profile": {"avatar_url": ""}}
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["data"]["avatar_url"] == ""
+    await db_session.refresh(user)
+    assert user.avatar_url is None
+
+
+async def test_avatar_surfaces_as_agent_thumbnail(client, authed):
+    user, headers = authed
+    url = "https://cdn.example.com/avatars/me.png"
+    await client.put(
+        "/api/v1/profile", headers=headers, json={"profile": {"avatar_url": url}}
+    )
+    profile = (
+        await client.get("/api/v1/profile", headers=headers)
+    ).json()["data"]
+    account_id = profile["accounts"][0]["id"]
+    agents = (
+        await client.get(
+            f"/api/v1/accounts/{account_id}/agents", headers=headers
+        )
+    ).json()
+    me = next(a for a in agents if a["id"] == user.id)
+    assert me["thumbnail"] == url
