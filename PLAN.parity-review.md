@@ -112,11 +112,12 @@ Landed in v2.1 (`fe.14a`) + v2.2 (`fe.14b`).
 | Agent / Team / Inbox / Label reports | ✅ | ✅ | Per-entity drill-down tables under the "Desglose" scope switcher. |
 | Report export (CSV) | ✅ | ✅ | Per-entity summary download (`/summary_reports/{scope}/export?format=csv`), UTF-8 BOM for Excel. |
 | Report export (Excel .xlsx) | ✅ | ✅ 🚀 | Same endpoint, `format=xlsx` — a dependency-free hand-rolled single-sheet workbook. Chatwoot only offers CSV. |
-| Bot / SLA / Conversation-traffic | ✅ | ❌ | Chatwoot has these; backend skipped them in Phase 7. ⏸ until backend ports. |
+| Conversation-traffic heatmap | ✅ | ✅ | `GET /reports/conversation_traffic` — conversations by (local date × hour-of-day), rendered as a heatmap. Derived from `conversations.created_at`. |
+| Bot / SLA reports | ✅ | ❌ | Chatwoot has these; the metrics were skipped in backend Phase 7 (bot needs bot-handling tracking, SLA needs the SLA feature). ⏸ until backend ports. |
 
-**Verdict:** overview + per-entity drill-downs + CSV/Excel export = parity
-(export exceeds it). Only the Bot/SLA/traffic report types remain, blocked
-on the backend porting those metrics.
+**Verdict:** overview + per-entity drill-downs + CSV/Excel export + the
+conversation-traffic heatmap = parity (export exceeds it). Only the Bot + SLA
+report types remain, blocked on the backend porting those metrics.
 
 ---
 
@@ -275,14 +276,14 @@ external credential or a backend port.
 
 **Blocked on a backend port:**
 
-2. **Bot / SLA / conversation-traffic reports** — those metrics were
-   skipped in backend Phase 7.
+2. **Bot / SLA reports** — bot-handling tracking + the SLA feature aren't
+   ported (Phase 7 skip). The conversation-traffic report shipped.
 3. **Assignment policy / SLA** — `AssignmentPolicy` + `SLA` not ported.
 4. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
 5. **Article embeddings (pgvector)** — backend Phase 10.
 
-(Web-push notification delivery shipped — RFC 8291 + VAPID; needs
-``VAPID_*`` keys configured.)
+(Shipped recently: web-push delivery — RFC 8291 + VAPID, needs ``VAPID_*``
+keys; conversation-traffic heatmap.)
 
 ---
 
