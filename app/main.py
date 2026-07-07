@@ -16,6 +16,12 @@ from app.domains.agent_bots.router import (
 from app.domains.agent_bots.router import (
     router as agent_bots_router,
 )
+from app.domains.assignment_policies.router import (
+    inbox_router as inbox_assignment_policy_router,
+)
+from app.domains.assignment_policies.router import (
+    router as assignment_policies_router,
+)
 from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
 from app.domains.automation.router import router as automation_rules_router
@@ -265,6 +271,11 @@ def create_app() -> FastAPI:
     # Web-push subscriptions (RFC 8291) — the current user's browser push
     # endpoints + the VAPID public key the browser subscribes with.
     app.include_router(notification_subscriptions_router)
+    # Assignment policies (auto-assignment config). admin-only CRUD +
+    # the singular per-inbox link (one policy per inbox). Runtime
+    # enforcement of the fair-distribution cap is a follow-up stage.
+    app.include_router(assignment_policies_router)
+    app.include_router(inbox_assignment_policy_router)
     # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
     # last so HTTP routes take precedence in any path-overlap edge.
     app.include_router(cable_router)

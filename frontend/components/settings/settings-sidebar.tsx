@@ -36,6 +36,12 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     done: true,
   },
   {
+    segment: "assignment_policies",
+    label: "Políticas de asignación",
+    milestone: "v2",
+    done: true,
+  },
+  {
     segment: "canned_responses",
     label: "Respuestas predefinidas",
     milestone: "F.9c",
