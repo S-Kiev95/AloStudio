@@ -37,6 +37,9 @@ const server = setupServer(
     HttpResponse.json({ open: 5, unattended: 2, unassigned: 1, pending: 3 }),
   ),
   http.get("*/reports/summary", () => HttpResponse.json(summary)),
+  http.get("*/reports/conversation_traffic", () =>
+    HttpResponse.json({ timezone_offset: 0, data: [] }),
+  ),
   http.get("*/reports", () =>
     HttpResponse.json([
       { value: 10, timestamp: 1_700_000_000 },

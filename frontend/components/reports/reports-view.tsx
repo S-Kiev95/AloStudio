@@ -11,6 +11,7 @@ import {
   TIMESERIES_METRICS,
   rangeForDays,
   summaryExportUrl,
+  useConversationTraffic,
   useLiveMetrics,
   useReportSummary,
   useReportTimeseries,
@@ -21,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { MetricChart } from "./metric-chart";
 import { SummaryCards } from "./summary-cards";
 import { SummaryTable } from "./summary-table";
+import { TrafficHeatmap } from "./traffic-heatmap";
 
 const RANGES = [
   { days: 7, label: "7 días" },
@@ -44,6 +46,7 @@ export function ReportsView({ accountId }: { accountId: string }) {
   const live = useLiveMetrics(accountId);
   const summary = useReportSummary(accountId, range);
   const series = useReportTimeseries(accountId, metric, range);
+  const traffic = useConversationTraffic(accountId, range);
 
   const isAvg =
     TIMESERIES_METRICS.find((m) => m.key === metric)?.kind === "avg";
@@ -128,6 +131,24 @@ export function ReportsView({ accountId }: { accountId: string }) {
             </p>
           ) : (
             <MetricChart data={series.data ?? []} formatValue={formatValue} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Conversation-traffic heatmap */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Tráfico de conversaciones</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {traffic.isLoading ? (
+            <p className="py-8 text-center text-sm text-fg-muted">Cargando…</p>
+          ) : traffic.isError ? (
+            <p role="alert" className="py-8 text-center text-sm text-danger">
+              No se pudo cargar el tráfico.
+            </p>
+          ) : (
+            <TrafficHeatmap data={traffic.data?.data ?? []} />
           )}
         </CardContent>
       </Card>

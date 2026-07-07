@@ -171,3 +171,33 @@ export function useReportTimeseries(
     },
   });
 }
+
+/** One date's 24 hourly conversation counts. */
+export type TrafficRow = { date: string; hours: number[] };
+export type TrafficReport = { timezone_offset: number; data: TrafficRow[] };
+
+/** ``GET /reports/conversation_traffic`` — the (date × hour) heatmap grid. */
+export function useConversationTraffic(
+  accountId: string,
+  range: ReportRange,
+) {
+  const offsetHours = -new Date().getTimezoneOffset() / 60;
+  return useQuery({
+    queryKey: [
+      "conversation-traffic",
+      accountId,
+      range.since,
+      range.until,
+    ],
+    queryFn: () => {
+      const sp = new URLSearchParams({
+        since: String(range.since),
+        until: String(range.until),
+        timezone_offset: String(offsetHours),
+      });
+      return apiFetch<TrafficReport>(
+        `${base(accountId)}/reports/conversation_traffic?${sp}`,
+      );
+    },
+  });
+}

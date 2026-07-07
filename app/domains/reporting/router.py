@@ -35,6 +35,7 @@ from app.core.exporters import (
     rows_to_xlsx,
 )
 from app.domains.reporting.export import EXPORT_SCOPES, build_summary_export
+from app.domains.reporting.heatmap import conversation_traffic_heatmap
 from app.domains.reporting.service import (
     ScopeType,
     build_summary,
@@ -153,6 +154,35 @@ async def timeseries(
         until=cur_until,
         offset_minutes=offset_minutes,
     )
+
+
+@router.get("/conversation_traffic")
+async def conversation_traffic(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    since: str | None = Query(None),
+    until: str | None = Query(None),
+    timezone_offset: str | None = Query(None),
+) -> dict[str, Any]:
+    """``GET /reports/conversation_traffic`` — a heatmap of conversations
+    created per (local date, hour-of-day) over the range.
+
+    ``{timezone_offset, data: [{date, hours: [24 ints]}, ...]}``."""
+    assert ctx.account.id is not None
+    cur_since, cur_until = parse_unix_range(since, until)
+    try:
+        offset_float = float(timezone_offset) if timezone_offset else None
+    except (TypeError, ValueError):
+        offset_float = None
+    offset_minutes = round(offset_float * 60) if offset_float is not None else 0
+    data = await conversation_traffic_heatmap(
+        session,
+        account_id=ctx.account.id,
+        since=cur_since,
+        until=cur_until,
+        offset_minutes=offset_minutes,
+    )
+    return {"timezone_offset": offset_float or 0, "data": data}
 
 
 @router.get("/summary")
