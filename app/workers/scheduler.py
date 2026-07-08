@@ -316,6 +316,9 @@ class WorkerSettings:
 
     functions = []  # type: ignore[var-annotated]  # populated via configure()
     cron_jobs: list = []  # populated below via late import
+    # Populated by configure(); without it arq's CLI defaults to
+    # ``RedisSettings()`` = localhost:6379, ignoring ``ARQ_REDIS_URL``.
+    redis_settings: Any = None
 
     @classmethod
     def configure(cls) -> None:
@@ -323,8 +326,12 @@ class WorkerSettings:
         class-body time would pull in arq before we know the
         deployment wants the worker. Call :meth:`configure` from the
         worker entry point."""
+        from arq.connections import RedisSettings
         from arq.cron import cron
 
+        cls.redis_settings = RedisSettings.from_dsn(
+            get_settings().arq_redis_url
+        )
         cls.functions = cls._functions()
         cls.cron_jobs = [
             cron(
