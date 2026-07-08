@@ -221,6 +221,51 @@ async def enqueue_reindex_article(article_id: int) -> None:
         )
 
 
+async def enqueue_reindex_portal(
+    session: AsyncSession, *, portal_id: int
+) -> int:
+    """Enqueue a reindex for every article in the portal. Returns the count
+    enqueued (0 when the feature is off, the portal is empty, or Redis is
+    unreachable). One pool for the whole batch."""
+    if not embedding_search_enabled():
+        return 0
+    ids = [
+        i
+        for i in (
+            await session.exec(
+                select(Article.id).where(Article.portal_id == portal_id)
+            )
+        ).all()
+        if i is not None
+    ]
+    if not ids:
+        return 0
+
+    from arq import create_pool
+    from arq.connections import RedisSettings
+
+    settings = get_settings()
+    redis_settings = RedisSettings.from_dsn(settings.arq_redis_url)
+    redis_settings.conn_retries = 1
+    redis_settings.conn_retry_delay = 0
+    enqueued = 0
+    try:
+        pool = await create_pool(redis_settings)
+        try:
+            for article_id in ids:
+                await pool.enqueue_job("reindex_article_task", article_id)
+                enqueued += 1
+        finally:
+            await pool.aclose()
+    except Exception as exc:
+        log.warning(
+            "portals.embeddings.reindex_portal_failed portal_id=%s err=%s",
+            portal_id,
+            exc,
+        )
+    return enqueued
+
+
 async def reindex_article_task(
     ctx: dict[str, Any], article_id: int
 ) -> dict[str, Any]:
@@ -247,6 +292,7 @@ async def reindex_article_task(
 
 __all__ = [
     "enqueue_reindex_article",
+    "enqueue_reindex_portal",
     "reindex_article",
     "reindex_article_task",
     "vector_search",

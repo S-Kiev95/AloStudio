@@ -25,11 +25,13 @@ import pytest
 import respx
 from httpx import ASGITransport, AsyncClient
 
+from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.llm import EMBEDDING_DIM
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.portals.embeddings import (
+    enqueue_reindex_portal,
     reindex_article,
     vector_search,
 )
@@ -143,6 +145,16 @@ async def _seed_account(db_session, suffix: str):
             confirmed=True,
         ),
     ).perform()
+
+
+async def _admin_headers(db_session, owner) -> dict[str, str]:
+    headers, new_tokens = create_new_auth_token(
+        user_tokens=owner.user.tokens, uid=owner.user.uid
+    )
+    owner.user.tokens = new_tokens
+    db_session.add(owner.user)
+    await db_session.flush()
+    return headers.as_response_headers()
 
 
 async def _seed_portal(db_session, owner, suffix: str) -> Portal:
@@ -373,3 +385,114 @@ async def test_public_search_uses_ilike_when_disabled(
     resp = await client.get(f"/hc/{portal.slug}/articles?query=Cats")
     assert resp.status_code == 200, resp.text
     assert [a["slug"] for a in resp.json()] == ["cats-di"]
+
+
+# ---------------------------------------------------------------------------
+# Bulk reindex (admin)
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def fake_arq_pool(monkeypatch):
+    """Replace ``arq.create_pool`` with a pool that just records enqueued
+    jobs — lets us assert on the reindex fan-out without a live Redis."""
+    jobs: list[tuple] = []
+
+    class _FakePool:
+        async def enqueue_job(self, name, *args):
+            jobs.append((name, args))
+
+        async def aclose(self):
+            pass
+
+    async def _create_pool(_settings):
+        return _FakePool()
+
+    monkeypatch.setattr("arq.create_pool", _create_pool)
+    return jobs
+
+
+async def test_enqueue_reindex_portal_fans_out_per_article(
+    db_session, enable_embeddings, fake_arq_pool
+):
+    owner = await _seed_account(db_session, "-rp")
+    portal = await _seed_portal(db_session, owner, "-rp")
+    cat = await _seed_article(
+        db_session, owner, portal, title="Cats", content="c", slug="cats-rp"
+    )
+    dog = await _seed_article(
+        db_session, owner, portal, title="Dogs", content="d", slug="dogs-rp"
+    )
+
+    count = await enqueue_reindex_portal(db_session, portal_id=portal.id)
+    assert count == 2
+    assert [j[0] for j in fake_arq_pool] == [
+        "reindex_article_task",
+        "reindex_article_task",
+    ]
+    assert {j[1][0] for j in fake_arq_pool} == {cat.id, dog.id}
+
+
+async def test_reindex_endpoint_enqueues_all(
+    client, db_session, enable_embeddings, fake_arq_pool
+):
+    owner = await _seed_account(db_session, "-re")
+    headers = await _admin_headers(db_session, owner)
+    portal = await _seed_portal(db_session, owner, "-re")
+    await _seed_article(
+        db_session, owner, portal, title="Cats", content="c", slug="cats-re"
+    )
+    await _seed_article(
+        db_session, owner, portal, title="Dogs", content="d", slug="dogs-re"
+    )
+
+    resp = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/portals/{portal.slug}/reindex",
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"enqueued": 2}
+    assert len(fake_arq_pool) == 2
+
+
+async def test_reindex_endpoint_requires_admin(client, db_session):
+    """An agent (non-admin) member gets 401."""
+    owner = await _seed_account(db_session, "-ra")
+    portal = await _seed_portal(db_session, owner, "-ra")
+    agent = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="agent-ra@emb.example.com",
+            account_name="SideRA",
+            user_full_name="Agent RA",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+    from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser
+
+    db_session.add(
+        AccountUser(
+            account_id=owner.account.id,
+            user_id=agent.user.id,
+            role=ACCOUNT_USER_ROLE_AGENT,
+        )
+    )
+    await db_session.flush()
+    headers = await _admin_headers(db_session, agent)
+
+    resp = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/portals/{portal.slug}/reindex",
+        headers=headers,
+    )
+    assert resp.status_code == 401, resp.text
+
+
+async def test_reindex_portal_noop_when_disabled(
+    db_session, disable_embeddings
+):
+    owner = await _seed_account(db_session, "-rd")
+    portal = await _seed_portal(db_session, owner, "-rd")
+    await _seed_article(
+        db_session, owner, portal, title="Cats", content="c", slug="cats-rd"
+    )
+    # Feature off → no fan-out, count 0 (no Redis touched).
+    assert await enqueue_reindex_portal(db_session, portal_id=portal.id) == 0

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   type PortalInput,
   usePortal,
+  useReindexPortal,
   useUpdatePortal,
 } from "@/lib/api/portals";
 import { cn } from "@/lib/utils";
@@ -91,6 +92,9 @@ export function PortalDetailView({
               </h2>
               <p className="truncate text-xs text-fg-muted">/{portal.slug}</p>
             </div>
+            {tab === "articles" ? (
+              <ReindexButton accountId={accountId} slug={slug} />
+            ) : null}
             {tab !== "settings" && allowedLocales.length > 1 ? (
               <select
                 value={locale}
@@ -158,6 +162,54 @@ export function PortalDetailView({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function ReindexButton({
+  accountId,
+  slug,
+}: {
+  accountId: string;
+  slug: string;
+}) {
+  const reindex = useReindexPortal(accountId, slug);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function run() {
+    setMsg(null);
+    try {
+      const { enqueued } = await reindex.mutateAsync();
+      setMsg(
+        enqueued > 0
+          ? `Reindexando ${enqueued} artículo${enqueued === 1 ? "" : "s"}…`
+          : "Búsqueda semántica no configurada (OPENAI_API_KEY).",
+      );
+    } catch {
+      setMsg("No se pudo reindexar.");
+    }
+  }
+
+  return (
+    <div className="flex shrink-0 flex-col items-end gap-0.5">
+      <button
+        type="button"
+        onClick={run}
+        disabled={reindex.isPending}
+        title="Regenerar los embeddings de búsqueda de todos los artículos"
+        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-fg hover:bg-surface-2 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <RefreshCw
+          className={cn("h-3.5 w-3.5", reindex.isPending && "animate-spin")}
+          aria-hidden
+        />
+        Reindexar búsqueda
+      </button>
+      {msg ? (
+        <span className="text-[10px] text-fg-muted" role="status">
+          {msg}
+        </span>
+      ) : null}
     </div>
   );
 }

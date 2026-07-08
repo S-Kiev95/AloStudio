@@ -33,6 +33,8 @@ function portal(allowedLocales: string[]) {
 
 let allowed = ["en", "es"];
 
+let reindexCalls = 0;
+
 const server = setupServer(
   http.get("*/portals/test-portal", () => HttpResponse.json(portal(allowed))),
   http.get("*/portals/test-portal/articles", ({ request }) => {
@@ -40,6 +42,10 @@ const server = setupServer(
     return HttpResponse.json([]);
   }),
   http.get("*/portals/test-portal/categories", () => HttpResponse.json([])),
+  http.post("*/portals/test-portal/reindex", () => {
+    reindexCalls += 1;
+    return HttpResponse.json({ enqueued: 3 });
+  }),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
@@ -47,6 +53,7 @@ afterEach(() => {
   server.resetHandlers();
   articleLocales.length = 0;
   allowed = ["en", "es"];
+  reindexCalls = 0;
 });
 afterAll(() => server.close());
 
@@ -77,5 +84,21 @@ describe("PortalDetailView locale picker", () => {
 
     await screen.findByText("Test Portal");
     expect(screen.queryByLabelText("Idioma")).toBeNull();
+  });
+});
+
+describe("PortalDetailView reindex", () => {
+  it("posts a reindex and reports how many were enqueued", async () => {
+    wrap(<PortalDetailView accountId="1" slug="test-portal" />);
+    await screen.findByText("Test Portal");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Reindexar búsqueda/i }),
+    );
+
+    await waitFor(() => expect(reindexCalls).toBe(1));
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /Reindexando 3 artículos/,
+    );
   });
 });

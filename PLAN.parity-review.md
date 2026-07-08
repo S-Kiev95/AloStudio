@@ -138,8 +138,9 @@ Only the SLA report remains, and it's an enterprise feature.
 
 **Verdict:** admin CRUD + public site + locale picker + article search +
 logo upload + semantic embedding search = **full parity** (embeddings are an
-enterprise feature in Chatwoot). Follow-up: a bulk "reindex existing
-articles" action — today embeddings generate on the next save.
+enterprise feature in Chatwoot). A net-new admin **"Reindexar búsqueda"**
+action (`POST /portals/{slug}/reindex`) backfills a portal whose articles
+predate the key — beyond what Chatwoot offers (it only re-embeds on save).
 
 ---
 

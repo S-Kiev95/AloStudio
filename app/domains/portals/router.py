@@ -38,6 +38,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.db import get_session
 from app.core.deps import AccountContext, require_admin
 from app.core.errors import ChatwootHTTPException
+from app.domains.portals.embeddings import enqueue_reindex_portal
 from app.domains.portals.models import (
     Portal,
     article_status_from_str,
@@ -386,6 +387,26 @@ async def destroy_article_endpoint(
         )
     await destroy_article(session, article=art)
     return {}
+
+
+@router.post("/{slug}/reindex", status_code=status.HTTP_200_OK)
+async def reindex_portal_endpoint(
+    slug: Annotated[str, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Enqueue a semantic-search reindex of every article in the portal.
+
+    Admin-only. Net-new (no Chatwoot equivalent) — Chatwoot only re-embeds
+    on article save; this backfills a portal whose articles predate the
+    ``OPENAI_API_KEY``. Returns ``{"enqueued": N}`` (0 when embedding search
+    is off or Redis is unreachable)."""
+    assert ctx.account.id is not None
+    portal = await _find_portal(
+        session, account_id=ctx.account.id, slug=slug
+    )
+    enqueued = await enqueue_reindex_portal(session, portal_id=portal.id)
+    return {"enqueued": enqueued}
 
 
 __all__ = ["router"]

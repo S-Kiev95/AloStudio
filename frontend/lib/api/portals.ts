@@ -321,3 +321,15 @@ export function useDeleteArticle(accountId: string, slug: string) {
     onSuccess: () => invalidateArticles(qc, accountId, slug),
   });
 }
+
+/** Enqueue a semantic-search reindex of every article in the portal.
+ * Returns how many were enqueued (0 when embedding search is off). */
+export function useReindexPortal(accountId: string, slug: string) {
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ enqueued: number }>(
+        `${portalsBase(accountId)}/${slug}/reindex`,
+        { method: "POST" },
+      ),
+  });
+}
