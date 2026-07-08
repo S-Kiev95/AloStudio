@@ -113,11 +113,12 @@ Landed in v2.1 (`fe.14a`) + v2.2 (`fe.14b`).
 | Report export (CSV) | ✅ | ✅ | Per-entity summary download (`/summary_reports/{scope}/export?format=csv`), UTF-8 BOM for Excel. |
 | Report export (Excel .xlsx) | ✅ | ✅ 🚀 | Same endpoint, `format=xlsx` — a dependency-free hand-rolled single-sheet workbook. Chatwoot only offers CSV. |
 | Conversation-traffic heatmap | ✅ | ✅ | `GET /reports/conversation_traffic` — conversations by (local date × hour-of-day), rendered as a heatmap. Derived from `conversations.created_at`. |
-| Bot / SLA reports | ✅ | ❌ | Chatwoot has these; the metrics were skipped in backend Phase 7 (bot needs bot-handling tracking, SLA needs the SLA feature). ⏸ until backend ports. |
+| Bot report | ✅ | ✅ | `GET /reports/bot_metrics` — conversation/message counts + resolution & handoff rates over the range, in a "Rendimiento del bot" section on the reports page. Backed by new bot-handling tracking: the reporting listener now writes `conversation_bot_resolved` (bot resolved with no human reply) + `conversation_bot_handoff` (deduped). |
+| SLA report | ✅ enterprise | ❌ | SLA is enterprise-only (`enterprise/`). ⏸. |
 
 **Verdict:** overview + per-entity drill-downs + CSV/Excel export + the
-conversation-traffic heatmap = parity (export exceeds it). Only the Bot + SLA
-report types remain, blocked on the backend porting those metrics.
+conversation-traffic heatmap + the bot report = parity (export exceeds it).
+Only the SLA report remains, and it's an enterprise feature.
 
 ---
 
@@ -278,15 +279,15 @@ gated on an external credential or a backend port.
 
 **Blocked on a backend port:**
 
-2. **Bot / SLA reports** — bot-handling tracking + the SLA feature aren't
-   ported (Phase 7 skip). The conversation-traffic report shipped.
-3. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
-4. **Article embeddings (pgvector)** — backend Phase 10.
+2. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
+3. **Article embeddings (pgvector)** — backend Phase 10.
 
-(Shipped recently: assignment policies — OSS `AssignmentPolicy` CRUD +
-per-inbox link, admin-only; web-push delivery — RFC 8291 + VAPID, needs
-``VAPID_*`` keys; conversation-traffic heatmap. `SLA` remains enterprise-only,
-deferred with the other enterprise tiers.)
+(Shipped recently: the bot report — `GET /reports/bot_metrics` + bot-handling
+tracking (`conversation_bot_resolved` / `conversation_bot_handoff` events);
+assignment policies — OSS `AssignmentPolicy` CRUD + per-inbox link, admin-only;
+web-push delivery — RFC 8291 + VAPID, needs ``VAPID_*`` keys;
+conversation-traffic heatmap. Only the **SLA** report type remains and it's
+enterprise-only, deferred with the other enterprise tiers.)
 
 ---
 
