@@ -11,6 +11,7 @@ import {
   TIMESERIES_METRICS,
   rangeForDays,
   summaryExportUrl,
+  useBotMetrics,
   useConversationTraffic,
   useLiveMetrics,
   useReportSummary,
@@ -19,6 +20,7 @@ import {
 import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
+import { BotMetricsCards } from "./bot-metrics-cards";
 import { MetricChart } from "./metric-chart";
 import { SummaryCards } from "./summary-cards";
 import { SummaryTable } from "./summary-table";
@@ -47,6 +49,7 @@ export function ReportsView({ accountId }: { accountId: string }) {
   const summary = useReportSummary(accountId, range);
   const series = useReportTimeseries(accountId, metric, range);
   const traffic = useConversationTraffic(accountId, range);
+  const bot = useBotMetrics(accountId, range);
 
   const isAvg =
     TIMESERIES_METRICS.find((m) => m.key === metric)?.kind === "avg";
@@ -150,6 +153,24 @@ export function ReportsView({ accountId }: { accountId: string }) {
           ) : (
             <TrafficHeatmap data={traffic.data?.data ?? []} />
           )}
+        </CardContent>
+      </Card>
+
+      {/* Bot performance */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Rendimiento del bot</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {bot.isLoading ? (
+            <p className="py-8 text-center text-sm text-fg-muted">Cargando…</p>
+          ) : bot.isError ? (
+            <p role="alert" className="py-8 text-center text-sm text-danger">
+              No se pudieron cargar las métricas del bot.
+            </p>
+          ) : bot.data ? (
+            <BotMetricsCards data={bot.data} />
+          ) : null}
         </CardContent>
       </Card>
 

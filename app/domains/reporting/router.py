@@ -34,6 +34,7 @@ from app.core.exporters import (
     rows_to_csv,
     rows_to_xlsx,
 )
+from app.domains.reporting.bot_metrics import bot_metrics
 from app.domains.reporting.export import EXPORT_SCOPES, build_summary_export
 from app.domains.reporting.heatmap import conversation_traffic_heatmap
 from app.domains.reporting.service import (
@@ -183,6 +184,29 @@ async def conversation_traffic(
         offset_minutes=offset_minutes,
     )
     return {"timezone_offset": offset_float or 0, "data": data}
+
+
+@router.get("/bot_metrics")
+async def bot_metrics_report(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    since: str | None = Query(None),
+    until: str | None = Query(None),
+) -> dict[str, Any]:
+    """``GET /reports/bot_metrics`` — the four bot-report numbers over the
+    ``since..until`` window.
+
+    ``{conversation_count, message_count, resolution_rate, handoff_rate}``
+    (rates are integer percentages). Mirrors ``ReportsController#bot_metrics``
+    → ``V2::Reports::BotMetricsBuilder``."""
+    assert ctx.account.id is not None
+    cur_since, cur_until = parse_unix_range(since, until)
+    return await bot_metrics(
+        session,
+        account_id=ctx.account.id,
+        since=cur_since,
+        until=cur_until,
+    )
 
 
 @router.get("/summary")

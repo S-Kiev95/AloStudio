@@ -201,3 +201,28 @@ export function useConversationTraffic(
     },
   });
 }
+
+/** Bot-report numbers (mirrors V2::Reports::BotMetricsBuilder). Rates are
+ * integer percentages. */
+export type BotMetrics = {
+  conversation_count: number;
+  message_count: number;
+  resolution_rate: number;
+  handoff_rate: number;
+};
+
+/** ``GET /reports/bot_metrics`` — the four bot-report figures over the range. */
+export function useBotMetrics(accountId: string, range: ReportRange) {
+  return useQuery({
+    queryKey: ["bot-metrics", accountId, range.since, range.until],
+    queryFn: () => {
+      const sp = new URLSearchParams({
+        since: String(range.since),
+        until: String(range.until),
+      });
+      return apiFetch<BotMetrics>(
+        `${base(accountId)}/reports/bot_metrics?${sp}`,
+      );
+    },
+  });
+}
