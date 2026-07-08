@@ -180,7 +180,8 @@ remains, gated on a WhatsApp inbox.
 | Custom attributes ✅ | ✅ | ✅ | `settings/custom_attributes` with list-type values + regex. |
 | Working hours ✅ | ✅ | ✅ | `settings/working_hours` with the bulk 7-day editor. |
 | CSAT ✅ | ✅ | ✅ | `settings/csat` — see Reports section. |
-| Assignment policy / SLA | ✅ | ❌ | Backend not ported (Chatwoot's `AssignmentPolicy` + `SLA`). ⏸. |
+| Assignment policy | ✅ | ✅ | `settings/assignment_policies` — admin-only CRUD (round-robin order, `earliest_created`/`longest_waiting` priority, fair-distribution limit/window, enabled) + the singular per-inbox link (one policy per inbox). Runtime enforcement of the fair-distribution cap in the auto-assignment path is a follow-up stage. |
+| SLA | ✅ enterprise | ❌ | Enterprise (`enterprise/app/models`). ⏸. |
 | Audit logs | ✅ enterprise | ❌ | Not ported. ⏸. |
 | Custom roles | ✅ enterprise | ❌ | Enterprise feature. ⏸. |
 | Captain settings | ✅ | ❌ | AI assistant — newer Chatwoot feature. ⏸. |
@@ -264,9 +265,10 @@ These aren't gaps — they're explicit divergences from Chatwoot.
 portal locale picker, profile/security pages, notification bell, agent
 invitations, generic inbox CRUD, bulk-actions toolbar, saved views,
 per-entity report drill-downs, public Help Center search). **Contacts
-segments**, **agent avatars**, and **portal logos** shipped too — the
-"shippable now" bucket is now empty; every remaining item is gated on an
-external credential or a backend port.
+segments**, **agent avatars**, **portal logos**, **web-push delivery**,
+the **conversation-traffic heatmap**, and **assignment policies** shipped
+too — the "shippable now" bucket is now empty; every remaining item is
+gated on an external credential or a backend port.
 
 **Blocked on external credentials:**
 
@@ -278,12 +280,13 @@ external credential or a backend port.
 
 2. **Bot / SLA reports** — bot-handling tracking + the SLA feature aren't
    ported (Phase 7 skip). The conversation-traffic report shipped.
-3. **Assignment policy / SLA** — `AssignmentPolicy` + `SLA` not ported.
-4. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
-5. **Article embeddings (pgvector)** — backend Phase 10.
+3. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
+4. **Article embeddings (pgvector)** — backend Phase 10.
 
-(Shipped recently: web-push delivery — RFC 8291 + VAPID, needs ``VAPID_*``
-keys; conversation-traffic heatmap.)
+(Shipped recently: assignment policies — OSS `AssignmentPolicy` CRUD +
+per-inbox link, admin-only; web-push delivery — RFC 8291 + VAPID, needs
+``VAPID_*`` keys; conversation-traffic heatmap. `SLA` remains enterprise-only,
+deferred with the other enterprise tiers.)
 
 ---
 
@@ -296,7 +299,8 @@ keys; conversation-traffic heatmap.)
 * **Enterprise tiers** (audit logs, custom roles, SSO sometimes) —
   defer indefinitely; revisit when there's a customer.
 * **Captain AI** — conceptual overlap with MCP; defer.
-* **SLA / Assignment policy** — backend not ported (§12 #4).
+* ~~**Assignment policy**~~ ✅ Shipped — OSS `AssignmentPolicy` CRUD +
+  per-inbox link. **SLA** stays deferred (enterprise-only).
 * **Article embeddings (pgvector)** — backend Phase 10 (§12 #7).
 * ~~**File uploads (attachments / agent avatars / portal logos)**~~ — the
   MinIO SigV4 pipeline is wired for message + widget attachments, agent
