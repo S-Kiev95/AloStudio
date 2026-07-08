@@ -133,12 +133,13 @@ Only the SLA report remains, and it's an enterprise feature.
 | Locale switcher per portal | ✅ | ✅ | Portal-level locale `<select>` (from `config.allowed_locales`) filtering the article + category panels. |
 | Public Help Center site | ✅ | ✅ 🚀 | We ship our own SSG/ISR version (`/hc/<slug>` with `revalidate=300`), with `react-markdown` + remark-gfm + `robots.txt`. Chatwoot's is a Rails-rendered HTML view; ours is more SEO-friendly. |
 | Article search (dashboard + public) | ✅ | ✅ | ILIKE search over title/description/content — a debounced box in the dashboard `ArticlesPanel` and `?query=` on the public `/hc/<slug>/articles` endpoint. |
-| Article embeddings (pgvector) | ✅ enterprise | ❌ | Backend `portals/router.py` notes this is Phase 10 deferred. ⏸. |
+| Article embeddings (pgvector) | ✅ enterprise | ✅ | Captain-style semantic search: on save an article is expanded into search terms (`gpt-4o`), each term embedded (`text-embedding-3-small`) into a `vector(1536)` on `article_embeddings`, indexed off the request via ARQ. Public `?query=` embeds the query and does cosine nearest-neighbour (hnsw index), falling back to ILIKE when the key is unset or OpenAI errors. Gated on `OPENAI_API_KEY`. |
 | Logo upload | ✅ | ✅ | `portals.logo` + a Logo field in the portal form (uploads via the MinIO pipeline); the detail header shows it. |
 
 **Verdict:** admin CRUD + public site + locale picker + article search +
-logo upload = parity. The only remaining item is pgvector article
-embeddings (backend Phase 10).
+logo upload + semantic embedding search = **full parity** (embeddings are an
+enterprise feature in Chatwoot). Follow-up: a bulk "reindex existing
+articles" action — today embeddings generate on the next save.
 
 ---
 
@@ -277,17 +278,19 @@ gated on an external credential or a backend port.
    hook creation (Slack, Linear, Shopify). The Connect *start* is wired;
    the return leg needs registered provider apps + secrets. Per vendor.
 
-**Blocked on a backend port:**
+**Blocked on external credentials:**
 
-2. **WhatsApp campaign `template_params`** — gated on a WhatsApp inbox.
-3. **Article embeddings (pgvector)** — backend Phase 10.
+2. **WhatsApp campaign `template_params`** — needs a WhatsApp Business
+   number/token + Meta-approved templates.
 
-(Shipped recently: the bot report — `GET /reports/bot_metrics` + bot-handling
-tracking (`conversation_bot_resolved` / `conversation_bot_handoff` events);
-assignment policies — OSS `AssignmentPolicy` CRUD + per-inbox link, admin-only;
-web-push delivery — RFC 8291 + VAPID, needs ``VAPID_*`` keys;
-conversation-traffic heatmap. Only the **SLA** report type remains and it's
-enterprise-only, deferred with the other enterprise tiers.)
+(Shipped recently: article embeddings (pgvector) — Captain-style semantic
+Help-Center search, needs `OPENAI_API_KEY`; the bot report —
+`GET /reports/bot_metrics` + bot-handling tracking (`conversation_bot_resolved`
+/ `conversation_bot_handoff` events); assignment policies — OSS
+`AssignmentPolicy` CRUD + per-inbox link, admin-only; web-push delivery —
+RFC 8291 + VAPID, needs ``VAPID_*`` keys; conversation-traffic heatmap. Only
+the **SLA** report type remains and it's enterprise-only, deferred with the
+other enterprise tiers.)
 
 ---
 
@@ -302,7 +305,9 @@ enterprise-only, deferred with the other enterprise tiers.)
 * **Captain AI** — conceptual overlap with MCP; defer.
 * ~~**Assignment policy**~~ ✅ Shipped — OSS `AssignmentPolicy` CRUD +
   per-inbox link. **SLA** stays deferred (enterprise-only).
-* **Article embeddings (pgvector)** — backend Phase 10 (§12 #7).
+* ~~**Article embeddings (pgvector)**~~ ✅ Shipped — Captain-style semantic
+  Help-Center search (`OPENAI_API_KEY`-gated), even though it's an
+  enterprise feature in Chatwoot.
 * ~~**File uploads (attachments / agent avatars / portal logos)**~~ — the
   MinIO SigV4 pipeline is wired for message + widget attachments, agent
   avatars, and portal logos. **Done.**
@@ -329,9 +334,11 @@ The honest gaps **after the 2026-07-03 batch** are:
 
 What's left is now **entirely dependency-gated** (see §12): the "shippable
 now" bucket is empty. The integrations OAuth callback needs provider
-credentials; a handful of report/policy types + WhatsApp + pgvector embeddings
-wait on backend ports. The indefinitely-deferred set (Captain AI, enterprise
-audit/roles/SSO, SaaS billing) is unchanged.
+credentials; WhatsApp `template_params` needs a Business number + approved
+templates. (Article embeddings shipped this batch once the `OPENAI_API_KEY`
+was provided.) The indefinitely-deferred set (Captain AI, enterprise
+audit/roles/SSO, SaaS billing) is unchanged — except semantic Help-Center
+search, which we ported despite its enterprise origins.
 
 **Net result:** an end user moving from Chatwoot finds every common **and**
 most power-user features where they expect them; the remaining gaps are at
