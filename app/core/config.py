@@ -57,6 +57,20 @@ class Settings(BaseSettings):
     slack_client_id: str | None = None
     linear_client_id: str | None = None
 
+    # --- OpenAI (Help Center embedding search — Captain-style)
+    # When ``openai_api_key`` is set, Help-Center article search switches
+    # from ILIKE to semantic vector search: on save an article is expanded
+    # into search terms by the chat model, each term is embedded, and the
+    # public search embeds the query and does cosine nearest-neighbour.
+    # Empty key → the feature is off and search falls back to ILIKE.
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com"
+    # 1536-dim; must match the ``vector(1536)`` column. Mirrors Chatwoot's
+    # ``LlmConstants::DEFAULT_EMBEDDING_MODEL``.
+    openai_embedding_model: str = "text-embedding-3-small"
+    # Chat model used to expand an article into diverse search terms.
+    openai_chat_model: str = "gpt-4o"
+
     # --- web push (VAPID)
     # Generate a keypair once with ``app.core.webpush.generate_vapid_keys()``
     # and set these via env. Empty ``vapid_private_key`` disables web-push

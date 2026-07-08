@@ -290,6 +290,7 @@ class WorkerSettings:
 
         from app.domains.notifications.mailer import send_notification_email_task
         from app.domains.notifications.push import send_notification_push_task
+        from app.domains.portals.embeddings import reindex_article_task
         from app.workers.deliver_webhook import (
             MAX_ATTEMPTS as WEBHOOK_MAX_ATTEMPTS,
         )
@@ -303,6 +304,9 @@ class WorkerSettings:
             # notification is created and the recipient wants it by email / push.
             send_notification_email_task,
             send_notification_push_task,
+            # Enqueued on-demand when a Help-Center article is created/edited
+            # and OpenAI embedding search is enabled.
+            reindex_article_task,
             # Pin ARQ's ``max_tries`` to the webhook delivery's own cap so
             # the final attempt (which writes the dead-letter row) is never
             # preempted by ARQ's default give-up. Keeps the quarantine

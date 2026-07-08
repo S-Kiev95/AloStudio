@@ -29,6 +29,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
+from app.core.llm import LlmError, embedding_search_enabled
+from app.domains.portals.embeddings import vector_search
 from app.domains.portals.models import (
     ARTICLE_STATUS_PUBLISHED,
     Article,
@@ -84,9 +86,34 @@ async def index_articles(
 ) -> list[dict[str, Any]]:
     """Published articles for a portal, optionally filtered by locale,
     category slug, or a free-text ``query``. Drafts + archived articles
-    never surface here. ``query`` runs an ILIKE over the article's
-    title/description/content — mirrors Chatwoot's ``Article.text_search``."""
+    never surface here.
+
+    When OpenAI embedding search is enabled and a ``query`` is present,
+    ``query`` runs a semantic cosine nearest-neighbour search over the
+    articles' term embeddings (Chatwoot's enterprise ``vector_search``).
+    It falls back to an ILIKE over title/description/content
+    (``Article.text_search``) when the feature is off, when the embedding
+    call fails, or when nothing is indexed yet (no semantic hits) — so a
+    portal whose articles predate indexing still returns results."""
     portal = await _resolve_portal(session, slug)
+
+    if query and query.strip() and embedding_search_enabled():
+        try:
+            hits = await vector_search(
+                session,
+                portal_id=portal.id,
+                query=query.strip(),
+                locale=locale,
+                category_slug=category_slug,
+                status=ARTICLE_STATUS_PUBLISHED,
+            )
+            if hits:
+                return [present_article(a) for a in hits]
+            # No semantic hits (e.g. nothing indexed yet) → try ILIKE.
+        except LlmError:
+            # Never fail a search on a flaky LLM — fall through to ILIKE.
+            pass
+
     stmt = select(Article).where(
         Article.portal_id == portal.id,
         Article.status == ARTICLE_STATUS_PUBLISHED,

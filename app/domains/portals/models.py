@@ -18,6 +18,7 @@ as Phase 5a's web widget public surface.
 
 from __future__ import annotations
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -33,6 +34,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
 from app.core.base_model import TimestampMixin
+
+# Embedding dimensionality — matches ``settings.openai_embedding_model``
+# (text-embedding-3-small) and the ``vector(1536)`` column.
+ARTICLE_EMBEDDING_DIM = 1536
 
 # enum status: {draft: 0, published: 1, archived: 2}
 ARTICLE_STATUS_DRAFT = 0
@@ -293,11 +298,48 @@ class Article(TimestampMixin, table=True):
     )
 
 
+class ArticleEmbedding(TimestampMixin, table=True):
+    """One embedded search term for an article (Captain-style indexing).
+
+    Ports ``enterprise/app/models/article_embedding.rb``. Each article is
+    expanded into several ``term`` rows; ``embedding`` is the term's
+    ``vector(1536)``. Public search does cosine nearest-neighbour over
+    these and maps the hits back to their articles.
+    """
+
+    __tablename__ = "article_embeddings"
+    __table_args__ = (
+        Index(
+            "index_article_embeddings_on_article_id",
+            "article_id",
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    article_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("articles.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    term: str = Field(sa_column=Column(Text, nullable=False))
+    embedding: list[float] | None = Field(
+        default=None,
+        sa_column=Column(Vector(ARTICLE_EMBEDDING_DIM), nullable=True),
+    )
+
+
 __all__ = [
+    "ARTICLE_EMBEDDING_DIM",
     "ARTICLE_STATUS_ARCHIVED",
     "ARTICLE_STATUS_DRAFT",
     "ARTICLE_STATUS_PUBLISHED",
     "Article",
+    "ArticleEmbedding",
     "Category",
     "Portal",
     "article_status_from_str",

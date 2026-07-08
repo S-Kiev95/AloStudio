@@ -17,6 +17,7 @@ from sqlmodel import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.errors import ChatwootHTTPException
+from app.domains.portals.embeddings import enqueue_reindex_article
 from app.domains.portals.models import (
     Article,
     Category,
@@ -341,6 +342,7 @@ async def create_article(
             detail={"message": "Slug has already been taken"},
         ) from exc
     await session.refresh(art)
+    await enqueue_reindex_article(art.id)
     return art
 
 
@@ -367,6 +369,10 @@ async def update_article(
     session.add(article)
     await session.flush()
     await session.refresh(article)
+    # Re-embed only when the searchable text actually changed — mirrors
+    # Chatwoot's ``saved_change_to_title/description/content`` guard.
+    if any(k in payload for k in ("title", "description", "content")):
+        await enqueue_reindex_article(article.id)
     return article
 
 
