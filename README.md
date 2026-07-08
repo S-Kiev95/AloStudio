@@ -101,7 +101,7 @@ cp .env.example .env          # base config
 .venv/Scripts/python -m alembic upgrade head      # run migrations
 .venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
 # async worker (separate process; includes the 5-min scheduler):
-.venv/Scripts/python -m arq app.workers.scheduler.WorkerSettings
+.venv/Scripts/python -m arq app.workers.entrypoint.WorkerSettings
 ```
 API docs at `http://localhost:8000/docs`, OpenAPI at `/openapi.json`.
 
