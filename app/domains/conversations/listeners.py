@@ -149,6 +149,11 @@ class ActionCableListener:
         conversation = message.conversation
         if conversation is None:
             return
+        # ``present_message_push_event`` reads ``message.attachments``. On an
+        # AsyncSession a lazy-load raises MissingGreenlet, and inbound paths
+        # (e.g. the WhatsApp webhook) don't preload it the way create_message
+        # does — so load it here before the sync presenter touches it.
+        await self._session.refresh(message, ["attachments"])
         user_tokens = await self._user_tokens(conversation)
         # ``contact_tokens`` guards private + activity messages.
         contact_tokens = await self._contact_tokens(conversation, message)
