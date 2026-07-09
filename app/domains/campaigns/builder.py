@@ -75,6 +75,10 @@ async def build_campaign_conversation(
             content=campaign.message,
             message_type="outgoing",
             campaign_id=campaign.id,
+            # WhatsApp campaigns carry a template — the outbound sender
+            # (``_maybe_send_outbound_whatsapp``) turns these into a template
+            # send instead of free-form text.
+            template_params=campaign.template_params,
         ),
         user_id=campaign.sender_id,
     )

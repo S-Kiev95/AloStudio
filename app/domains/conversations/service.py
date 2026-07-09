@@ -1230,7 +1230,33 @@ async def _maybe_send_outbound_whatsapp(
     # Both Cloud and 360dialog want the bare wa_id (no ``+``).
     to_phone = contact.phone_number.lstrip("+")
 
+    # A message carrying ``template_params`` (campaign sends, or an agent
+    # sending a pre-approved template outside the 24h window) goes out as a
+    # WhatsApp *template* rather than free-form text. Falls through to text
+    # when the params don't resolve to an approved template on this channel.
+    template_params = (message.additional_attributes or {}).get(
+        "template_params"
+    )
+
     try:
+        if template_params:
+            from app.domains.whatsapp.template_processor import (
+                process_template_params,
+            )
+            from app.domains.whatsapp.templates import send_template_message
+
+            template_info = process_template_params(
+                template_params, channel.message_templates
+            )
+            if template_info is not None:
+                await send_template_message(
+                    session,
+                    channel=channel,
+                    message=message,
+                    to_phone=to_phone,
+                    template_info=template_info,
+                )
+                return
         if channel.provider == WHATSAPP_PROVIDER_CLOUD:
             from app.domains.whatsapp.cloud_provider import (
                 send_text_message_cloud,
