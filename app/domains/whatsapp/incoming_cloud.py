@@ -27,21 +27,22 @@ confirmations) — looks up the existing message by WAMID and updates
 its ``status`` enum + stashes any error code/title in
 ``content_attributes``.
 
-5c.3 scope:
+Scope:
   * Text messages.
   * ``button`` / ``interactive`` reply text (Meta's rich-button replies).
+  * Media (image / video / audio / document / sticker) — downloaded from
+    the Graph API (:mod:`app.domains.whatsapp.media`) and stored as an
+    :class:`Attachment`; the caption becomes the message content.
+  * Location messages — stored as a coordinates attachment.
   * Status updates (sent / delivered / read / failed).
   * Idempotent re-delivery via WAMID lookup.
 
-Deferred to 5c.6 / later:
-  * Media (image / video / audio / document / sticker) — needs the
-    media-download client + Phase 10 attachment storage.
+Deferred:
   * Reactions / ephemeral / unsupported message types — Chatwoot
     explicitly drops these. We mirror.
   * Contact-card messages.
-  * Location messages.
   * Outgoing echoes (``message_echoes``) — niche, lands with the
-    embedded-signup flow in 5c.6.
+    embedded-signup flow.
 """
 
 from __future__ import annotations
@@ -64,11 +65,27 @@ from app.domains.conversations.models import (
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
-    MessageBuilderParams as _MessageBuilderParams,
+    _AttachmentSpec,
     create_conversation,
     create_message,
 )
+from app.domains.conversations.service import (
+    MessageBuilderParams as _MessageBuilderParams,
+)
 from app.domains.inboxes.models import Inbox, WhatsappChannel
+from app.domains.whatsapp.media import download_and_store_media
+
+# Media message types → our attachment ``file_type`` string (mirrors
+# ``file_content_type``). Anything here carries a ``{id, mime_type, caption}``
+# sub-object we download + attach; ``location`` is handled separately.
+_MEDIA_FILE_TYPE: dict[str, str] = {
+    "image": "image",
+    "sticker": "image",
+    "audio": "audio",
+    "voice": "audio",
+    "video": "video",
+    "document": "file",
+}
 
 log = logging.getLogger(__name__)
 
@@ -126,6 +143,54 @@ def _message_text(message: dict[str, Any]) -> str:
     if isinstance(name, dict) and name.get("formatted_name"):
         return str(name["formatted_name"])
     return ""
+
+
+async def _build_media_attachments(
+    *, channel: WhatsappChannel, msg: dict[str, Any], msg_type: str
+) -> tuple[list[_AttachmentSpec], str | None]:
+    """Build attachment specs for a media / location message.
+
+    Returns ``(attachments, caption)``. Media types download + store the
+    file (best-effort — a failed download still lands the message with its
+    caption, just no attachment); ``location`` builds a coordinates
+    attachment. Mirrors ``attach_files`` / ``attach_location``.
+    """
+    if msg_type in _MEDIA_FILE_TYPE:
+        payload = msg.get(msg_type)
+        if not isinstance(payload, dict):
+            return [], None
+        caption = payload.get("caption")
+        media_id = payload.get("id")
+        if not media_id:
+            return [], caption
+        stored = await download_and_store_media(
+            channel, account_id=channel.account_id, media_id=str(media_id)
+        )
+        if stored is None:
+            return [], caption
+        return [
+            _AttachmentSpec(
+                file_type=_MEDIA_FILE_TYPE[msg_type],
+                external_url=stored["external_url"],
+                extension=stored["extension"],
+            )
+        ], caption
+    if msg_type == "location":
+        loc = msg.get("location")
+        if not isinstance(loc, dict):
+            return [], None
+        name, addr = loc.get("name"), loc.get("address")
+        fallback = f"{name}, {addr}" if name else (addr or "")
+        return [
+            _AttachmentSpec(
+                file_type="location",
+                coordinates_lat=loc.get("latitude"),
+                coordinates_long=loc.get("longitude"),
+                fallback_title=fallback or None,
+                external_url=loc.get("url"),
+            )
+        ], None
+    return [], None
 
 
 def _contact_name_for(
@@ -402,18 +467,24 @@ async def _process_value(
         )
 
         body = _message_text(msg)
+        attachments, media_caption = await _build_media_attachments(
+            channel=channel, msg=msg, msg_type=str(msg_type)
+        )
         try:
             inserted = await create_message(
                 session,
                 conversation=conversation,
                 params=_MessageBuilderParams(
-                    content=body,
+                    # For media, content is the caption (mirrors
+                    # ``@message.content ||= attachment_payload[:caption]``).
+                    content=body or media_caption,
                     message_type="incoming",
                     source_id=str(wamid),
+                    attachments=attachments or None,
                 ),
                 user_id=None,
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception(
                 "whatsapp.inbound.create_message_failed wamid=%s", wamid
             )
