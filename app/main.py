@@ -30,6 +30,9 @@ from app.domains.campaigns.router import router as campaigns_router
 from app.domains.canned_responses.router import router as canned_responses_router
 from app.domains.contacts.router import actions_router as contact_actions_router
 from app.domains.contacts.router import router as contacts_router
+from app.domains.conversations.attachments_router import (
+    router as attachments_router,
+)
 from app.domains.conversations.router import messages_router as conversations_messages_router
 from app.domains.conversations.router import (
     participants_router as conversations_participants_router,
@@ -276,6 +279,9 @@ def create_app() -> FastAPI:
     # enforcement of the fair-distribution cap is a follow-up stage.
     app.include_router(assignment_policies_router)
     app.include_router(inbox_assignment_policy_router)
+    # Authenticated media proxy — serves stored attachment bytes to the
+    # dashboard (the object store is internal-only).
+    app.include_router(attachments_router)
     # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
     # last so HTTP routes take precedence in any path-overlap edge.
     app.include_router(cable_router)

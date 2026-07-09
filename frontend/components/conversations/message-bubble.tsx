@@ -1,4 +1,4 @@
-import { Lock, Paperclip } from "lucide-react";
+import { Lock, MapPin, Paperclip } from "lucide-react";
 
 import { MESSAGE_TYPE, type Message } from "@/lib/api/conversations";
 import { clockTime } from "@/lib/time";
@@ -7,6 +7,23 @@ import { cn } from "@/lib/utils";
 type Attachment = NonNullable<Message["attachments"]>[number];
 
 function AttachmentView({ att }: { att: Attachment }) {
+  // Location carries coordinates, not a blob — render a map link.
+  if (att.file_type === "location") {
+    const lat = att.coordinates_lat;
+    const lng = att.coordinates_long;
+    if (lat == null || lng == null) return null;
+    return (
+      <a
+        href={`https://www.google.com/maps?q=${lat},${lng}`}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-1 flex items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1 text-xs font-medium text-primary hover:underline"
+      >
+        <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+        {att.fallback_title || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}
+      </a>
+    );
+  }
   if (!att.data_url) return null;
   if (att.file_type === "image") {
     return (
@@ -23,6 +40,24 @@ function AttachmentView({ att }: { att: Attachment }) {
           className="max-h-56 max-w-full rounded-md border border-border object-contain"
         />
       </a>
+    );
+  }
+  if (att.file_type === "audio") {
+    return (
+      <audio controls src={att.data_url} className="mt-1 w-full max-w-xs">
+        <track kind="captions" />
+      </audio>
+    );
+  }
+  if (att.file_type === "video") {
+    return (
+      <video
+        controls
+        src={att.data_url}
+        className="mt-1 max-h-56 max-w-full rounded-md border border-border"
+      >
+        <track kind="captions" />
+      </video>
     );
   }
   return (

@@ -41,7 +41,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from app.core.storage import signed_read_url
+from app.core.storage import object_url
 from app.domains.conversations.models import (
     FILE_TYPE_AUDIO,
     FILE_TYPE_CONTACT,
@@ -160,18 +160,33 @@ def _attachment_base_data(att: Attachment) -> dict[str, Any]:
     }
 
 
+def _attachment_read_url(att: Attachment) -> str | None:
+    """Browser-facing URL for the attachment blob.
+
+    Objects in our own store are served through the authenticated media
+    proxy (``attachments_router``) — the store itself is internal-only, so a
+    pre-signed ``localhost`` URL wouldn't load in the browser. External URLs
+    (a location map link, legacy direct links) pass through unchanged.
+    """
+    if not att.external_url:
+        return att.external_url
+    if att.external_url.startswith(object_url("")):
+        return (
+            f"/api/backend/api/v1/accounts/{att.account_id}"
+            f"/attachments/{att.id}"
+        )
+    return att.external_url
+
+
 def _attachment_metadata(att: Attachment) -> dict[str, Any]:
     """``Attachment#metadata_for_file_type`` mirror.
 
-    Phase 4a has no ActiveStorage-equivalent upload pipeline yet (MinIO
-    pre-signed URLs land Phase 10). For ``file``/``image``/``audio``/``video``
-    with no attached blob, Chatwoot falls through to the
-    ``{data_url: external_url, thumb_url: ''}`` branch — same here.
+    Blob URLs point at the authenticated media proxy (see
+    :func:`_attachment_read_url`); location/contact carry their coordinates
+    / card metadata.
     """
     ft = att.file_type
-    read_url = (
-        signed_read_url(att.external_url) if att.external_url else att.external_url
-    )
+    read_url = _attachment_read_url(att)
     if ft == FILE_TYPE_LOCATION:
         return {
             "coordinates_lat": att.coordinates_lat,

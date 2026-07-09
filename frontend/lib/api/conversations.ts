@@ -30,7 +30,15 @@ export type Message = {
   created_at: number;
   private: boolean;
   sender?: Sender;
-  attachments?: Array<{ id: number; data_url?: string; file_type?: string }>;
+  attachments?: Array<{
+    id: number;
+    data_url?: string;
+    file_type?: string;
+    extension?: string;
+    coordinates_lat?: number;
+    coordinates_long?: number;
+    fallback_title?: string;
+  }>;
 };
 
 export type ConversationMeta = {
