@@ -1,7 +1,7 @@
 "use client";
 
-import { Lock, MapPin, Paperclip, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Lock, MapPin, Paperclip, Pause, Play, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { MESSAGE_TYPE, type Message } from "@/lib/api/conversations";
 import { clockTime } from "@/lib/time";
@@ -62,22 +62,126 @@ function ImageAttachment({ src }: { src: string }) {
   );
 }
 
+function fmtTime(s: number): string {
+  if (!Number.isFinite(s) || s < 0) return "0:00";
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60)
+    .toString()
+    .padStart(2, "0");
+  return `${m}:${sec}`;
+}
+
+/** WhatsApp-style voice/audio player: round play button + seek bar + time. */
+function AudioAttachment({ src }: { src: string }) {
+  const ref = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [cur, setCur] = useState(0);
+  const [dur, setDur] = useState(0);
+
+  function toggle() {
+    const a = ref.current;
+    if (!a) return;
+    if (a.paused) void a.play();
+    else a.pause();
+  }
+
+  function seek(e: React.MouseEvent<HTMLDivElement>) {
+    const a = ref.current;
+    if (!a || !dur) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    a.currentTime = Math.min(
+      Math.max((e.clientX - rect.left) / rect.width, 0),
+      1,
+    ) * dur;
+  }
+
+  const pct = dur ? (cur / dur) * 100 : 0;
+
+  return (
+    <div className="mt-1 flex w-56 max-w-full items-center gap-2 rounded-full bg-surface-2 px-2 py-1.5">
+      <audio
+        ref={ref}
+        src={src}
+        preload="metadata"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+        onTimeUpdate={(e) => setCur(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => setDur(e.currentTarget.duration)}
+      >
+        <track kind="captions" />
+      </audio>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={playing ? "Pausar" : "Reproducir"}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {playing ? (
+          <Pause className="h-4 w-4" aria-hidden />
+        ) : (
+          <Play className="h-4 w-4 translate-x-[1px]" aria-hidden />
+        )}
+      </button>
+      <div
+        onClick={seek}
+        className="h-1.5 min-w-0 flex-1 cursor-pointer rounded-full bg-border"
+      >
+        <div
+          className="h-full rounded-full bg-primary"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="shrink-0 text-[10px] tabular-nums text-fg-muted">
+        {fmtTime(cur > 0 ? cur : dur)}
+      </span>
+    </div>
+  );
+}
+
+/** Location bubble: an embedded OpenStreetMap preview + a maps link. */
+function LocationAttachment({
+  lat,
+  lng,
+  title,
+}: {
+  lat: number;
+  lng: number;
+  title?: string;
+}) {
+  const d = 0.004;
+  const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`;
+  const embed = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
+  const maps = `https://www.google.com/maps?q=${lat},${lng}`;
+  return (
+    <div className="mt-1 w-56 max-w-full overflow-hidden rounded-md border border-border">
+      <iframe
+        src={embed}
+        title="Ubicación"
+        loading="lazy"
+        className="block h-32 w-full border-0"
+      />
+      <a
+        href={maps}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-1.5 bg-surface px-2 py-1.5 text-xs font-medium text-primary hover:underline"
+      >
+        <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+        {title || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}
+      </a>
+    </div>
+  );
+}
+
 function AttachmentView({ att }: { att: Attachment }) {
-  // Location carries coordinates, not a blob — render a map link.
+  // Location carries coordinates, not a blob — render an embedded map.
   if (att.file_type === "location") {
     const lat = att.coordinates_lat;
     const lng = att.coordinates_long;
     if (lat == null || lng == null) return null;
     return (
-      <a
-        href={`https://www.google.com/maps?q=${lat},${lng}`}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-1 flex items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1 text-xs font-medium text-primary hover:underline"
-      >
-        <MapPin className="h-3 w-3 shrink-0" aria-hidden />
-        {att.fallback_title || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}
-      </a>
+      <LocationAttachment lat={lat} lng={lng} title={att.fallback_title} />
     );
   }
   if (!att.data_url) return null;
@@ -85,11 +189,7 @@ function AttachmentView({ att }: { att: Attachment }) {
     return <ImageAttachment src={att.data_url} />;
   }
   if (att.file_type === "audio") {
-    return (
-      <audio controls src={att.data_url} className="mt-1 w-full max-w-xs">
-        <track kind="captions" />
-      </audio>
-    );
+    return <AudioAttachment src={att.data_url} />;
   }
   if (att.file_type === "video") {
     return (
