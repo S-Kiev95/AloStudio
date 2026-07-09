@@ -26,6 +26,7 @@ import hmac
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import PlainTextResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
@@ -77,7 +78,8 @@ async def instagram_verify(
             status_code=401,
             detail={"error": "Error; wrong verify token"},
         )
-    return hub_challenge or ""
+    # Meta requires the raw challenge (no JSON quoting) — see whatsapp/router.
+    return PlainTextResponse(hub_challenge or "")
 
 
 @router.post("/webhooks/instagram")
@@ -116,7 +118,7 @@ async def instagram_receive(
 
     try:
         payload = json.loads(raw)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return {"status": "ok"}
 
     if not isinstance(payload, dict):
@@ -129,17 +131,17 @@ async def instagram_receive(
             detail={"error": "Not an instagram webhook event"},
         )
 
+    import logging
+
     from app.domains.instagram.incoming import process_instagram_webhook
     from app.domains.instagram.webhook_changes import (
         process_instagram_changes,
     )
 
-    import logging
-
     # DM path (Phase 5e) — entry[].messaging[].
     try:
         await process_instagram_webhook(session, payload=payload)
-    except Exception:  # noqa: BLE001
+    except Exception:
         logging.getLogger(__name__).exception(
             "instagram.webhook.process_failed"
         )
@@ -147,7 +149,7 @@ async def instagram_receive(
     # Comments / mentions / story_insights (I.8) — entry[].changes[].
     try:
         await process_instagram_changes(session, payload=payload)
-    except Exception:  # noqa: BLE001
+    except Exception:
         logging.getLogger(__name__).exception(
             "instagram.webhook.changes_failed"
         )

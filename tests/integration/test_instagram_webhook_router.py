@@ -60,7 +60,7 @@ async def test_verify_returns_challenge_with_correct_token(
         },
     )
     assert resp.status_code == 200
-    assert resp.json() == "echo-me-back"
+    assert resp.text == "echo-me-back"
 
 
 async def test_verify_rejects_wrong_token(client, ig_verify_token):

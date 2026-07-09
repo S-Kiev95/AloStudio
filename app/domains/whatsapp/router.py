@@ -22,6 +22,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, Request
+from fastapi.responses import PlainTextResponse
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -113,9 +114,11 @@ async def whatsapp_verify(
             status_code=401,
             detail={"error": "Error; wrong verify token"},
         )
-    # Meta requires the challenge echoed back verbatim. FastAPI's
-    # default response JSON-encodes the string which Meta accepts.
-    return hub_challenge or ""
+    # Meta requires the challenge echoed back as raw text — the default
+    # JSONResponse would wrap it in quotes (``"123"``) with an
+    # application/json content-type, which Meta rejects. PlainTextResponse
+    # returns the bare value.
+    return PlainTextResponse(hub_challenge or "")
 
 
 @router.post("/{phone_number}")

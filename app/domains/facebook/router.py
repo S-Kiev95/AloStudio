@@ -23,6 +23,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import PlainTextResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
@@ -65,7 +66,8 @@ async def facebook_verify(
             status_code=401,
             detail={"error": "Error; wrong verify token"},
         )
-    return hub_challenge or ""
+    # Meta requires the raw challenge (no JSON quoting) — see whatsapp/router.
+    return PlainTextResponse(hub_challenge or "")
 
 
 @router.post("/bot")

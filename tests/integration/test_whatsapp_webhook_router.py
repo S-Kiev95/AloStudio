@@ -100,8 +100,8 @@ async def test_verify_returns_challenge_with_correct_token(
         },
     )
     assert resp.status_code == 200
-    # Meta accepts JSON-encoded body or raw — we return the JSON form.
-    assert resp.json() == "echo-me-back"
+    # Meta requires the raw challenge echoed back (no JSON quoting).
+    assert resp.text == "echo-me-back"
 
 
 async def test_verify_rejects_wrong_token(client, db_session):
