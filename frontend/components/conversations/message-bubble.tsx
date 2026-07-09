@@ -1,10 +1,66 @@
-import { Lock, MapPin, Paperclip } from "lucide-react";
+"use client";
+
+import { Lock, MapPin, Paperclip, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { MESSAGE_TYPE, type Message } from "@/lib/api/conversations";
 import { clockTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 type Attachment = NonNullable<Message["attachments"]>[number];
+
+/** Inline thumbnail that opens a full-screen lightbox on click. */
+function ImageAttachment({ src }: { src: string }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-1 block cursor-zoom-in"
+        aria-label="Ampliar imagen"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt="Adjunto"
+          className="max-h-56 max-w-full rounded-md border border-border object-contain"
+        />
+      </button>
+      {open ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+        >
+          <button
+            type="button"
+            aria-label="Cerrar"
+            className="absolute right-4 top-4 rounded-md p-2 text-white/80 hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-6 w-6" aria-hidden />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt="Adjunto"
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-full max-w-full rounded object-contain"
+          />
+        </div>
+      ) : null}
+    </>
+  );
+}
 
 function AttachmentView({ att }: { att: Attachment }) {
   // Location carries coordinates, not a blob — render a map link.
@@ -26,21 +82,7 @@ function AttachmentView({ att }: { att: Attachment }) {
   }
   if (!att.data_url) return null;
   if (att.file_type === "image") {
-    return (
-      <a
-        href={att.data_url}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-1 block"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={att.data_url}
-          alt="Adjunto"
-          className="max-h-56 max-w-full rounded-md border border-border object-contain"
-        />
-      </a>
-    );
+    return <ImageAttachment src={att.data_url} />;
   }
   if (att.file_type === "audio") {
     return (
