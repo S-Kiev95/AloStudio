@@ -62,6 +62,14 @@ function ImageAttachment({ src }: { src: string }) {
   );
 }
 
+// A fixed, organic-looking bar pattern for the voice waveform (0..1 heights).
+// Decorative — not the real amplitude envelope, but reads like WhatsApp's.
+const WAVE = [
+  0.4, 0.6, 0.85, 0.5, 0.7, 1, 0.45, 0.65, 0.9, 0.55, 0.35, 0.75, 0.5,
+  0.85, 0.6, 0.3, 0.55, 0.95, 0.7, 0.45, 0.8, 0.5, 0.65, 0.4, 0.9, 0.6,
+  0.35, 0.7, 0.5, 0.8,
+];
+
 function fmtTime(s: number): string {
   if (!Number.isFinite(s) || s < 0) return "0:00";
   const m = Math.floor(s / 60);
@@ -125,12 +133,18 @@ function AudioAttachment({ src }: { src: string }) {
       </button>
       <div
         onClick={seek}
-        className="h-1.5 min-w-0 flex-1 cursor-pointer rounded-full bg-border"
+        className="flex h-7 min-w-0 flex-1 cursor-pointer items-center justify-between"
       >
-        <div
-          className="h-full rounded-full bg-primary"
-          style={{ width: `${pct}%` }}
-        />
+        {WAVE.map((h, i) => (
+          <span
+            key={i}
+            style={{ height: `${Math.max(h * 100, 14)}%` }}
+            className={cn(
+              "w-[2px] rounded-full",
+              i / WAVE.length < pct / 100 ? "bg-primary" : "bg-fg-muted/40",
+            )}
+          />
+        ))}
       </div>
       <span className="shrink-0 text-[10px] tabular-nums text-fg-muted">
         {fmtTime(cur > 0 ? cur : dur)}
@@ -155,12 +169,16 @@ function LocationAttachment({
   const maps = `https://www.google.com/maps?q=${lat},${lng}`;
   return (
     <div className="mt-1 w-56 max-w-full overflow-hidden rounded-md border border-border">
-      <iframe
-        src={embed}
-        title="Ubicación"
-        loading="lazy"
-        className="block h-32 w-full border-0"
-      />
+      {/* The iframe is taller than its clip window so OSM's attribution /
+          donation footer is cropped out; we credit OSM in the link below. */}
+      <div className="relative h-28 w-full overflow-hidden">
+        <iframe
+          src={embed}
+          title="Ubicación"
+          loading="lazy"
+          className="pointer-events-none absolute inset-x-0 top-0 h-44 w-full border-0"
+        />
+      </div>
       <a
         href={maps}
         target="_blank"
@@ -168,7 +186,9 @@ function LocationAttachment({
         className="flex items-center gap-1.5 bg-surface px-2 py-1.5 text-xs font-medium text-primary hover:underline"
       >
         <MapPin className="h-3 w-3 shrink-0" aria-hidden />
-        {title || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}
+        <span className="truncate">
+          {title || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}
+        </span>
       </a>
     </div>
   );
