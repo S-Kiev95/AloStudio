@@ -5,16 +5,11 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { mimeToFileType, uploadAttachment } from "./uploads";
 
 const server = setupServer(
-  http.post("*/uploads", () =>
+  http.post("*/uploads/blob", () =>
     HttpResponse.json({
       key: "accounts/1/uploads/abc/report.png",
-      upload_url: "http://minio.test/put-here",
       file_url: "http://minio.test/alostudio/report.png",
-      expires_in: 900,
     }),
-  ),
-  http.put("http://minio.test/put-here", () =>
-    HttpResponse.text("", { status: 200 }),
   ),
 );
 
@@ -33,7 +28,7 @@ describe("mimeToFileType", () => {
 });
 
 describe("uploadAttachment", () => {
-  it("presigns, PUTs the file, and returns the attachment ref", async () => {
+  it("POSTs the file and returns the attachment ref", async () => {
     const file = new File([new Uint8Array([1, 2, 3])], "report.png", {
       type: "image/png",
     });
@@ -44,10 +39,10 @@ describe("uploadAttachment", () => {
     });
   });
 
-  it("throws when the object-store PUT fails", async () => {
+  it("throws when the upload fails", async () => {
     server.use(
-      http.put("http://minio.test/put-here", () =>
-        HttpResponse.text("denied", { status: 403 }),
+      http.post("*/uploads/blob", () =>
+        HttpResponse.text("denied", { status: 500 }),
       ),
     );
     const file = new File([new Uint8Array([1])], "f.txt", {

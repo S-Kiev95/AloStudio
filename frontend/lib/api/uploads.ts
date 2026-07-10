@@ -1,14 +1,7 @@
-import { apiFetch } from "./fetcher";
-
 /** The attachment ref sent with a message (`{file_type, external_url}`). */
 export type UploadedAttachment = { external_url: string; file_type: string };
 
-type PresignResponse = {
-  key: string;
-  upload_url: string;
-  file_url: string;
-  expires_in: number;
-};
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/api/backend";
 
 /** Map a browser MIME type to the backend's attachment `file_type` enum. */
 export function mimeToFileType(mime: string | undefined): string {
@@ -20,31 +13,27 @@ export function mimeToFileType(mime: string | undefined): string {
 }
 
 /**
- * Two-step direct upload: presign via our API, then PUT the bytes straight
- * to the object store (they never transit our backend). Returns the
- * attachment ref to include when sending the message.
+ * Upload an attachment through our API (multipart POST → the backend stores
+ * it in the object store). The browser can't reach the internal object store
+ * directly, so the bytes transit our backend. Returns the attachment ref to
+ * include when sending the message.
  */
 export async function uploadAttachment(
   accountId: string,
   file: File,
 ): Promise<UploadedAttachment> {
-  const contentType = file.type || "application/octet-stream";
-  const presign = await apiFetch<PresignResponse>(
-    `/api/v1/accounts/${accountId}/uploads`,
-    {
-      method: "POST",
-      body: JSON.stringify({ filename: file.name, content_type: contentType }),
-    },
+  const form = new FormData();
+  form.append("file", file, file.name);
+  // No explicit Content-Type — the browser sets the multipart boundary. The
+  // httpOnly auth cookie rides along same-origin; the BFF bridges it to the
+  // devise headers the backend expects.
+  const res = await fetch(
+    `${API_BASE}/api/v1/accounts/${accountId}/uploads/blob`,
+    { method: "POST", body: form },
   );
-
-  const res = await fetch(presign.upload_url, {
-    method: "PUT",
-    body: file,
-    headers: { "Content-Type": contentType },
-  });
   if (!res.ok) {
     throw new Error(`upload failed (${res.status})`);
   }
-
-  return { external_url: presign.file_url, file_type: mimeToFileType(file.type) };
+  const data = (await res.json()) as { file_url: string };
+  return { external_url: data.file_url, file_type: mimeToFileType(file.type) };
 }

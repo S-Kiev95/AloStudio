@@ -36,8 +36,11 @@ from typing import Any
 import httpx
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.domains.conversations.models import Message
+from app.domains.conversations.models import Attachment, Message
 from app.domains.inboxes.models import WhatsappChannel
+
+# Our attachment file_type → the WhatsApp message ``type`` (else document).
+_WA_MEDIA_TYPE = {"image": "image", "audio": "audio", "video": "video"}
 
 log = logging.getLogger(__name__)
 
@@ -186,4 +189,124 @@ async def send_text_message_cloud(
     return True
 
 
-__all__ = ["send_text_message_cloud"]
+async def send_media_message_cloud(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    message: Message,
+    to_phone: str,
+    attachment: Attachment,
+) -> bool:
+    """Send an image/audio/video/document attachment via the Cloud API.
+
+    Two hops: upload the bytes to Meta's ``/media`` for a media id, then send
+    a ``type=<media>`` message referencing it. The bytes come from our object
+    store (fetched server-side). Best-effort — logs + returns False on any
+    failure, stamping the WAMID on success. The message content rides along as
+    the caption (except audio, which Meta doesn't caption).
+    """
+    from app.core.storage import signed_read_url
+
+    cfg = channel.provider_config or {}
+    if (
+        not isinstance(cfg, dict)
+        or not cfg.get("api_key")
+        or not cfg.get("phone_number_id")
+    ):
+        log.warning(
+            "whatsapp.send_media.skip reason=missing_config channel_id=%s",
+            channel.id,
+        )
+        return False
+    if not attachment.external_url:
+        return False
+
+    auth = {"Authorization": _api_headers(channel)["Authorization"]}
+    wa_type = _WA_MEDIA_TYPE.get(attachment.file_type_str, "document")
+    filename = f"{message.id or 'file'}.{attachment.extension or 'bin'}"
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            blob = await client.get(signed_read_url(attachment.external_url))
+            blob.raise_for_status()
+            data = blob.content
+            content_type = (
+                blob.headers.get("content-type") or "application/octet-stream"
+            )
+            upload = await client.post(
+                f"{_phone_id_path(channel)}/media",
+                headers=auth,
+                data={"messaging_product": "whatsapp", "type": content_type},
+                files={"file": (filename, data, content_type)},
+            )
+            if upload.status_code >= 400:
+                log.warning(
+                    "whatsapp.send_media.upload_error channel_id=%s status=%s "
+                    "body=%s",
+                    channel.id,
+                    upload.status_code,
+                    upload.text[:300],
+                )
+                return False
+            media_id = (upload.json() or {}).get("id")
+            if not media_id:
+                return False
+
+            type_content: dict[str, Any] = {"id": media_id}
+            if wa_type != "audio" and message.content:
+                type_content["caption"] = message.content
+            if wa_type == "document":
+                type_content["filename"] = filename
+            body: dict[str, Any] = {
+                "messaging_product": "whatsapp",
+                "to": to_phone,
+                "type": wa_type,
+                wa_type: type_content,
+            }
+            reply = _reply_context(message)
+            if reply is not None:
+                body["context"] = reply
+            resp = await client.post(
+                f"{_phone_id_path(channel)}/messages",
+                headers=_api_headers(channel),
+                json=body,
+            )
+    except (httpx.RequestError, httpx.TimeoutException, ValueError) as exc:
+        log.warning(
+            "whatsapp.send_media.transport_error channel_id=%s err=%s",
+            channel.id,
+            exc,
+        )
+        return False
+
+    if resp.status_code >= 400:
+        log.warning(
+            "whatsapp.send_media.api_error channel_id=%s status=%s body=%s",
+            channel.id,
+            resp.status_code,
+            resp.text[:300],
+        )
+        return False
+    try:
+        payload = resp.json()
+    except ValueError:
+        return False
+    messages = payload.get("messages") if isinstance(payload, dict) else None
+    if not isinstance(messages, list) or not messages:
+        return False
+    wamid = messages[0].get("id") if isinstance(messages[0], dict) else None
+    if wamid:
+        message.source_id = str(wamid)
+        session.add(message)
+        await session.flush()
+    log.info(
+        "whatsapp.send_media.ok channel_id=%s message_id=%s type=%s wamid=%s",
+        channel.id,
+        message.id,
+        wa_type,
+        wamid,
+    )
+    return True
+
+
+__all__ = ["send_media_message_cloud", "send_text_message_cloud"]

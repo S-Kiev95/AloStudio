@@ -13,10 +13,13 @@ import re
 from typing import Any
 from uuid import uuid4
 
+import httpx
+
 from app.core.storage import object_url, presigned_put_url
 
 UPLOAD_TTL_SECONDS = 900
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
+_PUT_TIMEOUT = httpx.Timeout(60.0, connect=10.0)
 
 
 def safe_filename(name: str | None) -> str:
@@ -42,4 +45,37 @@ def presign_upload(account_id: int, filename: str | None) -> dict[str, Any]:
     }
 
 
-__all__ = ["UPLOAD_TTL_SECONDS", "presign_upload", "safe_filename"]
+async def store_upload_blob(
+    account_id: int,
+    *,
+    filename: str | None,
+    content_type: str | None,
+    data: bytes,
+) -> dict[str, Any]:
+    """Store ``data`` server-side and return ``{key, file_url}``.
+
+    Unlike :func:`presign_upload` (browser → object store directly), this
+    takes the bytes through our API — the only workable path when the object
+    store is internal-only and unreachable from the browser.
+    """
+    key = (
+        f"accounts/{account_id}/uploads/"
+        f"{uuid4().hex}/{safe_filename(filename)}"
+    )
+    put_url = presigned_put_url(key, expires=UPLOAD_TTL_SECONDS)
+    async with httpx.AsyncClient(timeout=_PUT_TIMEOUT) as client:
+        resp = await client.put(
+            put_url,
+            content=data,
+            headers={"Content-Type": content_type or "application/octet-stream"},
+        )
+        resp.raise_for_status()
+    return {"key": key, "file_url": object_url(key)}
+
+
+__all__ = [
+    "UPLOAD_TTL_SECONDS",
+    "presign_upload",
+    "safe_filename",
+    "store_upload_blob",
+]

@@ -1257,6 +1257,37 @@ async def _maybe_send_outbound_whatsapp(
                     template_info=template_info,
                 )
                 return
+
+        # A message with attachments goes out as WhatsApp media (image /
+        # audio / video / document), with the text content as the caption.
+        # Load them explicitly — a lazy-load here would MissingGreenlet.
+        if not template_params and channel.provider == WHATSAPP_PROVIDER_CLOUD:
+            from app.domains.conversations.models import Attachment
+
+            attachments = list(
+                (
+                    await session.exec(
+                        select(Attachment).where(
+                            Attachment.message_id == message.id
+                        )
+                    )
+                ).all()
+            )
+            if attachments:
+                from app.domains.whatsapp.cloud_provider import (
+                    send_media_message_cloud,
+                )
+
+                for att in attachments:
+                    await send_media_message_cloud(
+                        session,
+                        channel=channel,
+                        message=message,
+                        to_phone=to_phone,
+                        attachment=att,
+                    )
+                return
+
         if channel.provider == WHATSAPP_PROVIDER_CLOUD:
             from app.domains.whatsapp.cloud_provider import (
                 send_text_message_cloud,

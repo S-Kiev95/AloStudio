@@ -13,11 +13,11 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from pydantic import BaseModel, ConfigDict
 
 from app.core.deps import AccountContext, account_context
-from app.domains.uploads.service import presign_upload
+from app.domains.uploads.service import presign_upload, store_upload_blob
 
 router = APIRouter(
     prefix="/api/v1/accounts/{account_id}/uploads",
@@ -41,6 +41,24 @@ async def create_upload(
     account. Any account member may request one."""
     assert ctx.account.id is not None
     return presign_upload(ctx.account.id, payload.filename)
+
+
+@router.post("/blob")
+async def upload_blob(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    file: Annotated[UploadFile, File()],
+) -> dict[str, Any]:
+    """Server-side upload — the browser POSTs the file through our API and
+    we store it. Use this when the object store isn't reachable from the
+    browser (internal MinIO); returns ``{key, file_url}``."""
+    assert ctx.account.id is not None
+    data = await file.read()
+    return await store_upload_blob(
+        ctx.account.id,
+        filename=file.filename,
+        content_type=file.content_type,
+        data=data,
+    )
 
 
 __all__ = ["router"]
