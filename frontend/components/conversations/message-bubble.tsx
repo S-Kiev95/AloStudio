@@ -153,7 +153,8 @@ function AudioAttachment({ src }: { src: string }) {
   );
 }
 
-/** Location bubble: an embedded OpenStreetMap preview + a maps link. */
+/** Location bubble: a cropped OSM preview that opens a full interactive map
+ * in a modal on click. */
 function LocationAttachment({
   lat,
   lng,
@@ -163,34 +164,87 @@ function LocationAttachment({
   lng: number;
   title?: string;
 }) {
-  const d = 0.004;
-  const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`;
-  const embed = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
+  const [open, setOpen] = useState(false);
+  const label = title || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   const maps = `https://www.google.com/maps?q=${lat},${lng}`;
+  const bboxFor = (d: number) =>
+    `${lng - d},${lat - d},${lng + d},${lat + d}`;
+  const embed = (d: number) =>
+    `https://www.openstreetmap.org/export/embed.html?bbox=${bboxFor(d)}&layer=mapnik&marker=${lat},${lng}`;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
-    <div className="mt-1 w-56 max-w-full overflow-hidden rounded-md border border-border">
-      {/* The iframe is taller than its clip window so OSM's attribution /
-          donation footer is cropped out; we credit OSM in the link below. */}
-      <div className="relative h-28 w-full overflow-hidden">
-        <iframe
-          src={embed}
-          title="Ubicación"
-          loading="lazy"
-          className="pointer-events-none absolute inset-x-0 top-0 h-44 w-full border-0"
-        />
-      </div>
-      <a
-        href={maps}
-        target="_blank"
-        rel="noreferrer"
-        className="flex items-center gap-1.5 bg-surface px-2 py-1.5 text-xs font-medium text-primary hover:underline"
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`Ver ubicación: ${label}`}
+        className="mt-1 block w-56 max-w-full cursor-pointer overflow-hidden rounded-md border border-border text-left"
       >
-        <MapPin className="h-3 w-3 shrink-0" aria-hidden />
-        <span className="truncate">
-          {title || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}
+        {/* Taller than its clip window so OSM's attribution/donation footer
+            is cropped out; OSM is credited in the modal. */}
+        <div className="relative h-28 w-full overflow-hidden">
+          <iframe
+            src={embed(0.004)}
+            title="Ubicación"
+            loading="lazy"
+            className="pointer-events-none absolute inset-x-0 top-0 h-44 w-full border-0"
+          />
+        </div>
+        <span className="flex items-center gap-1.5 bg-surface px-2 py-1.5 text-xs font-medium text-primary">
+          <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+          <span className="truncate">{label}</span>
         </span>
-      </a>
-    </div>
+      </button>
+
+      {open ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-surface"
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+              <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-fg">
+                <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                <span className="truncate">{label}</span>
+              </span>
+              <button
+                type="button"
+                aria-label="Cerrar"
+                onClick={() => setOpen(false)}
+                className="rounded-md p-1 text-fg-muted hover:bg-surface-2 hover:text-fg"
+              >
+                <X className="h-5 w-5" aria-hidden />
+              </button>
+            </div>
+            <iframe
+              src={embed(0.01)}
+              title="Mapa"
+              className="h-[60vh] w-full border-0"
+            />
+            <a
+              href={maps}
+              target="_blank"
+              rel="noreferrer"
+              className="border-t border-border bg-surface px-3 py-2 text-center text-xs font-medium text-primary hover:underline"
+            >
+              Abrir en Google Maps · © OpenStreetMap
+            </a>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
