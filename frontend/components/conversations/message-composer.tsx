@@ -15,6 +15,8 @@ type PendingAttachment = {
   external_url: string;
   file_type: string;
   name: string;
+  // Local object URL for an instant image thumbnail (revoked on remove/send).
+  previewUrl?: string;
 };
 
 // Matches the backend's NUMBER_OF_PERMITTED_ATTACHMENTS cap.
@@ -66,9 +68,17 @@ export function MessageComposer({
     setUploadError(false);
     setUploading(true);
     const results = await Promise.allSettled(
-      files.map(async (file) => {
+      files.map(async (file): Promise<PendingAttachment> => {
         const up = await uploadAttachment(accountId, file);
-        return { ...up, name: file.name, key: String(keyRef.current++) };
+        const previewUrl = file.type.startsWith("image/")
+          ? URL.createObjectURL(file)
+          : undefined;
+        return {
+          ...up,
+          name: file.name,
+          key: String(keyRef.current++),
+          previewUrl,
+        };
       }),
     );
     const ok = results
@@ -80,7 +90,11 @@ export function MessageComposer({
   }
 
   function removeAttachment(key: string) {
-    setAttachments((prev) => prev.filter((a) => a.key !== key));
+    setAttachments((prev) => {
+      const gone = prev.find((a) => a.key === key);
+      if (gone?.previewUrl) URL.revokeObjectURL(gone.previewUrl);
+      return prev.filter((a) => a.key !== key);
+    });
   }
 
   function submit() {
@@ -102,7 +116,12 @@ export function MessageComposer({
       {
         onSuccess: () => {
           setContent("");
-          setAttachments([]);
+          setAttachments((prev) => {
+            prev.forEach(
+              (a) => a.previewUrl && URL.revokeObjectURL(a.previewUrl),
+            );
+            return [];
+          });
         },
       },
     );
@@ -137,23 +156,50 @@ export function MessageComposer({
 
       {attachments.length > 0 ? (
         <div className="mb-2 flex flex-wrap gap-2">
-          {attachments.map((att) => (
-            <span
-              key={att.key}
-              className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-2 py-1 text-xs"
-            >
-              <Paperclip className="h-3 w-3 shrink-0 text-fg-muted" aria-hidden />
-              <span className="max-w-[12rem] truncate text-fg">{att.name}</span>
-              <button
-                type="button"
-                onClick={() => removeAttachment(att.key)}
-                aria-label={`Quitar ${att.name}`}
-                className="rounded p-0.5 text-fg-muted hover:text-danger"
+          {attachments.map((att) =>
+            att.previewUrl ? (
+              <div
+                key={att.key}
+                className="group relative h-20 w-20 overflow-hidden rounded-md border border-border"
               >
-                <X className="h-3 w-3" aria-hidden />
-              </button>
-            </span>
-          ))}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={att.previewUrl}
+                  alt={att.name}
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(att.key)}
+                  aria-label={`Quitar ${att.name}`}
+                  className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              </div>
+            ) : (
+              <span
+                key={att.key}
+                className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-2 py-1 text-xs"
+              >
+                <Paperclip
+                  className="h-3 w-3 shrink-0 text-fg-muted"
+                  aria-hidden
+                />
+                <span className="max-w-[12rem] truncate text-fg">
+                  {att.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(att.key)}
+                  aria-label={`Quitar ${att.name}`}
+                  className="rounded p-0.5 text-fg-muted hover:text-danger"
+                >
+                  <X className="h-3 w-3" aria-hidden />
+                </button>
+              </span>
+            ),
+          )}
         </div>
       ) : null}
 
