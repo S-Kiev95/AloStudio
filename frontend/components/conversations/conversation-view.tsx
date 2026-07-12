@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   useConversation,
+  useDeleteMessage,
   useMessages,
   useToggleStatus,
 } from "@/lib/api/conversations";
@@ -26,6 +27,18 @@ export function ConversationView({
   const conv = useConversation(accountId, displayId);
   const messages = useMessages(accountId, displayId);
   const toggle = useToggleStatus(accountId, displayId);
+  const del = useDeleteMessage(accountId, displayId);
+
+  function handleDelete(id: number) {
+    if (
+      window.confirm(
+        "¿Eliminar este mensaje? Se quita de la conversación, pero el " +
+          "destinatario ya lo recibió en su WhatsApp.",
+      )
+    ) {
+      del.mutate(id);
+    }
+  }
 
   const status = conv.data?.status;
   const contactName = conv.data?.meta?.sender?.name ?? `#${displayId}`;
@@ -99,7 +112,7 @@ export function ConversationView({
           <p className="text-center text-sm text-fg-muted">Sin mensajes.</p>
         ) : (
           messages.data?.payload.map((m) => (
-            <MessageBubble key={m.id} message={m} />
+            <MessageBubble key={m.id} message={m} onDelete={handleDelete} />
           ))
         )}
       </div>

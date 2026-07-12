@@ -30,6 +30,7 @@ export type Message = {
   created_at: number;
   private: boolean;
   sender?: Sender;
+  content_attributes?: { deleted?: boolean } & Record<string, unknown>;
   attachments?: Array<{
     id: number;
     data_url?: string;
@@ -222,6 +223,22 @@ export function useSendMessage(accountId: string, displayId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["messages", accountId, displayId] });
       qc.invalidateQueries({ queryKey: ["conversations", accountId] });
+    },
+  });
+}
+
+/** Soft-delete a message — the backend replaces it with a "deleted" marker
+ * (it does NOT unsend it from the recipient's WhatsApp). */
+export function useDeleteMessage(accountId: string, displayId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: number) =>
+      apiFetch<Record<string, never>>(
+        `${base(accountId)}/${displayId}/messages/${messageId}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["messages", accountId, displayId] });
     },
   });
 }

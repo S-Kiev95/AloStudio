@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, MapPin, Paperclip, Pause, Play, X } from "lucide-react";
+import { Lock, MapPin, Paperclip, Pause, Play, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { MESSAGE_TYPE, type Message } from "@/lib/api/conversations";
@@ -294,7 +294,13 @@ function AttachmentView({ att }: { att: Attachment }) {
  * surface; activity = centered system note; private notes get a warning
  * tint + a lock. Attachments render inline (image preview or a download link).
  */
-export function MessageBubble({ message }: { message: Message }) {
+export function MessageBubble({
+  message,
+  onDelete,
+}: {
+  message: Message;
+  onDelete?: (id: number) => void;
+}) {
   if (message.message_type === MESSAGE_TYPE.activity) {
     return (
       <div className="my-2 text-center text-xs text-fg-muted">
@@ -305,9 +311,20 @@ export function MessageBubble({ message }: { message: Message }) {
 
   const outgoing = message.message_type === MESSAGE_TYPE.outgoing;
   const isPrivate = message.private;
+  const deleted = message.content_attributes?.deleted === true;
+  const canDelete = Boolean(onDelete) && !deleted;
 
   return (
-    <div className={cn("flex", outgoing ? "justify-end" : "justify-start")}>
+    <div
+      className={cn(
+        "group flex items-center gap-1.5",
+        outgoing ? "justify-end" : "justify-start",
+      )}
+    >
+      {/* Delete on the left for outgoing (bubble is right-aligned). */}
+      {canDelete && outgoing ? (
+        <DeleteButton onClick={() => onDelete?.(message.id)} />
+      ) : null}
       <div
         className={cn(
           "max-w-[75%] rounded-lg px-3 py-2 text-sm",
@@ -323,16 +340,45 @@ export function MessageBubble({ message }: { message: Message }) {
             <Lock className="h-3 w-3" aria-hidden /> Nota privada
           </span>
         ) : null}
-        {message.content ? (
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
-        ) : null}
-        {message.attachments?.map((att) => (
-          <AttachmentView key={att.id} att={att} />
-        ))}
+        {deleted ? (
+          <p className="flex items-center gap-1.5 italic text-fg-muted">
+            <Trash2 className="h-3 w-3 shrink-0" aria-hidden />
+            {message.content || "Este mensaje fue eliminado"}
+          </p>
+        ) : (
+          <>
+            {message.content ? (
+              <p className="whitespace-pre-wrap break-words">
+                {message.content}
+              </p>
+            ) : null}
+            {message.attachments?.map((att) => (
+              <AttachmentView key={att.id} att={att} />
+            ))}
+          </>
+        )}
         <span className="mt-1 block text-right text-[10px] tabular-nums text-fg-muted">
           {clockTime(message.created_at)}
         </span>
       </div>
+      {canDelete && !outgoing ? (
+        <DeleteButton onClick={() => onDelete?.(message.id)} />
+      ) : null}
     </div>
+  );
+}
+
+/** Hover-revealed delete affordance next to a message bubble. */
+function DeleteButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Eliminar mensaje"
+      title="Eliminar mensaje"
+      className="shrink-0 rounded-md p-1 text-fg-muted opacity-0 transition hover:bg-surface-2 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
+    >
+      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+    </button>
   );
 }
