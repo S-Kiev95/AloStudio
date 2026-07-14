@@ -473,6 +473,8 @@ def test_build_instagram_login_url(meta_oauth_config):
     assert "client_id=IGAPPID" in url
     assert "state=IGST" in url
     assert "instagram_business_content_publish" in url
+    # DM inbox scope — the reason the channel exists.
+    assert "instagram_business_manage_messages" in url
     assert "oauth/authorize" in url
 
 

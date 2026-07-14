@@ -45,9 +45,12 @@ FACEBOOK_LOGIN_SCOPES: tuple[str, ...] = (
 )
 
 # Instagram Login scopes (the ``instagram_business_*`` family) — no
-# Facebook Page required. DELETE media is NOT available on this flow.
+# Facebook Page required. ``manage_messages`` unlocks the DM inbox (the
+# whole point of the channel); DELETE media is still NOT available on
+# this flow (Meta API limitation, gated in connect_service).
 INSTAGRAM_LOGIN_SCOPES: tuple[str, ...] = (
     "instagram_business_basic",
+    "instagram_business_manage_messages",
     "instagram_business_content_publish",
     "instagram_business_manage_comments",
     "instagram_business_manage_insights",
