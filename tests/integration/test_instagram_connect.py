@@ -491,12 +491,19 @@ async def test_complete_instagram_oauth_happy_path(db_session, meta_oauth_config
             200, json={"access_token": "IG_LONG", "expires_in": 5183944}
         )
     )
+    # The connect flow subscribes the app to the account's DM webhook.
+    sub_route = respx.route(
+        method="POST",
+        url__regex=r"https://graph\.instagram\.com/[^/]+/178410001/subscribed_apps",
+    ).mock(return_value=httpx.Response(200, json={"success": True}))
     state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
     result = await csvc.complete_instagram_oauth(
         db_session, code="IGCODE", state=state
     )
     assert result["login_type"] == "instagram"
     assert result["instagram_id"] == "178410001"
+    # Without this subscription Instagram never sends inbound DMs.
+    assert sub_route.called
     # Instagram Login channels can't delete media.
     assert (
         await csvc.can_delete_media(

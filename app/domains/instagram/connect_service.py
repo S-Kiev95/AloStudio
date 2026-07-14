@@ -17,6 +17,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import secrets
 import time
 from datetime import datetime
@@ -483,6 +484,19 @@ async def complete_instagram_oauth(
         login_type="instagram",
         connect_method="oauth",
     )
+    # Instagram only delivers DM webhooks to apps listed in the account's
+    # ``subscribed_apps`` — do it now so the inbox receives messages
+    # without a manual Graph call. Best-effort: a failure doesn't undo the
+    # connection (an admin can retry), but log it loudly.
+    subscribed, sub_err = await oauth.subscribe_instagram_messages(
+        instagram_id=short.user_id, access_token=long.access_token
+    )
+    if not subscribed:
+        logging.getLogger(__name__).warning(
+            "instagram.subscribe_messages_failed ig_id=%s err=%s",
+            short.user_id,
+            sub_err,
+        )
     return {
         "inbox_id": result.inbox.id,
         "channel_instagram_id": result.channel.id,

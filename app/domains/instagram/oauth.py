@@ -109,6 +109,12 @@ def _dialog_base() -> str:
     return f"https://www.facebook.com/{get_settings().meta_graph_api_version}"
 
 
+def _ig_base() -> str:
+    """Instagram-Login Graph host (no Facebook Page). Versioned, unlike
+    the token endpoints which Meta serves unversioned."""
+    return f"https://graph.instagram.com/{get_settings().meta_graph_api_version}"
+
+
 def _extract_error(resp: httpx.Response) -> tuple[str | None, str | None]:
     try:
         payload = resp.json()
@@ -416,6 +422,40 @@ async def exchange_instagram_long_lived(
     )
 
 
+async def subscribe_instagram_messages(
+    *, instagram_id: str, access_token: str
+) -> tuple[bool, str | None]:
+    """Subscribe our app to the IG account's ``messages`` webhook field
+    (``POST /{ig-id}/subscribed_apps?subscribed_fields=messages``).
+
+    Instagram only delivers DM webhooks to apps that appear in the
+    account's ``subscribed_apps`` — verifying the callback URL and
+    granting ``manage_messages`` is not enough on its own. The
+    Instagram-Login connect flow must call this or no inbound DM ever
+    reaches the webhook.
+
+    Best-effort: returns ``(ok, error_message)``. The caller logs a
+    failure but does not abort the connection (an admin can re-run it).
+    """
+    params = {"subscribed_fields": "messages", "access_token": access_token}
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{_ig_base()}/{instagram_id}/subscribed_apps", params=params
+            )
+    except (httpx.RequestError, httpx.TimeoutException) as exc:
+        # Class name only — never str(exc) — so a token can't leak.
+        return False, type(exc).__name__
+    if resp.status_code >= 400:
+        _code, message = _extract_error(resp)
+        return False, message
+    try:
+        ok = bool(resp.json().get("success"))
+    except ValueError:
+        ok = False
+    return (True, None) if ok else (False, "subscribe did not return success")
+
+
 __all__ = [
     "FACEBOOK_LOGIN_SCOPES",
     "INSTAGRAM_LOGIN_SCOPES",
@@ -431,4 +471,5 @@ __all__ = [
     "exchange_instagram_long_lived",
     "get_page_ig_account",
     "list_pages",
+    "subscribe_instagram_messages",
 ]
