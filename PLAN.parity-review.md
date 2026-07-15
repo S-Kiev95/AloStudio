@@ -39,14 +39,18 @@ stack (see [frontend/README.md](frontend/README.md) for setup).
 > **Refreshed 2026-07-13** — AloStudio now runs on a public staging VPS
 > (Tailscale Funnel) wired live to Meta. WhatsApp Cloud is connected end
 > to end (inbound text/image/audio/location, outbound text/template/media,
-> dashboard-only soft-delete + composer image preview). Instagram
-> **Instagram-Login** connect is live; the OAuth scope set now includes
-> `instagram_business_manage_messages` so the channel can receive/answer
-> DMs — the `/webhooks/instagram` receiver + `process_instagram_webhook`
-> already existed, they just lacked an authorized token. Channels
-> connected before this scope landed must be deleted + re-connected to
-> pick up the messaging grant (`instagram_id` uniqueness blocks an
-> in-place re-auth).
+> dashboard-only soft-delete + composer image preview). Instagram **DMs
+> work end-to-end (inbound + outbound)** via the **Facebook-Page** Graph
+> API flow — connected with the manual-token form (`login_type=facebook`,
+> canonical IG Business Account id + a Page access token), Page subscribed
+> to the app's `messages` webhook. The newer **Instagram-Login** API was
+> tried first but delivered only content-less `message_edit` webhooks in
+> the dev/tester setup, so it was abandoned. Dev-mode caps replies to
+> accounts with an app role; messaging arbitrary customers needs App
+> Review (Advanced Access on `instagram_business_manage_messages`). No app
+> code changed — the existing `process_instagram_webhook` +
+> `send_text_message_instagram` handled both directions. See memory
+> `project-instagram-dm-integration`.
 
 ---
 
