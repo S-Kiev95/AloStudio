@@ -466,6 +466,19 @@ async def _process_message_event(
         )
         return None
 
+    # Resolve the media before touching the DB: an event that yields neither
+    # text nor an attachment must not mint a contact/conversation either.
+    attachments, content_fallback = await _build_ig_attachments(
+        account_id=channel.account_id,
+        message_block=message_block,
+        mid=str(mid),
+    )
+    if not body and not content_fallback and not attachments:
+        # Rails would land an empty row here; an empty bubble is worse than
+        # no bubble, and the unhandled_attachment log above names the shape.
+        log.info("instagram.inbound.skip reason=nothing_to_store mid=%s", mid)
+        return None
+
     contact = await _find_or_create_contact(
         session, account_id=channel.account_id, igsid=igsid
     )
@@ -479,11 +492,6 @@ async def _process_message_event(
         session, contact_inbox=contact_inbox
     )
 
-    attachments, content_fallback = await _build_ig_attachments(
-        account_id=channel.account_id,
-        message_block=message_block,
-        mid=str(mid),
-    )
     message_type = "outgoing" if is_echo else "incoming"
 
     try:

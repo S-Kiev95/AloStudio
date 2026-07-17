@@ -248,6 +248,19 @@ function LocationAttachment({
   );
 }
 
+/**
+ * Instagram keeps its own file_types for a shared post / story / mention,
+ * but they still carry a real downloaded blob — show the media instead of a
+ * bare download link. Which player to use comes from the extension.
+ */
+const IG_MEDIA_TYPES = new Set([
+  "ig_post",
+  "ig_story",
+  "share",
+  "story_mention",
+]);
+const VIDEO_EXTENSIONS = new Set(["mp4", "mov", "webm", "m4v"]);
+
 function AttachmentView({ att }: { att: Attachment }) {
   // Location carries coordinates, not a blob — render an embedded map.
   if (att.file_type === "location") {
@@ -259,13 +272,19 @@ function AttachmentView({ att }: { att: Attachment }) {
     );
   }
   if (!att.data_url) return null;
-  if (att.file_type === "image") {
+
+  const isIgMedia = att.file_type ? IG_MEDIA_TYPES.has(att.file_type) : false;
+  const isVideo =
+    att.file_type === "video" ||
+    (isIgMedia && !!att.extension && VIDEO_EXTENSIONS.has(att.extension));
+
+  if (att.file_type === "image" || (isIgMedia && !isVideo)) {
     return <ImageAttachment src={att.data_url} />;
   }
   if (att.file_type === "audio") {
     return <AudioAttachment src={att.data_url} />;
   }
-  if (att.file_type === "video") {
+  if (isVideo) {
     return (
       <video
         controls
