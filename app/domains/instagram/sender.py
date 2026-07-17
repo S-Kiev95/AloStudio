@@ -8,11 +8,15 @@ Sends an outgoing :class:`Message` on a ``Channel::Instagram`` inbox by
 POSTing to ``graph.facebook.com/<vN>/me/messages`` with the channel's
 ``access_token`` as a query parameter.
 
-Attachments mirror ``BaseSendService#send_attachments``: Meta takes **one
-attachment per message**, so each becomes its own send, and it downloads
-``payload.url`` from its own side — which is why we hand it a signed public
-link (:func:`~app.domains.conversations.attachments_router.public_attachment_url`)
-rather than the internal object-store URL.
+Attachments follow ``BaseSendService#send_attachments`` — Meta takes **one
+attachment per message**, so each becomes its own send — with one deliberate
+divergence: Rails hands Meta a public URL to pull from
+(``payload: {url: attachment.download_url}``) because its send runs in an
+after-commit background job. Ours runs inside the create-message
+transaction, so Meta's fetch races the commit and 404s. We upload the bytes
+to ``/me/message_attachments`` for a reusable ``attachment_id`` instead,
+which also keeps the object store private and mirrors the WhatsApp Cloud
+sender.
 
 Deferred:
   * ``HUMAN_AGENT`` tag toggle — gated by an installation feature flag
@@ -24,13 +28,16 @@ Deferred:
 
 from __future__ import annotations
 
+import json
 import logging
+import mimetypes
 from typing import Any
 
 import httpx
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
+from app.core.storage import signed_read_url
 from app.domains.conversations.models import Attachment, Message
 from app.domains.inboxes.models import InstagramChannel
 
@@ -40,15 +47,17 @@ log = logging.getLogger(__name__)
 # ig_post / share / story_mention we forward degrades to ``file``.
 _IG_SEND_TYPES = frozenset({"image", "audio", "video", "file"})
 
+# Uploads carry the whole file — a DM video is far slower than a text POST.
+_UPLOAD_TIMEOUT = httpx.Timeout(60.0, connect=10.0)
+
+
+def _graph_base() -> str:
+    return f"https://graph.facebook.com/{get_settings().facebook_api_version}"
+
 
 def _api_url(channel: InstagramChannel) -> str:
     """``https://graph.facebook.com/<vN>/me/messages?access_token=<channel>``."""
-    settings = get_settings()
-    base = "https://graph.facebook.com"
-    return (
-        f"{base}/{settings.facebook_api_version}/me/messages"
-        f"?access_token={channel.access_token}"
-    )
+    return f"{_graph_base()}/me/messages?access_token={channel.access_token}"
 
 
 def _send_attachment_type(file_type: str) -> str:
@@ -142,6 +151,72 @@ async def send_text_message_instagram(
     )
 
 
+async def _upload_attachment(
+    channel: InstagramChannel, attachment: Attachment
+) -> str | None:
+    """Push the blob to ``/me/message_attachments`` → reusable
+    ``attachment_id``, or ``None`` on any failure (logged).
+
+    Reads the object server-side (the store is internal-only) and hands the
+    bytes to Meta, rather than Rails' public-URL pull — see the module
+    docstring for why.
+    """
+    send_type = _send_attachment_type(attachment.file_type_str)
+    ext = attachment.extension or "bin"
+    filename = f"attachment.{ext}"
+    content_type = (
+        mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=_UPLOAD_TIMEOUT) as client:
+            blob = await client.get(signed_read_url(attachment.external_url or ""))
+            blob.raise_for_status()
+            resp = await client.post(
+                f"{_graph_base()}/me/message_attachments",
+                params={"access_token": channel.access_token},
+                data={
+                    "message": json.dumps(
+                        {
+                            "attachment": {
+                                "type": send_type,
+                                "payload": {"is_reusable": True},
+                            }
+                        }
+                    )
+                },
+                files={"filedata": (filename, blob.content, content_type)},
+            )
+    except (httpx.HTTPError, httpx.TimeoutException) as exc:
+        log.warning(
+            "instagram.send.upload_transport_error channel_id=%s err=%s",
+            channel.id,
+            type(exc).__name__,
+        )
+        return None
+    if resp.status_code >= 400:
+        log.warning(
+            "instagram.send.upload_error channel_id=%s status=%s body=%s",
+            channel.id,
+            resp.status_code,
+            resp.text[:500],
+        )
+        return None
+    try:
+        payload = resp.json()
+    except ValueError:
+        return None
+    attachment_id = (
+        payload.get("attachment_id") if isinstance(payload, dict) else None
+    )
+    if not attachment_id:
+        log.warning(
+            "instagram.send.upload_error channel_id=%s reason=no_attachment_id",
+            channel.id,
+        )
+        return None
+    return str(attachment_id)
+
+
 async def send_attachment_message_instagram(
     session: AsyncSession,
     *,
@@ -150,15 +225,10 @@ async def send_attachment_message_instagram(
     to_igsid: str,
     attachment: Attachment,
 ) -> bool:
-    """POST one attachment to Meta's IG Graph endpoint.
-
-    Meta downloads ``payload.url`` itself, so the attachment is handed over
-    as a signed, expiring public link — the object store is internal-only and
-    the dashboard's proxy needs a session.
-    """
+    """Upload one attachment to Meta, then send it by ``attachment_id``."""
     if not _can_send(channel, message, to_igsid):
         return False
-    if attachment.id is None or not attachment.external_url:
+    if not attachment.external_url:
         log.warning(
             "instagram.send.skip reason=attachment_without_blob channel_id=%s "
             "message_id=%s",
@@ -167,17 +237,16 @@ async def send_attachment_message_instagram(
         )
         return False
 
-    # Imported lazily: the router imports models that import this module.
-    from app.domains.conversations.attachments_router import (
-        public_attachment_url,
-    )
+    attachment_id = await _upload_attachment(channel, attachment)
+    if attachment_id is None:
+        return False
 
     body: dict[str, Any] = {
         "recipient": {"id": to_igsid},
         "message": {
             "attachment": {
                 "type": _send_attachment_type(attachment.file_type_str),
-                "payload": {"url": public_attachment_url(attachment.id)},
+                "payload": {"attachment_id": attachment_id},
             }
         },
     }

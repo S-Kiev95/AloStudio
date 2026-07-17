@@ -31,9 +31,6 @@ from app.domains.canned_responses.router import router as canned_responses_route
 from app.domains.contacts.router import actions_router as contact_actions_router
 from app.domains.contacts.router import router as contacts_router
 from app.domains.conversations.attachments_router import (
-    public_router as public_attachments_router,
-)
-from app.domains.conversations.attachments_router import (
     router as attachments_router,
 )
 from app.domains.conversations.router import messages_router as conversations_messages_router
@@ -285,9 +282,6 @@ def create_app() -> FastAPI:
     # Authenticated media proxy — serves stored attachment bytes to the
     # dashboard (the object store is internal-only).
     app.include_router(attachments_router)
-    # Signed, unauthenticated media links — Meta downloads outbound
-    # attachments from its own side, so it can't use the proxy above.
-    app.include_router(public_attachments_router)
     # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
     # last so HTTP routes take precedence in any path-overlap edge.
     app.include_router(cable_router)
