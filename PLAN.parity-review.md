@@ -52,6 +52,21 @@ stack (see [frontend/README.md](frontend/README.md) for setup).
 > `send_text_message_instagram` handled both directions. See memory
 > `project-instagram-dm-integration`.
 
+> **Refreshed 2026-07-17** — Instagram DM **media works both ways** on
+> staging. Inbound (`app/domains/instagram/media.py` +
+> `_build_ig_attachments`) fetches the signed CDN URL Meta puts straight in
+> the webhook — one GET, no `media_id` hop like WhatsApp — and attaches
+> image / audio / video / file / share / story_mention / ig_reel / ig_post /
+> ig_story; a shape we don't handle now logs
+> `instagram.inbound.unhandled_attachment` instead of minting an empty
+> bubble. Outbound sends `payload.url` at a signed, expiring
+> `/public/attachments/{id}` route Meta pulls — IG rejects Messenger's
+> reusable `attachment_id` — and commits the row before handing the link
+> over so Meta's fetch can't race the create-message transaction. Verified
+> live end-to-end (image, voice note, shared post in; image out). Still
+> open: Instagram **posts/publishing** wants a live exercise, and
+> messaging any non-tester still needs App Review.
+
 ---
 
 ## 1. Top-level navigation
