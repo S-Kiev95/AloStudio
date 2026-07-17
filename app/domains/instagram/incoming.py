@@ -30,15 +30,27 @@ Payload shape:
       ]
     }
 
-5e.3 scope:
+Scope:
   * Text messages.
+  * Media attachments — ``message.attachments[]`` (image / video / audio /
+    file / share / story_mention / ig_reel / ig_post / ig_story) fetched
+    from the signed CDN URL Meta puts in the payload
+    (:mod:`app.domains.instagram.media`) and hung off the message as
+    :class:`Attachment` rows. Reels keep the permalink instead (Meta sends
+    a webpage, not a video).
   * ``message.is_echo`` — agent replied via the IG mobile app.
     Stamped as outgoing with ``sender_id=None``, mirroring 5d.3.
   * Idempotent on Meta's ``mid`` via ``messages.source_id``.
   * Read events (``messaging.read.mid``) update the Message status.
 
 Deferred:
-  * Story replies / story mentions (``messaging.story_reply``).
+  * The Graph round-trips Rails makes to enrich story/post attachments
+    (``fetch_story_link`` / ``fetch_ig_story_link`` / ``fetch_ig_post_link``
+    stamp ``content_attributes[:image_type]`` + a human-readable body). We
+    attach the media with the right ``file_type`` but skip the extra calls.
+  * ``update_attachment_file_type`` — Rails re-derives ``share`` /
+    ``story_mention`` into a concrete type from the downloaded content-type.
+  * Story replies (``message.reply_to.story``).
   * Reactions.
   * Postbacks / quick_replies — same as Messenger.
   * Watermark-based bulk read (``messaging.read.watermark`` to mark
@@ -62,17 +74,124 @@ from app.domains.conversations.models import (
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
-    MessageBuilderParams as _MessageBuilderParams,
+    _AttachmentSpec,
     create_conversation,
     create_message,
+)
+from app.domains.conversations.service import (
+    MessageBuilderParams as _MessageBuilderParams,
 )
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_INSTAGRAM,
     Inbox,
     InstagramChannel,
 )
+from app.domains.instagram.media import download_and_store_ig_media
 
 log = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Attachments — mirrors ``Messages::Messenger::MessageBuilder``
+# ---------------------------------------------------------------------------
+# Types dropped outright (Rails' ``unsupported_file_type?``).
+_IG_UNSUPPORTED_TYPES = frozenset({"template", "unsupported_type", "ephemeral"})
+
+# Meta sends a couple of aliases that aren't our enum names
+# (Rails' ``FACEBOOK_FILE_TYPE_MAP``).
+_IG_TYPE_ALIASES: dict[str, str] = {"reel": "ig_reel"}
+
+# Types that carry a file we attach. Matches Rails' ``attachment_params``
+# allow-list; ``location`` / ``fallback`` are Messenger shapes we don't see
+# on the IG DM path yet.
+_IG_ATTACHABLE = frozenset(
+    {
+        "image",
+        "file",
+        "audio",
+        "video",
+        "share",
+        "story_mention",
+        "ig_reel",
+        "ig_post",
+        "ig_story",
+    }
+)
+
+
+def _ig_attachment_url(raw_type: str, payload: dict[str, Any]) -> str | None:
+    """``payload.url`` — except ``ig_story``, which carries
+    ``story_media_url`` (Rails' ``file_type_params``)."""
+    key = "story_media_url" if raw_type == "ig_story" else "url"
+    url = payload.get(key)
+    return str(url) if url else None
+
+
+def _all_ig_attachments_unsupported(message_block: dict[str, Any]) -> bool:
+    """Rails' ``all_unsupported_files?`` — every attachment is a type we
+    drop, so a text-less message would only make an empty row."""
+    raw = message_block.get("attachments") or []
+    if not isinstance(raw, list) or not raw:
+        return False
+    types = {str(a.get("type") or "") for a in raw if isinstance(a, dict)}
+    return bool(types) and types <= _IG_UNSUPPORTED_TYPES
+
+
+async def _build_ig_attachments(
+    *, account_id: int, message_block: dict[str, Any], mid: str
+) -> tuple[list[_AttachmentSpec], str | None]:
+    """Build the specs for a DM's ``message.attachments[]``.
+
+    Returns ``(specs, content_fallback)``. ``content_fallback`` carries a
+    reel's permalink: Meta sends those as a facebook.com webpage URL rather
+    than a video file, so Rails skips the download and stamps the link as
+    the body (``update_facebook_reel_content``).
+
+    Each download is best-effort — a failed fetch still lands the message,
+    just without that attachment.
+    """
+    raw_attachments = message_block.get("attachments") or []
+    if not isinstance(raw_attachments, list):
+        return [], None
+
+    specs: list[_AttachmentSpec] = []
+    content_fallback: str | None = None
+
+    for index, att in enumerate(raw_attachments):
+        if not isinstance(att, dict):
+            continue
+        raw_type = str(att.get("type") or "")
+        if not raw_type or raw_type in _IG_UNSUPPORTED_TYPES:
+            continue
+        payload = att.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        url = _ig_attachment_url(raw_type, payload)
+        if not url:
+            continue
+        file_type = _IG_TYPE_ALIASES.get(raw_type, raw_type)
+        if file_type not in _IG_ATTACHABLE:
+            continue
+
+        if raw_type == "reel":
+            # Downloading a reel URL yields HTML, not video.
+            content_fallback = content_fallback or url
+            specs.append(_AttachmentSpec(file_type=file_type, external_url=url))
+            continue
+
+        stored = await download_and_store_ig_media(
+            account_id=account_id, url=url, key_hint=f"{mid}:{index}"
+        )
+        if stored is None:
+            continue
+        specs.append(
+            _AttachmentSpec(
+                file_type=file_type,
+                external_url=stored["external_url"],
+                extension=stored["extension"],
+            )
+        )
+    return specs, content_fallback
 
 
 # ---------------------------------------------------------------------------
@@ -302,6 +421,13 @@ async def _process_message_event(
         log.info("instagram.inbound.skip reason=duplicate mid=%s", mid)
         return None
 
+    body = str(message_block.get("text") or "")
+    if not body and _all_ig_attachments_unsupported(message_block):
+        log.info(
+            "instagram.inbound.skip reason=unsupported_attachments mid=%s", mid
+        )
+        return None
+
     contact = await _find_or_create_contact(
         session, account_id=channel.account_id, igsid=igsid
     )
@@ -315,7 +441,11 @@ async def _process_message_event(
         session, contact_inbox=contact_inbox
     )
 
-    body = str(message_block.get("text") or "")
+    attachments, content_fallback = await _build_ig_attachments(
+        account_id=channel.account_id,
+        message_block=message_block,
+        mid=str(mid),
+    )
     message_type = "outgoing" if is_echo else "incoming"
 
     try:
@@ -323,13 +453,14 @@ async def _process_message_event(
             session,
             conversation=conversation,
             params=_MessageBuilderParams(
-                content=body,
+                content=body or content_fallback,
                 message_type=message_type,
                 source_id=str(mid),
+                attachments=attachments or None,
             ),
             user_id=None,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("instagram.inbound.create_message_failed mid=%s", mid)
         return None
     return msg
