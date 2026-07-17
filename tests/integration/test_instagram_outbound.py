@@ -22,19 +22,25 @@ from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
+    FILE_TYPE_IMAGE,
     MESSAGE_TYPE_OUTGOING,
+    Attachment,
     Conversation,
     Message,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
     MessageBuilderParams,
+    _AttachmentSpec,
     create_conversation,
     create_message,
 )
 from app.domains.inboxes.models import Inbox, InstagramChannel
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
-from app.domains.instagram.sender import send_text_message_instagram
+from app.domains.instagram.sender import (
+    send_attachment_message_instagram,
+    send_text_message_instagram,
+)
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
 from app.domains.users.models import User
 
@@ -242,3 +248,95 @@ async def test_outgoing_message_via_create_message_hits_graph(db_session):
     assert body["message"]["text"] == "from cascade"
     await db_session.refresh(msg)
     assert msg.source_id == "ig.cascade"
+
+
+# ---------------------------------------------------------------------------
+# Attachments
+# ---------------------------------------------------------------------------
+@respx.mock
+async def test_send_attachment_posts_signed_public_url(db_session):
+    channel, inbox, conv, user = await _seed(db_session, suffix="-att")
+    msg = Message(
+        account_id=channel.account_id,
+        inbox_id=inbox.id,
+        conversation_id=conv.id,
+        message_type=MESSAGE_TYPE_OUTGOING,
+        content_type=0,
+        content="",
+        sender_type="User",
+        sender_id=user.id,
+        private=False,
+    )
+    db_session.add(msg)
+    await db_session.flush()
+    att = Attachment(
+        account_id=channel.account_id,
+        message_id=msg.id,
+        file_type=FILE_TYPE_IMAGE,
+        extension="jpg",
+        external_url=(
+            "http://localhost:9100/alostudio/accounts/1/instagram/x.jpg"
+        ),
+    )
+    db_session.add(att)
+    await db_session.flush()
+
+    route = respx.post(_expected_url(channel)).mock(
+        return_value=httpx.Response(200, json={"message_id": "ig.att.1"})
+    )
+    ok = await send_attachment_message_instagram(
+        db_session,
+        channel=channel,
+        message=msg,
+        to_igsid="IGSID-OUT-42",
+        attachment=att,
+    )
+    assert ok is True
+    body = json.loads(route.calls.last.request.content)
+    assert body["recipient"] == {"id": "IGSID-OUT-42"}
+    sent = body["message"]["attachment"]
+    assert sent["type"] == "image"
+    url = sent["payload"]["url"]
+    # Meta downloads this itself — it must be the signed public link, never
+    # the internal store URL.
+    assert "/public/attachments/" in url
+    assert "sig=" in url
+    assert "exp=" in url
+    assert "9100" not in url
+    await db_session.refresh(msg)
+    assert msg.source_id == "ig.att.1"
+
+
+@respx.mock
+async def test_attachments_are_sent_before_the_text(db_session):
+    """Rails' ``perform_reply`` order — one send per attachment, then the
+    body. Meta only takes a single attachment per message."""
+    channel, _inbox, conv, user = await _seed(
+        db_session, suffix="-order", igsid="IGSID-ORDER"
+    )
+    route = respx.post(_expected_url(channel)).mock(
+        return_value=httpx.Response(200, json={"message_id": "ig.ord"})
+    )
+    await create_message(
+        db_session,
+        conversation=conv,
+        params=MessageBuilderParams(
+            content="mirá esto",
+            message_type="outgoing",
+            attachments=[
+                _AttachmentSpec(
+                    file_type="image",
+                    external_url=(
+                        "http://localhost:9100/alostudio/accounts/1/ig/a.jpg"
+                    ),
+                    extension="jpg",
+                )
+            ],
+        ),
+        user_id=user.id,
+    )
+    assert route.call_count == 2
+    first = json.loads(route.calls[0].request.content)
+    second = json.loads(route.calls[1].request.content)
+    assert "attachment" in first["message"]
+    assert second["message"]["text"] == "mirá esto"

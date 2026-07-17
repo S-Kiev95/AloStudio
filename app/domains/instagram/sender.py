@@ -1,24 +1,23 @@
-"""Instagram DM outbound — text via Graph API.
+"""Instagram DM outbound — text + attachments via Graph API.
 
 Ported from:
+  reference/chatwoot/app/services/instagram/base_send_service.rb
   reference/chatwoot/app/services/instagram/messenger/send_on_instagram_service.rb
 
-Sends an outgoing :class:`Message` on a ``Channel::Instagram`` (the
-direct-IG-login variant) inbox by POSTing to
-``graph.facebook.com/<vN>/me/messages`` with the channel's
+Sends an outgoing :class:`Message` on a ``Channel::Instagram`` inbox by
+POSTing to ``graph.facebook.com/<vN>/me/messages`` with the channel's
 ``access_token`` as a query parameter.
 
-5e.4 scope:
-  * Plain text messages.
-  * Stamps Meta's returned ``message_id`` on ``messages.source_id``
-    so 5e.3's read-event processor can match against it.
+Attachments mirror ``BaseSendService#send_attachments``: Meta takes **one
+attachment per message**, so each becomes its own send, and it downloads
+``payload.url`` from its own side — which is why we hand it a signed public
+link (:func:`~app.domains.conversations.attachments_router.public_attachment_url`)
+rather than the internal object-store URL.
 
 Deferred:
-  * Attachments — needs Phase 10 storage.
-  * ``HUMAN_AGENT`` tag toggle — same as 5d, gated by an
-    installation feature flag (Phase 9 admin config).
-  * ``appsecret_proof`` HMAC signing — production hardening
-    (Phase 9).
+  * ``HUMAN_AGENT`` tag toggle — gated by an installation feature flag
+    (Phase 9 admin config).
+  * ``appsecret_proof`` HMAC signing — production hardening (Phase 9).
   * The legacy IG-via-FB-page send path
     (``Channel::FacebookPage.instagram_id``) — sub-phase 5e.6.
 """
@@ -32,10 +31,14 @@ import httpx
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
-from app.domains.conversations.models import Message
+from app.domains.conversations.models import Attachment, Message
 from app.domains.inboxes.models import InstagramChannel
 
 log = logging.getLogger(__name__)
+
+# Rails' ``attachment_type``: Meta's Send API only accepts these four, so an
+# ig_post / share / story_mention we forward degrades to ``file``.
+_IG_SEND_TYPES = frozenset({"image", "audio", "video", "file"})
 
 
 def _api_url(channel: InstagramChannel) -> str:
@@ -48,47 +51,33 @@ def _api_url(channel: InstagramChannel) -> str:
     )
 
 
-async def send_text_message_instagram(
+def _send_attachment_type(file_type: str) -> str:
+    """Rails' ``attachment_type`` — anything Meta doesn't know is a file."""
+    return file_type if file_type in _IG_SEND_TYPES else "file"
+
+
+async def _post_send(
     session: AsyncSession,
     *,
     channel: InstagramChannel,
     message: Message,
-    to_igsid: str,
+    body: dict[str, Any],
 ) -> bool:
-    """POST a text message to Meta's IG Graph endpoint.
+    """POST one send to Meta and stamp the returned mid.
 
-    Returns ``True`` on success, ``False`` on transport / 4xx / 5xx
-    (logged but never raised — same contract as the FB + WhatsApp
-    senders). On success ``message.source_id`` is stamped with the
-    Meta message id.
+    Returns ``True`` on success, ``False`` on transport / 4xx / 5xx (logged
+    but never raised — same contract as the FB + WhatsApp senders). Rails'
+    ``process_response`` stamps ``source_id`` on every successful send, so a
+    message with attachments ends up carrying the last mid.
     """
-    if not channel.access_token:
-        log.warning(
-            "instagram.send.skip reason=missing_access_token channel_id=%s",
-            channel.id,
-        )
-        return False
-    if not to_igsid:
-        log.warning(
-            "instagram.send.skip reason=missing_igsid channel_id=%s message_id=%s",
-            channel.id,
-            message.id,
-        )
-        return False
-
-    body: dict[str, Any] = {
-        "recipient": {"id": to_igsid},
-        "message": {"text": message.content or ""},
-    }
-    url = _api_url(channel)
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(url, json=body)
+            resp = await client.post(_api_url(channel), json=body)
     except (httpx.RequestError, httpx.TimeoutException) as exc:
         log.warning(
             "instagram.send.transport_error channel_id=%s err=%s",
             channel.id,
-            exc,
+            type(exc).__name__,
         )
         return False
     if resp.status_code >= 400:
@@ -117,4 +106,87 @@ async def send_text_message_instagram(
     return True
 
 
-__all__ = ["send_text_message_instagram"]
+def _can_send(channel: InstagramChannel, message: Message, to_igsid: str) -> bool:
+    if not channel.access_token:
+        log.warning(
+            "instagram.send.skip reason=missing_access_token channel_id=%s",
+            channel.id,
+        )
+        return False
+    if not to_igsid:
+        log.warning(
+            "instagram.send.skip reason=missing_igsid channel_id=%s message_id=%s",
+            channel.id,
+            message.id,
+        )
+        return False
+    return True
+
+
+async def send_text_message_instagram(
+    session: AsyncSession,
+    *,
+    channel: InstagramChannel,
+    message: Message,
+    to_igsid: str,
+) -> bool:
+    """POST a text message to Meta's IG Graph endpoint."""
+    if not _can_send(channel, message, to_igsid):
+        return False
+    body: dict[str, Any] = {
+        "recipient": {"id": to_igsid},
+        "message": {"text": message.content or ""},
+    }
+    return await _post_send(
+        session, channel=channel, message=message, body=body
+    )
+
+
+async def send_attachment_message_instagram(
+    session: AsyncSession,
+    *,
+    channel: InstagramChannel,
+    message: Message,
+    to_igsid: str,
+    attachment: Attachment,
+) -> bool:
+    """POST one attachment to Meta's IG Graph endpoint.
+
+    Meta downloads ``payload.url`` itself, so the attachment is handed over
+    as a signed, expiring public link — the object store is internal-only and
+    the dashboard's proxy needs a session.
+    """
+    if not _can_send(channel, message, to_igsid):
+        return False
+    if attachment.id is None or not attachment.external_url:
+        log.warning(
+            "instagram.send.skip reason=attachment_without_blob channel_id=%s "
+            "message_id=%s",
+            channel.id,
+            message.id,
+        )
+        return False
+
+    # Imported lazily: the router imports models that import this module.
+    from app.domains.conversations.attachments_router import (
+        public_attachment_url,
+    )
+
+    body: dict[str, Any] = {
+        "recipient": {"id": to_igsid},
+        "message": {
+            "attachment": {
+                "type": _send_attachment_type(attachment.file_type_str),
+                "payload": {"url": public_attachment_url(attachment.id)},
+            }
+        },
+    }
+    return await _post_send(
+        session, channel=channel, message=message, body=body
+    )
+
+
+__all__ = [
+    "send_attachment_message_instagram",
+    "send_text_message_instagram",
+]

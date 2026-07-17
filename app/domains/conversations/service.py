@@ -1391,14 +1391,18 @@ async def _maybe_send_outbound_instagram(
     Mirrors the FB router shape — short-circuits on non-IG inboxes,
     missing channel rows, missing IGSID, or transport failures. The
     IGSID lives on ``ContactInbox.source_id`` (5e.3 seeds it on
-    inbound).
+    inbound). Attachments each go as their own send before the text,
+    mirroring ``Instagram::BaseSendService#perform_reply``.
     """
     inbox = conversation.inbox
     if inbox is None or inbox.channel_type != CHANNEL_TYPE_INSTAGRAM:
         return
     from app.domains.contacts.models import ContactInbox
     from app.domains.inboxes.models import InstagramChannel
-    from app.domains.instagram.sender import send_text_message_instagram
+    from app.domains.instagram.sender import (
+        send_attachment_message_instagram,
+        send_text_message_instagram,
+    )
 
     channel = await session.get(InstagramChannel, inbox.channel_id)
     if channel is None:
@@ -1418,12 +1422,35 @@ async def _maybe_send_outbound_instagram(
         return
 
     try:
-        await send_text_message_instagram(
-            session,
-            channel=channel,
-            message=message,
-            to_igsid=str(ci.source_id),
+        # Rails' ``perform_reply``: attachments first — Meta takes one per
+        # message, so each becomes its own send — then the text if there is
+        # any. Load them explicitly; a lazy-load here would MissingGreenlet.
+        from app.domains.conversations.models import Attachment
+
+        attachments = list(
+            (
+                await session.exec(
+                    select(Attachment).where(
+                        Attachment.message_id == message.id
+                    )
+                )
+            ).all()
         )
+        for att in attachments:
+            await send_attachment_message_instagram(
+                session,
+                channel=channel,
+                message=message,
+                to_igsid=str(ci.source_id),
+                attachment=att,
+            )
+        if (message.content or "").strip():
+            await send_text_message_instagram(
+                session,
+                channel=channel,
+                message=message,
+                to_igsid=str(ci.source_id),
+            )
     except Exception:  # noqa: BLE001
         import logging
 
