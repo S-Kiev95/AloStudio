@@ -253,16 +253,8 @@ async def test_outgoing_message_via_create_message_hits_graph(db_session):
 # ---------------------------------------------------------------------------
 # Attachments
 # ---------------------------------------------------------------------------
-_BLOB_URL = "http://minio.test/a.jpg"
-
-
-def _uploads_url() -> str:
-    version = get_settings().facebook_api_version
-    return f"https://graph.facebook.com/{version}/me/message_attachments"
-
-
 @respx.mock
-async def test_send_attachment_uploads_then_sends_by_id(db_session):
+async def test_send_attachment_posts_signed_public_url(db_session):
     channel, inbox, conv, user = await _seed(db_session, suffix="-att")
     msg = Message(
         account_id=channel.account_id,
@@ -282,21 +274,16 @@ async def test_send_attachment_uploads_then_sends_by_id(db_session):
         message_id=msg.id,
         file_type=FILE_TYPE_IMAGE,
         extension="jpg",
-        external_url=_BLOB_URL,
+        external_url=(
+            "http://localhost:9100/alostudio/accounts/1/instagram/x.jpg"
+        ),
     )
     db_session.add(att)
     await db_session.flush()
 
-    respx.get(_BLOB_URL).mock(
-        return_value=httpx.Response(200, content=b"JPEGBYTES")
-    )
-    upload = respx.post(_uploads_url()).mock(
-        return_value=httpx.Response(200, json={"attachment_id": "AID-9"})
-    )
     route = respx.post(_expected_url(channel)).mock(
         return_value=httpx.Response(200, json={"message_id": "ig.att.1"})
     )
-
     ok = await send_attachment_message_instagram(
         db_session,
         channel=channel,
@@ -305,58 +292,19 @@ async def test_send_attachment_uploads_then_sends_by_id(db_session):
         attachment=att,
     )
     assert ok is True
-    assert upload.called
     body = json.loads(route.calls.last.request.content)
     assert body["recipient"] == {"id": "IGSID-OUT-42"}
     sent = body["message"]["attachment"]
     assert sent["type"] == "image"
-    # Sent by the uploaded id — never a URL for Meta to pull, which would
-    # race this very transaction's commit and 404.
-    assert sent["payload"] == {"attachment_id": "AID-9"}
+    url = sent["payload"]["url"]
+    # Meta downloads this itself — it must be the signed public link, never
+    # the internal store URL.
+    assert "/public/attachments/" in url
+    assert "sig=" in url
+    assert "exp=" in url
+    assert "9100" not in url
     await db_session.refresh(msg)
     assert msg.source_id == "ig.att.1"
-
-
-@respx.mock
-async def test_failed_upload_does_not_send(db_session):
-    channel, inbox, conv, user = await _seed(db_session, suffix="-attfail")
-    msg = Message(
-        account_id=channel.account_id,
-        inbox_id=inbox.id,
-        conversation_id=conv.id,
-        message_type=MESSAGE_TYPE_OUTGOING,
-        content_type=0,
-        content="",
-        sender_type="User",
-        sender_id=user.id,
-        private=False,
-    )
-    db_session.add(msg)
-    await db_session.flush()
-    att = Attachment(
-        account_id=channel.account_id,
-        message_id=msg.id,
-        file_type=FILE_TYPE_IMAGE,
-        extension="jpg",
-        external_url=_BLOB_URL,
-    )
-    db_session.add(att)
-    await db_session.flush()
-
-    respx.get(_BLOB_URL).mock(return_value=httpx.Response(200, content=b"x"))
-    respx.post(_uploads_url()).mock(return_value=httpx.Response(400))
-    route = respx.post(_expected_url(channel)).mock(
-        return_value=httpx.Response(200, json={"message_id": "never"})
-    )
-    ok = await send_attachment_message_instagram(
-        db_session,
-        channel=channel,
-        message=msg,
-        to_igsid="IGSID-OUT-42",
-        attachment=att,
-    )
-    assert ok is False
-    assert not route.called
 
 
 @respx.mock
@@ -365,10 +313,6 @@ async def test_attachments_are_sent_before_the_text(db_session):
     body. Meta only takes a single attachment per message."""
     channel, _inbox, conv, user = await _seed(
         db_session, suffix="-order", igsid="IGSID-ORDER"
-    )
-    respx.get(_BLOB_URL).mock(return_value=httpx.Response(200, content=b"x"))
-    respx.post(_uploads_url()).mock(
-        return_value=httpx.Response(200, json={"attachment_id": "AID-ORD"})
     )
     route = respx.post(_expected_url(channel)).mock(
         return_value=httpx.Response(200, json={"message_id": "ig.ord"})
@@ -382,7 +326,9 @@ async def test_attachments_are_sent_before_the_text(db_session):
             attachments=[
                 _AttachmentSpec(
                     file_type="image",
-                    external_url=_BLOB_URL,
+                    external_url=(
+                        "http://localhost:9100/alostudio/accounts/1/ig/a.jpg"
+                    ),
                     extension="jpg",
                 )
             ],

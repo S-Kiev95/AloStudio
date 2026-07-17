@@ -1436,6 +1436,14 @@ async def _maybe_send_outbound_instagram(
                 )
             ).all()
         )
+        if attachments:
+            # Meta pulls ``payload.url`` from its own side within
+            # milliseconds of the send, so the Attachment row has to be
+            # durable *before* we hand the link over — this cascade still
+            # runs inside the create-message transaction, and the public
+            # endpoint (a separate session) would 404 on an uncommitted row.
+            # Rails gets this for free: its send is an after-commit job.
+            await session.commit()
         for att in attachments:
             await send_attachment_message_instagram(
                 session,
