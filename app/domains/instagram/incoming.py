@@ -101,9 +101,9 @@ _IG_UNSUPPORTED_TYPES = frozenset({"template", "unsupported_type", "ephemeral"})
 # (Rails' ``FACEBOOK_FILE_TYPE_MAP``).
 _IG_TYPE_ALIASES: dict[str, str] = {"reel": "ig_reel"}
 
-# Types that carry a file we attach. Matches Rails' ``attachment_params``
-# allow-list; ``location`` / ``fallback`` are Messenger shapes we don't see
-# on the IG DM path yet.
+# Types that carry a file we fetch. Matches Rails' ``attachment_params``
+# allow-list. ``location`` / ``fallback`` are handled separately below —
+# they have no file to download.
 _IG_ATTACHABLE = frozenset(
     {
         "image",
@@ -165,12 +165,50 @@ async def _build_ig_attachments(
             continue
         payload = att.get("payload")
         if not isinstance(payload, dict):
+            payload = {}
+        file_type = _IG_TYPE_ALIASES.get(raw_type, raw_type)
+
+        # Location carries coordinates, not a file. Note Rails reads ``url``
+        # and ``title`` off the *attachment*, not its payload
+        # (``location_params``).
+        if file_type == "location":
+            coords = payload.get("coordinates")
+            if not isinstance(coords, dict):
+                continue
+            specs.append(
+                _AttachmentSpec(
+                    file_type="location",
+                    coordinates_lat=coords.get("lat"),
+                    coordinates_long=coords.get("long"),
+                    fallback_title=att.get("title"),
+                    external_url=att.get("url"),
+                )
+            )
             continue
+
+        # A link share with nothing to download (``fallback_params``).
+        if file_type == "fallback":
+            specs.append(
+                _AttachmentSpec(
+                    file_type="fallback",
+                    fallback_title=att.get("title"),
+                    external_url=att.get("url"),
+                )
+            )
+            continue
+
+        if file_type not in _IG_ATTACHABLE:
+            # Meta keeps adding shapes; surface them instead of silently
+            # minting an empty message.
+            log.info(
+                "instagram.inbound.unhandled_attachment type=%s mid=%s",
+                raw_type,
+                mid,
+            )
+            continue
+
         url = _ig_attachment_url(raw_type, payload)
         if not url:
-            continue
-        file_type = _IG_TYPE_ALIASES.get(raw_type, raw_type)
-        if file_type not in _IG_ATTACHABLE:
             continue
 
         if raw_type == "reel":

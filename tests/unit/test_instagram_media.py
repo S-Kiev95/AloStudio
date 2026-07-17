@@ -32,6 +32,11 @@ def _block(attachments: list[dict[str, Any]]) -> dict[str, Any]:
     return {"mid": "MID-1", "attachments": attachments}
 
 
+async def _unused_fetch(*, account_id, url, key_hint):
+    """Stand-in for the downloader on paths that must never fetch."""
+    raise AssertionError("this attachment type has no file to download")
+
+
 # ---------------------------------------------------------------------------
 # download_and_store_ig_media
 # ---------------------------------------------------------------------------
@@ -226,6 +231,77 @@ async def test_attachment_without_url_is_skipped(monkeypatch):
         mid="MID-1",
     )
     assert specs == []
+
+
+async def test_location_attachment_uses_coordinates(monkeypatch):
+    async def _fake(*, account_id, url, key_hint):
+        raise AssertionError("a location has no file to download")
+
+    monkeypatch.setattr(incoming, "download_and_store_ig_media", _fake)
+    specs, _ = await _build_ig_attachments(
+        account_id=1,
+        message_block=_block(
+            [
+                {
+                    "type": "location",
+                    # Rails reads url/title off the attachment, not the payload
+                    "title": "Plaza Independencia",
+                    "url": "https://maps.example/x",
+                    "payload": {"coordinates": {"lat": -34.9, "long": -56.16}},
+                }
+            ]
+        ),
+        mid="MID-1",
+    )
+    assert len(specs) == 1
+    a = specs[0]
+    assert a.file_type == "location"
+    assert a.coordinates_lat == -34.9
+    assert a.coordinates_long == -56.16
+    assert a.fallback_title == "Plaza Independencia"
+    assert a.external_url == "https://maps.example/x"
+
+
+async def test_location_without_coordinates_is_skipped(monkeypatch):
+    monkeypatch.setattr(incoming, "download_and_store_ig_media", _unused_fetch)
+    specs, _ = await _build_ig_attachments(
+        account_id=1,
+        message_block=_block([{"type": "location", "payload": {}}]),
+        mid="MID-1",
+    )
+    assert specs == []
+
+
+async def test_fallback_attachment_keeps_link(monkeypatch):
+    monkeypatch.setattr(incoming, "download_and_store_ig_media", _unused_fetch)
+    specs, _ = await _build_ig_attachments(
+        account_id=1,
+        message_block=_block(
+            [{"type": "fallback", "title": "Un link", "url": "https://ex.com/a"}]
+        ),
+        mid="MID-1",
+    )
+    assert len(specs) == 1
+    assert specs[0].file_type == "fallback"
+    assert specs[0].fallback_title == "Un link"
+    assert specs[0].external_url == "https://ex.com/a"
+
+
+async def test_unknown_type_is_logged_and_skipped(monkeypatch, caplog):
+    """Meta keeps adding shapes — an unknown one must be visible, not a
+    silently empty message."""
+    monkeypatch.setattr(incoming, "download_and_store_ig_media", _unused_fetch)
+    with caplog.at_level("INFO"):
+        specs, _ = await _build_ig_attachments(
+            account_id=1,
+            message_block=_block(
+                [{"type": "brand_new_meta_thing", "payload": {"url": "u"}}]
+            ),
+            mid="MID-9",
+        )
+    assert specs == []
+    assert "unhandled_attachment" in caplog.text
+    assert "brand_new_meta_thing" in caplog.text
 
 
 # ---------------------------------------------------------------------------
