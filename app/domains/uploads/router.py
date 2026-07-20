@@ -17,6 +17,12 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from pydantic import BaseModel, ConfigDict
 
 from app.core.deps import AccountContext, account_context
+from app.core.errors import ChatwootHTTPException
+from app.domains.uploads.images import (
+    ImageConversionError,
+    to_instagram_jpeg,
+)
+from app.domains.uploads.public_router import public_media_url
 from app.domains.uploads.service import presign_upload, store_upload_blob
 
 router = APIRouter(
@@ -59,6 +65,46 @@ async def upload_blob(
         content_type=file.content_type,
         data=data,
     )
+
+
+@router.post("/instagram_media")
+async def upload_instagram_media(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    file: Annotated[UploadFile, File()],
+) -> dict[str, Any]:
+    """Stage an image for an Instagram post.
+
+    Meta's Content Publishing API only accepts JPEG and fetches the file
+    itself, so this does the two things the composer can't: normalises
+    whatever the user dropped (PNG, HEIC-as-JPEG, an oversized export) into
+    a publishable JPEG, and hands back a signed **public** URL instead of
+    the internal object-store one.
+
+    Returns ``{url, key}`` — ``url`` goes straight into the post's
+    ``source.image_url``.
+    """
+    assert ctx.account.id is not None
+    data = await file.read()
+    try:
+        jpeg = to_instagram_jpeg(data)
+    except ImageConversionError as exc:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    "No pudimos leer la imagen. Subí un archivo de imagen "
+                    "válido (JPG, PNG, WebP…)."
+                )
+            },
+        ) from exc
+
+    stored = await store_upload_blob(
+        ctx.account.id,
+        filename="instagram.jpg",
+        content_type="image/jpeg",
+        data=jpeg,
+    )
+    return {"url": public_media_url(stored["key"]), "key": stored["key"]}
 
 
 __all__ = ["router"]

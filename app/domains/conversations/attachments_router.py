@@ -18,10 +18,7 @@ authenticated route (404 otherwise).
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import mimetypes
-import time
 from typing import Annotated
 
 import httpx
@@ -33,6 +30,7 @@ from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context
 from app.core.errors import ChatwootHTTPException
+from app.core.signed_links import expiry_from_now, is_valid, sign
 from app.core.storage import signed_read_url
 from app.domains.conversations.models import Attachment
 
@@ -91,10 +89,14 @@ async def _stream_attachment(att: Attachment) -> Response:
 # ---------------------------------------------------------------------------
 # Signed public links — Meta fetches outbound media itself
 # ---------------------------------------------------------------------------
+def _payload(attachment_id: int) -> str:
+    """Namespaced so an attachment signature can't be replayed against the
+    key-addressed media route (or vice versa)."""
+    return f"attachment:{attachment_id}"
+
+
 def _public_signature(attachment_id: int, expires_at: int) -> str:
-    secret = get_settings().secret_key.encode()
-    payload = f"{attachment_id}:{expires_at}".encode()
-    return hmac.new(secret, payload, hashlib.sha256).hexdigest()[:32]
+    return sign(_payload(attachment_id), expires_at)
 
 
 def public_attachment_url(
@@ -107,7 +109,7 @@ def public_attachment_url(
     instead. Built off ``app_base_url`` because it has to be reachable from
     the public internet, not just from the tailnet.
     """
-    expires_at = int(time.time()) + ttl_seconds
+    expires_at = expiry_from_now(ttl_seconds)
     sig = _public_signature(attachment_id, expires_at)
     base = get_settings().app_base_url.rstrip("/")
     return (
@@ -128,9 +130,7 @@ async def serve_public_attachment(
     Always 404 (never 401/403) so the endpoint never confirms which ids
     exist to someone probing it.
     """
-    if int(time.time()) > exp:
-        raise _not_found()
-    if not hmac.compare_digest(_public_signature(attachment_id, exp), sig):
+    if not is_valid(_payload(attachment_id), exp, sig):
         raise _not_found()
     att = await session.get(Attachment, attachment_id)
     if att is None or not att.external_url:

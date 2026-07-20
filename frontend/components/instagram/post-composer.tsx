@@ -1,13 +1,14 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
-import { useState } from "react";
+import { Plus, Upload, X } from "lucide-react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useInstagramInboxes } from "@/lib/api/instagram";
+import { uploadInstagramMedia } from "@/lib/api/uploads";
 import {
   type CreatePostInput,
   type MediaType,
@@ -187,7 +188,7 @@ export function PostComposer({
 
       {/* Source fields per media type */}
       {mediaType === "IMAGE" ? (
-        <UrlField id="c-img" label="URL de imagen (JPEG público)" value={imageUrl} onChange={setImageUrl} />
+        <UrlField id="c-img" label="Imagen" value={imageUrl} onChange={setImageUrl} accountId={accountId} />
       ) : null}
       {mediaType === "VIDEO" ? (
         <UrlField id="c-vid" label="URL de video (MP4)" value={videoUrl} onChange={setVideoUrl} />
@@ -195,7 +196,7 @@ export function PostComposer({
       {mediaType === "REELS" ? (
         <>
           <UrlField id="c-reel" label="URL de video" value={videoUrl} onChange={setVideoUrl} />
-          <UrlField id="c-cover" label="URL de portada (opcional)" value={coverUrl} onChange={setCoverUrl} required={false} />
+          <UrlField id="c-cover" label="Portada (opcional)" value={coverUrl} onChange={setCoverUrl} required={false} accountId={accountId} />
           <label className="flex items-center gap-2 text-sm text-fg">
             <input type="checkbox" checked={shareToFeed} onChange={(e) => setShareToFeed(e.target.checked)} />
             También compartir en el feed
@@ -212,7 +213,13 @@ export function PostComposer({
               <input type="radio" checked={storyKind === "video"} onChange={() => setStoryKind("video")} /> Video
             </label>
           </div>
-          <UrlField id="c-story" label="URL del contenido" value={storyUrl} onChange={setStoryUrl} />
+          <UrlField
+            id="c-story"
+            label={storyKind === "image" ? "Imagen" : "URL de video"}
+            value={storyUrl}
+            onChange={setStoryUrl}
+            accountId={storyKind === "image" ? accountId : undefined}
+          />
         </div>
       ) : null}
       {mediaType === "CAROUSEL" ? (
@@ -243,6 +250,17 @@ export function PostComposer({
                   )
                 }
               />
+              {c.kind === "image" ? (
+                <CompactImageUpload
+                  accountId={accountId}
+                  label={`Subir imagen del elemento ${i + 1}`}
+                  onUploaded={(url) =>
+                    setChildren((prev) =>
+                      prev.map((x, j) => (j === i ? { ...x, url } : x)),
+                    )
+                  }
+                />
+              ) : null}
               {children.length > 2 ? (
                 <button
                   type="button"
@@ -319,25 +337,189 @@ export function PostComposer({
   );
 }
 
+/** Icon-sized uploader for the carousel rows, where a full dropzone would
+ *  break the inline layout. Drop still works — the button is a drop target. */
+function CompactImageUpload({
+  accountId,
+  label,
+  onUploaded,
+}: {
+  accountId: string;
+  label: string;
+  onUploaded: (url: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function upload(file: File) {
+    setUploading(true);
+    try {
+      onUploaded(await uploadInstagramMedia(accountId, file));
+    } catch {
+      /* the row keeps its URL input as the manual fallback */
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        aria-label={label}
+        tabIndex={-1}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void upload(file);
+        }}
+      />
+      <button
+        type="button"
+        aria-label={label}
+        title={label}
+        disabled={uploading}
+        onClick={() => fileRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) void upload(file);
+        }}
+        className={cn(
+          "rounded-md border border-dashed p-2 transition-colors",
+          dragging
+            ? "border-primary bg-primary/10 text-primary"
+            : "border-border text-fg-muted hover:text-fg",
+          uploading && "opacity-60",
+        )}
+      >
+        <Upload className="h-4 w-4" aria-hidden />
+      </button>
+    </>
+  );
+}
+
 function UrlField({
   id,
   label,
   value,
   onChange,
   required = true,
+  accountId,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (v: string) => void;
   required?: boolean;
+  /** When set, the field also accepts a dropped/picked image: it uploads,
+   *  the backend re-encodes to JPEG, and the public URL lands in the input. */
+  accountId?: string;
 }) {
+  const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const uploadable = Boolean(accountId);
+
+  async function upload(file: File) {
+    if (!accountId) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      onChange(await uploadInstagramMedia(accountId, file));
+    } catch (e) {
+      setUploadError(
+        e instanceof Error ? e.message : "No se pudo subir la imagen.",
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) void upload(file);
+  }
+
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id} required={required}>
         {label}
       </Label>
       <Input id={id} type="url" value={value} onChange={(e) => onChange(e.target.value)} placeholder="https://…" />
+      {uploadable ? (
+        <>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            aria-label={`Subir imagen para ${label}`}
+            tabIndex={-1}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = ""; // let the same file be re-picked
+              if (file) void upload(file);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+            disabled={uploading}
+            className={cn(
+              "flex w-full items-center justify-center gap-2 rounded-md border border-dashed px-3 py-4 text-xs transition-colors",
+              dragging
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-fg-muted hover:border-primary/60 hover:text-fg",
+              uploading && "opacity-60",
+            )}
+          >
+            <Upload className="h-4 w-4 shrink-0" aria-hidden />
+            {uploading
+              ? "Subiendo y convirtiendo…"
+              : dragging
+                ? "Soltá la imagen acá"
+                : "Arrastrá una imagen o hacé clic para elegirla"}
+          </button>
+          {uploadError ? (
+            <p role="alert" className="text-xs text-danger">
+              {uploadError}
+            </p>
+          ) : (
+            <p className="text-xs text-fg-muted">
+              Cualquier formato — la convertimos a JPEG (lo único que acepta
+              Instagram).
+            </p>
+          )}
+          {value && !uploading ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={value}
+              alt="Vista previa"
+              className="max-h-40 rounded-md border border-border object-contain"
+            />
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }

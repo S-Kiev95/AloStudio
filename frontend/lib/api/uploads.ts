@@ -37,3 +37,35 @@ export async function uploadAttachment(
   const data = (await res.json()) as { file_url: string };
   return { external_url: data.file_url, file_type: mimeToFileType(file.type) };
 }
+
+/**
+ * Stage an image for an Instagram post.
+ *
+ * Unlike {@link uploadAttachment}, the backend re-encodes whatever you send
+ * into a JPEG (Meta's publishing API rejects PNG) and returns a *public*
+ * signed URL — Instagram downloads `image_url` from its own side, so the
+ * internal object-store URL wouldn't work.
+ */
+export async function uploadInstagramMedia(
+  accountId: string,
+  file: File,
+): Promise<string> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const res = await fetch(
+    `${API_BASE}/api/v1/accounts/${accountId}/uploads/instagram_media`,
+    { method: "POST", body: form },
+  );
+  if (!res.ok) {
+    let message = `upload failed (${res.status})`;
+    try {
+      const body = (await res.json()) as { message?: string };
+      if (body.message) message = body.message;
+    } catch {
+      /* keep the status-code fallback */
+    }
+    throw new Error(message);
+  }
+  const data = (await res.json()) as { url: string };
+  return data.url;
+}
