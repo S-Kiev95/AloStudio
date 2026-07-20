@@ -67,24 +67,53 @@ async def upload_blob(
     )
 
 
+def _looks_like_video(file: UploadFile) -> bool:
+    """Content-type first, extension as the fallback — browsers leave the
+    type empty for some containers (notably .mov on Windows)."""
+    if (file.content_type or "").lower().startswith("video/"):
+        return True
+    name = (file.filename or "").lower()
+    return name.endswith((".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv"))
+
+
 @router.post("/instagram_media")
 async def upload_instagram_media(
     ctx: Annotated[AccountContext, Depends(account_context)],
     file: Annotated[UploadFile, File()],
 ) -> dict[str, Any]:
-    """Stage an image for an Instagram post.
+    """Stage media for an Instagram post.
 
-    Meta's Content Publishing API only accepts JPEG and fetches the file
-    itself, so this does the two things the composer can't: normalises
-    whatever the user dropped (PNG, HEIC-as-JPEG, an oversized export) into
-    a publishable JPEG, and hands back a signed **public** URL instead of
-    the internal object-store one.
+    Meta's Content Publishing API fetches ``image_url`` / ``video_url`` from
+    its own side, so the job here is to hand back a signed **public** URL
+    rather than the internal object-store one.
 
-    Returns ``{url, key}`` — ``url`` goes straight into the post's
-    ``source.image_url``.
+    Images are additionally normalised to JPEG — Meta rejects PNG, which is
+    what most screenshots and exports are. Video is stored **as-is**: making
+    it publishable would mean transcoding (H.264/AAC in MP4), which needs
+    ffmpeg. An MP4 straight off a phone or editor already qualifies; anything
+    exotic is rejected by Meta at container creation with its own message.
+
+    Returns ``{url, key, kind}`` — ``url`` goes into the post's
+    ``source.image_url`` / ``source.video_url``.
     """
     assert ctx.account.id is not None
     data = await file.read()
+
+    if _looks_like_video(file):
+        stored = await store_upload_blob(
+            ctx.account.id,
+            # Keep the real extension: the public route infers the
+            # content-type from the key, and Meta is picky about it.
+            filename=file.filename or "video.mp4",
+            content_type=file.content_type or "video/mp4",
+            data=data,
+        )
+        return {
+            "url": public_media_url(stored["key"]),
+            "key": stored["key"],
+            "kind": "video",
+        }
+
     try:
         jpeg = to_instagram_jpeg(data)
     except ImageConversionError as exc:
@@ -92,8 +121,8 @@ async def upload_instagram_media(
             status_code=422,
             detail={
                 "message": (
-                    "No pudimos leer la imagen. Subí un archivo de imagen "
-                    "válido (JPG, PNG, WebP…)."
+                    "No pudimos leer el archivo. Subí una imagen "
+                    "(JPG, PNG, WebP…) o un video MP4."
                 )
             },
         ) from exc
@@ -104,7 +133,11 @@ async def upload_instagram_media(
         content_type="image/jpeg",
         data=jpeg,
     )
-    return {"url": public_media_url(stored["key"]), "key": stored["key"]}
+    return {
+        "url": public_media_url(stored["key"]),
+        "key": stored["key"],
+        "kind": "image",
+    }
 
 
 __all__ = ["router"]

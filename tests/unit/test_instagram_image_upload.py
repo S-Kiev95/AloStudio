@@ -107,6 +107,31 @@ def test_expired_signature_is_rejected():
     assert not is_valid(_payload("a/b.jpg"), past, sign(_payload("a/b.jpg"), past))
 
 
+def test_video_detection_prefers_content_type_then_extension():
+    """Browsers leave content_type empty for some containers (.mov on
+    Windows), so the filename is the fallback — otherwise a video would be
+    run through the JPEG converter and rejected."""
+    from types import SimpleNamespace
+
+    from app.domains.uploads.router import _looks_like_video
+
+    assert _looks_like_video(
+        SimpleNamespace(content_type="video/mp4", filename="clip.bin")
+    )
+    assert _looks_like_video(
+        SimpleNamespace(content_type="", filename="clip.MOV")
+    )
+    assert _looks_like_video(
+        SimpleNamespace(content_type=None, filename="a.mp4")
+    )
+    assert not _looks_like_video(
+        SimpleNamespace(content_type="image/png", filename="shot.png")
+    )
+    assert not _looks_like_video(
+        SimpleNamespace(content_type=None, filename="shot.jpg")
+    )
+
+
 def test_attachment_and_media_namespaces_do_not_collide():
     """An attachment signature must not unlock the key-addressed route."""
     from app.domains.conversations.attachments_router import (

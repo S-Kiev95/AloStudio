@@ -188,15 +188,15 @@ export function PostComposer({
 
       {/* Source fields per media type */}
       {mediaType === "IMAGE" ? (
-        <UrlField id="c-img" label="Imagen" value={imageUrl} onChange={setImageUrl} accountId={accountId} />
+        <UrlField id="c-img" label="Imagen" value={imageUrl} onChange={setImageUrl} accountId={accountId} uploadKind="image" />
       ) : null}
       {mediaType === "VIDEO" ? (
-        <UrlField id="c-vid" label="URL de video (MP4)" value={videoUrl} onChange={setVideoUrl} />
+        <UrlField id="c-vid" label="Video (MP4)" value={videoUrl} onChange={setVideoUrl} accountId={accountId} uploadKind="video" />
       ) : null}
       {mediaType === "REELS" ? (
         <>
-          <UrlField id="c-reel" label="URL de video" value={videoUrl} onChange={setVideoUrl} />
-          <UrlField id="c-cover" label="Portada (opcional)" value={coverUrl} onChange={setCoverUrl} required={false} accountId={accountId} />
+          <UrlField id="c-reel" label="Video" value={videoUrl} onChange={setVideoUrl} accountId={accountId} uploadKind="video" />
+          <UrlField id="c-cover" label="Portada (opcional)" value={coverUrl} onChange={setCoverUrl} required={false} accountId={accountId} uploadKind="image" />
           <label className="flex items-center gap-2 text-sm text-fg">
             <input type="checkbox" checked={shareToFeed} onChange={(e) => setShareToFeed(e.target.checked)} />
             También compartir en el feed
@@ -215,10 +215,11 @@ export function PostComposer({
           </div>
           <UrlField
             id="c-story"
-            label={storyKind === "image" ? "Imagen" : "URL de video"}
+            label={storyKind === "image" ? "Imagen" : "Video"}
             value={storyUrl}
             onChange={setStoryUrl}
-            accountId={storyKind === "image" ? accountId : undefined}
+            accountId={accountId}
+            uploadKind={storyKind}
           />
         </div>
       ) : null}
@@ -250,17 +251,16 @@ export function PostComposer({
                   )
                 }
               />
-              {c.kind === "image" ? (
-                <CompactImageUpload
-                  accountId={accountId}
-                  label={`Subir imagen del elemento ${i + 1}`}
-                  onUploaded={(url) =>
-                    setChildren((prev) =>
-                      prev.map((x, j) => (j === i ? { ...x, url } : x)),
-                    )
-                  }
-                />
-              ) : null}
+              <CompactImageUpload
+                accountId={accountId}
+                kind={c.kind}
+                label={`Subir ${c.kind === "image" ? "imagen" : "video"} del elemento ${i + 1}`}
+                onUploaded={(url) =>
+                  setChildren((prev) =>
+                    prev.map((x, j) => (j === i ? { ...x, url } : x)),
+                  )
+                }
+              />
               {children.length > 2 ? (
                 <button
                   type="button"
@@ -341,10 +341,12 @@ export function PostComposer({
  *  break the inline layout. Drop still works — the button is a drop target. */
 function CompactImageUpload({
   accountId,
+  kind,
   label,
   onUploaded,
 }: {
   accountId: string;
+  kind: "image" | "video";
   label: string;
   onUploaded: (url: string) => void;
 }) {
@@ -368,7 +370,7 @@ function CompactImageUpload({
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept={kind === "video" ? "video/*" : "image/*"}
         className="hidden"
         aria-label={label}
         tabIndex={-1}
@@ -416,21 +418,25 @@ function UrlField({
   onChange,
   required = true,
   accountId,
+  uploadKind,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (v: string) => void;
   required?: boolean;
-  /** When set, the field also accepts a dropped/picked image: it uploads,
-   *  the backend re-encodes to JPEG, and the public URL lands in the input. */
   accountId?: string;
+  /** Enables drop/pick upload. Images are re-encoded to JPEG server-side;
+   *  video is stored as-is (we don't transcode), so it must already be
+   *  MP4/H.264 for Meta to accept it. */
+  uploadKind?: "image" | "video";
 }) {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const uploadable = Boolean(accountId);
+  const uploadable = Boolean(accountId && uploadKind);
+  const isVideo = uploadKind === "video";
 
   async function upload(file: File) {
     if (!accountId) return;
@@ -465,9 +471,9 @@ function UrlField({
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept={isVideo ? "video/*" : "image/*"}
             className="hidden"
-            aria-label={`Subir imagen para ${label}`}
+            aria-label={`Subir ${isVideo ? "video" : "imagen"} para ${label}`}
             tabIndex={-1}
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -495,10 +501,12 @@ function UrlField({
           >
             <Upload className="h-4 w-4 shrink-0" aria-hidden />
             {uploading
-              ? "Subiendo y convirtiendo…"
+              ? isVideo
+                ? "Subiendo video…"
+                : "Subiendo y convirtiendo…"
               : dragging
-                ? "Soltá la imagen acá"
-                : "Arrastrá una imagen o hacé clic para elegirla"}
+                ? `Soltá ${isVideo ? "el video" : "la imagen"} acá`
+                : `Arrastrá ${isVideo ? "un video" : "una imagen"} o hacé clic para elegirlo`}
           </button>
           {uploadError ? (
             <p role="alert" className="text-xs text-danger">
@@ -506,17 +514,28 @@ function UrlField({
             </p>
           ) : (
             <p className="text-xs text-fg-muted">
-              Cualquier formato — la convertimos a JPEG (lo único que acepta
-              Instagram).
+              {isVideo
+                ? "Se sube tal cual: Instagram exige MP4 (H.264 + AAC). No lo convertimos."
+                : "Cualquier formato — la convertimos a JPEG (lo único que acepta Instagram)."}
             </p>
           )}
           {value && !uploading ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={value}
-              alt="Vista previa"
-              className="max-h-40 rounded-md border border-border object-contain"
-            />
+            isVideo ? (
+              <video
+                controls
+                src={value}
+                className="max-h-40 w-full rounded-md border border-border"
+              >
+                <track kind="captions" />
+              </video>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={value}
+                alt="Vista previa"
+                className="max-h-40 rounded-md border border-border object-contain"
+              />
+            )
           ) : null}
         </>
       ) : null}
