@@ -19,13 +19,20 @@ function cmtBase(accountId: string, commentId: number): string {
   return `/api/v1/accounts/${accountId}/instagram_comments/${commentId}`;
 }
 
-/** Live-sync comments for a post's media from Meta (published posts only). */
+/** Live-sync comments for a post's media from Meta (published posts only).
+ *
+ * The `comments` webhook mirrors new comments into our DB as they arrive, but
+ * the panel has no realtime push, so it polls while open — matching the
+ * conversation thread. Gated on `enabled` so a closed panel makes no calls
+ * (each fetch hits Meta). Backs off when the tab is hidden. */
 export function useComments(accountId: string, postId: number, enabled: boolean) {
   return useQuery({
     queryKey: ["ig-comments", accountId, postId],
     queryFn: () => apiFetch<IgComment[]>(postBase(accountId, postId)),
     enabled,
     retry: false,
+    refetchInterval: enabled ? 15_000 : false,
+    refetchIntervalInBackground: false,
   });
 }
 
