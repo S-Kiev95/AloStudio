@@ -17,9 +17,10 @@ import {
 } from "@/lib/api/instagram-posts";
 import { cn } from "@/lib/utils";
 
+// No standalone "Video": Meta deprecated the VIDEO media_type — a single
+// feed video is published as a Reel now (and shows in the feed the same).
 const MEDIA_TYPES: { value: MediaType; label: string }[] = [
   { value: "IMAGE", label: "Imagen" },
-  { value: "VIDEO", label: "Video" },
   { value: "REELS", label: "Reel" },
   { value: "CAROUSEL", label: "Carrusel" },
   { value: "STORIES", label: "Story" },
@@ -189,9 +190,6 @@ export function PostComposer({
       {/* Source fields per media type */}
       {mediaType === "IMAGE" ? (
         <UrlField id="c-img" label="Imagen" value={imageUrl} onChange={setImageUrl} accountId={accountId} uploadKind="image" />
-      ) : null}
-      {mediaType === "VIDEO" ? (
-        <UrlField id="c-vid" label="Video (MP4)" value={videoUrl} onChange={setVideoUrl} accountId={accountId} uploadKind="video" />
       ) : null}
       {mediaType === "REELS" ? (
         <>

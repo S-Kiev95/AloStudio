@@ -42,7 +42,15 @@ from app.domains.instagram.models import (
 def _validate_media_type(raw: Any) -> str:
     """Mirror Meta's ``media_type`` enum (uppercase). We carry
     ``IMAGE`` ourselves for the single-image case where Meta omits
-    the param."""
+    the param.
+
+    ``VIDEO`` is folded to ``REELS``: Meta deprecated single feed videos —
+    container creation now 400s with subcode 2207067 ("El valor VIDEO para
+    media_type es obsoleto. Usa REELS") — and a Reel surfaces in the feed
+    just the same. Accepting VIDEO here keeps older API callers working.
+    """
+    if raw == "VIDEO":
+        return "REELS"
     if not isinstance(raw, str) or raw not in INSTAGRAM_MEDIA_TYPES:
         raise ChatwootHTTPException(
             status_code=422,
