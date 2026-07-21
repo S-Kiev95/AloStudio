@@ -148,6 +148,8 @@ export function ConversationList({ accountId }: { accountId: string }) {
           />
           <input
             type="search"
+            name="conversation-search"
+            autoComplete="off"
             aria-label="Buscar en los mensajes"
             value={q}
             onChange={(e) => {

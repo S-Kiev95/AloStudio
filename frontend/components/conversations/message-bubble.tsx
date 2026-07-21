@@ -32,6 +32,7 @@ function ImageAttachment({ src }: { src: string }) {
         <img
           src={src}
           alt="Adjunto"
+          loading="lazy"
           className="max-h-56 max-w-full rounded-md border border-border object-contain"
         />
       </button>
@@ -39,13 +40,16 @@ function ImageAttachment({ src }: { src: string }) {
         <div
           role="dialog"
           aria-modal="true"
+          aria-label="Imagen ampliada"
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/80 p-4"
         >
           <button
             type="button"
             aria-label="Cerrar"
-            className="absolute right-4 top-4 rounded-md p-2 text-white/80 hover:bg-white/10 hover:text-white"
+            autoFocus
+            onClick={() => setOpen(false)}
+            className="absolute right-4 top-4 rounded-md p-2 text-white/80 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           >
             <X className="h-6 w-6" aria-hidden />
           </button>
