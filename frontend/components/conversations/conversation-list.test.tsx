@@ -9,9 +9,18 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 
 import { ConversationList } from "./conversation-list";
+
+// The list drives its state off the URL; stub the App Router hooks so the
+// component renders outside a Next.js router (empty params → defaults).
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/accounts/1/conversations",
+}));
 
 const conversation = {
   id: 42,

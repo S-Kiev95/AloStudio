@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { ConversationList } from "@/components/conversations/conversation-list";
 
 export default async function ConversationsPage({
@@ -6,5 +8,11 @@ export default async function ConversationsPage({
   params: Promise<{ accountId: string }>;
 }) {
   const { accountId } = await params;
-  return <ConversationList accountId={accountId} />;
+  // ConversationList reads its state from the URL (useSearchParams), which
+  // Next requires to sit under a Suspense boundary.
+  return (
+    <Suspense>
+      <ConversationList accountId={accountId} />
+    </Suspense>
+  );
 }

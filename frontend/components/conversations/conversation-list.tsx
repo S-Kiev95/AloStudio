@@ -2,7 +2,8 @@
 
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useState } from "react";
 
 import { useAgents, useLabels } from "@/lib/api/account";
 import {
@@ -39,12 +40,34 @@ const ASSIGNEE_TABS = [
 const PER_PAGE = 25;
 
 export function ConversationList({ accountId }: { accountId: string }) {
-  const [status, setStatus] = useState<string>("open");
-  const [assigneeType, setAssigneeType] = useState<string | undefined>(
-    undefined,
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // URL is the source of truth for the shareable list state, so refresh,
+  // back/forward, and deep links all just work. Transient UI (selection, the
+  // open filter panel) stays local; the advanced filter DSL is complex to
+  // serialise so it stays local too (cleared on refresh).
+  const status = searchParams.get("status") ?? "open";
+  const assigneeType = searchParams.get("assignee") ?? undefined;
+  const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  const q = searchParams.get("q") ?? "";
+
+  const setParams = useCallback(
+    (updates: Record<string, string | null>, push = false) => {
+      const sp = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(updates)) {
+        if (v === null || v === "") sp.delete(k);
+        else sp.set(k, v);
+      }
+      const qs = sp.toString();
+      const url = qs ? `${pathname}?${qs}` : pathname;
+      if (push) router.push(url, { scroll: false });
+      else router.replace(url, { scroll: false });
+    },
+    [searchParams, pathname, router],
   );
-  const [page, setPage] = useState(1);
-  const [q, setQ] = useState("");
+
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [filters, setFilters] = useState<FilterCondition[]>([]);
   const [filterMatch, setFilterMatch] = useState<"AND" | "OR">("AND");
@@ -111,14 +134,13 @@ export function ConversationList({ accountId }: { accountId: string }) {
     setFilters(conds);
     setFilterMatch(match);
     setShowFilters(false);
-    setQ(""); // filters and search are mutually exclusive
-    setPage(1);
+    setParams({ q: null, page: null }); // filters and search are exclusive
     clearSelected();
   }
   function clearFilters() {
     setFilters([]);
     setShowFilters(false);
-    setPage(1);
+    setParams({ page: null });
     clearSelected();
   }
   async function saveView(
@@ -154,8 +176,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
             value={q}
             onChange={(e) => {
               const v = e.target.value;
-              setQ(v);
-              setPage(1);
+              setParams({ q: v || null, page: null });
               clearSelected();
               if (v.trim()) setFilters([]); // search and filters are exclusive
             }}
@@ -167,8 +188,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
               type="button"
               aria-label="Limpiar búsqueda"
               onClick={() => {
-                setQ("");
-                setPage(1);
+                setParams({ q: null, page: null });
                 clearSelected();
               }}
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-surface-2 hover:text-fg"
@@ -352,8 +372,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
               key={t.key}
               active={status === t.key}
               onClick={() => {
-                setStatus(t.key);
-                setPage(1);
+                setParams({ status: t.key === "open" ? null : t.key, page: null }, true);
                 clearSelected();
               }}
             >
@@ -366,8 +385,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
               key={t.label}
               active={assigneeType === t.key}
               onClick={() => {
-                setAssigneeType(t.key);
-                setPage(1);
+                setParams({ assignee: t.key ?? null, page: null }, true);
                 clearSelected();
               }}
             >
@@ -412,7 +430,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
           active={false}
           disabled={page <= 1}
           onClick={() => {
-            setPage((p) => Math.max(1, p - 1));
+            setParams({ page: page <= 2 ? null : String(page - 1) }, true);
             clearSelected();
           }}
         >
@@ -423,7 +441,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
           active={false}
           disabled={items.length < PER_PAGE}
           onClick={() => {
-            setPage((p) => p + 1);
+            setParams({ page: String(page + 1) }, true);
             clearSelected();
           }}
         >
