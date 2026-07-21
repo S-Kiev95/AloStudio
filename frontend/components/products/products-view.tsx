@@ -172,6 +172,7 @@ function ProductRow({
           <img
             src={product.image_url}
             alt=""
+            loading="lazy"
             className="h-full w-full object-cover"
           />
         ) : null}

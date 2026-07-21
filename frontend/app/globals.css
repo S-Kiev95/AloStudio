@@ -79,3 +79,20 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/*
+ * Honor the OS "reduce motion" setting — Tailwind's transitions/animations
+ * don't opt in on their own (Web Interface Guidelines). Collapse to near-zero
+ * rather than fully off so state changes still register; a spinner freezes,
+ * which the "Cargando…" copy already conveys.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
