@@ -11,12 +11,15 @@
  * the default (Binance is dark-first); next-themes toggles the `.dark` class.
  */
 :root {
+  color-scheme: light;
   --bg: #fafafa;
   --surface: #ffffff;
   --surface-2: #f5f5f5;
+  --surface-3: #ececec;
   --fg: #181a20;
   --fg-muted: #707a8a;
   --border: #eaecef;
+  --border-strong: #d5dae1;
   --primary: #fcd535;
   --primary-active: #f0b90b;
   --primary-fg: #181a20;
@@ -25,17 +28,26 @@
   --danger: #d9344a;
   --info: #2563eb;
   --ring: #2563eb;
+  /* Elevation — soft, low-contrast in light mode. */
+  --shadow-sm: 0 1px 2px rgb(24 26 32 / 0.04), 0 1px 3px rgb(24 26 32 / 0.06);
+  --shadow-md: 0 2px 6px rgb(24 26 32 / 0.05), 0 8px 24px rgb(24 26 32 / 0.06);
+  --shadow-lg: 0 4px 12px rgb(24 26 32 / 0.08), 0 16px 40px rgb(24 26 32 / 0.1);
+  /* A faint wash so the primary CTA feels lit. */
+  --glow-primary: 0 1px 2px rgb(240 185 11 / 0.35);
 }
 
 /* Dark theme (Binance signature) — near-black canvas, surface steps as
  * borders, single yellow accent. Applied via the `.dark` class. */
 .dark {
+  color-scheme: dark;
   --bg: #0b0e11;
   --surface: #1e2329;
   --surface-2: #2b3139;
+  --surface-3: #363c45;
   --fg: #eaecef;
   --fg-muted: #848e9c;
   --border: #2b3139;
+  --border-strong: #3d4551;
   --primary: #fcd535;
   --primary-active: #f0b90b;
   --primary-fg: #181a20;
@@ -44,6 +56,11 @@
   --danger: #f6465d;
   --info: #3b82f6;
   --ring: #3b82f6;
+  /* Elevation — deeper on the near-black canvas so surfaces actually lift. */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 2px 8px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.36);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.5), 0 24px 56px rgb(0 0 0 / 0.4);
+  --glow-primary: 0 0 0 1px rgb(240 185 11 / 0.15), 0 2px 12px rgb(252 213 53 / 0.18);
 }
 
 @layer base {

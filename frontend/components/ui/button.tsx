@@ -9,15 +9,16 @@ import { cn } from "@/lib/utils";
  * the default size, clear disabled + loading states (DESIGN-SYSTEM §4/§5).
  */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex select-none touch-manipulation items-center justify-center gap-2 rounded-md text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:translate-y-px disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none disabled:active:translate-y-0",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-fg hover:bg-primary-active",
+        primary:
+          "bg-primary text-primary-fg shadow-glow hover:bg-primary-active",
         secondary:
-          "border border-border bg-surface text-fg hover:bg-surface-2",
+          "border border-border bg-surface text-fg shadow-sm hover:border-border-strong hover:bg-surface-2",
         ghost: "text-fg hover:bg-surface-2",
-        destructive: "bg-danger text-white hover:opacity-90",
+        destructive: "bg-danger text-white shadow-sm hover:bg-danger/90",
       },
       size: {
         sm: "h-9 px-3",
