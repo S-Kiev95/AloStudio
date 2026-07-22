@@ -12,11 +12,16 @@ import { NotificationBell } from "./notification-bell";
 import { SidebarNav } from "./sidebar-nav";
 import { ThemeToggle } from "./theme-toggle";
 
-/** Yellow brand mark + wordmark, shared by the desktop sidebar + mobile drawer. */
+/** Yellow brand mark + wordmark, shared by the desktop sidebar + mobile drawer.
+ *  The tile carries the lit accent gradient + a soft glow so it reads as the
+ *  brand anchor rather than a flat square. */
 function Brand() {
   return (
-    <span className="flex items-center gap-2">
-      <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-sm font-bold text-primary-fg">
+    <span className="flex items-center gap-2.5">
+      <span
+        className="grid h-8 w-8 place-items-center rounded-lg text-sm font-bold text-primary-fg shadow-[0_2px_10px_rgb(252_213_53/0.35)]"
+        style={{ background: "var(--gradient-primary)" }}
+      >
         A
       </span>
       <span className="text-lg font-semibold tracking-tight">AloStudio</span>

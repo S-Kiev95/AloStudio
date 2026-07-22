@@ -45,6 +45,21 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "settings", label: "Ajustes", icon: Settings, segment: "settings" },
 ];
 
+/** The nav grouped into labelled sections — a quieter, more scannable sidebar
+ *  than one flat list of nine. `label: null` renders headerless (Inicio sits
+ *  on its own up top; Ajustes on its own at the bottom). */
+export type NavGroup = { label: string | null; keys: string[] };
+
+export const NAV_GROUPS: NavGroup[] = [
+  { label: null, keys: ["home"] },
+  { label: "Bandeja", keys: ["conversations", "contacts", "instagram"] },
+  {
+    label: "Crecimiento",
+    keys: ["products", "help-center", "campaigns", "reports"],
+  },
+  { label: null, keys: ["settings"] },
+];
+
 export function navHref(accountId: string, segment: string): string {
   return segment ? `/accounts/${accountId}/${segment}` : `/accounts/${accountId}`;
 }
