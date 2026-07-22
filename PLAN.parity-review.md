@@ -186,11 +186,10 @@ predate the key — beyond what Chatwoot offers (it only re-embeds on save).
 | One-off delivery runtime | ✅ | ✅ | The ARQ scheduler builds a conversation + outgoing message per audience contact (`CampaignConversationBuilder`). |
 | Ongoing trigger runtime | ✅ | ✅ | Widget `campaign.triggered` event → `CampaignListener` fires the ongoing campaign for a visitor. |
 | Campaign analytics / delivery stats | ✅ | ✅ 🚀 | `GET /campaigns/:id/analytics` → conversations created + a sent/delivered/read/failed breakdown, surfaced as an "Entrega" panel on the campaign detail. Chatwoot's is thinner. |
-| Template params (WhatsApp, etc.) | ✅ | ⚠️ | Backend has `template_params`; the form doesn't expose it (no WhatsApp inbox to use it on yet). ⏸ until WhatsApp inbox lands. |
+| Template params (WhatsApp, etc.) | ✅ | ✅ | When the picked inbox is WhatsApp the form swaps the free-text message for an approved-template picker: `GET .../inboxes/:id/whatsapp/templates` lists them (with a "Sincronizar" button → `POST .../sync` refreshing from Meta), the body preview substitutes each `{{n}}`, and per-variable inputs build `template_params`. Verified live: the `TestWhatsapp` inbox synced `hello_world` from the real WABA. |
 
 **Verdict:** CRUD + audience + one-off/ongoing delivery runtime + per-campaign
-analytics = parity (analytics exceeds it). Only WhatsApp `template_params`
-remains, gated on a WhatsApp inbox.
+analytics + WhatsApp template params = **full parity** (analytics exceeds it).
 
 ---
 
@@ -310,12 +309,10 @@ gated on an external credential or a backend port.
    hook creation (Slack, Linear, Shopify). The Connect *start* is wired;
    the return leg needs registered provider apps + secrets. Per vendor.
 
-**Blocked on external credentials:**
-
-2. **WhatsApp campaign `template_params`** — needs a WhatsApp Business
-   number/token + Meta-approved templates.
-
-(Shipped recently: article embeddings (pgvector) — Captain-style semantic
+(Shipped recently: **WhatsApp campaign `template_params`** — the campaign
+form's template picker + `/whatsapp/templates` sync endpoint, verified live
+against the `TestWhatsapp` WABA (`hello_world` synced); article embeddings
+(pgvector) — Captain-style semantic
 Help-Center search, needs `OPENAI_API_KEY`; the bot report —
 `GET /reports/bot_metrics` + bot-handling tracking (`conversation_bot_resolved`
 / `conversation_bot_handoff` events); assignment policies — OSS
@@ -366,9 +363,9 @@ The honest gaps **after the 2026-07-03 batch** are:
 
 What's left is now **entirely dependency-gated** (see §12): the "shippable
 now" bucket is empty. The integrations OAuth callback needs provider
-credentials; WhatsApp `template_params` needs a Business number + approved
-templates. (Article embeddings shipped this batch once the `OPENAI_API_KEY`
-was provided.) The indefinitely-deferred set (Captain AI, enterprise
+credentials — the last of the ⚠️s. (WhatsApp `template_params` and article
+embeddings both shipped this batch once the WABA token / `OPENAI_API_KEY`
+were provided.) The indefinitely-deferred set (Captain AI, enterprise
 audit/roles/SSO, SaaS billing) is unchanged — except semantic Help-Center
 search, which we ported despite its enterprise origins.
 
