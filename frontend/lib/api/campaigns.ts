@@ -48,6 +48,7 @@ export type CampaignInput = {
   audience?: AudienceEntry[];
   trigger_rules?: Record<string, unknown>;
   trigger_only_during_business_hours?: boolean | null;
+  template_params?: Record<string, unknown> | null;
 };
 
 function base(accountId: string): string {

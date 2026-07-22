@@ -16,6 +16,10 @@ import {
 } from "@/lib/api/campaigns";
 import { useInboxes } from "@/lib/api/inboxes";
 import { useLabels } from "@/lib/api/labels";
+import {
+  useSyncWhatsappTemplates,
+  useWhatsappTemplates,
+} from "@/lib/api/whatsapp-templates";
 import { cn } from "@/lib/utils";
 
 const selectClass =
@@ -76,6 +80,36 @@ export function CampaignForm({
   );
   const [error, setError] = useState<string | null>(null);
 
+  // WhatsApp campaigns send an approved template, not free text. Detect the
+  // selected inbox's channel and load its templates.
+  const [templateName, setTemplateName] = useState<string>(
+    (initial?.template_params as { name?: string } | null)?.name ?? "",
+  );
+  const [templateVars, setTemplateVars] = useState<Record<string, string>>(
+    () => {
+      const body = (
+        initial?.template_params as {
+          processed_params?: { body?: Record<string, string> };
+        } | null
+      )?.processed_params?.body;
+      return body && typeof body === "object" ? { ...body } : {};
+    },
+  );
+  const selectedInbox = inboxes.data?.find((ib) => String(ib.id) === inboxId);
+  const isWhatsapp = selectedInbox?.channel_type === "Channel::Whatsapp";
+  const templatesQ = useWhatsappTemplates(
+    accountId,
+    isWhatsapp ? Number(inboxId) : null,
+    isWhatsapp,
+  );
+  const syncTemplates = useSyncWhatsappTemplates(
+    accountId,
+    isWhatsapp ? Number(inboxId) : null,
+  );
+  const selectedTemplate = templatesQ.data?.templates.find(
+    (t) => t.name === templateName,
+  );
+
   function toggleLabel(id: number) {
     setAudienceLabels((prev) => {
       const next = new Set(prev);
@@ -92,6 +126,29 @@ export function CampaignForm({
       return setError("Elegí una bandeja.");
     if (campaignType === "one_off" && !scheduledAt)
       return setError("Las campañas puntuales necesitan fecha programada.");
+    if (isWhatsapp && !templateName)
+      return setError("Elegí una plantilla de WhatsApp.");
+    if (
+      isWhatsapp &&
+      (selectedTemplate?.variables ?? []).some(
+        (n) => !(templateVars[String(n)] ?? "").trim(),
+      )
+    )
+      return setError("Completá todas las variables de la plantilla.");
+
+    // WhatsApp: build the template blob the backend validates + sends.
+    let templateParams: Record<string, unknown> | null = null;
+    if (isWhatsapp && templateName && selectedTemplate) {
+      const body: Record<string, string> = {};
+      for (const n of selectedTemplate.variables) {
+        body[String(n)] = (templateVars[String(n)] ?? "").trim();
+      }
+      templateParams = {
+        name: templateName,
+        language: selectedTemplate.language,
+        processed_params: { body },
+      };
+    }
 
     const audience: AudienceEntry[] = Array.from(audienceLabels).map((id) => ({
       type: "Label",
@@ -115,6 +172,7 @@ export function CampaignForm({
       campaign_type: campaignType,
       audience,
       trigger_rules: triggerRules,
+      template_params: templateParams,
       ...(campaignType === "one_off"
         ? { scheduled_at: localToIso(scheduledAt) }
         : {
@@ -220,15 +278,88 @@ export function CampaignForm({
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="c-msg">Mensaje</Label>
-        <Textarea
-          id="c-msg"
-          rows={3}
-          value={message ?? ""}
-          onChange={(e) => setMessage(e.target.value)}
-        />
-      </div>
+      {isWhatsapp ? (
+        <div className="space-y-3 rounded-md border border-border bg-surface-2 p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase text-fg-muted">
+              Plantilla de WhatsApp
+            </p>
+            <button
+              type="button"
+              onClick={() => syncTemplates.mutate()}
+              disabled={syncTemplates.isPending}
+              className="text-xs font-medium text-info hover:underline disabled:opacity-50"
+            >
+              {syncTemplates.isPending
+                ? "Actualizando…"
+                : "Actualizar plantillas"}
+            </button>
+          </div>
+          {templatesQ.isLoading ? (
+            <p className="text-sm text-fg-muted">Cargando plantillas…</p>
+          ) : (templatesQ.data?.templates.length ?? 0) === 0 ? (
+            <p className="text-sm text-fg-muted">
+              No hay plantillas aprobadas. Actualizá, o creá una en Meta.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="c-tpl" required>
+                  Plantilla
+                </Label>
+                <select
+                  id="c-tpl"
+                  className={selectClass}
+                  value={templateName}
+                  onChange={(e) => {
+                    setTemplateName(e.target.value);
+                    setTemplateVars({});
+                  }}
+                >
+                  <option value="">Elegí una plantilla…</option>
+                  {templatesQ.data!.templates.map((t) => (
+                    <option key={`${t.name}:${t.language}`} value={t.name}>
+                      {t.name} ({t.language})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {selectedTemplate?.body_text ? (
+                <p className="whitespace-pre-wrap rounded-md bg-surface p-2 text-sm text-fg-muted">
+                  {selectedTemplate.body_text}
+                </p>
+              ) : null}
+              {(selectedTemplate?.variables ?? []).map((n) => (
+                <div key={n} className="space-y-1.5">
+                  <Label htmlFor={`c-var-${n}`} required>
+                    {`Variable {{${n}}}`}
+                  </Label>
+                  <Input
+                    id={`c-var-${n}`}
+                    value={templateVars[String(n)] ?? ""}
+                    onChange={(e) =>
+                      setTemplateVars((prev) => ({
+                        ...prev,
+                        [String(n)]: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          <Label htmlFor="c-msg">Mensaje</Label>
+          <Textarea
+            id="c-msg"
+            rows={3}
+            value={message ?? ""}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+        </div>
+      )}
 
       {campaignType === "one_off" ? (
         <div className="space-y-1.5">

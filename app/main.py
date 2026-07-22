@@ -90,6 +90,9 @@ from app.domains.users.router import router as profile_router
 from app.domains.web_widget.router import router as web_widget_router
 from app.domains.webhooks.router import router as outbound_webhooks_router
 from app.domains.whatsapp.router import router as whatsapp_webhook_router
+from app.domains.whatsapp.templates_router import (
+    router as whatsapp_templates_router,
+)
 from app.domains.working_hours.router import (
     inbox_router as working_hours_inbox_router,
 )
@@ -235,6 +238,9 @@ def create_app() -> FastAPI:
     # — verify-token handshake (GET) + payload receive (POST). Auth
     # is per-channel via ``provider_config['webhook_verify_token']``.
     app.include_router(whatsapp_webhook_router)
+    # WhatsApp template listing + sync — the campaign composer picks an
+    # approved template + fills its {{n}} variables.
+    app.include_router(whatsapp_templates_router)
     # Facebook Messenger webhook (Phase 5d). ``/webhooks/fb_messenger``
     # — installation-wide verify token via ``settings.fb_verify_token``
     # (env var FB_VERIFY_TOKEN), single endpoint shared across every
