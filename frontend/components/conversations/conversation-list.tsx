@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 
+import { Avatar } from "@/components/ui/avatar";
 import { useAgents, useLabels } from "@/lib/api/account";
 import {
   type Conversation,
@@ -395,7 +396,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
         {active.isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : active.isError ? (
@@ -499,9 +500,10 @@ function ConversationRow({
     conv.last_non_activity_message?.content ??
     conv.messages?.[conv.messages.length - 1]?.content ??
     "";
+  const unread = conv.unread_count > 0;
 
   return (
-    <li className="flex items-center hover:bg-surface-2">
+    <li className="flex items-center transition-colors hover:bg-surface-2">
       <label className="flex shrink-0 cursor-pointer items-center py-3 pl-4 pr-1">
         <input
           type="checkbox"
@@ -515,19 +517,31 @@ function ConversationRow({
         href={`/accounts/${accountId}/conversations/${conv.id}`}
         className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-xs font-semibold text-fg-muted">
-          {name.charAt(0).toUpperCase()}
-        </span>
+        <Avatar name={name} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium text-fg">{name}</span>
-            {conv.unread_count > 0 ? (
-              <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-fg tabular-nums">
+            <span
+              className={cn(
+                "truncate text-sm text-fg",
+                unread ? "font-semibold" : "font-medium",
+              )}
+            >
+              {name}
+            </span>
+            {unread ? (
+              <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-fg tabular-nums shadow-glow">
                 {conv.unread_count}
               </span>
             ) : null}
           </div>
-          <p className="truncate text-xs text-fg-muted">{last || "—"}</p>
+          <p
+            className={cn(
+              "truncate text-xs",
+              unread ? "text-fg/70" : "text-fg-muted",
+            )}
+          >
+            {last || "—"}
+          </p>
         </div>
         <span className="shrink-0 text-[11px] text-fg-muted tabular-nums">
           {relativeTime(conv.last_activity_at || conv.timestamp)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Megaphone, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Megaphone, Plus, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -65,7 +65,7 @@ export function CampaignsView({ accountId }: { accountId: string }) {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -120,14 +120,22 @@ function CampaignRow({
         ? "Completada"
         : "Activa";
 
+  const ongoing = campaign.campaign_type === "ongoing";
+  const TypeIcon = ongoing ? Megaphone : Send;
+
   return (
-    <li className="flex items-center gap-1 pr-2 hover:bg-surface-2">
+    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-surface-2">
       <Link
         href={`/accounts/${accountId}/campaigns/${campaign.display_id}`}
         className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <Megaphone className="h-4 w-4" aria-hidden />
+        <span
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+            ongoing ? "bg-primary/10 text-primary" : "bg-info/10 text-info",
+          )}
+        >
+          <TypeIcon className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-fg">

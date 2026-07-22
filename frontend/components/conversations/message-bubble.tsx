@@ -350,12 +350,15 @@ export function MessageBubble({
       ) : null}
       <div
         className={cn(
-          "max-w-[75%] rounded-lg px-3 py-2 text-sm",
+          "max-w-[75%] px-3.5 py-2 text-sm shadow-sm",
+          // Directional bubbles: outgoing lean on a warm brand tint, incoming
+          // stay neutral, so the thread reads left/right at a glance. The
+          // asymmetric corner gives each side its "tail".
           isPrivate
-            ? "border border-warning/40 bg-warning/10 text-fg"
+            ? "rounded-2xl border border-warning/40 bg-warning/10 text-fg"
             : outgoing
-              ? "bg-surface-2 text-fg"
-              : "border border-border bg-surface text-fg",
+              ? "rounded-2xl rounded-br-md border border-primary/25 bg-primary/10 text-fg"
+              : "rounded-2xl rounded-bl-md border border-border bg-surface text-fg",
         )}
       >
         {isPrivate ? (

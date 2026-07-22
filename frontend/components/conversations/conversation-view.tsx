@@ -3,6 +3,7 @@
 import { ArrowLeft, CheckCircle2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   useConversation,
@@ -10,6 +11,29 @@ import {
   useMessages,
   useToggleStatus,
 } from "@/lib/api/conversations";
+import { cn } from "@/lib/utils";
+
+const STATUS_CHIP: Record<string, { label: string; tint: string }> = {
+  open: { label: "Abierta", tint: "bg-info/10 text-info" },
+  pending: { label: "Pendiente", tint: "bg-warning/10 text-warning" },
+  resolved: { label: "Resuelta", tint: "bg-success/10 text-success" },
+  snoozed: { label: "Pospuesta", tint: "bg-surface-2 text-fg-muted" },
+};
+
+function StatusChip({ status }: { status: string }) {
+  const s = STATUS_CHIP[status];
+  if (!s) return null;
+  return (
+    <span
+      className={cn(
+        "hidden shrink-0 rounded-full px-2 py-0.5 text-xs font-medium sm:inline-flex",
+        s.tint,
+      )}
+    >
+      {s.label}
+    </span>
+  );
+}
 
 import { ContactPanel } from "./contact-panel";
 import { ConversationActions } from "./conversation-actions";
@@ -57,15 +81,14 @@ export function ConversationView({
         >
           <ArrowLeft className="h-5 w-5" aria-hidden />
         </Link>
+        <Avatar name={contactName} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-base font-semibold text-fg">
             {contactName}
           </h1>
-          <p className="text-xs text-fg-muted">
-            Conversación #{displayId}
-            {status ? ` · ${status}` : ""}
-          </p>
+          <p className="text-xs text-fg-muted">Conversación #{displayId}</p>
         </div>
+        {status ? <StatusChip status={status} /> : null}
         <Button
           variant={resolved ? "secondary" : "primary"}
           size="sm"

@@ -1,10 +1,23 @@
 "use client";
 
-import { ChevronRight, ExternalLink } from "lucide-react";
+import {
+  ChevronRight,
+  CircleDashed,
+  ExternalLink,
+  Film,
+  Image as ImageIcon,
+  Images,
+  type LucideIcon,
+  Video,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { type InstagramPost, useInstagramPosts } from "@/lib/api/instagram-posts";
+import {
+  type InstagramPost,
+  type MediaType,
+  useInstagramPosts,
+} from "@/lib/api/instagram-posts";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +29,64 @@ const STATE_TABS = [
   { key: "published", label: "Publicadas" },
   { key: "failed", label: "Fallidas" },
 ] as const;
+
+const MEDIA_ICON: Record<MediaType, LucideIcon> = {
+  IMAGE: ImageIcon,
+  VIDEO: Video,
+  REELS: Film,
+  CAROUSEL: Images,
+  STORIES: CircleDashed,
+};
+
+/** Pull the first usable still from a post's untyped `source` blob (the URLs
+ *  the composer stored) so the row can show a real thumbnail; null when the
+ *  post is video-only with no cover. */
+function thumbFrom(source: Record<string, unknown>): string | null {
+  const pick = (o: Record<string, unknown>): string | null => {
+    if (typeof o.image_url === "string") return o.image_url;
+    if (typeof o.cover_url === "string") return o.cover_url;
+    return null;
+  };
+  const top = pick(source);
+  if (top) return top;
+  const kids = source.children;
+  if (Array.isArray(kids)) {
+    for (const k of kids) {
+      if (k && typeof k === "object") {
+        const u = pick(k as Record<string, unknown>);
+        if (u) return u;
+      }
+    }
+  }
+  return null;
+}
+
+/** Post thumbnail — the stored still when it loads, otherwise a media-type
+ *  icon tile (covers video-only posts and expired signed URLs). */
+function PostThumb({ post }: { post: InstagramPost }) {
+  const [broken, setBroken] = useState(false);
+  const url = thumbFrom(post.source);
+  const Icon = MEDIA_ICON[post.media_type] ?? ImageIcon;
+  if (url && !broken) {
+    return (
+      <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          onError={() => setBroken(true)}
+          className="h-full w-full object-cover"
+        />
+      </span>
+    );
+  }
+  return (
+    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-border bg-surface-2 text-fg-muted">
+      <Icon className="h-5 w-5" aria-hidden />
+    </span>
+  );
+}
 
 export function PostList({ accountId }: { accountId: string }) {
   const [state, setState] = useState<string | undefined>(undefined);
@@ -31,7 +102,7 @@ export function PostList({ accountId }: { accountId: string }) {
             onClick={() => setState(t.key)}
             aria-pressed={state === t.key}
             className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium",
+              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               state === t.key
                 ? "bg-surface-2 font-semibold text-fg"
@@ -43,7 +114,7 @@ export function PostList({ accountId }: { accountId: string }) {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -75,19 +146,25 @@ function PostRow({ accountId, post }: { accountId: string; post: InstagramPost }
         : `Creado ${relativeTime(post.created_at)}`;
 
   return (
-    <li className="flex items-center gap-1 pr-2 hover:bg-surface-2">
+    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-surface-2">
       <Link
         href={`/accounts/${accountId}/instagram/posts/${post.id}`}
         className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase text-fg-muted">
-          {post.media_type}
-        </span>
+        <PostThumb post={post} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-fg">
-            {post.caption?.trim() || <span className="text-fg-muted">(sin caption)</span>}
+            {post.caption?.trim() || (
+              <span className="text-fg-muted">(sin caption)</span>
+            )}
           </p>
-          <p className="text-xs text-fg-muted">{when}</p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-fg-muted">
+            <span className="font-medium uppercase tracking-wide">
+              {post.media_type}
+            </span>
+            <span aria-hidden>·</span>
+            <span className="truncate">{when}</span>
+          </p>
           {post.state === "failed" && post.error_message ? (
             <p className="truncate text-xs text-danger">{post.error_message}</p>
           ) : null}
