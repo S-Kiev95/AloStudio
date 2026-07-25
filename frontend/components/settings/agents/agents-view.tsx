@@ -1,8 +1,9 @@
 "use client";
 
-import { Mail, Plus, Trash2, User as UserIcon } from "lucide-react";
+import { Mail, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -150,7 +151,7 @@ export function AgentsView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -215,10 +216,8 @@ function AgentRow({
   }
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <UserIcon className="h-4 w-4" aria-hidden />
-      </span>
+    <li className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2">
+      <Avatar name={agent.name || agent.email || "?"} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">
           {agent.name}

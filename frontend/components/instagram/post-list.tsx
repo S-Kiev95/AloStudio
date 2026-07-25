@@ -1,26 +1,14 @@
 "use client";
 
-import {
-  ChevronRight,
-  CircleDashed,
-  ExternalLink,
-  Film,
-  Image as ImageIcon,
-  Images,
-  type LucideIcon,
-  Video,
-} from "lucide-react";
+import { ChevronRight, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import {
-  type InstagramPost,
-  type MediaType,
-  useInstagramPosts,
-} from "@/lib/api/instagram-posts";
+import { type InstagramPost, useInstagramPosts } from "@/lib/api/instagram-posts";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
+import { PostThumb } from "./post-media";
 import { StateBadge } from "./state-badge";
 
 const STATE_TABS = [
@@ -29,64 +17,6 @@ const STATE_TABS = [
   { key: "published", label: "Publicadas" },
   { key: "failed", label: "Fallidas" },
 ] as const;
-
-const MEDIA_ICON: Record<MediaType, LucideIcon> = {
-  IMAGE: ImageIcon,
-  VIDEO: Video,
-  REELS: Film,
-  CAROUSEL: Images,
-  STORIES: CircleDashed,
-};
-
-/** Pull the first usable still from a post's untyped `source` blob (the URLs
- *  the composer stored) so the row can show a real thumbnail; null when the
- *  post is video-only with no cover. */
-function thumbFrom(source: Record<string, unknown>): string | null {
-  const pick = (o: Record<string, unknown>): string | null => {
-    if (typeof o.image_url === "string") return o.image_url;
-    if (typeof o.cover_url === "string") return o.cover_url;
-    return null;
-  };
-  const top = pick(source);
-  if (top) return top;
-  const kids = source.children;
-  if (Array.isArray(kids)) {
-    for (const k of kids) {
-      if (k && typeof k === "object") {
-        const u = pick(k as Record<string, unknown>);
-        if (u) return u;
-      }
-    }
-  }
-  return null;
-}
-
-/** Post thumbnail — the stored still when it loads, otherwise a media-type
- *  icon tile (covers video-only posts and expired signed URLs). */
-function PostThumb({ post }: { post: InstagramPost }) {
-  const [broken, setBroken] = useState(false);
-  const url = thumbFrom(post.source);
-  const Icon = MEDIA_ICON[post.media_type] ?? ImageIcon;
-  if (url && !broken) {
-    return (
-      <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-2">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={url}
-          alt=""
-          loading="lazy"
-          onError={() => setBroken(true)}
-          className="h-full w-full object-cover"
-        />
-      </span>
-    );
-  }
-  return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-border bg-surface-2 text-fg-muted">
-      <Icon className="h-5 w-5" aria-hidden />
-    </span>
-  );
-}
 
 export function PostList({ accountId }: { accountId: string }) {
   const [state, setState] = useState<string | undefined>(undefined);

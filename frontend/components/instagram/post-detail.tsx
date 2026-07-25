@@ -17,6 +17,7 @@ import {
 import { relativeTime } from "@/lib/time";
 
 import { CommentsPanel } from "./comments-panel";
+import { PostMediaPreview } from "./post-media";
 import { StateBadge } from "./state-badge";
 
 export function PostDetail({
@@ -64,6 +65,8 @@ export function PostDetail({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          <PostMediaPreview post={post} />
+
           <PostMeta post={post} />
 
           {post.caption?.trim() ? (

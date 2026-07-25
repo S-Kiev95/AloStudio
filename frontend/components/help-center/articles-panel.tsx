@@ -121,7 +121,7 @@ export function ArticlesPanel({
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
         {isLoading ? (
           <p className="p-6 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (

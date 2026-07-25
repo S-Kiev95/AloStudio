@@ -13,7 +13,7 @@ export function IntegrationsView({ accountId }: { accountId: string }) {
     <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
       <h2 className="text-xl font-semibold text-fg">Integraciones</h2>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (

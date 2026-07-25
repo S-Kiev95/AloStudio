@@ -3,6 +3,7 @@
 import { CornerDownRight, Eye, EyeOff, Send, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -191,7 +192,8 @@ function CommentRow({
         comment.hidden && "opacity-60",
       )}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2.5">
+        <Avatar name={comment.from_username || "Usuario"} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-fg">
             {comment.from_username ? `@${comment.from_username}` : "Usuario"}
