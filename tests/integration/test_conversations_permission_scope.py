@@ -23,7 +23,6 @@ from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
-from app.domains.conversations.models import Conversation
 from app.domains.conversations.service import (
     ConversationBuilderParams,
     create_conversation,
@@ -203,10 +202,9 @@ async def test_index_agent_sees_only_their_inbox(client, seeded):
 async def test_index_agent_in_no_inboxes_sees_nothing(client, seeded):
     """Mirror PermissionFilterService — an agent without inbox membership
     sees an empty list (count=0)."""
-    owner, _, agent_b, _, inbox_2, _, _, _, _, agent_b_h = seeded
+    owner, _, _agent_b, _, _inbox_2, _, _, _, _, agent_b_h = seeded
     # Reuse agent_b but strip them from inbox_2 — implements the
     # zero-membership branch without creating a new account.
-    from app.core.db import get_session
     # Direct DB cleanup via the override session — pull from the fixture
     # by invoking client (already wired). Easier: use a fresh agent.
     # Skipped: we keep agent_b in inbox_2, so they DO see one row. Flip
@@ -228,8 +226,8 @@ async def test_search_honors_permission_scope(client, seeded, db_session):
     owner, _, _, _, _, conv_1, conv_2, _, agent_a_h, _ = seeded
     from app.domains.conversations.models import (
         CONTENT_TYPE_TEXT,
-        Message,
         MESSAGE_TYPE_INCOMING,
+        Message,
     )
 
     # Both conversations contain the search term.

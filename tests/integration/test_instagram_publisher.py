@@ -843,7 +843,7 @@ def quota_check_on():
 
 @respx.mock
 async def test_fetch_publishing_limit_parses(db_session):
-    owner, inbox, channel = await _seed(db_session, "-quota")
+    _owner, _inbox, channel = await _seed(db_session, "-quota")
     igid = channel.instagram_id
     respx.get(f"{GRAPH}/{igid}/content_publishing_limit").mock(
         return_value=httpx.Response(

@@ -21,16 +21,15 @@ from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
     CONVERSATION_STATUS_RESOLVED,
+    MESSAGE_TYPE_OUTGOING,
     Conversation,
     Message,
-    MESSAGE_TYPE_OUTGOING,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
     create_conversation,
 )
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
-from app.domains.macros.models import Macro
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
 from app.domains.users.models import (
     ACCOUNT_USER_ROLE_AGENT,
@@ -180,7 +179,7 @@ async def test_create_admin_global_macro(client, db_session):
 
 async def test_create_agent_clamped_to_personal(client, db_session):
     owner, _ = await _seed_admin(db_session, suffix="-cl")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, suffix="-cl"
     )
     body = {
@@ -231,7 +230,7 @@ async def test_index_hides_other_users_personal_macros(client, db_session):
     """Two users in the same account each have a personal macro;
     each sees only their own + any global ones."""
     owner, owner_headers = await _seed_admin(db_session, suffix="-vp")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, suffix="-vp"
     )
     # Owner creates a global + a personal.
@@ -278,7 +277,7 @@ async def test_index_hides_other_users_personal_macros(client, db_session):
 
 async def test_show_blocks_other_users_personal(client, db_session):
     owner, owner_headers = await _seed_admin(db_session, suffix="-sh")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, suffix="-sh"
     )
     create = await client.post(
@@ -316,7 +315,7 @@ async def test_update_by_author(client, db_session):
 
 async def test_update_blocked_for_non_author_agent(client, db_session):
     owner, owner_headers = await _seed_admin(db_session, suffix="-bk")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, suffix="-bk"
     )
     create = await client.post(
@@ -420,7 +419,7 @@ async def test_execute_send_message_creates_outgoing(client, db_session):
 
 async def test_execute_unauthorized_for_non_visible_macro(client, db_session):
     owner, owner_headers = await _seed_admin(db_session, suffix="-unx")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, suffix="-unx"
     )
     conv = await _seed_conversation(db_session, owner)

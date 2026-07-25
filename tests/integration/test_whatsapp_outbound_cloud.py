@@ -17,7 +17,6 @@ import json
 import httpx
 import pytest
 import respx
-from sqlmodel import select
 
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact
@@ -39,6 +38,7 @@ from app.domains.inboxes.models import (
     WhatsappChannel,
 )
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+
 # Resolve mappers (Conversation.team forward-ref).
 from app.domains.teams import models as _teams  # noqa: F401
 from app.domains.users.models import User
@@ -316,7 +316,7 @@ async def test_outgoing_message_via_create_message_hits_graph(db_session):
     """Creating an outgoing Message on a Channel::Whatsapp inbox via
     the canonical ``create_message`` path triggers Graph send through
     the post-create cascade."""
-    channel, inbox, conv, user = await _seed(db_session, suffix="-cascade")
+    channel, _inbox, conv, user = await _seed(db_session, suffix="-cascade")
 
     route = respx.post(_graph_url(channel)).mock(
         return_value=httpx.Response(

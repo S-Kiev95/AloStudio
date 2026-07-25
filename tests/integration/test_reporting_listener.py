@@ -21,7 +21,6 @@ from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
     Conversation,
-    Message,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,

@@ -220,7 +220,7 @@ async def test_outgoing_message_via_create_message_hits_graph(db_session):
     """Creating an outgoing Message on a Channel::Instagram inbox via
     create_message triggers the Graph send through the post-create
     cascade. The IGSID resolves from ContactInbox.source_id."""
-    channel, inbox, conv, user = await _seed(
+    channel, _inbox, conv, user = await _seed(
         db_session, suffix="-cascade", igsid="IGSID-CASCADE"
     )
     route = respx.post(_expected_url(channel)).mock(

@@ -15,6 +15,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlmodel import select
 
 from app.core.config import get_settings
 from app.core.db import get_session
@@ -27,7 +28,6 @@ from app.domains.instagram.models import InstagramComment
 from app.domains.instagram.webhook_changes import process_instagram_changes
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
 from app.main import app
-from sqlmodel import select
 
 pytestmark = pytest.mark.integration
 
@@ -92,7 +92,7 @@ async def _seed(db_session, suffix: str, *, ig_id: str):
 # Service — comments / mentions / story_insights
 # ---------------------------------------------------------------------------
 async def test_comment_change_creates_row(db_session):
-    owner, inbox, channel = await _seed(db_session, "-cmt", ig_id="IGW1")
+    _owner, _inbox, _channel = await _seed(db_session, "-cmt", ig_id="IGW1")
     payload = {
         "object": "instagram",
         "entry": [
@@ -129,7 +129,7 @@ async def test_comment_change_creates_row(db_session):
 
 
 async def test_comment_reply_change_sets_parent(db_session):
-    owner, inbox, channel = await _seed(db_session, "-rep", ig_id="IGW2")
+    _owner, _inbox, _channel = await _seed(db_session, "-rep", ig_id="IGW2")
     payload = {
         "object": "instagram",
         "entry": [
@@ -162,7 +162,7 @@ async def test_comment_reply_change_sets_parent(db_session):
 
 
 async def test_mention_change_creates_row(db_session):
-    owner, inbox, channel = await _seed(db_session, "-men", ig_id="IGW3")
+    _owner, _inbox, _channel = await _seed(db_session, "-men", ig_id="IGW3")
     payload = {
         "object": "instagram",
         "entry": [
@@ -191,7 +191,7 @@ async def test_mention_change_creates_row(db_session):
 
 
 async def test_caption_only_mention_skipped(db_session):
-    owner, inbox, channel = await _seed(db_session, "-capm", ig_id="IGW3b")
+    _owner, _inbox, _channel = await _seed(db_session, "-capm", ig_id="IGW3b")
     payload = {
         "object": "instagram",
         "entry": [
@@ -252,7 +252,7 @@ async def test_story_insights_stamps_post(db_session):
 
 
 async def test_story_insights_no_post_skips(db_session):
-    owner, inbox, channel = await _seed(db_session, "-sino", ig_id="IGW5")
+    _owner, _inbox, _channel = await _seed(db_session, "-sino", ig_id="IGW5")
     payload = {
         "object": "instagram",
         "entry": [

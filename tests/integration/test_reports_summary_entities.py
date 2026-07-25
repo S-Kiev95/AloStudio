@@ -29,9 +29,8 @@ from app.domains.conversations.service import (
     update_team,
 )
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
-from app.domains.labels.models import Label
-from app.domains.teams.models import Team
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
+from app.domains.teams.models import Team
 from app.main import app
 
 pytestmark = pytest.mark.integration

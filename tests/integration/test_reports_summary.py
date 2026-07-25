@@ -209,8 +209,8 @@ async def test_conversations_endpoint_requires_type_param(client, db_session):
 async def test_conversations_endpoint_returns_live_counters(client, db_session):
     owner, headers = await _seed_admin(db_session, "-live")
     # 2 open + 1 resolved.
-    c1 = await _seed_conversation(db_session, owner)
-    c2 = await _seed_conversation(db_session, owner)
+    await _seed_conversation(db_session, owner)
+    await _seed_conversation(db_session, owner)
     c3 = await _seed_conversation(db_session, owner)
     await toggle_status(db_session, conversation=c3, status="resolved")
     resp = await client.get(

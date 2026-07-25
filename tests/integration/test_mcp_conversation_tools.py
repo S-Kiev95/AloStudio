@@ -133,7 +133,7 @@ def _call(client: Client, name: str, **kwargs):
 # list_conversations
 # ---------------------------------------------------------------------------
 async def test_list_conversations_returns_account_scope(mcp_session):
-    owner, token, conv = await _seed(mcp_session, suffix="-li")
+    _owner, token, conv = await _seed(mcp_session, suffix="-li")
     os.environ["MCP_BEARER_TOKEN"] = token
     mcp = build_server()
     async with Client(mcp) as client:
@@ -145,7 +145,7 @@ async def test_list_conversations_returns_account_scope(mcp_session):
 
 
 async def test_list_conversations_filters_by_status(mcp_session):
-    owner, token, conv = await _seed(mcp_session, suffix="-fs")
+    _owner, token, _conv = await _seed(mcp_session, suffix="-fs")
     os.environ["MCP_BEARER_TOKEN"] = token
     mcp = build_server()
     async with Client(mcp) as client:
@@ -195,8 +195,8 @@ async def test_show_conversation_includes_message_tail(mcp_session):
 async def test_show_conversation_404_across_accounts(mcp_session):
     """A token's account scope must isolate conversations from
     other accounts."""
-    owner_a, token_a, _conv_a = await _seed(mcp_session, suffix="-aa")
-    owner_b, _token_b, conv_b = await _seed(mcp_session, suffix="-bb")
+    _owner_a, token_a, _conv_a = await _seed(mcp_session, suffix="-aa")
+    _owner_b, _token_b, conv_b = await _seed(mcp_session, suffix="-bb")
     os.environ["MCP_BEARER_TOKEN"] = token_a
     mcp = build_server()
     with pytest.raises(Exception, match="not found in this account"):
@@ -212,7 +212,7 @@ async def test_show_conversation_404_across_accounts(mcp_session):
 # resolve / reopen / change_status / change_priority
 # ---------------------------------------------------------------------------
 async def test_resolve_conversation_flips_status(mcp_session):
-    owner, token, conv = await _seed(mcp_session, suffix="-rs")
+    _owner, token, conv = await _seed(mcp_session, suffix="-rs")
     os.environ["MCP_BEARER_TOKEN"] = token
     mcp = build_server()
     async with Client(mcp) as client:
@@ -224,7 +224,7 @@ async def test_resolve_conversation_flips_status(mcp_session):
 
 
 async def test_change_priority(mcp_session):
-    owner, token, conv = await _seed(mcp_session, suffix="-cp")
+    _owner, token, conv = await _seed(mcp_session, suffix="-cp")
     os.environ["MCP_BEARER_TOKEN"] = token
     mcp = build_server()
     async with Client(mcp) as client:
@@ -242,7 +242,7 @@ async def test_change_priority(mcp_session):
 # add_label / remove_label
 # ---------------------------------------------------------------------------
 async def test_add_label_then_remove_label(mcp_session):
-    owner, token, conv = await _seed(mcp_session, suffix="-lb")
+    _owner, token, conv = await _seed(mcp_session, suffix="-lb")
     os.environ["MCP_BEARER_TOKEN"] = token
     mcp = build_server()
     async with Client(mcp) as client:
@@ -272,7 +272,7 @@ async def test_ai_mode_defaults_off_and_round_trips(mcp_session):
     """v2.8: ``ai_mode`` is a real bool column; default is ``false``
     (no AI in charge). ``set_ai_mode(on=true, ai_assignee=...)`` flips
     both fields and the next ``get_ai_mode`` reflects them."""
-    owner, token, conv = await _seed(mcp_session, suffix="-ai")
+    _owner, token, conv = await _seed(mcp_session, suffix="-ai")
     os.environ["MCP_BEARER_TOKEN"] = token
     mcp = build_server()
     async with Client(mcp) as client:
@@ -318,7 +318,7 @@ async def test_ai_mode_defaults_off_and_round_trips(mcp_session):
 # ---------------------------------------------------------------------------
 async def test_read_token_cannot_resolve(mcp_session):
     """A read-only token can list but can't resolve."""
-    owner, token, conv = await _seed(
+    _owner, token, conv = await _seed(
         mcp_session, suffix="-rt", scope="read"
     )
     os.environ["MCP_BEARER_TOKEN"] = token
@@ -340,7 +340,7 @@ async def test_read_token_can_get_but_not_set_ai_mode(mcp_session):
     """v2.8: ``get_ai_mode`` is read-scope (observability) but
     ``set_ai_mode`` is write-scope — a misconfigured read-only token
     must not be able to flip the AI takeover flag."""
-    owner, token, conv = await _seed(
+    _owner, token, conv = await _seed(
         mcp_session, suffix="-airead", scope="read"
     )
     os.environ["MCP_BEARER_TOKEN"] = token

@@ -25,7 +25,6 @@ from app.domains.conversations.models import (
     MESSAGE_TYPE_INCOMING,
     MESSAGE_TYPE_OUTGOING,
     Conversation,
-    Message,
 )
 from app.domains.inboxes.models import (
     Inbox,

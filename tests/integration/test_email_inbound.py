@@ -16,7 +16,6 @@ Anchors:
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from email.message import EmailMessage
 
 import aiosmtplib
@@ -26,14 +25,15 @@ from sqlmodel import select
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.conversations.models import (
+    MESSAGE_TYPE_INCOMING,
     Conversation,
     Message,
-    MESSAGE_TYPE_INCOMING,
 )
 from app.domains.email.imap_fetch import fetch_inbox_once
 from app.domains.email.inbound import process_inbound_email
 from app.domains.inboxes.models import EmailChannel, Inbox
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+
 # Imported only so the SQLAlchemy mapper resolves Conversation.team
 # before the first DB op. See note in app/domains/labels/models.py.
 from app.domains.teams import models as _teams  # noqa: F401

@@ -17,7 +17,6 @@ from collections.abc import AsyncIterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlmodel import select
 
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
@@ -25,14 +24,14 @@ from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
-    Attachment,
     CONTENT_TYPE_TEXT,
-    Conversation,
     FILE_TYPE_FILE,
-    Message,
     MESSAGE_STATUS_READ,
     MESSAGE_STATUS_SENT,
     MESSAGE_TYPE_OUTGOING,
+    Attachment,
+    Conversation,
+    Message,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
@@ -330,7 +329,6 @@ async def test_messages_update_rejected_for_non_api_inbox(
     5b+) so we mutate the seeded API inbox's channel_type directly to
     a non-API value to exercise the guard.
     """
-    from app.domains.inboxes.models import Inbox
 
     owner, inbox, _, ci, headers = seeded
 

@@ -106,7 +106,7 @@ async def _seed_bot_attached(
 @respx.mock
 async def test_message_created_posts_to_outgoing_url(db_session):
     owner = await _seed_account(db_session, "-mc")
-    bot, conv = await _seed_bot_attached(
+    _bot, conv = await _seed_bot_attached(
         db_session, owner, outgoing_url="https://bot.example.com/hook"
     )
     route = respx.post("https://bot.example.com/hook").mock(
@@ -146,7 +146,7 @@ async def test_message_created_skipped_for_activity_messages(db_session):
     """Activity messages (status flips, label changes) are NOT
     webhook-sendable — listener must not POST."""
     owner = await _seed_account(db_session, "-act")
-    bot, conv = await _seed_bot_attached(
+    _bot, conv = await _seed_bot_attached(
         db_session, owner, outgoing_url="https://bot.example.com/skip"
     )
     route = respx.post("https://bot.example.com/skip").mock(
@@ -165,7 +165,7 @@ async def test_message_created_skipped_for_activity_messages(db_session):
 @respx.mock
 async def test_signature_header_is_hmac_sha256_of_body(db_session):
     owner = await _seed_account(db_session, "-sig")
-    bot, conv = await _seed_bot_attached(
+    _bot, conv = await _seed_bot_attached(
         db_session,
         owner,
         outgoing_url="https://bot.example.com/sig",
@@ -258,7 +258,7 @@ async def test_no_post_when_bot_has_no_outgoing_url(db_session):
 @respx.mock
 async def test_conversation_resolved_relays_event(db_session):
     owner = await _seed_account(db_session, "-cr")
-    bot, conv = await _seed_bot_attached(
+    _bot, conv = await _seed_bot_attached(
         db_session, owner, outgoing_url="https://bot.example.com/conv"
     )
     route = respx.post("https://bot.example.com/conv").mock(
@@ -323,7 +323,7 @@ async def test_non_2xx_response_does_not_break_request(db_session):
     """The bot returning 500 must not raise back into the message-create
     flow — failure-isolation contract."""
     owner = await _seed_account(db_session, "-500")
-    bot, conv = await _seed_bot_attached(
+    _bot, conv = await _seed_bot_attached(
         db_session, owner, outgoing_url="https://bot.example.com/500"
     )
     respx.post("https://bot.example.com/500").mock(

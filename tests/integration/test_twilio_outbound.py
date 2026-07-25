@@ -319,7 +319,7 @@ async def test_outgoing_via_create_message_hits_twilio(db_session):
     create_message triggers Twilio send through the post-create
     cascade. The recipient phone resolves from
     ContactInbox.source_id."""
-    channel, inbox, conv, user = await _seed(
+    channel, _inbox, conv, user = await _seed(
         db_session, suffix="-cascade", contact_phone="+15551234567"
     )
 

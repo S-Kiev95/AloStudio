@@ -120,13 +120,15 @@ async def _wait_for_port(host: str, port: int, *, timeout: float = 10.0) -> None
     deadline = asyncio.get_event_loop().time() + timeout
     while True:
         try:
-            r, w = await asyncio.open_connection(host, port)
+            _r, w = await asyncio.open_connection(host, port)
             w.close()
             await w.wait_closed()
             return
         except OSError:
             if asyncio.get_event_loop().time() > deadline:
-                raise TimeoutError(f"port {host}:{port} never came up")
+                # `from None` — the OSError is just "not listening yet",
+                # the polling mechanism itself, not a cause worth chaining.
+                raise TimeoutError(f"port {host}:{port} never came up") from None
             await asyncio.sleep(0.1)
 
 

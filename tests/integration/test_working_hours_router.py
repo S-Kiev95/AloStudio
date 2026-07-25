@@ -140,7 +140,7 @@ async def test_inbox_create_seeds_default_schedule(db_session):
 # ---------------------------------------------------------------------------
 async def test_index_requires_admin(client, db_session):
     owner, _ = await _seed_admin(db_session, "-ag")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, "-ag"
     )
     inbox = await _seed_inbox(db_session, owner)

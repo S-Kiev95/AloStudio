@@ -79,7 +79,7 @@ async def _seed_admin_and_portal(
 # Portal show
 # ---------------------------------------------------------------------------
 async def test_show_portal_public_no_auth(client, db_session):
-    owner, headers, slug = await _seed_admin_and_portal(
+    _owner, _headers, slug = await _seed_admin_and_portal(
         db_session, client, "-sh"
     )
     resp = await client.get(f"/hc/{slug}")
@@ -353,7 +353,7 @@ async def test_article_show_404_when_draft(client, db_session):
 
 
 async def test_article_show_404_when_unknown_slug(client, db_session):
-    owner, headers, slug = await _seed_admin_and_portal(
+    _owner, _headers, slug = await _seed_admin_and_portal(
         db_session, client, "-an", portal_slug="an-portal"
     )
     resp = await client.get(f"/hc/{slug}/articles/no-such-article")

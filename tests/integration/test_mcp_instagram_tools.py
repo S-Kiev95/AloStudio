@@ -228,10 +228,10 @@ async def test_reply_to_instagram_comment(mcp_session):
 # permission scope
 # ---------------------------------------------------------------------------
 async def test_read_scope_cannot_create(mcp_session):
-    owner, inbox_res, token = await _seed(mcp_session, scope="read")
+    _owner, inbox_res, token = await _seed(mcp_session, scope="read")
     os.environ["MCP_BEARER_TOKEN"] = token
     async with Client(build_server()) as client:
-        with pytest.raises(Exception):  # noqa: B017,PT011  (FastMCP tool error)
+        with pytest.raises(Exception):  # noqa: B017  (FastMCP tool error)
             await client.call_tool(
                 "create_instagram_post",
                 {

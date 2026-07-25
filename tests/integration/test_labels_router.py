@@ -124,7 +124,7 @@ async def test_index_requires_auth(client):
 
 
 async def test_index_works_for_agent(client, db_session):
-    owner, agent, headers = await _seed_agent(db_session, suffix="-agix")
+    owner, _agent, headers = await _seed_agent(db_session, suffix="-agix")
     resp = await client.get(
         f"/api/v1/accounts/{owner.account.id}/labels", headers=headers
     )
@@ -133,7 +133,7 @@ async def test_index_works_for_agent(client, db_session):
 
 
 async def test_create_blocked_for_agent(client, db_session):
-    owner, agent, headers = await _seed_agent(db_session, suffix="-agcr")
+    owner, _agent, headers = await _seed_agent(db_session, suffix="-agcr")
     resp = await client.post(
         f"/api/v1/accounts/{owner.account.id}/labels",
         json={"label": {"title": "blocked"}},

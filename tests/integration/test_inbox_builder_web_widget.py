@@ -12,14 +12,12 @@ from collections.abc import AsyncIterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlmodel import select
 
 from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_WEB_WIDGET,
-    Inbox,
     WebWidget,
 )
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams

@@ -26,8 +26,8 @@ import pytest
 
 from app.domains.conversations import events as ev
 from app.domains.conversations.listeners import (
-    ActionCableListener,
     _HANDLERS,
+    ActionCableListener,
 )
 from app.domains.conversations.models import (
     MESSAGE_TYPE_ACTIVITY,

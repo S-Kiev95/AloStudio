@@ -30,8 +30,7 @@ from sqlmodel import select
 from app.core.db import get_session
 from app.core.widget_token import decode_widget_token
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
-from app.domains.contacts.models import Contact, ContactInbox
-from app.domains.inboxes.models import Inbox, WebWidget
+from app.domains.contacts.models import ContactInbox
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.main import app
 
@@ -107,7 +106,7 @@ async def test_config_without_token_mints_contact(client, db_session):
 async def test_config_with_valid_token_returns_existing_contact(
     client, db_session
 ):
-    _, inbox, ww = await _seed_widget(db_session)
+    _, _inbox, ww = await _seed_widget(db_session)
     # Bootstrap once to mint a contact.
     first = await client.post(
         f"/api/v1/widget/config?website_token={ww.website_token}"

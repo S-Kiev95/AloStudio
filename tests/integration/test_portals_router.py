@@ -95,7 +95,7 @@ async def test_portals_index_requires_auth(client):
 
 async def test_portals_create_blocked_for_agent(client, db_session):
     owner, _ = await _seed_admin(db_session, "-ag")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, "-ag"
     )
     resp = await client.post(

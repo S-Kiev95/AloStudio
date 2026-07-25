@@ -115,7 +115,7 @@ async def _seed_comment(db_session, owner, channel, *, ig_comment_id, ig_media_i
 # ---------------------------------------------------------------------------
 @respx.mock
 async def test_list_comments_syncs_from_meta(db_session):
-    owner, inbox, channel, _ = await _seed(db_session, "-list")
+    owner, _inbox, channel, _ = await _seed(db_session, "-list")
     respx.get(f"{GRAPH}/MED1/comments").mock(
         return_value=httpx.Response(
             200,
@@ -159,7 +159,7 @@ async def test_list_comments_syncs_from_meta(db_session):
 
 @respx.mock
 async def test_list_comments_meta_error_surfaces(db_session):
-    owner, inbox, channel, _ = await _seed(db_session, "-listerr")
+    owner, _inbox, channel, _ = await _seed(db_session, "-listerr")
     respx.get(f"{GRAPH}/MEDERR/comments").mock(
         return_value=httpx.Response(
             400, json={"error": {"message": "bad", "code": 100}}
@@ -180,7 +180,7 @@ async def test_list_comments_meta_error_surfaces(db_session):
 # ---------------------------------------------------------------------------
 @respx.mock
 async def test_post_comment_persists(db_session):
-    owner, inbox, channel, _ = await _seed(db_session, "-post")
+    owner, _inbox, channel, _ = await _seed(db_session, "-post")
     route = respx.post(f"{GRAPH}/MED2/comments").mock(
         return_value=httpx.Response(200, json={"id": "NEWC1"})
     )
@@ -200,7 +200,7 @@ async def test_post_comment_persists(db_session):
 
 @respx.mock
 async def test_reply_comment_persists(db_session):
-    owner, inbox, channel, _ = await _seed(db_session, "-reply")
+    owner, _inbox, channel, _ = await _seed(db_session, "-reply")
     parent = await _seed_comment(
         db_session, owner, channel, ig_comment_id="P1", ig_media_id="MEDR"
     )
@@ -221,7 +221,7 @@ async def test_reply_comment_persists(db_session):
 
 @respx.mock
 async def test_hide_comment_toggles(db_session):
-    owner, inbox, channel, _ = await _seed(db_session, "-hide")
+    owner, _inbox, channel, _ = await _seed(db_session, "-hide")
     comment = await _seed_comment(
         db_session, owner, channel, ig_comment_id="H1", ig_media_id="MEDH"
     )
@@ -240,7 +240,7 @@ async def test_hide_comment_toggles(db_session):
 
 @respx.mock
 async def test_delete_comment_removes_row(db_session):
-    owner, inbox, channel, _ = await _seed(db_session, "-cdel")
+    owner, _inbox, channel, _ = await _seed(db_session, "-cdel")
     comment = await _seed_comment(
         db_session, owner, channel, ig_comment_id="D1", ig_media_id="MEDD"
     )
@@ -259,7 +259,7 @@ async def test_delete_comment_removes_row(db_session):
 
 @respx.mock
 async def test_post_comment_meta_error_surfaces(db_session):
-    owner, inbox, channel, _ = await _seed(db_session, "-posterr")
+    owner, _inbox, channel, _ = await _seed(db_session, "-posterr")
     respx.post(f"{GRAPH}/MEDPE/comments").mock(
         return_value=httpx.Response(
             400,
@@ -341,7 +341,7 @@ async def test_create_comment_endpoint(client, db_session):
 
 @respx.mock
 async def test_reply_endpoint(client, db_session):
-    owner, inbox, channel, headers = await _seed(db_session, "-rep")
+    owner, _inbox, channel, headers = await _seed(db_session, "-rep")
     parent = await _seed_comment(
         db_session, owner, channel, ig_comment_id="EP1", ig_media_id="EMEDR"
     )
@@ -359,7 +359,7 @@ async def test_reply_endpoint(client, db_session):
 
 @respx.mock
 async def test_hide_endpoint(client, db_session):
-    owner, inbox, channel, headers = await _seed(db_session, "-hid")
+    owner, _inbox, channel, headers = await _seed(db_session, "-hid")
     comment = await _seed_comment(
         db_session, owner, channel, ig_comment_id="EH1", ig_media_id="EMEDH"
     )
@@ -377,7 +377,7 @@ async def test_hide_endpoint(client, db_session):
 
 @respx.mock
 async def test_delete_comment_endpoint(client, db_session):
-    owner, inbox, channel, headers = await _seed(db_session, "-del")
+    owner, _inbox, channel, headers = await _seed(db_session, "-del")
     comment = await _seed_comment(
         db_session, owner, channel, ig_comment_id="ED1", ig_media_id="EMEDD"
     )
@@ -393,7 +393,7 @@ async def test_delete_comment_endpoint(client, db_session):
 
 
 async def test_reply_unknown_comment_404(client, db_session):
-    owner, inbox, channel, headers = await _seed(db_session, "-unk")
+    owner, _inbox, _channel, headers = await _seed(db_session, "-unk")
     resp = await client.post(
         f"/api/v1/accounts/{owner.account.id}/instagram_comments/99999999/replies",
         json={"message": "x"},

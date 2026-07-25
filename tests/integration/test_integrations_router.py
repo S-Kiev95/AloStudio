@@ -94,7 +94,7 @@ async def test_apps_index_requires_auth(client):
 
 async def test_apps_index_returns_catalogue_for_agent(client, db_session):
     owner, _ = await _seed_admin(db_session, "-ag")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, "-ag"
     )
     resp = await client.get(
@@ -167,7 +167,7 @@ async def test_apps_index_includes_account_hooks(client, db_session):
 # ---------------------------------------------------------------------------
 async def test_hook_create_requires_admin(client, db_session):
     owner, _ = await _seed_admin(db_session, "-cr")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, "-cr"
     )
     resp = await client.post(

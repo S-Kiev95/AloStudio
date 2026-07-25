@@ -29,13 +29,13 @@ class _StubPipeline:
         self._sink = sink
         self._queued: list[tuple[str, bytes]] = []
 
-    async def __aenter__(self) -> "_StubPipeline":
+    async def __aenter__(self) -> _StubPipeline:
         return self
 
-    async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:  # noqa: D401
+    async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
         return None
 
-    def publish(self, channel: str, payload: bytes) -> "_StubPipeline":
+    def publish(self, channel: str, payload: bytes) -> _StubPipeline:
         self._queued.append((channel, payload))
         return self
 

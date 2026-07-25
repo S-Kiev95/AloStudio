@@ -112,7 +112,7 @@ async def test_index_requires_auth(client):
 
 async def test_create_blocked_for_agent(client, db_session):
     owner, _ = await _seed_admin(db_session, "-ca")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, "-ca"
     )
     resp = await client.post(
@@ -125,7 +125,7 @@ async def test_create_blocked_for_agent(client, db_session):
 
 async def test_index_works_for_agent(client, db_session):
     owner, _ = await _seed_admin(db_session, "-ai")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, "-ai"
     )
     resp = await client.get(
@@ -341,7 +341,7 @@ async def test_set_agent_bot_replaces_existing(client, db_session):
 
 async def test_set_agent_bot_blocked_for_agent(client, db_session):
     owner, _ = await _seed_admin(db_session, "-au")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, "-au"
     )
     inbox = await _seed_inbox(db_session, owner)

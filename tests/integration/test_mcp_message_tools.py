@@ -9,7 +9,6 @@ import pytest
 from fastmcp import Client
 from sqlalchemy import NullPool, delete
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
@@ -17,11 +16,6 @@ from app.domains.accounts.models import Account
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
-from app.domains.conversations.models import (
-    MESSAGE_TYPE_INCOMING,
-    Conversation,
-    Message,
-)
 from app.domains.conversations.service import (
     ConversationBuilderParams,
     MessageBuilderParams,
@@ -131,7 +125,7 @@ def _body(result):
 # list_messages / show_message
 # ---------------------------------------------------------------------------
 async def test_list_messages_chronological_newest_first(mcp_session):
-    owner, token, conv = await _seed(mcp_session, suffix="-li")
+    _owner, token, conv = await _seed(mcp_session, suffix="-li")
     for i in range(3):
         await create_message(
             mcp_session,
@@ -156,7 +150,7 @@ async def test_list_messages_chronological_newest_first(mcp_session):
 
 
 async def test_list_messages_before_id_paginates_backward(mcp_session):
-    owner, token, conv = await _seed(mcp_session, suffix="-pg")
+    _owner, token, conv = await _seed(mcp_session, suffix="-pg")
     seeded_ids = []
     for i in range(5):
         m = await create_message(
@@ -196,7 +190,7 @@ async def test_list_messages_before_id_paginates_backward(mcp_session):
 
 
 async def test_show_message(mcp_session):
-    owner, token, conv = await _seed(mcp_session, suffix="-sh")
+    _owner, token, conv = await _seed(mcp_session, suffix="-sh")
     msg = await create_message(
         mcp_session,
         conversation=conv,
@@ -240,7 +234,7 @@ async def test_send_message_creates_outgoing_with_sender(mcp_session):
 
 
 async def test_send_message_rejects_blank_content(mcp_session):
-    owner, token, conv = await _seed(mcp_session, suffix="-bl")
+    _owner, token, conv = await _seed(mcp_session, suffix="-bl")
     os.environ["MCP_BEARER_TOKEN"] = token
 
     mcp = build_server()
@@ -253,7 +247,7 @@ async def test_send_message_rejects_blank_content(mcp_session):
 
 
 async def test_send_private_message(mcp_session):
-    owner, token, conv = await _seed(mcp_session, suffix="-pv")
+    _owner, token, conv = await _seed(mcp_session, suffix="-pv")
     os.environ["MCP_BEARER_TOKEN"] = token
 
     mcp = build_server()
@@ -271,7 +265,7 @@ async def test_send_private_message(mcp_session):
 
 
 async def test_add_private_note_is_sugar(mcp_session):
-    owner, token, conv = await _seed(mcp_session, suffix="-pn")
+    _owner, token, conv = await _seed(mcp_session, suffix="-pn")
     os.environ["MCP_BEARER_TOKEN"] = token
 
     mcp = build_server()
@@ -289,7 +283,7 @@ async def test_add_private_note_is_sugar(mcp_session):
 # Permissions + isolation
 # ---------------------------------------------------------------------------
 async def test_send_message_blocked_for_read_token(mcp_session):
-    owner, token, conv = await _seed(
+    _owner, token, conv = await _seed(
         mcp_session, suffix="-rd", scope="read"
     )
     os.environ["MCP_BEARER_TOKEN"] = token
@@ -304,8 +298,8 @@ async def test_send_message_blocked_for_read_token(mcp_session):
 
 
 async def test_send_message_cross_account_404(mcp_session):
-    owner_a, token_a, _ = await _seed(mcp_session, suffix="-ax")
-    owner_b, _, conv_b = await _seed(mcp_session, suffix="-bx")
+    _owner_a, token_a, _ = await _seed(mcp_session, suffix="-ax")
+    _owner_b, _, conv_b = await _seed(mcp_session, suffix="-bx")
     os.environ["MCP_BEARER_TOKEN"] = token_a
 
     mcp = build_server()

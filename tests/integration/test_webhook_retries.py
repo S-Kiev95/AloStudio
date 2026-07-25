@@ -378,7 +378,7 @@ async def test_listener_inline_fallback_no_dead_letter_on_2xx(db_session):
             confirmed=True,
         ),
     ).perform()
-    bot, conv = await _seed_bot_attached(
+    _bot, conv = await _seed_bot_attached(
         db_session, owner, outgoing_url="https://bot.example.com/lst-ok"
     )
     respx.post("https://bot.example.com/lst-ok").mock(

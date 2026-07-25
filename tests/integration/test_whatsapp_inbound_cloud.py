@@ -23,7 +23,6 @@ from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.conversations.models import (
     MESSAGE_STATUS_FAILED,
     MESSAGE_STATUS_READ,
-    MESSAGE_STATUS_SENT,
     MESSAGE_TYPE_INCOMING,
     Conversation,
     Message,
@@ -34,9 +33,10 @@ from app.domains.inboxes.models import (
     WhatsappChannel,
 )
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
-from app.domains.whatsapp.incoming_cloud import process_cloud_webhook
+
 # Resolve mappers (Conversation.team forward-ref) before first DB op.
 from app.domains.teams import models as _teams  # noqa: F401
+from app.domains.whatsapp.incoming_cloud import process_cloud_webhook
 
 pytestmark = pytest.mark.integration
 

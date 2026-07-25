@@ -36,6 +36,7 @@ from app.domains.conversations.service import (
 from app.domains.facebook.sender import send_text_message_facebook
 from app.domains.inboxes.models import FacebookPage, Inbox
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+
 # Resolve mappers (Conversation.team forward-ref).
 from app.domains.teams import models as _teams  # noqa: F401
 from app.domains.users.models import User
@@ -256,7 +257,7 @@ async def test_outgoing_message_via_create_message_hits_graph(db_session):
     """Creating an outgoing Message on a Channel::FacebookPage inbox
     via ``create_message`` triggers the Graph send through the post-
     create cascade. The PSID gets resolved from ContactInbox.source_id."""
-    channel, inbox, conv, user = await _seed(
+    channel, _inbox, conv, user = await _seed(
         db_session, suffix="-cascade", psid="PSID-CASCADE"
     )
 

@@ -33,7 +33,6 @@ from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact, ContactInbox, Note
-from app.domains.inboxes.models import ApiChannel, Inbox
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser
 from app.main import app
@@ -333,7 +332,7 @@ async def test_update_deep_merges_custom_attributes(client, seeded, db_session):
 
 
 async def test_destroy_admin_only(client, seeded, db_session):
-    owner, agent_side, _, admin_h, agent_h = seeded
+    owner, _agent_side, _, admin_h, agent_h = seeded
     c = Contact(account_id=owner.account.id, email="del@example.com", name="Del")
     db_session.add(c)
     await db_session.flush()

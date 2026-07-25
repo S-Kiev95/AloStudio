@@ -34,9 +34,9 @@ from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
     CONVERSATION_STATUS_RESOLVED,
+    MESSAGE_TYPE_OUTGOING,
     Conversation,
     Message,
-    MESSAGE_TYPE_OUTGOING,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,

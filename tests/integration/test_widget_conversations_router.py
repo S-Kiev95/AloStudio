@@ -24,13 +24,12 @@ from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 
 from app.core.db import get_session
-from app.core.widget_token import decode_widget_token
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.conversations.models import (
     CONVERSATION_STATUS_RESOLVED,
+    MESSAGE_TYPE_INCOMING,
     Conversation,
     Message,
-    MESSAGE_TYPE_INCOMING,
 )
 from app.domains.inboxes.models import WebWidget
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
@@ -148,7 +147,6 @@ async def test_messages_create_auto_creates_conversation(
     incoming message whose sender is the contact."""
     _, inbox, ww = await _seed_widget(db_session)
     token = await _bootstrap_widget(client, ww)
-    decoded = decode_widget_token(token)
 
     resp = await client.post(
         f"/api/v1/widget/messages?website_token={ww.website_token}",

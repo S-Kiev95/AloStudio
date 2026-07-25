@@ -275,7 +275,7 @@ async def test_outgoing_message_via_create_message_hits_bot_api(db_session):
     create_message triggers the Bot API send through the post-create
     cascade. The chat_id resolves from
     ``conversation.additional_attributes['chat_id']``."""
-    channel, inbox, conv, user = await _seed(
+    channel, _inbox, conv, user = await _seed(
         db_session,
         suffix="-cascade",
         bot_token="222:CASCADE",
@@ -309,7 +309,7 @@ async def test_outgoing_message_via_create_message_hits_bot_api(db_session):
 async def test_private_note_does_not_hit_bot_api(db_session):
     """Private notes never leave Chatwoot. The cascade must not send
     them upstream."""
-    channel, inbox, conv, user = await _seed(
+    channel, _inbox, conv, user = await _seed(
         db_session, suffix="-priv", bot_token="333:PRIV"
     )
     route = respx.post(_expected_url(channel)).mock(
@@ -333,7 +333,7 @@ async def test_private_note_does_not_hit_bot_api(db_session):
 async def test_cascade_skips_when_chat_id_missing(db_session):
     """Conversations missing the inbound-stamped chat_id (e.g. seeded by
     pre-5g.2 code paths) short-circuit cleanly."""
-    channel, inbox, conv, user = await _seed(
+    channel, _inbox, conv, user = await _seed(
         db_session, suffix="-nochat", bot_token="444:NOC"
     )
     # Wipe the chat_id stamped by the fixture.

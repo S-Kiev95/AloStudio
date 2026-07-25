@@ -19,14 +19,13 @@ from sqlmodel import select
 
 from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
+from app.domains.contacts import models as _contacts  # noqa: F401  (mapper)
+from app.domains.conversations import models as _conversations  # noqa: F401  (mapper)
 from app.domains.inboxes.models import InstagramChannel
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.instagram import publishing_service as svc
-from app.domains.contacts import models as _contacts  # noqa: F401  (mapper)
-from app.domains.conversations import models as _conversations  # noqa: F401  (mapper)
 from app.domains.instagram.models import (
     InstagramComment,
-    InstagramPost,
     InstagramPostContainer,
 )
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
@@ -455,7 +454,7 @@ async def test_list_posts_filters_by_state(db_session):
 
 async def test_get_post_account_scope(db_session):
     """A post on Account B isn't visible from Account A's scope."""
-    owner_a, inbox_a, channel_a = await _seed_channel(db_session, "-a")
+    owner_a, _inbox_a, _channel_a = await _seed_channel(db_session, "-a")
     owner_b, inbox_b, channel_b = await _seed_channel(db_session, "-b")
     post_b = await svc.create_post(
         db_session,

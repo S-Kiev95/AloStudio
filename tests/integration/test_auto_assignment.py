@@ -30,7 +30,6 @@ from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
     CONVERSATION_STATUS_OPEN,
     CONVERSATION_STATUS_RESOLVED,
-    Conversation,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
@@ -176,8 +175,7 @@ async def test_create_conversation_assigns_round_robin(
     """Mirror ``run_auto_assignment`` after_save — every fresh
     conversation on an auto-assign-enabled inbox lands on a rotating
     member from the inbox pool."""
-    _, agents, _, _, ci, _ = seeded
-    expected_pool = {owner_user.id for owner_user in (a.user for a in agents)}
+    _, _agents, _, _, ci, _ = seeded
 
     conv1 = await create_conversation(
         db_session,
@@ -204,7 +202,7 @@ async def test_create_conversation_with_explicit_assignee_skips_round_robin(
     """When the builder receives an ``assignee_id`` the handler's
     ``should_run_auto_assignment?`` returns false (assignee present
     + member of inbox)."""
-    owner, agents, inbox, _, ci, _ = seeded
+    _owner, agents, _inbox, _, ci, _ = seeded
     assignee = agents[0].user
 
     conv = await create_conversation(
@@ -219,7 +217,7 @@ async def test_create_conversation_with_explicit_assignee_skips_round_robin(
 async def test_create_conversation_skips_when_inbox_disables_auto_assign(
     seeded, db_session
 ):
-    owner, _, inbox, _, ci, _ = seeded
+    _owner, _, inbox, _, ci, _ = seeded
     inbox.enable_auto_assignment = False
     db_session.add(inbox)
     await db_session.flush()
@@ -236,12 +234,12 @@ async def test_full_rotation_visits_each_member(seeded, db_session):
     """Three back-to-back conversations on a 4-member inbox (3 agents +
     seeded owner) get distinct assignees on the first pass — pinning
     the round-robin's no-double-pick guarantee."""
-    _, agents, inbox, contact, _, _ = seeded
+    _, _agents, inbox, contact, _, _ = seeded
     # Build fresh contact_inboxes per conversation so we don't trip
     # ``lock_to_single_conversation`` (default is false on API inboxes
     # but be defensive anyway).
     chosen_ids: list[int] = []
-    for n in range(3):
+    for _ in range(3):
         ci_n = await ContactInboxBuilder(
             session=db_session, contact=contact, inbox=inbox
         ).perform()
@@ -263,7 +261,7 @@ async def test_full_rotation_visits_each_member(seeded, db_session):
 async def test_update_team_picks_team_member(seeded, db_session):
     """When the new team allows auto-assign, the round-robin pool
     narrows to ``team.members ∩ inbox.members``."""
-    owner, agents, inbox, _, ci, _ = seeded
+    owner, agents, _inbox, _, ci, _ = seeded
     conv = await create_conversation(
         db_session,
         contact_inbox=ci,
@@ -331,7 +329,7 @@ async def test_toggle_status_reopen_reassigns_when_assignee_left_inbox(
     inbox.members.exclude?(assignee)``. We resolve, then drop the
     assignee from the inbox, then re-open. The handler picks a fresh
     agent from the remaining members."""
-    owner, agents, inbox, _, ci, _ = seeded
+    _owner, agents, inbox, _, ci, _ = seeded
     conv = await create_conversation(
         db_session,
         contact_inbox=ci,

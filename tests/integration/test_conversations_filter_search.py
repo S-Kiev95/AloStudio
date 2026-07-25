@@ -23,14 +23,12 @@ from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
+    CONTENT_TYPE_TEXT,
     CONVERSATION_PRIORITY_URGENT,
-    CONVERSATION_STATUS_OPEN,
     CONVERSATION_STATUS_RESOLVED,
+    MESSAGE_TYPE_INCOMING,
     Conversation,
     Message,
-    MESSAGE_TYPE_INCOMING,
-    MESSAGE_TYPE_OUTGOING,
-    CONTENT_TYPE_TEXT,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
@@ -157,7 +155,7 @@ async def _add_message(
 # Index — new filter parameters
 # ---------------------------------------------------------------------------
 async def test_index_filters_by_inbox_id(client, seeded, db_session):
-    owner, inbox_a, inbox_b, _, ci_a, ci_b, admin_h = seeded
+    owner, _inbox_a, inbox_b, _, ci_a, ci_b, admin_h = seeded
     await _make_conv(db_session, contact_inbox=ci_a)
     await _make_conv(db_session, contact_inbox=ci_b)
 
@@ -261,7 +259,7 @@ async def test_search_skips_activity_messages(client, seeded, db_session):
 # ---------------------------------------------------------------------------
 async def test_filter_status_equal_to(client, seeded, db_session):
     owner, _, _, _, ci_a, _, admin_h = seeded
-    open_conv = await _make_conv(db_session, contact_inbox=ci_a)
+    await _make_conv(db_session, contact_inbox=ci_a)
     resolved = await _make_conv(
         db_session, contact_inbox=ci_a, status=CONVERSATION_STATUS_RESOLVED
     )
@@ -290,7 +288,7 @@ async def test_filter_priority_is_present(client, seeded, db_session):
     has_pri = await _make_conv(
         db_session, contact_inbox=ci_a, priority=CONVERSATION_PRIORITY_URGENT
     )
-    no_pri = await _make_conv(db_session, contact_inbox=ci_a)
+    await _make_conv(db_session, contact_inbox=ci_a)
 
     resp = await client.post(
         f"/api/v1/accounts/{owner.account.id}/conversations/filter",

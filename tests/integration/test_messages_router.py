@@ -22,11 +22,10 @@ from sqlmodel import select
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
-from app.domains.contacts.models import Contact, ContactInbox
+from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
     Attachment,
-    Conversation,
     Message,
 )
 from app.domains.conversations.service import (

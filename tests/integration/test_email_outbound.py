@@ -23,7 +23,6 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 
-from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact
@@ -31,13 +30,12 @@ from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
     Conversation,
     Message,
-    MESSAGE_TYPE_OUTGOING,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
+    MessageBuilderParams,
     create_conversation,
     create_message,
-    MessageBuilderParams,
 )
 from app.domains.inboxes.models import EmailChannel
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
@@ -146,8 +144,8 @@ async def _create_outbound(
 async def test_outgoing_message_sends_email_via_smtp(client, db_session):
     """An outgoing message on an Email inbox lands in Greenmail with
     sane From/To/Subject/Date headers."""
-    owner, _, channel, contact, ci = await _seed_email_inbox(db_session)
-    conv, msg = await _create_outbound(
+    owner, _, _channel, contact, ci = await _seed_email_inbox(db_session)
+    _conv, _msg = await _create_outbound(
         db_session, ci=ci, content="Thanks for reaching out!", user_id=owner.user.id
     )
 
@@ -156,7 +154,7 @@ async def test_outgoing_message_sends_email_via_smtp(client, db_session):
     raw = received[0]["mimeMessage"]
     assert "From: " in raw
     assert "support@example.com" in raw
-    assert f"To: " in raw
+    assert "To: " in raw
     assert "alice@example.com" in raw
     assert "Thanks for reaching out!" in raw
 
@@ -165,8 +163,8 @@ async def test_message_id_is_stamped_on_source_id(client, db_session):
     """The Message-ID header value (without angle brackets) is written
     to ``message.source_id`` so the threading lookup hits it on the
     inbound reply."""
-    owner, _, channel, contact, ci = await _seed_email_inbox(db_session)
-    conv, msg = await _create_outbound(
+    owner, _, _channel, contact, ci = await _seed_email_inbox(db_session)
+    _conv, msg = await _create_outbound(
         db_session, ci=ci, content="hi", user_id=owner.user.id
     )
 
@@ -185,8 +183,8 @@ async def test_message_id_is_stamped_on_source_id(client, db_session):
 async def test_in_reply_to_root_when_no_inbound(client, db_session):
     """Without an inbound message yet, In-Reply-To points at the
     synthetic per-conversation root."""
-    owner, _, channel, contact, ci = await _seed_email_inbox(db_session)
-    conv, msg = await _create_outbound(
+    owner, _, _channel, contact, ci = await _seed_email_inbox(db_session)
+    conv, _msg = await _create_outbound(
         db_session, ci=ci, content="agent-initiated", user_id=owner.user.id
     )
 
@@ -204,8 +202,8 @@ async def test_subject_uses_default_when_no_mail_subject(
     client, db_session
 ):
     """Default subject is ``[#<display_id>] New messages on this conversation``."""
-    owner, _, channel, contact, ci = await _seed_email_inbox(db_session)
-    conv, msg = await _create_outbound(
+    owner, _, _channel, contact, ci = await _seed_email_inbox(db_session)
+    conv, _msg = await _create_outbound(
         db_session, ci=ci, content="hi", user_id=owner.user.id
     )
 
@@ -216,7 +214,7 @@ async def test_subject_uses_default_when_no_mail_subject(
 async def test_subject_uses_re_prefix_on_reply(client, db_session):
     """When the conversation has a stored ``mail_subject`` AND there's
     already at least one message, the outbound uses ``Re: <subject>``."""
-    owner, _, channel, contact, ci = await _seed_email_inbox(db_session)
+    owner, _, _channel, contact, ci = await _seed_email_inbox(db_session)
     # Seed a conversation with a stored mail_subject + one prior message.
     conv = await create_conversation(
         db_session,
@@ -250,7 +248,7 @@ async def test_subject_uses_re_prefix_on_reply(client, db_session):
     await db_session.flush()
 
     # Now post the outbound — chat count becomes 2 → Re: prefix.
-    msg = await create_message(
+    await create_message(
         db_session,
         conversation=conv,
         params=MessageBuilderParams(
@@ -272,7 +270,7 @@ async def test_subject_uses_re_prefix_on_reply(client, db_session):
 # Skip branches
 # ---------------------------------------------------------------------------
 async def test_skipped_when_smtp_disabled(client, db_session):
-    owner, _, channel, contact, ci = await _seed_email_inbox(
+    owner, _, _channel, contact, ci = await _seed_email_inbox(
         db_session, smtp_enabled=False
     )
     await _create_outbound(
@@ -284,7 +282,7 @@ async def test_skipped_when_smtp_disabled(client, db_session):
 async def test_skipped_when_contact_has_no_email(client, db_session):
     """A contact without an email address can't be the recipient — the
     mailer logs + skips. Mirrors Rails' ``return unless to_emails.compact``."""
-    owner, _, channel, contact, ci = await _seed_email_inbox(db_session)
+    owner, _, _channel, contact, ci = await _seed_email_inbox(db_session)
     contact.email = None
     db_session.add(contact)
     await db_session.flush()
@@ -305,7 +303,7 @@ async def test_skipped_when_contact_has_no_email(client, db_session):
 async def test_skipped_for_private_message(client, db_session):
     """Private notes (``private=True``) are agent-only timeline entries
     — never sent as email."""
-    owner, _, channel, contact, ci = await _seed_email_inbox(db_session)
+    owner, _, _channel, contact, ci = await _seed_email_inbox(db_session)
     conv = await create_conversation(
         db_session,
         contact_inbox=ci,

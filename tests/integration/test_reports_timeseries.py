@@ -172,7 +172,7 @@ async def test_bucket_timestamp_is_true_local_midnight_negative_offset(
     body = resp.json()
     assert len(body) == 1
     # 2026-05-14 23:00 in UTC-3 → local day 14-may → true midnight
-    # 2026-05-14 00:00 −03:00 = 2026-05-14 03:00 UTC.
+    # 2026-05-14 00:00 -03:00 = 2026-05-14 03:00 UTC.
     expected = int(datetime(2026, 5, 14, 3, 0, tzinfo=UTC).timestamp())
     assert body[0]["timestamp"] == expected
 

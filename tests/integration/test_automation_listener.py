@@ -22,9 +22,9 @@ from app.domains.conversations.models import (
     CONVERSATION_PRIORITY_HIGH,
     CONVERSATION_STATUS_OPEN,
     CONVERSATION_STATUS_RESOLVED,
+    MESSAGE_TYPE_OUTGOING,
     Conversation,
     Message,
-    MESSAGE_TYPE_OUTGOING,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
@@ -114,7 +114,7 @@ async def test_listener_fires_on_conversation_created(db_session):
     """A rule on ``conversation_created`` with empty conditions fires
     for every new conversation."""
     owner = await _seed_account(db_session, suffix="-cc")
-    rule = await _make_rule(
+    await _make_rule(
         db_session,
         account_id=owner.account.id,
         event_name="conversation_created",

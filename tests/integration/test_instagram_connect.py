@@ -18,12 +18,12 @@ from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
-from app.domains.instagram import oauth as ig_oauth
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts import models as _contacts  # noqa: F401  (mapper)
 from app.domains.conversations import models as _conversations  # noqa: F401
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.instagram import connect_service as csvc
+from app.domains.instagram import oauth as ig_oauth
 from app.domains.instagram import publishing_service as ig_svc
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
 from app.main import app
@@ -620,7 +620,7 @@ async def test_publish_uses_facebook_host_by_default(db_session):
 @respx.mock
 async def test_comment_uses_instagram_host_for_ig_login(db_session):
     owner, _ = await _seed(db_session, "-igcmt")
-    inbox, channel = await _ig_channel(db_session, owner, "-igcmt")
+    _inbox, channel = await _ig_channel(db_session, owner, "-igcmt")
     await csvc.record_connection(
         db_session, channel_instagram_id=channel.id, login_type="instagram"
     )

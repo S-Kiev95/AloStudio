@@ -77,50 +77,49 @@ def test_cable_pipeline_forwards_redis_publish_to_subscriber(monkeypatch) -> Non
         }
     )
 
-    with TestClient(app) as client:
-        with client.websocket_connect("/cable") as ws:
-            # 1. welcome
-            welcome = ws.receive_json()
-            assert welcome == {"type": "welcome"}
+    with TestClient(app) as client, client.websocket_connect("/cable") as ws:
+        # 1. welcome
+        welcome = ws.receive_json()
+        assert welcome == {"type": "welcome"}
 
-            # 2. subscribe
-            ws.send_text(
-                json.dumps({"command": "subscribe", "identifier": identifier})
-            )
+        # 2. subscribe
+        ws.send_text(
+            json.dumps({"command": "subscribe", "identifier": identifier})
+        )
 
-            confirm = _read_until(
-                ws, lambda f: f.get("type") == "confirm_subscription"
-            )
-            assert confirm == {
-                "type": "confirm_subscription",
-                "identifier": identifier,
-            }
+        confirm = _read_until(
+            ws, lambda f: f.get("type") == "confirm_subscription"
+        )
+        assert confirm == {
+            "type": "confirm_subscription",
+            "identifier": identifier,
+        }
 
-            # 3. Publish to the pubsub_token channel via a sync client.
-            #    The pump's ``await self._pubsub.subscribe(...)`` has
-            #    already returned by the time confirm arrived, so the
-            #    publish is guaranteed to fan out to us.
-            r = redis_sync.from_url(settings.redis_url)
-            try:
-                envelope = json.dumps(
-                    {"event": "test.event", "data": {"id": 7}}
-                ).encode("utf-8")
-                delivered = r.publish("cable_it_token", envelope)
-                assert delivered >= 1
-            finally:
-                r.close()
+        # 3. Publish to the pubsub_token channel via a sync client.
+        #    The pump's ``await self._pubsub.subscribe(...)`` has
+        #    already returned by the time confirm arrived, so the
+        #    publish is guaranteed to fan out to us.
+        r = redis_sync.from_url(settings.redis_url)
+        try:
+            envelope = json.dumps(
+                {"event": "test.event", "data": {"id": 7}}
+            ).encode("utf-8")
+            delivered = r.publish("cable_it_token", envelope)
+            assert delivered >= 1
+        finally:
+            r.close()
 
-            # 4. Forward — skip pings, then assert the broadcast shape.
-            forward = _read_until(
-                ws,
-                lambda f: f.get("identifier") == identifier
-                and "message" in f
-                and "type" not in f,
-            )
-            assert forward["message"] == {
-                "event": "test.event",
-                "data": {"id": 7},
-            }
+        # 4. Forward — skip pings, then assert the broadcast shape.
+        forward = _read_until(
+            ws,
+            lambda f: f.get("identifier") == identifier
+            and "message" in f
+            and "type" not in f,
+        )
+        assert forward["message"] == {
+            "event": "test.event",
+            "data": {"id": 7},
+        }
 
 
 def test_cable_two_subscribers_both_receive_broadcast(monkeypatch) -> None:
@@ -151,7 +150,10 @@ def test_cable_two_subscribers_both_receive_broadcast(monkeypatch) -> None:
         }
     )
 
-    with TestClient(app) as client:
+    # Not collapsible in spirit: the inner contexts are built *from* `client`,
+    # so the nesting is what shows the two sockets living inside the one app
+    # lifecycle.
+    with TestClient(app) as client:  # noqa: SIM117
         with client.websocket_connect("/cable") as ws_a, client.websocket_connect(
             "/cable"
         ) as ws_b:

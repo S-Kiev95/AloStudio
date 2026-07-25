@@ -23,14 +23,13 @@ from app.domains.conversations import events as ev
 from app.domains.conversations.listeners import broadcast_event
 from app.domains.conversations.models import (
     MESSAGE_TYPE_INCOMING,
-    Conversation,
     Message,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
     create_conversation,
 )
-from app.domains.inboxes.models import Inbox, InboxMember
+from app.domains.inboxes.models import InboxMember
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.notifications.models import (
     NOTIFICATION_TYPE_ASSIGNED_CONVERSATION_NEW_MESSAGE,
@@ -327,7 +326,7 @@ async def test_index_and_unread_count(client, db_session):
 async def test_mark_read_flips_read_at(client, db_session):
     owner, headers = await _seed_user(db_session, "-mr-o")
     inbox = await _make_inbox_with_member(db_session, owner, owner.user)
-    conv, _ = await _make_conversation(db_session, owner, inbox)
+    _conv, _ = await _make_conversation(db_session, owner, inbox)
     nid = (
         await db_session.exec(
             select(Notification).where(
@@ -369,7 +368,7 @@ async def test_read_all_clears_unread(client, db_session):
 async def test_destroy_removes_the_row(client, db_session):
     owner, headers = await _seed_user(db_session, "-d-o")
     inbox = await _make_inbox_with_member(db_session, owner, owner.user)
-    conv, _ = await _make_conversation(db_session, owner, inbox)
+    _conv, _ = await _make_conversation(db_session, owner, inbox)
     nid = (
         await db_session.exec(
             select(Notification).where(

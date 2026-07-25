@@ -13,7 +13,6 @@ from collections.abc import AsyncIterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlmodel import select
 
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
@@ -151,7 +150,7 @@ async def test_index_requires_auth(client):
 
 async def test_index_blocked_for_agent(client, db_session):
     owner, _ = await _seed_admin(db_session, suffix="-ag")
-    agent, agent_headers = await _seed_agent_member(
+    _agent, agent_headers = await _seed_agent_member(
         db_session, owner.account, suffix="-ag"
     )
     resp = await client.get(

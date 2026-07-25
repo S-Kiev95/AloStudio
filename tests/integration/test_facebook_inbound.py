@@ -23,7 +23,6 @@ from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.conversations.models import (
     MESSAGE_STATUS_DELIVERED,
     MESSAGE_STATUS_READ,
-    MESSAGE_STATUS_SENT,
     MESSAGE_TYPE_INCOMING,
     MESSAGE_TYPE_OUTGOING,
     Conversation,
@@ -35,6 +34,7 @@ from app.domains.inboxes.models import (
     Inbox,
 )
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+
 # Resolve mappers (Conversation.team forward-ref).
 from app.domains.teams import models as _teams  # noqa: F401
 
@@ -232,7 +232,7 @@ async def test_echo_lands_as_outgoing_with_no_sender(db_session):
 async def test_delivery_event_marks_messages_delivered(db_session):
     """A delivery event with ``mids`` -> all matching outbound
     messages flip to ``delivered``."""
-    channel, _inbox = await _seed(db_session, page_id="P5", suffix="-d")
+    _channel, _inbox = await _seed(db_session, page_id="P5", suffix="-d")
     # Seed an outbound message via the echo path (easiest way to get
     # a Message row with a known source_id).
     await process_facebook_webhook(

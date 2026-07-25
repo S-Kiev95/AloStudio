@@ -23,7 +23,6 @@ from typing import Any
 import httpx
 import pytest
 import respx
-from sqlmodel import select
 
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact
@@ -48,7 +47,9 @@ from app.domains.inboxes.models import (
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
 from app.domains.users.models import User
-from app.domains.whatsapp.cloud_provider import _PHONE_ID_API_VERSION  # noqa: F401  -- pin the import path
+from app.domains.whatsapp.cloud_provider import (
+    _PHONE_ID_API_VERSION,  # noqa: F401  -- pin the import path
+)
 from app.domains.whatsapp.dialog360_provider import send_text_message_360dialog
 from app.domains.whatsapp.incoming_cloud import process_360dialog_webhook
 
@@ -319,7 +320,7 @@ async def test_outgoing_message_routes_to_360dialog_when_provider_default(
 ):
     """Creating an outgoing Message on a Channel::Whatsapp inbox with
     provider=default routes to 360dialog (not the Meta Cloud branch)."""
-    channel, inbox, conv, user = await _seed(db_session, suffix="-cascade")
+    _channel, _inbox, conv, user = await _seed(db_session, suffix="-cascade")
 
     route = respx.post(
         "https://waba-sandbox.360dialog.io/v1/messages"

@@ -350,7 +350,7 @@ async def test_dashboard_index_returns_array(client, db_session):
 async def test_dashboard_index_filters_by_rating(client, db_session):
     owner, headers = await _seed_admin(db_session, "-fr")
     # Two conversations, two ratings.
-    for i, score in enumerate([2, 5]):
+    for score in (2, 5):
         conv = await _seed_conversation(db_session, owner)
         await toggle_status(db_session, conversation=conv, status="resolved")
         await submit_csat_response(
