@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Package, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -106,7 +106,7 @@ export function ProductsView({ accountId }: { accountId: string }) {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -165,8 +165,8 @@ function ProductRow({
       : "—";
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border border-border bg-surface-2">
+    <li className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2">
+      <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-surface-2 text-fg-muted">
         {product.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -175,7 +175,9 @@ function ProductRow({
             loading="lazy"
             className="h-full w-full object-cover"
           />
-        ) : null}
+        ) : (
+          <Package className="h-5 w-5" aria-hidden />
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">{product.name}</p>
