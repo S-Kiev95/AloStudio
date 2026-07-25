@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 from email.message import EmailMessage
-from email.utils import getaddresses, parseaddr
+from email.utils import parseaddr
 from typing import Any
 
 from sqlmodel import select
@@ -43,14 +43,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
-    Conversation,
     Message,
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
-    MessageBuilderParams as _MessageBuilderParams,
     create_conversation,
     create_message,
+)
+from app.domains.conversations.service import (
+    MessageBuilderParams as _MessageBuilderParams,
 )
 from app.domains.email.threading import (
     ThreadingHeaders,

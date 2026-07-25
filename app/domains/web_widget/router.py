@@ -321,12 +321,12 @@ async def _last_conversation_for(
     assert ctx.inbox.id is not None
     if ctx.contact_inbox.hmac_verified:
         # All verified contact_inboxes for this contact + inbox.
-        from app.domains.contacts.models import ContactInbox as _CI
+        from app.domains.contacts.models import ContactInbox as _ContactInbox
 
-        verified_ids_stmt = select(_CI.id).where(
-            _CI.contact_id == ctx.contact_inbox.contact_id,
-            _CI.inbox_id == ctx.inbox.id,
-            _CI.hmac_verified.is_(True),  # type: ignore[union-attr]
+        verified_ids_stmt = select(_ContactInbox.id).where(
+            _ContactInbox.contact_id == ctx.contact_inbox.contact_id,
+            _ContactInbox.inbox_id == ctx.inbox.id,
+            _ContactInbox.hmac_verified.is_(True),  # type: ignore[union-attr]
         )
         stmt = (
             select(Conversation)

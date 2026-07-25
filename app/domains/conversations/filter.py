@@ -98,7 +98,7 @@ def _coerce_status_values(values: list[Any]) -> list[int]:
             ]
         try:
             out.append(conversation_status_from_str(str(v)))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise _err(400, f"Invalid value for status: {v!r}") from exc
     return out
 

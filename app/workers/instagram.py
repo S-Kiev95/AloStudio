@@ -119,11 +119,11 @@ async def publish_instagram_post_task(
     terminal (the row stays ``failed`` for the operator to inspect).
     """
     from app.domains.instagram.context import open_publish_session
+    from app.domains.instagram.publisher import is_throttle_error
     from app.domains.instagram.publishing_service import (
         publish_post,
         reset_for_retry,
     )
-    from app.domains.instagram.publisher import is_throttle_error
 
     async with open_publish_session() as session:
         post = await publish_post(session, post_id=post_id)

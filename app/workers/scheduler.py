@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, ClassVar
 
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlmodel import select
@@ -154,7 +154,7 @@ async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) ->
             )
             if conv is not None:
                 sent += 1
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             log.warning(
                 "scheduler.campaign.contact_failed campaign_id=%s "
                 "contact_id=%s err=%s",
@@ -314,8 +314,10 @@ class WorkerSettings:
             func(deliver_webhook_task, max_tries=WEBHOOK_MAX_ATTEMPTS),
         ]
 
-    functions = []  # type: ignore[var-annotated]  # populated via configure()
-    cron_jobs: list = []  # populated below via late import
+    # ARQ reads these off the class, so they're class-level by contract, not
+    # accidental shared state — ClassVar says so and satisfies RUF012.
+    functions: ClassVar[list[Any]] = []  # populated via configure()
+    cron_jobs: ClassVar[list[Any]] = []  # populated below via late import
     # Populated by configure(); without it arq's CLI defaults to
     # ``RedisSettings()`` = localhost:6379, ignoring ``ARQ_REDIS_URL``.
     redis_settings: Any = None

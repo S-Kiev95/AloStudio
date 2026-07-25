@@ -18,7 +18,6 @@ from app.domains.notifications.models import (
     NotificationSetting,
 )
 
-
 RESULTS_PER_PAGE = 15
 
 

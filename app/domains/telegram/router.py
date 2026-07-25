@@ -53,7 +53,7 @@ async def telegram_receive(
             bot_token=bot_token,
             payload=payload,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         import logging
 
         logging.getLogger(__name__).exception(

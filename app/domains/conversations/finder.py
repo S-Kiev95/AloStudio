@@ -37,17 +37,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import and_, exists, func, or_
+from sqlalchemy import func
 from sqlalchemy.sql import Select
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.conversations.models import (
-    CONVERSATION_STATUS_OPEN,
-    Conversation,
-    ConversationLabel,
     MESSAGE_TYPE_INCOMING,
     MESSAGE_TYPE_OUTGOING,
+    Conversation,
+    ConversationLabel,
     Message,
     conversation_status_from_str,
 )

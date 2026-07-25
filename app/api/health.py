@@ -18,6 +18,7 @@ probe (mirrors Chatwoot's tolerant healthcheck stance).
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
@@ -78,10 +79,10 @@ async def health(
         redis_error = type(exc).__name__
     finally:
         if client is not None:
-            try:
+            # Closing a probe client is best-effort — never let it mask the
+            # health result we just computed.
+            with suppress(Exception):
                 await client.aclose()
-            except Exception:  # noqa: BLE001
-                pass
 
     # ----- uptime -----
     started_at = getattr(request.app.state, "started_at", None)

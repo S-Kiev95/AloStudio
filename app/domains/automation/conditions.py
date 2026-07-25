@@ -340,7 +340,7 @@ def evaluate_conditions(
             else:
                 result = result and this
         return bool(result)
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception(
             "automation.condition.evaluator_error conversation_id=%s",
             conversation.id,

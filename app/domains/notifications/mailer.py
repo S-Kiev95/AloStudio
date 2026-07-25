@@ -179,7 +179,7 @@ async def enqueue_notification_email(notification_id: int) -> None:
             )
         finally:
             await pool.aclose()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         log.warning(
             "notifications.email.enqueue_failed notification_id=%s err=%s",
             notification_id,

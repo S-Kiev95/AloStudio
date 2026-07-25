@@ -394,7 +394,7 @@ async def live_conversation_metrics(
     )
 
     unattended_q = base.where(
-        (Conversation.first_reply_created_at.is_(None))  # type: ignore[union-attr]
+        Conversation.first_reply_created_at.is_(None)  # type: ignore[union-attr]
     )
     unattended_count = int(
         (

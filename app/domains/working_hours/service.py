@@ -11,7 +11,8 @@ Ported from:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone as _timezone
+from datetime import UTC, datetime
+from datetime import timezone as _timezone
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -248,11 +249,11 @@ async def bulk_update_for_inbox(
 # ---------------------------------------------------------------------------
 def _resolve_zone(tz_name: str | None) -> _timezone:
     if not tz_name:
-        return _timezone.utc
+        return UTC
     try:
         return ZoneInfo(tz_name)  # type: ignore[return-value]
     except ZoneInfoNotFoundError:
-        return _timezone.utc
+        return UTC
 
 
 def _row_intervals_for_day(row: WorkingHour) -> tuple[int, int] | None:

@@ -64,7 +64,7 @@ async def twilio_receive(
     """
     try:
         form = await request.form()
-    except Exception:
+    except Exception:  # noqa: BLE001
         return {}
 
     params: dict[str, Any] = {key: form[key] for key in form}

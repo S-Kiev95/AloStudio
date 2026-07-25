@@ -54,7 +54,7 @@ async def connect_manual_endpoint(
 @router.get("/connect/start")
 async def connect_start(
     ctx: Annotated[AccountContext, Depends(require_admin)],
-    session: Annotated[AsyncSession, Depends(get_session)],  # noqa: ARG001
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     """Begin the Facebook Login OAuth — returns the dialog URL the
     admin's browser should be redirected to (with a signed state).
@@ -67,7 +67,7 @@ async def connect_start(
 @router.get("/connect/start_instagram")
 async def connect_start_instagram(
     ctx: Annotated[AccountContext, Depends(require_admin)],
-    session: Annotated[AsyncSession, Depends(get_session)],  # noqa: ARG001
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     """Begin the Instagram Login OAuth — no Facebook Page required, but
     DELETE media is not available on this flow."""

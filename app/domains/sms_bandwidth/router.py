@@ -70,7 +70,7 @@ async def bandwidth_receive(
 
     try:
         payload = await request.json()
-    except Exception:
+    except Exception:  # noqa: BLE001
         return {}
 
     try:

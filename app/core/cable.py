@@ -46,6 +46,7 @@ import asyncio
 import json
 import logging
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -121,7 +122,7 @@ async def _ping_loop(ws: WebSocket) -> None:
 # Command loop
 # ---------------------------------------------------------------------------
 async def _command_loop(
-    ws: WebSocket, subs: dict[str, "_Subscription"]
+    ws: WebSocket, subs: dict[str, _Subscription]
 ) -> None:
     """Read frames forever, route subscribe/unsubscribe.
 
@@ -153,7 +154,7 @@ async def _command_loop(
 # ---------------------------------------------------------------------------
 async def _handle_subscribe(
     ws: WebSocket,
-    subs: dict[str, "_Subscription"],
+    subs: dict[str, _Subscription],
     identifier_json: str,
 ) -> None:
     if identifier_json in subs:
@@ -282,7 +283,7 @@ def _subscription_channels(
 # Unsubscribe
 # ---------------------------------------------------------------------------
 async def _handle_unsubscribe(
-    subs: dict[str, "_Subscription"], identifier_json: str
+    subs: dict[str, _Subscription], identifier_json: str
 ) -> None:
     sub = subs.pop(identifier_json, None)
     if sub is not None:
@@ -312,7 +313,7 @@ class _Subscription:
         self._identifier = identifier
         self._channels = channels
         self._task: asyncio.Task[None] | None = None
-        self._pubsub: "PubSub | None" = None
+        self._pubsub: PubSub | None = None
 
     async def start(self) -> bool:
         """Subscribe to Redis + start the pump. Returns True on success."""
@@ -349,24 +350,22 @@ class _Subscription:
     async def stop(self) -> None:
         if self._task is not None:
             self._task.cancel()
-            try:
+            # We just cancelled it, so CancelledError is the expected outcome;
+            # anything else it raises on the way out is equally moot here.
+            with suppress(asyncio.CancelledError, Exception):
                 await self._task
-            except (asyncio.CancelledError, Exception):
-                pass
             self._task = None
         await self._close_pubsub()
 
     async def _close_pubsub(self) -> None:
         if self._pubsub is None:
             return
-        try:
+        # Teardown is best-effort: a dead connection must not mask the reason
+        # we're shutting down in the first place.
+        with suppress(Exception):
             await self._pubsub.unsubscribe(*self._channels)
-        except Exception:
-            pass
-        try:
+        with suppress(Exception):
             await self._pubsub.aclose()
-        except Exception:
-            pass
         self._pubsub = None
 
 
@@ -395,14 +394,7 @@ def _decode_envelope(payload: Any) -> dict[str, Any] | None:
     practice but we don't want a stray PUBLISH from another writer to
     take down the WS.
     """
-    if isinstance(payload, bytes):
-        try:
-            decoded = json.loads(payload)
-        except (json.JSONDecodeError, TypeError):
-            return None
-        if isinstance(decoded, dict):
-            return decoded
-    elif isinstance(payload, str):
+    if isinstance(payload, (bytes, str)):
         try:
             decoded = json.loads(payload)
         except (json.JSONDecodeError, TypeError):

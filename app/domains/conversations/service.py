@@ -46,6 +46,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
+    from app.domains.contacts.models import ContactInbox
     from app.domains.teams.models import Team
     from app.domains.users.models import User
 
@@ -80,7 +81,6 @@ from app.domains.conversations.events import (
 from app.domains.conversations.models import (
     CONTENT_TYPE_TEXT,
     CONVERSATION_STATUS_OPEN,
-    CONVERSATION_STATUS_PENDING,
     CONVERSATION_STATUS_RESOLVED,
     CONVERSATION_STATUS_SNOOZED,
     MESSAGE_TYPE_INCOMING,
@@ -432,7 +432,7 @@ async def update_assignee(
     *,
     conversation: Conversation,
     assignee_id: int | None,
-) -> "User | None":
+) -> User | None:
     """Port of ``Conversations::AssignmentService#assign_agent``.
 
     Sets ``conversation.assignee_id`` (None to unassign), saves, fires
@@ -446,7 +446,7 @@ async def update_assignee(
 
     prev_id = conversation.assignee_id
 
-    new_user: "User | None" = None
+    new_user: User | None = None
     if assignee_id is not None:
         # Mirror Rails: ``conversation.account.users.find_by(id: assignee_id)``.
         # Out-of-account users yield None (silently ignored, like Rails).
@@ -503,7 +503,7 @@ async def update_team(
     *,
     conversation: Conversation,
     team_id: int | None,
-) -> "Team | None":
+) -> Team | None:
     """Port of the ``set_team`` branch of ``AssignmentsController#create``.
 
     Rails resolves ``Current.account.teams.find_by(id: team_id)`` and
@@ -518,7 +518,7 @@ async def update_team(
     prev_team_id = conversation.team_id
     prev_assignee_id = conversation.assignee_id
 
-    new_team: "Team | None" = None
+    new_team: Team | None = None
     if team_id is not None:
         new_team = (
             await session.exec(
@@ -1182,7 +1182,7 @@ async def _maybe_send_outbound_email(
             conversation=conversation,
             channel=channel,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         # ``send_email_reply`` already swallows transport errors; any
         # remaining exception here is a programmer bug we want to
         # capture in logs without breaking the request.
@@ -1310,7 +1310,7 @@ async def _maybe_send_outbound_whatsapp(
                 message=message,
                 to_phone=to_phone,
             )
-    except Exception:  # noqa: BLE001
+    except Exception:
         import logging
 
         logging.getLogger(__name__).exception(
@@ -1370,7 +1370,7 @@ async def _maybe_send_outbound_facebook(
             message=message,
             to_psid=str(ci.source_id),
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         import logging
 
         logging.getLogger(__name__).exception(
@@ -1459,7 +1459,7 @@ async def _maybe_send_outbound_instagram(
                 message=message,
                 to_igsid=str(ci.source_id),
             )
-    except Exception:  # noqa: BLE001
+    except Exception:
         import logging
 
         logging.getLogger(__name__).exception(
@@ -1522,7 +1522,7 @@ async def _maybe_send_outbound_twilio(
             message=message,
             to_phone=str(ci.source_id),
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         import logging
 
         logging.getLogger(__name__).exception(
@@ -1574,7 +1574,7 @@ async def _maybe_send_outbound_bandwidth(
             message=message,
             to_phone=str(ci.source_id),
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         import logging
 
         logging.getLogger(__name__).exception(
@@ -1624,7 +1624,7 @@ async def _maybe_send_outbound_telegram(
             message=message,
             chat_id=chat_id,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         import logging
 
         logging.getLogger(__name__).exception(

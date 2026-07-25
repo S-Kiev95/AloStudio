@@ -9,7 +9,8 @@ scope check runs before the body — same model as Rails' Pundit
 from __future__ import annotations
 
 import functools
-from typing import Any, Awaitable, Callable, Literal
+from collections.abc import Awaitable, Callable
+from typing import Any, Literal
 
 from app.mcp.context import current_mcp_context
 from app.mcp.models import scope_satisfies

@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from pydantic import BaseModel, EmailStr
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -37,7 +37,7 @@ from app.core.auth.devise_token_auth import (
 )
 from app.core.db import get_session
 from app.core.deps import current_user
-from app.core.errors import ChatwootHTTPException, chatwoot_http_exception_handler
+from app.core.errors import ChatwootHTTPException
 from app.core.security import verify_password
 from app.domains.auth.confirmation import (
     ConfirmationError,

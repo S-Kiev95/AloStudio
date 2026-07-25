@@ -41,13 +41,15 @@ notification_*) land when their source-side callers are ported in
 from __future__ import annotations
 
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.current import current_user_ctx
 from app.core.realtime import RealtimeBroadcaster, get_broadcaster
+from app.domains.contacts.models import ContactInbox
 from app.domains.conversations import events as ev
 from app.domains.conversations.models import (
     MESSAGE_TYPE_ACTIVITY,
@@ -59,7 +61,6 @@ from app.domains.conversations.presenters import (
     present_conversation,
     present_message_push_event,
 )
-from app.domains.contacts.models import ContactInbox
 from app.domains.inboxes.models import InboxMember
 from app.domains.users.models import (
     ACCOUNT_USER_ROLE_ADMINISTRATOR,
@@ -396,7 +397,7 @@ async def broadcast_event(
 
     try:
         await fan_out_to_automation(session, name, **payload)
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("automation_listener.error event=%s", name)
     # CSAT survey emitter (Phase 6.5) — runs on ``CONVERSATION_RESOLVED``
     # only. Same failure-isolation contract as the automation listener.
@@ -404,7 +405,7 @@ async def broadcast_event(
 
     try:
         await fan_out_to_csat(session, name, **payload)
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("csat_listener.error event=%s", name)
     # Reporting event emitter (Phase 7.1) — writes a ReportingEvent row
     # on resolve / first reply / reply / open. Source for dashboards.
@@ -412,7 +413,7 @@ async def broadcast_event(
 
     try:
         await fan_out_to_reporting(session, name, **payload)
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("reporting_listener.error event=%s", name)
     # AgentBot relay (Phase 8.2) — POSTs the standard webhook envelope
     # to each bot attached to the inbox / assigned to the conversation.
@@ -420,7 +421,7 @@ async def broadcast_event(
 
     try:
         await fan_out_to_agent_bots(session, name, **payload)
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("agent_bot_listener.error event=%s", name)
     # In-app notifications inbox (v2.5) — inserts a Notification row
     # per recipient (inbox members on create, assignee on assign /
@@ -430,7 +431,7 @@ async def broadcast_event(
 
     try:
         await fan_out_to_notifications(session, name, **payload)
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("notifications_listener.error event=%s", name)
     # Webhook delivery (Phase 8.3) — POSTs to every account-configured
     # Webhook subscribed to the event.
@@ -438,7 +439,7 @@ async def broadcast_event(
 
     try:
         await fan_out_to_webhooks(session, name, **payload)
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("webhook_listener.error event=%s", name)
 
 

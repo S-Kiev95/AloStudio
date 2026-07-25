@@ -23,6 +23,10 @@ from fastmcp import FastMCP
 from sqlmodel import select
 
 from app.core.errors import ChatwootHTTPException
+from app.domains.conversations.events import (
+    CONVERSATION_UPDATED,
+    dispatcher,
+)
 from app.domains.conversations.models import (
     CONVERSATION_STATUS_OPEN,
     Conversation,
@@ -30,10 +34,6 @@ from app.domains.conversations.models import (
     conversation_priority_to_str,
     conversation_status_to_str,
     message_type_to_str,
-)
-from app.domains.conversations.events import (
-    CONVERSATION_UPDATED,
-    dispatcher,
 )
 from app.domains.conversations.service import (
     toggle_priority,

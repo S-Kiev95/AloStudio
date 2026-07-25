@@ -66,7 +66,13 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "N", "SIM", "RUF"]
+select = ["E", "F", "I", "B", "UP", "N", "SIM", "RUF", "BLE"]
+# BLE blind-except: enabled deliberately. We catch bare `Exception` at real
+#   resilience boundaries — provider webhooks (a 500 makes Meta/Twilio retry
+#   or disable the hook), websocket fan-out, notification delivery, and the
+#   scheduler's per-contact loop — and each of those sites carries an explicit
+#   `# noqa: BLE001`. Enabling the rule keeps those markers load-bearing and
+#   makes any *new* blind except a conscious decision rather than a default.
 # E501 line length: our code has long parity-anchored strings (error
 #   envelopes, jbuilder quotes) we don't wrap.
 # B008 `Depends(...)` as default arg: ruff's rule predates FastAPI and
@@ -78,7 +84,25 @@ select = ["E", "F", "I", "B", "UP", "N", "SIM", "RUF"]
 #   ``lib/custom_exceptions/account.rb``) so parity reasoning is
 #   name-stable across the port. Renaming them would obscure the
 #   reference mapping without any runtime benefit.
-ignore = ["E501", "B008", "N818"]
+# SIM102/SIM103/SIM108: these three fire on deliberate readability choices.
+#   SIM103 flags the tail of a *guard-clause chain* ("one check per line,
+#   each returning False") and would leave two guards followed by a bare
+#   `return <cond>` — less uniform, not simpler. SIM102 wants multi-line
+#   conditions merged into a single monster `if`. SIM108 wants ternaries
+#   that here run ~90 chars and drop the comment explaining the branch.
+#   Where collapsing genuinely read better we already did it by hand.
+# RUF002 ambiguous unicode in docstrings: our two hits are numeric ranges
+#   ("1–5", "I.2–I.6") where the EN DASH is correct typography, in prose
+#   that never round-trips through code.
+ignore = [
+    "E501",
+    "B008",
+    "N818",
+    "SIM102",
+    "SIM103",
+    "SIM108",
+    "RUF002",
+]
 
 [tool.mypy]
 python_version = "3.12"

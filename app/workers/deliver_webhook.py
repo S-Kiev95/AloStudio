@@ -435,11 +435,11 @@ async def _run_inline(
 
 __all__ = [
     "BACKOFF_SECONDS",
-    "DeliveryOutcome",
     "HTTP_TIMEOUT_SECONDS",
     "MAX_ATTEMPTS",
     "RECEIVER_KIND_AGENT_BOT",
     "RECEIVER_KIND_WEBHOOK",
+    "DeliveryOutcome",
     "build_headers",
     "deliver_webhook_now",
     "deliver_webhook_task",

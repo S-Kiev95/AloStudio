@@ -63,9 +63,11 @@ from app.domains.conversations.models import (
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
-    MessageBuilderParams as _MessageBuilderParams,
     create_conversation,
     create_message,
+)
+from app.domains.conversations.service import (
+    MessageBuilderParams as _MessageBuilderParams,
 )
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_FACEBOOK,
@@ -358,7 +360,7 @@ async def _process_message_event(
             ),
             user_id=None,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("facebook.inbound.create_message_failed mid=%s", mid)
         return None
     return msg

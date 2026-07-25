@@ -35,7 +35,6 @@ them inline avoids a layer of indirection that would obscure parity.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -46,9 +45,6 @@ from app.domains.conversations.models import (
     Conversation,
     Message,
 )
-
-if TYPE_CHECKING:  # pragma: no cover
-    pass
 
 log = logging.getLogger(__name__)
 

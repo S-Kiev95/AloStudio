@@ -48,9 +48,11 @@ from app.domains.conversations.models import (
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
-    MessageBuilderParams as _MessageBuilderParams,
     create_conversation,
     create_message,
+)
+from app.domains.conversations.service import (
+    MessageBuilderParams as _MessageBuilderParams,
 )
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_SMS,
@@ -219,7 +221,7 @@ async def process_bandwidth_webhook(
                 ),
                 user_id=None,
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception(
                 "bandwidth.inbound.create_message_failed id=%s", bw_id
             )

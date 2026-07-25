@@ -116,7 +116,7 @@ class ActionExecutor:
                 continue
             try:
                 await handler(params)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.exception(
                     "automation.action.error name=%s conversation_id=%s",
                     name,

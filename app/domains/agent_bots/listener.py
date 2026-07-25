@@ -40,7 +40,6 @@ from app.domains.agent_bots.models import AgentBot
 from app.domains.agent_bots.service import attached_bot_for_inbox
 from app.domains.conversations import events as ev
 from app.domains.conversations.models import (
-    MESSAGE_TYPE_ACTIVITY,
     MESSAGE_TYPE_INCOMING,
     MESSAGE_TYPE_OUTGOING,
     MESSAGE_TYPE_TEMPLATE,

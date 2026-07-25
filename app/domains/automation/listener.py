@@ -152,7 +152,7 @@ async def fan_out_to_automation(
                     conversation=conversation,
                     message=message,
                 )
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception(
                 "automation.listener.rule_error rule_id=%s conversation_id=%s",
                 rule.id,

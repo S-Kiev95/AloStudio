@@ -213,7 +213,7 @@ async def enqueue_reindex_article(article_id: int) -> None:
             await pool.enqueue_job("reindex_article_task", article_id)
         finally:
             await pool.aclose()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         log.warning(
             "portals.embeddings.enqueue_failed article_id=%s err=%s",
             article_id,
@@ -257,7 +257,7 @@ async def enqueue_reindex_portal(
                 enqueued += 1
         finally:
             await pool.aclose()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         log.warning(
             "portals.embeddings.reindex_portal_failed portal_id=%s err=%s",
             portal_id,

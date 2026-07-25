@@ -62,7 +62,6 @@ from app.domains.inboxes.models import (
     twilio_medium_from_str,
 )
 
-
 # ---------------------------------------------------------------------------
 # Channel registry
 # ---------------------------------------------------------------------------
@@ -368,7 +367,7 @@ class InboxBuilder:
         self._session.add(ch)
         try:
             await self._session.flush()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # Surface UNIQUE-violation on email / forward_to_email as a
             # clean 422; everything else re-raises.
             from sqlalchemy.exc import IntegrityError
@@ -472,7 +471,7 @@ class InboxBuilder:
         self._session.add(ch)
         try:
             await self._session.flush()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             from sqlalchemy.exc import IntegrityError
 
             if isinstance(exc, IntegrityError):
@@ -548,7 +547,7 @@ class InboxBuilder:
         self._session.add(ch)
         try:
             await self._session.flush()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             from sqlalchemy.exc import IntegrityError
 
             if isinstance(exc, IntegrityError):
@@ -635,7 +634,7 @@ class InboxBuilder:
         self._session.add(ch)
         try:
             await self._session.flush()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             from sqlalchemy.exc import IntegrityError
 
             if isinstance(exc, IntegrityError):
@@ -748,7 +747,7 @@ class InboxBuilder:
         self._session.add(ch)
         try:
             await self._session.flush()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             from sqlalchemy.exc import IntegrityError
 
             if isinstance(exc, IntegrityError):
@@ -815,7 +814,7 @@ class InboxBuilder:
         self._session.add(ch)
         try:
             await self._session.flush()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             from sqlalchemy.exc import IntegrityError
 
             if isinstance(exc, IntegrityError):
@@ -873,7 +872,7 @@ class InboxBuilder:
         self._session.add(ch)
         try:
             await self._session.flush()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             from sqlalchemy.exc import IntegrityError
 
             if isinstance(exc, IntegrityError):

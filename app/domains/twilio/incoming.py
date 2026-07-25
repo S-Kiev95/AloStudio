@@ -43,9 +43,11 @@ from app.domains.conversations.models import (
 )
 from app.domains.conversations.service import (
     ConversationBuilderParams,
-    MessageBuilderParams as _MessageBuilderParams,
     create_conversation,
     create_message,
+)
+from app.domains.conversations.service import (
+    MessageBuilderParams as _MessageBuilderParams,
 )
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_TWILIO_SMS,
@@ -238,7 +240,7 @@ async def process_twilio_webhook(
             ),
             user_id=None,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception(
             "twilio.inbound.create_message_failed sms_sid=%s", sms_sid
         )

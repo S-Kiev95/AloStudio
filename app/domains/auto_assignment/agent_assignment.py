@@ -30,7 +30,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 async def find_assignee(
-    redis: "Redis",
+    redis: Redis,
     session: AsyncSession,
     *,
     conversation: Conversation,
@@ -53,7 +53,7 @@ async def find_assignee(
 
 
 async def perform(
-    redis: "Redis",
+    redis: Redis,
     session: AsyncSession,
     *,
     conversation: Conversation,

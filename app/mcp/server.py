@@ -31,7 +31,6 @@ from fastmcp import FastMCP
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 
 from app.mcp.context import (
-    MCPContext,
     bind_mcp_context,
     open_mcp_session,
     reset_mcp_context,
@@ -144,4 +143,4 @@ def build_server() -> FastMCP:
     return mcp
 
 
-__all__ = ["AuthMiddleware", "INSTRUCTIONS", "build_server"]
+__all__ = ["INSTRUCTIONS", "AuthMiddleware", "build_server"]

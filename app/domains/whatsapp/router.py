@@ -162,7 +162,7 @@ async def whatsapp_receive(
 
     try:
         payload = json.loads(raw)
-    except Exception:
+    except Exception:  # noqa: BLE001
         return {"status": "ok"}
 
     channel_inbox = await _resolve_channel_optional(

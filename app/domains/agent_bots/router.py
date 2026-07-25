@@ -30,6 +30,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, status
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import get_session
@@ -56,7 +57,6 @@ from app.domains.agent_bots.service import (
     update_bot,
 )
 from app.domains.inboxes.models import Inbox
-from sqlmodel import select
 
 router = APIRouter(
     prefix="/api/v1/accounts/{account_id}/agent_bots",

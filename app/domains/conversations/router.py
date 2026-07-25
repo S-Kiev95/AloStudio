@@ -106,6 +106,8 @@ from app.domains.inboxes.presenters import present_agent
 from app.domains.users.models import AccountUser, User
 
 RESULTS_PER_PAGE = 25
+# Rails constant — same name, same value (``Message::ATTACHMENT_RESULTS_PER_PAGE``).
+ATTACHMENT_RESULTS_PER_PAGE = 100
 
 router = APIRouter(
     prefix="/api/v1/accounts/{account_id}/conversations",
@@ -797,8 +799,6 @@ async def list_attachments(
     from app.domains.conversations.presenters import (
         present_attachment_push_event,
     )
-
-    ATTACHMENT_RESULTS_PER_PAGE = 100  # Rails constant — same name, same value.
 
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(

@@ -74,11 +74,11 @@ class RealtimeBroadcaster:
     subscribe-pump to reach the underlying client.
     """
 
-    def __init__(self, redis: "Redis") -> None:
+    def __init__(self, redis: Redis) -> None:
         self._redis = redis
 
     @classmethod
-    def from_url(cls, url: str) -> "RealtimeBroadcaster":
+    def from_url(cls, url: str) -> RealtimeBroadcaster:
         # ``decode_responses=False`` so the pub/sub payloads are raw bytes
         # on both sides — the WS subscriber decodes once on receipt.
         client = redis_asyncio.from_url(url, decode_responses=False)
@@ -86,7 +86,7 @@ class RealtimeBroadcaster:
 
     async def publish(
         self,
-        channels: "list[str] | set[str] | tuple[str, ...]",
+        channels: list[str] | set[str] | tuple[str, ...],
         event: str,
         data: dict[str, Any],
     ) -> int:
@@ -115,7 +115,7 @@ class RealtimeBroadcaster:
             log.exception("realtime.broadcaster.close failed")
 
     @property
-    def redis(self) -> "Redis":
+    def redis(self) -> Redis:
         """Expose the underlying client for the ``/cable`` subscribe pump."""
         return self._redis
 

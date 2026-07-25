@@ -41,7 +41,7 @@ async def fan_out_to_csat(
         await send_csat_message_on_resolve(
             session, conversation=conversation
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception(
             "csat.listener.send_error conversation_id=%s",
             conversation.id,

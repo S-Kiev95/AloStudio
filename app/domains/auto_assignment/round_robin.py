@@ -38,7 +38,7 @@ def round_robin_key(inbox_id: int) -> str:
     return f"ROUND_ROBIN_AGENTS:{inbox_id}"
 
 
-async def _queue(redis: "Redis", inbox_id: int) -> list[int]:
+async def _queue(redis: Redis, inbox_id: int) -> list[int]:
     """Read the full queue as a list of ints (Redis returns bytes)."""
     raw = await redis.lrange(round_robin_key(inbox_id), 0, -1)
     out: list[int] = []
@@ -64,7 +64,7 @@ async def _inbox_member_user_ids(
 
 
 async def _reset_queue(
-    redis: "Redis", session: AsyncSession, inbox_id: int
+    redis: Redis, session: AsyncSession, inbox_id: int
 ) -> list[int]:
     """Mirror ``reset_queue`` — drop the list, then ``lpush`` every member.
 
@@ -85,7 +85,7 @@ async def _reset_queue(
 
 
 async def _validate_queue(
-    redis: "Redis", session: AsyncSession, inbox_id: int
+    redis: Redis, session: AsyncSession, inbox_id: int
 ) -> bool:
     """Mirror ``validate_queue?`` — sorted member ids match the queue."""
     queue = sorted(await _queue(redis, inbox_id))
@@ -94,7 +94,7 @@ async def _validate_queue(
 
 
 async def available_agent(
-    redis: "Redis",
+    redis: Redis,
     session: AsyncSession,
     *,
     inbox_id: int,

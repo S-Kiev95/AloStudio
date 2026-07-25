@@ -159,6 +159,19 @@ async def test_broadcast_skips_empty_token_list() -> None:
 # ---------------------------------------------------------------------------
 # message_created — private + activity guards on contact_tokens.
 # ---------------------------------------------------------------------------
+class _StubSession:
+    """Stands in for the AsyncSession on the ``message_created`` path.
+
+    ``_message_created`` refreshes ``message.attachments`` before handing the
+    message to the sync presenter (a lazy-load would raise MissingGreenlet on
+    a real AsyncSession). These tests drive the listener with SimpleNamespace
+    fakes, so the refresh just needs to be an awaitable no-op.
+    """
+
+    async def refresh(self, _obj: Any, _attrs: list[str] | None = None) -> None:
+        return None
+
+
 async def _stub_token_resolvers(
     listener: ActionCableListener,
     *,
@@ -179,7 +192,7 @@ async def _stub_token_resolvers(
 
 async def test_message_created_excludes_contact_for_private_message() -> None:
     bc = _RecBroadcaster()
-    listener = ActionCableListener(session=None, broadcaster=bc)  # type: ignore[arg-type]
+    listener = ActionCableListener(session=_StubSession(), broadcaster=bc)
     await _stub_token_resolvers(
         listener, user_tokens=["agent_t"], contact_inbox_tokens=["contact_t"]
     )
@@ -217,7 +230,7 @@ async def test_message_created_excludes_contact_for_private_message() -> None:
 
 async def test_message_created_excludes_contact_for_activity_message() -> None:
     bc = _RecBroadcaster()
-    listener = ActionCableListener(session=None, broadcaster=bc)  # type: ignore[arg-type]
+    listener = ActionCableListener(session=_StubSession(), broadcaster=bc)
     await _stub_token_resolvers(
         listener, user_tokens=["agent_t"], contact_inbox_tokens=["contact_t"]
     )
@@ -249,7 +262,7 @@ async def test_message_created_excludes_contact_for_activity_message() -> None:
 
 async def test_message_created_includes_contact_for_normal_message() -> None:
     bc = _RecBroadcaster()
-    listener = ActionCableListener(session=None, broadcaster=bc)  # type: ignore[arg-type]
+    listener = ActionCableListener(session=_StubSession(), broadcaster=bc)
     await _stub_token_resolvers(
         listener, user_tokens=["agent_t"], contact_inbox_tokens=["contact_t"]
     )

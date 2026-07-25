@@ -122,7 +122,7 @@ async def send_notification_push(
                 vapid_public_key=settings.vapid_public_key,
                 vapid_subject=settings.vapid_subject,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             log.warning(
                 "notifications.push.send_failed notification_id=%s err=%s",
                 notification_id,
@@ -159,7 +159,7 @@ async def enqueue_notification_push(notification_id: int) -> None:
             await pool.enqueue_job("send_notification_push_task", notification_id)
         finally:
             await pool.aclose()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         log.warning(
             "notifications.push.enqueue_failed notification_id=%s err=%s",
             notification_id,

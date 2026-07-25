@@ -24,7 +24,7 @@ if TYPE_CHECKING:  # pragma: no cover
 # ``None`` when the request is anonymous (widget, public endpoints). The
 # ActionCableListener's ``broadcast`` checks for ``None`` before setting
 # the ``performer`` key — matches Rails' ``Current.user.present?`` guard.
-current_user_ctx: ContextVar["User | None"] = ContextVar("current_user", default=None)
+current_user_ctx: ContextVar[User | None] = ContextVar("current_user", default=None)
 
 
 __all__ = ["current_user_ctx"]

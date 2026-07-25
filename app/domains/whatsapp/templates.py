@@ -47,11 +47,17 @@ from app.domains.inboxes.models import (
 )
 from app.domains.whatsapp.cloud_provider import (
     _PHONE_ID_API_VERSION,
+)
+from app.domains.whatsapp.cloud_provider import (
     _api_base as _cloud_api_base,
+)
+from app.domains.whatsapp.cloud_provider import (
     _api_headers as _cloud_api_headers,
 )
 from app.domains.whatsapp.dialog360_provider import (
     _api_base as _d360_api_base,
+)
+from app.domains.whatsapp.dialog360_provider import (
     _api_headers as _d360_api_headers,
 )
 

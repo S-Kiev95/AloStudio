@@ -93,7 +93,7 @@ class EventDispatcher:
     """
 
     async def dispatch(
-        self, session: "AsyncSession", name: str, **payload: Any
+        self, session: AsyncSession, name: str, **payload: Any
     ) -> None:
         log.debug(
             "dispatcher.dispatch name=%s payload_keys=%s",
@@ -128,12 +128,12 @@ __all__ = [
     "CONVERSATION_TYPING_OFF",
     "CONVERSATION_TYPING_ON",
     "CONVERSATION_UPDATED",
-    "Event",
-    "EventDispatcher",
     "FIRST_REPLY_CREATED",
     "MESSAGE_CREATED",
     "MESSAGE_UPDATED",
     "REPLY_CREATED",
     "TEAM_CHANGED",
+    "Event",
+    "EventDispatcher",
     "dispatcher",
 ]

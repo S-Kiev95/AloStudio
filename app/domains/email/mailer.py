@@ -40,7 +40,7 @@ import re
 import secrets
 from datetime import UTC, datetime
 from email.message import EmailMessage
-from email.utils import format_datetime, formataddr, parseaddr
+from email.utils import format_datetime, formataddr
 from typing import TYPE_CHECKING
 
 import aiosmtplib
@@ -51,7 +51,6 @@ from app.domains.conversations.models import (
     Conversation,
     Message,
 )
-from app.domains.email.threading import extract_message_ids
 from app.domains.inboxes.models import EmailChannel
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -185,7 +184,7 @@ def _from_address(channel: EmailChannel, *, sender_name: str | None) -> str:
 # Public API
 # ---------------------------------------------------------------------------
 async def send_email_reply(
-    session: "AsyncSession",
+    session: AsyncSession,
     *,
     message: Message,
     conversation: Conversation,
@@ -260,7 +259,7 @@ async def send_email_reply(
     chat_message_count = int(
         (
             await session.exec(
-                select(__import__("sqlalchemy", fromlist=["func"]).func.count())  # noqa: PIE808
+                select(__import__("sqlalchemy", fromlist=["func"]).func.count())
                 .select_from(Message)
                 .where(
                     Message.conversation_id == conversation.id,

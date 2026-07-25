@@ -27,11 +27,10 @@ directly without scheduling.
 
 from __future__ import annotations
 
-import asyncio
 import email
 import logging
+from contextlib import suppress
 from email.message import EmailMessage
-from typing import TYPE_CHECKING
 
 import aioimaplib
 from sqlmodel import select
@@ -43,9 +42,6 @@ from app.domains.inboxes.models import (
     EmailChannel,
     Inbox,
 )
-
-if TYPE_CHECKING:  # pragma: no cover
-    pass
 
 log = logging.getLogger(__name__)
 
@@ -120,7 +116,7 @@ async def _fetch_one(imap: aioimaplib.IMAP4, uid: bytes) -> EmailMessage | None:
         return None
     try:
         return _parse_email_bytes(bytes(raw))
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("email.imap.parse_failed uid=%s", uid)
         return None
 
@@ -156,13 +152,7 @@ async def fetch_inbox_once(
 
     try:
         imap = await _connect_and_select(channel)
-    except (
-        RuntimeError,
-        OSError,
-        TimeoutError,
-        asyncio.TimeoutError,
-        aioimaplib.Abort,
-    ) as exc:
+    except (RuntimeError, OSError, TimeoutError, aioimaplib.Abort) as exc:
         log.warning(
             "email.imap.connect_failed channel_id=%s error=%s",
             channel.id,
@@ -181,7 +171,7 @@ async def fetch_inbox_once(
                 msg = await process_inbound_email(
                     session, channel=channel, inbox=inbox, mail=mail
                 )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.exception(
                     "email.imap.process_failed channel_id=%s uid=%s",
                     channel.id,
@@ -197,17 +187,17 @@ async def fetch_inbox_once(
                     await imap.store(
                         uid.decode("ascii"), "+FLAGS", "(\\Seen)"
                     )
-                except Exception:  # noqa: BLE001
+                except Exception:
                     log.exception(
                         "email.imap.store_seen_failed channel_id=%s uid=%s",
                         channel.id,
                         uid,
                     )
     finally:
-        try:
+        # Best-effort logout: a dead socket must not sink an otherwise
+        # successful poll.
+        with suppress(Exception):
             await imap.logout()
-        except Exception:  # noqa: BLE001
-            pass
     return ingested
 
 
