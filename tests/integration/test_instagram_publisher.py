@@ -284,10 +284,14 @@ async def test_publish_video_happy_path(db_session):
     )
     assert result.state == "published"
     assert result.ig_media_id == "VM1"
-    # Container body must carry media_type=VIDEO + video_url.
+    # A caller-supplied VIDEO is folded to REELS on the way out: Meta
+    # deprecated single feed videos and now 400s with subcode 2207067
+    # ("El valor VIDEO para media_type es obsoleto. Usa REELS"). Accepting
+    # VIDEO at the edge keeps older API callers working, so the container
+    # body must say REELS and never VIDEO.
     body = create_route.calls.last.request.content.decode()
-    assert "media_type" in body
-    assert "VIDEO" in body
+    assert "media_type=REELS" in body
+    assert "VIDEO" not in body
     assert "video_url" in body
 
 
