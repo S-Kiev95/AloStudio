@@ -51,7 +51,7 @@ async def list_bots_accessible_to(
             (AgentBot.account_id == account_id)
             | (AgentBot.account_id.is_(None))  # type: ignore[union-attr]
         )
-        .order_by(AgentBot.id.asc())  # type: ignore[attr-defined]
+        .order_by(AgentBot.id.asc())
     )
     return list((await session.exec(stmt)).all())
 

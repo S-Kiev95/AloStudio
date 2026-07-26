@@ -495,7 +495,8 @@ async def fetch_publishing_limit(
             error_message=str(payload)[:500],
         )
     usage = row.get("quota_usage")
-    config = row.get("config") if isinstance(row.get("config"), dict) else {}
+    _config = row.get("config")
+    config: dict[str, Any] = _config if isinstance(_config, dict) else {}
     total = config.get("quota_total")
     return QuotaResult(
         ok=True,

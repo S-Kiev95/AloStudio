@@ -82,7 +82,7 @@ async def list_webhooks(
             await session.exec(
                 select(Webhook)
                 .where(Webhook.account_id == account_id)
-                .order_by(Webhook.id.asc())  # type: ignore[attr-defined]
+                .order_by(Webhook.id.asc())
             )
         ).all()
     )
@@ -183,7 +183,7 @@ async def webhooks_subscribed_to(
         Webhook.account_id == account_id,
         Webhook.webhook_type == WEBHOOK_TYPE_ACCOUNT,
         # Postgres JSONB ? operator — element existence check.
-        Webhook.subscriptions.op("?")(event_name),  # type: ignore[union-attr]
+        Webhook.subscriptions.op("?")(event_name),
     )
     return list((await session.exec(stmt)).all())
 

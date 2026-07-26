@@ -83,9 +83,9 @@ async def list_canned_responses(
             (CannedResponse.content.ilike(f"%{q}%"), 0.2),  # type: ignore[union-attr]
             else_=0.0,
         )
-        stmt = stmt.order_by(rank.desc(), CannedResponse.id.asc())  # type: ignore[attr-defined]
+        stmt = stmt.order_by(rank.desc(), CannedResponse.id.asc())
     else:
-        stmt = stmt.order_by(CannedResponse.id.asc())  # type: ignore[attr-defined]
+        stmt = stmt.order_by(CannedResponse.id.asc())
     return list((await session.exec(stmt)).all())
 
 

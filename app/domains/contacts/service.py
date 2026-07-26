@@ -185,8 +185,8 @@ class ContactInboxBuilder:
             return existing
 
         row = ContactInbox(
-            contact_id=self.contact.id,  # type: ignore[arg-type]
-            inbox_id=self.inbox.id,  # type: ignore[arg-type]
+            contact_id=self.contact.id,
+            inbox_id=self.inbox.id,
             source_id=source_id,
             hmac_verified=self.hmac_verified,
         )
@@ -263,14 +263,14 @@ class ContactMergeAction:
             )
 
     async def _merge_contact_inboxes(self) -> None:
-        await self.session.exec(  # type: ignore[call-overload]
+        await self.session.exec(
             update(ContactInbox)
             .where(ContactInbox.contact_id == self.mergee.id)
             .values(contact_id=self.base.id)
         )
 
     async def _merge_contact_notes(self) -> None:
-        await self.session.exec(  # type: ignore[call-overload]
+        await self.session.exec(
             update(Note)
             .where(
                 Note.contact_id == self.mergee.id,
@@ -293,7 +293,7 @@ class ContactMergeAction:
         # so the destroy doesn't cascade-kill the base contact's rows we
         # just reassigned above.
         await self.session.refresh(self.mergee)
-        await self.session.exec(  # type: ignore[call-overload]
+        await self.session.exec(
             delete(Contact).where(Contact.id == self.mergee.id)
         )
 
@@ -553,7 +553,7 @@ def company_name_expr():
     ``company_name`` contact attribute, so both the companies aggregation
     and the ``?company=`` list filter key off this JSONB path.
     """
-    return Contact.additional_attributes["company_name"].astext  # type: ignore[index]
+    return Contact.additional_attributes["company_name"].astext
 
 
 async def list_companies(

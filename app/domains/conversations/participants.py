@@ -41,7 +41,7 @@ async def list_participant_users(
             ConversationParticipant.user_id == User.id,  # type: ignore[arg-type]
         )
         .where(ConversationParticipant.conversation_id == conversation_id)
-        .order_by(ConversationParticipant.id.asc())  # type: ignore[attr-defined]
+        .order_by(ConversationParticipant.id.asc())
     )
     return list((await session.exec(stmt)).all())
 
@@ -182,7 +182,7 @@ async def _delete_participants(
         await session.exec(
             select(ConversationParticipant).where(
                 ConversationParticipant.conversation_id == conversation_id,
-                ConversationParticipant.user_id.in_(user_ids),  # type: ignore[union-attr]
+                ConversationParticipant.user_id.in_(user_ids),
             )
         )
     ).all()

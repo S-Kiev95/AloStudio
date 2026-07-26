@@ -63,7 +63,7 @@ async def list_tokens(
             await session.exec(
                 select(MCPToken)
                 .where(MCPToken.account_id == account_id)
-                .order_by(MCPToken.id.asc())  # type: ignore[attr-defined]
+                .order_by(MCPToken.id.asc())
             )
         ).all()
     )

@@ -75,7 +75,7 @@ async def _custom_attribute_keys_for_account(
             await session.exec(
                 select(CustomAttributeDefinition).where(
                     CustomAttributeDefinition.account_id == account_id,
-                    CustomAttributeDefinition.attribute_model.in_(  # type: ignore[union-attr]
+                    CustomAttributeDefinition.attribute_model.in_(
                         [
                             CUSTOM_ATTR_MODEL_CONVERSATION,
                             CUSTOM_ATTR_MODEL_CONTACT,
@@ -264,7 +264,7 @@ async def list_rules(
             await session.exec(
                 select(AutomationRule)
                 .where(AutomationRule.account_id == account_id)
-                .order_by(AutomationRule.id.desc())  # type: ignore[attr-defined]
+                .order_by(AutomationRule.id.desc())
             )
         ).all()
     )

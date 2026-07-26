@@ -46,7 +46,7 @@ async def list_notifications(
         stmt = stmt.where(Notification.read_at.is_(None))  # type: ignore[union-attr]
     offset = (max(page, 1) - 1) * RESULTS_PER_PAGE
     stmt = (
-        stmt.order_by(Notification.id.desc())  # type: ignore[attr-defined]
+        stmt.order_by(Notification.id.desc())
         .offset(offset)
         .limit(RESULTS_PER_PAGE)
     )
@@ -66,7 +66,7 @@ async def count_for_user(
     )
     if unread_only:
         stmt = stmt.where(Notification.read_at.is_(None))  # type: ignore[union-attr]
-    return int((await session.exec(stmt)).one() or 0)  # type: ignore[call-overload]
+    return int((await session.exec(stmt)).one() or 0)
 
 
 # ---------------------------------------------------------------------------
@@ -105,9 +105,9 @@ async def mark_all_read(
         )
         .values(read_at=now)
     )
-    result = await session.exec(stmt)  # type: ignore[call-arg]
+    result = await session.exec(stmt)
     await session.flush()
-    return result.rowcount or 0  # type: ignore[union-attr]
+    return result.rowcount or 0
 
 
 async def destroy(

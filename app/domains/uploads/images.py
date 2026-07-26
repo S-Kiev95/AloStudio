@@ -60,7 +60,7 @@ def to_instagram_jpeg(data: bytes) -> bytes:
             im = ImageOps.exif_transpose(opened) or opened
             im = _flatten(im)
             if max(im.size) > MAX_EDGE:
-                im.thumbnail((MAX_EDGE, MAX_EDGE), Image.LANCZOS)
+                im.thumbnail((MAX_EDGE, MAX_EDGE), Image.Resampling.LANCZOS)
 
             for quality in _QUALITY_STEPS:
                 buf = io.BytesIO()

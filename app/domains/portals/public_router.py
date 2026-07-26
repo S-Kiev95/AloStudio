@@ -54,7 +54,7 @@ async def _resolve_portal(
     portal = (
         await session.exec(
             select(Portal).where(
-                Portal.slug == slug, Portal.archived.is_(False)  # type: ignore[union-attr]
+                Portal.slug == slug, Portal.archived.is_(False)
             )
         )
     ).first()
@@ -129,12 +129,12 @@ async def index_articles(
         needle = f"%{query.strip()}%"
         stmt = stmt.where(
             or_(
-                Article.title.ilike(needle),  # type: ignore[attr-defined]
-                Article.description.ilike(needle),  # type: ignore[attr-defined]
-                Article.content.ilike(needle),  # type: ignore[attr-defined]
+                Article.title.ilike(needle),
+                Article.description.ilike(needle),
+                Article.content.ilike(needle),
             )
         )
-    stmt = stmt.order_by(Article.position.asc(), Article.id.desc())  # type: ignore[attr-defined]
+    stmt = stmt.order_by(Article.position.asc(), Article.id.desc())
     rows = list((await session.exec(stmt)).all())
     return [present_article(a) for a in rows]
 
@@ -181,7 +181,7 @@ async def index_categories(
     stmt = select(Category).where(Category.portal_id == portal.id)
     if locale is not None:
         stmt = stmt.where(Category.locale == locale)
-    stmt = stmt.order_by(Category.position.asc(), Category.id.asc())  # type: ignore[attr-defined]
+    stmt = stmt.order_by(Category.position.asc(), Category.id.asc())
     rows = list((await session.exec(stmt)).all())
     return [present_category(c) for c in rows]
 

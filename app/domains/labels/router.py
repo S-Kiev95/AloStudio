@@ -65,7 +65,7 @@ async def index_labels(
             await session.exec(
                 select(Label)
                 .where(Label.account_id == ctx.account.id)
-                .order_by(Label.title)  # type: ignore[arg-type]
+                .order_by(Label.title)
             )
         ).all()
     )

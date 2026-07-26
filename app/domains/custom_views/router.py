@@ -68,7 +68,7 @@ async def index_custom_views(
                     CustomView.user_id == ctx.user.id,
                     CustomView.filter_type == ft,
                 )
-                .order_by(CustomView.name)  # type: ignore[arg-type]
+                .order_by(CustomView.name)
             )
         ).all()
     )
@@ -90,7 +90,7 @@ async def create_custom_view(
         filter_type=_filter_type_int(payload.filter_type),
         query=payload.query or {},
         account_id=ctx.account.id,
-        user_id=ctx.user.id,  # type: ignore[arg-type]
+        user_id=ctx.user.id,
     )
     session.add(row)
     await session.flush()

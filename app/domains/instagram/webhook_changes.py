@@ -77,11 +77,13 @@ async def _handle_comment(
 ) -> bool:
     """Upsert one ``field=comments`` event into the local mirror."""
     ig_comment_id = value.get("id")
-    media = value.get("media") if isinstance(value.get("media"), dict) else {}
+    _media = value.get("media")
+    media: dict[str, Any] = _media if isinstance(_media, dict) else {}
     ig_media_id = value.get("media_id") or media.get("id")
     if not ig_comment_id or not ig_media_id:
         return False
-    frm = value.get("from") if isinstance(value.get("from"), dict) else {}
+    _frm = value.get("from")
+    frm: dict[str, Any] = _frm if isinstance(_frm, dict) else {}
     await svc.upsert_comment(
         session,
         account_id=channel.account_id,

@@ -25,7 +25,7 @@ from typing import Any
 import redis.asyncio as redis_lib
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
 from app.core.db import get_session
@@ -62,7 +62,7 @@ async def health(
     try:
         # ``session.exec`` (SQLModel) instead of ``session.execute``
         # (raw SQLAlchemy) — the latter emits a SQLModel DeprecationWarning.
-        await session.exec(text("SELECT 1"))  # type: ignore[call-overload]
+        await session.exec(text("SELECT 1"))
         db_status = "up"
     except Exception as exc:  # noqa: BLE001
         db_error = type(exc).__name__

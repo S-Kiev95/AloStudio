@@ -131,7 +131,7 @@ async def invite_agent(
         au_kwargs["availability"] = availability
     if auto_offline is not None:
         au_kwargs["auto_offline"] = auto_offline
-    account_user = AccountUser(**au_kwargs)  # type: ignore[arg-type]
+    account_user = AccountUser(**au_kwargs)
     session.add(account_user)
     await session.flush()
 

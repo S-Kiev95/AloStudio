@@ -321,7 +321,7 @@ def _engine_from_ctx(ctx: dict[str, Any]) -> AsyncEngine:
             get_settings().database_url, pool_pre_ping=True
         )
         ctx["engine"] = engine
-    return engine  # type: ignore[no-any-return]
+    return engine
 
 
 # ---------------------------------------------------------------------------

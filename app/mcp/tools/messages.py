@@ -92,7 +92,7 @@ def register(mcp: FastMCP) -> None:
         stmt = select(Message).where(Message.conversation_id == conv.id)
         if before_id is not None:
             stmt = stmt.where(Message.id < before_id)
-        stmt = stmt.order_by(Message.id.desc()).limit(limit)  # type: ignore[attr-defined]
+        stmt = stmt.order_by(Message.id.desc()).limit(limit)
         rows = list((await ctx.session.exec(stmt)).all())
         return {
             "conversation_id": conv.id,

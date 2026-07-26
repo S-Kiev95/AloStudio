@@ -146,8 +146,8 @@ def register(mcp: FastMCP) -> None:
             stmt = stmt.where(Conversation.assignee_id == assignee_id)
 
         stmt = stmt.order_by(
-            Conversation.last_activity_at.desc().nullslast(),  # type: ignore[union-attr]
-            Conversation.id.desc(),  # type: ignore[attr-defined]
+            Conversation.last_activity_at.desc().nullslast(),
+            Conversation.id.desc(),
         )
         stmt = stmt.offset((page - 1) * per_page).limit(per_page)
         rows = list((await ctx.session.exec(stmt)).all())
@@ -174,7 +174,7 @@ def register(mcp: FastMCP) -> None:
             stmt = (
                 select(Message)
                 .where(Message.conversation_id == conv.id)
-                .order_by(Message.id.desc())  # type: ignore[attr-defined]
+                .order_by(Message.id.desc())
                 .limit(tail)
             )
             msgs = list((await ctx.session.exec(stmt)).all())

@@ -59,7 +59,7 @@ async def list_products(
     stmt = select(Product).where(Product.account_id == account_id)
     if enabled is not None:
         stmt = stmt.where(Product.enabled == enabled)
-    stmt = stmt.order_by(Product.id.desc())  # type: ignore[attr-defined]
+    stmt = stmt.order_by(Product.id.desc())
     stmt = stmt.offset((page - 1) * per_page).limit(per_page)
     return list((await session.exec(stmt)).all())
 

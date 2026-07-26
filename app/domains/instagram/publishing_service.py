@@ -252,7 +252,7 @@ async def list_posts(
         stmt = stmt.where(
             InstagramPost.channel_instagram_id == channel_instagram_id
         )
-    stmt = stmt.order_by(InstagramPost.id.desc())  # type: ignore[attr-defined]
+    stmt = stmt.order_by(InstagramPost.id.desc())
     stmt = stmt.offset((page - 1) * per_page).limit(per_page)
     return list((await session.exec(stmt)).all())
 
@@ -368,7 +368,7 @@ async def set_post_products(
                 await session.exec(
                     select(Product.id).where(
                         Product.account_id == account_id,
-                        Product.id.in_(ids),  # type: ignore[attr-defined]
+                        Product.id.in_(ids),
                     )
                 )
             ).all()
@@ -411,7 +411,7 @@ async def products_for_post(
             InstagramPostProduct.product_id == Product.id,  # type: ignore[arg-type]
         )
         .where(InstagramPostProduct.post_id == post_id)
-        .order_by(Product.id.asc())  # type: ignore[attr-defined]
+        .order_by(Product.id.asc())
     )
     return list((await session.exec(stmt)).all())
 
@@ -443,7 +443,7 @@ async def products_for_media(
             InstagramPost.account_id == account_id,
             InstagramPost.ig_media_id == ig_media_id,
         )
-        .order_by(Product.id.asc())  # type: ignore[attr-defined]
+        .order_by(Product.id.asc())
     )
     return list((await session.exec(stmt)).all())
 
@@ -523,7 +523,7 @@ async def list_comments_for_media(
         InstagramComment.ig_media_id == ig_media_id,
     )
     if not include_hidden:
-        stmt = stmt.where(InstagramComment.hidden.is_(False))  # type: ignore[union-attr]
+        stmt = stmt.where(InstagramComment.hidden.is_(False))
     stmt = stmt.order_by(InstagramComment.ig_created_at.asc().nullslast())  # type: ignore[union-attr]
     return list((await session.exec(stmt)).all())
 

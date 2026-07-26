@@ -85,7 +85,7 @@ async def index_notifications(
     convos: dict[tuple[str, int], Conversation] = {}
     if convo_ids:
         stmt = select(Conversation).where(
-            Conversation.id.in_(convo_ids)  # type: ignore[attr-defined]
+            Conversation.id.in_(convo_ids)
         )
         for c in (await session.exec(stmt)).all():
             if c.id is not None:

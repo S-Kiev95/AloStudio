@@ -236,20 +236,20 @@ async def _count_conversations(
     mine_count = int(
         (
             await session.exec(
-                base.where(Conversation.assignee_id == user_id)  # type: ignore[arg-type]
+                base.where(Conversation.assignee_id == user_id)
             )
         ).one()
         or 0
     )
     assigned_count = int(
         (
-            await session.exec(base.where(Conversation.assignee_id.is_not(None)))  # type: ignore[attr-defined]
+            await session.exec(base.where(Conversation.assignee_id.is_not(None)))
         ).one()
         or 0
     )
     unassigned_count = int(
         (
-            await session.exec(base.where(Conversation.assignee_id.is_(None)))  # type: ignore[attr-defined]
+            await session.exec(base.where(Conversation.assignee_id.is_(None)))
         ).one()
         or 0
     )
@@ -514,7 +514,7 @@ async def create_conversation_endpoint(
             session,
             conversation=conv,
             params=msg_params,
-            user_id=ctx.user.id,  # type: ignore[arg-type]
+            user_id=ctx.user.id,
         )
         # ``create_conversation`` was committed; reload the conversation
         # so ``present_conversation_create`` sees the new message in its
@@ -1065,7 +1065,7 @@ async def create_message_endpoint(
         session,
         conversation=conv,
         params=msg_params,
-        user_id=ctx.user.id,  # type: ignore[arg-type]
+        user_id=ctx.user.id,
     )
     return present_message_create(msg, echo_id=payload.echo_id)
 
@@ -1111,7 +1111,7 @@ async def destroy_message(
     msg.content_type = CONTENT_TYPE_TEXT
     msg.content_attributes = {"deleted": True}
     session.add(msg)
-    await session.exec(  # type: ignore[call-overload]
+    await session.exec(
         delete(Attachment).where(Attachment.message_id == msg.id)
     )
     await session.flush()

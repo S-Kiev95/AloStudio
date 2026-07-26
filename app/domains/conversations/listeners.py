@@ -314,7 +314,7 @@ class ActionCableListener:
             return [contact_inbox.pubsub_token] if contact_inbox.pubsub_token else []
         stmt = select(ContactInbox.pubsub_token).where(
             ContactInbox.contact_id == contact_inbox.contact_id,
-            ContactInbox.hmac_verified.is_(True),  # type: ignore[union-attr]
+            ContactInbox.hmac_verified.is_(True),
         )
         rows = (await self._session.exec(stmt)).all()
         return [t for t in rows if t]

@@ -77,7 +77,7 @@ async def list_policies(
             await session.exec(
                 select(AssignmentPolicy)
                 .where(AssignmentPolicy.account_id == account_id)
-                .order_by(AssignmentPolicy.id.asc())  # type: ignore[attr-defined]
+                .order_by(AssignmentPolicy.id.asc())
             )
         ).all()
     )

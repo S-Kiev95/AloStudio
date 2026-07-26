@@ -117,7 +117,8 @@ def _node_from_payload(
     cid = raw.get("id")
     if not cid:
         return None
-    frm = raw.get("from") if isinstance(raw.get("from"), dict) else {}
+    _frm = raw.get("from")
+    frm: dict[str, Any] = _frm if isinstance(_frm, dict) else {}
     username = raw.get("username") or frm.get("username")
     return CommentNode(
         ig_comment_id=str(cid),

@@ -77,7 +77,7 @@ async def list_hooks(
             await session.exec(
                 select(IntegrationsHook)
                 .where(IntegrationsHook.account_id == account_id)
-                .order_by(IntegrationsHook.id.asc())  # type: ignore[attr-defined]
+                .order_by(IntegrationsHook.id.asc())
             )
         ).all()
     )

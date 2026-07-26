@@ -69,7 +69,7 @@ def _err(status: int, message: str) -> ChatwootHTTPException:
 
 def _column_for(attr: str) -> ColumnElement[Any]:
     if attr == "company_name":
-        return Contact.additional_attributes["company_name"].astext  # type: ignore[index]
+        return Contact.additional_attributes["company_name"].astext
     return getattr(Contact, attr)
 
 
@@ -209,7 +209,7 @@ async def contact_filter(
                 select(Contact)
                 .where(Contact.account_id == account_id)
                 .where(where_expr)
-                .order_by(Contact.id.desc())  # type: ignore[attr-defined]
+                .order_by(Contact.id.desc())
                 .offset((page - 1) * per_page)
                 .limit(per_page)
             )

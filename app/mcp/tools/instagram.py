@@ -77,6 +77,12 @@ async def _channel_or_raise(channel_instagram_id: int) -> InstagramChannel:
 
 def _as_value_error(exc: ChatwootHTTPException) -> ValueError:
     detail = exc.detail
+    # ``HTTPException.detail`` is ``Any``; every raise site passes a dict
+    # today, but this is error-handling code — an AttributeError here would
+    # bury the real failure. Same guard the response handler already uses
+    # (see ``chatwoot_http_exception_handler``).
+    if not isinstance(detail, dict):
+        return ValueError(str(detail))
     msg = detail.get("message") or detail.get("error") or str(detail)
     return ValueError(msg)
 

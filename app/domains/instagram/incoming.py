@@ -309,7 +309,7 @@ async def _find_or_create_conversation(
         await session.exec(
             select(Conversation)
             .where(Conversation.contact_inbox_id == contact_inbox.id)
-            .order_by(Conversation.id.desc())  # type: ignore[attr-defined]
+            .order_by(Conversation.id.desc())
             .limit(1)
         )
     ).first()

@@ -33,7 +33,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, true
 from sqlalchemy.sql import ColumnElement
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -162,21 +162,21 @@ def _build_label_clause(
         .where(ConversationLabel.conversation_id == Conversation.id)
     )
     if operator == "is_present":
-        return Conversation.id.in_(  # type: ignore[attr-defined]
+        return Conversation.id.in_(
             select(ConversationLabel.conversation_id)
         )
     if operator == "is_not_present":
-        return Conversation.id.not_in(  # type: ignore[attr-defined]
+        return Conversation.id.not_in(
             select(ConversationLabel.conversation_id)
         )
     titles = [v.lower() for v in values]
     titled = sub.where(Label.title.in_(titles))  # type: ignore[attr-defined]
     if operator == "equal_to":
-        return Conversation.id.in_(  # type: ignore[attr-defined]
+        return Conversation.id.in_(
             titled.with_only_columns(ConversationLabel.conversation_id)
         )
     if operator == "not_equal_to":
-        return Conversation.id.not_in(  # type: ignore[attr-defined]
+        return Conversation.id.not_in(
             titled.with_only_columns(ConversationLabel.conversation_id)
         )
     raise _err(400, f"Unsupported operator for labels: {operator}")
@@ -212,9 +212,9 @@ def _build_clause(condition: dict[str, Any]) -> ColumnElement[Any]:
     column = _column_for(attr)
 
     if operator == "is_present":
-        return column.is_not(None)  # type: ignore[no-any-return]
+        return column.is_not(None)
     if operator == "is_not_present":
-        return column.is_(None)  # type: ignore[no-any-return]
+        return column.is_(None)
 
     # Coerce values per attribute datatype.
     coerced: list[Any]
@@ -271,8 +271,10 @@ def _combine(clauses: list[ColumnElement[Any]], ops: list[str]) -> ColumnElement
     only. ``A AND B OR C`` becomes ``(A AND B) OR C``.
     """
     if not clauses:
-        # Defensive — caller should have raised earlier.
-        return and_()  # always-true
+        # Defensive — caller should have raised earlier. ``true()`` rather
+        # than a no-arg ``and_()``: SQLAlchemy 2.0 deprecated the latter and
+        # will disallow it, and this spelling says "always true" outright.
+        return true()
     out: ColumnElement[Any] = clauses[0]
     for idx in range(1, len(clauses)):
         op = ops[idx - 1].upper() if idx - 1 < len(ops) else "AND"
@@ -340,7 +342,7 @@ async def conversation_filter(
     mine_count = int(
         (
             await session.exec(
-                count_base.where(Conversation.assignee_id == current_user_id)  # type: ignore[arg-type]
+                count_base.where(Conversation.assignee_id == current_user_id)
             )
         ).one()
         or 0
@@ -348,7 +350,7 @@ async def conversation_filter(
     unassigned_count = int(
         (
             await session.exec(
-                count_base.where(Conversation.assignee_id.is_(None))  # type: ignore[attr-defined]
+                count_base.where(Conversation.assignee_id.is_(None))
             )
         ).one()
         or 0

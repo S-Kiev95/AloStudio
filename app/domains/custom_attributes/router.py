@@ -83,7 +83,7 @@ async def index_definitions(
             CustomAttributeDefinition.attribute_model
             == attr_model_from_str(attribute_model)
         )
-    stmt = stmt.order_by(CustomAttributeDefinition.id.desc())  # type: ignore[attr-defined]
+    stmt = stmt.order_by(CustomAttributeDefinition.id.desc())
     rows = list((await session.exec(stmt)).all())
     return present_definitions_index(rows)
 

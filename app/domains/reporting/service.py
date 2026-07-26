@@ -195,7 +195,7 @@ async def conversations_count(
         stmt = stmt.where(Conversation.created_at >= since)
     if until is not None:
         stmt = stmt.where(Conversation.created_at <= until)
-    return int((await session.exec(stmt)).one() or 0)  # type: ignore[call-overload]
+    return int((await session.exec(stmt)).one() or 0)
 
 
 async def messages_count(
@@ -217,7 +217,7 @@ async def messages_count(
         stmt = stmt.where(Message.created_at >= since)
     if until is not None:
         stmt = stmt.where(Message.created_at <= until)
-    return int((await session.exec(stmt)).one() or 0)  # type: ignore[call-overload]
+    return int((await session.exec(stmt)).one() or 0)
 
 
 async def reporting_event_count(
@@ -239,7 +239,7 @@ async def reporting_event_count(
         stmt = stmt.where(ReportingEvent.created_at >= since)
     if until is not None:
         stmt = stmt.where(ReportingEvent.created_at <= until)
-    return int((await session.exec(stmt)).one() or 0)  # type: ignore[call-overload]
+    return int((await session.exec(stmt)).one() or 0)
 
 
 async def reporting_event_avg(
@@ -270,7 +270,7 @@ async def reporting_event_avg(
         stmt = stmt.where(ReportingEvent.created_at >= since)
     if until is not None:
         stmt = stmt.where(ReportingEvent.created_at <= until)
-    raw = (await session.exec(stmt)).one()  # type: ignore[call-overload]
+    raw = (await session.exec(stmt)).one()
     if raw is None:
         return 0.0
     return float(raw)
@@ -385,7 +385,7 @@ async def live_conversation_metrics(
     open_count = int(
         (
             await session.exec(
-                base.with_only_columns(  # type: ignore[attr-defined]
+                base.with_only_columns(
                     sa_func.count(sa_func.distinct(Conversation.id))
                 )
             )
@@ -399,7 +399,7 @@ async def live_conversation_metrics(
     unattended_count = int(
         (
             await session.exec(
-                unattended_q.with_only_columns(  # type: ignore[attr-defined]
+                unattended_q.with_only_columns(
                     sa_func.count(sa_func.distinct(Conversation.id))
                 )
             )
@@ -417,7 +417,7 @@ async def live_conversation_metrics(
         unassigned_count = int(
             (
                 await session.exec(
-                    unassigned_q.with_only_columns(  # type: ignore[attr-defined]
+                    unassigned_q.with_only_columns(
                         sa_func.count(sa_func.distinct(Conversation.id))
                     )
                 )
@@ -435,7 +435,7 @@ async def live_conversation_metrics(
             Conversation.status == CONVERSATION_STATUS_PENDING
         )
         pending_count = int(
-            (await session.exec(pending_stmt)).one() or 0  # type: ignore[call-overload]
+            (await session.exec(pending_stmt)).one() or 0
         )
         metric["unassigned"] = unassigned_count
         metric["pending"] = pending_count

@@ -212,9 +212,9 @@ async def _active_rules_for(
         .where(
             AutomationRule.account_id == account_id,
             AutomationRule.event_name == event_name,
-            AutomationRule.active.is_(True),  # type: ignore[union-attr]
+            AutomationRule.active.is_(True),
         )
-        .order_by(AutomationRule.id.asc())  # type: ignore[attr-defined]
+        .order_by(AutomationRule.id.asc())
     )
     return list((await session.exec(stmt)).all())
 

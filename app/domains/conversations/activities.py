@@ -250,7 +250,7 @@ async def create_activity_message(
     # Stash a None resolved sender so the presenter doesn't try to look
     # up sender_id; mirrors the Rails branch where activity messages
     # render without a sender block.
-    msg._resolved_sender = None  # type: ignore[attr-defined]
+    msg._resolved_sender = None
 
     await dispatcher.dispatch(session, MESSAGE_CREATED, message=msg)
     return msg

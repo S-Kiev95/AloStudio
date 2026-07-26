@@ -112,7 +112,7 @@ async def find_conversation_by_thread(
         select(Message)
         .where(
             Message.account_id == account_id,
-            Message.source_id.in_(candidates),  # type: ignore[attr-defined]
+            Message.source_id.in_(candidates),
         )
         .limit(1)
     )

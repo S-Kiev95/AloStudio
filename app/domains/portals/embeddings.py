@@ -158,7 +158,7 @@ async def vector_search(
     if not query_vector:
         return []
 
-    distance = ArticleEmbedding.embedding.cosine_distance(  # type: ignore[attr-defined]
+    distance = ArticleEmbedding.embedding.cosine_distance(
         query_vector
     )
     rows = (
@@ -166,7 +166,7 @@ async def vector_search(
             select(ArticleEmbedding.article_id)
             .where(
                 ArticleEmbedding.article_id.in_(candidate_ids),  # type: ignore[attr-defined]
-                ArticleEmbedding.embedding.is_not(None),  # type: ignore[attr-defined]
+                ArticleEmbedding.embedding.is_not(None),
             )
             .order_by(distance)
             .limit(_NEIGHBOUR_SCAN)
@@ -185,7 +185,7 @@ async def vector_search(
 
     articles = (
         await session.exec(
-            select(Article).where(Article.id.in_(ordered_ids))  # type: ignore[attr-defined]
+            select(Article).where(Article.id.in_(ordered_ids))
         )
     ).all()
     by_id = {a.id: a for a in articles}

@@ -75,9 +75,9 @@ def _apply_assignee_type(
     if assignee_type == "me" and current_user_id is not None:
         return stmt.where(Conversation.assignee_id == current_user_id)
     if assignee_type == "assigned":
-        return stmt.where(Conversation.assignee_id.is_not(None))  # type: ignore[attr-defined]
+        return stmt.where(Conversation.assignee_id.is_not(None))
     if assignee_type == "unassigned":
-        return stmt.where(Conversation.assignee_id.is_(None))  # type: ignore[attr-defined]
+        return stmt.where(Conversation.assignee_id.is_(None))
     return stmt
 
 
@@ -107,7 +107,7 @@ def _apply_labels(stmt: Select, *, labels: list[str] | None) -> Select:
         .join(Label, Label.id == ConversationLabel.label_id)
         .where(Label.title.in_(labels))  # type: ignore[attr-defined]
     )
-    return stmt.where(Conversation.id.in_(sub))  # type: ignore[attr-defined]
+    return stmt.where(Conversation.id.in_(sub))
 
 
 def _apply_query(stmt: Select, *, q: str | None) -> Select:
@@ -122,14 +122,14 @@ def _apply_query(stmt: Select, *, q: str | None) -> Select:
     pattern = f"%{q}%"
     sub = (
         select(Message.conversation_id)
-        .where(Message.content.ilike(pattern))  # type: ignore[attr-defined]
+        .where(Message.content.ilike(pattern))
         .where(
             Message.message_type.in_(  # type: ignore[attr-defined]
                 [MESSAGE_TYPE_INCOMING, MESSAGE_TYPE_OUTGOING]
             )
         )
     )
-    return stmt.where(Conversation.id.in_(sub))  # type: ignore[attr-defined]
+    return stmt.where(Conversation.id.in_(sub))
 
 
 async def conversation_finder(
@@ -209,7 +209,7 @@ async def conversation_finder(
     mine_count = int(
         (
             await session.exec(
-                count_select.where(Conversation.assignee_id == current_user_id)  # type: ignore[arg-type]
+                count_select.where(Conversation.assignee_id == current_user_id)
             )
         ).one()
         or 0
@@ -217,7 +217,7 @@ async def conversation_finder(
     unassigned_count = int(
         (
             await session.exec(
-                count_select.where(Conversation.assignee_id.is_(None))  # type: ignore[attr-defined]
+                count_select.where(Conversation.assignee_id.is_(None))
             )
         ).one()
         or 0

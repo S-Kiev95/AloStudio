@@ -252,7 +252,7 @@ def _engine_from_ctx(ctx: dict[str, Any]) -> AsyncEngine:
             pool_pre_ping=True,
         )
         ctx["engine"] = engine
-    return engine  # type: ignore[no-any-return]
+    return engine
 
 
 # ---------------------------------------------------------------------------

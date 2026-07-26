@@ -83,7 +83,7 @@ def register(mcp: FastMCP) -> None:
             needle = f"%{query.strip()}%"
             stmt = stmt.where(
                 or_(
-                    Contact.name.ilike(needle),  # type: ignore[union-attr]
+                    Contact.name.ilike(needle),
                     Contact.email.ilike(needle),  # type: ignore[union-attr]
                     Contact.phone_number.ilike(needle),  # type: ignore[union-attr]
                     Contact.identifier.ilike(needle),  # type: ignore[union-attr]
@@ -91,7 +91,7 @@ def register(mcp: FastMCP) -> None:
             )
         stmt = stmt.order_by(
             Contact.last_activity_at.desc().nullslast(),  # type: ignore[union-attr]
-            Contact.id.desc(),  # type: ignore[attr-defined]
+            Contact.id.desc(),
         )
         stmt = stmt.offset((page - 1) * per_page).limit(per_page)
         rows = list((await ctx.session.exec(stmt)).all())

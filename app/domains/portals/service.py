@@ -58,7 +58,7 @@ async def list_portals(
             await session.exec(
                 select(Portal)
                 .where(Portal.account_id == account_id)
-                .order_by(Portal.id.asc())  # type: ignore[attr-defined]
+                .order_by(Portal.id.asc())
             )
         ).all()
     )
@@ -169,7 +169,7 @@ async def list_categories(
     stmt = select(Category).where(Category.portal_id == portal_id)
     if locale is not None:
         stmt = stmt.where(Category.locale == locale)
-    stmt = stmt.order_by(Category.id.asc())  # type: ignore[attr-defined]
+    stmt = stmt.order_by(Category.id.asc())
     return list((await session.exec(stmt)).all())
 
 
@@ -277,12 +277,12 @@ async def list_articles(
         needle = f"%{query.strip()}%"
         stmt = stmt.where(
             or_(
-                Article.title.ilike(needle),  # type: ignore[attr-defined]
-                Article.description.ilike(needle),  # type: ignore[attr-defined]
-                Article.content.ilike(needle),  # type: ignore[attr-defined]
+                Article.title.ilike(needle),
+                Article.description.ilike(needle),
+                Article.content.ilike(needle),
             )
         )
-    stmt = stmt.order_by(Article.id.desc())  # type: ignore[attr-defined]
+    stmt = stmt.order_by(Article.id.desc())
     return list((await session.exec(stmt)).all())
 
 

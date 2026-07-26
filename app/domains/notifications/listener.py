@@ -92,7 +92,7 @@ async def _on_conversation_created(
             continue
         notification = await create_notification(
             session,
-            account_id=conversation.account_id,  # type: ignore[arg-type]
+            account_id=conversation.account_id,
             user_id=uid,
             notification_type=NOTIFICATION_TYPE_CONVERSATION_CREATION,
             primary_actor_type="Conversation",
@@ -116,7 +116,7 @@ async def _on_assignee_changed(
         return
     notification = await create_notification(
         session,
-        account_id=conversation.account_id,  # type: ignore[arg-type]
+        account_id=conversation.account_id,
         user_id=assignee_id,
         notification_type=NOTIFICATION_TYPE_CONVERSATION_ASSIGNMENT,
         primary_actor_type="Conversation",
@@ -147,7 +147,7 @@ async def _on_message_created(
         return
     notification = await create_notification(
         session,
-        account_id=conversation.account_id,  # type: ignore[arg-type]
+        account_id=conversation.account_id,
         user_id=assignee_id,
         notification_type=NOTIFICATION_TYPE_ASSIGNED_CONVERSATION_NEW_MESSAGE,
         primary_actor_type="Conversation",

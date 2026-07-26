@@ -126,7 +126,7 @@ async def index_contacts(
         conds.append(company_name_expr() == company)
     total = (
         await session.exec(
-            select(func.count()).select_from(Contact).where(*conds)  # type: ignore[arg-type]
+            select(func.count()).select_from(Contact).where(*conds)
         )
     ).one()
     total = _count_scalar(total)
@@ -135,7 +135,7 @@ async def index_contacts(
     stmt = (
         select(Contact)
         .where(*conds)
-        .order_by(Contact.id.desc())  # type: ignore[attr-defined]
+        .order_by(Contact.id.desc())
         .offset(offset)
         .limit(RESULTS_PER_PAGE)
     )
@@ -226,14 +226,14 @@ async def search_contacts(
             Contact.account_id == ctx.account.id,
             or_(
                 Contact.name.ilike(needle),  # type: ignore[attr-defined]
-                Contact.email.ilike(needle),  # type: ignore[attr-defined]
-                Contact.phone_number.ilike(needle),  # type: ignore[attr-defined]
+                Contact.email.ilike(needle),
+                Contact.phone_number.ilike(needle),
                 # NOTE: Chatwoot's SQL is ``contacts.identifier LIKE :search``
                 # (case-sensitive) — we preserve that exactly.
-                Contact.identifier.like(needle),  # type: ignore[attr-defined]
+                Contact.identifier.like(needle),
             ),
         )
-        .order_by(Contact.id.desc())  # type: ignore[attr-defined]
+        .order_by(Contact.id.desc())
         .offset(offset)
         .limit(RESULTS_PER_PAGE + 1)
     )
@@ -456,8 +456,8 @@ async def create_note(
     """
     contact = await _find_contact_in_account(session, ctx, contact_id)
     note = Note(
-        account_id=ctx.account.id,  # type: ignore[arg-type]
-        contact_id=contact.id,  # type: ignore[arg-type]
+        account_id=ctx.account.id,
+        contact_id=contact.id,
         user_id=ctx.user.id,
         content=payload.note.content,
     )
@@ -696,7 +696,7 @@ async def _latest_contact_inboxes(
             ContactInbox.contact_id == contact_id,
             ContactInbox.inbox_id.in_(ids),  # type: ignore[attr-defined]
         )
-        .order_by(ContactInbox.id.desc())  # type: ignore[attr-defined]
+        .order_by(ContactInbox.id.desc())
     )
     out: dict[int, ContactInbox] = {}
     for row in (await session.exec(stmt)).all():
@@ -726,7 +726,7 @@ async def _load_account_users_for_notes(
         return {}
     stmt = select(AccountUser).where(
         AccountUser.account_id == account_id,
-        AccountUser.user_id.in_(user_ids),  # type: ignore[attr-defined]
+        AccountUser.user_id.in_(user_ids),
     )
     rows = (await session.exec(stmt)).all()
     return {au.user_id: au for au in rows if au.user_id is not None}

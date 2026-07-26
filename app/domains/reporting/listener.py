@@ -422,7 +422,7 @@ async def _last_non_human_activity(
             select(ReportingEvent)
             .where(
                 ReportingEvent.conversation_id == conversation.id,
-                ReportingEvent.name.in_(  # type: ignore[union-attr]
+                ReportingEvent.name.in_(
                     ["conversation_bot_handoff", "conversation_opened"]
                 ),
                 ReportingEvent.event_end_time.is_not(None),  # type: ignore[union-attr]

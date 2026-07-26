@@ -461,7 +461,7 @@ async def _load_channels_for(
     api_ids = [ix.channel_id for ix in inboxes if ix.channel_type == CHANNEL_TYPE_API]
     if not api_ids:
         return {}
-    stmt = select(ApiChannel).where(ApiChannel.id.in_(api_ids))  # type: ignore[attr-defined]
+    stmt = select(ApiChannel).where(ApiChannel.id.in_(api_ids))
     channels = {c.id: c for c in (await session.exec(stmt)).all()}
     by_inbox: dict[int, ApiChannel] = {}
     for ix in inboxes:

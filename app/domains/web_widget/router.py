@@ -326,12 +326,12 @@ async def _last_conversation_for(
         verified_ids_stmt = select(_ContactInbox.id).where(
             _ContactInbox.contact_id == ctx.contact_inbox.contact_id,
             _ContactInbox.inbox_id == ctx.inbox.id,
-            _ContactInbox.hmac_verified.is_(True),  # type: ignore[union-attr]
+            _ContactInbox.hmac_verified.is_(True),
         )
         stmt = (
             select(Conversation)
-            .where(Conversation.contact_inbox_id.in_(verified_ids_stmt))  # type: ignore[attr-defined]
-            .order_by(Conversation.id.desc())  # type: ignore[attr-defined]
+            .where(Conversation.contact_inbox_id.in_(verified_ids_stmt))
+            .order_by(Conversation.id.desc())
             .limit(1)
         )
     else:
@@ -341,7 +341,7 @@ async def _last_conversation_for(
                 Conversation.contact_inbox_id == ctx.contact_inbox.id,
                 Conversation.inbox_id == ctx.inbox.id,
             )
-            .order_by(Conversation.id.desc())  # type: ignore[attr-defined]
+            .order_by(Conversation.id.desc())
             .limit(1)
         )
     return (await session.exec(stmt)).first()
@@ -382,11 +382,11 @@ async def widget_messages_index(
 
     stmt = select(Message).where(
         Message.conversation_id == conv.id,
-        Message.private.is_(False),  # type: ignore[union-attr]
+        Message.private.is_(False),
     )
     if before is not None:
         stmt = stmt.where(Message.id < before)  # type: ignore[operator]
-    stmt = stmt.order_by(Message.id.desc()).limit(20)  # type: ignore[attr-defined]
+    stmt = stmt.order_by(Message.id.desc()).limit(20)
     rows = list((await session.exec(stmt)).all())
     rows.reverse()  # oldest first, matches MessageFinder
     return present_messages_index(rows, conversation=conv)
@@ -603,7 +603,7 @@ async def widget_campaigns_index(
                 select(Campaign).where(
                     Campaign.inbox_id == ctx.inbox.id,
                     Campaign.campaign_type == CAMPAIGN_TYPE_ONGOING,
-                    Campaign.enabled.is_(True),  # type: ignore[union-attr]
+                    Campaign.enabled.is_(True),
                 )
             )
         ).all()
@@ -647,7 +647,7 @@ async def _on_campaign_triggered(
                 Campaign.inbox_id == ctx.inbox.id,
                 Campaign.display_id == display_id,
                 Campaign.campaign_type == CAMPAIGN_TYPE_ONGOING,
-                Campaign.enabled.is_(True),  # type: ignore[union-attr]
+                Campaign.enabled.is_(True),
             )
         )
     ).first()

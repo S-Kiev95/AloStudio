@@ -58,7 +58,7 @@ def _parse_email_bytes(raw: bytes) -> EmailMessage:
     policy so :mod:`app.domains.email.inbound` can call ``walk()`` +
     ``get_content()`` uniformly.
     """
-    return email.message_from_bytes(raw, policy=email.policy.default)  # type: ignore[return-value]
+    return email.message_from_bytes(raw, policy=email.policy.default)
 
 
 async def _connect_and_select(
@@ -217,7 +217,7 @@ async def fetch_all_email_inboxes_once(session: AsyncSession) -> int:
                     (Inbox.channel_type == CHANNEL_TYPE_EMAIL)
                     & (Inbox.channel_id == EmailChannel.id),
                 )
-                .where(EmailChannel.imap_enabled.is_(True))  # type: ignore[union-attr]
+                .where(EmailChannel.imap_enabled.is_(True))
             )
         ).all()
     )

@@ -90,7 +90,7 @@ async def _distinct_bot_event_conversations(
         stmt = stmt.where(ReportingEvent.created_at >= since)
     if until is not None:
         stmt = stmt.where(ReportingEvent.created_at <= until)
-    return int((await session.exec(stmt)).one() or 0)  # type: ignore[call-overload]
+    return int((await session.exec(stmt)).one() or 0)
 
 
 async def bot_metrics(
@@ -112,7 +112,7 @@ async def bot_metrics(
     if until is not None:
         conv_stmt = conv_stmt.where(Conversation.created_at <= until)
     conversation_count = int(
-        (await session.exec(conv_stmt)).one() or 0  # type: ignore[call-overload]
+        (await session.exec(conv_stmt)).one() or 0
     )
 
     # message_count — outgoing messages in range on those bot conversations.
@@ -134,7 +134,7 @@ async def bot_metrics(
     if until is not None:
         msg_stmt = msg_stmt.where(Message.created_at <= until)
     message_count = int(
-        (await session.exec(msg_stmt)).one() or 0  # type: ignore[call-overload]
+        (await session.exec(msg_stmt)).one() or 0
     )
 
     if conversation_count == 0:

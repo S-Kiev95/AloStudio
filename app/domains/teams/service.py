@@ -144,7 +144,7 @@ async def user_ids_outside_account(
         return []
     stmt = select(AccountUser.user_id).where(
         AccountUser.account_id == account.id,
-        AccountUser.user_id.in_(user_ids),  # type: ignore[attr-defined]
+        AccountUser.user_id.in_(user_ids),
     )
     known = set((await session.exec(stmt)).all())
     return [uid for uid in user_ids if uid not in known]

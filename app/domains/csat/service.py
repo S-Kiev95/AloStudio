@@ -322,7 +322,7 @@ async def metrics_for_account(
         sent_stmt = sent_stmt.where(Message.created_at >= range_start)
     if range_end is not None:
         sent_stmt = sent_stmt.where(Message.created_at <= range_end)
-    total_sent = int((await session.exec(sent_stmt)).one() or 0)  # type: ignore[call-overload]
+    total_sent = int((await session.exec(sent_stmt)).one() or 0)
 
     return {
         "total_count": total_count,

@@ -198,7 +198,7 @@ async def create_conversation(
             await session.exec(
                 select(Conversation)
                 .where(Conversation.contact_inbox_id == contact_inbox.id)
-                .order_by(Conversation.id.desc())  # type: ignore[attr-defined]
+                .order_by(Conversation.id.desc())
                 .limit(1)
             )
         ).first()
@@ -950,7 +950,7 @@ async def _enforce_flooding_cap(
     one_min_ago = _utcnow() - timedelta(minutes=1)
     count = int(
         (
-            await session.exec(  # type: ignore[call-overload]
+            await session.exec(
                 select(sa_func.count())
                 .select_from(Message)
                 .where(Message.conversation_id == conversation_id)
@@ -1065,27 +1065,27 @@ async def _attach_resolved_sender(
     polymorphic association mapper.
     """
     if message.sender_type is None or message.sender_id is None:
-        message._resolved_sender = None  # type: ignore[attr-defined]
+        message._resolved_sender = None
         return
     if message.sender_type == SENDER_TYPE_CONTACT:
         # The conversation's contact is the only contact that can send on it.
         if conversation.contact is not None and conversation.contact.id == message.sender_id:
-            message._resolved_sender = conversation.contact  # type: ignore[attr-defined]
+            message._resolved_sender = conversation.contact
             return
         from app.domains.contacts.models import Contact
 
         contact = await session.get(Contact, message.sender_id)
-        message._resolved_sender = contact  # type: ignore[attr-defined]
+        message._resolved_sender = contact
         return
     if message.sender_type == SENDER_TYPE_USER:
         from app.domains.users.models import User
 
         user = await session.get(User, message.sender_id)
-        message._resolved_sender = user  # type: ignore[attr-defined]
+        message._resolved_sender = user
         return
     # AgentBot arrives with Phase 8 — leave resolved=None so the presenter
     # drops the sender block rather than crashing.
-    message._resolved_sender = None  # type: ignore[attr-defined]
+    message._resolved_sender = None
 
 
 async def _apply_message_post_create(
@@ -1789,12 +1789,12 @@ async def reassign_mergee_conversations(
     """
     from sqlalchemy import update
 
-    await session.exec(  # type: ignore[call-overload]
+    await session.exec(
         update(Conversation)
         .where(Conversation.contact_id == mergee_contact_id)
         .values(contact_id=base_contact_id)
     )
-    await session.exec(  # type: ignore[call-overload]
+    await session.exec(
         update(Message)
         .where(Message.sender_type == SENDER_TYPE_CONTACT)
         .where(Message.sender_id == mergee_contact_id)

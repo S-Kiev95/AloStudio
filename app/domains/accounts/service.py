@@ -131,7 +131,7 @@ class AccountBuilder:
     async def _ensure_email_unused(self) -> None:
         """`User.exists?(email: @email)` → raise UserExists."""
         email = (self.params.email or "").lower()
-        result = await self.session.exec(select(User.id).where(User.email == email))  # type: ignore[arg-type]
+        result = await self.session.exec(select(User.id).where(User.email == email))
         if result.first() is not None:
             raise UserExists(payload={"email": self.params.email})
 
@@ -212,7 +212,7 @@ class AccountBuilder:
             AccessToken.owner_type == "User",
             AccessToken.owner_id == user.id,
         )
-        result = await self.session.exec(stmt)  # type: ignore[arg-type]
+        result = await self.session.exec(stmt)
         token = result.first()
         if token is None:
             # Should not happen for a persisted user, but the AccessTokenable

@@ -251,7 +251,7 @@ async def send_email_reply(
                 Message.conversation_id == conversation.id,
                 Message.message_type == MESSAGE_TYPE_INCOMING,
             )
-            .order_by(Message.id.desc())  # type: ignore[attr-defined]
+            .order_by(Message.id.desc())
             .limit(1)
         )
     ).first()

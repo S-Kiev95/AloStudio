@@ -41,7 +41,7 @@ async def _next_display_id(
     stmt = select(sa_func.coalesce(sa_func.max(Campaign.display_id), 0)).where(
         Campaign.account_id == account_id
     )
-    current = int((await session.exec(stmt)).one() or 0)  # type: ignore[call-overload]
+    current = int((await session.exec(stmt)).one() or 0)
     return current + 1
 
 
@@ -76,7 +76,7 @@ async def list_campaigns(
             await session.exec(
                 select(Campaign)
                 .where(Campaign.account_id == account_id)
-                .order_by(Campaign.id.asc())  # type: ignore[attr-defined]
+                .order_by(Campaign.id.asc())
             )
         ).all()
     )
@@ -300,7 +300,7 @@ async def campaign_analytics(
             select(Message.status, sa_func.count())
             .where(
                 Message.account_id == campaign.account_id,
-                Message.additional_attributes["campaign_id"].astext  # type: ignore[index]
+                Message.additional_attributes["campaign_id"].astext
                 == str(campaign.id),
             )
             .group_by(Message.status)  # type: ignore[arg-type]
