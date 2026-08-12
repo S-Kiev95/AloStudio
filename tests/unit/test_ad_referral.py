@@ -112,6 +112,17 @@ def test_messenger_shortlink_keeps_ref_as_the_label():
     assert ref.headline == "promo-verano"
 
 
+def test_shortlink_singular_and_plural_fold_together():
+    """m.me sends SHORTLINK, ig.me sends SHORTLINKS — one concept.
+
+    Left unfolded they'd group as two different sources in reports.
+    """
+    singular = parse_messenger_referral({"referral": {"source": "SHORTLINK", "ref": "a"}})
+    plural = parse_messenger_referral({"referral": {"source": "SHORTLINKS", "ref": "a"}})
+    assert singular is not None and plural is not None
+    assert singular.source == plural.source == "shortlink"
+
+
 def test_messenger_without_referral_is_none():
     assert parse_messenger_referral({"message": {"text": "Hola"}}) is None
 

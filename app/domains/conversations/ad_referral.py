@@ -37,7 +37,10 @@ _SOURCE_ALIASES = {
     "ad": "ad",
     "ads": "ad",
     "post": "post",
+    # m.me says SHORTLINK, ig.me says SHORTLINKS — same thing, and grouping
+    # would split in two without folding them together.
     "shortlink": "shortlink",
+    "shortlinks": "shortlink",
     "sms": "shortlink",
 }
 
