@@ -4,13 +4,25 @@ import { X } from "lucide-react";
 import { useState } from "react";
 
 import { type Agent, type Label, useAgents, useLabels } from "@/lib/api/account";
-import type { FilterCondition, FilterOperator } from "@/lib/api/conversations";
+import {
+  type FilterCondition,
+  type FilterOperator,
+  type KnownAd,
+  useKnownAds,
+} from "@/lib/api/conversations";
 import { type Inbox, useInboxes } from "@/lib/api/inboxes";
 import { type Team, useTeams } from "@/lib/api/teams";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type ValueKind = "status" | "priority" | "agent" | "inbox" | "team" | "label";
+type ValueKind =
+  | "status"
+  | "priority"
+  | "agent"
+  | "inbox"
+  | "team"
+  | "label"
+  | "ad";
 
 type AttrDef = {
   key: string;
@@ -33,6 +45,9 @@ const ATTRIBUTES: AttrDef[] = [
   { key: "inbox_id", label: "Bandeja", ops: ALL_OPS, value: "inbox" },
   { key: "team_id", label: "Equipo", ops: ALL_OPS, value: "team" },
   { key: "labels", label: "Etiqueta", ops: ALL_OPS, value: "label" },
+  // "tiene valor" answers "everything an ad brought in", which is the
+  // question asked most often; equal_to narrows to one campaign.
+  { key: "ad_id", label: "Anuncio", ops: ALL_OPS, value: "ad" },
 ];
 
 const OP_LABELS: Record<FilterOperator, string> = {
@@ -120,6 +135,7 @@ export function ConversationFilters({
   const agents = useAgents(accountId);
   const inboxes = useInboxes(accountId);
   const teams = useTeams(accountId);
+  const ads = useKnownAds(accountId);
   const labels = useLabels(accountId);
 
   function updateRow(i: number, patch: Partial<DraftRow>) {
@@ -208,6 +224,7 @@ export function ConversationFilters({
                 inboxes={inboxes.data ?? []}
                 teams={teams.data ?? []}
                 labels={labels.data ?? []}
+                ads={ads.data ?? []}
               />
             ) : null}
             <button
@@ -310,6 +327,7 @@ function ValueControl({
   inboxes,
   teams,
   labels,
+  ads,
 }: {
   def: AttrDef;
   value: string;
@@ -318,6 +336,7 @@ function ValueControl({
   inboxes: Inbox[];
   teams: Team[];
   labels: Label[];
+  ads: KnownAd[];
 }) {
   let options: { v: string; l: string }[] = [];
   if (def.value === "status") options = STATUS_OPTS;
@@ -330,6 +349,9 @@ function ValueControl({
     options = teams.map((t) => ({ v: String(t.id), l: t.name }));
   else if (def.value === "label")
     options = labels.map((l) => ({ v: l.title, l: l.title }));
+  else if (def.value === "ad")
+    // Headline as the label — nobody recognises a Meta ad by its numeric id.
+    options = ads.map((a) => ({ v: a.ad_id, l: a.headline }));
 
   return (
     <select

@@ -59,6 +59,10 @@ _ALLOWED_OPERATORS: dict[str, set[str]] = {
     "inbox_id": {"equal_to", "not_equal_to", "is_present", "is_not_present"},
     "team_id": {"equal_to", "not_equal_to", "is_present", "is_not_present"},
     "labels": {"equal_to", "not_equal_to", "is_present", "is_not_present"},
+    # Which Meta ad the conversation came from. ``is_present`` is the useful
+    # one day to day — "everything an ad brought in" — while equal_to narrows
+    # to a single campaign.
+    "ad_id": {"equal_to", "not_equal_to", "is_present", "is_not_present"},
     "created_at": {"equal_to", "not_equal_to"},
     "last_activity_at": {"equal_to", "not_equal_to"},
 }
@@ -146,6 +150,7 @@ def _column_for(attr: str) -> ColumnElement[Any]:
         "assignee_id": Conversation.assignee_id,
         "inbox_id": Conversation.inbox_id,
         "team_id": Conversation.team_id,
+        "ad_id": Conversation.ad_id,
         "created_at": Conversation.created_at,
         "last_activity_at": Conversation.last_activity_at,
     }[attr]
@@ -224,6 +229,11 @@ def _build_clause(condition: dict[str, Any]) -> ColumnElement[Any]:
         coerced = _coerce_priority_values(values)
     elif attr in ("assignee_id", "inbox_id", "team_id"):
         coerced = _coerce_int_values(values, attr=attr)
+    elif attr == "ad_id":
+        # Meta ad ids are long numeric strings stored in a text column. A
+        # caller that sends them as JSON numbers would otherwise compare an
+        # int against varchar and silently match nothing.
+        coerced = [str(v) for v in values]
     elif attr in _DATE_ATTRS:
         coerced = _coerce_date_values(values, attr=attr)
     else:  # pragma: no cover — guarded by allow-list above

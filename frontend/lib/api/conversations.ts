@@ -345,3 +345,18 @@ export function useSetLabels(accountId: string, displayId: number) {
     },
   });
 }
+
+/** An ad this account has received at least one conversation from.
+ *
+ *  There is no local table of ads — Meta owns them, and we only learn one
+ *  exists when an attributed conversation arrives. So this is the distinct
+ *  set seen so far, which is what the inbox filter offers as options. */
+export type KnownAd = { ad_id: string; headline: string };
+
+export function useKnownAds(accountId: string) {
+  return useQuery({
+    queryKey: ["known-ads", accountId],
+    queryFn: () => apiFetch<KnownAd[]>(`${base(accountId)}/ads`),
+    staleTime: 5 * 60_000, // changes only when a new campaign starts
+  });
+}

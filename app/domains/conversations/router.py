@@ -420,6 +420,41 @@ def _present_filter_or_search(result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+@router.get("/ads")
+async def known_ads(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    """``GET /conversations/ads`` — the ads this account has heard from.
+
+    There is no local table of ads: Meta owns them, and we only learn one
+    exists when a conversation arrives attributed to it. So the list is the
+    distinct set seen so far, newest first, which is what the inbox filter
+    offers as options.
+    """
+    assert ctx.account.id is not None
+    rows = (
+        await session.exec(
+            select(
+                Conversation.ad_id,
+                func.max(Conversation.ad_headline).label("headline"),
+                func.max(Conversation.id).label("last_seen"),
+            )
+            .where(
+                Conversation.account_id == ctx.account.id,
+                Conversation.ad_id.is_not(None),
+            )
+            .group_by(Conversation.ad_id)
+            .order_by(func.max(Conversation.id).desc())
+            .limit(100)
+        )
+    ).all()
+    return [
+        {"ad_id": ad_id, "headline": headline or ad_id}
+        for ad_id, headline, _last in rows
+    ]
+
+
 @router.get("/meta")
 async def meta_conversations(
     ctx: Annotated[AccountContext, Depends(account_context)],
