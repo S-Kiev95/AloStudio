@@ -54,8 +54,17 @@ from app.domains.users.models import AccountUser, User
 
 logging.disable(logging.CRITICAL)  # the app is chatty on import; this is a script
 
+
+def _arg(flag: str, default: str) -> str:
+    return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
+
+
 SEED_MARK = "seed-demo"
-ACCOUNT_ID = 2
+# The account differs per environment (dev seeds account 2, staging is 1), and
+# on an environment with real inboxes we reuse them instead of inventing
+# demo ones that would clutter the real Settings screens.
+ACCOUNT_ID = int(_arg("--account", "2"))
+REUSE_INBOXES = "--reuse-inboxes" in sys.argv
 RNG = random.Random(20260726)  # fixed seed → reproducible dataset
 
 AGENTS = [
@@ -233,29 +242,39 @@ async def main() -> None:
             await s.flush()
             return ib.id
 
-        inbox_ids = [
-            await ensure_inbox("WhatsApp Ventas", "Channel::Whatsapp",
-                               WhatsappChannel(account_id=ACCOUNT_ID,
-                                               phone_number="+5490000000001",
-                                               provider="whatsapp_cloud",
-                                               provider_config={})),
-            await ensure_inbox("Instagram @tienda", "Channel::Instagram",
-                               InstagramChannel(account_id=ACCOUNT_ID,
-                                                instagram_id="demo-ig-0001",
-                                                access_token="demo",
-                                                expires_at=datetime.now(UTC) + timedelta(days=60))),
-            await ensure_inbox("Chat del sitio", "Channel::WebWidget",
-                               WebWidget(account_id=ACCOUNT_ID,
-                                         website_url="https://tienda.demo",
-                                         website_token=uuid.uuid4().hex[:20],
-                                         hmac_token=uuid.uuid4().hex[:20])),
-        ]
         existing = (await s.exec(select(Inbox).where(Inbox.account_id == ACCOUNT_ID))).all()
-        api_ib = next((i.id for i in existing if i.channel_type == "Channel::Api"), None)
-        if api_ib:
-            inbox_ids.append(api_ib)
+        if REUSE_INBOXES:
+            # An environment with real channels connected: spread the synthetic
+            # history across those instead of adding demo inboxes to it.
+            inbox_ids = [i.id for i in existing]
+            if not inbox_ids:
+                print("!! --reuse-inboxes pero la cuenta no tiene bandejas")
+                return
+            print(f"  bandejas (reutilizadas): "
+                  f"{', '.join(repr(i.name) for i in existing)}")
+        else:
+            inbox_ids = [
+                await ensure_inbox("WhatsApp Ventas", "Channel::Whatsapp",
+                                   WhatsappChannel(account_id=ACCOUNT_ID,
+                                                   phone_number="+5490000000001",
+                                                   provider="whatsapp_cloud",
+                                                   provider_config={})),
+                await ensure_inbox("Instagram @tienda", "Channel::Instagram",
+                                   InstagramChannel(account_id=ACCOUNT_ID,
+                                                    instagram_id="demo-ig-0001",
+                                                    access_token="demo",
+                                                    expires_at=datetime.now(UTC) + timedelta(days=60))),
+                await ensure_inbox("Chat del sitio", "Channel::WebWidget",
+                                   WebWidget(account_id=ACCOUNT_ID,
+                                             website_url="https://tienda.demo",
+                                             website_token=uuid.uuid4().hex[:20],
+                                             hmac_token=uuid.uuid4().hex[:20])),
+            ]
+            api_ib = next((i.id for i in existing if i.channel_type == "Channel::Api"), None)
+            if api_ib:
+                inbox_ids.append(api_ib)
+            print(f"  bandejas: {len(inbox_ids)}")
         await s.commit()
-        print(f"  bandejas: {len(inbox_ids)}")
 
         # ---------- conversations over two 30-day windows ----------
         now = datetime.now(UTC)
@@ -276,7 +295,10 @@ async def main() -> None:
                     continue
 
                 display += 1
-                inbox_id = RNG.choices(inbox_ids, weights=[40, 25, 25, 10][:len(inbox_ids)])[0]
+                # Front-load the first inbox so the breakdown has a clear
+                # leader; works for any number of inboxes.
+                weights = [max(40 - 12 * i, 6) for i in range(len(inbox_ids))]
+                inbox_id = RNG.choices(inbox_ids, weights=weights)[0]
                 agent_id = RNG.choices(agent_ids, weights=[26, 22, 20, 18, 14])[0]
                 team_id = RNG.choice(team_ids)
 
