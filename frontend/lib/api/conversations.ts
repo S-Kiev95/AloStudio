@@ -48,6 +48,16 @@ export type ConversationMeta = {
   assignee?: { id: number; name: string } | null;
 };
 
+/** Which Meta ad this conversation came from — null unless the person
+ *  arrived through a click-to-WhatsApp / click-to-Messenger ad. */
+export type AdReferral = {
+  source: string | null;
+  ad_id: string | null;
+  headline: string | null;
+  click_id: string | null;
+  captured_at: number;
+};
+
 export type Conversation = {
   id: number; // display_id
   status: string;
@@ -61,6 +71,7 @@ export type Conversation = {
   timestamp: number;
   last_activity_at: number;
   created_at: number;
+  ad_referral?: AdReferral | null;
 };
 
 export type ConversationsIndex = {

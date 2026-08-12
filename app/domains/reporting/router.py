@@ -45,6 +45,7 @@ from app.domains.reporting.service import (
     previous_window,
 )
 from app.domains.reporting.summary_builders import (
+    build_ad_summary,
     build_agent_summary,
     build_inbox_summary,
     build_label_summary,
@@ -443,6 +444,24 @@ async def label_summary(
 ) -> list[dict[str, Any]]:
     args = await _entity_summary_args(ctx, since, until, business_hours)
     return await build_label_summary(session, **args)
+
+
+@summary_reports_router.get("/ad")
+async def ad_summary(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    since: str | None = Query(None),
+    until: str | None = Query(None),
+    business_hours: str | None = Query(None),
+) -> list[dict[str, Any]]:
+    """Conversations attributed to each Meta ad, busiest first.
+
+    Rows come from the attributed conversations themselves — there is no
+    local table of ads — so an account that never ran click-to-message ads
+    gets an empty list rather than an error.
+    """
+    args = await _entity_summary_args(ctx, since, until, business_hours)
+    return await build_ad_summary(session, **args)
 
 
 @summary_reports_router.get("/{scope}/export")

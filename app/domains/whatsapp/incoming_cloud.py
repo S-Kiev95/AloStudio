@@ -55,6 +55,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.contacts.service import ContactInboxBuilder
+from app.domains.conversations.ad_referral import (
+    parse_whatsapp_referral,
+    stamp_conversation,
+)
 from app.domains.conversations.models import (
     MESSAGE_STATUS_DELIVERED,
     MESSAGE_STATUS_FAILED,
@@ -465,6 +469,11 @@ async def _process_value(
         conversation = await _find_or_create_conversation(
             session, contact_inbox=contact_inbox
         )
+        # Ad attribution — present only when the person arrived from a
+        # click-to-WhatsApp ad. Stamped before the message is created so the
+        # conversation is already attributed when listeners fan out.
+        if stamp_conversation(conversation, parse_whatsapp_referral(msg)):
+            session.add(conversation)
 
         body = _message_text(msg)
         attachments, media_caption = await _build_media_attachments(

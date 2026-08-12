@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowLeft, CheckCircle2, RotateCcw } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Megaphone, RotateCcw } from "lucide-react";
 import Link from "next/link";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
+  type AdReferral,
   useConversation,
   useDeleteMessage,
   useMessages,
@@ -13,12 +14,37 @@ import {
 } from "@/lib/api/conversations";
 import { cn } from "@/lib/utils";
 
+import { ContactPanel } from "./contact-panel";
+import { ConversationActions } from "./conversation-actions";
+import { ConversationParticipants } from "./conversation-participants";
+import { MessageBubble } from "./message-bubble";
+import { MessageComposer } from "./message-composer";
+
 const STATUS_CHIP: Record<string, { label: string; tint: string }> = {
   open: { label: "Abierta", tint: "bg-info/10 text-info" },
   pending: { label: "Pendiente", tint: "bg-warning/10 text-warning" },
   resolved: { label: "Resuelta", tint: "bg-success/10 text-success" },
   snoozed: { label: "Pospuesta", tint: "bg-surface-2 text-fg-muted" },
 };
+
+/** Where this chat came from, when it started with an ad click.
+ *
+ *  Worth its own line rather than a tooltip: knowing the person arrived
+ *  through "20% OFF" tells the agent what was promised before they reply. */
+function AdOrigin({ referral }: { referral?: AdReferral | null }) {
+  if (!referral) return null;
+  const label = referral.headline?.trim() || `Anuncio ${referral.ad_id ?? ""}`;
+  return (
+    <p
+      className="mt-1 flex items-center gap-1.5 text-xs text-fg-muted"
+      title={referral.ad_id ? `ID del anuncio: ${referral.ad_id}` : undefined}
+    >
+      <Megaphone className="h-3 w-3 shrink-0 text-primary" aria-hidden />
+      <span className="shrink-0">Vino del anuncio</span>
+      <span className="truncate font-medium text-fg">{label}</span>
+    </p>
+  );
+}
 
 function StatusChip({ status }: { status: string }) {
   const s = STATUS_CHIP[status];
@@ -34,12 +60,6 @@ function StatusChip({ status }: { status: string }) {
     </span>
   );
 }
-
-import { ContactPanel } from "./contact-panel";
-import { ConversationActions } from "./conversation-actions";
-import { ConversationParticipants } from "./conversation-participants";
-import { MessageBubble } from "./message-bubble";
-import { MessageComposer } from "./message-composer";
 
 export function ConversationView({
   accountId,
@@ -87,6 +107,7 @@ export function ConversationView({
             {contactName}
           </h1>
           <p className="text-xs text-fg-muted">Conversación #{displayId}</p>
+          <AdOrigin referral={conv.data?.ad_referral} />
         </div>
         {status ? <StatusChip status={status} /> : null}
         <Button

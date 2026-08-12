@@ -92,6 +92,10 @@ export const SUMMARY_SCOPES = [
   { key: "team", label: "Equipos", entityLabel: "Equipo" },
   { key: "inbox", label: "Bandejas", entityLabel: "Bandeja" },
   { key: "label", label: "Etiquetas", entityLabel: "Etiqueta" },
+  // Attribution for click-to-WhatsApp / click-to-Messenger ads. Empty for
+  // accounts that don't advertise — the rows come from the conversations
+  // themselves, not from a table of ads we keep.
+  { key: "ad", label: "Anuncios", entityLabel: "Anuncio" },
 ] as const;
 
 export type SummaryScope = (typeof SUMMARY_SCOPES)[number]["key"];

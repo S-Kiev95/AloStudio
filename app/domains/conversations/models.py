@@ -365,6 +365,14 @@ class Conversation(TimestampMixin, table=True):
             "account_id",
         ),
         Index("index_conversations_on_inbox_id", "inbox_id"),
+        # Drives the "por anuncio" report breakdown, which groups by ad_id
+        # inside an account over a date window.
+        Index(
+            "index_conversations_on_account_ad_created",
+            "account_id",
+            "ad_id",
+            "created_at",
+        ),
         Index("index_conversations_on_priority", "priority"),
         Index(
             "index_conversations_on_status_and_account_id",
@@ -514,6 +522,35 @@ class Conversation(TimestampMixin, table=True):
         default=None, sa_column=Column(Text, nullable=True)
     )
     identifier: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+
+    # --- Ad attribution (Click-to-WhatsApp / click-to-Messenger) -----------
+    # Meta ships a ``referral`` block on the first inbound message when the
+    # person arrived from an ad. We denormalise the few fields reports group
+    # by into indexed columns, and keep the untouched block in
+    # ``ad_referral`` so a payload whose shape we did not anticipate is
+    # never lost — the raw copy is what we reconcile against.
+    #
+    # First touch wins: the ad that *started* the conversation keeps the
+    # credit; a later referral on the same thread is logged, not overwritten.
+    ad_source: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    ad_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    ad_headline: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+    # ``ctwa_clid`` — the click id Meta's Conversions API keys on, kept so
+    # conversion reporting back to Meta stays possible later.
+    ad_click_id: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    ad_referral: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
+    ad_captured_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
 
     # v2.8 AI takeover flag. When ``ai_mode`` is true, an external AI
     # agent has claimed this conversation and our own automation rules

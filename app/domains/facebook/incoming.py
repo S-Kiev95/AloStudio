@@ -37,10 +37,13 @@ ContactInbox + Conversation + Message rows. The payload shape:
     update the corresponding outbound message status — same as
     Chatwoot's ``Webhooks::FacebookDeliveryJob``.
   * Idempotent on Meta's ``mid`` via ``messages.source_id``.
+  * Ad attribution — a ``referral`` block (click-to-Messenger) is stamped
+    onto the conversation via :mod:`app.domains.conversations.ad_referral`.
+    Needs the ``messaging_referrals`` webhook field subscribed.
 
 Deferred to later phases:
   * Attachments — needs Phase 10 storage.
-  * Postback / quick_reply / get_started / referral events.
+  * Postback / quick_reply / get_started events.
   * Standby + handover protocol (multi-app routing).
   * Reactions.
 """
@@ -55,6 +58,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.contacts.service import ContactInboxBuilder
+from app.domains.conversations.ad_referral import (
+    parse_messenger_referral,
+    stamp_conversation,
+)
 from app.domains.conversations.models import (
     MESSAGE_STATUS_DELIVERED,
     MESSAGE_STATUS_READ,
@@ -345,6 +352,12 @@ async def _process_message_event(
     conversation = await _find_or_create_conversation(
         session, contact_inbox=contact_inbox
     )
+    # Ad attribution — only on genuine inbound; an echo is our own outgoing
+    # message coming back and never carries a referral.
+    if not is_echo and stamp_conversation(
+        conversation, parse_messenger_referral(event)
+    ):
+        session.add(conversation)
 
     body = str(message_block.get("text") or "")
     message_type = "outgoing" if is_echo else "incoming"

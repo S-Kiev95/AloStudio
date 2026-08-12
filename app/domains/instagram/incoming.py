@@ -67,6 +67,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.contacts.service import ContactInboxBuilder
+from app.domains.conversations.ad_referral import (
+    parse_messenger_referral,
+    stamp_conversation,
+)
 from app.domains.conversations.models import (
     MESSAGE_STATUS_READ,
     Conversation,
@@ -491,6 +495,12 @@ async def _process_message_event(
     conversation = await _find_or_create_conversation(
         session, contact_inbox=contact_inbox
     )
+    # Ad attribution — only on genuine inbound; an echo is our own outgoing
+    # message coming back and never carries a referral.
+    if not is_echo and stamp_conversation(
+        conversation, parse_messenger_referral(event)
+    ):
+        session.add(conversation)
 
     message_type = "outgoing" if is_echo else "incoming"
 

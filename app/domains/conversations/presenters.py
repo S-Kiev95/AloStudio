@@ -517,8 +517,29 @@ def present_conversation(conv: Conversation) -> dict[str, Any]:
         "priority": conversation_priority_to_str(conv.priority),
         "waiting_since": _unix_or_zero(conv.waiting_since),
         "sla_policy_id": conv.sla_policy_id,
+        # AloStudio extension (no Chatwoot equivalent): which Meta ad this
+        # conversation came from, or null. Additive, so a Chatwoot client
+        # that ignores unknown keys is unaffected.
+        "ad_referral": _present_ad_referral(conv),
     }
     return body
+
+
+def _present_ad_referral(conv: Conversation) -> dict[str, Any] | None:
+    """The ad attribution block, or ``None`` when the chat wasn't from an ad.
+
+    ``null`` rather than an empty object so the UI can branch on presence
+    without inspecting the fields.
+    """
+    if not (conv.ad_id or conv.ad_source):
+        return None
+    return {
+        "source": conv.ad_source,
+        "ad_id": conv.ad_id,
+        "headline": conv.ad_headline,
+        "click_id": conv.ad_click_id,
+        "captured_at": _unix_or_zero(conv.ad_captured_at),
+    }
 
 
 def _is_muted(conv: Conversation) -> bool:

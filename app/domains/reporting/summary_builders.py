@@ -362,6 +362,85 @@ async def build_inbox_summary(
 
 
 # ---------------------------------------------------------------------------
+# Ad (click-to-WhatsApp / click-to-Messenger attribution)
+# ---------------------------------------------------------------------------
+async def build_ad_summary(
+    session: AsyncSession,
+    *,
+    account_id: int,
+    since: datetime | None,
+    until: datetime | None,
+    business_hours: bool = False,
+) -> list[dict[str, Any]]:
+    """Per-ad breakdown of attributed conversations.
+
+    Unlike the other axes there is no table of ads to iterate — Meta owns
+    that — so the rows come from the attributed conversations themselves,
+    and the human label is the headline captured with the referral.
+    """
+    conv_counts = await _conversation_counts_by(
+        session,
+        group_col=Conversation.ad_id,
+        account_id=account_id,
+        since=since,
+        until=until,
+    )
+    conv_counts.pop(None, None)  # unattributed conversations aren't an ad
+    if not conv_counts:
+        return []
+
+    # The ad isn't stamped on ReportingEvent, so reach it through the
+    # conversation — same shape the team breakdown uses.
+    def join(stmt):
+        return stmt.join(
+            Conversation,
+            Conversation.id == ReportingEvent.conversation_id,
+        )
+
+    resolved, avg_res, avg_fr, avg_rt = await _reporting_metrics_by(
+        session,
+        group_col=Conversation.ad_id,
+        account_id=account_id,
+        since=since,
+        until=until,
+        business_hours=business_hours,
+        extra_filter=join,
+    )
+
+    # One headline per ad — the most recent wins, since an ad's creative can
+    # be edited and the latest capture is the closest to what's running now.
+    labels = dict(
+        (
+            await session.exec(
+                select(Conversation.ad_id, Conversation.ad_headline)
+                .where(
+                    Conversation.account_id == account_id,
+                    Conversation.ad_id.in_(list(conv_counts)),
+                    Conversation.ad_headline.is_not(None),
+                )
+                .order_by(Conversation.id.asc())
+            )
+        ).all()
+    )
+
+    out = [
+        {
+            "id": ad_id,
+            "name": labels.get(ad_id) or ad_id,
+            "conversations_count": count,
+            "resolved_conversations_count": resolved.get(ad_id, 0),
+            "avg_resolution_time": avg_res.get(ad_id, 0.0),
+            "avg_first_response_time": avg_fr.get(ad_id, 0.0),
+            "avg_reply_time": avg_rt.get(ad_id, 0.0),
+        }
+        for ad_id, count in conv_counts.items()
+    ]
+    # Busiest ad first — the reader wants the winner, not an id ordering.
+    out.sort(key=lambda r: r["conversations_count"], reverse=True)
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Label
 # ---------------------------------------------------------------------------
 async def build_label_summary(
@@ -438,6 +517,7 @@ _ = (User,)
 
 
 __all__ = [
+    "build_ad_summary",
     "build_agent_summary",
     "build_inbox_summary",
     "build_label_summary",

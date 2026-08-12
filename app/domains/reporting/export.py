@@ -17,6 +17,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.reporting.summary_builders import (
+    build_ad_summary,
     build_agent_summary,
     build_inbox_summary,
     build_label_summary,
@@ -24,13 +25,14 @@ from app.domains.reporting.summary_builders import (
 )
 from app.domains.users.models import User
 
-EXPORT_SCOPES: tuple[str, ...] = ("agent", "team", "inbox", "label")
+EXPORT_SCOPES: tuple[str, ...] = ("agent", "team", "inbox", "label", "ad")
 
 _BUILDERS = {
     "agent": build_agent_summary,
     "team": build_team_summary,
     "inbox": build_inbox_summary,
     "label": build_label_summary,
+    "ad": build_ad_summary,
 }
 
 _HEADERS = [
