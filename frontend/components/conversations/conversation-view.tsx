@@ -27,20 +27,26 @@ const STATUS_CHIP: Record<string, { label: string; tint: string }> = {
   snoozed: { label: "Pospuesta", tint: "bg-surface-2 text-fg-muted" },
 };
 
-/** Where this chat came from, when it started with an ad click.
+/** Where this chat came from, when it started with an ad or a ref link.
  *
  *  Worth its own line rather than a tooltip: knowing the person arrived
- *  through "20% OFF" tells the agent what was promised before they reply. */
+ *  through "20% OFF" tells the agent what was promised before they reply.
+ *
+ *  The wording stays "Vino de" rather than "Vino del anuncio" because the
+ *  same referral block also covers ig.me / m.me links, where calling the
+ *  origin an ad would be wrong. */
 function AdOrigin({ referral }: { referral?: AdReferral | null }) {
   if (!referral) return null;
-  const label = referral.headline?.trim() || `Anuncio ${referral.ad_id ?? ""}`;
+  const label =
+    referral.headline?.trim() ||
+    (referral.ad_id ? `Anuncio ${referral.ad_id}` : "un enlace");
   return (
     <p
       className="mt-1 flex items-center gap-1.5 text-xs text-fg-muted"
       title={referral.ad_id ? `ID del anuncio: ${referral.ad_id}` : undefined}
     >
       <Megaphone className="h-3 w-3 shrink-0 text-primary" aria-hidden />
-      <span className="shrink-0">Vino del anuncio</span>
+      <span className="shrink-0">Vino de</span>
       <span className="truncate font-medium text-fg">{label}</span>
     </p>
   );
