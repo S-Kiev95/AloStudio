@@ -85,6 +85,19 @@ FIRST = ["Lucía", "Martín", "Sofía", "Joaquín", "Valentina", "Mateo", "Camil
 LAST = ["González", "Pérez", "Silva", "Romero", "Díaz", "Castro", "Ortiz",
         "Núñez", "Ramos", "Herrera", "Molina", "Acosta"]
 
+# A handful of ads, weighted so one is clearly the winner — that is what a
+# real account looks like, and a flat distribution makes the report useless
+# for judging whether the breakdown actually ranks anything.
+ADS = [
+    ("120210000000000111", "20% OFF en toda la tienda", 42),
+    ("120210000000000222", "Envío gratis en tu primera compra", 28),
+    ("120210000000000333", "Nueva colección primavera", 18),
+    ("120210000000000444", "3 cuotas sin interés", 12),
+]
+# Share of conversations that arrive from an ad. Most traffic is organic;
+# attributing everything would misrepresent what the report means.
+AD_SHARE = 0.32
+
 ASKS = [
     "Hola, ¿hacen envíos al interior?",
     "Buenas, quería saber el precio del pack grande.",
@@ -345,6 +358,34 @@ async def main() -> None:
                     last_activity_at=last_act,
                     created_at=opened, updated_at=last_act,
                 )
+                # Ad attribution on a slice of the traffic. The stored raw
+                # block mirrors the shape the real channel would deliver —
+                # WhatsApp sends source_type/source_id/ctwa_clid, Messenger
+                # and Instagram send source/ad_id/ads_context_data — so the
+                # demo data exercises the same two paths the parser handles.
+                if RNG.random() < AD_SHARE:
+                    ad_id, headline, _w = RNG.choices(
+                        ADS, weights=[a[2] for a in ADS]
+                    )[0]
+                    is_whatsapp = inbox_id == inbox_ids[0]
+                    conv.ad_source = "ad"
+                    conv.ad_id = ad_id
+                    conv.ad_headline = headline
+                    if is_whatsapp:
+                        conv.ad_click_id = f"ARaBcD{RNG.randrange(10**9):09d}"
+                        conv.ad_referral = {
+                            "source_type": "ad", "source_id": ad_id,
+                            "headline": headline, "ctwa_clid": conv.ad_click_id,
+                        }
+                    else:
+                        conv.ad_referral = {
+                            "source": "ADS", "type": "OPEN_THREAD",
+                            "ad_id": ad_id,
+                            "ads_context_data": {"ad_title": headline},
+                        }
+                    # The referral rides in with the first message.
+                    conv.ad_captured_at = opened
+
                 s.add(conv)
                 await s.flush()
 
