@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Megaphone, Search, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -532,6 +532,21 @@ function ConversationRow({
               <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-fg tabular-nums shadow-glow">
                 {conv.unread_count}
               </span>
+            ) : null}
+            {conv.ad_referral ? (
+              // Origin marker: lets you scan the column for the conversations
+              // an ad paid for. The headline rides in the tooltip so the row
+              // stays two lines.
+              <Megaphone
+                className="h-3.5 w-3.5 shrink-0 text-primary"
+                aria-label={`Vino de ${
+                  conv.ad_referral.headline ?? "un anuncio"
+                }`}
+              >
+                <title>
+                  {`Vino de ${conv.ad_referral.headline ?? "un anuncio"}`}
+                </title>
+              </Megaphone>
             ) : null}
           </div>
           <p

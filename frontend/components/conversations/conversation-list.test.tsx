@@ -80,6 +80,45 @@ describe("ConversationList", () => {
     expect(await screen.findByText("2")).toBeInTheDocument();
   });
 
+  it("marks rows that came from an ad, and leaves the others unmarked", async () => {
+    server.use(
+      http.get("*/conversations", () =>
+        HttpResponse.json({
+          data: {
+            meta: {
+              mine_count: 2,
+              assigned_count: 2,
+              unassigned_count: 0,
+              all_count: 2,
+            },
+            payload: [
+              {
+                ...conversation,
+                id: 43,
+                meta: { sender: { id: 2, name: "Bruno" }, channel: "api" },
+                ad_referral: {
+                  source: "ad",
+                  ad_id: "120210000000000111",
+                  headline: "20% OFF en toda la tienda",
+                  click_id: null,
+                  captured_at: 1_700_000_000,
+                },
+              },
+              conversation, // organic — no referral
+            ],
+          },
+        }),
+      ),
+    );
+    renderWithQuery(<ConversationList accountId="1" />);
+
+    expect(await screen.findByText("Bruno")).toBeInTheDocument();
+    // Exactly one marker: the organic row must not get one.
+    const marks = screen.getAllByLabelText(/^Vino de/);
+    expect(marks).toHaveLength(1);
+    expect(marks[0]).toHaveAccessibleName("Vino de 20% OFF en toda la tienda");
+  });
+
   it("bulk-assigns selected conversations to an agent", async () => {
     let assignBody: unknown = null;
     server.use(
