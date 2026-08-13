@@ -48,6 +48,9 @@ from app.domains.custom_views.router import router as custom_views_router
 from app.domains.facebook.router import router as facebook_webhook_router
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
+from app.domains.instagram.autoreply_router import (
+    router as instagram_autoreply_router,
+)
 from app.domains.instagram.comments_router import router as instagram_comments_router
 from app.domains.instagram.connect_router import (
     callback_router as instagram_oauth_callback_router,
@@ -256,6 +259,8 @@ def create_app() -> FastAPI:
     # Instagram comment moderation (feat/instagram-graph I.7). admin-only.
     # List/post/reply/hide/delete comments on owned media.
     app.include_router(instagram_comments_router)
+    # Comment auto-reply config + prepared-answer library. admin-only.
+    app.include_router(instagram_autoreply_router)
     # Instagram connection (feat/instagram-graph I.10). admin-only.
     # Manual/advanced connect (paste token) + channel capability view +
     # OAuth start. The OAuth callback is account-less (state-authed).

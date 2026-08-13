@@ -14,6 +14,11 @@ export function InstagramTabs({ accountId }: { accountId: string }) {
       label: "Publicaciones",
       exact: false,
     },
+    {
+      href: `/accounts/${accountId}/instagram/autoreply`,
+      label: "Respuestas automáticas",
+      exact: false,
+    },
   ];
   return (
     <div className="mb-6 flex gap-1 border-b border-border">
