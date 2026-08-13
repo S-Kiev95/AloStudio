@@ -170,6 +170,20 @@ INTEGRATION_APPS: tuple[IntegrationApp, ...] = (
         hook_type="account",
     ),
     IntegrationApp(
+        id="meta_ads",
+        name="Meta Ads",
+        description=(
+            "Pull spend and delivery for the ads that bring conversations in, "
+            "so the ad report can show cost per conversation."
+        ),
+        short_description="Ad spend + cost per result",
+        # An inline settings form, not OAuth: the ad account id and a token
+        # are pasted in by an admin. Read-only access (``ads_read``) is
+        # enough — we never create or edit campaigns.
+        action="/meta_ads",
+        hook_type="account",
+    ),
+    IntegrationApp(
         id="linear",
         name="Linear",
         description="Link conversations to Linear issues.",

@@ -12,10 +12,19 @@ import logging
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.ads.client import InsightsResult, fetch_ad_insights
 from app.domains.ads.models import AdInsight
+from app.domains.integrations.models import (
+    HOOK_STATUS_ENABLED,
+    IntegrationsHook,
+)
+
+# Must match the ``IntegrationApp`` id in the integrations registry — the
+# hook the admin creates from the Integrations tab is looked up by it.
+META_ADS_APP_ID = "meta_ads"
 
 log = logging.getLogger(__name__)
 
@@ -115,4 +124,82 @@ async def sync_ad_insights(
     return written
 
 
-__all__ = ["DEFAULT_LOOKBACK_DAYS", "store_insights", "sync_ad_insights"]
+def _credential_of(hook: IntegrationsHook) -> tuple[str, str] | None:
+    """``(ad_account_id, access_token)`` from a meta_ads hook, or None.
+
+    The ad account id may be stored either on ``reference_id`` (which is
+    what the generic hook API fills) or inside ``settings``, so both are
+    accepted rather than forcing the admin to know which one the form used.
+    """
+    settings = hook.settings or {}
+    ad_account = (
+        hook.reference_id
+        or settings.get("ad_account_id")
+        or settings.get("account_id")
+    )
+    token = hook.access_token or settings.get("access_token")
+    if not ad_account or not token:
+        return None
+    return str(ad_account), str(token)
+
+
+async def sync_all_connected_accounts(
+    session: AsyncSession,
+    *,
+    lookback_days: int = DEFAULT_LOOKBACK_DAYS,
+) -> int:
+    """Sync every account with a connected, enabled meta_ads hook.
+
+    Returns the total rows written. One account's failure never stops the
+    others — a revoked token on one tenant must not blank another's report.
+    """
+    hooks = (
+        await session.exec(
+            select(IntegrationsHook).where(
+                IntegrationsHook.app_id == META_ADS_APP_ID,
+                IntegrationsHook.status == HOOK_STATUS_ENABLED,
+            )
+        )
+    ).all()
+    if not hooks:
+        return 0
+
+    today = datetime.now(UTC).date()
+    since = today - timedelta(days=lookback_days)
+    total = 0
+    for hook in hooks:
+        credential = _credential_of(hook)
+        if credential is None or hook.account_id is None:
+            log.info(
+                "ads.sync.hook_incomplete hook_id=%s — needs an ad account id "
+                "and a token",
+                hook.id,
+            )
+            continue
+        ad_account, token = credential
+        try:
+            total += await sync_ad_insights(
+                session,
+                account_id=hook.account_id,
+                ad_account_id=ad_account,
+                access_token=token,
+                since=since,
+                until=today,
+            )
+            await session.commit()
+        except Exception:
+            # One tenant must not sink the rest: a revoked token on one
+            # account cannot be allowed to blank another account's report.
+            await session.rollback()
+            log.exception(
+                "ads.sync.account_failed account_id=%s", hook.account_id
+            )
+    return total
+
+
+__all__ = [
+    "DEFAULT_LOOKBACK_DAYS",
+    "store_insights",
+    "sync_ad_insights",
+    "sync_all_connected_accounts",
+]

@@ -244,6 +244,31 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
     }
 
 
+async def sync_ad_insights_task(ctx: dict[str, Any]) -> dict[str, int]:
+    """Refresh cached Meta ad spend for every connected account, hourly.
+
+    Imported late for the same reason the Instagram tasks are: pulling the
+    ads domain in at module import would drag the integrations models into
+    every process that merely imports the scheduler.
+
+    A no-op when nobody has connected the integration, which is the normal
+    state — the task exists so the figures are fresh once someone does.
+    """
+    from app.domains.ads.service import sync_all_connected_accounts
+
+    engine = _engine_from_ctx(ctx)
+    sessionmaker = async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+    async with sessionmaker() as session:
+        rows = await sync_all_connected_accounts(session)
+    log.info("scheduler.ads_sync.done rows=%s", rows)
+    return {"ad_insight_rows": rows}
+
+
 def _engine_from_ctx(ctx: dict[str, Any]) -> AsyncEngine:
     engine = ctx.get("engine")
     if engine is None:
@@ -339,7 +364,12 @@ class WorkerSettings:
             cron(
                 tick_5min,
                 minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
-            )
+            ),
+            # Ad spend hourly, not on the 5-minute tick: Meta rate-limits
+            # insights per ad account, and figures move slowly enough that
+            # more often would burn quota for nothing. Offset off the hour
+            # so it never contends with the :00 tick.
+            cron(sync_ad_insights_task, minute={17}),
         ]
 
 
@@ -347,5 +377,6 @@ __all__ = [
     "WorkerSettings",
     "fire_due_oneoff_campaigns",
     "reopen_snoozed_conversations",
+    "sync_ad_insights_task",
     "tick_5min",
 ]
