@@ -41,6 +41,7 @@ from sqlalchemy import (
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.domains.ads.models import AdInsight
 from app.domains.conversations.models import (
     Conversation,
     ConversationLabel,
@@ -364,6 +365,51 @@ async def build_inbox_summary(
 # ---------------------------------------------------------------------------
 # Ad (click-to-WhatsApp / click-to-Messenger attribution)
 # ---------------------------------------------------------------------------
+async def _ad_spend_by_id(
+    session: AsyncSession,
+    *,
+    account_id: int,
+    ad_ids: list[str],
+    since: datetime | None,
+    until: datetime | None,
+) -> dict[str, tuple[float, str | None, int, int]]:
+    """Sum cached spend per ad over the report window.
+
+    Returns ``{ad_id: (spend, currency, impressions, clicks)}``, empty when
+    the Marketing API was never connected — cost columns are then omitted
+    rather than shown as zero, since "no data" and "spent nothing" are very
+    different claims to put in front of someone.
+
+    Insights are stored per day, so the window is applied on the date column
+    and lines up with the conversation counts computed over the same range.
+    """
+    if not ad_ids:
+        return {}
+    stmt = (
+        select(
+            AdInsight.ad_id,
+            sa_func.sum(AdInsight.spend).label("spend"),
+            sa_func.max(AdInsight.currency).label("currency"),
+            sa_func.sum(AdInsight.impressions).label("impressions"),
+            sa_func.sum(AdInsight.clicks).label("clicks"),
+        )
+        .where(
+            AdInsight.account_id == account_id,
+            AdInsight.ad_id.in_(ad_ids),
+        )
+        .group_by(AdInsight.ad_id)
+    )
+    if since is not None:
+        stmt = stmt.where(AdInsight.date >= since.date())
+    if until is not None:
+        stmt = stmt.where(AdInsight.date <= until.date())
+
+    return {
+        ad_id: (float(spend or 0), currency, int(impr or 0), int(clicks or 0))
+        for ad_id, spend, currency, impr, clicks in (await session.exec(stmt)).all()
+    }
+
+
 async def build_ad_summary(
     session: AsyncSession,
     *,
@@ -423,18 +469,43 @@ async def build_ad_summary(
         ).all()
     )
 
-    out = [
-        {
+    spend = await _ad_spend_by_id(
+        session,
+        account_id=account_id,
+        ad_ids=list(conv_counts),
+        since=since,
+        until=until,
+    )
+
+    out = []
+    for ad_id, count in conv_counts.items():
+        money = spend.get(ad_id)
+        resolved_n = resolved.get(ad_id, 0)
+        row: dict[str, Any] = {
             "id": ad_id,
             "name": labels.get(ad_id) or ad_id,
             "conversations_count": count,
-            "resolved_conversations_count": resolved.get(ad_id, 0),
+            "resolved_conversations_count": resolved_n,
             "avg_resolution_time": avg_res.get(ad_id, 0.0),
             "avg_first_response_time": avg_fr.get(ad_id, 0.0),
             "avg_reply_time": avg_rt.get(ad_id, 0.0),
         }
-        for ad_id, count in conv_counts.items()
-    ]
+        if money is not None:
+            # Cost figures only exist once spend has been synced; an account
+            # without the Marketing API connected gets the same rows it got
+            # before, with no null columns to explain in the UI.
+            total, currency, impressions, clicks = money
+            row["spend"] = round(total, 2)
+            row["currency"] = currency
+            row["impressions"] = impressions
+            row["clicks"] = clicks
+            row["cost_per_conversation"] = (
+                round(total / count, 2) if count else None
+            )
+            row["cost_per_resolution"] = (
+                round(total / resolved_n, 2) if resolved_n else None
+            )
+        out.append(row)
     # Busiest ad first — the reader wants the winner, not an id ordering.
     out.sort(key=lambda r: r["conversations_count"], reverse=True)
     return out

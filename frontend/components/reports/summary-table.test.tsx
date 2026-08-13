@@ -71,4 +71,61 @@ describe("SummaryTable", () => {
     expect(rows[1]).toHaveTextContent("Sofía Agente");
     expect(rows[1]).toHaveTextContent("25");
   });
+
+  it("hides the spend columns until Marketing API figures exist", async () => {
+    // The agent scope never carries spend, so the money headers must be absent
+    // entirely — a column of zeros would read as "this cost nothing".
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SummaryTable
+          accountId="1"
+          scope="agent"
+          range={{ since: 0, until: 100 }}
+        />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("Demo Admin")).toBeInTheDocument();
+    expect(screen.queryByText("Inversión")).not.toBeInTheDocument();
+    expect(screen.queryByText("Costo / conv.")).not.toBeInTheDocument();
+  });
+
+  it("shows spend and cost per conversation once an ad has figures", async () => {
+    server.use(
+      http.get("*/summary_reports/ad", () =>
+        HttpResponse.json([
+          {
+            id: "120210000000000111",
+            name: "20% OFF en toda la tienda",
+            conversations_count: 20,
+            resolved_conversations_count: 10,
+            avg_resolution_time: 3600,
+            avg_first_response_time: 60,
+            avg_reply_time: 120,
+            spend: 5000,
+            currency: "ARS",
+            impressions: 12000,
+            clicks: 300,
+            cost_per_conversation: 250,
+            cost_per_resolution: 500,
+          },
+        ]),
+      ),
+    );
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SummaryTable
+          accountId="1"
+          scope="ad"
+          range={{ since: 0, until: 100 }}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByText("20% OFF en toda la tienda"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Inversión")).toBeInTheDocument();
+    expect(screen.getByText("5.000,00 ARS")).toBeInTheDocument();
+    expect(screen.getByText("250,00 ARS")).toBeInTheDocument();
+  });
 });

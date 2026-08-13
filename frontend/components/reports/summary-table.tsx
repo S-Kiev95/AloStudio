@@ -25,6 +25,24 @@ const COLUMNS = [
   { key: "avg_reply_time", label: "Respuesta (prom.)", kind: "duration" },
 ] as const;
 
+/** Spend columns, appended only for ads whose figures have been synced. */
+const MONEY_COLUMNS = [
+  { key: "spend", label: "Inversión" },
+  { key: "cost_per_conversation", label: "Costo / conv." },
+  { key: "cost_per_resolution", label: "Costo / resuelta" },
+] as const;
+
+function money(value: number | null | undefined, currency?: string | null) {
+  // A null cost is a real state — spend exists but nothing was resolved yet,
+  // so there is no per-result figure to divide into.
+  if (value == null) return "—";
+  const n = value.toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return currency ? `${n} ${currency}` : n;
+}
+
 export function SummaryTable({
   accountId,
   scope,
@@ -80,6 +98,11 @@ export function SummaryTable({
   const nameOf = (r: SummaryRow) =>
     r.name ?? agentNames.get(r.id) ?? `#${r.id}`;
 
+  // Absent spend means the Marketing API was never connected, which is not
+  // the same as having spent nothing — so the columns disappear entirely
+  // rather than showing a column of zeros that reads as "this ad was free".
+  const hasSpend = rows.some((r) => r.spend != null);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -96,6 +119,16 @@ export function SummaryTable({
                 {c.label}
               </th>
             ))}
+            {hasSpend
+              ? MONEY_COLUMNS.map((c) => (
+                  <th
+                    key={c.key}
+                    className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wide text-primary"
+                  >
+                    {c.label}
+                  </th>
+                ))
+              : null}
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -122,6 +155,16 @@ export function SummaryTable({
                   </td>
                 );
               })}
+              {hasSpend
+                ? MONEY_COLUMNS.map((c) => (
+                    <td
+                      key={c.key}
+                      className="px-3 py-2 text-right font-numeric tabular-nums text-fg"
+                    >
+                      {money(row[c.key], row.currency)}
+                    </td>
+                  ))
+                : null}
             </tr>
           ))}
         </tbody>

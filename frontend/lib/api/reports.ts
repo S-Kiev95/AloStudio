@@ -113,6 +113,15 @@ export type SummaryRow = {
   avg_resolution_time: number; // seconds
   avg_first_response_time: number; // seconds
   avg_reply_time: number; // seconds
+  // Only on the "ad" scope, and only once Marketing API spend has been
+  // synced — absent means "not connected", which is a different claim from
+  // "spent nothing", so the columns are hidden rather than zeroed.
+  spend?: number;
+  currency?: string | null;
+  impressions?: number;
+  clicks?: number;
+  cost_per_conversation?: number | null;
+  cost_per_resolution?: number | null;
 };
 
 /**
