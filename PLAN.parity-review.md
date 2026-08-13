@@ -267,6 +267,35 @@ Things we ship that Chatwoot OSS doesn't:
 * **Public Help Center as Next.js ISR** — same `/hc/<slug>` URL space
   as Chatwoot but server-rendered with `revalidate=300`, ~176 B client
   JS per article, robots.txt allow-list. Chatwoot ships Rails HTML.
+* **Meta Ads attribution** — Chatwoot has *no* referral handling at all
+  (grepped: zero mentions). When someone taps a click-to-WhatsApp or
+  click-to-Messenger ad, Meta attaches a `referral` block to the first
+  inbound message; we capture it in all three inbound processors
+  (`conversations/ad_referral.py`), stamp it on the conversation, and
+  surface it four ways: a megaphone in the inbox list, a "Vino de …"
+  line in the chat header, an **Anuncios** breakdown in Reportes
+  (exportable), and an `ad_id` filter attribute with saved views.
+  - *First touch wins.* Conversations are reused across inbound messages
+    and reopened on resolve, so a later ad click is logged rather than
+    rewriting how the customer originally arrived.
+  - *The untouched referral is stored* next to the parsed columns. Meta's
+    public reference for the WhatsApp variant was mid-reorganisation, so
+    reconciling against a real payload is a read of stored data rather
+    than a re-capture.
+* **Cost per conversation** (`app/domains/ads`) — Marketing API insights
+  cached per ad **per day**, joined to the attribution above. Spend only
+  lines up with a conversation count when both are summed over the same
+  days, which a lifetime total could not do. The sync upserts on
+  `(account, ad, date)` because Meta restates recent days as attribution
+  settles; inserting blindly would double every re-read day. Connected
+  from Settings → Integrations (inline form, `ads_read` only — we never
+  create or edit campaigns), refreshed hourly at `:17`.
+  - Cost columns are **omitted** when nothing has been synced rather than
+    shown as zero: "not connected" and "spent nothing" are different
+    claims.
+  - ⏸ Unverified against live data — the dev Meta account has no ad
+    spend, so shapes come from Meta's documented insights response and
+    the tests mock them with respx, as the other provider clients here do.
 
 ---
 
@@ -289,6 +318,25 @@ These aren't gaps — they're explicit divergences from Chatwoot.
   ActionCable's JavaScript client; we hand-rolled a tiny ActionCable
   protocol implementation (`lib/realtime/cable.ts`). Lighter weight,
   ~3 kB.
+* **Two Instagram connection flows, and they are not equivalent.** Both
+  are implemented (`/connect/start` for Facebook Login,
+  `/connect/start_instagram` for Instagram Login) and `login_type` on
+  `instagram_channel_settings` selects the Graph host per channel. The
+  differences are Meta's, not ours:
+
+  | | FB Page needed | DMs | Publish | Comments | Delete media |
+  |---|---|---|---|---|---|
+  | **Facebook Login** | yes | ✅ | ✅ | ✅ | ✅ |
+  | **Instagram Login** | no | ⚠️ see below | ✅ | ✅ | ❌ |
+
+  **Instagram Login delivers content-less DM events.** Inbound messages
+  arrive as `message_edit` notifications carrying no text, so a
+  conversation cannot be reconstructed from them. This was hit live and
+  is why the working setup uses the Facebook-Page flow; it is a Meta API
+  behaviour we cannot work around from our side. Instagram Login remains
+  viable for accounts that only publish and moderate comments and never
+  need DMs. Worth stating explicitly because the two options look
+  interchangeable in Meta's dashboard and are not.
 
 ---
 
@@ -308,6 +356,28 @@ gated on an external credential or a backend port.
 1. **Integrations OAuth callback.** Per-vendor `code → token` exchange +
    hook creation (Slack, Linear, Shopify). The Connect *start* is wired;
    the return leg needs registered provider apps + secrets. Per vendor.
+
+**Built but unverified against live data** (code is complete and deployed;
+what is missing is traffic, not work):
+
+2. **Meta Ads attribution.** Both channels are subscribed —
+   WhatsApp carries `referral` inside the `messages` field it already
+   had, and Instagram's `messaging_referral` was found already ticked.
+   Exercised end-to-end on staging with a simulated payload against the
+   real IG account. What is missing is a real campaign: the dev Meta
+   account is unverified and has no payment method. Cheapest real test is
+   an `ig.me/m/<user>?ref=…` link, which emits the same webhook for free
+   (note ig.me reports `SHORTLINKS` where m.me reports `SHORTLINK` —
+   both fold to one value).
+3. **Meta Ads spend / cost per conversation.** Client, daily cache,
+   hourly sync and report columns are done; needs an ad account with
+   spend, plus App Review for `ads_read`.
+
+**Blocked on a Meta review:**
+
+4. **Instagram messaging outside the tester list.** Works today with
+   accounts on the app's tester roster; production messaging needs App
+   Review. A trámite, not development.
 
 (Shipped recently: **WhatsApp campaign `template_params`** — the campaign
 form's template picker + `/whatsapp/templates` sync endpoint, verified live
@@ -369,6 +439,17 @@ were provided.) The indefinitely-deferred set (Captain AI, enterprise
 audit/roles/SSO, SaaS billing) is unchanged — except semantic Help-Center
 search, which we ported despite its enterprise origins.
 
+**Since then, the product has moved past parity rather than toward it.**
+The Meta Ads work (§10) has no Chatwoot equivalent at all: attribution
+answers *which ad brought this customer*, and the spend cache answers
+*what that ad cost*. Both are built and deployed; neither has met real ad
+traffic yet, because that is gated on a verified Meta account with a
+payment method rather than on any remaining work. Distinguishing those two
+kinds of "not done" is the point of §12 — one needs engineering, the other
+needs a card.
+
 **Net result:** an end user moving from Chatwoot finds every common **and**
 most power-user features where they expect them; the remaining gaps are at
-the enterprise / external-credential / not-yet-ported-backend edge.
+the enterprise / external-credential / not-yet-ported-backend edge — and
+they now also get a question Chatwoot cannot answer at all, which ad is
+paying for itself.
