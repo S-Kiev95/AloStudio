@@ -57,7 +57,12 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
   const update = useUpdateAutoreplyConfig(accountId, channelId);
   const [error, setError] = useState<string | null>(null);
 
-  const mode = config.data?.mode ?? "off";
+  // The selection is local until it is savable. Picking "fixed" has to
+  // reveal the message field *before* the save, otherwise the API's
+  // "fixed needs a text" rejection is unreachable — you would have to save
+  // the mode to get the field that makes the mode saveable.
+  const [pending, setPending] = useState<AutoreplyMode | null>(null);
+  const mode = pending ?? config.data?.mode ?? "off";
   const [text, setText] = useState("");
   useEffect(() => {
     setText(config.data?.text ?? "");
@@ -128,7 +133,18 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
                   type="button"
                   disabled={disabled || update.isPending}
                   aria-pressed={active}
-                  onClick={() => save({ mode: m.value })}
+                  onClick={() => {
+                    setError(null);
+                    // Fixed mode needs a message the API will not accept as
+                    // blank, so select it locally and let the save below
+                    // send mode + text together.
+                    if (m.value === "fixed" && !text.trim()) {
+                      setPending("fixed");
+                      return;
+                    }
+                    setPending(null);
+                    void save({ mode: m.value });
+                  }}
                   className={cn(
                     "rounded-lg border p-3 text-left transition-colors",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -170,9 +186,13 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
                 size="sm"
                 loading={update.isPending}
                 disabled={!text.trim()}
-                onClick={() => save({ text })}
+                onClick={async () => {
+                  // Send both so the very first activation is one step.
+                  await save({ mode: "fixed", text });
+                  setPending(null);
+                }}
               >
-                Guardar mensaje
+                {pending ? "Activar" : "Guardar mensaje"}
               </Button>
             </div>
           ) : null}

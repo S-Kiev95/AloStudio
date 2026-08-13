@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -87,5 +87,20 @@ describe("AutoreplyView", () => {
     expect(
       await screen.findByText(/Conectá una cuenta de Instagram/),
     ).toBeInTheDocument();
+  });
+
+  it("reveals the message field when picking fixed mode, before saving", async () => {
+    // Regression: the API rejects fixed mode with no text, so selecting the
+    // mode had to reveal the field locally. Saving first made the mode
+    // unreachable — you needed the field to make the mode saveable, and the
+    // mode to get the field.
+    renderView();
+    fireEvent.click(await screen.findByText("Respuesta fija"));
+
+    expect(await screen.findByLabelText(/Mensaje/)).toBeInTheDocument();
+    expect(screen.getByText("Activar")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/necesita un texto de respuesta/),
+    ).not.toBeInTheDocument();
   });
 });
