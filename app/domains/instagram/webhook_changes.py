@@ -52,6 +52,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.inboxes.models import InstagramChannel
 from app.domains.instagram import publishing_service as svc
+from app.domains.instagram.autoreply_service import maybe_enqueue_autoreply
 from app.domains.instagram.models import InstagramPost
 
 log = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ async def _handle_comment(
         return False
     _frm = value.get("from")
     frm: dict[str, Any] = _frm if isinstance(_frm, dict) else {}
-    await svc.upsert_comment(
+    comment = await svc.upsert_comment(
         session,
         account_id=channel.account_id,
         channel_instagram_id=channel.id,
@@ -97,6 +98,13 @@ async def _handle_comment(
         from_id=(str(frm["id"]) if frm.get("id") else None),
         text=value.get("text"),
     )
+
+    # Auto-reply, when the inbox has it switched on. Enqueued rather than
+    # sent here: Meta expects a prompt 200 and retries the whole delivery
+    # if we take too long, which would re-post the comment.
+    if comment is not None:
+        await maybe_enqueue_autoreply(session, comment=comment, channel=channel)
+
     return True
 
 

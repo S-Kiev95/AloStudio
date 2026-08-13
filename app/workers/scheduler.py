@@ -321,10 +321,16 @@ class WorkerSettings:
         )
         from app.workers.deliver_webhook import deliver_webhook_task
         from app.workers.instagram import publish_instagram_post_task
+        from app.workers.instagram_autoreply import (
+            send_comment_autoreply_task,
+        )
 
         return [
             tick_5min,
             publish_instagram_post_task,
+            # Enqueued by the comment webhook when an inbox has
+            # auto-reply switched on.
+            send_comment_autoreply_task,
             # Enqueued on-demand by the NotificationListener when an in-app
             # notification is created and the recipient wants it by email / push.
             send_notification_email_task,

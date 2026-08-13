@@ -36,6 +36,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -350,6 +351,14 @@ class InstagramComment(TimestampMixin, table=True):
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True),
     )
+    # Stamped once an automatic reply has been sent for this comment.
+    # Meta re-delivers a webhook on failure, and the comment sync re-reads
+    # existing threads, so without this marker the same comment would be
+    # answered again on every redelivery — publicly, under the brand.
+    auto_replied_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -414,6 +423,25 @@ class InstagramChannelSetting(TimestampMixin, table=True):
     # re-derive the IG account if needed. Null for Instagram Login.
     page_id: str | None = Field(
         default=None, sa_column=Column(String, nullable=True)
+    )
+
+    # --- Comment auto-reply -------------------------------------------------
+    # "off" | "fixed" | "semantic" — see instagram/autoreply_models.py.
+    # Defaults to off: an account that upgrades must not suddenly start
+    # answering its audience on its own.
+    comment_autoreply_mode: str = Field(
+        default="off",
+        sa_column=Column(String, nullable=False, server_default="off"),
+    )
+    # The single sentence used in "fixed" mode.
+    comment_autoreply_text: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+    # Cosine-distance ceiling for "semantic" mode. Above it the comment is
+    # left for a person rather than answered with the nearest miss.
+    comment_autoreply_max_distance: float = Field(
+        default=0.35,
+        sa_column=Column(Float, nullable=False, server_default="0.35"),
     )
 
 
