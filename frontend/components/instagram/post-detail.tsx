@@ -17,6 +17,7 @@ import {
 import { relativeTime } from "@/lib/time";
 
 import { CommentsPanel } from "./comments-panel";
+import { PostAutoreplyRules } from "./post-autoreply-rules";
 import { PostMediaPreview } from "./post-media";
 import { StateBadge } from "./state-badge";
 
@@ -98,6 +99,15 @@ export function PostDetail({
           {post.containers?.length ? (
             <ContainerList containers={post.containers} />
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Respuestas automáticas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PostAutoreplyRules accountId={accountId} postId={postId} />
         </CardContent>
       </Card>
 

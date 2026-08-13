@@ -16,7 +16,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 log = logging.getLogger(__name__)
 
 
-async def enqueue_autoreply(*, comment_id: int, text: str) -> None:
+async def enqueue_autoreply(
+    *, comment_id: int, text: str, delivery: str = "public"
+) -> None:
     """Queue the reply. Falls back to sending inline with no worker.
 
     Mirrors ``instagram.enqueue_publish``: an environment without a worker
@@ -37,13 +39,18 @@ async def enqueue_autoreply(*, comment_id: int, text: str) -> None:
             comment_id,
             exc,
         )
-        await send_comment_autoreply_task({}, comment_id, text)
+        await send_comment_autoreply_task({}, comment_id, text, delivery)
         return
-    await pool.enqueue_job("send_comment_autoreply_task", comment_id, text)
+    await pool.enqueue_job(
+        "send_comment_autoreply_task", comment_id, text, delivery
+    )
 
 
 async def send_comment_autoreply_task(
-    ctx: dict[str, Any], comment_id: int, text: str
+    ctx: dict[str, Any],
+    comment_id: int,
+    text: str,
+    delivery: str = "public",
 ) -> dict[str, Any]:
     """Post ``text`` as a reply to ``comment_id``.
 
@@ -62,6 +69,8 @@ async def send_comment_autoreply_task(
         InstagramChannelSetting,
         InstagramComment,
     )
+    from app.domains.instagram.post_autoreply_models import DELIVERY_DM
+    from app.domains.instagram.sender import send_private_reply_instagram
 
     engine = ctx.get("engine") if isinstance(ctx, dict) else None
     factory = (
@@ -93,20 +102,30 @@ async def send_comment_autoreply_task(
         ).first()
 
         # Facebook Login and Instagram Login publish through different Graph
-        # hosts; the client reads the host from a task-local var.
+        # hosts; the clients read the host from a task-local var.
         with graph_host(
             host_for_login_type(setting.login_type if setting else "facebook")
         ):
-            result = await create_reply(
-                channel,
-                ig_comment_id=comment.ig_comment_id,
-                message=text,
-            )
-
-    ok = bool(getattr(result, "ok", result))
+            if delivery == DELIVERY_DM:
+                # Private reply: the link lands in the person's inbox and
+                # opens a real conversation, instead of being published
+                # under the post for everyone to take.
+                ok = await send_private_reply_instagram(
+                    channel=channel,
+                    ig_comment_id=comment.ig_comment_id,
+                    text=text,
+                )
+            else:
+                result = await create_reply(
+                    channel,
+                    ig_comment_id=comment.ig_comment_id,
+                    message=text,
+                )
+                ok = bool(getattr(result, "ok", result))
     log.info(
-        "instagram.autoreply.sent comment=%s ok=%s",
+        "instagram.autoreply.sent comment=%s delivery=%s ok=%s",
         comment_id,
+        delivery,
         ok,
     )
     return {"sent": ok, "comment_id": comment_id}

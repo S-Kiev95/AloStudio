@@ -186,7 +186,53 @@ async def send_attachment_message_instagram(
     )
 
 
+async def send_private_reply_instagram(
+    *,
+    channel: InstagramChannel,
+    ig_comment_id: str,
+    text: str,
+) -> bool:
+    """Answer a public comment with a private message.
+
+    Meta's "private reply" is the same ``/me/messages`` send the DM path
+    uses, addressed by ``comment_id`` instead of a user id — the person's
+    IGSID is not known until they are in a thread, and this is what opens
+    that thread. It is the mechanic behind "comentá X y te lo paso": the
+    link arrives in the inbox rather than under the post, and the reply
+    lands as a real conversation the team can continue.
+
+    Deliberately does not go through ``_post_send``: there is no local
+    Message row to stamp a mid onto. Never raises — a failed send is
+    logged and reported, and the caller has already marked the comment so
+    it will not be retried into a duplicate.
+    """
+    body: dict[str, Any] = {
+        "recipient": {"comment_id": ig_comment_id},
+        "message": {"text": text},
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(_api_url(channel), json=body)
+    except (httpx.RequestError, httpx.TimeoutException) as exc:
+        log.warning(
+            "instagram.private_reply.transport_error comment=%s err=%s",
+            ig_comment_id,
+            type(exc).__name__,
+        )
+        return False
+    if resp.status_code >= 400:
+        log.warning(
+            "instagram.private_reply.failed comment=%s status=%s body=%s",
+            ig_comment_id,
+            resp.status_code,
+            resp.text[:300],
+        )
+        return False
+    return True
+
+
 __all__ = [
     "send_attachment_message_instagram",
+    "send_private_reply_instagram",
     "send_text_message_instagram",
 ]

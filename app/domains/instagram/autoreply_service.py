@@ -1,8 +1,8 @@
 """Wiring between an incoming comment and the reply that answers it.
 
 Split from :mod:`app.domains.instagram.autoreply` (which only decides) so
-the decision can be tested without a queue, and from the worker task so
-the sending can be retried independently of the webhook that triggered it.
+the rules can be tested without a queue, and from the worker task so the
+sending can be retried independently of the webhook that triggered it.
 """
 
 from __future__ import annotations
@@ -15,22 +15,22 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.inboxes.models import InstagramChannel
 from app.domains.instagram.autoreply import decide_reply
-from app.domains.instagram.models import (
-    InstagramChannelSetting,
-    InstagramComment,
-)
+from app.domains.instagram.models import InstagramComment, InstagramPost
 
 log = logging.getLogger(__name__)
 
 
-async def _setting_for(
-    session: AsyncSession, *, channel_instagram_id: int
-) -> InstagramChannelSetting | None:
+async def _post_for_comment(
+    session: AsyncSession, *, comment: InstagramComment
+) -> InstagramPost | None:
+    """The publication a comment landed on, matched on Meta's media id."""
+    if not comment.ig_media_id:
+        return None
     return (
         await session.exec(
-            select(InstagramChannelSetting).where(
-                InstagramChannelSetting.channel_instagram_id
-                == channel_instagram_id
+            select(InstagramPost).where(
+                InstagramPost.account_id == comment.account_id,
+                InstagramPost.ig_media_id == comment.ig_media_id,
             )
         )
     ).first()
@@ -45,16 +45,14 @@ async def maybe_enqueue_autoreply(
     """Decide, and queue the send when the answer is yes.
 
     Returns whether a job was queued. Deciding here rather than inside the
-    job keeps the expensive path (a Graph call) off the webhook for every
-    comment that will not be answered — which is most of them.
+    job keeps the Graph call off the webhook for every comment that will
+    not be answered — which is most of them.
     """
-    setting = await _setting_for(
-        session, channel_instagram_id=channel.id
-    )
+    post = await _post_for_comment(session, comment=comment)
     decision = await decide_reply(
         session,
         comment=comment,
-        setting=setting,
+        post=post,
         # Our own replies are authored by the IG account itself; this is
         # what the loop guard compares against.
         our_ig_user_id=channel.instagram_id,
@@ -81,11 +79,13 @@ async def maybe_enqueue_autoreply(
     await enqueue_autoreply(
         comment_id=comment.id,  # type: ignore[arg-type]
         text=decision.text or "",
+        delivery=decision.delivery,
     )
     log.info(
-        "instagram.autoreply.queued comment=%s reason=%s distance=%s",
+        "instagram.autoreply.queued comment=%s reason=%s delivery=%s distance=%s",
         comment.ig_comment_id,
         decision.reason,
+        decision.delivery,
         decision.distance,
     )
     return True

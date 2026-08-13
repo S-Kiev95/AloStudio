@@ -36,7 +36,6 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
-    Float,
     ForeignKey,
     Index,
     Integer,
@@ -425,24 +424,10 @@ class InstagramChannelSetting(TimestampMixin, table=True):
         default=None, sa_column=Column(String, nullable=True)
     )
 
-    # --- Comment auto-reply -------------------------------------------------
-    # "off" | "fixed" | "semantic" — see instagram/autoreply_models.py.
-    # Defaults to off: an account that upgrades must not suddenly start
-    # answering its audience on its own.
-    comment_autoreply_mode: str = Field(
-        default="off",
-        sa_column=Column(String, nullable=False, server_default="off"),
-    )
-    # The single sentence used in "fixed" mode.
-    comment_autoreply_text: str | None = Field(
-        default=None, sa_column=Column(Text, nullable=True)
-    )
-    # Cosine-distance ceiling for "semantic" mode. Above it the comment is
-    # left for a person rather than answered with the nearest miss.
-    comment_autoreply_max_distance: float = Field(
-        default=0.35,
-        sa_column=Column(Float, nullable=False, server_default="0.35"),
-    )
+    # Comment auto-reply used to be configured here, per channel. It moved
+    # to the publication (see instagram/post_autoreply_models.py): a
+    # promotional reel and an ordinary photo want different answers, and
+    # the "comentá X y te lo paso" mechanic is inherently per-post.
 
 
 # ---------------------------------------------------------------------------

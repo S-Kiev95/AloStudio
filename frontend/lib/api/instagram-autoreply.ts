@@ -2,17 +2,29 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
 
-export type AutoreplyMode = "off" | "fixed" | "semantic";
+/** How a rule decides a comment is for it. Evaluated most-specific first,
+ *  so a keyword rule always beats a catch-all on the same post. */
+export type MatchType = "keyword" | "semantic" | "all";
 
-export type AutoreplyConfig = {
-  channel_instagram_id: number;
-  mode: AutoreplyMode;
-  text: string | null;
-  max_distance: number;
-  /** False when no OPENAI_API_KEY is configured — the semantic option is
-   *  then offered as disabled with an explanation, rather than letting an
-   *  admin pick a mode that would silently never fire. */
-  semantic_available: boolean;
+/** Public reply under the post, or a private message to the commenter. */
+export type Delivery = "public" | "dm";
+
+export type PostRule = {
+  id: number;
+  post_id: number;
+  match_type: MatchType;
+  keywords: string | null;
+  reply_text: string | null;
+  delivery: Delivery;
+  enabled: boolean;
+};
+
+export type PostRuleInput = {
+  match_type: MatchType;
+  keywords?: string | null;
+  reply_text?: string | null;
+  delivery: Delivery;
+  enabled: boolean;
 };
 
 export type CommentReply = {
@@ -35,47 +47,64 @@ function base(accountId: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Per-inbox configuration
+// Rules on one publication
 // ---------------------------------------------------------------------------
-export function useAutoreplyConfig(
-  accountId: string,
-  channelId: number | null,
-) {
+export function usePostRules(accountId: string, postId: number) {
   return useQuery({
-    queryKey: ["ig-autoreply", accountId, channelId],
+    queryKey: ["ig-post-rules", accountId, postId],
     queryFn: () =>
-      apiFetch<AutoreplyConfig>(
-        `${base(accountId)}/instagram_channels/${channelId}/autoreply`,
+      apiFetch<PostRule[]>(
+        `${base(accountId)}/instagram_posts/${postId}/autoreply_rules`,
       ),
-    enabled: channelId != null,
-    retry: false,
+    enabled: Number.isFinite(postId),
   });
 }
 
-export function useUpdateAutoreplyConfig(
+function invalidateRules(
+  qc: ReturnType<typeof useQueryClient>,
   accountId: string,
-  channelId: number | null,
 ) {
+  qc.invalidateQueries({ queryKey: ["ig-post-rules", accountId] });
+}
+
+export function useCreatePostRule(accountId: string, postId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (patch: {
-      mode?: AutoreplyMode;
-      text?: string | null;
-      max_distance?: number;
-    }) =>
-      apiFetch<AutoreplyConfig>(
-        `${base(accountId)}/instagram_channels/${channelId}/autoreply`,
-        { method: "PATCH", body: JSON.stringify(patch) },
+    mutationFn: (input: PostRuleInput) =>
+      apiFetch<PostRule>(
+        `${base(accountId)}/instagram_posts/${postId}/autoreply_rules`,
+        { method: "POST", body: JSON.stringify(input) },
       ),
-    onSuccess: () =>
-      qc.invalidateQueries({
-        queryKey: ["ig-autoreply", accountId, channelId],
+    onSuccess: () => invalidateRules(qc, accountId),
+  });
+}
+
+export function useUpdatePostRule(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: number; input: PostRuleInput }) =>
+      apiFetch<PostRule>(`${base(accountId)}/autoreply_rules/${args.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(args.input),
       }),
+    onSuccess: () => invalidateRules(qc, accountId),
+  });
+}
+
+export function useDeletePostRule(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Record<string, never>>(
+        `${base(accountId)}/autoreply_rules/${id}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: () => invalidateRules(qc, accountId),
   });
 }
 
 // ---------------------------------------------------------------------------
-// Prepared answers
+// Account-wide library of prepared answers (used by `semantic` rules)
 // ---------------------------------------------------------------------------
 export function useCommentReplies(accountId: string, enabled = true) {
   return useQuery({

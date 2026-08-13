@@ -1,33 +1,21 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { AutoreplyView } from "./autoreply-view";
 
-const INBOX = {
-  id: 5,
-  name: "yoruguamaps",
-  channel_type: "Channel::Instagram",
-  channel_id: 9,
+const ANSWER = {
+  id: 1,
+  trigger: "hacen envíos?",
+  reply: "Sí, a todo el país.",
+  enabled: true,
+  indexed: true,
 };
 
-function config(over: Record<string, unknown> = {}) {
-  return {
-    channel_instagram_id: 9,
-    mode: "off",
-    text: null,
-    max_distance: 0.35,
-    semantic_available: true,
-    ...over,
-  };
-}
-
 const server = setupServer(
-  http.get("*/inboxes", () => HttpResponse.json({ payload: [INBOX] })),
-  http.get("*/autoreply", () => HttpResponse.json(config())),
-  http.get("*/instagram_comment_replies", () => HttpResponse.json([])),
+  http.get("*/instagram_comment_replies", () => HttpResponse.json([ANSWER])),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
@@ -44,63 +32,32 @@ function renderView() {
   );
 }
 
-describe("AutoreplyView", () => {
-  it("offers the three modes and marks the active one", async () => {
+describe("AutoreplyView (prepared answers library)", () => {
+  it("lists the account's prepared answers", async () => {
     renderView();
-    expect(await screen.findByText("Desactivado")).toBeInTheDocument();
-    expect(screen.getByText("Respuesta fija")).toBeInTheDocument();
-    expect(screen.getByText("Por similitud")).toBeInTheDocument();
-    // "off" is the configured mode, so its button is the pressed one.
-    const off = screen.getByText("Desactivado").closest("button");
-    expect(off).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByText("hacen envíos?")).toBeInTheDocument();
+    expect(screen.getByText("Sí, a todo el país.")).toBeInTheDocument();
   });
 
-  it("disables the semantic mode and says why when there is no API key", async () => {
+  it("flags an answer that was never embedded", async () => {
+    // Without an embedding the answer can never match, so it would look
+    // configured while silently doing nothing.
     server.use(
-      http.get("*/autoreply", () =>
-        HttpResponse.json(config({ semantic_available: false })),
+      http.get("*/instagram_comment_replies", () =>
+        HttpResponse.json([{ ...ANSWER, indexed: false }]),
       ),
     );
     renderView();
-
-    // Wait on the explanation rather than the button: the mode buttons are
-    // static and render before the config query resolves, so asserting on
-    // them first would check the pre-load state.
-    // An admin must be told why, not left with a dead option.
-    expect(await screen.findByText(/clave de OpenAI/)).toBeInTheDocument();
-    expect(screen.getByText("Por similitud").closest("button")).toBeDisabled();
+    expect(await screen.findByText(/Sin indexar/)).toBeInTheDocument();
   });
 
-  it("warns that the semantic mode answers nothing with an empty library", async () => {
+  it("says an empty library answers nothing", async () => {
     server.use(
-      http.get("*/autoreply", () => HttpResponse.json(config({ mode: "semantic" }))),
+      http.get("*/instagram_comment_replies", () => HttpResponse.json([])),
     );
     renderView();
     expect(
       await screen.findByText(/este modo no contesta nada/),
     ).toBeInTheDocument();
-  });
-
-  it("prompts for connecting an account when none exists", async () => {
-    server.use(http.get("*/inboxes", () => HttpResponse.json({ payload: [] })));
-    renderView();
-    expect(
-      await screen.findByText(/Conectá una cuenta de Instagram/),
-    ).toBeInTheDocument();
-  });
-
-  it("reveals the message field when picking fixed mode, before saving", async () => {
-    // Regression: the API rejects fixed mode with no text, so selecting the
-    // mode had to reveal the field locally. Saving first made the mode
-    // unreachable — you needed the field to make the mode saveable, and the
-    // mode to get the field.
-    renderView();
-    fireEvent.click(await screen.findByText("Respuesta fija"));
-
-    expect(await screen.findByLabelText(/Mensaje/)).toBeInTheDocument();
-    expect(screen.getByText("Activar")).toBeInTheDocument();
-    expect(
-      screen.queryByText(/necesita un texto de respuesta/),
-    ).not.toBeInTheDocument();
   });
 });
