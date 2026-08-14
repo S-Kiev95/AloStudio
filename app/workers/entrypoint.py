@@ -24,10 +24,14 @@ failed to locate a name`` — which is how Instagram posts silently sat in
 
 from __future__ import annotations
 
+from app.core.logging import install_secret_redaction
 from app.core.models_registry import import_all_models
 from app.workers.scheduler import WorkerSettings
 
 import_all_models()
 WorkerSettings.configure()
+# arq installs its own logging, so the app's ``configure_logging`` never
+# runs here — without this the worker's Graph calls would log page tokens.
+install_secret_redaction()
 
 __all__ = ["WorkerSettings"]
