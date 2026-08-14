@@ -13,7 +13,12 @@ from datetime import UTC, datetime
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.domains.inboxes.models import InstagramChannel
+from app.domains.conversations.models import Conversation, Message
+from app.domains.inboxes.models import (
+    CHANNEL_TYPE_INSTAGRAM,
+    Inbox,
+    InstagramChannel,
+)
 from app.domains.instagram.autoreply import decide_reply
 from app.domains.instagram.models import InstagramComment, InstagramPost
 
@@ -91,4 +96,120 @@ async def maybe_enqueue_autoreply(
     return True
 
 
-__all__ = ["maybe_enqueue_autoreply"]
+# ---------------------------------------------------------------------------
+# Recording the reply we sent
+# ---------------------------------------------------------------------------
+async def _inbox_for_channel(
+    session: AsyncSession, *, channel: InstagramChannel
+) -> Inbox | None:
+    return (
+        await session.exec(
+            select(Inbox).where(
+                Inbox.channel_type == CHANNEL_TYPE_INSTAGRAM,
+                Inbox.channel_id == channel.id,
+            )
+        )
+    ).first()
+
+
+async def record_private_reply(
+    session: AsyncSession,
+    *,
+    comment: InstagramComment,
+    channel: InstagramChannel,
+    text: str,
+    recipient_igsid: str,
+    message_id: str | None,
+) -> Conversation | None:
+    """Land the DM we just sent in the agent inbox.
+
+    Without this the reply exists only on Instagram: if the person answers,
+    the team sees a bare reply with nothing above it, and nobody can tell
+    how many people the link went out to.
+
+    Keyed on the IGSID Meta returns rather than the comment's ``from.id``
+    so it lands on the same contact a later inbound DM resolves to — the
+    two ids are not interchangeable across login types.
+
+    Best-effort by design: the reply is already delivered, so a failure
+    here must not surface as a failed send.
+    """
+    from app.domains.contacts.service import ContactInboxBuilder
+    from app.domains.conversations.service import (
+        MessageBuilderParams,
+        create_message,
+    )
+    from app.domains.instagram.incoming import (
+        find_or_create_ig_contact,
+        find_or_create_ig_conversation,
+    )
+
+    inbox = await _inbox_for_channel(session, channel=channel)
+    if inbox is None:
+        log.warning(
+            "instagram.autoreply.record_skipped reason=no_inbox channel=%s",
+            channel.id,
+        )
+        return None
+
+    # The echo Meta may deliver for our own send carries this same mid, and
+    # the inbound path skips a mid it already holds — so writing it here is
+    # what stops the reply appearing twice.
+    if message_id:
+        already = (
+            await session.exec(
+                select(Message.id).where(
+                    Message.account_id == channel.account_id,
+                    Message.source_id == message_id,
+                )
+            )
+        ).first()
+        if already is not None:
+            return None
+
+    contact = await find_or_create_ig_contact(
+        session, account_id=channel.account_id, igsid=recipient_igsid
+    )
+    contact_inbox = await ContactInboxBuilder(
+        session=session,
+        contact=contact,
+        inbox=inbox,
+        source_id=recipient_igsid,
+    ).perform()
+    conversation = await find_or_create_ig_conversation(
+        session, contact_inbox=contact_inbox
+    )
+    await create_message(
+        session,
+        conversation=conversation,
+        params=MessageBuilderParams(
+            content=text,
+            message_type="outgoing",
+            source_id=message_id,
+            # No sender_id: nobody on the team wrote this. The marker is
+            # what lets the UI and reports tell it apart from an agent's
+            # reply instead of crediting a human with it.
+            content_attributes={
+                "automation": "instagram_comment_autoreply",
+                "instagram_comment_id": comment.ig_comment_id,
+            },
+        ),
+        user_id=None,
+    )
+
+    # Back-link so the comment in the moderation view points at the thread
+    # it opened.
+    if conversation.id is not None:
+        comment.conversation_id = conversation.id
+        session.add(comment)
+    await session.flush()
+    log.info(
+        "instagram.autoreply.recorded comment=%s conversation=%s mid=%s",
+        comment.ig_comment_id,
+        conversation.id,
+        message_id,
+    )
+    return conversation
+
+
+__all__ = ["maybe_enqueue_autoreply", "record_private_reply"]

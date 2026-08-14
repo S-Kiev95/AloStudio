@@ -268,14 +268,18 @@ async def _resolve_channel(
 # ---------------------------------------------------------------------------
 # Contact / conversation resolution
 # ---------------------------------------------------------------------------
-async def _find_or_create_contact(
+async def find_or_create_ig_contact(
     session: AsyncSession,
     *,
     account_id: int,
     igsid: str,
 ) -> Contact:
     """Find a contact by Instagram Scoped User Id via its
-    ContactInbox; create one if the IGSID is new."""
+    ContactInbox; create one if the IGSID is new.
+
+    Public because an outbound private reply resolves the same person the
+    same way — the IGSID Meta returns for a comment reply is the one a
+    later DM arrives under, so both paths must land on one contact."""
     existing = (
         await session.exec(
             select(Contact)
@@ -301,7 +305,7 @@ async def _find_or_create_contact(
     return contact
 
 
-async def _find_or_create_conversation(
+async def find_or_create_ig_conversation(
     session: AsyncSession,
     *,
     contact_inbox: ContactInbox,
@@ -483,7 +487,7 @@ async def _process_message_event(
         log.info("instagram.inbound.skip reason=nothing_to_store mid=%s", mid)
         return None
 
-    contact = await _find_or_create_contact(
+    contact = await find_or_create_ig_contact(
         session, account_id=channel.account_id, igsid=igsid
     )
     contact_inbox = await ContactInboxBuilder(
@@ -492,7 +496,7 @@ async def _process_message_event(
         inbox=inbox,
         source_id=igsid,
     ).perform()
-    conversation = await _find_or_create_conversation(
+    conversation = await find_or_create_ig_conversation(
         session, contact_inbox=contact_inbox
     )
     # Ad attribution — only on genuine inbound; an echo is our own outgoing
@@ -522,4 +526,8 @@ async def _process_message_event(
     return msg
 
 
-__all__ = ["process_instagram_webhook"]
+__all__ = [
+    "find_or_create_ig_contact",
+    "find_or_create_ig_conversation",
+    "process_instagram_webhook",
+]

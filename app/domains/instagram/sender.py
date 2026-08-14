@@ -25,6 +25,7 @@ Deferred:
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -186,12 +187,30 @@ async def send_attachment_message_instagram(
     )
 
 
+@dataclass
+class PrivateReplyResult:
+    """Outcome of a private reply, plus what Meta tells us about it.
+
+    ``recipient_igsid`` is the whole point of reading the response: a
+    comment carries no IGSID, so this is the first moment we learn which
+    contact the reply actually reached. ``message_id`` is the mid, which
+    doubles as the dedupe key against the echo Meta may deliver later.
+    """
+
+    ok: bool
+    recipient_igsid: str | None = None
+    message_id: str | None = None
+
+    def __bool__(self) -> bool:
+        return self.ok
+
+
 async def send_private_reply_instagram(
     *,
     channel: InstagramChannel,
     ig_comment_id: str,
     text: str,
-) -> bool:
+) -> PrivateReplyResult:
     """Answer a public comment with a private message.
 
     Meta's "private reply" is the same ``/me/messages`` send the DM path
@@ -202,9 +221,10 @@ async def send_private_reply_instagram(
     lands as a real conversation the team can continue.
 
     Deliberately does not go through ``_post_send``: there is no local
-    Message row to stamp a mid onto. Never raises — a failed send is
-    logged and reported, and the caller has already marked the comment so
-    it will not be retried into a duplicate.
+    Message row yet to stamp a mid onto — the caller mints one from the
+    result. Never raises — a failed send is logged and reported, and the
+    caller has already marked the comment so it will not be retried into a
+    duplicate.
     """
     body: dict[str, Any] = {
         "recipient": {"comment_id": ig_comment_id},
@@ -219,7 +239,7 @@ async def send_private_reply_instagram(
             ig_comment_id,
             type(exc).__name__,
         )
-        return False
+        return PrivateReplyResult(ok=False)
     if resp.status_code >= 400:
         log.warning(
             "instagram.private_reply.failed comment=%s status=%s body=%s",
@@ -227,11 +247,26 @@ async def send_private_reply_instagram(
             resp.status_code,
             resp.text[:300],
         )
-        return False
-    return True
+        return PrivateReplyResult(ok=False)
+    try:
+        payload = resp.json()
+    except ValueError:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    # The send succeeded either way; a response we cannot parse costs us
+    # the inbox record, not the reply.
+    recipient = payload.get("recipient_id")
+    mid = payload.get("message_id")
+    return PrivateReplyResult(
+        ok=True,
+        recipient_igsid=str(recipient) if recipient else None,
+        message_id=str(mid) if mid else None,
+    )
 
 
 __all__ = [
+    "PrivateReplyResult",
     "send_attachment_message_instagram",
     "send_private_reply_instagram",
     "send_text_message_instagram",

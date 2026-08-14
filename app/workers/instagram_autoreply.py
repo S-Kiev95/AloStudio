@@ -8,10 +8,15 @@ second public reply.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+if TYPE_CHECKING:
+    from app.domains.inboxes.models import InstagramChannel
+    from app.domains.instagram.models import InstagramComment
+    from app.domains.instagram.sender import PrivateReplyResult
 
 log = logging.getLogger(__name__)
 
@@ -103,6 +108,7 @@ async def send_comment_autoreply_task(
 
         # Facebook Login and Instagram Login publish through different Graph
         # hosts; the clients read the host from a task-local var.
+        recorded: int | None = None
         with graph_host(
             host_for_login_type(setting.login_type if setting else "facebook")
         ):
@@ -110,11 +116,20 @@ async def send_comment_autoreply_task(
                 # Private reply: the link lands in the person's inbox and
                 # opens a real conversation, instead of being published
                 # under the post for everyone to take.
-                ok = await send_private_reply_instagram(
+                sent = await send_private_reply_instagram(
                     channel=channel,
                     ig_comment_id=comment.ig_comment_id,
                     text=text,
                 )
+                ok = sent.ok
+                if ok:
+                    recorded = await _record(
+                        session,
+                        comment=comment,
+                        channel=channel,
+                        text=text,
+                        sent=sent,
+                    )
             else:
                 result = await create_reply(
                     channel,
@@ -122,13 +137,55 @@ async def send_comment_autoreply_task(
                     message=text,
                 )
                 ok = bool(getattr(result, "ok", result))
+        # The public branch writes nothing, but the DM branch does — and
+        # the session is this task's own, so nothing else will commit it.
+        await session.commit()
     log.info(
-        "instagram.autoreply.sent comment=%s delivery=%s ok=%s",
+        "instagram.autoreply.sent comment=%s delivery=%s ok=%s conversation=%s",
         comment_id,
         delivery,
         ok,
+        recorded,
     )
-    return {"sent": ok, "comment_id": comment_id}
+    return {"sent": ok, "comment_id": comment_id, "conversation_id": recorded}
+
+
+async def _record(
+    session: AsyncSession,
+    *,
+    comment: InstagramComment,
+    channel: InstagramChannel,
+    text: str,
+    sent: PrivateReplyResult,
+) -> int | None:
+    """File the sent DM in the inbox, without letting that failure
+    masquerade as a failed send — the reply is already delivered."""
+    from app.domains.instagram.autoreply_service import record_private_reply
+
+    if not sent.recipient_igsid:
+        # Meta accepted the send but named nobody, so there is no contact
+        # to file it under.
+        log.warning(
+            "instagram.autoreply.no_recipient_id comment=%s", comment.id
+        )
+        return None
+
+    try:
+        conversation = await record_private_reply(
+            session,
+            comment=comment,
+            channel=channel,
+            text=text,
+            recipient_igsid=sent.recipient_igsid,
+            message_id=sent.message_id,
+        )
+    except Exception:
+        log.exception(
+            "instagram.autoreply.record_failed comment=%s", comment.id
+        )
+        await session.rollback()
+        return None
+    return conversation.id if conversation is not None else None
 
 
 __all__ = ["enqueue_autoreply", "send_comment_autoreply_task"]
