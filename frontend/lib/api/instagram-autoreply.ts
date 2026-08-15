@@ -32,17 +32,17 @@ export type CommentReply = {
   trigger: string;
   reply: string;
   enabled: boolean;
-  /** Null when the answer is shared across every publication. */
-  post_id: number | null;
   /** False when the answer has no embedding yet, so it can never match. */
   indexed: boolean;
+  /** Only present when the list was read for a publication: whether that
+   *  publication offers this answer. */
+  selected?: boolean;
 };
 
 export type CommentReplyInput = {
   trigger: string;
   reply: string;
   enabled: boolean;
-  post_id?: number | null;
 };
 
 function base(accountId: string): string {
@@ -125,8 +125,8 @@ export function useAutoreplyStatus(accountId: string) {
   });
 }
 
-/** `postId` narrows to what that publication matches against: its own
- *  answers plus the shared ones. Omitted, the whole library. */
+/** The whole library. With `postId`, each row also carries `selected` —
+ *  whether that publication offers it. */
 export function useCommentReplies(
   accountId: string,
   opts: { postId?: number; enabled?: boolean } = {},
@@ -169,6 +169,24 @@ export function useUpdateCommentReply(accountId: string) {
       apiFetch<CommentReply>(
         `${base(accountId)}/instagram_comment_replies/${args.id}`,
         { method: "PATCH", body: JSON.stringify(args.input) },
+      ),
+    onSuccess: () => invalidateReplies(qc, accountId),
+  });
+}
+
+/** Replace the answers a publication offers.
+ *
+ *  Whole-set replace, matching the endpoint: the UI edits checkboxes, and
+ *  sending the resulting set means a lost request leaves the selection as
+ *  it was rather than half-applied. An empty list falls back to the whole
+ *  library. */
+export function useSetReplyPicks(accountId: string, postId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (replyIds: number[]) =>
+      apiFetch<{ post_id: number; reply_ids: number[] }>(
+        `${base(accountId)}/instagram_posts/${postId}/comment_replies`,
+        { method: "PUT", body: JSON.stringify({ reply_ids: replyIds }) },
       ),
     onSuccess: () => invalidateReplies(qc, accountId),
   });

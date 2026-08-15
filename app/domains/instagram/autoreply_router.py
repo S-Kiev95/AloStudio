@@ -19,7 +19,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, status
 from pydantic import BaseModel, Field
-from sqlalchemy import case, or_
+from sqlalchemy import case, delete
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -29,6 +29,7 @@ from app.core.errors import ChatwootHTTPException
 from app.core.llm import embed_text, embedding_search_enabled
 from app.domains.instagram.autoreply_models import (
     InstagramCommentReply,
+    InstagramPostReplyPick,
 )
 from app.domains.instagram.models import InstagramPost
 from app.domains.instagram.post_autoreply_models import (
@@ -59,20 +60,28 @@ class CommentReplyIn(BaseModel):
     trigger: str = Field(min_length=1)
     reply: str = Field(min_length=1)
     enabled: bool = True
-    # Null keeps the answer shared across every publication.
-    post_id: int | None = None
 
 
-def _present_reply(row: InstagramCommentReply) -> dict[str, Any]:
-    return {
+class ReplyPicksIn(BaseModel):
+    """The answers a publication offers. Empty means "the whole library"."""
+
+    reply_ids: list[int] = Field(default_factory=list)
+
+
+def _present_reply(
+    row: InstagramCommentReply, *, picked: set[int] | None = None
+) -> dict[str, Any]:
+    out: dict[str, Any] = {
         "id": row.id,
         "trigger": row.trigger,
         "reply": row.reply,
         "enabled": row.enabled,
-        "post_id": row.post_id,
         # Surfaced so the UI can flag an answer that will never match.
         "indexed": row.embedding is not None,
     }
+    if picked is not None:
+        out["selected"] = row.id in picked
+    return out
 
 
 async def _embed_or_none(text: str) -> list[float] | None:
@@ -94,6 +103,18 @@ async def _owned_post(
             status_code=404, detail={"error": "Resource could not be found"}
         )
     return post
+
+
+async def _picked_ids(session: AsyncSession, *, post_id: int) -> set[int]:
+    return set(
+        (
+            await session.exec(
+                select(InstagramPostReplyPick.comment_reply_id).where(
+                    InstagramPostReplyPick.post_id == post_id
+                )
+            )
+        ).all()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -120,23 +141,22 @@ async def list_replies(
 ) -> list[dict[str, Any]]:
     """The account's answers.
 
-    ``post_id`` narrows to what that publication actually matches against:
-    its own answers plus the shared ones. Omitted, the whole library.
+    With ``post_id`` every row also carries ``selected`` — whether that
+    publication offers it. The list is the whole library either way: the
+    picker has to show what is *not* picked as much as what is.
     """
-    query = select(InstagramCommentReply).where(
-        InstagramCommentReply.account_id == ctx.account.id
-    )
-    if post_id is not None:
-        query = query.where(
-            or_(
-                InstagramCommentReply.post_id == post_id,
-                InstagramCommentReply.post_id.is_(None),
-            )
-        )
     rows = (
-        await session.exec(query.order_by(InstagramCommentReply.id.desc()))
+        await session.exec(
+            select(InstagramCommentReply)
+            .where(InstagramCommentReply.account_id == ctx.account.id)
+            .order_by(InstagramCommentReply.id.desc())
+        )
     ).all()
-    return [_present_reply(r) for r in rows]
+    if post_id is None:
+        return [_present_reply(r) for r in rows]
+    await _owned_post(session, post_id=post_id, account_id=ctx.account.id)
+    picked = await _picked_ids(session, post_id=post_id)
+    return [_present_reply(r, picked=picked) for r in rows]
 
 
 @router.post("/instagram_comment_replies", status_code=status.HTTP_200_OK)
@@ -146,13 +166,8 @@ async def create_reply_entry(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
-    if payload.post_id is not None:
-        await _owned_post(
-            session, post_id=payload.post_id, account_id=ctx.account.id
-        )
     row = InstagramCommentReply(
         account_id=ctx.account.id,
-        post_id=payload.post_id,
         trigger=payload.trigger.strip(),
         reply=payload.reply.strip(),
         enabled=payload.enabled,
@@ -176,10 +191,6 @@ async def update_reply_entry(
         raise ChatwootHTTPException(
             status_code=404, detail={"error": "Resource could not be found"}
         )
-    if payload.post_id is not None:
-        await _owned_post(
-            session, post_id=payload.post_id, account_id=ctx.account.id
-        )
     trigger = payload.trigger.strip()
     # Re-embed when the matched text changed, or when a previous save could
     # not embed at all — re-saving is the documented way to fix that, so it
@@ -189,7 +200,6 @@ async def update_reply_entry(
     row.trigger = trigger
     row.reply = payload.reply.strip()
     row.enabled = payload.enabled
-    row.post_id = payload.post_id
     session.add(row)
     await session.commit()
     await session.refresh(row)
@@ -213,6 +223,53 @@ async def delete_reply_entry(
     await session.delete(row)
     await session.commit()
     return {}
+
+
+@router.put("/instagram_posts/{post_id}/comment_replies")
+async def set_reply_picks(
+    post_id: Annotated[int, Path()],
+    payload: ReplyPicksIn,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Replace which answers this publication offers.
+
+    Whole-set replace rather than add/remove calls: the UI edits a list of
+    checkboxes, and sending the resulting set makes a lost request leave
+    the selection as it was instead of half-applied.
+
+    An empty list clears the picks, which means the post falls back to the
+    whole library — the same as never having picked.
+    """
+    await _owned_post(session, post_id=post_id, account_id=ctx.account.id)
+
+    # Only ids the account owns; a foreign id is dropped rather than
+    # trusted into a row that would leak another account's answer.
+    wanted = set(
+        (
+            await session.exec(
+                select(InstagramCommentReply.id).where(
+                    InstagramCommentReply.account_id == ctx.account.id,
+                    InstagramCommentReply.id.in_(payload.reply_ids or [-1]),
+                )
+            )
+        ).all()
+    )
+    current = await _picked_ids(session, post_id=post_id)
+
+    for reply_id in wanted - current:
+        session.add(
+            InstagramPostReplyPick(post_id=post_id, comment_reply_id=reply_id)
+        )
+    if current - wanted:
+        await session.exec(
+            delete(InstagramPostReplyPick).where(
+                InstagramPostReplyPick.post_id == post_id,
+                InstagramPostReplyPick.comment_reply_id.in_(current - wanted),
+            )
+        )
+    await session.commit()
+    return {"post_id": post_id, "reply_ids": sorted(wanted)}
 
 
 # ---------------------------------------------------------------------------

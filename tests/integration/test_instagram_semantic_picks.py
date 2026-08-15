@@ -1,8 +1,9 @@
-"""Which prepared answers one publication can match against.
+"""Which prepared answers one publication matches against.
 
-The library used to be account-wide only, so a semantic rule on any post
-matched every answer. Scoping is additive: a post sees its own answers plus
-the shared ones, and nothing has to be duplicated to be reused.
+Answers are written once for the account and picked per publication. The
+rule that makes this usable is that absence means everything: a post that
+has picked nothing can use the whole library, so similarity matching works
+before anyone curates it, and picking is what narrows it.
 
 Embeddings are stubbed with one-hot vectors so the distances are exact and
 the test asserts on selection, not on how a real model happens to rank two
@@ -20,6 +21,7 @@ from app.domains.instagram.autoreply import decide_reply
 from app.domains.instagram.autoreply_models import (
     COMMENT_REPLY_EMBEDDING_DIM,
     InstagramCommentReply,
+    InstagramPostReplyPick,
 )
 from app.domains.instagram.models import InstagramComment, InstagramPost
 from app.domains.instagram.post_autoreply_models import InstagramPostAutoreply
@@ -101,18 +103,24 @@ async def _seed(db_session, suffix: str):
     return owner, result.channel, posts
 
 
-async def _answer(db_session, *, account_id, trigger, reply, slot, post_id=None):
+async def _answer(db_session, *, account_id, trigger, reply, slot, indexed=True):
     row = InstagramCommentReply(
         account_id=account_id,
-        post_id=post_id,
         trigger=trigger,
         reply=reply,
         enabled=True,
-        embedding=_vec(slot),
+        embedding=_vec(slot) if indexed else None,
     )
     db_session.add(row)
     await db_session.flush()
     return row
+
+
+async def _pick(db_session, *, post, answer):
+    db_session.add(
+        InstagramPostReplyPick(post_id=post.id, comment_reply_id=answer.id)
+    )
+    await db_session.flush()
 
 
 def _comment(*, account_id, channel_id, post, text):
@@ -140,10 +148,11 @@ async def _decide(db_session, *, owner, channel, post, text):
     )
 
 
-async def test_a_shared_answer_is_used_on_every_publication(
+async def test_a_publication_that_picked_nothing_uses_the_whole_library(
     db_session, stub_embeddings
 ):
-    owner, channel, posts = await _seed(db_session, "-shared")
+    """Turning similarity on must not require curating first."""
+    owner, channel, posts = await _seed(db_session, "-nopick")
     await _answer(
         db_session,
         account_id=owner.account.id,
@@ -159,18 +168,16 @@ async def test_a_shared_answer_is_used_on_every_publication(
         assert d.text == "Sí, a todo el país."
 
 
-async def test_an_answer_scoped_to_a_post_is_used_there(
-    db_session, stub_embeddings
-):
-    owner, channel, posts = await _seed(db_session, "-scoped")
-    await _answer(
+async def test_a_picked_answer_is_used(db_session, stub_embeddings):
+    owner, channel, posts = await _seed(db_session, "-picked")
+    sizes = await _answer(
         db_session,
         account_id=owner.account.id,
         trigger="qué talles hay?",
         reply="Del 38 al 45.",
         slot=0,
-        post_id=posts[0].id,
     )
+    await _pick(db_session, post=posts[0], answer=sizes)
     stub_embeddings["value"] = 0
     d = await _decide(
         db_session, owner=owner, channel=channel, post=posts[0], text="talles?"
@@ -178,85 +185,119 @@ async def test_an_answer_scoped_to_a_post_is_used_there(
     assert d.text == "Del 38 al 45."
 
 
-async def test_that_answer_is_not_offered_on_another_publication(
+async def test_picking_excludes_everything_not_picked(
     db_session, stub_embeddings
 ):
-    """The whole point of scoping — otherwise it is just a shared answer."""
-    owner, channel, posts = await _seed(db_session, "-notleak")
-    await _answer(
+    """The point of picking. Ten of a hundred means ten, not a preference."""
+    owner, channel, posts = await _seed(db_session, "-excl")
+    sizes = await _answer(
         db_session,
         account_id=owner.account.id,
         trigger="qué talles hay?",
         reply="Del 38 al 45.",
         slot=0,
-        post_id=posts[0].id,
     )
-    stub_embeddings["value"] = 0
+    await _answer(
+        db_session,
+        account_id=owner.account.id,
+        trigger="hacen envíos?",
+        reply="Sí, a todo el país.",
+        slot=1,
+    )
+    await _pick(db_session, post=posts[0], answer=sizes)
+
+    # A comment that would match the shipping answer exactly gets nothing,
+    # because this publication does not offer it.
+    stub_embeddings["value"] = 1
     d = await _decide(
-        db_session, owner=owner, channel=channel, post=posts[1], text="talles?"
+        db_session, owner=owner, channel=channel, post=posts[0], text="envían?"
     )
     assert d.text is None
-    assert d.reason == "no_prepared_answers"
+    assert d.reason == "below_threshold"
 
 
-async def test_a_publication_sees_its_own_and_the_shared_ones(
+async def test_another_publication_keeps_its_own_picks(
     db_session, stub_embeddings
 ):
-    owner, channel, posts = await _seed(db_session, "-both")
-    await _answer(
+    owner, channel, posts = await _seed(db_session, "-perpost")
+    sizes = await _answer(
+        db_session,
+        account_id=owner.account.id,
+        trigger="qué talles hay?",
+        reply="Del 38 al 45.",
+        slot=0,
+    )
+    shipping = await _answer(
+        db_session,
+        account_id=owner.account.id,
+        trigger="hacen envíos?",
+        reply="Sí, a todo el país.",
+        slot=1,
+    )
+    await _pick(db_session, post=posts[0], answer=sizes)
+    await _pick(db_session, post=posts[1], answer=shipping)
+
+    stub_embeddings["value"] = 0
+    assert (
+        await _decide(
+            db_session, owner=owner, channel=channel, post=posts[0], text="?"
+        )
+    ).text == "Del 38 al 45."
+    stub_embeddings["value"] = 1
+    assert (
+        await _decide(
+            db_session, owner=owner, channel=channel, post=posts[1], text="?"
+        )
+    ).text == "Sí, a todo el país."
+
+
+async def test_one_answer_serves_several_publications(
+    db_session, stub_embeddings
+):
+    """Written once, picked twice — the reason this is not a column."""
+    owner, channel, posts = await _seed(db_session, "-reuse")
+    shipping = await _answer(
         db_session,
         account_id=owner.account.id,
         trigger="hacen envíos?",
         reply="Sí, a todo el país.",
         slot=0,
     )
-    await _answer(
+    for post in posts:
+        await _pick(db_session, post=post, answer=shipping)
+
+    stub_embeddings["value"] = 0
+    for post in posts:
+        d = await _decide(
+            db_session, owner=owner, channel=channel, post=post, text="envían?"
+        )
+        assert d.text == "Sí, a todo el país."
+
+
+async def test_the_closest_of_the_picked_ones_wins(db_session, stub_embeddings):
+    owner, channel, posts = await _seed(db_session, "-closest")
+    sizes = await _answer(
         db_session,
         account_id=owner.account.id,
         trigger="qué talles hay?",
         reply="Del 38 al 45.",
-        slot=1,
-        post_id=posts[0].id,
+        slot=0,
     )
-    # A comment closest to the shared answer gets the shared answer...
-    stub_embeddings["value"] = 0
+    shipping = await _answer(
+        db_session,
+        account_id=owner.account.id,
+        trigger="hacen envíos?",
+        reply="Sí, a todo el país.",
+        slot=1,
+    )
+    for answer in (sizes, shipping):
+        await _pick(db_session, post=posts[0], answer=answer)
+
+    stub_embeddings["value"] = 1
     d = await _decide(
         db_session, owner=owner, channel=channel, post=posts[0], text="envían?"
     )
     assert d.text == "Sí, a todo el país."
-    # ...and one closest to the scoped answer gets that one.
-    stub_embeddings["value"] = 1
-    d = await _decide(
-        db_session, owner=owner, channel=channel, post=posts[0], text="talles?"
-    )
-    assert d.text == "Del 38 al 45."
-
-
-async def test_the_publications_own_answer_wins_an_exact_tie(
-    db_session, stub_embeddings
-):
-    """Same distance, so only specificity can break it."""
-    owner, channel, posts = await _seed(db_session, "-tie")
-    await _answer(
-        db_session,
-        account_id=owner.account.id,
-        trigger="precio",
-        reply="Consultanos por DM.",
-        slot=0,
-    )
-    await _answer(
-        db_session,
-        account_id=owner.account.id,
-        trigger="precio",
-        reply="Este está 20% off.",
-        slot=0,
-        post_id=posts[0].id,
-    )
-    stub_embeddings["value"] = 0
-    d = await _decide(
-        db_session, owner=owner, channel=channel, post=posts[0], text="precio?"
-    )
-    assert d.text == "Este está 20% off."
 
 
 async def test_an_unrelated_comment_is_left_for_a_person(
@@ -284,17 +325,17 @@ async def test_an_unrelated_comment_is_left_for_a_person(
 
 
 async def test_an_unindexed_answer_is_never_offered(db_session, stub_embeddings):
+    """Even picked — the UI warns about this, so it must be true."""
     owner, channel, posts = await _seed(db_session, "-noidx")
-    row = InstagramCommentReply(
+    row = await _answer(
+        db_session,
         account_id=owner.account.id,
-        post_id=posts[0].id,
         trigger="hacen envíos?",
         reply="Sí, a todo el país.",
-        enabled=True,
-        embedding=None,
+        slot=0,
+        indexed=False,
     )
-    db_session.add(row)
-    await db_session.flush()
+    await _pick(db_session, post=posts[0], answer=row)
     stub_embeddings["value"] = 0
     d = await _decide(
         db_session, owner=owner, channel=channel, post=posts[0], text="envían?"

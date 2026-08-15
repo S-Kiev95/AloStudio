@@ -20,7 +20,6 @@ import logging
 import unicodedata
 from dataclasses import dataclass
 
-from sqlalchemy import or_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -28,6 +27,7 @@ from app.core.llm import embed_text, embedding_search_enabled
 from app.domains.instagram.autoreply_models import (
     DEFAULT_MATCH_MAX_DISTANCE,
     InstagramCommentReply,
+    InstagramPostReplyPick,
 )
 from app.domains.instagram.models import InstagramComment, InstagramPost
 from app.domains.instagram.post_autoreply_models import (
@@ -85,10 +85,11 @@ async def _semantic_match(
     text: str,
     max_distance: float,
 ) -> tuple[str | None, str, float | None]:
-    """``(reply, reason, distance)`` from the answers this post can use.
+    """``(reply, reason, distance)`` from the answers this post offers.
 
-    That is the answers scoped to this publication plus the shared ones —
-    scoping an answer narrows where it applies without hiding the library.
+    Those are the ones picked for the publication, or the whole library
+    when it has picked none — absence means "everything", so similarity
+    matching works before anyone curates it.
     """
     if not embedding_search_enabled():
         return None, "embeddings_disabled", None
@@ -100,25 +101,25 @@ async def _semantic_match(
         log.exception("instagram.autoreply.embed_failed account_id=%s", account_id)
         return None, "embed_failed", None
 
-    distance = InstagramCommentReply.embedding.cosine_distance(vector)
-    row = (
-        await session.exec(
-            select(InstagramCommentReply, distance.label("distance"))
-            .where(
-                InstagramCommentReply.account_id == account_id,
-                InstagramCommentReply.enabled.is_(True),
-                InstagramCommentReply.embedding.is_not(None),
-                or_(
-                    InstagramCommentReply.post_id == post_id,
-                    InstagramCommentReply.post_id.is_(None),
-                ),
+    picked = list(
+        (
+            await session.exec(
+                select(InstagramPostReplyPick.comment_reply_id).where(
+                    InstagramPostReplyPick.post_id == post_id
+                )
             )
-            # On an equal distance the answer written for this publication
-            # wins over the shared one — it is the more specific of the two.
-            .order_by(distance, InstagramCommentReply.post_id.is_(None))
-            .limit(1)
-        )
-    ).first()
+        ).all()
+    )
+
+    distance = InstagramCommentReply.embedding.cosine_distance(vector)
+    query = select(InstagramCommentReply, distance.label("distance")).where(
+        InstagramCommentReply.account_id == account_id,
+        InstagramCommentReply.enabled.is_(True),
+        InstagramCommentReply.embedding.is_not(None),
+    )
+    if picked:
+        query = query.where(InstagramCommentReply.id.in_(picked))
+    row = (await session.exec(query.order_by(distance).limit(1))).first()
     if row is None:
         return None, "no_prepared_answers", None
 

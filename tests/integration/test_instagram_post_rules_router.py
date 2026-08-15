@@ -193,3 +193,156 @@ async def test_a_publication_from_another_account_is_rejected(
         headers=headers,
     )
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Picking which prepared answers a publication offers
+# ---------------------------------------------------------------------------
+def _picks_url(owner, post) -> str:
+    return (
+        f"/api/v1/accounts/{owner.account.id}"
+        f"/instagram_posts/{post.id}/comment_replies"
+    )
+
+
+def _library_url(owner, post=None) -> str:
+    url = f"/api/v1/accounts/{owner.account.id}/instagram_comment_replies"
+    return url if post is None else f"{url}?post_id={post.id}"
+
+
+async def _answer(client, owner, headers, trigger: str) -> int:
+    resp = await client.post(
+        _library_url(owner),
+        json={"trigger": trigger, "reply": f"respuesta a {trigger}"},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()["id"]
+
+
+async def test_a_publication_with_no_picks_is_offered_the_whole_library(
+    client, db_session
+):
+    """Absence means "everything" — similarity works before curating."""
+    owner, headers, post = await _seed(db_session, "-nopicks")
+    await _answer(client, owner, headers, "hacen envíos?")
+    await _answer(client, owner, headers, "cuánto sale?")
+
+    listed = (await client.get(_library_url(owner, post), headers=headers)).json()
+    assert len(listed) == 2
+    assert all(r["selected"] is False for r in listed)
+
+
+async def test_picking_marks_only_the_chosen_ones(client, db_session):
+    owner, headers, post = await _seed(db_session, "-pick")
+    shipping = await _answer(client, owner, headers, "hacen envíos?")
+    await _answer(client, owner, headers, "cuánto sale?")
+
+    resp = await client.put(
+        _picks_url(owner, post), json={"reply_ids": [shipping]}, headers=headers
+    )
+    assert resp.status_code == 200
+    assert resp.json()["reply_ids"] == [shipping]
+
+    listed = (await client.get(_library_url(owner, post), headers=headers)).json()
+    # The library still lists everything: you cannot pick what is hidden.
+    assert len(listed) == 2
+    assert {r["id"]: r["selected"] for r in listed} == {
+        shipping: True,
+        next(r["id"] for r in listed if r["id"] != shipping): False,
+    }
+
+
+async def test_the_same_answer_serves_several_publications(client, db_session):
+    """The reason this is a join table and not a column."""
+    owner, headers, first = await _seed(db_session, "-shared1")
+    second = InstagramPost(
+        account_id=owner.account.id,
+        inbox_id=first.inbox_id,
+        channel_instagram_id=first.channel_instagram_id,
+        media_type="IMAGE",
+        state="published",
+        ig_media_id="MED-shared2",
+    )
+    db_session.add(second)
+    await db_session.flush()
+
+    shipping = await _answer(client, owner, headers, "hacen envíos?")
+    for post in (first, second):
+        resp = await client.put(
+            _picks_url(owner, post),
+            json={"reply_ids": [shipping]},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+
+    for post in (first, second):
+        listed = (
+            await client.get(_library_url(owner, post), headers=headers)
+        ).json()
+        assert [r["selected"] for r in listed] == [True]
+
+
+async def test_replacing_the_set_clears_what_was_dropped(client, db_session):
+    owner, headers, post = await _seed(db_session, "-replace")
+    a = await _answer(client, owner, headers, "hacen envíos?")
+    b = await _answer(client, owner, headers, "cuánto sale?")
+
+    await client.put(
+        _picks_url(owner, post), json={"reply_ids": [a, b]}, headers=headers
+    )
+    resp = await client.put(
+        _picks_url(owner, post), json={"reply_ids": [b]}, headers=headers
+    )
+    assert resp.json()["reply_ids"] == [b]
+
+
+async def test_an_empty_set_falls_back_to_the_whole_library(client, db_session):
+    owner, headers, post = await _seed(db_session, "-clear")
+    a = await _answer(client, owner, headers, "hacen envíos?")
+    await client.put(
+        _picks_url(owner, post), json={"reply_ids": [a]}, headers=headers
+    )
+
+    resp = await client.put(
+        _picks_url(owner, post), json={"reply_ids": []}, headers=headers
+    )
+    assert resp.json()["reply_ids"] == []
+    listed = (await client.get(_library_url(owner, post), headers=headers)).json()
+    assert all(r["selected"] is False for r in listed)
+
+
+async def test_picking_the_same_answer_twice_is_not_an_error(client, db_session):
+    """A double-submit must not trip the uniqueness constraint."""
+    owner, headers, post = await _seed(db_session, "-twice")
+    a = await _answer(client, owner, headers, "hacen envíos?")
+    for _ in range(2):
+        resp = await client.put(
+            _picks_url(owner, post), json={"reply_ids": [a, a]}, headers=headers
+        )
+        assert resp.status_code == 200
+        assert resp.json()["reply_ids"] == [a]
+
+
+async def test_another_accounts_answer_cannot_be_picked(client, db_session):
+    owner, headers, post = await _seed(db_session, "-mineown")
+    other, other_headers, _op = await _seed(db_session, "-notmine")
+    theirs = await _answer(client, other, other_headers, "secreto")
+
+    resp = await client.put(
+        _picks_url(owner, post), json={"reply_ids": [theirs]}, headers=headers
+    )
+    assert resp.status_code == 200
+    # Dropped rather than trusted — picking it would leak their answer.
+    assert resp.json()["reply_ids"] == []
+
+
+async def test_picks_for_a_publication_you_do_not_own_are_refused(
+    client, db_session
+):
+    owner, headers, _post = await _seed(db_session, "-owner")
+    _other, _oh, other_post = await _seed(db_session, "-otherpost")
+    resp = await client.put(
+        _picks_url(owner, other_post), json={"reply_ids": []}, headers=headers
+    )
+    assert resp.status_code == 404

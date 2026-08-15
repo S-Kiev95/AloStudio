@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, Pencil, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { Pencil, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -17,21 +17,11 @@ import {
   useUpdateCommentReply,
 } from "@/lib/api/instagram-autoreply";
 
-/** The answers a `semantic` rule matches against.
- *
- *  With `postId` this is one publication's list: answers written for it,
- *  plus the shared ones it also matches against — which is exactly what
- *  the backend matcher considers, so the page shows the real behaviour
- *  rather than half of it. Without `postId` it is the whole library. */
-export function AutoreplyView({
-  accountId,
-  postId,
-}: {
-  accountId: string;
-  postId?: number;
-}) {
+/** The account's library of prepared answers — written once here, then
+ *  picked per publication (see `PostReplyPicker`). */
+export function AutoreplyView({ accountId }: { accountId: string }) {
   const status = useAutoreplyStatus(accountId);
-  const list = useCommentReplies(accountId, { postId });
+  const list = useCommentReplies(accountId);
   const create = useCreateCommentReply(accountId);
   const update = useUpdateCommentReply(accountId);
   const del = useDeleteCommentReply(accountId);
@@ -41,7 +31,6 @@ export function AutoreplyView({
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const scoped = postId != null;
   // Undefined while loading — treat as available so the warning does not
   // flash on every page load.
   const available = status.data?.semantic_available !== false;
@@ -58,9 +47,6 @@ export function AutoreplyView({
       trigger: trigger.trim(),
       reply: reply.trim(),
       enabled: true,
-      // Editing keeps whatever scope the answer already had; a new one on a
-      // post page belongs to that post.
-      post_id: editing ? editing.post_id : (postId ?? null),
     };
     if (!input.trigger || !input.reply) return;
     try {
@@ -122,11 +108,6 @@ export function AutoreplyView({
               Cancelar
             </Button>
           ) : null}
-          {scoped && !editing ? (
-            <span className="text-xs text-fg-muted">
-              Se guarda solo para esta publicación.
-            </span>
-          ) : null}
         </div>
       </div>
 
@@ -146,17 +127,6 @@ export function AutoreplyView({
                   {r.trigger}
                 </p>
                 <p className="truncate text-xs text-fg-muted">{r.reply}</p>
-                {scoped && r.post_id == null ? (
-                  <p className="mt-1 flex items-center gap-1 text-xs text-fg-muted">
-                    <Globe className="h-3 w-3" aria-hidden />
-                    Compartida — editarla cambia todas las publicaciones.
-                  </p>
-                ) : null}
-                {!scoped && r.post_id != null ? (
-                  <p className="mt-1 text-xs text-fg-muted">
-                    Solo para la publicación #{r.post_id}
-                  </p>
-                ) : null}
                 {available && !r.indexed ? (
                   <p className="mt-1 flex items-center gap-1 text-xs text-warning">
                     <TriangleAlert className="h-3 w-3" aria-hidden />
@@ -196,9 +166,6 @@ export function AutoreplyView({
     </div>
   );
 
-  // On a post page this sits inside the page's own card.
-  if (scoped) return body;
-
   return (
     <Card>
       <CardHeader>
@@ -206,8 +173,8 @@ export function AutoreplyView({
         <p className="mt-1 text-sm text-fg-muted">
           Escribí un ejemplo de cómo lo preguntaría alguien y qué contestar.
           Podés cargar varios ejemplos con la misma respuesta para cubrir
-          distintas formas de preguntar lo mismo. Estas valen para todas las
-          publicaciones; en cada publicación podés agregar las suyas.
+          distintas formas de preguntar lo mismo. Después, en cada
+          publicación, elegís cuáles usa.
         </p>
       </CardHeader>
       <CardContent>{body}</CardContent>

@@ -18,7 +18,7 @@ import {
 } from "@/lib/api/instagram-autoreply";
 import { cn } from "@/lib/utils";
 
-import { AutoreplyView } from "./autoreply-view";
+import { PostReplyPicker } from "./post-reply-picker";
 
 const MATCHES: { value: MatchType; label: string; help: string }[] = [
   {
@@ -185,7 +185,7 @@ export function PostAutoreplyRules({
           ) : (
             <p className="rounded-lg border border-border bg-surface-2 p-2.5 text-xs text-fg-muted">
               {semanticAvailable
-                ? "Usa las respuestas preparadas: las de esta publicación más las compartidas. Al guardar la regla podés cargarlas acá abajo."
+                ? "Usa tus respuestas preparadas. Al guardar la regla vas a poder elegir cuáles usa esta publicación."
                 : "Este modo no está configurado en el servidor (falta la clave de embeddings), así que la regla no va a contestar nada todavía."}
             </p>
           )}
@@ -303,14 +303,14 @@ export function PostAutoreplyRules({
         <div className="space-y-2 border-t border-border pt-4">
           <div>
             <p className="text-sm font-semibold text-fg">
-              Respuestas preparadas
+              Qué respuestas usa esta publicación
             </p>
             <p className="text-xs text-fg-muted">
-              Las que agregues acá valen solo para esta publicación. Las
-              compartidas de la cuenta también se usan.
+              Tildá las que apliquen. Se escriben una sola vez en Instagram →
+              Respuestas automáticas y las podés usar en varias publicaciones.
             </p>
           </div>
-          <AutoreplyView accountId={accountId} postId={postId} />
+          <PostReplyPicker accountId={accountId} postId={postId} />
         </div>
       ) : null}
     </div>

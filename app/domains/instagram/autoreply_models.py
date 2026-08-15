@@ -4,11 +4,11 @@ Which publications use these is decided by the rules on each post
 (:mod:`app.domains.instagram.post_autoreply_models`). This module only
 holds the answers themselves.
 
-An answer is either **shared** (``post_id`` null — the default, for things
-like shipping or prices that hold across every post) or **scoped to one
-publication**, for an answer that only makes sense under that reel. A
-post's matcher considers both, so scoping is additive: nothing has to be
-duplicated to be reused.
+Answers are written once and **picked per publication**: a post can select
+the handful of the library that apply to it, and the same answer can be
+picked by as many posts as you like without being duplicated. A post that
+picks nothing uses the whole library, so the feature costs no
+configuration until you want the control.
 
 The comment is embedded and matched against the library; the closest
 answer is used **only** if it clears a similarity threshold, otherwise the
@@ -33,6 +33,7 @@ from sqlalchemy import (
     Index,
     Integer,
     Text,
+    UniqueConstraint,
 )
 from sqlmodel import Field
 
@@ -69,10 +70,6 @@ class InstagramCommentReply(TimestampMixin, table=True):
             "account_id",
             "enabled",
         ),
-        Index(
-            "index_ig_comment_replies_on_post",
-            "post_id",
-        ),
     )
 
     id: int | None = Field(
@@ -85,17 +82,6 @@ class InstagramCommentReply(TimestampMixin, table=True):
             ForeignKey("accounts.id", ondelete="CASCADE"),
             nullable=False,
         )
-    )
-    # Null means shared across every publication. Set, it limits the answer
-    # to one post — deleting that post takes its answers with it, which is
-    # what you want for an answer that only made sense under it.
-    post_id: int | None = Field(
-        default=None,
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("instagram_posts.id", ondelete="CASCADE"),
-            nullable=True,
-        ),
     )
     trigger: str = Field(sa_column=Column(Text, nullable=False))
     reply: str = Field(sa_column=Column(Text, nullable=False))
@@ -112,6 +98,48 @@ class InstagramCommentReply(TimestampMixin, table=True):
     )
 
 
+class InstagramPostReplyPick(TimestampMixin, table=True):
+    """One prepared answer picked for one publication.
+
+    A join table rather than a column on the answer, because the same
+    answer is worth offering under several posts and duplicating its text
+    to do that would mean editing it in several places later.
+
+    Absence is meaningful: a post with no rows here offers the whole
+    library. That way turning on similarity matching needs no picking, and
+    picking is what narrows it.
+    """
+
+    __tablename__ = "instagram_post_comment_replies"
+    __table_args__ = (
+        UniqueConstraint(
+            "post_id",
+            "comment_reply_id",
+            name="index_ig_post_replies_on_post_and_reply",
+        ),
+        Index("index_ig_post_replies_on_reply", "comment_reply_id"),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    post_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("instagram_posts.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+    comment_reply_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("instagram_comment_replies.id", ondelete="CASCADE"),
+            nullable=False,
+        )
+    )
+
+
 __all__ = [
     "AUTOREPLY_FIXED",
     "AUTOREPLY_MODES",
@@ -120,4 +148,5 @@ __all__ = [
     "COMMENT_REPLY_EMBEDDING_DIM",
     "DEFAULT_MATCH_MAX_DISTANCE",
     "InstagramCommentReply",
+    "InstagramPostReplyPick",
 ]
