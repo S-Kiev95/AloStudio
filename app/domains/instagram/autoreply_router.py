@@ -19,7 +19,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, status
 from pydantic import BaseModel, Field
-from sqlalchemy import or_
+from sqlalchemy import case, or_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -34,6 +34,7 @@ from app.domains.instagram.models import InstagramPost
 from app.domains.instagram.post_autoreply_models import (
     DELIVERIES,
     MATCH_KEYWORD,
+    MATCH_PRIORITY,
     MATCH_TYPES,
     InstagramPostAutoreply,
 )
@@ -229,6 +230,15 @@ def _present_rule(row: InstagramPostAutoreply) -> dict[str, Any]:
     }
 
 
+def _match_order():
+    """Sort key mirroring ``MATCH_PRIORITY`` — the evaluation order."""
+    return case(
+        MATCH_PRIORITY,
+        value=InstagramPostAutoreply.match_type,
+        else_=99,
+    )
+
+
 def _validate_rule(payload: PostRuleIn) -> None:
     if payload.match_type not in MATCH_TYPES:
         raise ChatwootHTTPException(
@@ -267,7 +277,12 @@ async def list_rules(
         await session.exec(
             select(InstagramPostAutoreply)
             .where(InstagramPostAutoreply.post_id == post_id)
-            .order_by(InstagramPostAutoreply.id.asc())
+            # Listed in the order they are evaluated, not the order they
+            # were written. A catch-all shown above a keyword rule reads as
+            # if it swallowed everything — the opposite of what happens.
+            .order_by(
+                _match_order(), InstagramPostAutoreply.id.asc()
+            )
         )
     ).all()
     return [_present_rule(r) for r in rows]

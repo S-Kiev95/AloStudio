@@ -106,12 +106,10 @@ export function PostAutoreplyRules({
   return (
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-fg">Respuestas automáticas</p>
-          <p className="text-xs text-fg-muted">
-            Nunca responde a tus propios comentarios ni dos veces al mismo.
-          </p>
-        </div>
+        {/* The card around this already carries the title. */}
+        <p className="text-xs text-fg-muted">
+          Nunca responde a tus propios comentarios ni dos veces al mismo.
+        </p>
         {!open ? (
           <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
             <Plus className="h-4 w-4" aria-hidden />
