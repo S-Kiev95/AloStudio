@@ -20,6 +20,7 @@ import logging
 import unicodedata
 from dataclasses import dataclass
 
+from sqlalchemy import or_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -80,10 +81,15 @@ async def _semantic_match(
     session: AsyncSession,
     *,
     account_id: int,
+    post_id: int,
     text: str,
     max_distance: float,
 ) -> tuple[str | None, str, float | None]:
-    """``(reply, reason, distance)`` from the account's answer library."""
+    """``(reply, reason, distance)`` from the answers this post can use.
+
+    That is the answers scoped to this publication plus the shared ones —
+    scoping an answer narrows where it applies without hiding the library.
+    """
     if not embedding_search_enabled():
         return None, "embeddings_disabled", None
     try:
@@ -102,8 +108,14 @@ async def _semantic_match(
                 InstagramCommentReply.account_id == account_id,
                 InstagramCommentReply.enabled.is_(True),
                 InstagramCommentReply.embedding.is_not(None),
+                or_(
+                    InstagramCommentReply.post_id == post_id,
+                    InstagramCommentReply.post_id.is_(None),
+                ),
             )
-            .order_by(distance)
+            # On an equal distance the answer written for this publication
+            # wins over the shared one — it is the more specific of the two.
+            .order_by(distance, InstagramCommentReply.post_id.is_(None))
             .limit(1)
         )
     ).first()
@@ -186,6 +198,11 @@ async def decide_reply(
     if not rules:
         return ReplyDecision(reason="no_rules")
 
+    # Why a semantic rule declined, kept for the final decision. "no_match"
+    # alone cannot tell an admin whether to configure a key, write answers,
+    # or loosen the threshold — and that is exactly what they need to know.
+    semantic_miss: str | None = None
+
     for rule in rules:
         if rule.match_type == MATCH_KEYWORD:
             if not _keyword_hit(rule, text):
@@ -204,12 +221,14 @@ async def decide_reply(
             body, reason, distance = await _semantic_match(
                 session,
                 account_id=comment.account_id,
+                post_id=post.id,
                 text=text,
                 max_distance=DEFAULT_MATCH_MAX_DISTANCE,
             )
             if body is None:
                 # Fall through to a catch-all rule if one exists — a
                 # library miss should not block a generic answer.
+                semantic_miss = reason
                 log.debug(
                     "instagram.autoreply.semantic_miss comment=%s reason=%s",
                     comment.ig_comment_id,
@@ -235,7 +254,7 @@ async def decide_reply(
                 rule_id=rule.id,
             )
 
-    return ReplyDecision(reason="no_match")
+    return ReplyDecision(reason=semantic_miss or "no_match")
 
 
 __all__ = ["ReplyDecision", "decide_reply"]

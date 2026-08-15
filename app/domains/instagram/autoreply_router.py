@@ -19,6 +19,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, status
 from pydantic import BaseModel, Field
+from sqlalchemy import or_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -57,6 +58,8 @@ class CommentReplyIn(BaseModel):
     trigger: str = Field(min_length=1)
     reply: str = Field(min_length=1)
     enabled: bool = True
+    # Null keeps the answer shared across every publication.
+    post_id: int | None = None
 
 
 def _present_reply(row: InstagramCommentReply) -> dict[str, Any]:
@@ -65,6 +68,7 @@ def _present_reply(row: InstagramCommentReply) -> dict[str, Any]:
         "trigger": row.trigger,
         "reply": row.reply,
         "enabled": row.enabled,
+        "post_id": row.post_id,
         # Surfaced so the UI can flag an answer that will never match.
         "indexed": row.embedding is not None,
     }
@@ -80,20 +84,56 @@ async def _embed_or_none(text: str) -> list[float] | None:
         return None
 
 
+async def _owned_post(
+    session: AsyncSession, *, post_id: int, account_id: int
+) -> InstagramPost:
+    post = await session.get(InstagramPost, post_id)
+    if post is None or post.account_id != account_id:
+        raise ChatwootHTTPException(
+            status_code=404, detail={"error": "Resource could not be found"}
+        )
+    return post
+
+
 # ---------------------------------------------------------------------------
 # Prepared answers
 # ---------------------------------------------------------------------------
+@router.get("/instagram_autoreply_status")
+async def autoreply_status(
+    _ctx: Annotated[AccountContext, Depends(require_admin)],
+) -> dict[str, Any]:
+    """Whether similarity matching can run on this installation at all.
+
+    Without an embedding provider a ``semantic`` rule is silently inert and
+    every answer saves unindexed. The UI needs to say that plainly instead
+    of telling the admin to save again, which cannot help.
+    """
+    return {"semantic_available": embedding_search_enabled()}
+
+
 @router.get("/instagram_comment_replies")
 async def list_replies(
     ctx: Annotated[AccountContext, Depends(require_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
+    post_id: int | None = None,
 ) -> list[dict[str, Any]]:
-    rows = (
-        await session.exec(
-            select(InstagramCommentReply)
-            .where(InstagramCommentReply.account_id == ctx.account.id)
-            .order_by(InstagramCommentReply.id.desc())
+    """The account's answers.
+
+    ``post_id`` narrows to what that publication actually matches against:
+    its own answers plus the shared ones. Omitted, the whole library.
+    """
+    query = select(InstagramCommentReply).where(
+        InstagramCommentReply.account_id == ctx.account.id
+    )
+    if post_id is not None:
+        query = query.where(
+            or_(
+                InstagramCommentReply.post_id == post_id,
+                InstagramCommentReply.post_id.is_(None),
+            )
         )
+    rows = (
+        await session.exec(query.order_by(InstagramCommentReply.id.desc()))
     ).all()
     return [_present_reply(r) for r in rows]
 
@@ -105,8 +145,13 @@ async def create_reply_entry(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
+    if payload.post_id is not None:
+        await _owned_post(
+            session, post_id=payload.post_id, account_id=ctx.account.id
+        )
     row = InstagramCommentReply(
         account_id=ctx.account.id,
+        post_id=payload.post_id,
         trigger=payload.trigger.strip(),
         reply=payload.reply.strip(),
         enabled=payload.enabled,
@@ -130,14 +175,20 @@ async def update_reply_entry(
         raise ChatwootHTTPException(
             status_code=404, detail={"error": "Resource could not be found"}
         )
+    if payload.post_id is not None:
+        await _owned_post(
+            session, post_id=payload.post_id, account_id=ctx.account.id
+        )
     trigger = payload.trigger.strip()
-    # Re-embed only when the matched text actually changed — editing the
-    # answer's wording must not cost an OpenAI call.
-    if trigger != row.trigger:
+    # Re-embed when the matched text changed, or when a previous save could
+    # not embed at all — re-saving is the documented way to fix that, so it
+    # has to actually retry.
+    if trigger != row.trigger or row.embedding is None:
         row.embedding = await _embed_or_none(trigger)
     row.trigger = trigger
     row.reply = payload.reply.strip()
     row.enabled = payload.enabled
+    row.post_id = payload.post_id
     session.add(row)
     await session.commit()
     await session.refresh(row)
@@ -176,17 +227,6 @@ def _present_rule(row: InstagramPostAutoreply) -> dict[str, Any]:
         "delivery": row.delivery,
         "enabled": row.enabled,
     }
-
-
-async def _owned_post(
-    session: AsyncSession, *, post_id: int, account_id: int
-) -> InstagramPost:
-    post = await session.get(InstagramPost, post_id)
-    if post is None or post.account_id != account_id:
-        raise ChatwootHTTPException(
-            status_code=404, detail={"error": "Resource could not be found"}
-        )
-    return post
 
 
 def _validate_rule(payload: PostRuleIn) -> None:

@@ -11,11 +11,14 @@ import {
   type Delivery,
   type MatchType,
   type PostRule,
+  useAutoreplyStatus,
   useCreatePostRule,
   useDeletePostRule,
   usePostRules,
 } from "@/lib/api/instagram-autoreply";
 import { cn } from "@/lib/utils";
+
+import { AutoreplyView } from "./autoreply-view";
 
 const MATCHES: { value: MatchType; label: string; help: string }[] = [
   {
@@ -53,8 +56,13 @@ export function PostAutoreplyRules({
   postId: number;
 }) {
   const rules = usePostRules(accountId, postId);
+  const status = useAutoreplyStatus(accountId);
   const create = useCreatePostRule(accountId, postId);
   const del = useDeletePostRule(accountId);
+  const semanticAvailable = status.data?.semantic_available !== false;
+  const hasSemanticRule = (rules.data ?? []).some(
+    (r) => r.match_type === "semantic",
+  );
 
   const [open, setOpen] = useState(false);
   const [matchType, setMatchType] = useState<MatchType>("keyword");
@@ -178,8 +186,9 @@ export function PostAutoreplyRules({
             </div>
           ) : (
             <p className="rounded-lg border border-border bg-surface-2 p-2.5 text-xs text-fg-muted">
-              Usa las respuestas preparadas de la cuenta. Cargalas en
-              Instagram → Respuestas automáticas.
+              {semanticAvailable
+                ? "Usa las respuestas preparadas: las de esta publicación más las compartidas. Al guardar la regla podés cargarlas acá abajo."
+                : "Este modo no está configurado en el servidor (falta la clave de embeddings), así que la regla no va a contestar nada todavía."}
             </p>
           )}
 
@@ -289,6 +298,23 @@ export function PostAutoreplyRules({
           ))}
         </ul>
       )}
+
+      {/* Only once a rule can actually use them — answers with no semantic
+          rule on the post would sit there doing nothing. */}
+      {hasSemanticRule ? (
+        <div className="space-y-2 border-t border-border pt-4">
+          <div>
+            <p className="text-sm font-semibold text-fg">
+              Respuestas preparadas
+            </p>
+            <p className="text-xs text-fg-muted">
+              Las que agregues acá valen solo para esta publicación. Las
+              compartidas de la cuenta también se usan.
+            </p>
+          </div>
+          <AutoreplyView accountId={accountId} postId={postId} />
+        </div>
+      ) : null}
     </div>
   );
 }

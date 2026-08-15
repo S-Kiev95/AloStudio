@@ -1,15 +1,20 @@
-"""Automatic replies to Instagram comments.
+"""The library of prepared answers a ``semantic`` rule matches against.
 
-Two modes, picked per inbox on ``InstagramChannelSetting``:
+Which publications use these is decided by the rules on each post
+(:mod:`app.domains.instagram.post_autoreply_models`). This module only
+holds the answers themselves.
 
-* ``fixed``    — one canned sentence answers every top-level comment.
-* ``semantic`` — the comment is embedded and matched against a library of
-  prepared answers; the closest one is used **only** if it clears a
-  similarity threshold, otherwise the comment is left for a person.
+An answer is either **shared** (``post_id`` null — the default, for things
+like shipping or prices that hold across every post) or **scoped to one
+publication**, for an answer that only makes sense under that reel. A
+post's matcher considers both, so scoping is additive: nothing has to be
+duplicated to be reused.
 
-The threshold is the whole point of the semantic mode. A matcher that
-always answers will answer confidently and wrongly, in public, under the
-brand — so "no good match" has to be a real outcome, not a fallback to
+The comment is embedded and matched against the library; the closest
+answer is used **only** if it clears a similarity threshold, otherwise the
+comment is left for a person. That threshold is the whole point. A matcher
+that always answers will answer confidently and wrongly, in public, under
+the brand — so "no good match" has to be a real outcome, not a fallback to
 the nearest thing.
 
 Embeddings reuse the pgvector column and ``text-embedding-3-small`` model
@@ -64,6 +69,10 @@ class InstagramCommentReply(TimestampMixin, table=True):
             "account_id",
             "enabled",
         ),
+        Index(
+            "index_ig_comment_replies_on_post",
+            "post_id",
+        ),
     )
 
     id: int | None = Field(
@@ -76,6 +85,17 @@ class InstagramCommentReply(TimestampMixin, table=True):
             ForeignKey("accounts.id", ondelete="CASCADE"),
             nullable=False,
         )
+    )
+    # Null means shared across every publication. Set, it limits the answer
+    # to one post — deleting that post takes its answers with it, which is
+    # what you want for an answer that only made sense under it.
+    post_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("instagram_posts.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
     )
     trigger: str = Field(sa_column=Column(Text, nullable=False))
     reply: str = Field(sa_column=Column(Text, nullable=False))

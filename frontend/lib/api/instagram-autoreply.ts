@@ -32,6 +32,8 @@ export type CommentReply = {
   trigger: string;
   reply: string;
   enabled: boolean;
+  /** Null when the answer is shared across every publication. */
+  post_id: number | null;
   /** False when the answer has no embedding yet, so it can never match. */
   indexed: boolean;
 };
@@ -40,6 +42,7 @@ export type CommentReplyInput = {
   trigger: string;
   reply: string;
   enabled: boolean;
+  post_id?: number | null;
 };
 
 function base(accountId: string): string {
@@ -104,13 +107,38 @@ export function useDeletePostRule(accountId: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Account-wide library of prepared answers (used by `semantic` rules)
+// Prepared answers (used by `semantic` rules)
 // ---------------------------------------------------------------------------
-export function useCommentReplies(accountId: string, enabled = true) {
+/** Whether similarity matching can run at all on this installation.
+ *
+ *  Without an embedding provider a `semantic` rule is inert and every
+ *  answer saves unindexed, so the UI has to say that rather than tell the
+ *  admin to save again. */
+export function useAutoreplyStatus(accountId: string) {
   return useQuery({
-    queryKey: ["ig-comment-replies", accountId],
+    queryKey: ["ig-autoreply-status", accountId],
     queryFn: () =>
-      apiFetch<CommentReply[]>(`${base(accountId)}/instagram_comment_replies`),
+      apiFetch<{ semantic_available: boolean }>(
+        `${base(accountId)}/instagram_autoreply_status`,
+      ),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** `postId` narrows to what that publication matches against: its own
+ *  answers plus the shared ones. Omitted, the whole library. */
+export function useCommentReplies(
+  accountId: string,
+  opts: { postId?: number; enabled?: boolean } = {},
+) {
+  const { postId, enabled = true } = opts;
+  return useQuery({
+    queryKey: ["ig-comment-replies", accountId, postId ?? null],
+    queryFn: () =>
+      apiFetch<CommentReply[]>(
+        `${base(accountId)}/instagram_comment_replies` +
+          (postId != null ? `?post_id=${postId}` : ""),
+      ),
     enabled,
   });
 }
