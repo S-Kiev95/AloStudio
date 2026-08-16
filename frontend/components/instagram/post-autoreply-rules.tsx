@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, Plus, Send, Trash2 } from "lucide-react";
+import { MessageSquare, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   useCreatePostRule,
   useDeletePostRule,
   usePostRules,
+  useUpdatePostRule,
 } from "@/lib/api/instagram-autoreply";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +59,7 @@ export function PostAutoreplyRules({
   const rules = usePostRules(accountId, postId);
   const status = useAutoreplyStatus(accountId);
   const create = useCreatePostRule(accountId, postId);
+  const update = useUpdatePostRule(accountId);
   const del = useDeletePostRule(accountId);
   const semanticAvailable = status.data?.semantic_available !== false;
   const hasSemanticRule = (rules.data ?? []).some(
@@ -65,6 +67,7 @@ export function PostAutoreplyRules({
   );
 
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<PostRule | null>(null);
   const [matchType, setMatchType] = useState<MatchType>("keyword");
   const [keywords, setKeywords] = useState("");
   const [replyText, setReplyText] = useState("");
@@ -75,6 +78,7 @@ export function PostAutoreplyRules({
 
   function reset() {
     setOpen(false);
+    setEditing(null);
     setMatchType("keyword");
     setKeywords("");
     setReplyText("");
@@ -82,16 +86,29 @@ export function PostAutoreplyRules({
     setError(null);
   }
 
+  function edit(rule: PostRule) {
+    setEditing(rule);
+    setMatchType(rule.match_type);
+    setKeywords(rule.keywords ?? "");
+    setReplyText(rule.reply_text ?? "");
+    setDelivery(rule.delivery);
+    setError(null);
+    setOpen(true);
+  }
+
   async function submit() {
     setError(null);
+    const input = {
+      match_type: matchType,
+      keywords: matchType === "keyword" ? keywords : null,
+      reply_text: matchType === "semantic" ? null : replyText,
+      delivery,
+      // Editing must not silently re-enable a rule that was turned off.
+      enabled: editing ? editing.enabled : true,
+    };
     try {
-      await create.mutateAsync({
-        match_type: matchType,
-        keywords: matchType === "keyword" ? keywords : null,
-        reply_text: matchType === "semantic" ? null : replyText,
-        delivery,
-        enabled: true,
-      });
+      if (editing) await update.mutateAsync({ id: editing.id, input });
+      else await create.mutateAsync(input);
       reset();
     } catch (e) {
       setError((e as { message?: string })?.message ?? "No se pudo guardar.");
@@ -120,6 +137,11 @@ export function PostAutoreplyRules({
 
       {open ? (
         <div className="space-y-3 rounded-lg border border-border p-3">
+          {/* Named, because the form sits above the list and an edit would
+              otherwise look like a second rule being written. */}
+          <p className="text-sm font-semibold text-fg">
+            {editing ? "Editar regla" : "Nueva regla"}
+          </p>
           {error ? (
             <p role="alert" className="text-sm text-danger">
               {error}
@@ -240,10 +262,10 @@ export function PostAutoreplyRules({
             <Button
               size="sm"
               onClick={submit}
-              loading={create.isPending}
+              loading={create.isPending || update.isPending}
               disabled={!canSave}
             >
-              Guardar regla
+              {editing ? "Guardar cambios" : "Guardar regla"}
             </Button>
             <Button size="sm" variant="ghost" onClick={reset}>
               Cancelar
@@ -281,6 +303,14 @@ export function PostAutoreplyRules({
                   {r.reply_text ?? "Usa las respuestas preparadas"}
                 </p>
               </div>
+              <button
+                type="button"
+                aria-label="Editar regla"
+                onClick={() => edit(r)}
+                className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg"
+              >
+                <Pencil className="h-4 w-4" aria-hidden />
+              </button>
               <button
                 type="button"
                 aria-label="Eliminar regla"

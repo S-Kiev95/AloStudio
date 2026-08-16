@@ -346,3 +346,71 @@ async def test_picks_for_a_publication_you_do_not_own_are_refused(
         _picks_url(owner, other_post), json={"reply_ids": []}, headers=headers
     )
     assert resp.status_code == 404
+
+
+async def test_a_rule_can_be_switched_from_private_to_public(
+    client, db_session
+):
+    """The panel edits a saved rule; the endpoint has to accept the change."""
+    owner, headers, post = await _seed(db_session, "-flip")
+    created = await client.post(
+        _rules_url(owner, post), json=KEYWORD_PAYLOAD, headers=headers
+    )
+    rule_id = created.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/accounts/{owner.account.id}/autoreply_rules/{rule_id}",
+        json={**KEYWORD_PAYLOAD, "delivery": "public"},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["delivery"] == "public"
+
+    listed = (await client.get(_rules_url(owner, post), headers=headers)).json()
+    assert [r["delivery"] for r in listed] == ["public"]
+
+
+async def test_editing_does_not_mint_a_second_rule(client, db_session):
+    owner, headers, post = await _seed(db_session, "-onlyone")
+    created = await client.post(
+        _rules_url(owner, post), json=KEYWORD_PAYLOAD, headers=headers
+    )
+    await client.patch(
+        f"/api/v1/accounts/{owner.account.id}/autoreply_rules/"
+        f"{created.json()['id']}",
+        json={**KEYWORD_PAYLOAD, "keywords": "becas"},
+        headers=headers,
+    )
+    listed = (await client.get(_rules_url(owner, post), headers=headers)).json()
+    assert len(listed) == 1
+    assert listed[0]["keywords"] == "becas"
+
+
+async def test_an_edit_is_validated_like_a_creation(client, db_session):
+    """Otherwise editing is a way around the rules that creation enforces."""
+    owner, headers, post = await _seed(db_session, "-editval")
+    created = await client.post(
+        _rules_url(owner, post), json=KEYWORD_PAYLOAD, headers=headers
+    )
+    resp = await client.patch(
+        f"/api/v1/accounts/{owner.account.id}/autoreply_rules/"
+        f"{created.json()['id']}",
+        json={**KEYWORD_PAYLOAD, "keywords": "  "},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+
+
+async def test_another_accounts_rule_cannot_be_edited(client, db_session):
+    owner, headers, _post = await _seed(db_session, "-editmine")
+    other, other_headers, other_post = await _seed(db_session, "-edittheirs")
+    theirs = await client.post(
+        _rules_url(other, other_post), json=KEYWORD_PAYLOAD, headers=other_headers
+    )
+    resp = await client.patch(
+        f"/api/v1/accounts/{owner.account.id}/autoreply_rules/"
+        f"{theirs.json()['id']}",
+        json={**KEYWORD_PAYLOAD, "delivery": "public"},
+        headers=headers,
+    )
+    assert resp.status_code == 404
