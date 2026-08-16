@@ -28,6 +28,7 @@ from app.core.deps import AccountContext, require_admin
 from app.core.errors import ChatwootHTTPException
 from app.core.llm import embed_text, embedding_search_enabled
 from app.domains.instagram.autoreply_models import (
+    DEFAULT_MATCH_MAX_DISTANCE,
     InstagramCommentReply,
     InstagramPostReplyPick,
 )
@@ -37,6 +38,8 @@ from app.domains.instagram.post_autoreply_models import (
     MATCH_KEYWORD,
     MATCH_PRIORITY,
     MATCH_TYPES,
+    MAX_MATCH_DISTANCE,
+    MIN_MATCH_DISTANCE,
     InstagramPostAutoreply,
 )
 
@@ -54,6 +57,9 @@ class PostRuleIn(BaseModel):
     reply_text: str | None = None
     delivery: str = "public"
     enabled: bool = True
+    # Null follows the installation default. Only meaningful for
+    # ``semantic``; the other modes do not match by distance.
+    max_distance: float | None = None
 
 
 class CommentReplyIn(BaseModel):
@@ -284,7 +290,19 @@ def _present_rule(row: InstagramPostAutoreply) -> dict[str, Any]:
         "reply_text": row.reply_text,
         "delivery": row.delivery,
         "enabled": row.enabled,
+        "max_distance": row.max_distance,
+        # What the rule is actually matching at, so the UI never has to
+        # hardcode the default to show it.
+        "effective_max_distance": row.max_distance or DEFAULT_MATCH_MAX_DISTANCE,
     }
+
+
+def _distance_for(payload: PostRuleIn) -> float | None:
+    """Only a ``semantic`` rule matches by distance.
+
+    Storing one on a keyword or catch-all rule would show a setting in the
+    UI that changes nothing about how that rule behaves."""
+    return payload.max_distance if payload.match_type == "semantic" else None
 
 
 def _match_order():
@@ -320,6 +338,20 @@ def _validate_rule(payload: PostRuleIn) -> None:
         raise ChatwootHTTPException(
             status_code=422,
             detail={"message": "Falta el texto de la respuesta"},
+        )
+    # Bounded: past the top of the range every comment matches its nearest
+    # answer, which is the failure mode the threshold exists to prevent.
+    if payload.max_distance is not None and not (
+        MIN_MATCH_DISTANCE <= payload.max_distance <= MAX_MATCH_DISTANCE
+    ):
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    f"La exigencia debe estar entre {MIN_MATCH_DISTANCE} "
+                    f"y {MAX_MATCH_DISTANCE}"
+                )
+            },
         )
 
 
@@ -365,6 +397,7 @@ async def create_rule(
         reply_text=(payload.reply_text or "").strip() or None,
         delivery=payload.delivery,
         enabled=payload.enabled,
+        max_distance=_distance_for(payload),
     )
     session.add(row)
     await session.commit()
@@ -390,6 +423,7 @@ async def update_rule(
     row.reply_text = (payload.reply_text or "").strip() or None
     row.delivery = payload.delivery
     row.enabled = payload.enabled
+    row.max_distance = _distance_for(payload)
     session.add(row)
     await session.commit()
     await session.refresh(row)

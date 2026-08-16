@@ -16,6 +16,7 @@ from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+from app.domains.instagram.autoreply_models import DEFAULT_MATCH_MAX_DISTANCE
 from app.domains.instagram.models import InstagramPost
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
 from app.main import app
@@ -414,3 +415,80 @@ async def test_another_accounts_rule_cannot_be_edited(client, db_session):
         headers=headers,
     )
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# How close a similarity rule has to match
+# ---------------------------------------------------------------------------
+async def test_a_similarity_rule_can_carry_its_own_strictness(
+    client, db_session
+):
+    """Which way to err is a per-post call, not an installation-wide one."""
+    owner, headers, post = await _seed(db_session, "-strict")
+    resp = await client.post(
+        _rules_url(owner, post),
+        json={**SEMANTIC_PAYLOAD, "max_distance": 0.65},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["max_distance"] == 0.65
+    assert resp.json()["effective_max_distance"] == 0.65
+
+
+async def test_a_rule_without_one_follows_the_installation_default(
+    client, db_session
+):
+    """Null tracks the tuned default rather than freezing today's number."""
+    owner, headers, post = await _seed(db_session, "-default")
+    resp = await client.post(
+        _rules_url(owner, post), json=SEMANTIC_PAYLOAD, headers=headers
+    )
+    assert resp.json()["max_distance"] is None
+    assert resp.json()["effective_max_distance"] == DEFAULT_MATCH_MAX_DISTANCE
+
+
+async def test_the_strictness_can_be_changed_on_a_saved_rule(
+    client, db_session
+):
+    owner, headers, post = await _seed(db_session, "-restrict")
+    created = await client.post(
+        _rules_url(owner, post),
+        json={**SEMANTIC_PAYLOAD, "max_distance": 0.45},
+        headers=headers,
+    )
+    resp = await client.patch(
+        f"/api/v1/accounts/{owner.account.id}/autoreply_rules/"
+        f"{created.json()['id']}",
+        json={**SEMANTIC_PAYLOAD, "max_distance": 0.65},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["effective_max_distance"] == 0.65
+
+
+@pytest.mark.parametrize("value", [0.0, -1.0, 1.5, 2.0])
+async def test_a_distance_outside_the_range_is_refused(
+    client, db_session, value
+):
+    """Past the top every comment matches its nearest answer, which is the
+    failure the threshold exists to prevent."""
+    owner, headers, post = await _seed(db_session, f"-range{value}")
+    resp = await client.post(
+        _rules_url(owner, post),
+        json={**SEMANTIC_PAYLOAD, "max_distance": value},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+
+
+async def test_a_keyword_rule_stores_no_distance(client, db_session):
+    """It does not match by distance, so a stored value would be a setting
+    the UI shows that changes nothing."""
+    owner, headers, post = await _seed(db_session, "-kwdist")
+    resp = await client.post(
+        _rules_url(owner, post),
+        json={**KEYWORD_PAYLOAD, "max_distance": 0.65},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["max_distance"] is None

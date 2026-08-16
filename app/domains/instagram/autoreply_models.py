@@ -43,10 +43,26 @@ from app.core.base_model import TimestampMixin
 COMMENT_REPLY_EMBEDDING_DIM = 1536
 
 # Cosine *distance* below which a prepared answer is considered a match.
-# 0 is identical, 2 is opposite. 0.35 is deliberately conservative: the
-# cost of staying quiet is a human answering a minute later, while the cost
-# of a wrong answer is public.
-DEFAULT_MATCH_MAX_DISTANCE = 0.35
+# 0 is identical, 2 is opposite.
+#
+# Measured against text-embedding-3-small on real Spanish comments, which
+# is what set this number — the first guess of 0.35 was picked blind and
+# stayed silent on the paraphrases the feature exists to catch:
+#
+#     "tienen becas?"                  vs "Tienen becas?"   0.038
+#     "vivo en el interior, hacen      vs "Hacen envios al
+#      envios?"                            interior"        0.233
+#     "quiero aplicar a una beca"      vs "Tienen becas?"   0.387
+#     "hay beca disponible?"           vs "Tienen becas?"   0.464
+#     "quiero aplicar a una beca"      vs "Hacen envios..." 0.734
+#     "vivo en el interior..."         vs "Tienen becas?"   0.649
+#
+# A paraphrase of the same question lands at 0.23-0.47; a different
+# question at 0.65+. 0.55 sits in that gap. It stays a threshold and not a
+# nearest-match: "no good match" has to remain a real outcome, because the
+# cost of silence is a person answering a minute later while the cost of a
+# confident wrong answer is paid in front of the audience.
+DEFAULT_MATCH_MAX_DISTANCE = 0.55
 
 AUTOREPLY_OFF = "off"
 AUTOREPLY_FIXED = "fixed"

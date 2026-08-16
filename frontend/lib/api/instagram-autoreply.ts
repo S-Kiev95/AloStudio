@@ -17,6 +17,10 @@ export type PostRule = {
   reply_text: string | null;
   delivery: Delivery;
   enabled: boolean;
+  /** Null follows the installation default. */
+  max_distance: number | null;
+  /** What the rule actually matches at, default resolved server-side. */
+  effective_max_distance: number;
 };
 
 export type PostRuleInput = {
@@ -25,6 +29,7 @@ export type PostRuleInput = {
   reply_text?: string | null;
   delivery: Delivery;
   enabled: boolean;
+  max_distance?: number | null;
 };
 
 export type CommentReply = {

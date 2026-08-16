@@ -23,6 +23,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -46,6 +47,28 @@ MATCH_PRIORITY = {MATCH_KEYWORD: 0, MATCH_SEMANTIC: 1, MATCH_ALL: 2}
 DELIVERY_PUBLIC = "public"
 DELIVERY_DM = "dm"
 DELIVERIES = (DELIVERY_PUBLIC, DELIVERY_DM)
+
+# How close a prepared answer has to be, per rule. Named levels rather than
+# a free number: the underlying value is a cosine distance, which is not
+# something anyone running a shop can reason about, while "only if it is
+# nearly the same question" is. The numbers come from the measurements in
+# :mod:`app.domains.instagram.autoreply_models`.
+STRICTNESS_LEVELS: dict[str, float] = {
+    # Near-verbatim only. A paraphrase already sits past this.
+    "strict": 0.45,
+    # Paraphrases of the same question, not a different one. The default.
+    "balanced": 0.55,
+    # Reaches into where genuinely different questions start, so it will
+    # sometimes answer the wrong one. Offered because on some posts a
+    # near-miss answer beats no answer.
+    "loose": 0.65,
+}
+DEFAULT_STRICTNESS = "balanced"
+
+# Hand-set values are still accepted, bounded so a stray number cannot turn
+# the matcher into "always answer the nearest thing".
+MIN_MATCH_DISTANCE = 0.05
+MAX_MATCH_DISTANCE = 1.0
 
 
 class InstagramPostAutoreply(TimestampMixin, table=True):
@@ -97,6 +120,13 @@ class InstagramPostAutoreply(TimestampMixin, table=True):
         default=DELIVERY_PUBLIC,
         sa_column=Column(String, nullable=False, server_default=DELIVERY_PUBLIC),
     )
+    # How close a prepared answer has to be for a ``semantic`` rule to use
+    # it. Null follows the installation default, so a rule written before
+    # this existed — or by someone who does not want to think about it —
+    # keeps tracking the tuned value instead of freezing today's number.
+    max_distance: float | None = Field(
+        default=None, sa_column=Column(Float, nullable=True)
+    )
     enabled: bool = Field(
         default=True,
         sa_column=Column(Boolean, nullable=False, server_default="true"),
@@ -104,6 +134,7 @@ class InstagramPostAutoreply(TimestampMixin, table=True):
 
 
 __all__ = [
+    "DEFAULT_STRICTNESS",
     "DELIVERIES",
     "DELIVERY_DM",
     "DELIVERY_PUBLIC",
@@ -112,5 +143,8 @@ __all__ = [
     "MATCH_PRIORITY",
     "MATCH_SEMANTIC",
     "MATCH_TYPES",
+    "MAX_MATCH_DISTANCE",
+    "MIN_MATCH_DISTANCE",
+    "STRICTNESS_LEVELS",
     "InstagramPostAutoreply",
 ]

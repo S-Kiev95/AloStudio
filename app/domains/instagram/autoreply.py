@@ -127,6 +127,20 @@ async def _semantic_match(
     if dist is None or float(dist) > max_distance:
         # A near-miss is not an answer. Leaving it for a person costs a
         # minute; answering the wrong question costs it in public.
+        #
+        # Logged at info, not debug: a comment that almost matched is the
+        # one case where silence looks like a fault, and the closest
+        # answer plus its distance is what tells an admin whether to
+        # reword the example or leave it alone. Diagnosing this without it
+        # meant re-embedding the comment by hand against the library.
+        log.info(
+            "instagram.autoreply.below_threshold closest=%r distance=%.4f "
+            "max=%.2f account_id=%s",
+            candidate.trigger,
+            float(dist) if dist is not None else -1.0,
+            max_distance,
+            account_id,
+        )
         return None, "below_threshold", (float(dist) if dist is not None else None)
     return candidate.reply, "semantic_match", float(dist)
 
@@ -224,7 +238,10 @@ async def decide_reply(
                 account_id=comment.account_id,
                 post_id=post.id,
                 text=text,
-                max_distance=DEFAULT_MATCH_MAX_DISTANCE,
+                # Null on the rule follows the installation default, so a
+                # rule nobody tuned tracks the tuned value rather than
+                # freezing whatever it was the day it was written.
+                max_distance=rule.max_distance or DEFAULT_MATCH_MAX_DISTANCE,
             )
             if body is None:
                 # Fall through to a catch-all rule if one exists — a

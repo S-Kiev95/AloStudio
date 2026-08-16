@@ -45,6 +45,36 @@ const MATCH_LABEL: Record<MatchType, string> = {
   all: "Todos",
 };
 
+/** How close a comment has to be for a similarity rule to answer.
+ *
+ *  Named levels rather than a raw number: the value underneath is a cosine
+ *  distance, which nobody running a shop should have to reason about. The
+ *  numbers come from measuring real Spanish comments — a paraphrase of the
+ *  same question lands around 0.23-0.47, a different question at 0.65+. */
+const STRICTNESS: {
+  value: number;
+  label: string;
+  help: string;
+}[] = [
+  {
+    value: 0.45,
+    label: "Exigente",
+    help: "Solo si preguntan casi con las mismas palabras.",
+  },
+  {
+    value: 0.55,
+    label: "Equilibrada",
+    help: "Entiende la misma pregunta dicha de otra forma. Recomendada.",
+  },
+  {
+    value: 0.65,
+    label: "Amplia",
+    help: "Contesta aunque se parezca poco. Puede responder otra pregunta.",
+  },
+];
+
+const DEFAULT_STRICTNESS = 0.55;
+
 /** Rules on one publication. Order shown matches the order they fire in:
  *  keyword, then semantic, then catch-all — a catch-all listed first would
  *  read as if it swallowed everything, which is precisely what the backend
@@ -74,6 +104,7 @@ export function PostAutoreplyRules({
   // The mechanic this exists for sends the link privately, so that is the
   // default for keyword rules.
   const [delivery, setDelivery] = useState<Delivery>("dm");
+  const [strictness, setStrictness] = useState<number>(DEFAULT_STRICTNESS);
   const [error, setError] = useState<string | null>(null);
 
   function reset() {
@@ -83,6 +114,7 @@ export function PostAutoreplyRules({
     setKeywords("");
     setReplyText("");
     setDelivery("dm");
+    setStrictness(DEFAULT_STRICTNESS);
     setError(null);
   }
 
@@ -92,6 +124,7 @@ export function PostAutoreplyRules({
     setKeywords(rule.keywords ?? "");
     setReplyText(rule.reply_text ?? "");
     setDelivery(rule.delivery);
+    setStrictness(rule.effective_max_distance);
     setError(null);
     setOpen(true);
   }
@@ -105,6 +138,7 @@ export function PostAutoreplyRules({
       delivery,
       // Editing must not silently re-enable a rule that was turned off.
       enabled: editing ? editing.enabled : true,
+      max_distance: matchType === "semantic" ? strictness : null,
     };
     try {
       if (editing) await update.mutateAsync({ id: editing.id, input });
@@ -205,11 +239,44 @@ export function PostAutoreplyRules({
               />
             </div>
           ) : (
-            <p className="rounded-lg border border-border bg-surface-2 p-2.5 text-xs text-fg-muted">
-              {semanticAvailable
-                ? "Usa tus respuestas preparadas. Al guardar la regla vas a poder elegir cuáles usa esta publicación."
-                : "Este modo no está configurado en el servidor (falta la clave de embeddings), así que la regla no va a contestar nada todavía."}
-            </p>
+            <>
+              <p className="rounded-lg border border-border bg-surface-2 p-2.5 text-xs text-fg-muted">
+                {semanticAvailable
+                  ? "Usa tus respuestas preparadas. Al guardar la regla vas a poder elegir cuáles usa esta publicación."
+                  : "Este modo no está configurado en el servidor (falta la clave de embeddings), así que la regla no va a contestar nada todavía."}
+              </p>
+              <div className="space-y-1.5">
+                <Label>Cuánto se tiene que parecer</Label>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {STRICTNESS.map((s) => (
+                    <button
+                      key={s.value}
+                      type="button"
+                      aria-pressed={strictness === s.value}
+                      onClick={() => setStrictness(s.value)}
+                      className={cn(
+                        "rounded-lg border p-2.5 text-left transition-colors",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        strictness === s.value
+                          ? "border-primary bg-primary/10"
+                          : "border-border bg-surface hover:bg-surface-2",
+                      )}
+                    >
+                      <span className="block text-sm font-semibold text-fg">
+                        {s.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-fg-muted">
+                        {s.help}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-fg-muted">
+                  Si ninguna respuesta llega a ese parecido, el comentario
+                  queda para que lo conteste una persona.
+                </p>
+              </div>
+            </>
           )}
 
           <div className="space-y-1.5">
@@ -298,6 +365,14 @@ export function PostAutoreplyRules({
                   <span className="text-fg-muted">
                     {r.delivery === "dm" ? "· por privado" : "· en público"}
                   </span>
+                  {r.match_type === "semantic" ? (
+                    <span className="text-fg-muted">
+                      ·{" "}
+                      {STRICTNESS.find(
+                        (s) => s.value === r.effective_max_distance,
+                      )?.label ?? `exigencia ${r.effective_max_distance}`}
+                    </span>
+                  ) : null}
                 </p>
                 <p className="mt-1 truncate text-sm text-fg">
                   {r.reply_text ?? "Usa las respuestas preparadas"}

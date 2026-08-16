@@ -17,6 +17,8 @@ const KEYWORD_RULE = {
   reply_text: "Ahí va: ejemplo.com",
   delivery: "dm",
   enabled: true,
+  max_distance: null,
+  effective_max_distance: 0.55,
 };
 
 const server = setupServer(
@@ -254,5 +256,85 @@ describe("editing a rule", () => {
     // And the next "Agregar regla" starts blank, not on the abandoned edit.
     fireEvent.click(screen.getByRole("button", { name: /Agregar regla/ }));
     expect(screen.getByLabelText(/Palabras que lo disparan/)).toHaveValue("");
+  });
+});
+
+describe("how close a similarity rule has to match", () => {
+  const SEMANTIC_RULE = {
+    ...KEYWORD_RULE,
+    match_type: "semantic",
+    keywords: null,
+    reply_text: null,
+    effective_max_distance: 0.55,
+  };
+
+  it("sends the balanced level by default", async () => {
+    renderRules();
+    await openForm();
+    fireEvent.click(screen.getByRole("button", { name: /Por similitud/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Guardar regla/ }));
+
+    await waitFor(() => expect(posted).not.toBeNull());
+    expect(posted!.max_distance).toBe(0.55);
+  });
+
+  it("sends the level the admin picked", async () => {
+    renderRules();
+    await openForm();
+    fireEvent.click(screen.getByRole("button", { name: /Por similitud/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Amplia/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Guardar regla/ }));
+
+    await waitFor(() => expect(posted).not.toBeNull());
+    expect(posted!.max_distance).toBe(0.65);
+  });
+
+  it("is not offered for a keyword rule, which does not match by distance", async () => {
+    renderRules();
+    await openForm();
+    expect(
+      screen.queryByText(/Cuánto se tiene que parecer/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sends no distance on a keyword rule", async () => {
+    renderRules();
+    await openForm();
+    fireEvent.change(screen.getByLabelText(/Palabras que lo disparan/), {
+      target: { value: "info" },
+    });
+    fireEvent.change(screen.getByLabelText(/Responder/), {
+      target: { value: "ahí va" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar regla/ }));
+
+    await waitFor(() => expect(posted).not.toBeNull());
+    expect(posted!.max_distance).toBeNull();
+  });
+
+  it("loads the rule's current level when editing", async () => {
+    server.use(
+      http.get("*/autoreply_rules", () =>
+        HttpResponse.json([{ ...SEMANTIC_RULE, effective_max_distance: 0.45 }]),
+      ),
+    );
+    renderRules();
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Editar regla/ }),
+    );
+    expect(screen.getByRole("button", { name: /Exigente/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("shows the level on the saved rule", async () => {
+    server.use(
+      http.get("*/autoreply_rules", () =>
+        HttpResponse.json([{ ...SEMANTIC_RULE, effective_max_distance: 0.65 }]),
+      ),
+    );
+    renderRules();
+    expect(await screen.findByText(/Amplia/)).toBeInTheDocument();
   });
 });
