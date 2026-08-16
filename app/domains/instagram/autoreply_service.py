@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -23,6 +24,10 @@ from app.domains.instagram.autoreply import decide_reply
 from app.domains.instagram.models import InstagramComment, InstagramPost
 
 log = logging.getLogger(__name__)
+
+
+class _AlreadyRecorded(Exception):
+    """The reply is already stored — join the two skip paths into one."""
 
 
 async def _post_for_comment(
@@ -154,7 +159,9 @@ async def record_private_reply(
 
     # The echo Meta may deliver for our own send carries this same mid, and
     # the inbound path skips a mid it already holds — so writing it here is
-    # what stops the reply appearing twice.
+    # what stops the reply appearing twice. The check is cheap and covers a
+    # retried job; the unique index covers the two arriving at once.
+    already = False
     if message_id:
         already = (
             await session.exec(
@@ -163,10 +170,11 @@ async def record_private_reply(
                     Message.source_id == message_id,
                 )
             )
-        ).first()
-        if already is not None:
-            return None
+        ).first() is not None
 
+    # Resolving the thread runs either way: when the echo got there first
+    # the message exists but the comment still has nothing pointing at the
+    # conversation it opened, and that back-link is ours to write.
     contact = await find_or_create_ig_contact(
         session, account_id=channel.account_id, igsid=recipient_igsid
     )
@@ -179,23 +187,38 @@ async def record_private_reply(
     conversation = await find_or_create_ig_conversation(
         session, contact_inbox=contact_inbox
     )
-    await create_message(
-        session,
-        conversation=conversation,
-        params=MessageBuilderParams(
-            content=text,
-            message_type="outgoing",
-            source_id=message_id,
-            # No sender_id: nobody on the team wrote this. The marker is
-            # what lets the UI and reports tell it apart from an agent's
-            # reply instead of crediting a human with it.
-            content_attributes={
-                "automation": "instagram_comment_autoreply",
-                "instagram_comment_id": comment.ig_comment_id,
-            },
-        ),
-        user_id=None,
-    )
+    try:
+        if already:
+            raise _AlreadyRecorded
+        # A savepoint: the check above can pass and the row still collide,
+        # because Meta's echo of this same send races us over the webhook.
+        # Only this insert unwinds, leaving the back-link below to run.
+        async with session.begin_nested():
+            await create_message(
+                session,
+                conversation=conversation,
+                params=MessageBuilderParams(
+                    content=text,
+                    message_type="outgoing",
+                    source_id=message_id,
+                    # No sender_id: nobody on the team wrote this. The
+                    # marker is what lets the UI and reports tell it apart
+                    # from an agent's reply instead of crediting a human.
+                    content_attributes={
+                        "automation": "instagram_comment_autoreply",
+                        "instagram_comment_id": comment.ig_comment_id,
+                    },
+                ),
+                user_id=None,
+            )
+    except (IntegrityError, _AlreadyRecorded):
+        # The echo got there first, so the reply is already in the thread.
+        # Still worth back-linking the comment to the conversation below.
+        log.info(
+            "instagram.autoreply.already_recorded comment=%s mid=%s",
+            comment.ig_comment_id,
+            message_id,
+        )
 
     # Back-link so the comment in the moderation view points at the thread
     # it opened.

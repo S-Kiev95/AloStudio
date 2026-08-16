@@ -62,6 +62,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -509,17 +510,27 @@ async def _process_message_event(
     message_type = "outgoing" if is_echo else "incoming"
 
     try:
-        msg = await create_message(
-            session,
-            conversation=conversation,
-            params=_MessageBuilderParams(
-                content=body or content_fallback,
-                message_type=message_type,
-                source_id=str(mid),
-                attachments=attachments or None,
-            ),
-            user_id=None,
-        )
+        # A savepoint, so losing the race below rolls back only this insert
+        # — one payload can carry several events and the rest are fine.
+        async with session.begin_nested():
+            msg = await create_message(
+                session,
+                conversation=conversation,
+                params=_MessageBuilderParams(
+                    content=body or content_fallback,
+                    message_type=message_type,
+                    source_id=str(mid),
+                    attachments=attachments or None,
+                ),
+                user_id=None,
+            )
+    except IntegrityError:
+        # The duplicate check above passed and the row still collided, so
+        # the other writer committed in between — most often the worker
+        # recording the very send this is an echo of. Not an error: the
+        # message is stored, just not by us.
+        log.info("instagram.inbound.skip reason=duplicate_race mid=%s", mid)
+        return None
     except Exception:
         log.exception("instagram.inbound.create_message_failed mid=%s", mid)
         return None

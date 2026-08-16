@@ -649,6 +649,19 @@ class Message(TimestampMixin, table=True):
             "sender_id",
         ),
         Index("index_messages_on_source_id", "source_id"),
+        # One row per provider message id. Two writers can both hold a
+        # message with the same ``source_id`` — the webhook receiving
+        # Meta's echo of a send, and the worker recording that same send —
+        # and each checks before the other commits, so only the database
+        # can decide. Partial because ``source_id`` is null for everything
+        # an agent writes, and those are not duplicates of each other.
+        Index(
+            "index_messages_on_account_and_source_id",
+            "account_id",
+            "source_id",
+            unique=True,
+            postgresql_where=text("source_id IS NOT NULL"),
+        ),
     )
 
     id: int | None = Field(

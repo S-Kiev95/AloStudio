@@ -143,7 +143,11 @@ async def test_a_retried_task_does_not_write_the_reply_twice(db_session):
         db_session, "-retry", ig_id="IGREC5"
     )
     conversation = await _record(db_session, comment=comment, channel=channel)
-    assert await _record(db_session, comment=comment, channel=channel) is None
+    # Running again resolves the same thread — it just adds no second
+    # bubble, which is the part that would be visible to the contact.
+    again = await _record(db_session, comment=comment, channel=channel)
+    assert again is not None
+    assert again.id == conversation.id
 
     msgs = (
         await db_session.exec(
@@ -255,3 +259,87 @@ async def test_nothing_is_written_when_the_channel_has_no_inbox(db_session):
 
     assert await _record(db_session, comment=comment, channel=channel) is None
     assert (await db_session.exec(select(Conversation))).all() == []
+
+
+async def test_the_echo_winning_the_race_still_leaves_one_message(db_session):
+    """The bug this closes: both writers checked before either committed.
+
+    Reproduced by inserting the echo's row through the inbound path
+    *after* the worker's duplicate check would have passed — which is what
+    happened on staging, 0.4s apart, and left the reply in the thread
+    twice.
+    """
+    _owner, _inbox, channel, comment = await _seed(
+        db_session, "-race", ig_id="IGRACE1"
+    )
+    echo = {
+        "object": "instagram",
+        "entry": [
+            {
+                "id": "IGRACE1",
+                "messaging": [
+                    {
+                        "sender": {"id": "IGRACE1"},
+                        "recipient": {"id": IGSID},
+                        "message": {
+                            "mid": MID,
+                            "text": "Acá va el link: ejemplo.com",
+                            "is_echo": True,
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    (echoed,) = await process_instagram_webhook(db_session, payload=echo)
+    assert echoed.source_id == MID
+
+    # The worker now records the send it just made, carrying the same mid.
+    conversation = await _record(db_session, comment=comment, channel=channel)
+
+    msgs = (
+        await db_session.exec(
+            select(Message).where(Message.source_id == MID)
+        )
+    ).all()
+    assert len(msgs) == 1
+    # And the comment still points at the thread, which is the part the
+    # worker contributes that the echo cannot.
+    assert conversation is not None
+    assert comment.conversation_id == conversation.id
+
+
+async def test_two_different_replies_are_both_kept(db_session):
+    """The constraint must not swallow genuinely distinct messages."""
+    _owner, _inbox, channel, comment = await _seed(
+        db_session, "-distinct", ig_id="IGRACE2"
+    )
+    await _record(db_session, comment=comment, channel=channel, mid="MID-A")
+    await _record(db_session, comment=comment, channel=channel, mid="MID-B")
+
+    msgs = (
+        await db_session.exec(
+            select(Message).where(Message.source_id.in_(["MID-A", "MID-B"]))
+        )
+    ).all()
+    assert len(msgs) == 2
+
+
+async def test_messages_without_a_provider_id_are_not_deduplicated(db_session):
+    """Agent-written messages all have a null source_id."""
+    _owner, _inbox, channel, comment = await _seed(
+        db_session, "-nullsrc", ig_id="IGRACE3"
+    )
+    first = await _record(db_session, comment=comment, channel=channel, mid=None)
+    assert first is not None
+    second = await _record(
+        db_session, comment=comment, channel=channel, mid=None
+    )
+    assert second is not None
+
+    msgs = (
+        await db_session.exec(
+            select(Message).where(Message.conversation_id == first.id)
+        )
+    ).all()
+    assert len(msgs) == 2
