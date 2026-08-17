@@ -2,6 +2,11 @@
 
     python scripts/provision_demo_tenant.py --name "Demo Cliente" --user cliente@ejemplo.com
 
+``--inbox <id>`` also makes the user a member of that inbox. For an agent
+that is what narrows what they can read: conversations are scoped to the
+inboxes an agent belongs to, so one membership on an account full of
+other traffic shows them that mailbox and nothing else.
+
 Not ``seed_demo_account.py``: that one exists for local UI work and bakes
 in a fixed password, which is exactly what must not happen on a host
 anyone can reach.
@@ -36,6 +41,7 @@ import app.main  # noqa: F401  — closes the SQLAlchemy mapper registry
 from app.core.db import get_session_factory
 from app.core.tokens import base58_token
 from app.domains.accounts.models import Account
+from app.domains.inboxes.models import Inbox, InboxMember
 from app.domains.users.models import AccessToken, AccountUser, User
 
 # Long enough to be a valid column value, not a bcrypt hash, so it cannot
@@ -57,6 +63,7 @@ async def main() -> int:
     # Agent by default: a prospect should be able to look at everything
     # without being able to rewire the account they are being shown.
     role = ROLE_ADMINISTRATOR if "--admin" in sys.argv else ROLE_AGENT
+    inbox_id = int(_arg("--inbox", "0")) or None
 
     if not email:
         print("uso: provision_demo_tenant.py --name <cuenta> --user <email> [--admin]")
@@ -140,6 +147,31 @@ async def main() -> int:
             print(f"rol cambiado a {wanted}")
         else:
             print(f"ya era {wanted}")
+
+        if inbox_id is not None:
+            inbox = await session.get(Inbox, inbox_id)
+            if inbox is None or inbox.account_id != account.id:
+                print(f"!! la bandeja {inbox_id} no es de esta cuenta")
+                return 1
+            member = (
+                await session.exec(
+                    select(InboxMember).where(
+                        InboxMember.inbox_id == inbox_id,
+                        InboxMember.user_id == user.id,
+                    )
+                )
+            ).first()
+            if member is None:
+                session.add(
+                    InboxMember(inbox_id=inbox_id, user_id=user.id)
+                )
+                print(f"miembro de la bandeja {inbox.name!r}")
+            else:
+                print(f"ya era miembro de {inbox.name!r}")
+            if role == ROLE_ADMINISTRATOR:
+                # Say it out loud: an administrator reads every inbox, so
+                # the membership narrows nothing.
+                print("   ojo: como admin ve todas las bandejas igual")
 
         await session.commit()
         account_id = account.id
