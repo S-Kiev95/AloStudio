@@ -37,6 +37,10 @@ class ChannelCreate(BaseModel):
     webhook_url: str | None = None
     hmac_mandatory: bool | None = None
     additional_attributes: dict[str, Any] | None = None
+    # Channel::Email branding. Empty string is a real value here — it is
+    # how a signature is cleared — so these are only dropped when absent.
+    signature: str | None = None
+    logo_url: str | None = None
 
 
 class InboxCreateRequest(BaseModel):
@@ -81,6 +85,10 @@ class ChannelUpdate(BaseModel):
     webhook_url: str | None = None
     hmac_mandatory: bool | None = None
     additional_attributes: dict[str, Any] | None = None
+    # Channel::Email branding. Empty string is a real value here — it is
+    # how a signature is cleared — so these are only dropped when absent.
+    signature: str | None = None
+    logo_url: str | None = None
 
 
 class InboxUpdateRequest(BaseModel):

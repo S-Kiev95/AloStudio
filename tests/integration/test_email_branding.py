@@ -1,0 +1,221 @@
+"""Signature and logo, set per mailbox and used on the way out.
+
+Two things worth guarding: that a PATCH on an email inbox actually reaches
+the email channel row (it used to load the Api one and drop the update on
+the floor), and that the same payload cannot reach the SMTP credentials
+sitting next to those fields.
+"""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlmodel import select
+
+from app.core.auth.devise_token_auth import create_new_auth_token
+from app.core.db import get_session
+from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
+from app.domains.email.template import render_html, render_plain
+from app.domains.inboxes.models import EmailChannel
+from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+from app.domains.teams import models as _teams  # noqa: F401  (mapper)
+from app.main import app
+
+pytestmark = pytest.mark.integration
+
+SIGNATURE = "Instituto Ejemplo\nAtención: 9 a 17 h"
+LOGO = "https://cdn.ejemplo.edu.uy/logo.png"
+
+
+@pytest.fixture
+async def client(db_session) -> AsyncIterator[AsyncClient]:
+    async def _override() -> AsyncIterator:
+        yield db_session
+
+    app.dependency_overrides[get_session] = _override
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            yield ac
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+@pytest.fixture
+async def mailbox(db_session):
+    owner = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="admin@brand.example.com",
+            account_name="Brand Inc",
+            user_full_name="Admin Brand",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+    headers, new_tokens = create_new_auth_token(
+        user_tokens=owner.user.tokens, uid=owner.user.uid
+    )
+    owner.user.tokens = new_tokens
+    db_session.add(owner.user)
+    result = await InboxBuilder(
+        db_session,
+        InboxBuilderParams(
+            account=owner.account,
+            name="Soporte",
+            channel_type="email",
+            channel_params={
+                "email": "soporte@ejemplo.edu.uy",
+                "smtp_address": "smtp.ejemplo.edu.uy",
+                "smtp_login": "soporte",
+                "smtp_password": "SMTP-SECRET",
+            },
+        ),
+    ).perform()
+    return owner, headers.as_response_headers(), result.inbox
+
+
+def _url(owner, inbox) -> str:
+    return f"/api/v1/accounts/{owner.account.id}/inboxes/{inbox.id}"
+
+
+async def _channel(db_session, inbox) -> EmailChannel:
+    return (
+        await db_session.exec(
+            select(EmailChannel).where(EmailChannel.id == inbox.channel_id)
+        )
+    ).one()
+
+
+async def test_a_mailbox_starts_with_no_branding(client, mailbox):
+    owner, headers, inbox = mailbox
+    body = (await client.get(_url(owner, inbox), headers=headers)).json()
+    assert body["signature"] == ""
+    assert body["logo_url"] == ""
+
+
+async def test_the_signature_and_logo_are_saved(client, mailbox, db_session):
+    owner, headers, inbox = mailbox
+    resp = await client.patch(
+        _url(owner, inbox),
+        json={"channel": {"signature": SIGNATURE, "logo_url": LOGO}},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+
+    channel = await _channel(db_session, inbox)
+    assert channel.signature == SIGNATURE
+    assert channel.logo_url == LOGO
+
+
+async def test_they_come_back_on_the_inbox(client, mailbox):
+    owner, headers, inbox = mailbox
+    await client.patch(
+        _url(owner, inbox),
+        json={"channel": {"signature": SIGNATURE, "logo_url": LOGO}},
+        headers=headers,
+    )
+    body = (await client.get(_url(owner, inbox), headers=headers)).json()
+    assert body["signature"] == SIGNATURE
+    assert body["logo_url"] == LOGO
+
+
+async def test_a_signature_can_be_cleared(client, mailbox, db_session):
+    """Empty string is a real value, not an omitted field."""
+    owner, headers, inbox = mailbox
+    await client.patch(
+        _url(owner, inbox),
+        json={"channel": {"signature": SIGNATURE}},
+        headers=headers,
+    )
+    await client.patch(
+        _url(owner, inbox),
+        json={"channel": {"signature": ""}},
+        headers=headers,
+    )
+    assert (await _channel(db_session, inbox)).signature == ""
+
+
+async def test_the_smtp_password_cannot_be_changed_through_this(
+    client, mailbox, db_session
+):
+    """The branding payload reaches the row that holds the credentials."""
+    owner, headers, inbox = mailbox
+    await client.patch(
+        _url(owner, inbox),
+        json={
+            "channel": {
+                "signature": SIGNATURE,
+                "smtp_password": "ROBADA",
+                "smtp_address": "smtp.atacante.com",
+            }
+        },
+        headers=headers,
+    )
+    channel = await _channel(db_session, inbox)
+    assert channel.signature == SIGNATURE
+    assert channel.smtp_password == "SMTP-SECRET"
+    assert channel.smtp_address == "smtp.ejemplo.edu.uy"
+
+
+async def test_the_smtp_password_is_never_presented(client, mailbox):
+    owner, headers, inbox = mailbox
+    body = (await client.get(_url(owner, inbox), headers=headers)).json()
+    assert "SMTP-SECRET" not in str(body)
+
+
+async def test_another_accounts_mailbox_cannot_be_rebranded(
+    client, mailbox, db_session
+):
+    owner, headers, _inbox = mailbox
+    other = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="admin@other.example.com",
+            account_name="Other Inc",
+            user_full_name="Admin Other",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+    their_inbox = (
+        await InboxBuilder(
+            db_session,
+            InboxBuilderParams(
+                account=other.account,
+                name="Suyo",
+                channel_type="email",
+                channel_params={"email": "hola@otro.com"},
+            ),
+        ).perform()
+    ).inbox
+
+    resp = await client.patch(
+        f"/api/v1/accounts/{owner.account.id}/inboxes/{their_inbox.id}",
+        json={"channel": {"signature": "mío ahora"}},
+        headers=headers,
+    )
+    assert resp.status_code == 404
+
+
+async def test_what_is_saved_is_what_goes_out(client, mailbox, db_session):
+    """The end the whole feature exists for."""
+    owner, headers, inbox = mailbox
+    await client.patch(
+        _url(owner, inbox),
+        json={"channel": {"signature": SIGNATURE, "logo_url": LOGO}},
+        headers=headers,
+    )
+    channel = await _channel(db_session, inbox)
+
+    html = render_html(
+        body="Ahí va el detalle",
+        signature=channel.signature,
+        logo_url=channel.logo_url,
+    )
+    text = render_plain(body="Ahí va el detalle", signature=channel.signature)
+    assert "Instituto Ejemplo" in html
+    assert LOGO in html
+    assert text.endswith(SIGNATURE)

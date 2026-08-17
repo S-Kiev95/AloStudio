@@ -470,6 +470,24 @@ class EmailChannel(TimestampMixin, table=True):
         sa_column=Column(Boolean, nullable=False, server_default="false"),
     )
 
+    # Branding ---------------------------------------------------------
+    # Per mailbox, not per account: the identity of an outgoing email
+    # already lives here (the address it comes from, the server it goes
+    # through), and support@ and sales@ commonly sign differently.
+    #
+    # Plain text, not HTML: it is written in a textarea by whoever runs
+    # the desk, and rendering it as markup would make a stray "<" swallow
+    # the rest of the signature — or worse, let one pasted tag into every
+    # customer's inbox. The HTML part escapes it and keeps the line breaks.
+    signature: str = Field(
+        default="", sa_column=Column(Text, nullable=True, server_default="")
+    )
+    # Absolute URL. Mail clients block anything not publicly reachable, so
+    # this is not the internal object-store link.
+    logo_url: str = Field(
+        default="", sa_column=Column(String, nullable=True, server_default="")
+    )
+
     # OAuth surface (Phase 9 — empty in 5b) ---------------------------
     provider: str | None = Field(
         default=None, sa_column=Column(String, nullable=True)

@@ -220,6 +220,15 @@ def require_admin(ctx: AccountContext = Depends(account_context)) -> AccountCont
     if not ctx.is_administrator:
         raise ChatwootHTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "You are not authorized to do this action"},
+            detail={
+                "error": "You are not authorized to do this action",
+                # The status stays 401 for Chatwoot parity, which means a
+                # browser cannot tell "your session ended" from "you are
+                # signed in but this is admin-only" — and treating the
+                # second as the first logs an agent out seconds after they
+                # log in. An extra key discriminates without changing the
+                # shape any existing client reads.
+                "code": "not_authorized",
+            },
         )
     return ctx

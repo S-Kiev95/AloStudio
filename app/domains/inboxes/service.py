@@ -971,6 +971,14 @@ _INBOX_EDITABLE_FIELDS = (
 # ``Channel::Api::EDITABLE_ATTRS`` — the Ruby constant.
 API_CHANNEL_EDITABLE_FIELDS = ("webhook_url", "hmac_mandatory", "additional_attributes")
 
+# What a PATCH may change, per channel type. Explicit rather than "any
+# field on the row": the same payload reaches SMTP passwords and IMAP
+# hosts, and a typo in the UI must not be able to redirect a mailbox.
+_CHANNEL_EDITABLE_FIELDS: dict[str, tuple[str, ...]] = {
+    CHANNEL_TYPE_API: API_CHANNEL_EDITABLE_FIELDS,
+    CHANNEL_TYPE_EMAIL: ("signature", "logo_url"),
+}
+
 
 async def update_inbox(
     session: AsyncSession,
@@ -998,7 +1006,8 @@ async def update_inbox(
         inbox.csat_config = csat_config
 
     if channel is not None and channel_updates:
-        for field in API_CHANNEL_EDITABLE_FIELDS:
+        editable = _CHANNEL_EDITABLE_FIELDS.get(inbox.channel_type or "", ())
+        for field in editable:
             if field in channel_updates and channel_updates[field] is not None:
                 setattr(channel, field, channel_updates[field])
         session.add(channel)

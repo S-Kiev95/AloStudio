@@ -216,7 +216,9 @@ async def update_inbox_endpoint(
 ) -> dict:
     """``PATCH /api/v1/accounts/:account_id/inboxes/:id`` — admin-only."""
     inbox = await _find_inbox_in_account(session, ctx, inbox_id)
-    channel = await _load_channel(session, inbox)
+    # The concrete row, not the Api-only helper: an email inbox has
+    # editable fields too and would otherwise silently ignore them.
+    channel = await _load_channel_row(session, inbox)
     channel_updates = payload.channel.model_dump(exclude_none=True) if payload.channel else {}
 
     updated = await update_inbox(

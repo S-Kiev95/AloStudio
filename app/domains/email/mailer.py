@@ -19,11 +19,9 @@ Subject convention mirrors Rails:
   * Else use ``[#<display_id>] New messages on this conversation``
     (the en.yml ``conversations.reply.email_subject``).
 
-Body: plain-text only in 5b. The HTML alternative + attachments lands
-with Phase 5b's follow-up (5b.6) once we wire the message presenter
-through `email_reply.html.erb` parity. Plain text is sufficient for
-parity tests: every mail server accepts it and Greenmail asserts on
-the raw message text.
+Body: multipart/alternative — text and HTML, both built by
+:mod:`app.domains.email.template` from the mailbox's own signature and
+logo. Attachments still land with 5b.6.
 
 Auth-failure / connection-failure handling: we trap exceptions inside
 :func:`send_email_reply` and log + flag them, never raising into the
@@ -51,6 +49,7 @@ from app.domains.conversations.models import (
     Conversation,
     Message,
 )
+from app.domains.email.template import render_html, render_plain
 from app.domains.inboxes.models import EmailChannel
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -298,7 +297,20 @@ async def send_email_reply(
     mail["Message-ID"] = msg_id_header
     mail["In-Reply-To"] = in_reply_to
     mail["References"] = references
-    mail.set_content(message.content or "")
+    # multipart/alternative: text first, then HTML — ``add_alternative``
+    # appends, and a mail client picks the last part it understands.
+    body = message.content or ""
+    mail.set_content(
+        render_plain(body=body, signature=channel.signature or "")
+    )
+    mail.add_alternative(
+        render_html(
+            body=body,
+            signature=channel.signature or "",
+            logo_url=channel.logo_url or "",
+        ),
+        subtype="html",
+    )
 
     try:
         await aiosmtplib.send(

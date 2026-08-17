@@ -19,6 +19,7 @@ from typing import Any
 from app.core.config import get_settings
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
+    CHANNEL_TYPE_EMAIL,
     CHANNEL_TYPE_SMS,
     CHANNEL_TYPE_TELEGRAM,
     CHANNEL_TYPE_TWILIO_SMS,
@@ -137,6 +138,15 @@ def present_inbox(
         if is_administrator:
             body["hmac_token"] = channel.hmac_token
             body["secret"] = channel.secret
+
+    # Channel::Email branding, so the settings screen can render what the
+    # mailbox currently signs with. Not admin-gated: it is what customers
+    # already receive at the bottom of every reply, unlike the SMTP
+    # credentials on the same row, which are never presented.
+    if inbox.channel_type == CHANNEL_TYPE_EMAIL and channel is not None:
+        body["email"] = getattr(channel, "email", None)
+        body["signature"] = getattr(channel, "signature", "") or ""
+        body["logo_url"] = getattr(channel, "logo_url", "") or ""
 
     # WhatsApp's verify token — the value the user enters in Meta's webhook
     # config. Admin-only, like the Api hmac_token / secret.
