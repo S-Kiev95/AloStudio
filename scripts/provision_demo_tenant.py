@@ -34,8 +34,9 @@ from sqlmodel import select
 
 import app.main  # noqa: F401  — closes the SQLAlchemy mapper registry
 from app.core.db import get_session_factory
+from app.core.tokens import base58_token
 from app.domains.accounts.models import Account
-from app.domains.users.models import AccountUser, User
+from app.domains.users.models import AccessToken, AccountUser, User
 
 # Long enough to be a valid column value, not a bcrypt hash, so it cannot
 # match any password — the account is unusable until someone sets one.
@@ -90,6 +91,29 @@ async def main() -> int:
             print(f"usuario creado: {email} (id={user.id})")
         else:
             print(f"usuario ya existía: {email} (id={user.id})")
+
+        # Every user needs a personal API token. Sign-in refuses to
+        # complete without one — the password verifies, then the handler
+        # 500s on a missing token, which surfaced as a login that simply
+        # would not work. AccountBuilder mints it; creating a user by hand
+        # has to as well.
+        token = (
+            await session.exec(
+                select(AccessToken).where(
+                    AccessToken.owner_type == "User",
+                    AccessToken.owner_id == user.id,
+                )
+            )
+        ).first()
+        if token is None:
+            session.add(
+                AccessToken(
+                    owner_type="User",
+                    owner_id=user.id,
+                    token=base58_token(24),
+                )
+            )
+            print("token de API creado")
 
         link = (
             await session.exec(
