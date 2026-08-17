@@ -47,6 +47,18 @@ from app.domains.conversations.models import (
     conversation_status_from_str,
 )
 from app.domains.conversations.permission import apply_permission_scope
+from app.domains.inboxes.models import (
+    CHANNEL_TYPE_API,
+    CHANNEL_TYPE_EMAIL,
+    CHANNEL_TYPE_FACEBOOK,
+    CHANNEL_TYPE_INSTAGRAM,
+    CHANNEL_TYPE_SMS,
+    CHANNEL_TYPE_TELEGRAM,
+    CHANNEL_TYPE_TWILIO_SMS,
+    CHANNEL_TYPE_WEB_WIDGET,
+    CHANNEL_TYPE_WHATSAPP,
+    Inbox,
+)
 from app.domains.labels.models import Label
 
 # Mirror ``filter_keys.yml`` — operator allow-list per attribute. We
@@ -57,6 +69,12 @@ _ALLOWED_OPERATORS: dict[str, set[str]] = {
     "priority": {"equal_to", "not_equal_to", "is_present", "is_not_present"},
     "assignee_id": {"equal_to", "not_equal_to", "is_present", "is_not_present"},
     "inbox_id": {"equal_to", "not_equal_to", "is_present", "is_not_present"},
+    # Which kind of channel it arrived on. Filtering by inbox already
+    # existed, but an account running three WhatsApp numbers would need
+    # three conditions to ask "everything from WhatsApp" — which is the
+    # question people actually ask. No presence operators: every
+    # conversation has an inbox, so they would be a no-op.
+    "channel": {"equal_to", "not_equal_to"},
     "team_id": {"equal_to", "not_equal_to", "is_present", "is_not_present"},
     "labels": {"equal_to", "not_equal_to", "is_present", "is_not_present"},
     # Which Meta ad the conversation came from. ``is_present`` is the useful
@@ -156,6 +174,53 @@ def _column_for(attr: str) -> ColumnElement[Any]:
     }[attr]
 
 
+# Callers may send either the stored discriminator or the short name the
+# UI shows. Accepting both keeps a hand-written API call from having to
+# know Chatwoot's ``Channel::`` prefix.
+_CHANNEL_ALIASES: dict[str, str] = {
+    short.split("::")[-1].lower(): short
+    for short in (
+        CHANNEL_TYPE_API,
+        CHANNEL_TYPE_EMAIL,
+        CHANNEL_TYPE_FACEBOOK,
+        CHANNEL_TYPE_INSTAGRAM,
+        CHANNEL_TYPE_SMS,
+        CHANNEL_TYPE_TELEGRAM,
+        CHANNEL_TYPE_TWILIO_SMS,
+        CHANNEL_TYPE_WEB_WIDGET,
+        CHANNEL_TYPE_WHATSAPP,
+    )
+}
+# "facebook" reads better than "facebookpage" and is what the UI sends.
+_CHANNEL_ALIASES["facebook"] = CHANNEL_TYPE_FACEBOOK
+
+
+def _coerce_channel_values(values: list[Any]) -> list[str]:
+    out: list[str] = []
+    for value in values:
+        text = str(value)
+        out.append(_CHANNEL_ALIASES.get(text.lower(), text))
+    return out
+
+
+def _build_channel_clause(
+    *, operator: str, values: list[Any]
+) -> ColumnElement[Any]:
+    """Match on the inbox's channel type via a subquery.
+
+    ``Conversation`` holds only ``inbox_id``, so this resolves through
+    ``inboxes``. Not a join: the filter composes clauses with AND/OR and a
+    join would leak into every other condition's row count.
+    """
+    wanted = _coerce_channel_values(values)
+    inbox_ids = select(Inbox.id).where(Inbox.channel_type.in_(wanted))
+    if operator == "equal_to":
+        return Conversation.inbox_id.in_(inbox_ids)
+    if operator == "not_equal_to":
+        return Conversation.inbox_id.not_in(inbox_ids)
+    raise _err(400, f"Unsupported operator for channel: {operator}")
+
+
 def _build_label_clause(
     *, operator: str, values: list[str]
 ) -> ColumnElement[Any]:
@@ -213,6 +278,9 @@ def _build_clause(condition: dict[str, Any]) -> ColumnElement[Any]:
 
     if attr == "labels":
         return _build_label_clause(operator=operator, values=[str(v) for v in values])
+
+    if attr == "channel":
+        return _build_channel_clause(operator=operator, values=values)
 
     column = _column_for(attr)
 

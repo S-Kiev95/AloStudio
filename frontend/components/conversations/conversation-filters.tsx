@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 type ValueKind =
   | "status"
   | "priority"
+  | "channel"
   | "agent"
   | "inbox"
   | "team"
@@ -43,6 +44,14 @@ const ATTRIBUTES: AttrDef[] = [
   { key: "priority", label: "Prioridad", ops: ALL_OPS, value: "priority" },
   { key: "assignee_id", label: "Asignado a", ops: ALL_OPS, value: "agent" },
   { key: "inbox_id", label: "Bandeja", ops: ALL_OPS, value: "inbox" },
+  // Broader than "Bandeja": three WhatsApp numbers are three inboxes but
+  // one channel, and "everything from WhatsApp" is the question people ask.
+  {
+    key: "channel",
+    label: "Canal",
+    ops: ["equal_to", "not_equal_to"],
+    value: "channel",
+  },
   { key: "team_id", label: "Equipo", ops: ALL_OPS, value: "team" },
   { key: "labels", label: "Etiqueta", ops: ALL_OPS, value: "label" },
   // "tiene valor" answers "everything an ad brought in", which is the
@@ -61,6 +70,19 @@ const OP_LABELS: Record<FilterOperator, string> = {
   is_greater_than: "después de",
   is_less_than: "antes de",
 };
+
+/** Short names, matching what the filter endpoint accepts alongside the
+ *  stored `Channel::` discriminator. */
+const CHANNEL_OPTS = [
+  { v: "instagram", l: "Instagram" },
+  { v: "whatsapp", l: "WhatsApp" },
+  { v: "facebook", l: "Facebook" },
+  { v: "telegram", l: "Telegram" },
+  { v: "email", l: "Email" },
+  { v: "sms", l: "SMS" },
+  { v: "webwidget", l: "Web" },
+  { v: "api", l: "API" },
+];
 
 const STATUS_OPTS = [
   { v: "open", l: "Abierta" },
@@ -341,6 +363,7 @@ function ValueControl({
   let options: { v: string; l: string }[] = [];
   if (def.value === "status") options = STATUS_OPTS;
   else if (def.value === "priority") options = PRIORITY_OPTS;
+  else if (def.value === "channel") options = CHANNEL_OPTS;
   else if (def.value === "agent")
     options = agents.map((a) => ({ v: String(a.id), l: a.name }));
   else if (def.value === "inbox")

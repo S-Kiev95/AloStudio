@@ -24,6 +24,7 @@ import {
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
+import { ChannelBadge } from "./channel-badge";
 import { ConversationFilters } from "./conversation-filters";
 
 const STATUS_TABS = [
@@ -520,6 +521,10 @@ function ConversationRow({
         <Avatar name={name} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
+            {/* Before the name, so the column reads as one scannable strip
+                of origins rather than an icon floating at a different x on
+                every row. */}
+            <ChannelBadge channel={conv.meta?.channel} />
             <span
               className={cn(
                 "truncate text-sm text-fg",
