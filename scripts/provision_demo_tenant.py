@@ -123,13 +123,23 @@ async def main() -> int:
                 )
             )
         ).first()
+        wanted = "admin" if role == ROLE_ADMINISTRATOR else "agente"
         if link is None:
             session.add(
                 AccountUser(
                     account_id=account.id, user_id=user.id, role=role
                 )
             )
-            print(f"vinculado a la cuenta como {'admin' if role else 'agente'}")
+            print(f"vinculado a la cuenta como {wanted}")
+        elif link.role != role:
+            # Re-running with a different role has to actually change it.
+            # Creating the link only when absent meant --admin was ignored
+            # for a user that already existed, silently.
+            link.role = role
+            session.add(link)
+            print(f"rol cambiado a {wanted}")
+        else:
+            print(f"ya era {wanted}")
 
         await session.commit()
         account_id = account.id
