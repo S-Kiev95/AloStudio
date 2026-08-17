@@ -34,8 +34,8 @@ from sqlmodel import select
 
 import app.main  # noqa: F401  — closes the SQLAlchemy mapper registry
 from app.core.db import get_session_factory
-from app.domains.accounts.models import Account, AccountUser
-from app.domains.users.models import User
+from app.domains.accounts.models import Account
+from app.domains.users.models import AccountUser, User
 
 # Long enough to be a valid column value, not a bcrypt hash, so it cannot
 # match any password — the account is unusable until someone sets one.
