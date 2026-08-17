@@ -163,6 +163,43 @@ export function useSummaryReport(
   });
 }
 
+const DAY = 86_400;
+
+/** The unix second of the local midnight `at` falls into.
+ *
+ *  Mirrors how the endpoint buckets, so a filled-in day lines up with the
+ *  real ones instead of landing half a day off. */
+function localMidnight(at: number, offsetHours: number): number {
+  const offsetSec = offsetHours * 3600;
+  return Math.floor((at + offsetSec) / DAY) * DAY - offsetSec;
+}
+
+/** Put back the days the endpoint left out.
+ *
+ *  It answers with a GROUP BY, so a day with nothing on it is absent
+ *  rather than zero. Charted as-is, a week with two busy days draws two
+ *  full-width bars and reads as "every day was busy" — the quiet days have
+ *  to be visible for the shape to mean anything. */
+export function fillDailyGaps(
+  points: TimeseriesPoint[],
+  range: ReportRange,
+  offsetHours: number,
+): TimeseriesPoint[] {
+  const known = new Map(points.map((p) => [p.timestamp, p]));
+  const first = localMidnight(range.since, offsetHours);
+  const last = localMidnight(range.until, offsetHours);
+  const out: TimeseriesPoint[] = [];
+  for (let t = first; t <= last; t += DAY) {
+    out.push(known.get(t) ?? { timestamp: t, value: 0 });
+  }
+  // A point outside the requested window would otherwise vanish; keeping it
+  // means the chart never silently drops data it was given.
+  for (const p of points) {
+    if (p.timestamp < first || p.timestamp > last) out.push(p);
+  }
+  return out.sort((a, b) => a.timestamp - b.timestamp);
+}
+
 export function useReportTimeseries(
   accountId: string,
   metric: MetricKey,
@@ -172,7 +209,7 @@ export function useReportTimeseries(
   const offsetHours = -new Date().getTimezoneOffset() / 60;
   return useQuery({
     queryKey: ["report-timeseries", accountId, metric, range.since, range.until],
-    queryFn: () => {
+    queryFn: async () => {
       const sp = new URLSearchParams({
         metric,
         type: "account",
@@ -180,7 +217,10 @@ export function useReportTimeseries(
         until: String(range.until),
         timezone_offset: String(offsetHours),
       });
-      return apiFetch<TimeseriesPoint[]>(`${base(accountId)}/reports?${sp}`);
+      const points = await apiFetch<TimeseriesPoint[]>(
+        `${base(accountId)}/reports?${sp}`,
+      );
+      return fillDailyGaps(points, range, offsetHours);
     },
   });
 }

@@ -23,7 +23,13 @@ export function MetricChart({
 
   return (
     <div>
-      <div className="flex h-48 items-end gap-px">
+      {/* No `items-end` here. It makes each column height-by-content, and a
+          percentage height inside a content-sized box resolves to nothing —
+          every bar came out 0px tall and the chart rendered empty. Letting
+          the columns stretch to this row's fixed height gives the bars
+          something to be a percentage of; `justify-end` inside each column
+          is what puts the bar on the floor. */}
+      <div data-chart-row className="flex h-48 gap-px">
         {data.map((d) => {
           const pct = (d.value / max) * 100;
           return (
@@ -33,6 +39,7 @@ export function MetricChart({
               title={`${shortDate(d.timestamp)}: ${formatValue(d.value)}`}
             >
               <div
+                data-bar
                 className="w-full rounded-t bg-primary/60 transition-colors group-hover:bg-primary"
                 style={{ height: `${d.value > 0 ? Math.max(pct, 2) : 0}%` }}
               />
@@ -40,7 +47,7 @@ export function MetricChart({
           );
         })}
       </div>
-      <div className="mt-2 flex justify-between text-xs text-fg-muted">
+      <div data-axis className="mt-2 flex justify-between text-xs text-fg-muted">
         <span>{shortDate(data[0].timestamp)}</span>
         <span>{shortDate(data[data.length - 1].timestamp)}</span>
       </div>
