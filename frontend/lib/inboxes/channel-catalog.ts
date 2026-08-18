@@ -170,6 +170,56 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
         required: true,
         placeholder: "soporte@tudominio.com",
       },
+      // The credentials belong here, not only on the detail screen: a
+      // mailbox created without them neither sends nor receives, and
+      // nothing on the create form said so. Optional, because
+      // receive-only and send-only are real configurations and the
+      // server only demands the rest of a side once it is switched on.
+      {
+        name: "imap_enabled",
+        label: "Recibir correos (IMAP)",
+        type: "checkbox",
+        help: "Sin esto, lo que te escriban no entra a la bandeja.",
+      },
+      {
+        name: "imap_address",
+        label: "Servidor IMAP",
+        type: "text",
+        placeholder: "imap.gmail.com",
+      },
+      { name: "imap_port", label: "Puerto IMAP", type: "text", placeholder: "993" },
+      {
+        name: "imap_login",
+        label: "Usuario IMAP",
+        type: "text",
+        placeholder: "soporte@tudominio.com",
+      },
+      {
+        name: "imap_password",
+        label: "Contraseña IMAP",
+        type: "password",
+        help: "Si tenés verificación en dos pasos, usá una contraseña de aplicación.",
+      },
+      {
+        name: "smtp_enabled",
+        label: "Enviar correos (SMTP)",
+        type: "checkbox",
+        help: "Sin esto, las respuestas de los agentes no salen.",
+      },
+      {
+        name: "smtp_address",
+        label: "Servidor SMTP",
+        type: "text",
+        placeholder: "smtp.gmail.com",
+      },
+      { name: "smtp_port", label: "Puerto SMTP", type: "text", placeholder: "587" },
+      {
+        name: "smtp_login",
+        label: "Usuario SMTP",
+        type: "text",
+        placeholder: "soporte@tudominio.com",
+      },
+      { name: "smtp_password", label: "Contraseña SMTP", type: "password" },
     ],
   },
   {

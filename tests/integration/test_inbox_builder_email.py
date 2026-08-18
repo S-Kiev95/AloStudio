@@ -202,3 +202,79 @@ async def test_email_uniqueness_returns_422(db_session):
         ).perform()
     assert exc_info.value.status_code == 422
     assert "already taken" in exc_info.value.detail["message"]
+
+
+async def test_a_mailbox_can_be_created_with_its_credentials(db_session):
+    """The create form now carries them.
+
+    Creating a mailbox and configuring it later was the only path, and a
+    mailbox created without credentials neither sends nor receives — the
+    poller skips it and no reply can leave.
+    """
+    owner = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="admin@creds.example.com",
+            account_name="Creds Inc",
+            user_full_name="Admin Creds",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+    result = await InboxBuilder(
+        db_session,
+        InboxBuilderParams(
+            account=owner.account,
+            name="Soporte",
+            channel_type="email",
+            channel_params={
+                "email": "soporte@ejemplo.edu.uy",
+                "imap_enabled": True,
+                "imap_address": "imap.ejemplo.edu.uy",
+                "imap_port": 993,
+                "imap_login": "soporte",
+                "imap_password": "secreta",
+                "smtp_enabled": True,
+                "smtp_address": "smtp.ejemplo.edu.uy",
+                "smtp_port": 587,
+                "smtp_login": "soporte",
+                "smtp_password": "secreta",
+            },
+        ),
+    ).perform()
+
+    channel = result.channel
+    assert channel.imap_enabled is True
+    assert channel.imap_port == 993
+    assert channel.smtp_enabled is True
+    assert channel.smtp_port == 587
+
+
+async def test_a_send_only_mailbox_is_a_valid_configuration(db_session):
+    owner = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="admin@sendonly.example.com",
+            account_name="SendOnly Inc",
+            user_full_name="Admin Send",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+    result = await InboxBuilder(
+        db_session,
+        InboxBuilderParams(
+            account=owner.account,
+            name="Avisos",
+            channel_type="email",
+            channel_params={
+                "email": "avisos@ejemplo.edu.uy",
+                "smtp_enabled": True,
+                "smtp_address": "smtp.ejemplo.edu.uy",
+                "smtp_port": 587,
+                "smtp_login": "avisos",
+            },
+        ),
+    ).perform()
+    assert result.channel.smtp_enabled is True
+    assert result.channel.imap_enabled is False
