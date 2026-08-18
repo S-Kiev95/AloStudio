@@ -982,6 +982,7 @@ _CHANNEL_EDITABLE_FIELDS: dict[str, tuple[str, ...]] = {
     CHANNEL_TYPE_EMAIL: (
         "signature",
         "logo_url",
+        "template_html",
         # IMAP/SMTP, because a mailbox created from the UI arrives with
         # both sides off and no way to switch them on — it neither sends
         # nor receives until these are set. Admin-only by the route's

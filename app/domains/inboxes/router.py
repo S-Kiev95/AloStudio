@@ -220,6 +220,18 @@ async def update_inbox_endpoint(
     # editable fields too and would otherwise silently ignore them.
     channel = await _load_channel_row(session, inbox)
     channel_updates = payload.channel.model_dump(exclude_none=True) if payload.channel else {}
+    if "template_html" in channel_updates:
+        from app.domains.email.template import TemplateError, validate_template
+
+        try:
+            validate_template(str(channel_updates["template_html"]))
+        except TemplateError as exc:
+            # Refused here rather than at send time: a template missing the
+            # content placeholder sends successfully with the message gone,
+            # and nobody finds out until a customer says so.
+            raise ChatwootHTTPException(
+                status_code=422, detail={"message": str(exc)}
+            ) from exc
 
     updated = await update_inbox(
         session,

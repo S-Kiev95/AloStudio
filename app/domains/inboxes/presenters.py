@@ -147,6 +147,7 @@ def present_inbox(
         body["email"] = getattr(channel, "email", None)
         body["signature"] = getattr(channel, "signature", "") or ""
         body["logo_url"] = getattr(channel, "logo_url", "") or ""
+        body["template_html"] = getattr(channel, "template_html", "") or ""
         if is_administrator:
             # Everything the transport form needs to render, except the
             # passwords: those go out to a mail server, never back to a

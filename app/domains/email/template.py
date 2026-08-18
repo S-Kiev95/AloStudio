@@ -97,4 +97,75 @@ def render_html(
     return "".join(parts)
 
 
-__all__ = ["render_html", "render_plain"]
+# ---------------------------------------------------------------------------
+# Mailbox-authored templates
+# ---------------------------------------------------------------------------
+# What an author can drop into their own HTML. Substituted with *escaped*
+# values, so the author owns the layout while the agent's reply and the
+# mailbox's signature cannot inject markup into it.
+PLACEHOLDER_CONTENT = "{{contenido}}"
+PLACEHOLDER_SIGNATURE = "{{firma}}"
+PLACEHOLDER_LOGO = "{{logo}}"
+
+PLACEHOLDERS = (PLACEHOLDER_CONTENT, PLACEHOLDER_SIGNATURE, PLACEHOLDER_LOGO)
+
+
+class TemplateError(ValueError):
+    """A template that would send a broken email."""
+
+
+def validate_template(template: str) -> None:
+    """Refuse a template that would drop the message.
+
+    The one rule worth enforcing: without ``{{contenido}}`` every reply
+    goes out with the agent's text missing, and nothing downstream would
+    notice — the send succeeds and the customer receives an empty shell.
+    """
+    if not template.strip():
+        return
+    if PLACEHOLDER_CONTENT not in template:
+        raise TemplateError(
+            f"La plantilla tiene que incluir {PLACEHOLDER_CONTENT}, "
+            "que es donde va el mensaje."
+        )
+
+
+def render_template(
+    *, template: str, body: str, signature: str = "", logo_url: str = ""
+) -> str:
+    """Fill a mailbox's own HTML.
+
+    Falls back to :func:`render_html` when there is no template, so the
+    built-in layout stays the default rather than something to opt into.
+    """
+    if not template.strip():
+        return render_html(body=body, signature=signature, logo_url=logo_url)
+
+    signature = (signature or "").strip()
+    logo_url = (logo_url or "").strip()
+    logo_tag = (
+        f'<img src="{escape(logo_url, quote=True)}" alt="" style="{_LOGO}">'
+        if logo_url
+        else ""
+    )
+    return (
+        template.replace(PLACEHOLDER_CONTENT, _paragraphs((body or "").strip()))
+        .replace(
+            PLACEHOLDER_SIGNATURE,
+            escape(signature).replace(chr(10), "<br>") if signature else "",
+        )
+        .replace(PLACEHOLDER_LOGO, logo_tag)
+    )
+
+
+__all__ = [
+    "PLACEHOLDERS",
+    "PLACEHOLDER_CONTENT",
+    "PLACEHOLDER_LOGO",
+    "PLACEHOLDER_SIGNATURE",
+    "TemplateError",
+    "render_html",
+    "render_plain",
+    "render_template",
+    "validate_template",
+]

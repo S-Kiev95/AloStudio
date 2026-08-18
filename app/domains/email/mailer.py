@@ -51,7 +51,7 @@ from app.domains.conversations.models import (
     Message,
 )
 from app.domains.email.attachments import fetch_attachments
-from app.domains.email.template import render_html, render_plain
+from app.domains.email.template import render_plain, render_template
 from app.domains.inboxes.models import EmailChannel
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -306,7 +306,8 @@ async def send_email_reply(
         render_plain(body=body, signature=channel.signature or "")
     )
     mail.add_alternative(
-        render_html(
+        render_template(
+            template=channel.template_html or "",
             body=body,
             signature=channel.signature or "",
             logo_url=channel.logo_url or "",

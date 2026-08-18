@@ -9,7 +9,13 @@ from __future__ import annotations
 
 import pytest
 
-from app.domains.email.template import render_html, render_plain
+from app.domains.email.template import (
+    TemplateError,
+    render_html,
+    render_plain,
+    render_template,
+    validate_template,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -104,3 +110,74 @@ class TestBothParts:
         out = render_html(body="Hola", signature=SIGNATURE, logo_url=LOGO)
         assert "<style" not in out
         assert 'style="' in out
+
+
+class TestMailboxTemplate:
+    TEMPLATE = (
+        '<div style="background:#003366;padding:20px">'
+        "{{logo}}<h1>Instituto Ejemplo</h1></div>"
+        "<div>{{contenido}}</div><footer>{{firma}}</footer>"
+    )
+
+    def test_no_template_keeps_the_built_in_layout(self):
+        """Customising is opt-in; an untouched mailbox sends what it sent."""
+        out = render_template(template="", body="Hola", signature=SIGNATURE)
+        assert out == render_html(body="Hola", signature=SIGNATURE)
+
+    def test_the_authors_markup_survives(self):
+        out = render_template(template=self.TEMPLATE, body="Hola")
+        assert '<div style="background:#003366;padding:20px">' in out
+        assert "<h1>Instituto Ejemplo</h1>" in out
+
+    def test_the_message_lands_where_the_author_put_it(self):
+        out = render_template(template=self.TEMPLATE, body="Ahí va")
+        assert "<div><p" in out
+        assert "Ahí va" in out
+
+    def test_the_signature_and_logo_fill_their_places(self):
+        out = render_template(
+            template=self.TEMPLATE,
+            body="Hola",
+            signature=SIGNATURE,
+            logo_url=LOGO,
+        )
+        assert f'src="{LOGO}"' in out
+        assert "Instituto Ejemplo<br>Atención: 9 a 17 h" in out
+
+    def test_an_unused_placeholder_leaves_nothing_behind(self):
+        # An empty signature must not print the literal "{{firma}}".
+        out = render_template(template=self.TEMPLATE, body="Hola")
+        assert "{{firma}}" not in out
+        assert "{{logo}}" not in out
+        assert "{{contenido}}" not in out
+
+    def test_what_is_substituted_in_is_still_escaped(self):
+        """The author owns the layout; the agent's text is not markup."""
+        out = render_template(
+            template=self.TEMPLATE,
+            body="<script>alert(1)</script>",
+            signature="Ventas <ventas@x.com>",
+        )
+        assert "<script>" not in out
+        assert "&lt;script&gt;" in out
+        assert "&lt;ventas@x.com&gt;" in out
+
+
+class TestTemplateValidation:
+    def test_a_template_without_the_message_is_refused(self):
+        # It would send successfully with the reply missing, and nobody
+        # would find out until a customer said so.
+        with pytest.raises(TemplateError):
+            validate_template("<div>Solo el encabezado</div>")
+
+    def test_a_template_with_the_message_is_accepted(self):
+        validate_template("<div>{{contenido}}</div>")
+
+    def test_an_empty_template_is_accepted(self):
+        """Empty means the built-in layout, not a broken template."""
+        validate_template("")
+        validate_template("   ")
+
+    def test_the_error_says_what_to_add(self):
+        with pytest.raises(TemplateError, match=r"\{\{contenido\}\}"):
+            validate_template("<div>nada</div>")

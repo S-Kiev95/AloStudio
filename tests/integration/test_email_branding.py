@@ -256,3 +256,51 @@ async def test_what_is_saved_is_what_goes_out(client, mailbox, db_session):
     assert "Instituto Ejemplo" in html
     assert LOGO in html
     assert text.endswith(SIGNATURE)
+
+
+async def test_a_mailbox_can_bring_its_own_html(client, mailbox, db_session):
+    owner, headers, inbox = mailbox
+    tpl = '<div style="background:#003366">{{logo}}</div>{{contenido}}'
+    resp = await client.patch(
+        _url(owner, inbox), json={"channel": {"template_html": tpl}}, headers=headers
+    )
+    assert resp.status_code == 200, resp.text
+    assert (await _channel(db_session, inbox)).template_html == tpl
+
+    body = (await client.get(_url(owner, inbox), headers=headers)).json()
+    assert body["template_html"] == tpl
+
+
+async def test_a_template_that_would_drop_the_message_is_refused(
+    client, mailbox, db_session
+):
+    """It would send successfully with the reply missing.
+
+    Nothing downstream would notice — the customer receives an empty
+    shell — so this has to be caught at save time, not at send time.
+    """
+    owner, headers, inbox = mailbox
+    resp = await client.patch(
+        _url(owner, inbox),
+        json={"channel": {"template_html": "<div>solo el encabezado</div>"}},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    assert "contenido" in resp.text
+    assert (await _channel(db_session, inbox)).template_html == ""
+
+
+async def test_clearing_the_template_returns_to_the_built_in_design(
+    client, mailbox, db_session
+):
+    owner, headers, inbox = mailbox
+    await client.patch(
+        _url(owner, inbox),
+        json={"channel": {"template_html": "<p>{{contenido}}</p>"}},
+        headers=headers,
+    )
+    resp = await client.patch(
+        _url(owner, inbox), json={"channel": {"template_html": ""}}, headers=headers
+    )
+    assert resp.status_code == 200
+    assert (await _channel(db_session, inbox)).template_html == ""

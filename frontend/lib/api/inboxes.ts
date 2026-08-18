@@ -39,6 +39,7 @@ export type InboxDetail = Inbox & {
   email?: string | null;
   signature?: string;
   logo_url?: string;
+  template_html?: string;
   /** Channel::Email transport, admin-only. Passwords are never returned;
    *  `*_password_set` says whether one is stored. */
   imap_enabled?: boolean;

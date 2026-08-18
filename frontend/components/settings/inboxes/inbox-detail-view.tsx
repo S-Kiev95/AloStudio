@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { EmailBrandingPanel } from "./email-branding-panel";
+import { EmailTemplatePanel } from "./email-template-panel";
 import { EmailTransportPanel } from "./email-transport-panel";
 import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api/errors";
@@ -166,6 +167,21 @@ export function InboxDetailView({
           </CardHeader>
           <CardContent>
             <EmailBrandingPanel accountId={accountId} inbox={inbox} />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {inbox.channel_type === "Channel::Email" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Plantilla del correo</CardTitle>
+            <p className="mt-1 text-sm text-fg-muted">
+              El HTML con el que sale cada respuesta. Si lo dejás vacío se
+              usa el diseño que trae AloStudio.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <EmailTemplatePanel accountId={accountId} inbox={inbox} />
           </CardContent>
         </Card>
       ) : null}

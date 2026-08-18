@@ -41,6 +41,7 @@ class ChannelCreate(BaseModel):
     # how a signature is cleared — so these are only dropped when absent.
     signature: str | None = None
     logo_url: str | None = None
+    template_html: str | None = None
     # Channel::Email transport.
     imap_enabled: bool | None = None
     imap_address: str | None = None
@@ -103,6 +104,7 @@ class ChannelUpdate(BaseModel):
     # how a signature is cleared — so these are only dropped when absent.
     signature: str | None = None
     logo_url: str | None = None
+    template_html: str | None = None
     # Channel::Email transport.
     imap_enabled: bool | None = None
     imap_address: str | None = None

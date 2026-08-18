@@ -487,6 +487,17 @@ class EmailChannel(TimestampMixin, table=True):
     logo_url: str = Field(
         default="", sa_column=Column(String, nullable=True, server_default="")
     )
+    # Optional HTML for the whole message. Empty means the built-in
+    # layout, so a mailbox nobody customises keeps sending what it sent.
+    #
+    # Authored markup, unlike ``signature`` — that is the point of it.
+    # What gets substituted in is escaped, so the author controls the
+    # layout while the agent's text and the customer's name cannot inject
+    # anything. A template without ``{{contenido}}`` is refused at save:
+    # it would send every reply with the message missing.
+    template_html: str = Field(
+        default="", sa_column=Column(Text, nullable=True, server_default="")
+    )
 
     # OAuth surface (Phase 9 — empty in 5b) ---------------------------
     provider: str | None = Field(
