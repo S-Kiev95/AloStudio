@@ -58,8 +58,16 @@ def _hint(raw: str, *, host: str, expected_prefix: str) -> str:
             "aplicación, no la de la cuenta."
         )
     if "auth extension is not supported" in lowered:
-        # A host that answers but has no AUTH is almost never an SMTP
-        # server — the usual cause is the IMAP hostname in the SMTP box.
+        # Same error, two causes, and the right advice depends on which.
+        # On a host that is already an SMTP one the cause is the
+        # connection not being encrypted — providers refuse AUTH in the
+        # clear. Blaming the hostname there would send someone to change
+        # a field that is correct.
+        if host.lower().startswith(expected_prefix):
+            return (
+                f"{host} respondió pero rechazó autenticarse sin cifrar. "
+                "Activá la conexión segura (STARTTLS)."
+            )
         return (
             f"{host} respondió, pero no acepta autenticación SMTP. "
             f"Probablemente no sea un servidor de envío: suele empezar "

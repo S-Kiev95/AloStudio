@@ -95,6 +95,23 @@ class TestHints:
         assert "no acepta autenticación SMTP" in out
         assert "smtp." in out
 
+    def test_the_same_error_on_a_correct_host_blames_the_encryption(self):
+        """One error, two causes, and the advice differs.
+
+        On a host that is already an SMTP one the cause is the connection
+        not being encrypted — providers refuse AUTH in the clear. Blaming
+        the hostname there sends someone to change a correct field, which
+        is what the first version of this message did.
+        """
+        out = probe_mod._hint(
+            "SMTPException: The SMTP AUTH extension is not supported by "
+            "this server.",
+            host="smtp.gmail.com",
+            expected_prefix="smtp.",
+        )
+        assert "STARTTLS" in out
+        assert "no sea un servidor de envío" not in out
+
     def test_bad_credentials_mention_the_app_password(self):
         # The commonest real cause, and the one nobody guesses.
         out = probe_mod._hint(
