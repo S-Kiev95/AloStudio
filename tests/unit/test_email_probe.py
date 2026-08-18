@@ -125,3 +125,56 @@ class TestHints:
             expected_prefix="smtp.",
         )
         assert ".." not in out
+
+
+class TestItTestsWhatTheProductDoes:
+    """The probe has to make the connection the poller makes.
+
+    Hardcoding IMAP4_SSL reported success for a channel with SSL off — and
+    that channel then timed out on every real fetch. A test that certifies
+    a broken configuration is worse than no test.
+    """
+
+    async def test_it_connects_the_way_the_poller_will(self, monkeypatch):
+        used: list[str] = []
+
+        class _Client:
+            def __init__(self, **kwargs):
+                pass
+
+            async def wait_hello_from_server(self):
+                return None
+
+            async def login(self, *_a):
+                return SimpleNamespace(result="OK", lines=[b""])
+
+            async def select(self, *_a):
+                return SimpleNamespace(result="OK")
+
+            async def logout(self):
+                return None
+
+        class _Fake:
+            @staticmethod
+            def IMAP4_SSL(**kwargs):  # noqa: N802 - mirrors aioimaplib
+                used.append("ssl")
+                return _Client()
+
+            @staticmethod
+            def IMAP4(**kwargs):  # noqa: N802 - mirrors aioimaplib
+                used.append("plain")
+                return _Client()
+
+        monkeypatch.setitem(__import__("sys").modules, "aioimaplib", _Fake)
+
+        await probe_mod._probe_imap(_channel(imap_enable_ssl=True))
+        await probe_mod._probe_imap(_channel(imap_enable_ssl=False))
+        assert used == ["ssl", "plain"]
+
+    def test_a_timeout_mentions_the_security_switch(self):
+        # A cipher-only port simply does not answer in the clear, and that
+        # is exactly how the flag being off presents.
+        out = probe_mod._hint(
+            "TimeoutError: ", host="imap.gmail.com", expected_prefix="imap."
+        )
+        assert "conexión segura" in out

@@ -13,6 +13,9 @@ export type ChannelField = {
   name: string;
   label: string;
   type: FieldType;
+  /** Checkbox only. Ticked unless the author unticks it — a security
+   *  switch that defaults off is one nobody remembers to turn on. */
+  default?: boolean;
   required?: boolean;
   placeholder?: string;
   help?: string;
@@ -201,6 +204,13 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
         help: "Si tenés verificación en dos pasos, usá una contraseña de aplicación.",
       },
       {
+        name: "imap_enable_ssl",
+        label: "Conexión segura IMAP (SSL)",
+        type: "checkbox",
+        default: true,
+        help: "Casi siempre sí. El puerto 993 no contesta sin cifrar.",
+      },
+      {
         name: "smtp_enabled",
         label: "Enviar correos (SMTP)",
         type: "checkbox",
@@ -220,6 +230,13 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
         placeholder: "soporte@tudominio.com",
       },
       { name: "smtp_password", label: "Contraseña SMTP", type: "password" },
+      {
+        name: "smtp_enable_starttls_auto",
+        label: "Conexión segura SMTP (STARTTLS)",
+        type: "checkbox",
+        default: true,
+        help: "Necesario en el puerto 587. Gmail rechaza autenticarse sin esto.",
+      },
     ],
   },
   {

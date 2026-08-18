@@ -35,11 +35,13 @@ export function EmailTransportPanel({
     imap_port: String(inbox.imap_port || 993),
     imap_login: inbox.imap_login ?? "",
     imap_password: "",
+    imap_enable_ssl: inbox.imap_enable_ssl ?? true,
     smtp_enabled: inbox.smtp_enabled ?? false,
     smtp_address: inbox.smtp_address ?? "",
     smtp_port: String(inbox.smtp_port || 587),
     smtp_login: inbox.smtp_login ?? "",
     smtp_password: "",
+    smtp_enable_starttls_auto: inbox.smtp_enable_starttls_auto ?? true,
   });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -92,6 +94,10 @@ export function EmailTransportPanel({
         login={form.imap_login}
         password={form.imap_password}
         passwordSet={inbox.imap_password_set ?? false}
+        secure={form.imap_enable_ssl}
+        secureLabel="Conexión segura (SSL)"
+        secureHint="Casi siempre sí. El puerto 993 no contesta sin cifrar."
+        onToggleSecure={(v) => set("imap_enable_ssl", v)}
         onChange={set}
       />
 
@@ -106,6 +112,10 @@ export function EmailTransportPanel({
         login={form.smtp_login}
         password={form.smtp_password}
         passwordSet={inbox.smtp_password_set ?? false}
+        secure={form.smtp_enable_starttls_auto}
+        secureLabel="Conexión segura (STARTTLS)"
+        secureHint="Necesario en el puerto 587. Gmail rechaza autenticarse sin esto."
+        onToggleSecure={(v) => set("smtp_enable_starttls_auto", v)}
         onChange={set}
       />
 
@@ -175,6 +185,10 @@ type SideProps = {
   login: string;
   password: string;
   passwordSet: boolean;
+  secure: boolean;
+  secureLabel: string;
+  secureHint: string;
+  onToggleSecure: (v: boolean) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onChange: (key: any, value: any) => void;
 };
@@ -189,6 +203,10 @@ function Side(p: SideProps) {
           checked={p.enabled}
           onChange={(e) => p.onToggle(e.target.checked)}
           className="h-4 w-4 rounded border-border"
+          // Both sides had a box labelled "Activado". Read on its own —
+          // by a screen reader, or by a test — neither said which side it
+          // belonged to.
+          aria-label={`Activar ${p.legend}`}
         />
         Activado
       </label>
@@ -242,6 +260,19 @@ function Side(p: SideProps) {
             ? "Dejala vacía para conservar la que ya está."
             : "Si tu proveedor tiene verificación en dos pasos, usá una contraseña de aplicación."}
         </p>
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 text-sm text-fg">
+          <input
+            type="checkbox"
+            checked={p.secure}
+            onChange={(e) => p.onToggleSecure(e.target.checked)}
+            className="h-4 w-4 rounded border-border"
+          />
+          {p.secureLabel}
+        </label>
+        <p className="mt-1 text-xs text-fg-muted">{p.secureHint}</p>
       </div>
     </fieldset>
   );

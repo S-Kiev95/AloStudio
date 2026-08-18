@@ -111,8 +111,9 @@ describe("EmailTransportPanel, testing the connection", () => {
 describe("EmailTransportPanel", () => {
   it("sends the IMAP settings that make mail arrive", async () => {
     renderPanel();
-    const [imapEnabled] = screen.getAllByRole("checkbox");
-    fireEvent.click(imapEnabled);
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Activar Recibir (IMAP)" }),
+    );
     fireEvent.change(screen.getByLabelText("Servidor", { selector: "#imap-address" }), {
       target: { value: "imap.gmail.com" },
     });
@@ -163,11 +164,37 @@ describe("EmailTransportPanel", () => {
     ).toHaveAttribute("placeholder", "Ya hay una guardada");
   });
 
+  it("carries the security switches, defaulting on", async () => {
+    // Off, Gmail refuses to authenticate and IMAP times out — and the
+    // panel could not set them at all until they were added here.
+    renderPanel();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Activar Recibir (IMAP)" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(channel().imap_enable_ssl).toBe(true);
+    expect(channel().smtp_enable_starttls_auto).toBe(true);
+  });
+
+  it("can turn a security switch off for a server that needs it", async () => {
+    renderPanel();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Conexión segura \(SSL\)/ }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(channel().imap_enable_ssl).toBe(false);
+  });
+
   it("switches the two sides independently", async () => {
     // Receive-only and send-only are both real configurations.
     renderPanel();
-    const boxes = screen.getAllByRole("checkbox");
-    fireEvent.click(boxes[1]);
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Activar Enviar (SMTP)" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => expect(patched).not.toBeNull());

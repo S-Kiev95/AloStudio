@@ -66,7 +66,11 @@ def _hint(raw: str, *, host: str, expected_prefix: str) -> str:
             f"con {expected_prefix}"
         )
     if "timed out" in lowered or "timeout" in lowered:
-        return f"No respondió {host}. Revisá el servidor y el puerto."
+        return (
+            f"No respondió {host}. Revisá el servidor y el puerto — y que "
+            "la conexión segura esté activada, porque un puerto cifrado no "
+            "contesta en claro."
+        )
     return raw[:200]
 
 
@@ -76,7 +80,16 @@ async def _probe_imap(channel: EmailChannel) -> SideResult:
     try:
         import aioimaplib
 
-        client = aioimaplib.IMAP4_SSL(
+        # The same class the poller picks. Hardcoding IMAP4_SSL made this
+        # report a connection the product never makes: a channel with
+        # ``imap_enable_ssl`` off passed here and then timed out on every
+        # real fetch, which is worse than having no test at all.
+        cls = (
+            aioimaplib.IMAP4_SSL
+            if channel.imap_enable_ssl
+            else aioimaplib.IMAP4
+        )
+        client = cls(
             host=channel.imap_address,
             port=channel.imap_port or 993,
             timeout=_TIMEOUT,

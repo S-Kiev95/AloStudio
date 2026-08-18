@@ -102,7 +102,7 @@ export function ChannelForm({
               <label className="flex items-center gap-2 text-sm text-fg">
                 <input
                   type="checkbox"
-                  checked={values[f.name] === "true"}
+                  checked={(values[f.name] ?? (f.default ? "true" : "")) === "true"}
                   onChange={(e) =>
                     setField(f.name, e.target.checked ? "true" : "")
                   }
@@ -195,6 +195,9 @@ function buildChannel(
   };
   for (const f of def.fields) {
     let val: string | undefined = values[f.name];
+    if (val === undefined && f.type === "checkbox" && f.default) {
+      val = "true";
+    }
     if ((val === undefined || val === "") && f.type === "select") {
       val = f.options?.[0]?.value;
     }
