@@ -35,6 +35,10 @@ export type InboxDetail = Inbox & {
   hmac_token?: string | null;
   callback_webhook_url?: string | null;
   webhook_verify_token?: string | null;
+  /** Channel::Email only — what every reply from this mailbox signs with. */
+  email?: string | null;
+  signature?: string;
+  logo_url?: string;
 };
 
 /** The `channel:` sub-hash: a `type` plus whatever fields that channel needs. */
@@ -54,6 +58,10 @@ export type InboxUpdateInput = {
   greeting_message?: string;
   enable_auto_assignment?: boolean;
   csat_survey_enabled?: boolean;
+  /** The `channel:` sub-hash. What it may carry is allow-listed per
+   *  channel type server-side, so anything else is dropped rather than
+   *  written. */
+  channel?: Record<string, unknown>;
 };
 
 /** One agent in an `inbox_members` payload (the subset we render). */
