@@ -320,6 +320,7 @@ class WorkerSettings:
             MAX_ATTEMPTS as WEBHOOK_MAX_ATTEMPTS,
         )
         from app.workers.deliver_webhook import deliver_webhook_task
+        from app.workers.email_poll import fetch_imap_inboxes_task
         from app.workers.instagram import publish_instagram_post_task
         from app.workers.instagram_autoreply import (
             send_comment_autoreply_task,
@@ -343,6 +344,9 @@ class WorkerSettings:
             # preempted by ARQ's default give-up. Keeps the quarantine
             # record guaranteed even if MAX_ATTEMPTS is bumped later.
             func(deliver_webhook_task, max_tries=WEBHOOK_MAX_ATTEMPTS),
+            # Cron, below. Registered here because ARQ resolves a cron job
+            # against the function list.
+            fetch_imap_inboxes_task,
         ]
 
     # ARQ reads these off the class, so they're class-level by contract, not
@@ -362,6 +366,8 @@ class WorkerSettings:
         from arq.connections import RedisSettings
         from arq.cron import cron
 
+        from app.workers.email_poll import fetch_imap_inboxes_task
+
         cls.redis_settings = RedisSettings.from_dsn(
             get_settings().arq_redis_url
         )
@@ -376,6 +382,14 @@ class WorkerSettings:
             # more often would burn quota for nothing. Offset off the hour
             # so it never contends with the :00 tick.
             cron(sync_ad_insights_task, minute={17}),
+            # Inbound mail, every two minutes. Faster than the 5-minute
+            # tick because this is someone waiting for an answer, not a
+            # background reconciliation — and offset off the tick so a
+            # slow IMAP server never delays campaigns and snoozes.
+            cron(
+                fetch_imap_inboxes_task,
+                minute=set(range(1, 60, 2)),
+            ),
         ]
 
 
