@@ -321,3 +321,69 @@ async def test_skipped_for_private_message(client, db_session):
     )
     assert _greenmail.messages_for(contact.email) == []
     assert msg.source_id is None
+
+
+# ---------------------------------------------------------------------------
+# Attachments
+# ---------------------------------------------------------------------------
+async def test_the_reply_is_a_readable_multipart(client, db_session):
+    """Text and HTML both present, and in the order clients expect.
+
+    ``add_alternative`` appends, and a client renders the last part it
+    understands — so the HTML has to come after the text or everyone sees
+    plain text with a signature they cannot style.
+    """
+    import email as email_mod
+
+    owner, _, _channel, contact, ci = await _seed_email_inbox(db_session)
+    await _create_outbound(
+        db_session, ci=ci, content="Con formato", user_id=owner.user.id
+    )
+
+    raw = _greenmail.messages_for(contact.email)[0]["mimeMessage"]
+    parsed = email_mod.message_from_string(raw)
+    subtypes = [p.get_content_type() for p in parsed.walk()]
+    assert "text/plain" in subtypes
+    assert "text/html" in subtypes
+    assert subtypes.index("text/plain") < subtypes.index("text/html")
+
+
+async def test_an_attached_file_reaches_the_recipient(
+    client, db_session, monkeypatch
+):
+    """The whole point: what the agent attached arrives with the reply."""
+    import email as email_mod
+
+    from app.domains.email import attachments as attach_mod
+
+    async def _fetch(_attachments):
+        return [
+            attach_mod.FetchedFile(
+                filename="presupuesto.pdf",
+                content=b"%PDF-1.4 fake",
+                maintype="application",
+                subtype="pdf",
+            )
+        ]
+
+    monkeypatch.setattr(
+        "app.domains.email.mailer.fetch_attachments", _fetch
+    )
+
+    owner, _, _channel, contact, ci = await _seed_email_inbox(db_session)
+    await _create_outbound(
+        db_session, ci=ci, content="Te paso el presupuesto", user_id=owner.user.id
+    )
+
+    raw = _greenmail.messages_for(contact.email)[0]["mimeMessage"]
+    parsed = email_mod.message_from_string(raw)
+    names = [p.get_filename() for p in parsed.walk() if p.get_filename()]
+    assert names == ["presupuesto.pdf"]
+
+    # The body must survive alongside it — attaching before the
+    # alternatives would nest the HTML wrongly and hide the message.
+    types = [p.get_content_type() for p in parsed.walk()]
+    assert "text/plain" in types
+    assert "text/html" in types
+    assert "application/pdf" in types
+    assert "Te paso el presupuesto" in raw

@@ -21,7 +21,8 @@ Subject convention mirrors Rails:
 
 Body: multipart/alternative — text and HTML, both built by
 :mod:`app.domains.email.template` from the mailbox's own signature and
-logo. Attachments still land with 5b.6.
+logo, plus the message's attachments as MIME parts
+(:mod:`app.domains.email.attachments`).
 
 Auth-failure / connection-failure handling: we trap exceptions inside
 :func:`send_email_reply` and log + flag them, never raising into the
@@ -49,6 +50,7 @@ from app.domains.conversations.models import (
     Conversation,
     Message,
 )
+from app.domains.email.attachments import fetch_attachments
 from app.domains.email.template import render_html, render_plain
 from app.domains.inboxes.models import EmailChannel
 
@@ -311,6 +313,17 @@ async def send_email_reply(
         ),
         subtype="html",
     )
+
+    # After the alternatives: attaching first would make the text/html
+    # part a sibling of the files rather than of the plain text, and a
+    # client would show the raw markup instead of rendering it.
+    for f in await fetch_attachments(list(message.attachments or [])):
+        mail.add_attachment(
+            f.content,
+            maintype=f.maintype,
+            subtype=f.subtype,
+            filename=f.filename,
+        )
 
     try:
         await aiosmtplib.send(
