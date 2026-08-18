@@ -971,12 +971,35 @@ _INBOX_EDITABLE_FIELDS = (
 # ``Channel::Api::EDITABLE_ATTRS`` — the Ruby constant.
 API_CHANNEL_EDITABLE_FIELDS = ("webhook_url", "hmac_mandatory", "additional_attributes")
 
+# Never presented, and blank means "leave it alone" rather than "clear it".
+_WRITE_ONLY_CHANNEL_FIELDS = frozenset({"imap_password", "smtp_password"})
+
 # What a PATCH may change, per channel type. Explicit rather than "any
 # field on the row": the same payload reaches SMTP passwords and IMAP
 # hosts, and a typo in the UI must not be able to redirect a mailbox.
 _CHANNEL_EDITABLE_FIELDS: dict[str, tuple[str, ...]] = {
     CHANNEL_TYPE_API: API_CHANNEL_EDITABLE_FIELDS,
-    CHANNEL_TYPE_EMAIL: ("signature", "logo_url"),
+    CHANNEL_TYPE_EMAIL: (
+        "signature",
+        "logo_url",
+        # IMAP/SMTP, because a mailbox created from the UI arrives with
+        # both sides off and no way to switch them on — it neither sends
+        # nor receives until these are set. Admin-only by the route's
+        # dependency; the passwords are write-only, never presented back.
+        "imap_enabled",
+        "imap_address",
+        "imap_port",
+        "imap_login",
+        "imap_password",
+        "imap_enable_ssl",
+        "smtp_enabled",
+        "smtp_address",
+        "smtp_port",
+        "smtp_login",
+        "smtp_password",
+        "smtp_enable_ssl_tls",
+        "smtp_enable_starttls_auto",
+    ),
 }
 
 
@@ -1008,8 +1031,15 @@ async def update_inbox(
     if channel is not None and channel_updates:
         editable = _CHANNEL_EDITABLE_FIELDS.get(inbox.channel_type or "", ())
         for field in editable:
-            if field in channel_updates and channel_updates[field] is not None:
-                setattr(channel, field, channel_updates[field])
+            if field not in channel_updates or channel_updates[field] is None:
+                continue
+            # A stored password is never sent back to the browser, so the
+            # form has nothing to re-submit and posts "". Writing that
+            # would erase the credential every time anyone saved the
+            # screen for an unrelated reason.
+            if field in _WRITE_ONLY_CHANNEL_FIELDS and channel_updates[field] == "":
+                continue
+            setattr(channel, field, channel_updates[field])
         session.add(channel)
 
     session.add(inbox)

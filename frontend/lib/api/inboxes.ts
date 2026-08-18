@@ -39,6 +39,21 @@ export type InboxDetail = Inbox & {
   email?: string | null;
   signature?: string;
   logo_url?: string;
+  /** Channel::Email transport, admin-only. Passwords are never returned;
+   *  `*_password_set` says whether one is stored. */
+  imap_enabled?: boolean;
+  imap_address?: string;
+  imap_port?: number;
+  imap_login?: string;
+  imap_enable_ssl?: boolean;
+  imap_password_set?: boolean;
+  smtp_enabled?: boolean;
+  smtp_address?: string;
+  smtp_port?: number;
+  smtp_login?: string;
+  smtp_enable_ssl_tls?: boolean;
+  smtp_enable_starttls_auto?: boolean;
+  smtp_password_set?: boolean;
 };
 
 /** The `channel:` sub-hash: a `type` plus whatever fields that channel needs. */

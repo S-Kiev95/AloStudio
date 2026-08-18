@@ -147,6 +147,39 @@ def present_inbox(
         body["email"] = getattr(channel, "email", None)
         body["signature"] = getattr(channel, "signature", "") or ""
         body["logo_url"] = getattr(channel, "logo_url", "") or ""
+        if is_administrator:
+            # Everything the transport form needs to render, except the
+            # passwords: those go out to a mail server, never back to a
+            # browser. The two booleans say whether one is stored, which
+            # is what lets the form show "already set" instead of an empty
+            # box that looks unconfigured.
+            body.update(
+                {
+                    "imap_enabled": bool(getattr(channel, "imap_enabled", False)),
+                    "imap_address": getattr(channel, "imap_address", "") or "",
+                    "imap_port": getattr(channel, "imap_port", 0) or 0,
+                    "imap_login": getattr(channel, "imap_login", "") or "",
+                    "imap_enable_ssl": bool(
+                        getattr(channel, "imap_enable_ssl", True)
+                    ),
+                    "imap_password_set": bool(
+                        getattr(channel, "imap_password", "")
+                    ),
+                    "smtp_enabled": bool(getattr(channel, "smtp_enabled", False)),
+                    "smtp_address": getattr(channel, "smtp_address", "") or "",
+                    "smtp_port": getattr(channel, "smtp_port", 0) or 0,
+                    "smtp_login": getattr(channel, "smtp_login", "") or "",
+                    "smtp_enable_ssl_tls": bool(
+                        getattr(channel, "smtp_enable_ssl_tls", False)
+                    ),
+                    "smtp_enable_starttls_auto": bool(
+                        getattr(channel, "smtp_enable_starttls_auto", True)
+                    ),
+                    "smtp_password_set": bool(
+                        getattr(channel, "smtp_password", "")
+                    ),
+                }
+            )
 
     # WhatsApp's verify token — the value the user enters in Meta's webhook
     # config. Admin-only, like the Api hmac_token / secret.

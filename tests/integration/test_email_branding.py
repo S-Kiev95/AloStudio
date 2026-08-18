@@ -138,26 +138,63 @@ async def test_a_signature_can_be_cleared(client, mailbox, db_session):
     assert (await _channel(db_session, inbox)).signature == ""
 
 
-async def test_the_smtp_password_cannot_be_changed_through_this(
+async def test_saving_the_screen_does_not_erase_a_stored_password(
     client, mailbox, db_session
 ):
-    """The branding payload reaches the row that holds the credentials."""
+    """The form has nothing to re-submit, so it posts "".
+
+    A stored password is never sent to the browser. Writing the empty
+    string back would wipe the credential every time anyone saved this
+    screen for an unrelated reason — the signature, say.
+    """
     owner, headers, inbox = mailbox
     await client.patch(
         _url(owner, inbox),
-        json={
-            "channel": {
-                "signature": SIGNATURE,
-                "smtp_password": "ROBADA",
-                "smtp_address": "smtp.atacante.com",
-            }
-        },
+        json={"channel": {"signature": SIGNATURE, "smtp_password": ""}},
         headers=headers,
     )
     channel = await _channel(db_session, inbox)
     assert channel.signature == SIGNATURE
     assert channel.smtp_password == "SMTP-SECRET"
-    assert channel.smtp_address == "smtp.ejemplo.edu.uy"
+
+
+async def test_a_password_typed_in_replaces_the_stored_one(
+    client, mailbox, db_session
+):
+    owner, headers, inbox = mailbox
+    await client.patch(
+        _url(owner, inbox),
+        json={"channel": {"smtp_password": "NUEVA"}},
+        headers=headers,
+    )
+    assert (await _channel(db_session, inbox)).smtp_password == "NUEVA"
+
+
+async def test_the_transport_config_comes_back_without_the_passwords(
+    client, mailbox
+):
+    owner, headers, inbox = mailbox
+    await client.patch(
+        _url(owner, inbox),
+        json={
+            "channel": {
+                "imap_enabled": True,
+                "imap_address": "imap.ejemplo.edu.uy",
+                "imap_port": 993,
+                "imap_login": "soporte",
+                "imap_password": "IMAP-SECRET",
+            }
+        },
+        headers=headers,
+    )
+    body = (await client.get(_url(owner, inbox), headers=headers)).json()
+    assert body["imap_enabled"] is True
+    assert body["imap_address"] == "imap.ejemplo.edu.uy"
+    assert body["imap_port"] == 993
+    # The form needs to know one is stored without being told what it is.
+    assert body["imap_password_set"] is True
+    assert "IMAP-SECRET" not in str(body)
+    assert "imap_password" not in body
 
 
 async def test_the_smtp_password_is_never_presented(client, mailbox):

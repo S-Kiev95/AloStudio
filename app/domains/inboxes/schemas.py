@@ -41,6 +41,20 @@ class ChannelCreate(BaseModel):
     # how a signature is cleared — so these are only dropped when absent.
     signature: str | None = None
     logo_url: str | None = None
+    # Channel::Email transport.
+    imap_enabled: bool | None = None
+    imap_address: str | None = None
+    imap_port: int | None = None
+    imap_login: str | None = None
+    imap_password: str | None = None
+    imap_enable_ssl: bool | None = None
+    smtp_enabled: bool | None = None
+    smtp_address: str | None = None
+    smtp_port: int | None = None
+    smtp_login: str | None = None
+    smtp_password: str | None = None
+    smtp_enable_ssl_tls: bool | None = None
+    smtp_enable_starttls_auto: bool | None = None
 
 
 class InboxCreateRequest(BaseModel):
@@ -89,6 +103,20 @@ class ChannelUpdate(BaseModel):
     # how a signature is cleared — so these are only dropped when absent.
     signature: str | None = None
     logo_url: str | None = None
+    # Channel::Email transport.
+    imap_enabled: bool | None = None
+    imap_address: str | None = None
+    imap_port: int | None = None
+    imap_login: str | None = None
+    imap_password: str | None = None
+    imap_enable_ssl: bool | None = None
+    smtp_enabled: bool | None = None
+    smtp_address: str | None = None
+    smtp_port: int | None = None
+    smtp_login: str | None = None
+    smtp_password: str | None = None
+    smtp_enable_ssl_tls: bool | None = None
+    smtp_enable_starttls_auto: bool | None = None
 
 
 class InboxUpdateRequest(BaseModel):

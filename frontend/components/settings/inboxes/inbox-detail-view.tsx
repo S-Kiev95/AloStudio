@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { EmailBrandingPanel } from "./email-branding-panel";
+import { EmailTransportPanel } from "./email-transport-panel";
 import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api/errors";
 import {
@@ -138,6 +139,21 @@ export function InboxDetailView({
           <InboxMembersPanel accountId={accountId} inboxId={inboxId} />
         </CardContent>
       </Card>
+
+      {inbox.channel_type === "Channel::Email" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Servidor de correo</CardTitle>
+            <p className="mt-1 text-sm text-fg-muted">
+              Los datos de tu proveedor. Hasta que estén cargados, esta
+              casilla no recibe ni envía.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <EmailTransportPanel accountId={accountId} inbox={inbox} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {inbox.channel_type === "Channel::Email" ? (
         <Card>
