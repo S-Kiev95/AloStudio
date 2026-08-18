@@ -128,6 +128,10 @@ export function ChannelForm({
                 value={values[f.name] ?? ""}
                 onChange={(e) => setField(f.name, e.target.value)}
                 placeholder={f.placeholder}
+                // Chrome filled the saved AloStudio login into "Usuario
+                // IMAP" and the password to match, which reached the
+                // server as a mailbox that could not authenticate.
+                autoComplete={f.type === "password" ? "new-password" : "off"}
               />
             )}
           </Field>

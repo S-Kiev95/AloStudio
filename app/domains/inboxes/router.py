@@ -207,6 +207,45 @@ async def show_inbox(
     return present_inbox(inbox, channel=channel, is_administrator=ctx.is_administrator)
 
 
+@router.post("/{inbox_id}/test_email_connection")
+async def test_email_connection(
+    inbox_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict:
+    """Try the mailbox's IMAP and SMTP and report what happened.
+
+    Saving credentials proved nothing before this: a typo left the mailbox
+    looking configured and silently delivering nothing, and the first sign
+    was mail not arriving days later with no error to explain it.
+    """
+    from app.domains.email.probe import probe_email_channel
+
+    inbox = await _find_inbox_in_account(session, ctx, inbox_id)
+    if inbox.channel_type != CHANNEL_TYPE_EMAIL:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "Esta bandeja no es de correo"},
+        )
+    channel = await _load_channel_row(session, inbox)
+    if channel is None:
+        raise ChatwootHTTPException(status_code=404, detail={})
+
+    result = await probe_email_channel(channel)
+    return {
+        "imap": {
+            "configured": result.imap.configured,
+            "ok": result.imap.ok,
+            "error": result.imap.error,
+        },
+        "smtp": {
+            "configured": result.smtp.configured,
+            "ok": result.smtp.ok,
+            "error": result.smtp.error,
+        },
+    }
+
+
 @router.patch("/{inbox_id}")
 async def update_inbox_endpoint(
     inbox_id: Annotated[int, Path()],

@@ -143,6 +143,28 @@ export function useUpdateInbox(accountId: string) {
   });
 }
 
+/** One side's outcome. `configured` false means that side is switched off. */
+export type ProbeSide = {
+  configured: boolean;
+  ok: boolean;
+  error: string | null;
+};
+
+/** Try the mailbox's credentials for real.
+ *
+ *  Saving them proved nothing: a typo left the mailbox looking configured
+ *  and silently delivering nothing, and the first sign was mail not
+ *  arriving days later with no error to explain it. */
+export function useTestEmailConnection(accountId: string) {
+  return useMutation({
+    mutationFn: (inboxId: number) =>
+      apiFetch<{ imap: ProbeSide; smtp: ProbeSide }>(
+        `${base(accountId)}/${inboxId}/test_email_connection`,
+        { method: "POST" },
+      ),
+  });
+}
+
 export function useDeleteInbox(accountId: string) {
   const qc = useQueryClient();
   return useMutation({

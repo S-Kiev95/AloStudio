@@ -51,6 +51,63 @@ function renderPanel(over: Partial<typeof INBOX> = {}) {
 
 const channel = () => patched!.channel!;
 
+describe("EmailTransportPanel, testing the connection", () => {
+  function withProbe(body: Record<string, unknown>) {
+    server.use(
+      http.post("*/test_email_connection", () => HttpResponse.json(body)),
+    );
+  }
+
+  it("says so when both sides connect", async () => {
+    withProbe({
+      imap: { configured: true, ok: true, error: null },
+      smtp: { configured: true, ok: true, error: null },
+    });
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: /Probar conexión/ }));
+    expect(await screen.findByText(/Recibir \(IMAP\): conecta bien/)).toBeInTheDocument();
+    expect(screen.getByText(/Enviar \(SMTP\): conecta bien/)).toBeInTheDocument();
+  });
+
+  it("shows the reason a side failed, not just that it did", async () => {
+    // The sentence is the whole feature: "no conecta" alone leaves the
+    // admin with the same eight fields and no idea which one is wrong.
+    withProbe({
+      imap: {
+        configured: true,
+        ok: false,
+        error: "Usuario o contraseña incorrectos.",
+      },
+      smtp: { configured: true, ok: true, error: null },
+    });
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: /Probar conexión/ }));
+    expect(
+      await screen.findByText("Usuario o contraseña incorrectos."),
+    ).toBeInTheDocument();
+  });
+
+  it("does not report a side that is switched off as broken", async () => {
+    withProbe({
+      imap: { configured: false, ok: false, error: null },
+      smtp: { configured: true, ok: true, error: null },
+    });
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: /Probar conexión/ }));
+    expect(await screen.findByText(/Recibir \(IMAP\): apagado/)).toBeInTheDocument();
+  });
+
+  it("warns that it tests what was saved, not what is on screen", async () => {
+    withProbe({
+      imap: { configured: true, ok: true, error: null },
+      smtp: { configured: true, ok: true, error: null },
+    });
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: /Probar conexión/ }));
+    expect(await screen.findByText(/Guardá primero/)).toBeInTheDocument();
+  });
+});
+
 describe("EmailTransportPanel", () => {
   it("sends the IMAP settings that make mail arrive", async () => {
     renderPanel();

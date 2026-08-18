@@ -5,7 +5,12 @@ import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type InboxDetail, useUpdateInbox } from "@/lib/api/inboxes";
+import {
+  type InboxDetail,
+  type ProbeSide,
+  useTestEmailConnection,
+  useUpdateInbox,
+} from "@/lib/api/inboxes";
 
 /** IMAP and SMTP for one mailbox.
  *
@@ -23,6 +28,7 @@ export function EmailTransportPanel({
   inbox: InboxDetail;
 }) {
   const update = useUpdateInbox(accountId);
+  const probe = useTestEmailConnection(accountId);
   const [form, setForm] = useState({
     imap_enabled: inbox.imap_enabled ?? false,
     imap_address: inbox.imap_address ?? "",
@@ -103,9 +109,18 @@ export function EmailTransportPanel({
         onChange={set}
       />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="sm" loading={update.isPending}>
           Guardar
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          loading={probe.isPending}
+          onClick={() => probe.mutate(inbox.id)}
+        >
+          Probar conexión
         </Button>
         {saved ? (
           <span role="status" className="text-sm text-success">
@@ -113,7 +128,39 @@ export function EmailTransportPanel({
           </span>
         ) : null}
       </div>
+
+      {probe.data ? (
+        <div className="space-y-2" role="status">
+          <ProbeRow label="Recibir (IMAP)" side={probe.data.imap} />
+          <ProbeRow label="Enviar (SMTP)" side={probe.data.smtp} />
+          <p className="text-xs text-fg-muted">
+            Se prueba lo guardado, no lo que hay en pantalla. Guardá primero
+            si acabás de cambiar algo.
+          </p>
+        </div>
+      ) : null}
     </form>
+  );
+}
+
+function ProbeRow({ label, side }: { label: string; side: ProbeSide }) {
+  if (!side.configured) {
+    return (
+      <p className="text-sm text-fg-muted">
+        {label}: apagado.
+      </p>
+    );
+  }
+  if (side.ok) {
+    return (
+      <p className="text-sm text-success">{label}: conecta bien.</p>
+    );
+  }
+  return (
+    <div className="rounded-lg border border-danger/30 bg-danger/5 p-2.5">
+      <p className="text-sm font-medium text-danger">{label}: no conecta</p>
+      <p className="mt-0.5 text-sm text-fg-muted">{side.error}</p>
+    </div>
   );
 }
 
