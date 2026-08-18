@@ -98,7 +98,19 @@ export function ChannelForm({
 
         {def.fields.map((f) => (
           <Field key={f.name} label={f.label} required={f.required} help={f.help}>
-            {f.type === "select" ? (
+            {f.type === "checkbox" ? (
+              <label className="flex items-center gap-2 text-sm text-fg">
+                <input
+                  type="checkbox"
+                  checked={values[f.name] === "true"}
+                  onChange={(e) =>
+                    setField(f.name, e.target.checked ? "true" : "")
+                  }
+                  className="h-4 w-4 rounded border-border"
+                />
+                Activar
+              </label>
+            ) : f.type === "select" ? (
               <select
                 value={values[f.name] ?? f.options?.[0]?.value ?? ""}
                 onChange={(e) => setField(f.name, e.target.value)}
@@ -183,6 +195,10 @@ function buildChannel(
       val = f.options?.[0]?.value;
     }
     if (val === undefined || val === "") continue;
+    // A checkbox has to arrive as a real boolean. Sent as a string, every
+    // non-empty value is truthy on the server — so "false" would switch
+    // the side on, which is the opposite of what the box says.
+    const value: string | boolean = f.type === "checkbox" ? val === "true" : val;
     const parts = f.name.split(".");
     let cur = channel;
     for (let i = 0; i < parts.length - 1; i++) {
@@ -190,7 +206,7 @@ function buildChannel(
       if (typeof cur[key] !== "object" || cur[key] === null) cur[key] = {};
       cur = cur[key] as Record<string, unknown>;
     }
-    cur[parts[parts.length - 1]] = val;
+    cur[parts[parts.length - 1]] = value;
   }
   return channel as ChannelPayload;
 }
