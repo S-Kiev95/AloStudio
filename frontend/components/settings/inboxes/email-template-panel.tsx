@@ -6,6 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { type InboxDetail, useUpdateInbox } from "@/lib/api/inboxes";
+import {
+  DEFAULT_DESIGN,
+  type TemplateDesign,
+  renderDesign,
+} from "@/lib/inboxes/email-template-design";
+import { cn } from "@/lib/utils";
+
+import { EmailDesigner } from "./email-designer";
 
 const CONTENT = "{{contenido}}";
 
@@ -41,6 +49,16 @@ export function EmailTemplatePanel({
 }) {
   const update = useUpdateInbox(accountId);
   const [html, setHtml] = useState(inbox.template_html ?? "");
+  const [design, setDesign] = useState<TemplateDesign>({
+    ...DEFAULT_DESIGN,
+    ...((inbox.template_design ?? {}) as Partial<TemplateDesign>),
+  });
+  // Hand-written HTML has no design behind it, so opening on the designer
+  // would show controls that do not describe it — and saving would
+  // silently replace it.
+  const [mode, setMode] = useState<"design" | "code">(
+    inbox.template_html && !inbox.template_design ? "code" : "design",
+  );
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -53,7 +71,18 @@ export function EmailTemplatePanel({
     try {
       await update.mutateAsync({
         id: inbox.id,
-        patch: { channel: { template_html: html } },
+        patch: {
+          channel:
+            mode === "design"
+              ? {
+                  template_html: renderDesign(design),
+                  template_design: design,
+                }
+              : // No design goes with hand-written HTML; the server reads
+                // its absence as "this was edited by hand" and forgets the
+                // one it had.
+                { template_html: html },
+        },
       });
       setSaved(true);
     } catch (err) {
@@ -69,6 +98,50 @@ export function EmailTemplatePanel({
         </p>
       ) : null}
 
+      <div className="flex gap-1 rounded-lg border border-border p-1">
+        {(
+          [
+            ["design", "Diseñador"],
+            ["code", "HTML"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={mode === value}
+            onClick={() => {
+              // Moving to code carries the design across, so the author
+              // starts from what they built rather than a blank box.
+              if (value === "code" && mode === "design") {
+                setHtml(renderDesign(design));
+              }
+              setMode(value);
+              setSaved(false);
+            }}
+            className={cn(
+              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              mode === value
+                ? "bg-primary text-primary-fg"
+                : "text-fg-muted hover:bg-surface-2",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "design" ? (
+        <EmailDesigner
+          design={design}
+          onChange={(d) => {
+            setDesign(d);
+            setSaved(false);
+          }}
+          logoUrl={inbox.logo_url ?? ""}
+          signature={inbox.signature ?? ""}
+        />
+      ) : (
+      <>
       <div className="space-y-1.5">
         <Label htmlFor="template">HTML de la plantilla</Label>
         <Textarea
@@ -115,17 +188,19 @@ export function EmailTemplatePanel({
           el mensaje.
         </p>
       ) : null}
+      </>
+      )}
 
       <div className="flex items-center gap-3">
         <Button
           type="submit"
           size="sm"
           loading={update.isPending}
-          disabled={missingContent}
+          disabled={mode === "code" && missingContent}
         >
           Guardar plantilla
         </Button>
-        {html.trim() ? (
+        {mode === "code" && html.trim() ? (
           <Button
             type="button"
             size="sm"
@@ -137,7 +212,7 @@ export function EmailTemplatePanel({
           >
             Volver al diseño por defecto
           </Button>
-        ) : (
+        ) : mode === "code" ? (
           <Button
             type="button"
             size="sm"
@@ -146,7 +221,7 @@ export function EmailTemplatePanel({
           >
             Empezar desde un ejemplo
           </Button>
-        )}
+        ) : null}
         {saved ? (
           <span role="status" className="text-sm text-success">
             Guardada

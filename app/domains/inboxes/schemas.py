@@ -42,6 +42,9 @@ class ChannelCreate(BaseModel):
     signature: str | None = None
     logo_url: str | None = None
     template_html: str | None = None
+    # Explicit null clears it, so it is read from the raw payload rather
+    # than the None-excluded dump.
+    template_design: dict[str, Any] | None = None
     # Channel::Email transport.
     imap_enabled: bool | None = None
     imap_address: str | None = None
@@ -105,6 +108,9 @@ class ChannelUpdate(BaseModel):
     signature: str | None = None
     logo_url: str | None = None
     template_html: str | None = None
+    # Explicit null clears it, so it is read from the raw payload rather
+    # than the None-excluded dump.
+    template_design: dict[str, Any] | None = None
     # Channel::Email transport.
     imap_enabled: bool | None = None
     imap_address: str | None = None

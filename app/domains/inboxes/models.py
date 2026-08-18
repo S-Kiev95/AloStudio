@@ -498,6 +498,13 @@ class EmailChannel(TimestampMixin, table=True):
     template_html: str = Field(
         default="", sa_column=Column(Text, nullable=True, server_default="")
     )
+    # The settings the visual designer produced ``template_html`` from.
+    # Null means the HTML was written or edited by hand and no longer
+    # corresponds to any set of controls — reopening the designer would
+    # otherwise silently overwrite it with something else.
+    template_design: dict[str, Any] | None = Field(
+        default=None, sa_column=Column(JSONB, nullable=True)
+    )
 
     # OAuth surface (Phase 9 — empty in 5b) ---------------------------
     provider: str | None = Field(

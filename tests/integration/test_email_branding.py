@@ -304,3 +304,82 @@ async def test_clearing_the_template_returns_to_the_built_in_design(
     )
     assert resp.status_code == 200
     assert (await _channel(db_session, inbox)).template_html == ""
+
+
+async def test_the_designer_settings_are_stored_with_the_html(
+    client, mailbox, db_session
+):
+    """Reopening the designer needs the controls back.
+
+    Parsing them out of the generated markup would be guesswork that
+    breaks the moment anyone edits it.
+    """
+    owner, headers, inbox = mailbox
+    resp = await client.patch(
+        _url(owner, inbox),
+        json={
+            "channel": {
+                "template_html": "<div>{{contenido}}</div>",
+                "template_design": {"headerTitle": "Instituto", "showLogo": True},
+            }
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+
+    channel = await _channel(db_session, inbox)
+    assert channel.template_design["headerTitle"] == "Instituto"
+
+    body = (await client.get(_url(owner, inbox), headers=headers)).json()
+    assert body["template_design"]["showLogo"] is True
+
+
+async def test_hand_editing_the_html_forgets_the_design(
+    client, mailbox, db_session
+):
+    """Otherwise the designer would reopen with controls that no longer
+    describe the template, and overwrite the edit on the next save."""
+    owner, headers, inbox = mailbox
+    await client.patch(
+        _url(owner, inbox),
+        json={
+            "channel": {
+                "template_html": "<div>{{contenido}}</div>",
+                "template_design": {"headerTitle": "Instituto"},
+            }
+        },
+        headers=headers,
+    )
+    await client.patch(
+        _url(owner, inbox),
+        json={"channel": {"template_html": "<p>{{contenido}}</p> a mano"}},
+        headers=headers,
+    )
+    channel = await _channel(db_session, inbox)
+    assert channel.template_design is None
+    assert "a mano" in channel.template_html
+
+
+async def test_saving_something_else_leaves_the_design_alone(
+    client, mailbox, db_session
+):
+    """Only an HTML change without a design means "hand-edited"."""
+    owner, headers, inbox = mailbox
+    await client.patch(
+        _url(owner, inbox),
+        json={
+            "channel": {
+                "template_html": "<div>{{contenido}}</div>",
+                "template_design": {"headerTitle": "Instituto"},
+            }
+        },
+        headers=headers,
+    )
+    await client.patch(
+        _url(owner, inbox),
+        json={"channel": {"signature": SIGNATURE}},
+        headers=headers,
+    )
+    channel = await _channel(db_session, inbox)
+    assert channel.template_design is not None
+    assert channel.template_design["headerTitle"] == "Instituto"

@@ -983,6 +983,7 @@ _CHANNEL_EDITABLE_FIELDS: dict[str, tuple[str, ...]] = {
         "signature",
         "logo_url",
         "template_html",
+        "template_design",
         # IMAP/SMTP, because a mailbox created from the UI arrives with
         # both sides off and no way to switch them on — it neither sends
         # nor receives until these are set. Admin-only by the route's
@@ -1041,6 +1042,16 @@ async def update_inbox(
             if field in _WRITE_ONLY_CHANNEL_FIELDS and channel_updates[field] == "":
                 continue
             setattr(channel, field, channel_updates[field])
+        # HTML arriving without the design it came from means it was
+        # written or edited by hand. Keeping the old design would let the
+        # visual editor reopen with controls that no longer describe the
+        # template and overwrite the edit on the next save.
+        if (
+            inbox.channel_type == CHANNEL_TYPE_EMAIL
+            and "template_html" in channel_updates
+            and "template_design" not in channel_updates
+        ):
+            channel.template_design = None
         session.add(channel)
 
     session.add(inbox)
