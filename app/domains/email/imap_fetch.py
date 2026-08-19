@@ -111,17 +111,22 @@ async def _fetch_unseen_uids(
 
 
 async def _fetch_one(imap: aioimaplib.IMAP4, uid: bytes) -> EmailMessage | None:
-    """FETCH (RFC822) one message by UID.
+    """FETCH one message by UID, without marking it read.
 
     aioimaplib returns the raw response in ``lines`` — we pluck the
     bytes payload out and parse it. Returns ``None`` on a malformed
     response (logged + skipped — the caller wants the loop to keep
     going).
     """
-    res = await imap.fetch(uid.decode("ascii"), "(RFC822)")
+    # BODY.PEEK[], not RFC822: fetching with RFC822 sets the Seen flag as
+    # a side effect, so a message that failed to process was already
+    # invisible to the next SEARCH UNSEEN. The retry this module promises
+    # in its docstring never happened — an email that hit an error on the
+    # way in was simply lost, with nothing left to find it by.
+    res = await imap.fetch(uid.decode("ascii"), "(BODY.PEEK[])")
     if res.result != "OK" or not res.lines:
         return None
-    # Response shape: [b"<n> FETCH (RFC822 {<size>}", b"<bytes>", b")"]
+    # Response shape: [b"<n> FETCH (BODY[] {<size>}", b"<bytes>", b")"]
     # The actual mail body is the second-to-last line; the last line
     # is just a closing paren.
     if len(res.lines) < 2:

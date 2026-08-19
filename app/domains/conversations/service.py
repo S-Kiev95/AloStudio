@@ -187,8 +187,18 @@ async def create_conversation(
     one (Chatwoot's single-session-per-contact behaviour). Otherwise
     create a fresh ``Conversation`` with the builder params applied.
     """
-    inbox = contact_inbox.inbox
-    if inbox is None:  # defensive — should never happen when relationship is eager
+    # ``ContactInbox.inbox`` is selectin-loaded, but that only applies to
+    # rows fetched by a query. On one just created in this session the
+    # attribute is unloaded, and touching it asks SQLAlchemy to emit IO
+    # lazily — which raises MissingGreenlet under async and took an
+    # inbound email down with it. The fallback below existed for this and
+    # was unreachable, because the attribute access raised instead of
+    # returning None.
+    from sqlalchemy import inspect as sa_inspect
+
+    unloaded = sa_inspect(contact_inbox).unloaded
+    inbox = None if "inbox" in unloaded else contact_inbox.inbox
+    if inbox is None:
         inbox = (
             await session.exec(select(Inbox).where(Inbox.id == contact_inbox.inbox_id))
         ).one()

@@ -346,3 +346,58 @@ async def test_fetch_short_circuits_when_imap_disabled(db_session):
     )
     n = await fetch_inbox_once(db_session, channel=channel, inbox=inbox)
     assert n == 0
+
+
+async def test_a_brand_new_contact_inbox_does_not_break_the_ingest(db_session):
+    """The bug that lost the first real test email.
+
+    ``ContactInbox.inbox`` is selectin-loaded, but that only applies to
+    rows a query returned. On one just created in this session the
+    attribute is unloaded, and reading it asks SQLAlchemy to emit IO
+    lazily — MissingGreenlet under async, which took the whole message
+    down and left it marked read on the server.
+    """
+    from app.domains.contacts.service import ContactInboxBuilder
+    from app.domains.conversations.service import (
+        ConversationBuilderParams,
+        create_conversation,
+    )
+
+    owner = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="admin@newci.example.com",
+            account_name="NewCI Inc",
+            user_full_name="Admin NewCI",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+    result = await InboxBuilder(
+        db_session,
+        InboxBuilderParams(
+            account=owner.account,
+            name="Soporte",
+            channel_type="email",
+            channel_params={"email": "soporte@newci.example.com"},
+        ),
+    ).perform()
+
+    contact = Contact(account_id=owner.account.id, name="Quien escribe")
+    db_session.add(contact)
+    await db_session.flush()
+
+    # Fresh, never queried back — the state the ingest path produces.
+    contact_inbox = await ContactInboxBuilder(
+        session=db_session,
+        contact=contact,
+        inbox=result.inbox,
+        source_id="quien@escribe.com",
+    ).perform()
+
+    conversation = await create_conversation(
+        db_session,
+        contact_inbox=contact_inbox,
+        params=ConversationBuilderParams(),
+    )
+    assert conversation.inbox_id == result.inbox.id

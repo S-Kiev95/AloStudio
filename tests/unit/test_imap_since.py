@@ -55,3 +55,30 @@ async def test_it_still_returns_the_uids():
     imap = _Imap(b"7 8")
     uids = await _fetch_unseen_uids(imap, since=datetime(2026, 8, 18, tzinfo=UTC))
     assert uids == [b"7", b"8"]
+
+
+class _FetchImap:
+    """Records the FETCH command it was handed."""
+
+    def __init__(self):
+        self.command: str | None = None
+
+    async def fetch(self, uid: str, command: str):
+        self.command = command
+        return SimpleNamespace(result="NO", lines=[])
+
+
+async def test_downloading_a_message_does_not_mark_it_read():
+    """RFC822 sets the Seen flag as a side effect.
+
+    A message that then failed to process was already invisible to the
+    next SEARCH UNSEEN, so the retry this module promises never happened —
+    an inbound email that hit an error was lost with nothing to find it
+    by. That is exactly what swallowed the first real test email.
+    """
+    from app.domains.email.imap_fetch import _fetch_one
+
+    imap = _FetchImap()
+    await _fetch_one(imap, b"7")
+    assert "PEEK" in (imap.command or "")
+    assert "RFC822" not in (imap.command or "")
