@@ -278,3 +278,60 @@ async def test_a_send_only_mailbox_is_a_valid_configuration(db_session):
     ).perform()
     assert result.channel.smtp_enabled is True
     assert result.channel.imap_enabled is False
+
+
+async def test_switching_imap_on_starts_the_clock(db_session):
+    """Otherwise the first poll pulls the mailbox's whole backlog.
+
+    A real Gmail account connected to staging produced 114 conversations
+    from unread newsletters before this existed.
+    """
+    owner = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="admin@since.example.com",
+            account_name="Since Inc",
+            user_full_name="Admin Since",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+    result = await InboxBuilder(
+        db_session,
+        InboxBuilderParams(
+            account=owner.account,
+            name="Soporte",
+            channel_type="email",
+            channel_params={
+                "email": "soporte@since.example.com",
+                "imap_enabled": True,
+                "imap_address": "imap.since.example.com",
+                "imap_port": 993,
+                "imap_login": "soporte",
+            },
+        ),
+    ).perform()
+    assert result.channel.imap_fetch_since is not None
+
+
+async def test_a_mailbox_created_without_imap_has_no_clock_yet(db_session):
+    owner = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="admin@noimap.example.com",
+            account_name="NoImap Inc",
+            user_full_name="Admin NoImap",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+    result = await InboxBuilder(
+        db_session,
+        InboxBuilderParams(
+            account=owner.account,
+            name="Solo envio",
+            channel_type="email",
+            channel_params={"email": "avisos@noimap.example.com"},
+        ),
+    ).perform()
+    assert result.channel.imap_fetch_since is None

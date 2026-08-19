@@ -23,6 +23,7 @@ are Phase 5 work; we leave a TODO marker rather than wire a no-op.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlmodel import select
@@ -346,6 +347,10 @@ class InboxBuilder:
             imap_login=str(params.get("imap_login") or ""),
             imap_password=str(params.get("imap_password") or ""),
             imap_enable_ssl=bool(params.get("imap_enable_ssl", True)),
+            # Bound the first poll to now. A mailbox that has been in use
+            # for years answers SEARCH UNSEEN with its whole backlog, and
+            # every one of those would become a conversation.
+            imap_fetch_since=datetime.now(UTC) if imap_enabled else None,
             smtp_enabled=smtp_enabled,
             smtp_address=str(params.get("smtp_address") or ""),
             smtp_port=int(params.get("smtp_port") or 0),
@@ -1031,6 +1036,15 @@ async def update_inbox(
         inbox.csat_config = csat_config
 
     if channel is not None and channel_updates:
+        # Switching IMAP on starts the clock. Without this, enabling it on
+        # a mailbox created months ago would pull every unread message
+        # since then.
+        if (
+            inbox.channel_type == CHANNEL_TYPE_EMAIL
+            and channel_updates.get("imap_enabled")
+            and not getattr(channel, "imap_enabled", False)
+        ):
+            channel.imap_fetch_since = datetime.now(UTC)
         editable = _CHANNEL_EDITABLE_FIELDS.get(inbox.channel_type or "", ())
         for field in editable:
             if field not in channel_updates or channel_updates[field] is None:

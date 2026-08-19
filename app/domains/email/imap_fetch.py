@@ -30,6 +30,7 @@ from __future__ import annotations
 import email
 import logging
 from contextlib import suppress
+from datetime import datetime
 from email.message import EmailMessage
 
 import aioimaplib
@@ -83,9 +84,23 @@ async def _connect_and_select(
     return imap
 
 
-async def _fetch_unseen_uids(imap: aioimaplib.IMAP4) -> list[bytes]:
-    """SEARCH UNSEEN -> list of UID bytes."""
-    res = await imap.search("UNSEEN")
+async def _fetch_unseen_uids(
+    imap: aioimaplib.IMAP4, *, since: datetime | None = None
+) -> list[bytes]:
+    """SEARCH UNSEEN -> list of UID bytes.
+
+    ``since`` bounds it to mail that arrived after the mailbox was
+    connected. Without it a mailbox that has been in use for years
+    answers with its entire unread backlog, and every one of those
+    becomes a conversation someone has to deal with.
+
+    IMAP's SINCE is date-granular, so the worst case is the rest of the
+    day the mailbox was connected — a handful, not a decade.
+    """
+    criteria = "UNSEEN"
+    if since is not None:
+        criteria = f'UNSEEN SINCE {since.strftime("%d-%b-%Y")}'
+    res = await imap.search(criteria)
     if res.result != "OK" or not res.lines:
         return []
     # res.lines[0] is e.g. b"1 2 3" (space-separated UIDs).
@@ -162,7 +177,9 @@ async def fetch_inbox_once(
 
     ingested = 0
     try:
-        uids = await _fetch_unseen_uids(imap)
+        uids = await _fetch_unseen_uids(
+            imap, since=channel.imap_fetch_since
+        )
         for uid in uids:
             mail = await _fetch_one(imap, uid)
             if mail is None:

@@ -427,6 +427,15 @@ class EmailChannel(TimestampMixin, table=True):
         default=True,
         sa_column=Column(Boolean, nullable=True, server_default="true"),
     )
+    # Only mail that arrived after this is ingested. Set when IMAP is
+    # switched on, because a mailbox that has been in use for years
+    # answers SEARCH UNSEEN with its whole backlog — connecting one to
+    # staging turned 114 newsletters into 114 conversations, and on a
+    # real desk that is thousands.
+    imap_fetch_since: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
 
     # SMTP outbound ----------------------------------------------------
     smtp_enabled: bool = Field(
