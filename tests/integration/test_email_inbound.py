@@ -401,3 +401,46 @@ async def test_a_brand_new_contact_inbox_does_not_break_the_ingest(db_session):
         params=ConversationBuilderParams(),
     )
     assert conversation.inbox_id == result.inbox.id
+
+
+async def test_an_ingested_email_is_announced_over_the_cable(
+    db_session, monkeypatch
+):
+    """Otherwise it lands in the database and no browser is told.
+
+    The presenter is sync, so any attribute it reads that needs IO raises
+    MissingGreenlet. The listener refreshed only ``attachments``, leaving
+    the timestamps — which carry a server-side onupdate and are expired by
+    the post-create callbacks — unloaded. The broadcast died there and a
+    new conversation only appeared on a manual reload.
+    """
+    from app.domains.conversations import listeners as listeners_mod
+
+    seen: list[str] = []
+
+    async def _capture(self, account_id, tokens, event_name, payload):
+        # Reading the payload matters: it is built by the sync presenter,
+        # which is exactly where this failed.
+        seen.append(f"{event_name}:{payload['id']}")
+
+    monkeypatch.setattr(
+        listeners_mod.ActionCableListener, "_broadcast", _capture
+    )
+
+    inbox, channel = await _seed_email_inbox(db_session, suffix="-cable")
+    mail = _build_mail(
+        sender="quien@escribe.example.com",
+        sender_name="Quien Escribe",
+        to="support@example.com",
+        subject="Consulta",
+        body="Hola, una pregunta.",
+        message_id="cable-1@client.example.com",
+    )
+    msg = await process_inbound_email(
+        db_session, channel=channel, inbox=inbox, mail=mail
+    )
+
+    assert msg is not None
+    assert any(
+        entry == f"message.created:{msg.id}" for entry in seen
+    ), f"no se anuncio el mensaje: {seen}"
