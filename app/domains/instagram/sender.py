@@ -5,8 +5,9 @@ Ported from:
   reference/chatwoot/app/services/instagram/messenger/send_on_instagram_service.rb
 
 Sends an outgoing :class:`Message` on a ``Channel::Instagram`` inbox by
-POSTing to ``graph.facebook.com/<vN>/me/messages`` with the channel's
-``access_token`` as a query parameter.
+POSTing to ``<graph host>/<vN>/me/messages`` with the channel's
+``access_token`` as a query parameter. The host is per-channel — see
+:mod:`app.domains.instagram.graph`.
 
 Attachments mirror ``BaseSendService#send_attachments``: Meta takes **one
 attachment per message**, so each becomes its own send, and it downloads
@@ -31,9 +32,9 @@ from typing import Any
 import httpx
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.config import get_settings
 from app.domains.conversations.models import Attachment, Message
 from app.domains.inboxes.models import InstagramChannel
+from app.domains.instagram.graph import graph_base
 
 log = logging.getLogger(__name__)
 
@@ -43,13 +44,22 @@ _IG_SEND_TYPES = frozenset({"image", "audio", "video", "file"})
 
 
 def _api_url(channel: InstagramChannel) -> str:
-    """``https://graph.facebook.com/<vN>/me/messages?access_token=<channel>``."""
-    settings = get_settings()
-    base = "https://graph.facebook.com"
-    return (
-        f"{base}/{settings.facebook_api_version}/me/messages"
-        f"?access_token={channel.access_token}"
-    )
+    """``<graph base>/me/messages?access_token=<channel>``.
+
+    Reads the host from :func:`graph_base`, which is what the callers
+    already set per channel — Facebook Login publishes through
+    ``graph.facebook.com`` and Instagram Login through
+    ``graph.instagram.com``. Hardcoding the Facebook host meant an
+    Instagram-Login channel sent every DM to the wrong one; nothing else
+    in the module noticed, because the only channel in use is a
+    Facebook-Login one.
+
+    It also pins the version once. This used to read
+    ``facebook_api_version`` (v17) while comments and publishing went
+    through ``meta_graph_api_version`` (v23) — two versions of the same
+    API in one integration, and the older one long past its support window.
+    """
+    return f"{graph_base()}/me/messages?access_token={channel.access_token}"
 
 
 def _send_attachment_type(file_type: str) -> str:

@@ -17,7 +17,6 @@ import httpx
 import pytest
 import respx
 
-from app.core.config import get_settings
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
@@ -37,6 +36,7 @@ from app.domains.conversations.service import (
 )
 from app.domains.inboxes.models import Inbox, InstagramChannel
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+from app.domains.instagram.graph import graph_base
 from app.domains.instagram.sender import (
     send_attachment_message_instagram,
     send_text_message_instagram,
@@ -101,11 +101,12 @@ async def _seed(
 
 
 def _expected_url(channel: InstagramChannel) -> str:
-    settings = get_settings()
-    return (
-        f"https://graph.facebook.com/{settings.facebook_api_version}"
-        f"/me/messages?access_token={channel.access_token}"
-    )
+    """Built from ``graph_base`` for the same reason the sender is.
+
+    Spelling the host out here would let the two drift: the test would
+    keep passing against a URL the product no longer calls.
+    """
+    return f"{graph_base()}/me/messages?access_token={channel.access_token}"
 
 
 # ---------------------------------------------------------------------------

@@ -13,9 +13,9 @@ import httpx
 import pytest
 import respx
 
-from app.core.config import get_settings
 from app.core.models_registry import import_all_models
 from app.domains.inboxes.models import InstagramChannel
+from app.domains.instagram.graph import graph_base
 from app.domains.instagram.sender import send_private_reply_instagram
 
 pytestmark = pytest.mark.unit
@@ -23,9 +23,10 @@ pytestmark = pytest.mark.unit
 # Instantiating a channel configures the mappers, which need every model.
 import_all_models()
 
-SEND_URL = (
-    f"https://graph.facebook.com/{get_settings().facebook_api_version}/me/messages"
-)
+# Built from ``graph_base`` for the same reason the sender is: spelled out
+# here, the test would keep passing against a URL the product no longer
+# calls — which is exactly what hid the hardcoded host for so long.
+SEND_URL = f"{graph_base()}/me/messages"
 
 
 @pytest.fixture
@@ -97,3 +98,45 @@ async def test_an_unparseable_body_still_counts_as_sent(channel):
     assert result.ok is True
     assert result.recipient_igsid is None
     assert result.message_id is None
+
+
+@respx.mock
+async def test_an_instagram_login_channel_sends_to_the_instagram_host(channel):
+    """The bug this closes: the host was hardcoded to Facebook's.
+
+    Both flows are implemented and ``login_type`` picks the host per
+    channel, but the DM sender ignored it — so an Instagram-Login channel
+    posted every message to the wrong host. Nothing surfaced it, because
+    the only channel in use is a Facebook-Login one.
+    """
+    from app.domains.instagram.graph import graph_host
+
+    with graph_host("graph.instagram.com"):
+        url = f"{graph_base()}/me/messages"
+        route = respx.post(url).mock(
+            return_value=httpx.Response(200, json={"recipient_id": "X"})
+        )
+        result = await send_private_reply_instagram(
+            channel=channel, ig_comment_id="CMT-1", text="hola"
+        )
+
+    assert result.ok
+    assert route.called
+    assert "graph.instagram.com" in str(respx.calls.last.request.url)
+
+
+@respx.mock
+async def test_the_dm_path_uses_the_same_api_version_as_the_rest(channel):
+    """It read facebook_api_version (v17) while comments and publishing
+    went through meta_graph_api_version (v23) — two versions of one API
+    in a single integration."""
+    from app.core.config import get_settings
+
+    respx.post(SEND_URL).mock(
+        return_value=httpx.Response(200, json={"recipient_id": "X"})
+    )
+    await send_private_reply_instagram(
+        channel=channel, ig_comment_id="CMT-1", text="hola"
+    )
+    sent = str(respx.calls.last.request.url)
+    assert f"/{get_settings().meta_graph_api_version}/" in sent
