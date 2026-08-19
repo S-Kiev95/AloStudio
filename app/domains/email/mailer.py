@@ -239,6 +239,10 @@ async def send_email_reply(
         or getattr(sender_obj, "name", None)
         or None
     )
+    # The agent's own sign-off, set on their profile. Distinct from the
+    # mailbox's: one is who wrote the reply, the other is the institution
+    # it came from, and a reply usually wants both.
+    agent_signature = getattr(sender_obj, "message_signature", None) or ""
 
     # The most recent inbound on this conversation — needed for
     # In-Reply-To. Cheap query because messages.conversation_id is
@@ -303,7 +307,11 @@ async def send_email_reply(
     # appends, and a mail client picks the last part it understands.
     body = message.content or ""
     mail.set_content(
-        render_plain(body=body, signature=channel.signature or "")
+        render_plain(
+            body=body,
+            signature=channel.signature or "",
+            agent_signature=agent_signature,
+        )
     )
     mail.add_alternative(
         render_template(
@@ -311,6 +319,7 @@ async def send_email_reply(
             body=body,
             signature=channel.signature or "",
             logo_url=channel.logo_url or "",
+            agent_signature=agent_signature,
         ),
         subtype="html",
     )

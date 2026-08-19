@@ -20,6 +20,10 @@ const CONTENT = "{{contenido}}";
 const PLACEHOLDERS: { token: string; what: string }[] = [
   { token: CONTENT, what: "el mensaje que escribe el agente (obligatorio)" },
   { token: "{{firma}}", what: "la firma de esta casilla" },
+  {
+    token: "{{firma_agente}}",
+    what: "la firma de quien responde, de su perfil",
+  },
   { token: "{{logo}}", what: "el logo, como imagen" },
 ];
 
@@ -28,6 +32,7 @@ const EXAMPLE = `<div style="background:#003366;padding:24px;text-align:center">
 </div>
 <div style="padding:24px;font-family:Arial,sans-serif;color:#1f2328">
   {{contenido}}
+  <div style="margin-top:16px;font-size:14px">{{firma_agente}}</div>
   <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0">
   <div style="font-size:13px;color:#5b6470">{{firma}}</div>
 </div>`;

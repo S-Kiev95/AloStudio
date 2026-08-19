@@ -34,6 +34,9 @@ _CARD = (
 )
 _RULE = "border:none;border-top:1px solid #e5e7eb;margin:20px 0 16px;"
 _SIGNATURE = "color:#5b6470;font-size:13px;line-height:1.45;"
+# The agent's own sign-off sits with the message, not down in the
+# institutional block — it is the person writing, not the letterhead.
+_AGENT = "color:#1f2328;font-size:14px;line-height:1.45;margin-top:16px;"
 _LOGO = "max-width:160px;max-height:56px;margin-bottom:12px;display:block;"
 
 
@@ -50,29 +53,52 @@ def _paragraphs(text: str) -> str:
     )
 
 
-def render_plain(*, body: str, signature: str = "") -> str:
+def render_plain(
+    *, body: str, signature: str = "", agent_signature: str = ""
+) -> str:
     """The text/plain part.
 
     Kept as the real alternative and not a stripped afterthought: a client
     that prefers text should get something a person can read, with the
-    signature separated by the ``-- `` convention mail readers know.
+    mailbox signature separated by the ``-- `` convention mail readers
+    know.
+
+    The agent's sign-off goes above that delimiter, with the message: it
+    is who wrote the reply, and everything below ``-- `` is what a mail
+    reader is entitled to collapse as boilerplate.
     """
     body = (body or "").strip()
     signature = (signature or "").strip()
+    agent_signature = (agent_signature or "").strip()
+
+    if agent_signature:
+        body = f"{body}\n\n{agent_signature}" if body else agent_signature
     if not signature:
         return body
     return f"{body}\n\n-- \n{signature}"
 
 
 def render_html(
-    *, body: str, signature: str = "", logo_url: str = ""
+    *,
+    body: str,
+    signature: str = "",
+    logo_url: str = "",
+    agent_signature: str = "",
 ) -> str:
-    """The text/html part: the message, then the mailbox's sign-off."""
+    """The text/html part: the message, the writer, then the letterhead."""
     parts = [
         f'<body style="{_BODY}">',
         f'<div style="{_CARD}">',
         _paragraphs((body or "").strip()),
     ]
+
+    agent_signature = (agent_signature or "").strip()
+    if agent_signature:
+        parts.append(
+            f'<div style="{_AGENT}">'
+            f'{escape(agent_signature).replace(chr(10), "<br>")}'
+            f"</div>"
+        )
 
     signature = (signature or "").strip()
     logo_url = (logo_url or "").strip()
@@ -106,8 +132,16 @@ def render_html(
 PLACEHOLDER_CONTENT = "{{contenido}}"
 PLACEHOLDER_SIGNATURE = "{{firma}}"
 PLACEHOLDER_LOGO = "{{logo}}"
+# The person who wrote the reply, as opposed to ``{{firma}}`` which is the
+# mailbox's. A template that omits it simply never shows who answered.
+PLACEHOLDER_AGENT = "{{firma_agente}}"
 
-PLACEHOLDERS = (PLACEHOLDER_CONTENT, PLACEHOLDER_SIGNATURE, PLACEHOLDER_LOGO)
+PLACEHOLDERS = (
+    PLACEHOLDER_CONTENT,
+    PLACEHOLDER_SIGNATURE,
+    PLACEHOLDER_AGENT,
+    PLACEHOLDER_LOGO,
+)
 
 
 class TemplateError(ValueError):
@@ -131,7 +165,12 @@ def validate_template(template: str) -> None:
 
 
 def render_template(
-    *, template: str, body: str, signature: str = "", logo_url: str = ""
+    *,
+    template: str,
+    body: str,
+    signature: str = "",
+    logo_url: str = "",
+    agent_signature: str = "",
 ) -> str:
     """Fill a mailbox's own HTML.
 
@@ -139,8 +178,14 @@ def render_template(
     built-in layout stays the default rather than something to opt into.
     """
     if not template.strip():
-        return render_html(body=body, signature=signature, logo_url=logo_url)
+        return render_html(
+            body=body,
+            signature=signature,
+            logo_url=logo_url,
+            agent_signature=agent_signature,
+        )
 
+    agent_signature = (agent_signature or "").strip()
     signature = (signature or "").strip()
     logo_url = (logo_url or "").strip()
     logo_tag = (
@@ -154,12 +199,19 @@ def render_template(
             PLACEHOLDER_SIGNATURE,
             escape(signature).replace(chr(10), "<br>") if signature else "",
         )
+        .replace(
+            PLACEHOLDER_AGENT,
+            escape(agent_signature).replace(chr(10), "<br>")
+            if agent_signature
+            else "",
+        )
         .replace(PLACEHOLDER_LOGO, logo_tag)
     )
 
 
 __all__ = [
     "PLACEHOLDERS",
+    "PLACEHOLDER_AGENT",
     "PLACEHOLDER_CONTENT",
     "PLACEHOLDER_LOGO",
     "PLACEHOLDER_SIGNATURE",

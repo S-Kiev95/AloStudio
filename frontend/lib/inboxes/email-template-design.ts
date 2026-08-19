@@ -12,6 +12,7 @@ export type TemplateDesign = {
   pageColor: string;
   bodyColor: string;
   textColor: string;
+  showAgentSignature: boolean;
   showSignature: boolean;
   footerNote: string;
 };
@@ -24,6 +25,7 @@ export const DEFAULT_DESIGN: TemplateDesign = {
   pageColor: "#f4f5f7",
   bodyColor: "#ffffff",
   textColor: "#1f2328",
+  showAgentSignature: true,
   showSignature: true,
   footerNote: "",
 };
@@ -75,6 +77,14 @@ export function renderDesign(d: TemplateDesign): string {
     `<div style="padding:24px;color:${d.textColor};font-size:15px;line-height:1.5">`,
     "{{contenido}}",
   );
+
+  // With the message, not down in the institutional block: this is the
+  // person who wrote the reply, not the letterhead.
+  if (d.showAgentSignature) {
+    parts.push(
+      `<div style="margin-top:16px;font-size:14px;line-height:1.45">{{firma_agente}}</div>`,
+    );
+  }
 
   if (d.showSignature || d.footerNote.trim()) {
     parts.push(

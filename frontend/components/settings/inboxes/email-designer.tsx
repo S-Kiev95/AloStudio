@@ -84,7 +84,13 @@ export function EmailDesigner({
           }
         />
         <Toggle
-          label="Mostrar la firma"
+          label="Mostrar la firma del agente"
+          checked={design.showAgentSignature}
+          onChange={(v) => set("showAgentSignature", v)}
+          hint="La que cada persona configura en Mi perfil."
+        />
+        <Toggle
+          label="Mostrar la firma de la casilla"
           checked={design.showSignature}
           onChange={(v) => set("showSignature", v)}
           hint={
@@ -179,6 +185,10 @@ function DesignPreview({
   signature: string;
 }) {
   const html = renderDesign(design)
+    .replace(
+      "{{firma_agente}}",
+      "<i>la firma de quien responda va acá</i>",
+    )
     .replace(
       "{{contenido}}",
       "<p style=\"margin:0 0 12px\">Gracias por escribirnos, te confirmo enseguida.</p>",

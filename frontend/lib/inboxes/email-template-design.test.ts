@@ -65,3 +65,30 @@ describe("renderDesign", () => {
     );
   });
 });
+
+describe("renderDesign, the agent's own sign-off", () => {
+  it("places it with the message, not in the letterhead", () => {
+    // It is the person who wrote the reply, not the institution.
+    const html = renderDesign(design({ showAgentSignature: true }));
+    expect(html.indexOf("{{firma_agente}}")).toBeGreaterThan(
+      html.indexOf("{{contenido}}"),
+    );
+    expect(html.indexOf("{{firma_agente}}")).toBeLessThan(
+      html.indexOf("{{firma}}"),
+    );
+  });
+
+  it("leaves it out when unticked", () => {
+    expect(
+      renderDesign(design({ showAgentSignature: false })),
+    ).not.toContain("{{firma_agente}}");
+  });
+
+  it("can show the agent's without the mailbox's", () => {
+    const html = renderDesign(
+      design({ showAgentSignature: true, showSignature: false }),
+    );
+    expect(html).toContain("{{firma_agente}}");
+    expect(html).not.toContain("{{firma}}");
+  });
+});

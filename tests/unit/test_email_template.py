@@ -181,3 +181,60 @@ class TestTemplateValidation:
     def test_the_error_says_what_to_add(self):
         with pytest.raises(TemplateError, match=r"\{\{contenido\}\}"):
             validate_template("<div>nada</div>")
+
+
+class TestAgentSignature:
+    """Who wrote the reply, as opposed to which institution it came from.
+
+    A reply usually wants both: the person signs off, the mailbox carries
+    the letterhead. They are not alternatives.
+    """
+
+    AGENT = "Ana Rodríguez\nAtención al cliente"
+
+    def test_the_writer_signs_above_the_letterhead(self):
+        out = render_plain(
+            body="Ahí va", signature=SIGNATURE, agent_signature=self.AGENT
+        )
+        # "-- " is what a mail reader may collapse as boilerplate, so the
+        # person's name has to sit above it, with the message.
+        assert out.index("Ana Rodríguez") < out.index("-- ")
+        assert out.endswith(SIGNATURE)
+
+    def test_html_shows_both(self):
+        out = render_html(
+            body="Ahí va", signature=SIGNATURE, agent_signature=self.AGENT
+        )
+        assert "Ana Rodríguez<br>Atención al cliente" in out
+        assert "Instituto Ejemplo" in out
+
+    def test_an_agent_with_no_signature_changes_nothing(self):
+        assert render_html(body="Hola", signature=SIGNATURE) == render_html(
+            body="Hola", signature=SIGNATURE, agent_signature=""
+        )
+
+    def test_it_works_with_no_mailbox_signature_at_all(self):
+        out = render_plain(body="Hola", agent_signature=self.AGENT)
+        assert out == "Hola\n\nAna Rodríguez\nAtención al cliente"
+
+    def test_it_is_escaped_like_every_other_typed_field(self):
+        out = render_html(body="Hola", agent_signature="Ana <ana@x.com>")
+        assert "&lt;ana@x.com&gt;" in out
+        assert "<ana@x.com>" not in out
+
+    def test_a_template_can_place_it(self):
+        out = render_template(
+            template="<div>{{contenido}}</div><i>{{firma_agente}}</i>",
+            body="Hola",
+            agent_signature=self.AGENT,
+        )
+        assert "<i>Ana Rodríguez<br>Atención al cliente</i>" in out
+
+    def test_a_template_that_omits_it_simply_never_shows_who_answered(self):
+        out = render_template(
+            template="<div>{{contenido}}</div>",
+            body="Hola",
+            agent_signature=self.AGENT,
+        )
+        assert "Ana" not in out
+        assert "{{firma_agente}}" not in out
