@@ -444,3 +444,56 @@ async def test_an_ingested_email_is_announced_over_the_cable(
     assert any(
         entry == f"message.created:{msg.id}" for entry in seen
     ), f"no se anuncio el mensaje: {seen}"
+
+
+async def test_an_ingested_email_keeps_the_headers_a_reader_needs(db_session):
+    """Only the message-id was kept before.
+
+    That is enough to thread and not enough to display: an email view has
+    to show who it was addressed to, who else got a copy, and what it was
+    about, and none of that survived the ingest.
+    """
+    inbox, channel = await _seed_email_inbox(db_session, suffix="-hdrs")
+    mail = _build_mail(
+        sender="alice@external.example.com",
+        sender_name="Alice Waters",
+        to="support@example.com",
+        subject="No puedo entrar a mi cuenta",
+        body="Me da error al iniciar sesion.",
+        message_id="hdrs-1@client.example.com",
+    )
+    mail["Cc"] = "jefe@external.example.com, otro@external.example.com"
+
+    msg = await process_inbound_email(
+        db_session, channel=channel, inbox=inbox, mail=mail
+    )
+    assert msg is not None
+
+    meta = msg.content_attributes["email"]
+    assert meta["subject"] == "No puedo entrar a mi cuenta"
+    assert meta["from"] == "alice@external.example.com"
+    assert meta["from_name"] == "Alice Waters"
+    assert meta["to"] == ["support@example.com"]
+    # Several on one header is routine, and re-parsing RFC-2822 in the UI
+    # would get it wrong on the first name containing a comma.
+    assert meta["cc"] == [
+        "jefe@external.example.com",
+        "otro@external.example.com",
+    ]
+    assert meta["message_id"] == "hdrs-1@client.example.com"
+
+
+async def test_an_email_without_a_subject_says_so_rather_than_lying(db_session):
+    inbox, channel = await _seed_email_inbox(db_session, suffix="-nosubj")
+    mail = _build_mail(
+        sender="alice@external.example.com",
+        sender_name="Alice",
+        to="support@example.com",
+        subject="",
+        body="Sin asunto.",
+        message_id="nosubj-1@client.example.com",
+    )
+    msg = await process_inbound_email(
+        db_session, channel=channel, inbox=inbox, mail=mail
+    )
+    assert msg.content_attributes["email"]["subject"] is None

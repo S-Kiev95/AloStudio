@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 from email.message import EmailMessage
-from email.utils import parseaddr
+from email.utils import getaddresses, parseaddr
 from typing import Any
 
 from sqlmodel import select
@@ -91,6 +91,24 @@ def _from_address(mail: EmailMessage) -> tuple[str | None, str | None]:
     if not addr or "@" not in addr:
         return None, None
     return (name.strip() or None), addr.lower()
+
+
+
+def _header_addresses(mail: EmailMessage, header: str) -> list[str]:
+    """Every address on one header, as plain strings.
+
+    A list, not the raw header: "To" routinely carries several, and a UI
+    that has to re-parse RFC-2822 to show them will get it wrong on the
+    first name containing a comma.
+    """
+    raw = mail.get(header)
+    if not raw:
+        return []
+    return [
+        addr
+        for _name, addr in getaddresses([str(raw)])
+        if addr and "@" in addr
+    ]
 
 
 def _extract_body(mail: EmailMessage) -> str:
@@ -266,9 +284,22 @@ async def process_inbound_email(
 
     # 4. Create the incoming message + stash threading metadata.
     body = _extract_body(mail)
-    content_attrs: dict[str, Any] = {}
+    # The headers a reader needs to see this as an email rather than a
+    # chat line: who it was addressed to, who else got it, and what it
+    # was about. Only the message-id was kept before, which is enough to
+    # thread and not enough to display.
+    content_attrs: dict[str, Any] = {
+        "email": {
+            "subject": (mail.get("Subject") or "").strip() or None,
+            "from": sender_email,
+            "from_name": sender_name or None,
+            "to": _header_addresses(mail, "To"),
+            "cc": _header_addresses(mail, "Cc"),
+            "date": (mail.get("Date") or "").strip() or None,
+        }
+    }
     if bare_mid:
-        content_attrs["email"] = {"message_id": bare_mid}
+        content_attrs["email"]["message_id"] = bare_mid
         # Persist the chain too — useful for audit + future outbounds
         # that want to extend the References header.
         ref_ids = extract_message_ids(mail.get("References"))
@@ -285,7 +316,7 @@ async def process_inbound_email(
         params=_MessageBuilderParams(
             content=body,
             message_type="incoming",
-            content_attributes=content_attrs or None,
+            content_attributes=content_attrs,
             source_id=bare_mid,
         ),
         user_id=None,

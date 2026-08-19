@@ -30,7 +30,20 @@ export type Message = {
   created_at: number;
   private: boolean;
   sender?: Sender;
-  content_attributes?: { deleted?: boolean } & Record<string, unknown>;
+  content_attributes?: {
+    deleted?: boolean;
+    /** Present on Channel::Email messages — the headers the thread view
+     *  needs to render this as an email rather than a chat line. */
+    email?: {
+      subject?: string | null;
+      from?: string | null;
+      from_name?: string | null;
+      to?: string[];
+      cc?: string[];
+      date?: string | null;
+      message_id?: string | null;
+    };
+  } & Record<string, unknown>;
   attachments?: Array<{
     id: number;
     data_url?: string;
@@ -72,6 +85,9 @@ export type Conversation = {
   last_activity_at: number;
   created_at: number;
   ad_referral?: AdReferral | null;
+  /** ``mail_subject`` on an email conversation — the subject the whole
+   *  thread hangs off, which is per-thread and not per-message. */
+  additional_attributes?: { mail_subject?: string } & Record<string, unknown>;
 };
 
 export type ConversationsIndex = {
@@ -221,6 +237,10 @@ export function useSendMessage(accountId: string, displayId: number) {
       content?: string;
       isPrivate?: boolean;
       attachments?: OutgoingAttachment[];
+      /** Email only. Omitted on every other channel, which has no
+       *  concept of copying a third party on a reply. */
+      ccEmails?: string;
+      bccEmails?: string;
     }) =>
       apiFetch<Message>(`${base(accountId)}/${displayId}/messages`, {
         method: "POST",
@@ -229,6 +249,8 @@ export function useSendMessage(accountId: string, displayId: number) {
           message_type: "outgoing",
           private: Boolean(input.isPrivate),
           attachments: input.attachments,
+          cc_emails: input.ccEmails || undefined,
+          bcc_emails: input.bccEmails || undefined,
         }),
       }),
     onSuccess: () => {

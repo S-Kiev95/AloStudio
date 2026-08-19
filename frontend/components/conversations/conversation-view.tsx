@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { ContactPanel } from "./contact-panel";
 import { ConversationActions } from "./conversation-actions";
 import { ConversationParticipants } from "./conversation-participants";
+import { EmailComposer } from "./email-composer";
+import { EmailMessage } from "./email-message";
 import { MessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
 
@@ -94,6 +96,18 @@ export function ConversationView({
   const contactName = conv.data?.meta?.sender?.name ?? `#${displayId}`;
   const contactId = conv.data?.meta?.sender?.id ?? null;
   const resolved = status === "resolved";
+  // Email is read and answered differently enough that the chat view is
+  // the wrong shape for it: subject, recipients, long bodies, and a
+  // thread you scan rather than scroll.
+  const isEmail = conv.data?.meta?.channel === "Channel::Email";
+  const subject = conv.data?.additional_attributes?.mail_subject ?? null;
+  // Who the reply goes to. The newest message's sender is the person who
+  // last wrote, which is who "reply" means on a thread.
+  const replyTo =
+    [...(messages.data?.payload ?? [])]
+      .reverse()
+      .find((m) => m.message_type === 0)?.content_attributes?.email?.from ??
+    null;
 
   return (
     <div className="flex h-[calc(100dvh-3.5rem-2rem)] gap-0 sm:h-[calc(100dvh-3.5rem-3rem)] lg:gap-4">
@@ -112,6 +126,11 @@ export function ConversationView({
           <h1 className="truncate text-base font-semibold text-fg">
             {contactName}
           </h1>
+          {isEmail && subject ? (
+            <p className="truncate text-sm text-fg" title={subject}>
+              {subject}
+            </p>
+          ) : null}
           <p className="text-xs text-fg-muted">Conversación #{displayId}</p>
           <AdOrigin referral={conv.data?.ad_referral} />
         </div>
@@ -161,13 +180,32 @@ export function ConversationView({
         ) : (messages.data?.payload.length ?? 0) === 0 ? (
           <p className="text-center text-sm text-fg-muted">Sin mensajes.</p>
         ) : (
-          messages.data?.payload.map((m) => (
-            <MessageBubble key={m.id} message={m} onDelete={handleDelete} />
-          ))
+          messages.data?.payload.map((m, i, all) =>
+            isEmail ? (
+              <EmailMessage
+                key={m.id}
+                message={m}
+                // Only the newest is open. On a ten-message thread the
+                // alternative is a wall nobody reads — every mail client
+                // collapses the rest for the same reason.
+                defaultOpen={i === all.length - 1}
+              />
+            ) : (
+              <MessageBubble key={m.id} message={m} onDelete={handleDelete} />
+            ),
+          )
         )}
       </div>
 
-      <MessageComposer accountId={accountId} displayId={displayId} />
+      {isEmail ? (
+        <EmailComposer
+          accountId={accountId}
+          displayId={displayId}
+          replyTo={replyTo}
+        />
+      ) : (
+        <MessageComposer accountId={accountId} displayId={displayId} />
+      )}
       </div>
 
       {/* Right-hand contact panel (lg+ only). */}
