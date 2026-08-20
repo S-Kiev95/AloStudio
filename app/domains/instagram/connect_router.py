@@ -12,10 +12,13 @@ Route map:
 from __future__ import annotations
 
 from typing import Annotated, Any
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
+from fastapi.responses import RedirectResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import AccountContext, require_admin
 from app.core.errors import ChatwootHTTPException
@@ -76,6 +79,31 @@ async def connect_start_instagram(
     return {"authorize_url": authorize_url, "login_type": "instagram"}
 
 
+def _back_to_dashboard(account_id: int, **params: str) -> RedirectResponse:
+    """303 back to the account's Instagram screen, carrying the outcome
+    in the query string so the page can show a banner.
+
+    Meta redirects the *browser* here, so JSON would leave the admin
+    staring at a raw payload; ``app_base_url`` is the dashboard origin.
+    """
+    base = get_settings().app_base_url.rstrip("/")
+    query = urlencode({k: v for k, v in params.items() if v})
+    return RedirectResponse(
+        f"{base}/accounts/{account_id}/instagram?{query}", status_code=303
+    )
+
+
+def _error_text(exc: ChatwootHTTPException) -> str:
+    """Best-effort human message out of a Chatwoot-shaped error body."""
+    detail = exc.detail
+    if isinstance(detail, dict):
+        for key in ("message", "error"):
+            value = detail.get(key)
+            if isinstance(value, str) and value:
+                return value
+    return str(detail)
+
+
 @callback_router.get("/api/v1/instagram/oauth/callback")
 async def oauth_callback(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -83,25 +111,47 @@ async def oauth_callback(
     state: Annotated[str | None, Query()] = None,
     page_id: Annotated[str | None, Query()] = None,
     error: Annotated[str | None, Query()] = None,
-) -> dict[str, Any]:
+) -> Response:
     """Meta's OAuth redirect target. The account travels in the signed
-    ``state``; capability + channel creation happen here.
+    ``state``; capability + channel creation happen here, then the
+    browser is sent back to the dashboard with the outcome.
 
-    Production would 302 to a dashboard success/failure page; we return
-    JSON so the handshake is testable.
+    A state we cannot verify has no account to return to, so those stay
+    JSON 4xx (nobody legitimate lands there).
     """
+    account_id: int | None = None
+    if state:
+        try:
+            account_id = int(connect_service.verify_oauth_state(state)["account_id"])
+        except ChatwootHTTPException:
+            account_id = None
+
+    if account_id is None:
+        # Nothing verifiable to send the browser back to.
+        raise ChatwootHTTPException(
+            status_code=400,
+            detail={"error": "missing or invalid oauth state"},
+        )
     if error:
-        raise ChatwootHTTPException(
-            status_code=400,
-            detail={"error": f"oauth denied: {error}"},
+        return _back_to_dashboard(
+            account_id, ig_error=f"Meta canceló la conexión ({error})."
         )
-    if not code or not state:
-        raise ChatwootHTTPException(
-            status_code=400,
-            detail={"error": "missing code or state"},
+    if not code:
+        return _back_to_dashboard(
+            account_id, ig_error="Meta no devolvió el código de autorización."
         )
-    return await connect_service.complete_oauth(
-        session, code=code, state=state, page_id=page_id
+
+    try:
+        result = await connect_service.complete_oauth(
+            session, code=code, state=state, page_id=page_id
+        )
+    except ChatwootHTTPException as exc:
+        return _back_to_dashboard(account_id, ig_error=_error_text(exc))
+
+    return _back_to_dashboard(
+        account_id,
+        ig="reconnected" if result.get("reconnected") else "connected",
+        ig_login=str(result.get("login_type") or ""),
     )
 
 

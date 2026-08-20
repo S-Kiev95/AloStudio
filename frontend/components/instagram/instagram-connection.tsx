@@ -1,7 +1,8 @@
 "use client";
 
 import { Facebook, Instagram } from "lucide-react";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,10 +11,40 @@ import { startOAuth, useInstagramInboxes } from "@/lib/api/instagram";
 import { ConnectedChannelCard } from "./connected-channel-card";
 import { ManualConnectForm } from "./manual-connect-form";
 
+/** What the OAuth callback redirected back with (see the backend's
+ *  `_back_to_dashboard`): `ig=connected|reconnected` + `ig_login`, or
+ *  `ig_error=<mensaje>`. */
+function outcomeMessage(
+  ig: string | null,
+  login: string | null,
+): string | null {
+  if (ig !== "connected" && ig !== "reconnected") return null;
+  const flow = login === "instagram" ? "Instagram Login" : "Facebook Login";
+  return ig === "reconnected"
+    ? `Cuenta reconectada por ${flow}. Se renovó el token de la cuenta que ya tenías.`
+    : `Cuenta conectada por ${flow}.`;
+}
+
 export function InstagramConnection({ accountId }: { accountId: string }) {
   const inboxes = useInstagramInboxes(accountId);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [showManual, setShowManual] = useState(false);
-  const [oauthError, setOauthError] = useState<string | null>(null);
+  const [oauthError, setOauthError] = useState<string | null>(
+    searchParams.get("ig_error"),
+  );
+  const [oauthSuccess] = useState<string | null>(
+    outcomeMessage(searchParams.get("ig"), searchParams.get("ig_login")),
+  );
+
+  // Keep the banner but drop the params, so a refresh (or a shared link)
+  // doesn't replay a result from a connection that already happened.
+  useEffect(() => {
+    if (searchParams.has("ig") || searchParams.has("ig_error")) {
+      router.replace(pathname, { scroll: false });
+    }
+  }, [searchParams, router, pathname]);
 
   async function connect(flow: "facebook" | "instagram") {
     setOauthError(null);
@@ -28,6 +59,16 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
 
   return (
     <div className="space-y-6">
+      {/* Outcome of the OAuth round-trip */}
+      {oauthSuccess ? (
+        <p
+          role="status"
+          className="rounded-md border border-success/30 bg-success/5 px-3 py-2 text-sm text-success"
+        >
+          {oauthSuccess}
+        </p>
+      ) : null}
+
       {/* Connected channels */}
       <Card>
         <CardHeader>

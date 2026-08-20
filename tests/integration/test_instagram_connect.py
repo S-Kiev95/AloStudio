@@ -7,12 +7,14 @@ can't delete via Meta's API).
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
+from typing import Any
 
 import httpx
 import pytest
 import respx
 from httpx import ASGITransport, AsyncClient
+from sqlmodel import select
 
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.config import get_settings
@@ -414,9 +416,37 @@ async def test_connect_start_endpoint(client, db_session, meta_oauth_config):
     assert "client_id=APPID" in resp.json()["authorize_url"]
 
 
-async def test_connect_start_unconfigured_422(client, db_session):
+@pytest.fixture
+def meta_oauth_unconfigured() -> Iterator[Any]:
+    """Blank the Meta OAuth settings for the duration of a test.
+
+    Absence of the ``meta_oauth_config`` fixture is *not* the same as
+    "unconfigured": ``get_settings()`` reads the developer's ``.env``, so
+    anyone with real credentials there saw a 200 instead of the 422.
+    """
+    settings = get_settings()
+    orig = (
+        settings.meta_app_id,
+        settings.meta_oauth_redirect_uri,
+        settings.meta_instagram_app_id,
+    )
+    settings.meta_app_id = ""
+    settings.meta_oauth_redirect_uri = ""
+    settings.meta_instagram_app_id = ""
+    try:
+        yield settings
+    finally:
+        (
+            settings.meta_app_id,
+            settings.meta_oauth_redirect_uri,
+            settings.meta_instagram_app_id,
+        ) = orig
+
+
+async def test_connect_start_unconfigured_422(
+    client, db_session, meta_oauth_unconfigured
+):
     owner, headers = await _seed(db_session, "-startno")
-    # No meta_oauth_config fixture → app_id/redirect_uri empty.
     resp = await client.get(
         f"/api/v1/accounts/{owner.account.id}/instagram_channels/connect/start",
         headers=headers,
@@ -453,15 +483,67 @@ async def test_oauth_callback_endpoint(client, db_session, meta_oauth_config):
         "/api/v1/instagram/oauth/callback",
         params={"code": "CODE", "state": state},
     )
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["instagram_id"] == "178412345"
+    # The browser is Meta's, so the handshake ends on a redirect back to
+    # the dashboard, not on JSON.
+    assert resp.status_code == 303, resp.text
+    location = resp.headers["location"]
+    assert location.startswith(
+        f"http://localhost:3000/accounts/{owner.account.id}/instagram?"
+    )
+    assert "ig=connected" in location
+    assert "ig_login=facebook" in location
+    channel = (
+        await db_session.exec(
+            select(InstagramChannel).where(
+                InstagramChannel.instagram_id == "178412345"
+            )
+        )
+    ).one()
+    assert channel.access_token == "PT"
 
 
-async def test_oauth_callback_missing_code_400(client):
+async def test_oauth_callback_unverifiable_state_400(client):
+    """No verifiable state → no account to redirect back to."""
     resp = await client.get(
         "/api/v1/instagram/oauth/callback", params={"state": "x"}
     )
     assert resp.status_code == 400
+
+
+async def test_oauth_callback_denied_returns_to_dashboard(client, db_session):
+    """A user who cancels on Meta's dialog lands back on the screen they
+    started from, with the reason."""
+    owner, _ = await _seed(db_session, "-igden")
+    state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
+    resp = await client.get(
+        "/api/v1/instagram/oauth/callback",
+        params={"state": state, "error": "access_denied"},
+    )
+    assert resp.status_code == 303, resp.text
+    location = resp.headers["location"]
+    assert f"/accounts/{owner.account.id}/instagram?" in location
+    assert "ig_error=" in location
+    assert "access_denied" in location
+
+
+@respx.mock
+async def test_oauth_callback_failure_returns_to_dashboard(
+    client, db_session, meta_oauth_config
+):
+    """A failed token exchange shows up as a banner, not a JSON dump."""
+    owner, _ = await _seed(db_session, "-igfail")
+    respx.post("https://api.instagram.com/oauth/access_token").mock(
+        return_value=httpx.Response(
+            400, json={"error_message": "codigo vencido", "error_type": "OAuthException"}
+        )
+    )
+    state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
+    resp = await client.get(
+        "/api/v1/instagram/oauth/callback",
+        params={"code": "CODE", "state": state},
+    )
+    assert resp.status_code == 303, resp.text
+    assert "ig_error=" in resp.headers["location"]
 
 
 # ---------------------------------------------------------------------------
@@ -536,14 +618,30 @@ async def test_oauth_callback_dispatches_instagram(client, db_session, meta_oaut
     respx.get("https://graph.instagram.com/access_token").mock(
         return_value=httpx.Response(200, json={"access_token": "L"})
     )
+    # The connect finishes by subscribing the app to DM webhooks.
+    respx.post(f"{IG_GRAPH}/178410002/subscribed_apps").mock(
+        return_value=httpx.Response(200, json={"success": True})
+    )
     state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
     resp = await client.get(
         "/api/v1/instagram/oauth/callback",
         params={"code": "CODE", "state": state},
     )
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["login_type"] == "instagram"
-    assert resp.json()["instagram_id"] == "178410002"
+    assert resp.status_code == 303, resp.text
+    location = resp.headers["location"]
+    assert location.startswith(
+        f"http://localhost:3000/accounts/{owner.account.id}/instagram?"
+    )
+    assert "ig=connected" in location
+    assert "ig_login=instagram" in location
+    channel = (
+        await db_session.exec(
+            select(InstagramChannel).where(
+                InstagramChannel.instagram_id == "178410002"
+            )
+        )
+    ).one()
+    assert channel.access_token == "L"
 
 
 # ---------------------------------------------------------------------------
