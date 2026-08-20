@@ -1076,3 +1076,37 @@ async def test_a_connect_that_cannot_confirm_the_id_fails_loudly(
         )
     assert exc.value.status_code == 422
     assert "identificador" in exc.value.detail["message"]
+
+
+async def test_the_unconfigured_error_names_what_is_missing(
+    client, db_session, meta_oauth_unconfigured
+):
+    """"¿Está configurado META?" sent the admin looking in the wrong
+    place. The backend knows exactly which settings are empty."""
+    owner, headers = await _seed(db_session, "-startnames")
+    resp = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/instagram_channels/connect/start",
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    message = resp.json()["message"]
+    assert "META_APP_ID" in message
+    assert "META_OAUTH_REDIRECT_URI" in message
+    assert "Falta configurar Facebook Login" in message
+
+
+async def test_a_partly_configured_flow_only_names_the_gap(
+    client, db_session, meta_oauth_config
+):
+    """meta_oauth_config sets everything; drop one and only that one
+    should be reported."""
+    owner, headers = await _seed(db_session, "-startpartial")
+    meta_oauth_config.meta_app_secret = ""
+    resp = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/instagram_channels/connect/start",
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    message = resp.json()["message"]
+    assert "META_APP_SECRET" in message
+    assert "META_APP_ID" not in message

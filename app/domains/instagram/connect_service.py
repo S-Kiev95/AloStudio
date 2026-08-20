@@ -330,19 +330,32 @@ def verify_oauth_state(state: str, *, max_age_seconds: int = 600) -> dict[str, A
 # ---------------------------------------------------------------------------
 # OAuth — Facebook Login flow
 # ---------------------------------------------------------------------------
+def _missing_settings(*named: tuple[str, str]) -> list[str]:
+    """The env-var names among ``named`` whose value is empty."""
+    return [name for name, value in named if not value]
+
+
 def start_facebook_oauth(account_id: int) -> str:
     """Build the Facebook Login dialog URL (with signed state) the admin
     is redirected to. 422 if Meta OAuth isn't configured."""
     from app.domains.instagram import oauth
 
     settings = get_settings()
-    if not (settings.meta_app_id and settings.meta_oauth_redirect_uri):
+    # The secret is checked here too: without it the dialog opens and the
+    # handshake dies at the token exchange, which is a worse place to
+    # find out.
+    missing = _missing_settings(
+        ("META_APP_ID", settings.meta_app_id),
+        ("META_APP_SECRET", settings.meta_app_secret),
+        ("META_OAUTH_REDIRECT_URI", settings.meta_oauth_redirect_uri),
+    )
+    if missing:
         raise ChatwootHTTPException(
             status_code=422,
             detail={
                 "message": (
-                    "Meta OAuth not configured "
-                    "(META_APP_ID / META_OAUTH_REDIRECT_URI)"
+                    "Falta configurar Facebook Login en el backend: "
+                    f"{', '.join(missing)} en .env.local."
                 )
             },
         )
@@ -489,15 +502,18 @@ def start_instagram_oauth(account_id: int) -> str:
     from app.domains.instagram import oauth
 
     settings = get_settings()
-    if not (
-        settings.meta_instagram_app_id and settings.meta_oauth_redirect_uri
-    ):
+    missing = _missing_settings(
+        ("META_INSTAGRAM_APP_ID", settings.meta_instagram_app_id),
+        ("META_INSTAGRAM_APP_SECRET", settings.meta_instagram_app_secret),
+        ("META_OAUTH_REDIRECT_URI", settings.meta_oauth_redirect_uri),
+    )
+    if missing:
         raise ChatwootHTTPException(
             status_code=422,
             detail={
                 "message": (
-                    "Instagram Login not configured "
-                    "(META_INSTAGRAM_APP_ID / META_OAUTH_REDIRECT_URI)"
+                    "Falta configurar Instagram Login en el backend: "
+                    f"{', '.join(missing)} en .env.local."
                 )
             },
         )

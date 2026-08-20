@@ -57,9 +57,12 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
     setOauthError(null);
     try {
       await startOAuth(accountId, flow);
-    } catch {
+    } catch (e) {
+      // The backend names the missing settings; guessing on its behalf
+      // sent the admin looking in the wrong place.
       setOauthError(
-        "No se pudo iniciar la conexión. ¿Está configurado META en el backend?",
+        (e as { message?: string })?.message ??
+          "No se pudo iniciar la conexión.",
       );
     }
   }
