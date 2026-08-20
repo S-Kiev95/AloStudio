@@ -116,18 +116,36 @@ def _ig_base() -> str:
 
 
 def _extract_error(resp: httpx.Response) -> tuple[str | None, str | None]:
+    """``(code, message)`` out of whichever error shape Meta used.
+
+    The two hosts disagree: graph.facebook.com nests under ``error``,
+    while Instagram Login's token endpoint answers flat. Missing the flat
+    one meant the raw JSON body travelled all the way to the admin's
+    screen as the "reason".
+    """
     try:
         payload = resp.json()
     except ValueError:
         return str(resp.status_code), resp.text[:500]
-    err = payload.get("error") if isinstance(payload, dict) else None
-    if not isinstance(err, dict):
+    if not isinstance(payload, dict):
         return str(resp.status_code), resp.text[:500]
-    code = err.get("code")
-    message = err.get("message", "")
+
+    err = payload.get("error")
+    if isinstance(err, dict):
+        # {"error": {"code": 190, "message": "..."}}
+        code = err.get("code")
+        message = err.get("message", "")
+    elif "error_message" in payload:
+        # {"error_type": "OAuthException", "code": 400,
+        #  "error_message": "Invalid authorization code"}
+        code = payload.get("code") or payload.get("error_type")
+        message = payload.get("error_message", "")
+    else:
+        return str(resp.status_code), resp.text[:500]
+
     return (
         str(code) if code is not None else str(resp.status_code),
-        message[:500],
+        str(message)[:500],
     )
 
 

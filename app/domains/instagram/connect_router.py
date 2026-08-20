@@ -146,7 +146,10 @@ async def oauth_callback(
             session, code=code, state=state, page_id=page_id
         )
     except ChatwootHTTPException as exc:
-        return _back_to_dashboard(account_id, ig_error=_error_text(exc))
+        return _back_to_dashboard(
+            account_id,
+            ig_error=f"No se pudo completar la conexión: {_error_text(exc)}",
+        )
 
     return _back_to_dashboard(
         account_id,
