@@ -20,7 +20,7 @@ import json
 import logging
 import secrets
 import time
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlmodel import select
@@ -114,6 +114,97 @@ async def can_delete_media(
     return setting.login_type != "instagram"
 
 
+
+async def _reconnect_or_build(
+    session: AsyncSession,
+    *,
+    account: Any,
+    name: str,
+    instagram_id: str,
+    access_token: str,
+    expires_at: Any = None,
+) -> tuple[Any, Any, bool]:
+    """Return ``(inbox, channel, reconnected)`` for this Instagram id.
+
+    Reconnecting is the normal case, not an error. Tokens expire after
+    sixty days, so every account that stays connected has to come back
+    through here — and building blindly meant the second time returned
+    "Instagram id is already taken" with no way forward except deleting
+    the inbox, which takes its conversations with it.
+
+    An id connected to a *different* account is a real conflict and stays
+    an error: the inbound webhook resolves a channel by ``instagram_id``
+    alone, so two rows would route each message to whichever the database
+    happened to return first.
+    """
+    from sqlmodel import select
+
+    from app.domains.inboxes.models import (
+        CHANNEL_TYPE_INSTAGRAM,
+        Inbox,
+        InstagramChannel,
+    )
+    from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+
+    existing = (
+        await session.exec(
+            select(InstagramChannel).where(
+                InstagramChannel.instagram_id == str(instagram_id)
+            )
+        )
+    ).first()
+
+    if existing is not None:
+        if existing.account_id != account.id:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": (
+                        "Esa cuenta de Instagram ya está conectada en otra "
+                        "cuenta de AloStudio. Desconectala de allí primero."
+                    ),
+                    "attributes": ["instagram_id"],
+                },
+            )
+        existing.access_token = str(access_token)
+        if expires_at is not None:
+            existing.expires_at = expires_at
+        else:
+            existing.expires_at = datetime.now(UTC) + timedelta(days=60)
+        session.add(existing)
+        await session.flush()
+        inbox = (
+            await session.exec(
+                select(Inbox).where(
+                    Inbox.channel_type == CHANNEL_TYPE_INSTAGRAM,
+                    Inbox.channel_id == existing.id,
+                )
+            )
+        ).first()
+        return inbox, existing, True
+
+    channel_params: dict[str, Any] = {
+        "instagram_id": str(instagram_id),
+        "access_token": str(access_token),
+    }
+    if expires_at is not None:
+        channel_params["expires_at"] = (
+            expires_at.isoformat()
+            if isinstance(expires_at, datetime)
+            else expires_at
+        )
+    result = await InboxBuilder(
+        session,
+        InboxBuilderParams(
+            account=account,
+            name=name,
+            channel_type="instagram",
+            channel_params=channel_params,
+        ),
+    ).perform()
+    return result.inbox, result.channel, False
+
+
 async def connect_manual(
     session: AsyncSession,
     *,
@@ -141,42 +232,27 @@ async def connect_manual(
                 )
             },
         )
-    from app.domains.inboxes.service import (
-        InboxBuilder,
-        InboxBuilderParams,
-    )
-
-    channel_params: dict[str, Any] = {
-        "instagram_id": instagram_id,
-        "access_token": access_token,
-    }
-    if expires_at is not None:
-        channel_params["expires_at"] = (
-            expires_at.isoformat()
-            if isinstance(expires_at, datetime)
-            else expires_at
-        )
-    result = await InboxBuilder(
+    inbox, channel, reconnected = await _reconnect_or_build(
         session,
-        InboxBuilderParams(
-            account=account,
-            name=name,
-            channel_type="instagram",
-            channel_params=channel_params,
-        ),
-    ).perform()
+        account=account,
+        name=name,
+        instagram_id=instagram_id,
+        access_token=access_token,
+        expires_at=expires_at,
+    )
 
     await record_connection(
         session,
-        channel_instagram_id=result.channel.id,
+        channel_instagram_id=channel.id,
         login_type=login_type,
         connect_method="manual",
     )
     return {
-        "inbox_id": result.inbox.id,
-        "channel_instagram_id": result.channel.id,
-        "instagram_id": result.channel.instagram_id,
+        "inbox_id": inbox.id if inbox else None,
+        "channel_instagram_id": channel.id,
+        "instagram_id": channel.instagram_id,
         "login_type": login_type,
+        "reconnected": reconnected,
     }
 
 
@@ -355,36 +431,27 @@ async def complete_facebook_oauth(
             },
         )
 
-    from app.domains.inboxes.service import (
-        InboxBuilder,
-        InboxBuilderParams,
-    )
-
-    result = await InboxBuilder(
+    inbox, channel, reconnected = await _reconnect_or_build(
         session,
-        InboxBuilderParams(
-            account=account,
-            name=chosen.name or "Instagram",
-            channel_type="instagram",
-            channel_params={
-                "instagram_id": ig_id,
-                "access_token": chosen.access_token,
-            },
-        ),
-    ).perform()
+        account=account,
+        name=chosen.name or "Instagram",
+        instagram_id=ig_id,
+        access_token=chosen.access_token,
+    )
     await record_connection(
         session,
-        channel_instagram_id=result.channel.id,
+        channel_instagram_id=channel.id,
         login_type="facebook",
         connect_method="oauth",
         page_id=chosen.id,
     )
     return {
-        "inbox_id": result.inbox.id,
-        "channel_instagram_id": result.channel.id,
+        "inbox_id": inbox.id if inbox else None,
+        "channel_instagram_id": channel.id,
         "instagram_id": ig_id,
         "login_type": "facebook",
         "page_id": chosen.id,
+        "reconnected": reconnected,
     }
 
 
@@ -461,26 +528,16 @@ async def complete_instagram_oauth(
             },
         )
 
-    from app.domains.inboxes.service import (
-        InboxBuilder,
-        InboxBuilderParams,
-    )
-
-    result = await InboxBuilder(
+    inbox, channel, reconnected = await _reconnect_or_build(
         session,
-        InboxBuilderParams(
-            account=account,
-            name="Instagram",
-            channel_type="instagram",
-            channel_params={
-                "instagram_id": short.user_id,
-                "access_token": long.access_token,
-            },
-        ),
-    ).perform()
+        account=account,
+        name="Instagram",
+        instagram_id=short.user_id,
+        access_token=long.access_token,
+    )
     await record_connection(
         session,
-        channel_instagram_id=result.channel.id,
+        channel_instagram_id=channel.id,
         login_type="instagram",
         connect_method="oauth",
     )
@@ -498,9 +555,10 @@ async def complete_instagram_oauth(
             sub_err,
         )
     return {
-        "inbox_id": result.inbox.id,
-        "channel_instagram_id": result.channel.id,
+        "inbox_id": inbox.id if inbox else None,
+        "channel_instagram_id": channel.id,
         "instagram_id": short.user_id,
+        "reconnected": reconnected,
         "login_type": "instagram",
     }
 

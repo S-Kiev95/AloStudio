@@ -21,6 +21,7 @@ from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts import models as _contacts  # noqa: F401  (mapper)
 from app.domains.conversations import models as _conversations  # noqa: F401
+from app.domains.inboxes.models import InstagramChannel
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.instagram import connect_service as csvc
 from app.domains.instagram import oauth as ig_oauth
@@ -636,3 +637,148 @@ async def test_comment_uses_instagram_host_for_ig_login(db_session):
     )
     assert route.called
     assert c.ig_comment_id == "ICX1"
+
+
+# ---------------------------------------------------------------------------
+# Reconnecting an account that is already connected
+# ---------------------------------------------------------------------------
+async def test_reconnecting_refreshes_the_token_instead_of_failing(db_session):
+    """The normal case, not an error.
+
+    Tokens expire after sixty days, so every account that stays connected
+    comes back through here. Building blindly answered "Instagram id is
+    already taken" the second time, and the only way out was deleting the
+    inbox — which takes its conversations with it.
+    """
+    from app.domains.instagram import connect_service
+
+    owner = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="admin@recon.example.com",
+            account_name="Recon Inc",
+            user_full_name="Admin Recon",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+
+    first = await connect_service.connect_manual(
+        db_session,
+        account=owner.account,
+        name="Instagram",
+        instagram_id="17841400000000001",
+        access_token="TOKEN-VIEJO",
+        login_type="facebook",
+    )
+    assert first["reconnected"] is False
+
+    second = await connect_service.connect_manual(
+        db_session,
+        account=owner.account,
+        name="Instagram",
+        instagram_id="17841400000000001",
+        access_token="TOKEN-NUEVO",
+        login_type="instagram",
+    )
+    assert second["reconnected"] is True
+    # The same inbox, so the conversations on it survive.
+    assert second["inbox_id"] == first["inbox_id"]
+    assert second["channel_instagram_id"] == first["channel_instagram_id"]
+
+    channel = await db_session.get(
+        InstagramChannel, first["channel_instagram_id"]
+    )
+    assert channel.access_token == "TOKEN-NUEVO"
+
+
+async def test_reconnecting_can_switch_the_login_type(db_session):
+    """Moving an account from Facebook Login to Instagram Login.
+
+    Which is exactly what a Facebook-connected account does when someone
+    tries the other flow, and it used to be a dead end.
+    """
+    from app.domains.instagram import connect_service
+
+    owner = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="admin@switch.example.com",
+            account_name="Switch Inc",
+            user_full_name="Admin Switch",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+    first = await connect_service.connect_manual(
+        db_session,
+        account=owner.account,
+        name="Instagram",
+        instagram_id="17841400000000002",
+        access_token="T1",
+        login_type="facebook",
+    )
+    await connect_service.connect_manual(
+        db_session,
+        account=owner.account,
+        name="Instagram",
+        instagram_id="17841400000000002",
+        access_token="T2",
+        login_type="instagram",
+    )
+    setting = await connect_service.get_channel_setting(
+        db_session, channel_instagram_id=first["channel_instagram_id"]
+    )
+    assert setting.login_type == "instagram"
+
+
+async def test_an_account_connected_elsewhere_is_still_refused(db_session):
+    """A real conflict, and it has to stay one.
+
+    The inbound webhook resolves a channel by instagram_id alone, so two
+    rows would route each message to whichever the database happened to
+    return first.
+    """
+    from app.domains.instagram import connect_service
+
+    mine = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="admin@mine.example.com",
+            account_name="Mine Inc",
+            user_full_name="Admin Mine",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+    theirs = await AccountBuilder(
+        db_session,
+        AccountBuilderParams(
+            email="admin@theirs.example.com",
+            account_name="Theirs Inc",
+            user_full_name="Admin Theirs",
+            user_password="Password123!",
+            confirmed=True,
+        ),
+    ).perform()
+
+    await connect_service.connect_manual(
+        db_session,
+        account=mine.account,
+        name="Instagram",
+        instagram_id="17841400000000003",
+        access_token="T1",
+        login_type="facebook",
+    )
+    with pytest.raises(ChatwootHTTPException) as excinfo:
+        await connect_service.connect_manual(
+            db_session,
+            account=theirs.account,
+            name="Instagram",
+            instagram_id="17841400000000003",
+            access_token="T2",
+            login_type="facebook",
+        )
+    assert excinfo.value.status_code == 422
+    # And it says what to do about it, rather than "already taken".
+    assert "otra cuenta" in str(excinfo.value.detail)
