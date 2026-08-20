@@ -56,19 +56,35 @@ describe("InstagramConnection — vuelta del OAuth", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("anuncia una cuenta recién conectada", async () => {
-    searchParams = new URLSearchParams({ ig: "connected", ig_login: "instagram" });
+  it("nombra la cuenta recién conectada", async () => {
+    searchParams = new URLSearchParams({
+      ig: "connected",
+      ig_login: "instagram",
+      ig_user: "s_kiev995",
+    });
     renderConnection();
     expect(await screen.findByRole("status")).toHaveTextContent(
-      /Cuenta conectada por Instagram Login/,
+      /@s_kiev995 conectada por Instagram Login/,
     );
   });
 
-  it("distingue una reconexión de una cuenta nueva", async () => {
-    searchParams = new URLSearchParams({ ig: "reconnected", ig_login: "facebook" });
+  it("sin handle dice 'Cuenta' en vez de un arroba vacío", async () => {
+    searchParams = new URLSearchParams({ ig: "connected", ig_login: "instagram" });
     renderConnection();
     const banner = await screen.findByRole("status");
-    expect(banner).toHaveTextContent(/reconectada por Facebook Login/);
+    expect(banner).toHaveTextContent(/Cuenta conectada por Instagram Login/);
+    expect(banner.textContent).not.toContain("@");
+  });
+
+  it("distingue una reconexión de una cuenta nueva", async () => {
+    searchParams = new URLSearchParams({
+      ig: "reconnected",
+      ig_login: "facebook",
+      ig_user: "yoruguamaps",
+    });
+    renderConnection();
+    const banner = await screen.findByRole("status");
+    expect(banner).toHaveTextContent(/@yoruguamaps reconectada por Facebook Login/);
     expect(banner).toHaveTextContent(/renovó el token/);
   });
 

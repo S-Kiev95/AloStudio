@@ -440,6 +440,42 @@ async def exchange_instagram_long_lived(
     )
 
 
+async def fetch_username(
+    *, instagram_id: str, access_token: str, login_type: str
+) -> str | None:
+    """The account's ``@handle``, or ``None`` if Meta won't say.
+
+    Used to name the inbox at connect time: three inboxes all called
+    "Instagram" are indistinguishable in the list, and the numeric id is
+    no better. Best-effort by design — a connection is worth keeping even
+    when the display name isn't available.
+
+    The two flows read it from different places: Instagram Login's token
+    is bound to one account (``/me``), while a Page token addresses the
+    linked business account by id.
+    """
+    if login_type == "instagram":
+        url = f"{_ig_base()}/me"
+    else:
+        url = f"{_base()}/{instagram_id}"
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                url, params={"fields": "username", "access_token": access_token}
+            )
+    except (httpx.RequestError, httpx.TimeoutException):
+        # Class name only — never str(exc) — so a token can't leak.
+        return None
+    if resp.status_code >= 400:
+        return None
+    try:
+        payload = resp.json()
+    except ValueError:
+        return None
+    username = payload.get("username") if isinstance(payload, dict) else None
+    return str(username) if username else None
+
+
 async def subscribe_instagram_messages(
     *, instagram_id: str, access_token: str
 ) -> tuple[bool, str | None]:

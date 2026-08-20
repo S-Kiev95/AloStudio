@@ -12,17 +12,20 @@ import { ConnectedChannelCard } from "./connected-channel-card";
 import { ManualConnectForm } from "./manual-connect-form";
 
 /** What the OAuth callback redirected back with (see the backend's
- *  `_back_to_dashboard`): `ig=connected|reconnected` + `ig_login`, or
- *  `ig_error=<mensaje>`. */
+ *  `_back_to_dashboard`): `ig=connected|reconnected` + `ig_login` +
+ *  `ig_user`, or `ig_error=<mensaje>`. */
 function outcomeMessage(
   ig: string | null,
   login: string | null,
+  user: string | null,
 ): string | null {
   if (ig !== "connected" && ig !== "reconnected") return null;
   const flow = login === "instagram" ? "Instagram Login" : "Facebook Login";
+  // Meta doesn't always hand back the handle; say "Cuenta" when it didn't.
+  const who = user ? `@${user}` : "Cuenta";
   return ig === "reconnected"
-    ? `Cuenta reconectada por ${flow}. Se renovó el token de la cuenta que ya tenías.`
-    : `Cuenta conectada por ${flow}.`;
+    ? `${who} reconectada por ${flow}. Se renovó el token de la cuenta que ya tenías.`
+    : `${who} conectada por ${flow}.`;
 }
 
 export function InstagramConnection({ accountId }: { accountId: string }) {
@@ -35,7 +38,11 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
     searchParams.get("ig_error"),
   );
   const [oauthSuccess] = useState<string | null>(
-    outcomeMessage(searchParams.get("ig"), searchParams.get("ig_login")),
+    outcomeMessage(
+      searchParams.get("ig"),
+      searchParams.get("ig_login"),
+      searchParams.get("ig_user"),
+    ),
   );
 
   // Keep the banner but drop the params, so a refresh (or a shared link)

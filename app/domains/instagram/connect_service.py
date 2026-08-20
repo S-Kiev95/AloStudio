@@ -114,6 +114,14 @@ async def can_delete_media(
     return setting.login_type != "instagram"
 
 
+# Names the connect flow itself produced when it had nothing better —
+# safe to replace with the handle once Meta tells us what it is.
+_PLACEHOLDER_INBOX_NAMES = frozenset({"instagram", "instagram login"})
+
+
+def _is_placeholder_name(name: str | None) -> bool:
+    return not name or name.strip().lower() in _PLACEHOLDER_INBOX_NAMES
+
 
 async def _reconnect_or_build(
     session: AsyncSession,
@@ -125,6 +133,9 @@ async def _reconnect_or_build(
     expires_at: Any = None,
 ) -> tuple[Any, Any, bool]:
     """Return ``(inbox, channel, reconnected)`` for this Instagram id.
+
+    ``name`` is what the inbox is called when it is created, and what a
+    placeholder-named one is upgraded to on reconnect.
 
     Reconnecting is the normal case, not an error. Tokens expire after
     sixty days, so every account that stays connected has to come back
@@ -181,6 +192,12 @@ async def _reconnect_or_build(
                 )
             )
         ).first()
+        # Adopt the handle if the inbox never got one, but never overwrite
+        # a name an admin chose.
+        if inbox is not None and _is_placeholder_name(inbox.name) and name:
+            inbox.name = name
+            session.add(inbox)
+            await session.flush()
         return inbox, existing, True
 
     channel_params: dict[str, Any] = {
@@ -431,10 +448,17 @@ async def complete_facebook_oauth(
             },
         )
 
+    # The @handle beats the Page name: it's what the admin sees in the
+    # Instagram app, and it's what tells two connected accounts apart.
+    username = await oauth.fetch_username(
+        instagram_id=ig_id,
+        access_token=chosen.access_token,
+        login_type="facebook",
+    )
     inbox, channel, reconnected = await _reconnect_or_build(
         session,
         account=account,
-        name=chosen.name or "Instagram",
+        name=username or chosen.name or "Instagram",
         instagram_id=ig_id,
         access_token=chosen.access_token,
     )
@@ -452,6 +476,7 @@ async def complete_facebook_oauth(
         "login_type": "facebook",
         "page_id": chosen.id,
         "reconnected": reconnected,
+        "username": username,
     }
 
 
@@ -528,10 +553,15 @@ async def complete_instagram_oauth(
             },
         )
 
+    username = await oauth.fetch_username(
+        instagram_id=short.user_id,
+        access_token=long.access_token,
+        login_type="instagram",
+    )
     inbox, channel, reconnected = await _reconnect_or_build(
         session,
         account=account,
-        name="Instagram",
+        name=username or "Instagram",
         instagram_id=short.user_id,
         access_token=long.access_token,
     )
@@ -560,6 +590,7 @@ async def complete_instagram_oauth(
         "instagram_id": short.user_id,
         "reconnected": reconnected,
         "login_type": "instagram",
+        "username": username,
     }
 
 

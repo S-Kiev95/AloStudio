@@ -23,7 +23,7 @@ from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts import models as _contacts  # noqa: F401  (mapper)
 from app.domains.conversations import models as _conversations  # noqa: F401
-from app.domains.inboxes.models import InstagramChannel
+from app.domains.inboxes.models import Inbox, InstagramChannel
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.instagram import connect_service as csvc
 from app.domains.instagram import oauth as ig_oauth
@@ -360,6 +360,10 @@ async def test_complete_facebook_oauth_happy_path(db_session, meta_oauth_config)
             },
         )
     )
+    # The inbox is named after the @handle, not the Page.
+    respx.get(f"{GRAPH}/17841999").mock(
+        return_value=httpx.Response(200, json={"username": "mi_negocio"})
+    )
     state = csvc.sign_oauth_state(owner.account.id, flow="facebook")
     result = await csvc.complete_facebook_oauth(
         db_session, code="CODE", state=state
@@ -367,6 +371,9 @@ async def test_complete_facebook_oauth_happy_path(db_session, meta_oauth_config)
     assert result["login_type"] == "facebook"
     assert result["instagram_id"] == "17841999"
     assert result["page_id"] == "PAGE1"
+    assert result["username"] == "mi_negocio"
+    inbox = await db_session.get(Inbox, result["inbox_id"])
+    assert inbox.name == "mi_negocio"
     setting = await csvc.get_channel_setting(
         db_session, channel_instagram_id=result["channel_instagram_id"]
     )
@@ -478,6 +485,9 @@ async def test_oauth_callback_endpoint(client, db_session, meta_oauth_config):
             },
         )
     )
+    respx.get(f"{GRAPH}/178412345").mock(
+        return_value=httpx.Response(200, json={"username": "biz_handle"})
+    )
     state = csvc.sign_oauth_state(owner.account.id, flow="facebook")
     resp = await client.get(
         "/api/v1/instagram/oauth/callback",
@@ -492,6 +502,7 @@ async def test_oauth_callback_endpoint(client, db_session, meta_oauth_config):
     )
     assert "ig=connected" in location
     assert "ig_login=facebook" in location
+    assert "ig_user=biz_handle" in location
     channel = (
         await db_session.exec(
             select(InstagramChannel).where(
@@ -579,12 +590,18 @@ async def test_complete_instagram_oauth_happy_path(db_session, meta_oauth_config
         method="POST",
         url__regex=r"https://graph\.instagram\.com/[^/]+/178410001/subscribed_apps",
     ).mock(return_value=httpx.Response(200, json={"success": True}))
+    respx.get(f"{IG_GRAPH}/me").mock(
+        return_value=httpx.Response(200, json={"username": "s_kiev995"})
+    )
     state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
     result = await csvc.complete_instagram_oauth(
         db_session, code="IGCODE", state=state
     )
     assert result["login_type"] == "instagram"
     assert result["instagram_id"] == "178410001"
+    # Three inboxes all called "Instagram" are indistinguishable.
+    inbox = await db_session.get(Inbox, result["inbox_id"])
+    assert inbox.name == "s_kiev995"
     # Without this subscription Instagram never sends inbound DMs.
     assert sub_route.called
     # Instagram Login channels can't delete media.
@@ -622,6 +639,9 @@ async def test_oauth_callback_dispatches_instagram(client, db_session, meta_oaut
     respx.post(f"{IG_GRAPH}/178410002/subscribed_apps").mock(
         return_value=httpx.Response(200, json={"success": True})
     )
+    respx.get(f"{IG_GRAPH}/me").mock(
+        return_value=httpx.Response(200, json={"username": "s_kiev995"})
+    )
     state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
     resp = await client.get(
         "/api/v1/instagram/oauth/callback",
@@ -634,6 +654,7 @@ async def test_oauth_callback_dispatches_instagram(client, db_session, meta_oaut
     )
     assert "ig=connected" in location
     assert "ig_login=instagram" in location
+    assert "ig_user=s_kiev995" in location
     channel = (
         await db_session.exec(
             select(InstagramChannel).where(
@@ -880,3 +901,84 @@ async def test_an_account_connected_elsewhere_is_still_refused(db_session):
     assert excinfo.value.status_code == 422
     # And it says what to do about it, rather than "already taken".
     assert "otra cuenta" in str(excinfo.value.detail)
+
+
+# ---------------------------------------------------------------------------
+# Naming an inbox after the account it holds
+# ---------------------------------------------------------------------------
+async def _connect_ig(db_session, account, *, ig_id, username, token="T"):
+    """Run the Instagram-Login finish with Meta stubbed out."""
+    respx.post("https://api.instagram.com/oauth/access_token").mock(
+        return_value=httpx.Response(
+            200, json={"access_token": "S", "user_id": ig_id}
+        )
+    )
+    respx.get("https://graph.instagram.com/access_token").mock(
+        return_value=httpx.Response(200, json={"access_token": token})
+    )
+    respx.post(f"{IG_GRAPH}/{ig_id}/subscribed_apps").mock(
+        return_value=httpx.Response(200, json={"success": True})
+    )
+    respx.get(f"{IG_GRAPH}/me").mock(
+        return_value=httpx.Response(
+            200, json={"username": username} if username else {"id": "x"}
+        )
+    )
+    state = csvc.sign_oauth_state(account.id, flow="instagram")
+    return await csvc.complete_instagram_oauth(
+        db_session, code="CODE", state=state
+    )
+
+
+@respx.mock
+async def test_a_reconnect_adopts_the_handle_the_first_connect_missed(
+    db_session, meta_oauth_config
+):
+    """The inboxes already out there are all called "Instagram"."""
+    owner, _ = await _seed(db_session, "-igname1")
+    first = await _connect_ig(
+        db_session, owner.account, ig_id=178420001, username=None
+    )
+    inbox = await db_session.get(Inbox, first["inbox_id"])
+    assert inbox.name == "Instagram"  # Meta gave us nothing to go on
+
+    second = await _connect_ig(
+        db_session, owner.account, ig_id=178420001, username="s_kiev995"
+    )
+    assert second["reconnected"] is True
+    assert second["inbox_id"] == first["inbox_id"]
+    await db_session.refresh(inbox)
+    assert inbox.name == "s_kiev995"
+
+
+@respx.mock
+async def test_a_reconnect_never_overwrites_a_name_an_admin_chose(
+    db_session, meta_oauth_config
+):
+    owner, _ = await _seed(db_session, "-igname2")
+    first = await _connect_ig(
+        db_session, owner.account, ig_id=178420002, username="s_kiev995"
+    )
+    inbox = await db_session.get(Inbox, first["inbox_id"])
+    inbox.name = "Atención al cliente"
+    db_session.add(inbox)
+    await db_session.flush()
+
+    await _connect_ig(
+        db_session, owner.account, ig_id=178420002, username="s_kiev995"
+    )
+    await db_session.refresh(inbox)
+    assert inbox.name == "Atención al cliente"
+
+
+@respx.mock
+async def test_a_handle_meta_will_not_give_up_does_not_block_the_connect(
+    db_session, meta_oauth_config
+):
+    owner, _ = await _seed(db_session, "-igname3")
+    result = await _connect_ig(
+        db_session, owner.account, ig_id=178420003, username=None
+    )
+    assert result["username"] is None
+    inbox = await db_session.get(Inbox, result["inbox_id"])
+    assert inbox.name == "Instagram"

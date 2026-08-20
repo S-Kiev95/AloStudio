@@ -1,14 +1,17 @@
-"""Unit tests for Meta's two OAuth error shapes (no DB, no network).
+"""Unit tests for what ``oauth.py`` reads back from Meta (no DB).
 
-The reason travels all the way to a banner on the admin's screen, so a
-shape we fail to recognise shows up there as a raw JSON body.
+Both of these surface directly on the admin's screen now that the connect
+callback redirects: the error message becomes the failure banner, and the
+handle becomes the inbox's name.
 """
 
 from __future__ import annotations
 
 import httpx
+import pytest
+import respx
 
-from app.domains.instagram.oauth import _extract_error
+from app.domains.instagram.oauth import _extract_error, fetch_username
 
 
 def test_facebook_nests_the_error():
@@ -63,3 +66,66 @@ def test_a_long_message_is_truncated():
     _, message = _extract_error(resp)
     assert message is not None
     assert len(message) == 500
+
+
+# ---------------------------------------------------------------------------
+# Who does this token belong to?  (names the inbox at connect time)
+# ---------------------------------------------------------------------------
+@respx.mock
+async def test_instagram_login_reads_the_handle_off_me():
+    route = respx.get("https://graph.instagram.com/v23.0/me").mock(
+        return_value=httpx.Response(200, json={"username": "s_kiev995"})
+    )
+    got = await fetch_username(
+        instagram_id="28005623165709042",
+        access_token="TOK",
+        login_type="instagram",
+    )
+    assert got == "s_kiev995"
+    assert route.called
+
+
+@respx.mock
+async def test_facebook_login_addresses_the_account_by_id():
+    """A Page token isn't bound to one account, so /me would be wrong."""
+    route = respx.get(
+        "https://graph.facebook.com/v23.0/17841451736515320"
+    ).mock(return_value=httpx.Response(200, json={"username": "yoruguamaps"}))
+    got = await fetch_username(
+        instagram_id="17841451736515320",
+        access_token="PAGETOK",
+        login_type="facebook",
+    )
+    assert got == "yoruguamaps"
+    assert route.called
+
+
+@respx.mock
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(400, json={"error": {"message": "token vencido"}}),
+        httpx.Response(200, json={"id": "123"}),  # no username field
+        httpx.Response(200, text="not json"),
+    ],
+)
+async def test_an_unavailable_handle_is_not_an_error(response):
+    """The connection is worth keeping even with no display name."""
+    respx.get("https://graph.instagram.com/v23.0/me").mock(
+        return_value=response
+    )
+    got = await fetch_username(
+        instagram_id="1", access_token="TOK", login_type="instagram"
+    )
+    assert got is None
+
+
+@respx.mock
+async def test_a_network_failure_never_surfaces_the_token():
+    respx.get("https://graph.instagram.com/v23.0/me").mock(
+        side_effect=httpx.ConnectError("boom")
+    )
+    got = await fetch_username(
+        instagram_id="1", access_token="SECRETO", login_type="instagram"
+    )
+    assert got is None
