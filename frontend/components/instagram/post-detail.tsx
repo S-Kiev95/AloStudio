@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useChannelSettings } from "@/lib/api/instagram";
 import {
   type Container,
   type InstagramPost,
@@ -230,9 +231,22 @@ function DeletePostButton({
 }) {
   const router = useRouter();
   const del = useDeletePost(accountId);
+  const settings = useChannelSettings(accountId, post.channel_instagram_id);
   const [error, setError] = useState<string | null>(null);
 
   if (post.state === "deleted") return null;
+
+  // Meta's DELETE only exists on the Facebook-Login API. Offering the
+  // button on an Instagram-Login channel just produces a 422 after the
+  // confirm dialog — say so up front instead.
+  if (settings.data && !settings.data.can_delete_media) {
+    return (
+      <p className="max-w-xs text-right text-xs text-fg-muted">
+        Esta cuenta está conectada por Instagram Login, que no permite
+        borrar publicaciones por API. Borrala desde la app de Instagram.
+      </p>
+    );
+  }
 
   async function onDelete() {
     if (!window.confirm("¿Eliminar esta publicación de Instagram?")) return;

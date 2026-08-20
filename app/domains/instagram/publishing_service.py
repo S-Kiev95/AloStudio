@@ -1086,8 +1086,9 @@ async def delete_media_on_meta(
             status_code=422,
             detail={
                 "message": (
-                    "delete unavailable on Instagram Login connections "
-                    "— remove the post from the Instagram app"
+                    "Esta cuenta está conectada por Instagram Login, que "
+                    "no permite borrar publicaciones por API. Borrala "
+                    "desde la app de Instagram."
                 )
             },
         )
