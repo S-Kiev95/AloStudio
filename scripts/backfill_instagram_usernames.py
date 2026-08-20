@@ -1,20 +1,26 @@
-"""Name Instagram inboxes after the account they actually hold.
+"""Repair Instagram channels against what Meta says about each token.
 
     PYTHONPATH=. python scripts/backfill_instagram_usernames.py [--apply]
 
-Every inbox the Instagram Login flow created before this was called
-"Instagram", so an account with more than one is a list of identical rows
-and no way to tell which is which. This asks each stored token who it
-belongs to and renames its inbox to the handle.
+Two things drift on a channel connected before 2026-08-20:
+
+1. **The inbox name.** Every inbox the Instagram-Login flow created was
+   called "Instagram", so an account with more than one is a list of
+   identical rows with no way to tell which is which.
+
+2. **The stored id.** The Instagram-Login token exchange hands back an
+   *app-scoped* id (``28005…``); webhooks arrive under the account's
+   canonical id (``17841…``), which is what ``_resolve_channel`` matches.
+   A channel holding the app-scoped one publishes and sends fine and
+   silently receives nothing.
 
 Only placeholder names are touched — a name an admin chose is left alone.
 Runs as a dry run unless ``--apply`` is passed.
 
-Duplicates are reported, never merged: two channels whose tokens resolve
-to the *same* Instagram id means one of them is dead weight (the webhook
-resolves a channel by id, so only one of them ever receives anything).
-Deciding which to drop takes its conversations with it, so that is a
-human's call.
+Nothing is ever merged or deleted. Two channels that resolve to the same
+account, or a repair that would collide with an existing row, are
+reported for a human: the webhook routes by id so only one can receive,
+and dropping the other takes its conversations with it.
 """
 
 from __future__ import annotations
@@ -55,9 +61,11 @@ async def main(apply: bool) -> int:
                 )
             ).all()
         }
+        ids_in_use = {c.instagram_id: c.id for c in channels}
 
         seen: dict[str, list[int]] = defaultdict(list)
         renamed = 0
+        repaired = 0
 
         for channel in channels:
             setting = settings.get(channel.id)
@@ -65,31 +73,57 @@ async def main(apply: bool) -> int:
             inbox = inboxes.get(channel.id)
             label = f"canal {channel.id} (cuenta {channel.account_id})"
 
-            username = await oauth.fetch_username(
+            canonical, username = await oauth.fetch_profile(
                 instagram_id=channel.instagram_id,
                 access_token=channel.access_token,
                 login_type=login_type,
             )
-            if username is None:
+            if canonical is None and username is None:
                 print(f"{label}: Meta no respondió — token vencido o revocado")
                 continue
 
-            seen[username].append(channel.id)
+            if username:
+                seen[username].append(channel.id)
 
+            # --- the id webhooks arrive under ---------------------------
+            if canonical and canonical != channel.instagram_id:
+                collision = ids_in_use.get(canonical)
+                if collision is not None and collision != channel.id:
+                    print(
+                        f"{label}: guarda {channel.instagram_id} pero le "
+                        f"corresponde {canonical}, que ya usa el canal "
+                        f"{collision}. Sin tocar — decidí cuál conservar."
+                    )
+                else:
+                    print(
+                        f"{label}: id {channel.instagram_id} (app-scoped) "
+                        f"-> {canonical} (canónico, el de los webhooks)"
+                    )
+                    repaired += 1
+                    if apply:
+                        del ids_in_use[channel.instagram_id]
+                        channel.instagram_id = canonical
+                        ids_in_use[canonical] = channel.id
+                        session.add(channel)
+
+            # --- the name in the list -----------------------------------
             if inbox is None:
-                print(f"{label}: @{username}, sin bandeja asociada")
+                print(f"{label}: sin bandeja asociada")
+                continue
+            if not username:
+                print(f"{label}: Meta no dio el handle, nombre sin cambios")
                 continue
             if not _is_placeholder_name(inbox.name):
                 print(f"{label}: @{username}, conserva su nombre {inbox.name!r}")
                 continue
 
-            print(f"{label}: {inbox.name!r} -> {username!r}")
+            print(f"{label}: nombre {inbox.name!r} -> {username!r}")
             renamed += 1
             if apply:
                 inbox.name = username
                 session.add(inbox)
 
-        if apply and renamed:
+        if apply and (renamed or repaired):
             await session.commit()
 
         print()
@@ -101,10 +135,10 @@ async def main(apply: bool) -> int:
                     f"los webhooks; revisá cuál conservar."
                 )
 
-        if not apply:
-            print(f"\nEnsayo: {renamed} bandeja(s) a renombrar. Repetí con --apply.")
-        else:
-            print(f"\nListo: {renamed} bandeja(s) renombrada(s).")
+        verb = "Listo" if apply else "Ensayo"
+        print(f"\n{verb}: {repaired} id(s) y {renamed} nombre(s).")
+        if not apply and (repaired or renamed):
+            print("Repetí con --apply para escribirlos.")
     return 0
 
 
