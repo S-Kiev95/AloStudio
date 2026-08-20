@@ -440,40 +440,57 @@ async def exchange_instagram_long_lived(
     )
 
 
-async def fetch_username(
+async def fetch_profile(
     *, instagram_id: str, access_token: str, login_type: str
-) -> str | None:
-    """The account's ``@handle``, or ``None`` if Meta won't say.
+) -> tuple[str | None, str | None]:
+    """``(canonical_id, username)`` for the account behind this token.
 
-    Used to name the inbox at connect time: three inboxes all called
-    "Instagram" are indistinguishable in the list, and the numeric id is
-    no better. Best-effort by design — a connection is worth keeping even
-    when the display name isn't available.
+    **The two ids matter.** An Instagram account answers to both an
+    app-scoped id (``28005…``, what the token exchange hands back) and
+    its canonical Instagram id (``17841…``, what arrives as the webhook's
+    ``entry.id``). Every outbound edge accepts either, so storing the
+    wrong one looks like it works — right up until no inbound message
+    ever resolves to a channel.
 
-    The two flows read it from different places: Instagram Login's token
-    is bound to one account (``/me``), while a Page token addresses the
-    linked business account by id.
+    The username comes back from the same request because the inbox is
+    named after it; three inboxes all called "Instagram" are
+    indistinguishable in the list, and a numeric id is no better.
+
+    The two flows read this from different places: Instagram Login's
+    token is bound to one account (``/me``), while a Page token addresses
+    the linked business account by id — and there the id we already hold
+    *is* the canonical one.
     """
     if login_type == "instagram":
-        url = f"{_ig_base()}/me"
+        url, fields = f"{_ig_base()}/me", "user_id,username"
     else:
-        url = f"{_base()}/{instagram_id}"
+        url, fields = f"{_base()}/{instagram_id}", "username"
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(
-                url, params={"fields": "username", "access_token": access_token}
+                url, params={"fields": fields, "access_token": access_token}
             )
     except (httpx.RequestError, httpx.TimeoutException):
         # Class name only — never str(exc) — so a token can't leak.
-        return None
+        return None, None
     if resp.status_code >= 400:
-        return None
+        return None, None
     try:
         payload = resp.json()
     except ValueError:
-        return None
-    username = payload.get("username") if isinstance(payload, dict) else None
-    return str(username) if username else None
+        return None, None
+    if not isinstance(payload, dict):
+        return None, None
+
+    username = payload.get("username")
+    if login_type == "instagram":
+        canonical = payload.get("user_id")
+    else:
+        canonical = instagram_id
+    return (
+        str(canonical) if canonical else None,
+        str(username) if username else None,
+    )
 
 
 async def subscribe_instagram_messages(

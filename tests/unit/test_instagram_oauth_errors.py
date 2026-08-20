@@ -11,7 +11,7 @@ import httpx
 import pytest
 import respx
 
-from app.domains.instagram.oauth import _extract_error, fetch_username
+from app.domains.instagram.oauth import _extract_error, fetch_profile
 
 
 def test_facebook_nests_the_error():
@@ -72,32 +72,60 @@ def test_a_long_message_is_truncated():
 # Who does this token belong to?  (names the inbox at connect time)
 # ---------------------------------------------------------------------------
 @respx.mock
-async def test_instagram_login_reads_the_handle_off_me():
+async def test_instagram_login_prefers_the_canonical_id():
+    """``/me`` answers with both ids. ``user_id`` is the one webhooks
+    carry; the token exchange only ever hands back the app-scoped ``id``.
+    Every outbound edge accepts either, so picking the wrong one looks
+    like it works right until nothing inbound ever arrives."""
     route = respx.get("https://graph.instagram.com/v23.0/me").mock(
-        return_value=httpx.Response(200, json={"username": "s_kiev995"})
+        return_value=httpx.Response(
+            200,
+            json={
+                "id": "28005623165709042",
+                "user_id": "17841406706985469",
+                "username": "s_kiev995",
+            },
+        )
     )
-    got = await fetch_username(
+    canonical, username = await fetch_profile(
         instagram_id="28005623165709042",
         access_token="TOK",
         login_type="instagram",
     )
-    assert got == "s_kiev995"
-    assert route.called
+    assert canonical == "17841406706985469"
+    assert username == "s_kiev995"
+    assert "user_id" in route.calls[0].request.url.params["fields"]
 
 
 @respx.mock
 async def test_facebook_login_addresses_the_account_by_id():
-    """A Page token isn't bound to one account, so /me would be wrong."""
+    """A Page token isn't bound to one account, so /me would be wrong —
+    and the id we already hold there is already the canonical one."""
     route = respx.get(
         "https://graph.facebook.com/v23.0/17841451736515320"
     ).mock(return_value=httpx.Response(200, json={"username": "yoruguamaps"}))
-    got = await fetch_username(
+    canonical, username = await fetch_profile(
         instagram_id="17841451736515320",
         access_token="PAGETOK",
         login_type="facebook",
     )
-    assert got == "yoruguamaps"
+    assert canonical == "17841451736515320"
+    assert username == "yoruguamaps"
     assert route.called
+
+
+@respx.mock
+async def test_a_missing_handle_still_yields_the_id():
+    """An inbox can live with a placeholder name. It cannot live with the
+    wrong id."""
+    respx.get("https://graph.instagram.com/v23.0/me").mock(
+        return_value=httpx.Response(200, json={"user_id": "17841406706985469"})
+    )
+    canonical, username = await fetch_profile(
+        instagram_id="2800", access_token="TOK", login_type="instagram"
+    )
+    assert canonical == "17841406706985469"
+    assert username is None
 
 
 @respx.mock
@@ -105,19 +133,18 @@ async def test_facebook_login_addresses_the_account_by_id():
     "response",
     [
         httpx.Response(400, json={"error": {"message": "token vencido"}}),
-        httpx.Response(200, json={"id": "123"}),  # no username field
+        httpx.Response(200, json={"id": "123"}),  # app-scoped id only
         httpx.Response(200, text="not json"),
+        httpx.Response(200, json=["nope"]),
     ],
 )
-async def test_an_unavailable_handle_is_not_an_error(response):
-    """The connection is worth keeping even with no display name."""
+async def test_nothing_usable_comes_back_as_a_pair_of_nones(response):
     respx.get("https://graph.instagram.com/v23.0/me").mock(
         return_value=response
     )
-    got = await fetch_username(
+    assert await fetch_profile(
         instagram_id="1", access_token="TOK", login_type="instagram"
-    )
-    assert got is None
+    ) == (None, None)
 
 
 @respx.mock
@@ -125,7 +152,6 @@ async def test_a_network_failure_never_surfaces_the_token():
     respx.get("https://graph.instagram.com/v23.0/me").mock(
         side_effect=httpx.ConnectError("boom")
     )
-    got = await fetch_username(
+    assert await fetch_profile(
         instagram_id="1", access_token="SECRETO", login_type="instagram"
-    )
-    assert got is None
+    ) == (None, None)

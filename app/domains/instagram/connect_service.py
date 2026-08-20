@@ -450,7 +450,7 @@ async def complete_facebook_oauth(
 
     # The @handle beats the Page name: it's what the admin sees in the
     # Instagram app, and it's what tells two connected accounts apart.
-    username = await oauth.fetch_username(
+    _canonical, username = await oauth.fetch_profile(
         instagram_id=ig_id,
         access_token=chosen.access_token,
         login_type="facebook",
@@ -553,16 +553,31 @@ async def complete_instagram_oauth(
             },
         )
 
-    username = await oauth.fetch_username(
+    # The token exchange hands back the *app-scoped* id; webhooks arrive
+    # under the canonical one. Storing the wrong one costs nothing on the
+    # way out and silently drops everything on the way in, so a connect
+    # that can't confirm it is a failed connect, not a quiet half-one.
+    canonical_id, username = await oauth.fetch_profile(
         instagram_id=short.user_id,
         access_token=long.access_token,
         login_type="instagram",
     )
+    if canonical_id is None:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    "Meta no confirmó el identificador de la cuenta. "
+                    "Volvé a intentar la conexión en un minuto."
+                )
+            },
+        )
+
     inbox, channel, reconnected = await _reconnect_or_build(
         session,
         account=account,
         name=username or "Instagram",
-        instagram_id=short.user_id,
+        instagram_id=canonical_id,
         access_token=long.access_token,
     )
     await record_connection(
@@ -576,18 +591,18 @@ async def complete_instagram_oauth(
     # without a manual Graph call. Best-effort: a failure doesn't undo the
     # connection (an admin can retry), but log it loudly.
     subscribed, sub_err = await oauth.subscribe_instagram_messages(
-        instagram_id=short.user_id, access_token=long.access_token
+        instagram_id=canonical_id, access_token=long.access_token
     )
     if not subscribed:
         logging.getLogger(__name__).warning(
             "instagram.subscribe_messages_failed ig_id=%s err=%s",
-            short.user_id,
+            canonical_id,
             sub_err,
         )
     return {
         "inbox_id": inbox.id if inbox else None,
         "channel_instagram_id": channel.id,
-        "instagram_id": short.user_id,
+        "instagram_id": canonical_id,
         "reconnected": reconnected,
         "login_type": "instagram",
         "username": username,

@@ -588,17 +588,26 @@ async def test_complete_instagram_oauth_happy_path(db_session, meta_oauth_config
     # The connect flow subscribes the app to the account's DM webhook.
     sub_route = respx.route(
         method="POST",
-        url__regex=r"https://graph\.instagram\.com/[^/]+/178410001/subscribed_apps",
+        url__regex=r"https://graph\.instagram\.com/[^/]+/\d+/subscribed_apps",
     ).mock(return_value=httpx.Response(200, json={"success": True}))
+    # The exchange hands back the app-scoped id; /me carries the one the
+    # webhook will use.
     respx.get(f"{IG_GRAPH}/me").mock(
-        return_value=httpx.Response(200, json={"username": "s_kiev995"})
+        return_value=httpx.Response(
+            200,
+            json={
+                "id": "178410001",
+                "user_id": "17841406706985469",
+                "username": "s_kiev995",
+            },
+        )
     )
     state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
     result = await csvc.complete_instagram_oauth(
         db_session, code="IGCODE", state=state
     )
     assert result["login_type"] == "instagram"
-    assert result["instagram_id"] == "178410001"
+    assert result["instagram_id"] == "17841406706985469"
     # Three inboxes all called "Instagram" are indistinguishable.
     inbox = await db_session.get(Inbox, result["inbox_id"])
     assert inbox.name == "s_kiev995"
@@ -636,11 +645,18 @@ async def test_oauth_callback_dispatches_instagram(client, db_session, meta_oaut
         return_value=httpx.Response(200, json={"access_token": "L"})
     )
     # The connect finishes by subscribing the app to DM webhooks.
-    respx.post(f"{IG_GRAPH}/178410002/subscribed_apps").mock(
+    respx.post(f"{IG_GRAPH}/17841406706985469/subscribed_apps").mock(
         return_value=httpx.Response(200, json={"success": True})
     )
     respx.get(f"{IG_GRAPH}/me").mock(
-        return_value=httpx.Response(200, json={"username": "s_kiev995"})
+        return_value=httpx.Response(
+            200,
+            json={
+                "id": "178410002",
+                "user_id": "17841406706985469",
+                "username": "s_kiev995",
+            },
+        )
     )
     state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
     resp = await client.get(
@@ -658,7 +674,9 @@ async def test_oauth_callback_dispatches_instagram(client, db_session, meta_oaut
     channel = (
         await db_session.exec(
             select(InstagramChannel).where(
-                InstagramChannel.instagram_id == "178410002"
+                # The canonical id from /me, not the app-scoped 178410002
+                # the token exchange returned.
+                InstagramChannel.instagram_id == "17841406706985469"
             )
         )
     ).one()
@@ -916,13 +934,15 @@ async def _connect_ig(db_session, account, *, ig_id, username, token="T"):
     respx.get("https://graph.instagram.com/access_token").mock(
         return_value=httpx.Response(200, json={"access_token": token})
     )
-    respx.post(f"{IG_GRAPH}/{ig_id}/subscribed_apps").mock(
-        return_value=httpx.Response(200, json={"success": True})
-    )
+    respx.route(
+        method="POST",
+        url__regex=r"https://graph\.instagram\.com/[^/]+/\d+/subscribed_apps",
+    ).mock(return_value=httpx.Response(200, json={"success": True}))
+    profile: dict[str, str] = {"user_id": str(ig_id)}
+    if username:
+        profile["username"] = username
     respx.get(f"{IG_GRAPH}/me").mock(
-        return_value=httpx.Response(
-            200, json={"username": username} if username else {"id": "x"}
-        )
+        return_value=httpx.Response(200, json=profile)
     )
     state = csvc.sign_oauth_state(account.id, flow="instagram")
     return await csvc.complete_instagram_oauth(
@@ -982,3 +1002,77 @@ async def test_a_handle_meta_will_not_give_up_does_not_block_the_connect(
     assert result["username"] is None
     inbox = await db_session.get(Inbox, result["inbox_id"])
     assert inbox.name == "Instagram"
+
+
+@respx.mock
+async def test_the_stored_id_is_the_one_webhooks_arrive_under(
+    db_session, meta_oauth_config
+):
+    """Instagram Login's token exchange returns an *app-scoped* id, but
+    the webhook's ``entry.id`` is the canonical one — and _resolve_channel
+    matches on exactly that. Storing the app-scoped id costs nothing on
+    the way out (every Graph edge accepts either) and silently drops
+    every inbound message.
+    """
+    owner, _ = await _seed(db_session, "-igwh")
+    respx.post("https://api.instagram.com/oauth/access_token").mock(
+        return_value=httpx.Response(
+            200, json={"access_token": "S", "user_id": 28005623165709042}
+        )
+    )
+    respx.get("https://graph.instagram.com/access_token").mock(
+        return_value=httpx.Response(200, json={"access_token": "L"})
+    )
+    respx.get(f"{IG_GRAPH}/me").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "id": "28005623165709042",
+                "user_id": "17841406706985469",
+                "username": "s_kiev995",
+            },
+        )
+    )
+    sub = respx.route(
+        method="POST",
+        url__regex=r"https://graph\.instagram\.com/[^/]+/\d+/subscribed_apps",
+    ).mock(return_value=httpx.Response(200, json={"success": True}))
+
+    state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
+    result = await csvc.complete_instagram_oauth(
+        db_session, code="CODE", state=state
+    )
+
+    assert result["instagram_id"] == "17841406706985469"
+    channel = await db_session.get(
+        InstagramChannel, result["channel_instagram_id"]
+    )
+    assert channel.instagram_id == "17841406706985469"
+    # The subscription is placed against the same id, not the other one.
+    assert "17841406706985469" in str(sub.calls[0].request.url)
+
+
+@respx.mock
+async def test_a_connect_that_cannot_confirm_the_id_fails_loudly(
+    db_session, meta_oauth_config
+):
+    """Better a visible failure than an inbox that never receives."""
+    owner, _ = await _seed(db_session, "-igwhfail")
+    respx.post("https://api.instagram.com/oauth/access_token").mock(
+        return_value=httpx.Response(
+            200, json={"access_token": "S", "user_id": 28005623165709043}
+        )
+    )
+    respx.get("https://graph.instagram.com/access_token").mock(
+        return_value=httpx.Response(200, json={"access_token": "L"})
+    )
+    respx.get(f"{IG_GRAPH}/me").mock(
+        return_value=httpx.Response(400, json={"error": {"message": "nope"}})
+    )
+    state = csvc.sign_oauth_state(owner.account.id, flow="instagram")
+    with pytest.raises(ChatwootHTTPException) as exc:
+        await csvc.complete_instagram_oauth(
+            db_session, code="CODE", state=state
+        )
+    assert exc.value.status_code == 422
+    assert "identificador" in exc.value.detail["message"]
