@@ -1093,6 +1093,7 @@ async def test_the_unconfigured_error_names_what_is_missing(
     assert "META_APP_ID" in message
     assert "META_OAUTH_REDIRECT_URI" in message
     assert "Falta configurar Facebook Login" in message
+    assert "Ajustes" in message
 
 
 async def test_a_partly_configured_flow_only_names_the_gap(

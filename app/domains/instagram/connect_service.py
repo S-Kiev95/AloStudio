@@ -354,8 +354,9 @@ def start_facebook_oauth(account_id: int) -> str:
             status_code=422,
             detail={
                 "message": (
-                    "Falta configurar Facebook Login en el backend: "
-                    f"{', '.join(missing)} en .env.local."
+                    "Falta configurar Facebook Login: "
+                    f"{', '.join(missing)}. Cargalos en Ajustes → "
+                    "Instalación."
                 )
             },
         )
@@ -512,8 +513,9 @@ def start_instagram_oauth(account_id: int) -> str:
             status_code=422,
             detail={
                 "message": (
-                    "Falta configurar Instagram Login en el backend: "
-                    f"{', '.join(missing)} en .env.local."
+                    "Falta configurar Instagram Login: "
+                    f"{', '.join(missing)}. Cargalos en Ajustes → "
+                    "Instalación."
                 )
             },
         )
