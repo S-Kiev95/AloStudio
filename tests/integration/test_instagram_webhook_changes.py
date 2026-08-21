@@ -406,3 +406,86 @@ async def test_webhook_no_secret_skips_hmac_and_routes(client, db_session):
         assert row is not None
     finally:
         settings.meta_verify_webhook_signature = original
+
+
+# ---------------------------------------------------------------------------
+# Two apps deliver to this one endpoint
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def both_meta_secrets():
+    """Verification on, with a *different* secret per Meta app."""
+    settings = get_settings()
+    orig = (
+        settings.meta_app_secret,
+        settings.meta_instagram_app_secret,
+        settings.meta_verify_webhook_signature,
+    )
+    settings.meta_app_secret = "secreto-de-facebook"
+    settings.meta_instagram_app_secret = "secreto-de-instagram"
+    settings.meta_verify_webhook_signature = True
+    try:
+        yield
+    finally:
+        (
+            settings.meta_app_secret,
+            settings.meta_instagram_app_secret,
+            settings.meta_verify_webhook_signature,
+        ) = orig
+
+
+async def _post_signed(client, secret: str):
+    body = json.dumps({"object": "instagram", "entry": []}).encode()
+    return await client.post(
+        "/webhooks/instagram",
+        content=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Hub-Signature-256": _sign(body, secret),
+        },
+    )
+
+
+@pytest.mark.usefixtures("both_meta_secrets")
+async def test_an_event_signed_by_the_instagram_app_is_accepted(client):
+    """An account connected through Instagram Login is subscribed by the
+    Instagram app and signed with *its* secret."""
+    resp = await _post_signed(client, "secreto-de-instagram")
+    assert resp.status_code == 200, resp.text
+
+
+@pytest.mark.usefixtures("both_meta_secrets")
+async def test_an_event_signed_by_the_facebook_app_is_accepted(client):
+    """One connected through Facebook Login arrives signed by the other
+    app — the same endpoint has to take both."""
+    resp = await _post_signed(client, "secreto-de-facebook")
+    assert resp.status_code == 200, resp.text
+
+
+@pytest.mark.usefixtures("both_meta_secrets")
+async def test_an_event_signed_by_neither_is_still_rejected(client):
+    resp = await _post_signed(client, "secreto-inventado")
+    assert resp.status_code == 401
+    assert resp.json() == {"error": "Invalid signature"}
+
+
+async def test_verification_on_with_no_secrets_fails_closed(client):
+    """Turning the flag on before pasting any secret must reject, never
+    wave everything through."""
+    settings = get_settings()
+    orig = (
+        settings.meta_app_secret,
+        settings.meta_instagram_app_secret,
+        settings.meta_verify_webhook_signature,
+    )
+    settings.meta_app_secret = ""
+    settings.meta_instagram_app_secret = ""
+    settings.meta_verify_webhook_signature = True
+    try:
+        resp = await _post_signed(client, "lo-que-sea")
+        assert resp.status_code == 401
+    finally:
+        (
+            settings.meta_app_secret,
+            settings.meta_instagram_app_secret,
+            settings.meta_verify_webhook_signature,
+        ) = orig

@@ -21,8 +21,6 @@ Anchors:
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -32,26 +30,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
+from app.core.meta_signature import verify_against_any_secret
 
 router = APIRouter(
     tags=["instagram-webhooks"],
 )
-
-
-def _verify_signature(
-    raw_body: bytes, header: str | None, secret: str
-) -> bool:
-    """Validate Meta's ``X-Hub-Signature-256: sha256=<hmac>`` header.
-
-    HMAC-SHA256 of the raw request body keyed by the app secret. Uses a
-    constant-time compare. Returns False on a missing/malformed header."""
-    if not header or not header.startswith("sha256="):
-        return False
-    provided = header.split("=", 1)[1]
-    expected = hmac.new(
-        secret.encode(), raw_body, hashlib.sha256
-    ).hexdigest()
-    return hmac.compare_digest(expected, provided)
 
 
 @router.get("/webhooks/instagram")
@@ -98,21 +81,29 @@ async def instagram_receive(
     Signature check (I.8 own-extension): gated behind the explicit
     ``settings.meta_verify_webhook_signature`` flag (default OFF) so the
     Phase 5e DM mirror keeps its original unsigned behaviour. When the
-    flag is ON, the ``X-Hub-Signature-256`` HMAC must validate against
-    ``meta_app_secret`` or we 401 (fail closed if the secret is unset).
+    flag is ON, the ``X-Hub-Signature-256`` HMAC must validate or we 401
+    (fail closed when no secret is configured).
+
+    **Two secrets, not one.** This endpoint receives events from both
+    Meta apps: an account connected through Instagram Login is
+    subscribed by the *Instagram* app and signed with its secret, one
+    connected through Facebook Login by the Facebook app. Checking only
+    ``meta_app_secret`` 401s every event from the other half — and a
+    stream of 401s is how Meta decides an endpoint is broken and stops
+    delivering.
     """
     raw = await request.body()
 
     settings = get_settings()
-    if settings.meta_verify_webhook_signature:
-        secret = settings.meta_app_secret
-        if not secret or not _verify_signature(
-            raw, request.headers.get("X-Hub-Signature-256"), secret
-        ):
-            raise ChatwootHTTPException(
-                status_code=401,
-                detail={"error": "Invalid signature"},
-            )
+    if settings.meta_verify_webhook_signature and not verify_against_any_secret(
+        raw,
+        request.headers.get("X-Hub-Signature-256"),
+        (settings.meta_instagram_app_secret, settings.meta_app_secret),
+    ):
+        raise ChatwootHTTPException(
+            status_code=401,
+            detail={"error": "Invalid signature"},
+        )
 
     import json
 

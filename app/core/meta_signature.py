@@ -17,7 +17,31 @@ from __future__ import annotations
 import hashlib
 import hmac
 
-__all__ = ["verify_sha256_signature"]
+__all__ = ["verify_against_any_secret", "verify_sha256_signature"]
+
+
+def verify_against_any_secret(
+    raw_body: bytes, header: str | None, secrets: tuple[str, ...]
+) -> bool:
+    """True when the signature validates against **any** of ``secrets``.
+
+    One endpoint can receive events from more than one Meta app. The
+    Instagram webhook is the case in point: an account connected through
+    Instagram Login is subscribed by the *Instagram* app and signed with
+    its secret, while one connected through Facebook Login is signed with
+    the Facebook app's. Verifying against a single secret rejects half
+    the traffic — with a 401, which Meta eventually reads as a broken
+    endpoint and disables.
+
+    Empty secrets are skipped, so an unconfigured one can never make a
+    forged payload pass; if every candidate is empty this returns False
+    and the caller fails closed.
+    """
+    return any(
+        verify_sha256_signature(raw_body, header, secret)
+        for secret in secrets
+        if secret
+    )
 
 
 def verify_sha256_signature(
