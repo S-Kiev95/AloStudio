@@ -81,6 +81,12 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     milestone: "F.9h",
     done: true,
   },
+  {
+    segment: "installation",
+    label: "Instalación",
+    milestone: "F.9i",
+    done: true,
+  },
 ];
 
 export function SettingsSidebar({ accountId }: { accountId: string }) {

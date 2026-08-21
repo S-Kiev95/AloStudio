@@ -60,6 +60,7 @@ from app.domains.instagram.connect_router import (
 )
 from app.domains.instagram.publishing_router import router as instagram_publishing_router
 from app.domains.instagram.router import router as instagram_webhook_router
+from app.domains.installation.router import router as installation_router
 from app.domains.integrations.router import router as integrations_router
 from app.domains.labels.router import router as labels_router
 from app.domains.macros.router import router as macros_router
@@ -109,6 +110,20 @@ from app.mcp.router import router as mcp_tokens_router
 async def lifespan(app: FastAPI):
     configure_logging()
     log = get_logger("app.lifespan")
+    # Settings stored in the database override the environment. Load them
+    # before anything reads config, and never let a database that isn't
+    # up yet stop the app from booting — an installation with no configs
+    # at all is the normal starting state.
+    try:
+        from app.core.db import get_session_factory
+        from app.domains.installation.service import apply_overlay
+
+        async with get_session_factory()() as session:
+            overlay = await apply_overlay(session)
+        log.info("installation_config.loaded", count=len(overlay))
+    except Exception as exc:  # noqa: BLE001 — boot must not depend on this
+        log.warning("installation_config.load_failed", error=type(exc).__name__)
+
     settings = get_settings()
     log.info("startup", env=settings.app_env)
     app.state.started_at = datetime.now(UTC)
@@ -258,6 +273,7 @@ def create_app() -> FastAPI:
     app.include_router(instagram_publishing_router)
     # Instagram comment moderation (feat/instagram-graph I.7). admin-only.
     # List/post/reply/hide/delete comments on owned media.
+    app.include_router(installation_router)
     app.include_router(instagram_comments_router)
     # Comment auto-reply config + prepared-answer library. admin-only.
     app.include_router(instagram_autoreply_router)

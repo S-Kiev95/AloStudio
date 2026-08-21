@@ -1,5 +1,6 @@
+from collections.abc import Mapping
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -166,6 +167,37 @@ class Settings(BaseSettings):
     meta_instagram_app_secret: str = ""
 
 
+# Values from ``installation_configs`` that override the environment.
+# Populated by ``app.domains.installation.service`` — kept here, and
+# deliberately dependency-free, because ``Settings`` must not import a
+# domain (and because a deployment with no database rows has to work).
+_overlay: dict[str, Any] = {}
+
+
+def set_settings_overlay(values: Mapping[str, Any]) -> None:
+    """Replace the DB-sourced overrides and invalidate the cache.
+
+    Whole-replace rather than merge: a config deleted from the dashboard
+    has to fall back to the environment, and a merge would keep serving
+    the value that is no longer there.
+    """
+    global _overlay
+    _overlay = dict(values)
+    get_settings.cache_clear()
+
+
+def clear_settings_overlay() -> None:
+    global _overlay
+    _overlay = {}
+    get_settings.cache_clear()
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    for field, value in _overlay.items():
+        # The registry only ever names real fields, but a rename would
+        # otherwise plant an attribute nothing reads and hide the drift.
+        if hasattr(settings, field):
+            setattr(settings, field, value)
+    return settings
