@@ -384,8 +384,7 @@ async def test_complete_facebook_oauth_happy_path(db_session, meta_oauth_config)
     assert result["subscribed"] is True
     assert sub_route.called
     campos = sub_route.calls[0].request.url.params["subscribed_fields"]
-    assert "messages" in campos
-    assert "comments" in campos
+    assert campos == "messages,message_reads"
     setting = await csvc.get_channel_setting(
         db_session, channel_instagram_id=result["channel_instagram_id"]
     )

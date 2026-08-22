@@ -55,20 +55,24 @@ FACEBOOK_LOGIN_SCOPES: tuple[str, ...] = (
     "business_management",
 )
 
-# Webhook fields to subscribe a Page to, restricted to what the receiver
-# actually processes: DMs (``incoming.py``), read receipts
-# (``_process_read_event``), and comments + mentions
-# (``webhook_changes.py``). Subscribing to more only invites events we
-# would drop.
+# Webhook fields to subscribe a Page to.
 #
-# Note ``messaging_seen``, not ``message_reads``: Meta's table lists the
-# latter for Messenger conversations only, and points Instagram at the
-# former.
+# **Two vocabularies, and they are not interchangeable.** This edge is on
+# the *Page*, so it takes Page/Messenger field names — ``messages``,
+# ``message_reads``, ``message_reactions``, ``feed``… The Instagram names
+# from Meta's webhook-fields table (``messaging_seen``, ``comments``,
+# ``mentions``) belong to the *app-level* ``object=instagram``
+# subscription configured in the App Dashboard, and Meta rejects the
+# whole call with ``(#100) Param subscribed_fields[n] must be one of {…}``
+# if one of them appears here.
+#
+# Kept to what the receiver actually processes: inbound DMs
+# (``incoming.py``) and read receipts (``_process_read_event``). Comments
+# and mentions arrive through the app-level Instagram subscription, not
+# through this one.
 PAGE_WEBHOOK_FIELDS: tuple[str, ...] = (
     "messages",
-    "messaging_seen",
-    "comments",
-    "mentions",
+    "message_reads",
 )
 
 # Instagram Login scopes (the ``instagram_business_*`` family) — no

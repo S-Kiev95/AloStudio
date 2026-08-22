@@ -173,15 +173,14 @@ def test_facebook_login_asks_for_the_dm_scopes():
     assert "pages_messaging" in FACEBOOK_LOGIN_SCOPES
 
 
-def test_the_subscribed_fields_are_the_ones_the_receiver_handles():
-    assert set(PAGE_WEBHOOK_FIELDS) == {
-        "messages",
-        "messaging_seen",
-        "comments",
-        "mentions",
-    }
-    # message_reads is the Messenger name; Instagram uses messaging_seen.
-    assert "message_reads" not in PAGE_WEBHOOK_FIELDS
+def test_the_page_edge_gets_page_field_names_not_instagram_ones():
+    """Meta rejects the whole call with (#100) if an Instagram-object
+    field name reaches this Page edge. ``messaging_seen`` did exactly
+    that in production: it belongs to the app-level ``object=instagram``
+    subscription, not to a Page's ``subscribed_apps``."""
+    assert set(PAGE_WEBHOOK_FIELDS) == {"messages", "message_reads"}
+    for instagram_only in ("messaging_seen", "comments", "mentions"):
+        assert instagram_only not in PAGE_WEBHOOK_FIELDS
 
 
 @respx.mock
@@ -192,8 +191,7 @@ async def test_the_page_is_installed_on_the_facebook_host():
     ok, err = await subscribe_page_webhooks(page_id="PAGE1", page_token="PT")
     assert (ok, err) == (True, None)
     sent = route.calls[0].request.url.params["subscribed_fields"]
-    assert "messages" in sent
-    assert "comments" in sent
+    assert sent == "messages,message_reads"
 
 
 @respx.mock
