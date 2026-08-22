@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
@@ -31,7 +31,16 @@ const server = setupServer(
   http.get("*/inboxes", () => HttpResponse.json({ payload: [] })),
 );
 
-beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: "bypass" });
+  // jsdom ships <dialog> without showModal/close.
+  HTMLDialogElement.prototype.showModal = function () {
+    this.open = true;
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.open = false;
+  };
+});
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -108,5 +117,43 @@ describe("InstagramConnection — vuelta del OAuth", () => {
     );
     // …pero el cartel sobrevive a esa limpieza.
     expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+});
+
+describe("InstagramConnection — antes de ir a Meta", () => {
+  it("no arranca el OAuth con el primer clic", async () => {
+    let started = false;
+    server.use(
+      http.get("*/connect/start", () => {
+        started = true;
+        return HttpResponse.json({ authorize_url: "https://facebook.com/x" });
+      }),
+    );
+    renderConnection();
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Facebook Login/ }),
+    );
+
+    // Primero explica; el handshake espera a "Continuar a Meta".
+    expect(
+      await screen.findByRole("heading", {
+        name: /Conectar por Facebook Login/,
+      }),
+    ).toBeInTheDocument();
+    expect(started).toBe(false);
+  });
+
+  it("cada botón explica su propio método", async () => {
+    renderConnection();
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Instagram Login/ }),
+    );
+    expect(
+      await screen.findByRole("heading", {
+        name: /Conectar por Instagram Login/,
+      }),
+    ).toBeInTheDocument();
+    // La limitación que costó descubrirla conectando.
+    expect(screen.getByText(/no manda el texto/)).toBeInTheDocument();
   });
 });

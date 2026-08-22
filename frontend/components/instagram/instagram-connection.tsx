@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { startOAuth, useInstagramInboxes } from "@/lib/api/instagram";
 
+import type { ConnectFlow } from "@/lib/inboxes/instagram-capabilities";
+
+import { ConnectCapabilitiesDialog } from "./connect-capabilities-dialog";
 import { ConnectedChannelCard } from "./connected-channel-card";
 import { ManualConnectForm } from "./manual-connect-form";
 
@@ -53,8 +56,17 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
     }
   }, [searchParams, router, pathname]);
 
-  async function connect(flow: "facebook" | "instagram") {
+  // The two flows differ in what they can do afterwards, and none of it
+  // was visible before connecting — so the button opens the comparison
+  // and the dialog starts the handshake.
+  const [pendingFlow, setPendingFlow] = useState<ConnectFlow["id"] | null>(
+    null,
+  );
+  const [starting, setStarting] = useState(false);
+
+  async function connect(flow: ConnectFlow["id"]) {
     setOauthError(null);
+    setStarting(true);
     try {
       await startOAuth(accountId, flow);
     } catch (e) {
@@ -64,6 +76,9 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
         (e as { message?: string })?.message ??
           "No se pudo iniciar la conexión.",
       );
+      setPendingFlow(null);
+    } finally {
+      setStarting(false);
     }
   }
 
@@ -119,19 +134,21 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
             </p>
           ) : null}
           <div className="flex flex-wrap gap-3">
-            <Button onClick={() => connect("facebook")}>
+            <Button onClick={() => setPendingFlow("facebook")}>
               <Facebook className="h-4 w-4" aria-hidden />
               Facebook Login
             </Button>
-            <Button variant="secondary" onClick={() => connect("instagram")}>
+            <Button
+              variant="secondary"
+              onClick={() => setPendingFlow("instagram")}
+            >
               <Instagram className="h-4 w-4" aria-hidden />
               Instagram Login
             </Button>
           </div>
           <p className="text-xs text-fg-muted">
-            Facebook Login requiere una Página de Facebook y permite borrar
-            publicaciones. Instagram Login no necesita Página, pero no permite
-            borrar por API.
+            Antes de ir a Meta te mostramos qué vas a poder hacer con cada
+            método.
           </p>
 
           <div className="border-t border-border pt-4">
@@ -150,6 +167,14 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
           </div>
         </CardContent>
       </Card>
+
+      <ConnectCapabilitiesDialog
+        flowId={pendingFlow}
+        open={pendingFlow !== null}
+        onClose={() => setPendingFlow(null)}
+        onConfirm={connect}
+        pending={starting}
+      />
     </div>
   );
 }
