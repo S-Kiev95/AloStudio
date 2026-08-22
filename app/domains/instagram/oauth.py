@@ -32,16 +32,43 @@ from app.core.config import get_settings
 
 log = logging.getLogger(__name__)
 
-# Facebook Login scopes for IG publishing + moderation (verified spec).
+# Facebook Login scopes for IG publishing + moderation + DMs.
+#
+# ``instagram_manage_messages`` and ``pages_messaging`` were missing until
+# 2026-08-21, so a channel connected through this flow could publish and
+# moderate but never read or send a DM — which is the reason to prefer
+# Facebook Login in the first place. The working yoruguamaps setup didn't
+# expose it because its token was minted by hand with the right scopes.
+#
+# ``pages_manage_metadata`` + ``pages_messaging`` are also what the Page
+# subscription below requires.
 FACEBOOK_LOGIN_SCOPES: tuple[str, ...] = (
     "instagram_basic",
     "instagram_content_publish",
     "instagram_manage_comments",
     "instagram_manage_insights",
+    "instagram_manage_messages",
     "pages_show_list",
     "pages_read_engagement",
     "pages_manage_metadata",
+    "pages_messaging",
     "business_management",
+)
+
+# Webhook fields to subscribe a Page to, restricted to what the receiver
+# actually processes: DMs (``incoming.py``), read receipts
+# (``_process_read_event``), and comments + mentions
+# (``webhook_changes.py``). Subscribing to more only invites events we
+# would drop.
+#
+# Note ``messaging_seen``, not ``message_reads``: Meta's table lists the
+# latter for Messenger conversations only, and points Instagram at the
+# former.
+PAGE_WEBHOOK_FIELDS: tuple[str, ...] = (
+    "messages",
+    "messaging_seen",
+    "comments",
+    "mentions",
 )
 
 # Instagram Login scopes (the ``instagram_business_*`` family) — no
@@ -493,6 +520,45 @@ async def fetch_profile(
     )
 
 
+async def subscribe_page_webhooks(
+    *, page_id: str, page_token: str
+) -> tuple[bool, str | None]:
+    """Install our app on the Page's ``subscribed_apps`` edge.
+
+    The Facebook-Login half of this integration delivers Instagram events
+    through the **Page**, and Meta only sends them to apps listed on that
+    Page. Verifying the callback URL and granting the scopes is not
+    enough — without this call the connect reports success and not one
+    message ever arrives.
+
+    This was done by hand for the first Page we connected, which is
+    exactly why it stayed missing from the code for a month.
+
+    Best-effort: returns ``(ok, error_message)``. The caller records the
+    failure rather than undoing an otherwise good connection.
+    """
+    params = {
+        "subscribed_fields": ",".join(PAGE_WEBHOOK_FIELDS),
+        "access_token": page_token,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{_base()}/{page_id}/subscribed_apps", params=params
+            )
+    except (httpx.RequestError, httpx.TimeoutException) as exc:
+        # Class name only — never str(exc) — so a token can't leak.
+        return False, type(exc).__name__
+    if resp.status_code >= 400:
+        _code, message = _extract_error(resp)
+        return False, message
+    try:
+        ok = bool(resp.json().get("success"))
+    except ValueError:
+        return False, "subscribe returned a non-JSON body"
+    return (True, None) if ok else (False, "subscribe did not return success")
+
+
 async def subscribe_instagram_messages(
     *, instagram_id: str, access_token: str
 ) -> tuple[bool, str | None]:
@@ -543,4 +609,5 @@ __all__ = [
     "get_page_ig_account",
     "list_pages",
     "subscribe_instagram_messages",
+    "subscribe_page_webhooks",
 ]

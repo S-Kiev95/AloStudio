@@ -11,7 +11,13 @@ import httpx
 import pytest
 import respx
 
-from app.domains.instagram.oauth import _extract_error, fetch_profile
+from app.domains.instagram.oauth import (
+    FACEBOOK_LOGIN_SCOPES,
+    PAGE_WEBHOOK_FIELDS,
+    _extract_error,
+    fetch_profile,
+    subscribe_page_webhooks,
+)
 
 
 def test_facebook_nests_the_error():
@@ -155,3 +161,73 @@ async def test_a_network_failure_never_surfaces_the_token():
     assert await fetch_profile(
         instagram_id="1", access_token="SECRETO", login_type="instagram"
     ) == (None, None)
+
+
+# ---------------------------------------------------------------------------
+# Installing the app on a Page (the Facebook-Login half of the webhook)
+# ---------------------------------------------------------------------------
+def test_facebook_login_asks_for_the_dm_scopes():
+    """Without these the connect succeeds and the inbox never receives a
+    DM — the whole reason to prefer Facebook Login."""
+    assert "instagram_manage_messages" in FACEBOOK_LOGIN_SCOPES
+    assert "pages_messaging" in FACEBOOK_LOGIN_SCOPES
+
+
+def test_the_subscribed_fields_are_the_ones_the_receiver_handles():
+    assert set(PAGE_WEBHOOK_FIELDS) == {
+        "messages",
+        "messaging_seen",
+        "comments",
+        "mentions",
+    }
+    # message_reads is the Messenger name; Instagram uses messaging_seen.
+    assert "message_reads" not in PAGE_WEBHOOK_FIELDS
+
+
+@respx.mock
+async def test_the_page_is_installed_on_the_facebook_host():
+    route = respx.post(
+        "https://graph.facebook.com/v23.0/PAGE1/subscribed_apps"
+    ).mock(return_value=httpx.Response(200, json={"success": True}))
+    ok, err = await subscribe_page_webhooks(page_id="PAGE1", page_token="PT")
+    assert (ok, err) == (True, None)
+    sent = route.calls[0].request.url.params["subscribed_fields"]
+    assert "messages" in sent
+    assert "comments" in sent
+
+
+@respx.mock
+async def test_a_refused_subscription_is_reported_not_raised():
+    """A connection that publishes but receives nothing is still worth
+    keeping — the caller logs and carries on."""
+    respx.post(
+        "https://graph.facebook.com/v23.0/PAGE1/subscribed_apps"
+    ).mock(
+        return_value=httpx.Response(
+            403, json={"error": {"code": 200, "message": "sin permiso"}}
+        )
+    )
+    ok, err = await subscribe_page_webhooks(page_id="PAGE1", page_token="PT")
+    assert ok is False
+    assert err == "sin permiso"
+
+
+@respx.mock
+async def test_success_false_is_not_mistaken_for_success():
+    respx.post(
+        "https://graph.facebook.com/v23.0/PAGE1/subscribed_apps"
+    ).mock(return_value=httpx.Response(200, json={"success": False}))
+    ok, _err = await subscribe_page_webhooks(page_id="PAGE1", page_token="PT")
+    assert ok is False
+
+
+@respx.mock
+async def test_a_network_failure_never_surfaces_the_page_token():
+    respx.post(
+        "https://graph.facebook.com/v23.0/PAGE1/subscribed_apps"
+    ).mock(side_effect=httpx.ConnectError("boom"))
+    ok, err = await subscribe_page_webhooks(
+        page_id="PAGE1", page_token="SECRETO"
+    )
+    assert ok is False
+    assert err == "ConnectError"

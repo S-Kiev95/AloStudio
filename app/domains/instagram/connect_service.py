@@ -483,6 +483,18 @@ async def complete_facebook_oauth(
         connect_method="oauth",
         page_id=chosen.id,
     )
+    # Meta delivers this Page's Instagram events only to apps installed on
+    # it. Best-effort: a failure leaves a connection that publishes but
+    # receives nothing, which is worth surfacing rather than rolling back.
+    subscribed, sub_err = await oauth.subscribe_page_webhooks(
+        page_id=chosen.id, page_token=chosen.access_token
+    )
+    if not subscribed:
+        logging.getLogger(__name__).warning(
+            "instagram.subscribe_page_failed page_id=%s err=%s",
+            chosen.id,
+            sub_err,
+        )
     return {
         "inbox_id": inbox.id if inbox else None,
         "channel_instagram_id": channel.id,
@@ -491,6 +503,7 @@ async def complete_facebook_oauth(
         "page_id": chosen.id,
         "reconnected": reconnected,
         "username": username,
+        "subscribed": subscribed,
     }
 
 
