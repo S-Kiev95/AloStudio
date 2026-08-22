@@ -97,3 +97,27 @@ async def test_health_reports_database_up(client):
     body = resp.json()
     assert body["components"]["database"]["status"] == "up"
     assert body["components"]["database"]["error"] is None
+
+
+async def test_health_names_the_revision_it_is_running(client):
+    """The whole point: "did my deploy take?" answered by the process
+    itself, not inferred from a git pull in another terminal."""
+    resp = await client.get("/health")
+    body = resp.json()
+
+    assert "commit" in body
+    commit = body["commit"]
+    # None is legitimate (a source tarball has no .git) — a wrong-looking
+    # value is not, because someone would compare it to `git log`.
+    if commit is not None:
+        assert len(commit) == 12
+        assert set(commit) <= set("0123456789abcdef")
+
+    # Paired with the revision because together they settle it: this sha,
+    # loaded at this time.
+    assert "started_at" in body
+    started = body["started_at"]
+    if started is not None:
+        from datetime import datetime
+
+        datetime.fromisoformat(started)

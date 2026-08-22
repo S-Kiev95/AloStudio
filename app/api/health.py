@@ -10,6 +10,8 @@ Phase 10.3 beefs up ``/health`` with:
                    pub-sub backbone).
   * ``uptime``   — seconds since app start.
   * ``version``  — pinned to ``0.0.1`` + ``settings.app_env``.
+  * ``commit``   — the git revision this process is running.
+  * ``started_at`` — when it started, so a deploy can be verified.
 
 The endpoint always returns 200 with the live status — components
 failing show ``"down"`` in their slot rather than 5xx-ing the whole
@@ -29,6 +31,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
 from app.core.db import get_session
+from app.core.version import short_commit
 
 router = APIRouter(tags=["health"])
 
@@ -98,6 +101,12 @@ async def health(
     return {
         "status": overall,
         "version": "0.0.1",
+        # The revision this process loaded, and when it loaded it.
+        # Together they answer "did my deploy take?" without inferring it
+        # from a git pull in another terminal. None is legitimate — a
+        # source tarball has no .git — and must not break the probe.
+        "commit": short_commit(),
+        "started_at": started_at.isoformat() if started_at else None,
         "env": settings.app_env,
         "uptime_seconds": uptime_seconds,
         "components": {
