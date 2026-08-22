@@ -1098,10 +1098,14 @@ async def delete_media_on_meta(
     )
     if not res.ok:
         # Stamp the failure for audit, then surface it to the caller.
+        # Committing first is the whole point: raising unwinds through
+        # ``get_session``, which rolls back — so a flush here left the row
+        # exactly as clean as if the delete had never been attempted, and
+        # the audit trail this comment promised did not exist.
         post.error_code = res.error_code
         post.error_message = res.error_message
         session.add(post)
-        await session.flush()
+        await session.commit()
         raise ChatwootHTTPException(
             status_code=422,
             detail={

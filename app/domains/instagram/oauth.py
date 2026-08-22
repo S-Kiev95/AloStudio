@@ -32,13 +32,19 @@ from app.core.config import get_settings
 
 log = logging.getLogger(__name__)
 
-# Facebook Login scopes for IG publishing + moderation + DMs.
+# Facebook Login scopes: every capability this integration offers has to
+# be asked for here, and a missing one fails at *use*, not at connect —
+# the channel connects, reports success, and then one feature is quietly
+# dead. Twice in two days:
 #
-# ``instagram_manage_messages`` and ``pages_messaging`` were missing until
-# 2026-08-21, so a channel connected through this flow could publish and
-# moderate but never read or send a DM — which is the reason to prefer
-# Facebook Login in the first place. The working yoruguamaps setup didn't
-# expose it because its token was minted by hand with the right scopes.
+#   ``instagram_manage_messages`` + ``pages_messaging`` (until 2026-08-21)
+#       → DMs could neither be read nor sent.
+#   ``instagram_manage_contents`` (until 2026-08-22)
+#       → delete answered "(#10) Insufficient permissions" while
+#         ``can_delete_media`` cheerfully said the connection supports it.
+#
+# Both hid behind the same accident: the first Page we ever connected got
+# its token minted by hand, with scopes nobody had written down.
 #
 # ``pages_manage_metadata`` + ``pages_messaging`` are also what the Page
 # subscription below requires.
@@ -48,6 +54,10 @@ FACEBOOK_LOGIN_SCOPES: tuple[str, ...] = (
     "instagram_manage_comments",
     "instagram_manage_insights",
     "instagram_manage_messages",
+    # DELETE /{ig-media-id} needs its own permission — without it Meta
+    # answers "(#10) Insufficient permissions" and the post stays up,
+    # even though `can_delete_media` said the connection supports it.
+    "instagram_manage_contents",
     "pages_show_list",
     "pages_read_engagement",
     "pages_manage_metadata",

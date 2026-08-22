@@ -220,6 +220,62 @@ async def test_delete_allowed_on_facebook_login(db_session):
     assert result.state == "deleted"
 
 
+@respx.mock
+async def test_a_refused_delete_leaves_the_reason_on_the_row(db_session):
+    """The failure has to survive the exception that reports it.
+
+    Raising unwinds through ``get_session``, which rolls back — so a
+    flush left the row exactly as clean as if nothing had been tried,
+    and the audit trail the code claimed to keep did not exist. Meta
+    really does refuse this: `(#10) Insufficient permissions` when the
+    token lacks ``instagram_manage_contents``.
+    """
+    owner, _ = await _seed(db_session, "-delfail")
+    inbox, channel = await _ig_channel(db_session, owner, "-delfail")
+    await csvc.record_connection(
+        db_session, channel_instagram_id=channel.id, login_type="facebook"
+    )
+    post = await _published_post(db_session, owner, inbox, channel, "IGM3")
+    respx.delete(f"{GRAPH}/IGM3").mock(
+        return_value=httpx.Response(
+            403,
+            json={
+                "error": {
+                    "code": 10,
+                    "message": "(#10) Insufficient permissions to access this data",
+                }
+            },
+        )
+    )
+
+    # Assert the *commit*, not just the stamp: calling the service
+    # directly means ``get_session``'s rollback never runs, so a flushed
+    # value looks identical here and identical is exactly the bug.
+    commits: list[int] = []
+    original_commit = db_session.commit
+
+    async def counting_commit():
+        commits.append(1)
+        await original_commit()
+
+    db_session.commit = counting_commit  # type: ignore[method-assign]
+    try:
+        with pytest.raises(ChatwootHTTPException) as exc:
+            await ig_svc.delete_media_on_meta(
+                db_session, account_id=owner.account.id, post_id=post.id
+            )
+    finally:
+        db_session.commit = original_commit  # type: ignore[method-assign]
+
+    assert exc.value.status_code == 422
+    assert commits, "el fallo se descarta al desenrollar la excepcion"
+
+    assert post.error_code == "10"
+    assert "Insufficient permissions" in post.error_message
+    # Still up on Instagram, so still published here.
+    assert post.state == "published"
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------

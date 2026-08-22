@@ -166,11 +166,18 @@ async def test_a_network_failure_never_surfaces_the_token():
 # ---------------------------------------------------------------------------
 # Installing the app on a Page (the Facebook-Login half of the webhook)
 # ---------------------------------------------------------------------------
-def test_facebook_login_asks_for_the_dm_scopes():
-    """Without these the connect succeeds and the inbox never receives a
-    DM — the whole reason to prefer Facebook Login."""
-    assert "instagram_manage_messages" in FACEBOOK_LOGIN_SCOPES
-    assert "pages_messaging" in FACEBOOK_LOGIN_SCOPES
+def test_facebook_login_asks_for_every_capability_it_offers():
+    """A missing scope fails at *use*, not at connect: the channel
+    reports success and one feature is quietly dead. Each of these was
+    absent at some point and cost a live debugging session."""
+    for scope, capability in (
+        ("instagram_manage_messages", "leer y enviar DMs"),
+        ("pages_messaging", "suscribir la Página"),
+        ("instagram_manage_contents", "borrar publicaciones"),
+        ("instagram_content_publish", "publicar"),
+        ("instagram_manage_comments", "moderar comentarios"),
+    ):
+        assert scope in FACEBOOK_LOGIN_SCOPES, capability
 
 
 def test_the_page_edge_gets_page_field_names_not_instagram_ones():
