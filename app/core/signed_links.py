@@ -45,4 +45,34 @@ def expiry_from_now(ttl_seconds: int) -> int:
     return int(time.time()) + ttl_seconds
 
 
-__all__ = ["expiry_from_now", "is_valid", "sign"]
+# ---------------------------------------------------------------------------
+# Links that must outlive any expiry
+# ---------------------------------------------------------------------------
+def sign_permanent(payload: str) -> str:
+    """Signature over ``payload`` alone, with no expiry.
+
+    For bytes embedded in something that keeps its own copy for years: an
+    email sits in an inbox long after any TTL we would have picked, and a
+    letterhead whose logo 404s next month is worse than one that was
+    never uploaded. The signature still makes the URL unguessable, which
+    is what stops enumeration; expiry was never what protected it.
+
+    Namespaced separately from :func:`sign` so a permanent signature can
+    never be replayed as an expiring one, or the reverse.
+    """
+    secret = get_settings().secret_key.encode()
+    message = f"permanent:{payload}".encode()
+    return hmac.new(secret, message, hashlib.sha256).hexdigest()[:_SIG_LENGTH]
+
+
+def is_valid_permanent(payload: str, signature: str) -> bool:
+    return hmac.compare_digest(sign_permanent(payload), signature)
+
+
+__all__ = [
+    "expiry_from_now",
+    "is_valid",
+    "is_valid_permanent",
+    "sign",
+    "sign_permanent",
+]

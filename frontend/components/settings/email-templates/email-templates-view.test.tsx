@@ -158,3 +158,113 @@ describe("Plantillas de correo", () => {
     confirm.mockRestore();
   });
 });
+
+describe("El constructor por bloques", () => {
+  const conBloques = {
+    ...bienvenida,
+    id: 3,
+    name: "Con bloques",
+    template_design: {
+      kind: "blocks",
+      page: {
+        pageColor: "#f4f5f7",
+        bodyColor: "#ffffff",
+        textColor: "#1f2328",
+        width: 600,
+        fontFamily: "Arial, Helvetica, sans-serif",
+      },
+      blocks: [{ id: "a1", type: "content" }],
+    },
+  };
+
+  it("abre en Bloques cuando la plantilla se hizo con bloques", async () => {
+    server.use(
+      http.get(TEMPLATES, () => HttpResponse.json({ payload: [conBloques] })),
+    );
+    renderView();
+    fireEvent.click(await screen.findByText("Con bloques"));
+    expect(
+      await screen.findByRole("button", { name: "Bloques" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("abre en HTML cuando el markup se escribió a mano", async () => {
+    // Abrir un editor mostraría controles que no lo describen, y guardar
+    // lo reemplazaría en silencio.
+    renderView();
+    fireEvent.click(await screen.findByText("Bienvenida"));
+    expect(await screen.findByRole("button", { name: "HTML" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("avisa si falta el bloque del mensaje y lo puede agregar", async () => {
+    server.use(
+      http.get(TEMPLATES, () =>
+        HttpResponse.json({
+          payload: [
+            {
+              ...conBloques,
+              template_design: {
+                ...conBloques.template_design,
+                blocks: [{ id: "d1", type: "divider", color: "#eee" }],
+              },
+            },
+          ],
+        }),
+      ),
+    );
+    renderView();
+    fireEvent.click(await screen.findByText("Con bloques"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Falta el bloque «El mensaje del agente»/,
+    );
+  });
+
+  it("guarda el documento de bloques junto al HTML que genera", async () => {
+    let sent: Record<string, unknown> | null = null;
+    server.use(
+      http.get(TEMPLATES, () => HttpResponse.json({ payload: [conBloques] })),
+      http.patch("*/email_templates/3", async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(conBloques);
+      }),
+    );
+    renderView();
+    fireEvent.click(await screen.findByText("Con bloques"));
+    fireEvent.click(await screen.findByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(sent).not.toBeNull());
+    // El HTML es lo que se manda; el documento es para poder reabrirlo.
+    expect(String(sent!.template_html)).toContain("{{contenido}}");
+    expect(String(sent!.template_html)).toContain("<table");
+    expect((sent!.template_design as { kind?: string }).kind).toBe("blocks");
+  });
+
+  it("agrega un bloque y abre sus ajustes", async () => {
+    server.use(
+      http.get(TEMPLATES, () => HttpResponse.json({ payload: [conBloques] })),
+    );
+    renderView();
+    fireEvent.click(await screen.findByText("Con bloques"));
+    fireEvent.click(await screen.findByRole("button", { name: /Texto/ }));
+    // Queda seleccionado, así que aparecen sus controles — «Negrita» sólo
+    // existe en los de texto.
+    expect(await screen.findByLabelText(/Negrita/)).toBeInTheDocument();
+  });
+
+  it("el bloque nuevo se puede mover y eliminar", async () => {
+    server.use(
+      http.get(TEMPLATES, () => HttpResponse.json({ payload: [conBloques] })),
+    );
+    renderView();
+    fireEvent.click(await screen.findByText("Con bloques"));
+    fireEvent.click(await screen.findByRole("button", { name: /Imagen/ }));
+
+    expect(
+      await screen.findByRole("button", { name: "Subir Imagen" }),
+    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Eliminar Imagen" })).toBeEnabled();
+  });
+});

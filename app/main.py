@@ -89,6 +89,7 @@ from app.domains.teams.router import router as teams_router
 from app.domains.teams.router import team_members_router
 from app.domains.telegram.router import router as telegram_webhook_router
 from app.domains.twilio.router import router as twilio_webhook_router
+from app.domains.uploads.email_assets_router import router as email_assets_router
 from app.domains.uploads.public_router import router as public_media_router
 from app.domains.uploads.router import router as uploads_router
 from app.domains.users.router import router as profile_router
@@ -320,6 +321,7 @@ def create_app() -> FastAPI:
     app.include_router(public_attachments_router)
     # Signed public links for post media — Meta fetches image_url/video_url
     # itself at publish time, which may be days after a scheduled upload.
+    app.include_router(email_assets_router)
     app.include_router(public_media_router)
     # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
     # last so HTTP routes take precedence in any path-overlap edge.

@@ -17,12 +17,19 @@ import {
   useUpdateEmailTemplate,
 } from "@/lib/api/email-templates";
 import {
+  type BlockDocument,
+  DEFAULT_DOCUMENT,
+  isBlockDocument,
+  renderBlocks,
+} from "@/lib/inboxes/email-blocks";
+import {
   DEFAULT_DESIGN,
   type TemplateDesign,
   renderDesign,
 } from "@/lib/inboxes/email-template-design";
 import { cn } from "@/lib/utils";
 
+import { BlockEditor } from "./block-editor";
 import { TestSendBox } from "./test-send-box";
 
 const CONTENT = "{{contenido}}";
@@ -153,15 +160,25 @@ function TemplateEditor({
 
   const [name, setName] = useState(template.name);
   const [html, setHtml] = useState(template.template_html);
+  const savedDesign = template.template_design;
   const [design, setDesign] = useState<TemplateDesign>({
     ...DEFAULT_DESIGN,
-    ...((template.template_design ?? {}) as Partial<TemplateDesign>),
+    ...(isBlockDocument(savedDesign)
+      ? {}
+      : ((savedDesign ?? {}) as Partial<TemplateDesign>)),
   });
-  // Hand-written HTML has no design behind it, so opening on the designer
-  // would show controls that do not describe it — and saving would
-  // silently replace it.
-  const [mode, setMode] = useState<"design" | "code">(
-    template.template_html && !template.template_design ? "code" : "design",
+  const [blocks, setBlocks] = useState<BlockDocument>(
+    isBlockDocument(savedDesign) ? savedDesign : DEFAULT_DOCUMENT,
+  );
+  // Open on whatever produced the saved HTML. Hand-written markup has no
+  // design behind it, so opening on an editor would show controls that do
+  // not describe it — and saving would silently replace it.
+  const [mode, setMode] = useState<"blocks" | "design" | "code">(
+    isBlockDocument(savedDesign)
+      ? "blocks"
+      : template.template_html && !savedDesign
+        ? "code"
+        : "design",
   );
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -183,11 +200,13 @@ function TemplateEditor({
         id: template.id,
         patch: {
           name: name.trim(),
-          ...(mode === "design"
-            ? { template_html: renderDesign(design), template_design: design }
-            : // No design goes with hand-written HTML; the server reads
-              // its absence as "edited by hand".
-              { template_html: html, template_design: null }),
+          ...(mode === "blocks"
+            ? { template_html: renderBlocks(blocks), template_design: blocks }
+            : mode === "design"
+              ? { template_html: renderDesign(design), template_design: design }
+              : // No design goes with hand-written HTML; the server reads
+                // its absence as "edited by hand".
+                { template_html: html, template_design: null }),
         },
       });
       setSaved(true);
@@ -244,7 +263,8 @@ function TemplateEditor({
           <div className="flex gap-1 rounded-lg border border-border p-1">
             {(
               [
-                ["design", "Diseñador"],
+                ["blocks", "Bloques"],
+                ["design", "Simple"],
                 ["code", "HTML"],
               ] as const
             ).map(([value, label]) => (
@@ -253,10 +273,15 @@ function TemplateEditor({
                 type="button"
                 aria-pressed={mode === value}
                 onClick={() => {
-                  // Moving to code carries the design across, so the
-                  // author starts from what they built.
-                  if (value === "code" && mode === "design") {
-                    setHtml(renderDesign(design));
+                  // Moving to code carries the current design across, so
+                  // the author starts from what they built rather than a
+                  // blank box.
+                  if (value === "code" && mode !== "code") {
+                    setHtml(
+                      mode === "blocks"
+                        ? renderBlocks(blocks)
+                        : renderDesign(design),
+                    );
                   }
                   setMode(value);
                   setSaved(false);
@@ -273,7 +298,16 @@ function TemplateEditor({
             ))}
           </div>
 
-          {mode === "design" ? (
+          {mode === "blocks" ? (
+            <BlockEditor
+              accountId={accountId}
+              doc={blocks}
+              onChange={(next) => {
+                setBlocks(next);
+                touched();
+              }}
+            />
+          ) : mode === "design" ? (
             <EmailDesigner
               design={design}
               onChange={(d) => {

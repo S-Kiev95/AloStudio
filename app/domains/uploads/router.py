@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.deps import AccountContext, account_context
 from app.core.errors import ChatwootHTTPException
+from app.domains.uploads.email_assets_router import email_asset_url
 from app.domains.uploads.images import (
     ImageConversionError,
     to_instagram_jpeg,
@@ -141,3 +142,56 @@ async def upload_instagram_media(
 
 
 __all__ = ["router"]
+
+
+@router.post("/email_asset")
+async def upload_email_asset(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    file: Annotated[UploadFile, File()],
+) -> dict[str, Any]:
+    """Store an image for use inside an email template.
+
+    Returns a **permanent** signed URL, unlike every other public link
+    here. A message is a copy the recipient keeps and may open a year
+    later; a logo behind an expiring link leaves a broken image in every
+    letter the organisation ever sent.
+
+    Images only. A mail client will not play a video inline — it would
+    arrive as a broken box, so refusing is kinder than storing it.
+
+    Returns ``{url, key}``; ``url`` goes straight into the block's
+    ``src``.
+    """
+    assert ctx.account.id is not None
+    if _looks_like_video(file):
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    "Los clientes de correo no reproducen video dentro del "
+                    "mensaje. Subí una imagen."
+                )
+            },
+        )
+
+    data = await file.read()
+    try:
+        # Normalised to JPEG for the same reason as the Instagram path:
+        # what people upload is usually a PNG screenshot, and every mail
+        # client renders JPEG.
+        jpeg = to_instagram_jpeg(data)
+    except ImageConversionError as exc:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": "No pudimos leer el archivo. Subí una imagen (JPG, PNG, WebP…)."
+            },
+        ) from exc
+
+    stored = await store_upload_blob(
+        ctx.account.id,
+        filename="email.jpg",
+        content_type="image/jpeg",
+        data=jpeg,
+    )
+    return {"url": email_asset_url(stored["key"]), "key": stored["key"]}

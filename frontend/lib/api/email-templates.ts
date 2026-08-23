@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import type { BlockDocument } from "@/lib/inboxes/email-blocks";
 import type { TemplateDesign } from "@/lib/inboxes/email-template-design";
 
 import { apiFetch } from "./fetcher";
@@ -8,7 +9,9 @@ export type EmailTemplate = {
   id: number;
   name: string;
   template_html: string;
-  template_design: TemplateDesign | null;
+  /** Whichever editor produced the HTML: the block document, the flat
+   *  design, or null when the markup was written by hand. */
+  template_design: BlockDocument | TemplateDesign | null;
   created_at: string | null;
   updated_at: string | null;
 };
