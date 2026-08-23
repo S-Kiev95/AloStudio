@@ -40,6 +40,9 @@ export type InboxDetail = Inbox & {
   signature?: string;
   logo_url?: string;
   template_html?: string;
+  // Which shared template this mailbox renders with; null means its
+  // own template_html.
+  email_template_id?: number | null;
   /** Null when the HTML was written or edited by hand. */
   template_design?: Record<string, unknown> | null;
   /** Channel::Email transport, admin-only. Passwords are never returned;

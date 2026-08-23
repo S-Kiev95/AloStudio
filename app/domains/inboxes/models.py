@@ -514,6 +514,20 @@ class EmailChannel(TimestampMixin, table=True):
     template_design: dict[str, Any] | None = Field(
         default=None, sa_column=Column(JSONB, nullable=True)
     )
+    # A shared ``email_templates`` row this mailbox uses instead of its
+    # own ``template_html``. Null keeps the pre-existing behaviour, which
+    # is why the two coexist rather than one replacing the other: every
+    # mailbox connected before shared templates existed keeps rendering
+    # exactly as it did.
+    email_template_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("email_templates.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+    )
 
     # OAuth surface (Phase 9 — empty in 5b) ---------------------------
     provider: str | None = Field(

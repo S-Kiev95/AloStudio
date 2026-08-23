@@ -45,6 +45,9 @@ class ChannelCreate(BaseModel):
     # Explicit null clears it, so it is read from the raw payload rather
     # than the None-excluded dump.
     template_design: dict[str, Any] | None = None
+    # Null unlinks the mailbox from a shared template, falling back to
+    # its own ``template_html`` — so this is read from the raw payload too.
+    email_template_id: int | None = None
     # Channel::Email transport.
     imap_enabled: bool | None = None
     imap_address: str | None = None

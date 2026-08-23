@@ -45,6 +45,7 @@ from app.domains.csat.public_router import router as csat_public_router
 from app.domains.csat.router import router as csat_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
 from app.domains.custom_views.router import router as custom_views_router
+from app.domains.email.templates_router import router as email_templates_router
 from app.domains.facebook.router import router as facebook_webhook_router
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
@@ -273,6 +274,7 @@ def create_app() -> FastAPI:
     app.include_router(instagram_publishing_router)
     # Instagram comment moderation (feat/instagram-graph I.7). admin-only.
     # List/post/reply/hide/delete comments on owned media.
+    app.include_router(email_templates_router)
     app.include_router(installation_router)
     app.include_router(instagram_comments_router)
     # Comment auto-reply config + prepared-answer library. admin-only.

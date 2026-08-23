@@ -52,6 +52,7 @@ from app.domains.conversations.models import (
 )
 from app.domains.email.attachments import fetch_attachments
 from app.domains.email.template import render_plain, render_template
+from app.domains.email.templates_service import resolve_html
 from app.domains.inboxes.models import EmailChannel
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -313,9 +314,13 @@ async def send_email_reply(
             agent_signature=agent_signature,
         )
     )
+    # A mailbox may point at one of the account's shared templates; if it
+    # does not, this resolves to its own ``template_html`` and nothing
+    # about the send changes.
+    template_html = await resolve_html(session, channel=channel)
     mail.add_alternative(
         render_template(
-            template=channel.template_html or "",
+            template=template_html,
             body=body,
             signature=channel.signature or "",
             logo_url=channel.logo_url or "",

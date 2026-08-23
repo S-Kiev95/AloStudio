@@ -989,6 +989,9 @@ _CHANNEL_EDITABLE_FIELDS: dict[str, tuple[str, ...]] = {
         "logo_url",
         "template_html",
         "template_design",
+        # Which shared template this mailbox renders with. Null falls
+        # back to its own ``template_html``.
+        "email_template_id",
         # IMAP/SMTP, because a mailbox created from the UI arrives with
         # both sides off and no way to switch them on — it neither sends
         # nor receives until these are set. Admin-only by the route's

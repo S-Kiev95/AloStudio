@@ -5,6 +5,7 @@ import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useEmailTemplates } from "@/lib/api/email-templates";
 import { type InboxDetail, useUpdateInbox } from "@/lib/api/inboxes";
 import {
   DEFAULT_DESIGN,
@@ -53,6 +54,13 @@ export function EmailTemplatePanel({
   inbox: InboxDetail;
 }) {
   const update = useUpdateInbox(accountId);
+  const shared = useEmailTemplates(accountId);
+  // Null = this mailbox renders with its own HTML, which is what every
+  // mailbox did before shared templates existed.
+  const [sharedId, setSharedId] = useState<number | null>(
+    inbox.email_template_id ?? null,
+  );
+  const [linkError, setLinkError] = useState<string | null>(null);
   const [html, setHtml] = useState(inbox.template_html ?? "");
   const [design, setDesign] = useState<TemplateDesign>({
     ...DEFAULT_DESIGN,
@@ -95,8 +103,66 @@ export function EmailTemplatePanel({
     }
   }
 
+  async function chooseShared(next: number | null) {
+    setSharedId(next);
+    setLinkError(null);
+    try {
+      await update.mutateAsync({
+        id: inbox.id,
+        patch: { channel: { email_template_id: next } },
+      });
+    } catch (err) {
+      setSharedId(inbox.email_template_id ?? null);
+      setLinkError(
+        (err as { message?: string })?.message ?? "No se pudo cambiar.",
+      );
+    }
+  }
+
+  const templates = shared.data ?? [];
+  const linked = templates.find((t) => t.id === sharedId) ?? null;
+
   return (
-    <form onSubmit={save} className="space-y-4">
+    <div className="space-y-4">
+      {templates.length > 0 ? (
+        <div className="space-y-1.5 rounded-lg border border-border p-3">
+          <Label htmlFor="shared-template">Plantilla</Label>
+          <select
+            id="shared-template"
+            value={sharedId === null ? "" : String(sharedId)}
+            onChange={(e) =>
+              chooseShared(e.target.value === "" ? null : Number(e.target.value))
+            }
+            className="h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="">El diseño propio de esta casilla</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-fg-muted">
+            Una plantilla compartida la editás una vez y la usan todas las
+            casillas que la elijan.
+          </p>
+          {linkError ? (
+            <p role="alert" className="text-xs text-danger">
+              {linkError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {linked ? (
+        <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-fg-muted">
+          Esta casilla usa «{linked.name}». Para cambiar el diseño andá a
+          Ajustes → Plantillas de correo. Lo de abajo queda guardado y
+          vuelve a usarse si elegís «el diseño propio».
+        </p>
+      ) : null}
+
+      <form onSubmit={save} className="space-y-4">
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}
@@ -234,5 +300,6 @@ export function EmailTemplatePanel({
         ) : null}
       </div>
     </form>
+    </div>
   );
 }

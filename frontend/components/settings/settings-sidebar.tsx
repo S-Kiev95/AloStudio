@@ -82,6 +82,12 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     done: true,
   },
   {
+    segment: "email_templates",
+    label: "Plantillas de correo",
+    milestone: "F.9i",
+    done: true,
+  },
+  {
     segment: "installation",
     label: "Instalación",
     milestone: "F.9i",
