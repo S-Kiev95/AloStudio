@@ -35,17 +35,34 @@ respuesta. Dos formas lo empeoran:
 **No es una relación suelta.** Se probó cortar `Account.account_users`:
 ahorra 3 de 79. Es la política, no un caso.
 
-**Cómo encararlo**
+**Hecho (2026-09-04, `3f53fdb` + siguiente).** Carga explícita en los dos
+caminos, con tope fijado por test:
 
-1. *Primero, barato:* `.options(selectinload(...))` explícito en la lista
-   de conversaciones y en la de mensajes. Un archivo cada uno,
-   reversible, y ya sabemos el número que da.
-2. *De fondo:* invertir el default a `lazy="raise"` y declarar la carga
-   en cada consulta. Correcto a largo plazo, toca muchos sitios; con
-   `raise` un olvido falla en los tests y no en producción.
-3. *En los dos casos:* un test que **fije el número de consultas** de la
-   lista, para que un `selectin` nuevo no lo infle sin que nadie se
-   entere. Sin eso, esto vuelve.
+| | antes | después |
+|---|---|---|
+| Lista de conversaciones (staging, 25 filas) | 79 | **13** |
+| Endpoint de mensajes (20 filas, por HTTP) | 109 | **15** |
+
+Los modelos no se tocaron: el `lazyload("*")` vale sólo para esas dos
+consultas, así que todo lo demás se comporta igual que antes.
+
+Dos cosas que aparecieron al hacerlo, y que valen para lo que falta:
+
+- El costo del endpoint de mensajes **no estaba en los mensajes** sino en
+  cargar la conversación antes. Medir la consulta suelta daba 98; medir
+  el endpoint daba 109 y el arreglo de los mensajes solos apenas movía la
+  aguja. Hay que medir por HTTP.
+- El primer test de mensajes reconstruía la consulta con las mismas
+  opciones: habría pasado con el `.options(...)` del router borrado.
+  Los tests de conteo tienen que pegarle al endpoint.
+
+**Falta**
+
+- Aplicar lo mismo a los demás caminos: contactos (17 consultas para 25
+  filas), informes, búsqueda.
+- *De fondo:* invertir el default a `lazy="raise"` y declarar la carga en
+  cada consulta. Correcto a largo plazo, toca muchos sitios; con `raise`
+  un olvido falla en los tests y no en producción.
 
 ---
 

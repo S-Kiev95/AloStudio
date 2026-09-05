@@ -14,12 +14,15 @@ the presenter, costs a fan-out that nothing else would notice.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
+from sqlmodel import select
 
-from app.core.auth.devise_token_auth import create_new_auth_token  # noqa: F401
+from app.core.auth.devise_token_auth import create_new_auth_token
+from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts import models as _contacts  # noqa: F401  (mapper)
 from app.domains.contacts.models import Contact, ContactInbox
@@ -32,6 +35,7 @@ from app.domains.conversations.models import (
 from app.domains.conversations.presenters import present_conversations_index
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
+from app.main import app
 
 pytestmark = pytest.mark.integration
 
@@ -209,3 +213,62 @@ async def test_the_payload_is_unchanged_by_the_explicit_loading(
             "el último mensaje no se cargó"
         )
         assert row["unread_count"] == 2, "los mensajes no se cargaron"
+
+
+@pytest.fixture
+async def client(db_session) -> AsyncIterator[AsyncClient]:
+    async def _override() -> AsyncIterator:
+        yield db_session
+
+    app.dependency_overrides[get_session] = _override
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            yield ac
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+async def test_the_message_list_costs_a_bounded_number_of_queries(
+    client, db_session, counter
+):
+    """The worse of the two before this: 98 queries for 17 messages.
+
+    Each message eagerly pulled its own account and inbox — the same rows
+    over and over — plus the conversation back-reference and its graph.
+
+    Goes through the HTTP endpoint on purpose. An earlier version of this
+    rebuilt the same statement with the same options and would have
+    passed with the router's ``.options(...)`` deleted — it tested the
+    list of relations, not the code that uses it.
+    """
+    owner = await _seed(db_session, conversations=1, messages_each=20)
+    headers, new_tokens = create_new_auth_token(
+        user_tokens=owner.user.tokens, uid=owner.user.uid
+    )
+    owner.user.tokens = new_tokens
+    db_session.add(owner.user)
+    await db_session.flush()
+
+    conv = (
+        await db_session.exec(
+            select(Conversation).where(
+                Conversation.account_id == owner.account.id
+            )
+        )
+    ).first()
+
+    counter.total = 0
+    resp = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/conversations/"
+        f"{conv.display_id}/messages",
+        headers=headers.as_response_headers(),
+    )
+    assert resp.status_code == 200, resp.text
+    assert len(resp.json()["payload"]) == 20
+
+    print(f"\n  los mensajes costaron {counter.total} consultas para 20 filas")
+    assert counter.total <= MAX_QUERIES, (
+        f"la lista de mensajes emitió {counter.total} consultas "
+        f"(tope {MAX_QUERIES})."
+    )

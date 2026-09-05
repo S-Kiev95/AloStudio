@@ -45,6 +45,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, Response, status
 from sqlalchemy import and_, func
+from sqlalchemy.orm import lazyload, selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -147,13 +148,26 @@ def _parse_iso(value: str | None, *, field: str) -> datetime | None:
 
 
 async def _load_conversation_by_display_id(
-    session: AsyncSession, *, account_id: int, display_id: int
+    session: AsyncSession,
+    *,
+    account_id: int,
+    display_id: int,
+    options: tuple[Any, ...] = (),
 ) -> Conversation:
-    """Mirror of Rails ``Current.account.conversations.find_by!(display_id: id)``."""
+    """Mirror of Rails ``Current.account.conversations.find_by!(display_id: id)``.
+
+    ``options`` lets one caller narrow what gets loaded without changing
+    it for the rest. Every relationship is ``lazy="selectin"``, so the
+    default load pulls the conversation's whole graph — fine for an
+    endpoint that presents all of it, expensive for one that needs two
+    fields. Passing nothing keeps the previous behaviour exactly.
+    """
     stmt = select(Conversation).where(
         Conversation.account_id == account_id,
         Conversation.display_id == display_id,
     )
+    if options:
+        stmt = stmt.options(*options)
     conv = (await session.exec(stmt)).first()
     if conv is None:
         raise ChatwootHTTPException(
@@ -1043,8 +1057,19 @@ async def index_messages(
     arrive in Phase 8.
     """
     assert ctx.account.id is not None
+    # ``present_messages_index`` reads two things off the conversation —
+    # its contact and its assignee — and the endpoint's cost was
+    # dominated by loading everything else: 62 queries for 20 messages,
+    # most of them before a single message was read.
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=conversation_id
+        session,
+        account_id=ctx.account.id,
+        display_id=conversation_id,
+        options=(
+            lazyload("*"),
+            selectinload(Conversation.contact),
+            selectinload(Conversation.assignee),
+        ),
     )
     filters = [Message.conversation_id == conv.id]
     if before is not None:
@@ -1056,6 +1081,18 @@ async def index_messages(
         .where(and_(*filters))
         .order_by(Message.created_at.desc())  # type: ignore[attr-defined]
         .limit(20)
+        # Load what ``present_message`` reads, and nothing else. Every
+        # relationship is declared ``lazy="selectin"``, so the plain
+        # select pulled each message's account and inbox — the same rows
+        # over and over — plus the conversation back-reference and its
+        # own graph: 98 queries for 17 messages, measured on staging.
+        #
+        # ``message.conversation`` is not listed on purpose: it is a
+        # many-to-one to the row ``_load_conversation_by_display_id``
+        # already put in the identity map, which SQLAlchemy resolves
+        # without a query. ``_resolved_sender`` is a plain attribute the
+        # service attaches, not a relationship.
+        .options(lazyload("*"), selectinload(Message.attachments))
     )
     rows = list((await session.exec(stmt)).all())
     rows.reverse()  # Rails returns oldest-first in the payload.
