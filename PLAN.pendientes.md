@@ -125,7 +125,33 @@ Anotadas para que nadie las vuelva a investigar:
 
 ---
 
-## 5. Producto y operación
+## 5. Canales nuevos: qué da y qué no cada plataforma
+
+Averiguado el 2026-09-05 contra la documentación vigente, para no
+volver a investigarlo.
+
+**TikTok** — sirve para publicar, **no** para la bandeja.
+
+| | |
+|---|---|
+| Publicar videos | Sí, *Content Posting API* |
+| Recibir/enviar DMs | **No** por API general. TikTok no expone la bandeja a terceros, explícitamente por privacidad |
+| Comentarios | Parcial: hay endpoints para *responder* un comentario y una mención, pero no para leer, ocultar ni borrar en general |
+
+Existe una **Business Messaging API** que sí da mensajería, pero está
+detrás de ser vendedor o socio aprobado de **TikTok Shop**, en mercados
+elegibles, con alta y revisión propias por el Business Center. No es un
+OAuth que un cliente aprieta: es un acuerdo comercial con TikTok.
+
+**Qué significa para AloStudio.** El producto es una bandeja de
+atención. TikTok entraría como canal de *publicación y comentarios*, con
+una forma distinta a Instagram, WhatsApp o Messenger — y conviene decirlo
+en la UI antes de conectarlo, igual que se hizo con los dos flujos de
+Instagram.
+
+---
+
+## 6. Producto y operación
 
 **Urgente**
 
