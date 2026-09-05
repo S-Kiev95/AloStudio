@@ -34,6 +34,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from fastapi import Depends, Path, Request, status
+from sqlalchemy.orm import lazyload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -82,7 +83,17 @@ async def _load_user(session: AsyncSession, uid: str) -> User | None:
     for Phase 1 but the shape here will continue to work because we filter
     by ``uid`` alone.
     """
-    stmt = select(User).where(User.uid == uid.lower())
+    # Every relationship in this codebase is ``lazy="selectin"``, so a
+    # bare load of one User pulls its memberships, each membership's
+    # account, and each account's whole member list — four queries to
+    # answer "who is this". On the authentication path, which runs on
+    # *every* request.
+    #
+    # Nothing reads a relationship off this object: the request context
+    # uses ``id`` and ``name``, and the profile presenters take their
+    # ``account_users`` as an explicit argument precisely so they can
+    # render the accounts array without extra queries.
+    stmt = select(User).where(User.uid == uid.lower()).options(lazyload("*"))
     return (await session.exec(stmt)).first()
 
 
@@ -184,10 +195,14 @@ async def account_context(
     raises ``ActiveRecord::RecordNotFound``. We deliberately don't leak
     membership information.
     """
+    # Same reason as ``_load_user``: the context reads ``account.id``,
+    # ``account.name`` and ``account_user.role`` — three columns — and the
+    # eager defaults were fetching both rows' object graphs to serve them.
     stmt = (
         select(AccountUser, Account)
         .join(Account, Account.id == AccountUser.account_id)  # type: ignore[arg-type]
         .where(Account.id == account_id, AccountUser.user_id == user.id)
+        .options(lazyload("*"))
     )
     row = (await session.exec(stmt)).first()
     if row is None:

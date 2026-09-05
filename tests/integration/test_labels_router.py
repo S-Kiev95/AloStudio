@@ -141,7 +141,8 @@ async def test_create_blocked_for_agent(client, db_session):
     )
     assert resp.status_code == 401
     assert resp.json() == {
-        "error": "You are not authorized to do this action"
+        "error": "You are not authorized to do this action",
+        "code": "not_authorized",
     }
 
 

@@ -759,6 +759,7 @@ async def create_assignment(
             account_id=ctx.account.id,
             account_user_availability=au.availability if au is not None else None,
             account_user_auto_offline=au.auto_offline if au is not None else None,
+            account_user_role=au.role if au is not None else None,
             user=user,
         )
 
@@ -1286,6 +1287,7 @@ async def _present_participants(
                 account_id=account_id,
                 account_user_availability=au.availability if au else None,
                 account_user_auto_offline=au.auto_offline if au else None,
+                account_user_role=au.role if au else None,
                 user=u,
             )
         )

@@ -25,7 +25,11 @@ from httpx import ASGITransport, AsyncClient
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
-from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser
+from app.domains.users.models import (
+    ACCOUNT_USER_ROLE_ADMINISTRATOR,
+    ACCOUNT_USER_ROLE_AGENT,
+    AccountUser,
+)
 from app.main import app
 
 pytestmark = pytest.mark.integration
@@ -391,6 +395,12 @@ async def test_inbox_members_add_and_list(client, seeded):
     assert resp.status_code == 200
     payload = resp.json()["payload"]
     assert {a["id"] for a in payload} == {owner.user.id, side.user.id}
+    # ``role`` is the membership in *this* account, not any membership the
+    # user happens to have: the side user is an administrator of their own
+    # account and an agent here.
+    by_id = {a["id"]: a for a in payload}
+    assert by_id[owner.user.id]["role"] == ACCOUNT_USER_ROLE_ADMINISTRATOR
+    assert by_id[side.user.id]["role"] == ACCOUNT_USER_ROLE_AGENT
 
     listing = await client.get(
         f"/api/v1/accounts/{owner.account.id}/inbox_members/{created['id']}",

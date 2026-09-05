@@ -34,7 +34,11 @@ from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact, ContactInbox, Note
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
-from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser
+from app.domains.users.models import (
+    ACCOUNT_USER_ROLE_ADMINISTRATOR,
+    ACCOUNT_USER_ROLE_AGENT,
+    AccountUser,
+)
 from app.main import app
 
 pytestmark = pytest.mark.integration
@@ -342,7 +346,10 @@ async def test_destroy_admin_only(client, seeded, db_session):
         f"/api/v1/accounts/{owner.account.id}/contacts/{c.id}", headers=agent_h
     )
     assert resp.status_code == 401
-    assert resp.json() == {"error": "You are not authorized to do this action"}
+    assert resp.json() == {
+        "error": "You are not authorized to do this action",
+        "code": "not_authorized",
+    }
 
     # Admin call → 200 empty body
     resp = await client.delete(
@@ -418,6 +425,7 @@ async def test_create_note(client, seeded, db_session):
     # user block nested from _agent.json.jbuilder
     assert body["user"]["email"] == owner.user.email
     assert body["user"]["account_id"] == owner.account.id
+    assert body["user"]["role"] == ACCOUNT_USER_ROLE_ADMINISTRATOR
 
 
 async def test_note_envelope_rejected_when_missing(client, seeded, db_session):

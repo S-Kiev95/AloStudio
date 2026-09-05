@@ -26,7 +26,11 @@ from httpx import ASGITransport, AsyncClient
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
-from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser
+from app.domains.users.models import (
+    ACCOUNT_USER_ROLE_ADMINISTRATOR,
+    ACCOUNT_USER_ROLE_AGENT,
+    AccountUser,
+)
 from app.main import app
 
 pytestmark = pytest.mark.integration
@@ -144,7 +148,10 @@ async def test_agent_cannot_create_team(client, seeded):
         headers=agent_h,
     )
     assert resp.status_code == 401
-    assert resp.json() == {"error": "You are not authorized to do this action"}
+    assert resp.json() == {
+        "error": "You are not authorized to do this action",
+        "code": "not_authorized",
+    }
 
 
 async def test_duplicate_team_name_422(client, seeded):
@@ -351,6 +358,11 @@ async def test_team_members_add_list_and_is_member_flag(client, seeded):
     assert isinstance(payload, list)
     assert len(payload) == 2
     assert {a["id"] for a in payload} == {owner.user.id, side.user.id}
+    # Same as inbox members: the role is the one in this account. The side
+    # user administers their own account and is an agent in this one.
+    by_id = {a["id"]: a for a in payload}
+    assert by_id[owner.user.id]["role"] == ACCOUNT_USER_ROLE_ADMINISTRATOR
+    assert by_id[side.user.id]["role"] == ACCOUNT_USER_ROLE_AGENT
 
     # Show flips ``is_member`` for the current caller (admin).
     show = await client.get(

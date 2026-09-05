@@ -362,6 +362,7 @@ async def _fetch_agents_payload(
             account_id=ctx.account.id,
             account_user_availability=au.availability,
             account_user_auto_offline=au.auto_offline,
+            account_user_role=au.role,
             user=u,
         )
         for (u, au) in rows

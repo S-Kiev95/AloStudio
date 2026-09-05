@@ -206,6 +206,9 @@ def _present_note_agent(
         account_user_auto_offline=(
             account_user.auto_offline if account_user is not None else None
         ),
+        account_user_role=(
+            account_user.role if account_user is not None else None
+        ),
         user=user,
     )
 

@@ -56,10 +56,57 @@ Dos cosas que aparecieron al hacerlo, y que valen para lo que falta:
   opciones: habría pasado con el `.options(...)` del router borrado.
   Los tests de conteo tienen que pegarle al endpoint.
 
+**El costo estaba sobre todo en autenticar** (2026-09-05). Al medir los
+demás endpoints por HTTP, `users`, `account_users` y `accounts`
+encabezaban **todos** — hasta el de etiquetas, que devuelve una lista
+plana. No era de cada endpoint: eran ~9 consultas de autenticación, en
+cada petición.
+
+Buscar un usuario por `uid` costaba 4 consultas y resolver la cuenta y el
+rol otras 7. El contexto lee tres columnas (`user.id`, `account.id`,
+`account_user.role`), así que las dos consultas van con `lazyload("*")`.
+
+**Un lector se escapó, y el grep no podía verlo.** Dije que ninguna
+relación se leía. `present_agent` leía `user.account_users` para sacar el
+rol, escrito `getattr(user, "account_users", [])`: buscar `.account_users`
+no encuentra un nombre que vive dentro de una cadena. Lo encontró un test
+—`MissingGreenlet` al crear una nota—, no la lectura del código.
+
+Conviene entender por qué rompe ahí. El `User` que carga la
+autenticación es el mismo objeto que devuelve `note.user`, por el mapa de
+identidad de la sesión: un `lazyload("*")` en **una** consulta alcanza a
+todo uso posterior de esa fila en la petición. Es la contracara del
+ahorro, y la razón de no aflojar la carga sin mirar quién más toca el
+objeto.
+
+El arreglo no fue aflojarla sino terminar un trabajo a medias: el rol
+pasó a ser argumento, como ya lo eran `availability` y `auto_offline`.
+Los siete llamadores ya tenían la fila `AccountUser` en la mano —ninguno
+necesitaba la relación—, así que el presentador ahora lee **sólo
+columnas**. Los tres tests que fijan el campo `role` distinguen la cuenta
+correcta: el usuario de al lado es administrador de su propia cuenta y
+agente en esta.
+
+| endpoint | antes | después |
+|---|---|---|
+| contactos | 29 | 20 |
+| buscar contactos | 28 | 19 |
+| buscar conversaciones | 24 | 15 |
+| bandejas | 21 | 12 |
+| **etiquetas** | 12 | **3** |
+| informe resumen | 25 | 16 |
+| informe por agente | 17 | 8 |
+| informe por bandeja | 23 | 14 |
+| métricas en vivo | 15 | 6 |
+
+El tope quedó fijado por un test que le pega al endpoint de etiquetas
+—el más plano que hay— y cuenta consultas: tres. Si alguien devuelve la
+carga anticipada a la autenticación, salta ahí y no en producción.
+
 **Falta**
 
-- Aplicar lo mismo a los demás caminos: contactos (17 consultas para 25
-  filas), informes, búsqueda.
+- Los endpoints que siguen arriba de diez tienen fan-out propio además
+  del de auth: contactos (20) y los informes. Mismo tratamiento.
 - *De fondo:* invertir el default a `lazy="raise"` y declarar la carga en
   cada consulta. Correcto a largo plazo, toca muchos sitios; con `raise`
   un olvido falla en los tests y no en producción.

@@ -223,12 +223,26 @@ def present_agent(
     account_id: int,
     account_user_availability: int | None,
     account_user_auto_offline: bool | None,
+    account_user_role: int | None,
     user: Any,  # app.domains.users.models.User — Any to sidestep import cycle
 ) -> dict[str, Any]:
     """Shape of one element in ``inbox_members`` / ``team_members`` payloads.
 
     Mirrors ``_agent.json.jbuilder`` exactly except for the Enterprise-only
     ``custom_role_id`` (deferred to Phase 9).
+
+    All three ``account_user_*`` values come from the caller's
+    :class:`AccountUser` row for ``account_id``. ``role`` used to be the
+    exception: it scanned ``user.account_users`` instead of being passed
+    in, even though every one of the seven call sites had already
+    fetched that exact row. Now the presenter reads **columns only** and
+    never touches a relationship — which is what lets the
+    authentication path load the User without its object graph. Reading
+    it there raises ``MissingGreenlet``, because by then we are inside
+    sync presenter code.
+
+    Pass ``None`` when there is no membership row; the payload falls
+    back to agent (0), as Rails' safe-nav did.
     """
     from app.domains.users.models import _AVAIL_INT_TO_STR  # local to avoid cycle
 
@@ -244,23 +258,10 @@ def present_agent(
         "provider": user.provider,
         "available_name": user.display_name or user.name,
         "name": user.name,
-        "role": _account_user_role_for(user, account_id),
+        "role": account_user_role if account_user_role is not None else 0,
         "thumbnail": getattr(user, "avatar_url", None) or "",
     }
     if user.custom_attributes:
         body["custom_attributes"] = user.custom_attributes
     return body
 
-
-def _account_user_role_for(user: Any, account_id: int) -> int:
-    """Locate the caller's role in ``account_id`` from the prefetched
-    ``user.account_users`` relationship.
-
-    We default to the Rails ``agent`` integer (0) on miss — should never
-    happen because the outer query scopes to account members, but the
-    defensive fallback keeps the presenter total.
-    """
-    for au in getattr(user, "account_users", []) or []:
-        if au.account_id == account_id:
-            return au.role
-    return 0
