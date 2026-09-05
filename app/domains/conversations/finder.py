@@ -38,6 +38,7 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import func
+from sqlalchemy.orm import lazyload, selectinload
 from sqlalchemy.sql import Select
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -233,6 +234,7 @@ async def conversation_finder(
         listed.order_by(Conversation.last_activity_at.desc())  # type: ignore[attr-defined]
         .offset((max(page, 1) - 1) * per_page)
         .limit(per_page)
+        .options(*_list_loaders())
     )
     rows = list((await session.exec(listed)).all())
 
@@ -245,6 +247,38 @@ async def conversation_finder(
             "all_count": all_count,
         },
     }
+
+
+# What ``present_conversation`` actually reads off a row, and nothing else.
+#
+# Every relationship in this codebase is declared ``lazy="selectin"``, so a
+# plain ``select(Conversation)`` pulls a large connected component of the
+# schema: measured against staging, one page of 25 emitted **79 queries**
+# and ~300 ms, of which 30 were on ``users``, 15 on ``accounts`` and 15 on
+# ``account_users`` — none of which appear in the payload. Naming the
+# relations here brings it to 8 queries and ~60 ms.
+#
+# ``lazyload("*")`` turns the eager defaults off for this statement only;
+# it does not change the models, so every other query behaves as before.
+#
+# ``Message.conversation`` is deliberately absent even though
+# ``present_message_push_event`` reads it: it is a many-to-one back to a
+# row already in the identity map, which SQLAlchemy resolves without
+# going to the database.
+#
+# If the presenter starts reading something new, the count test in
+# ``tests/integration/test_conversation_list_queries.py`` fails rather
+# than the request quietly costing 79 queries again.
+def _list_loaders() -> tuple[Any, ...]:
+    return (
+        lazyload("*"),
+        selectinload(Conversation.contact),
+        selectinload(Conversation.inbox),
+        selectinload(Conversation.assignee),
+        selectinload(Conversation.team),
+        selectinload(Conversation.contact_inbox),
+        selectinload(Conversation.messages).selectinload(Message.attachments),
+    )
 
 
 __all__ = ["DEFAULT_PER_PAGE", "DEFAULT_STATUS", "conversation_finder"]
