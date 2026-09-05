@@ -66,24 +66,43 @@ Dos cosas que aparecieron al hacerlo, y que valen para lo que falta:
 
 ---
 
-## 2. N+1 real en CSAT — encontrado en código, sin medir
+## 2. N+1 real en CSAT — HECHO (`ebe1e9e`)
 
-`app/domains/csat/router.py:119-120` hace dos `session.get` por fila
-dentro del bucle: contacto y conversación. Con página de N, son 2N+1
-consultas. Se resuelve con un `IN` por lote.
+Era peor de lo que decía esta nota. No eran dos consultas por fila sino
+seis (contacto, conversación, y un usuario más un `account_user` por
+cada uno de los dos agentes), y encima cada `session.get(Conversation)`
+detonaba la cascada `selectin` detrás.
+
+| Página de 12 respuestas | consultas |
+|---|---|
+| Antes | **804** |
+| Después | **16** |
+
+Y plano: 2 respuestas cuestan lo mismo que 12. Todo se trae por id, un
+viaje por tabla, con `lazyload("*")` en cada lote — el presentador lee
+cinco columnas planas y ninguna relación.
+
+El test afirma la **planitud**, no un techo: una consulta por fila es la
+falla, y un conteo que crece con la página es lo que la prueba, sin
+depender de cuánto cueste el resto del endpoint.
 
 ---
 
-## 3. 30 claves foráneas sin índice — latente
+## 3. 30 claves foráneas sin índice — HECHO (migración `b5c6d7e8f9a0`)
 
-Postgres no indexa las FK solo. Hoy las tablas son chicas y no duele,
-pero cada borrado en cascada y cada join las escanea entera.
+Postgres indexa la clave primaria y las restricciones únicas solo; las
+foráneas **no**. Sin índice se degradan dos cosas a medida que las
+tablas crecen: cualquier join por esa clave, y —menos evidente— cada
+borrado en la fila **padre**, porque hay que escanear la tabla hija
+entera para hacer cumplir la restricción.
 
-Las que más van a crecer: `channel_*.account_id` (nueve tablas),
-`agent_bot_inboxes.*`, `inbox_members.user_id`, `mentions.account_id`,
-`instagram_comments.account_id`, `notification_settings.user_id`.
+La lista salió de consultar `pg_constraint` contra la base corriendo, no
+de leer los modelos. Después de aplicarla quedan **0** foráneas sin
+índice.
 
-Es una migración de `CREATE INDEX`, sin riesgo.
+Se hizo ahora justamente porque todavía no duele: un `CREATE INDEX`
+sobre una tabla casi vacía es gratis, y sobre un millón de filas es una
+ventana de mantenimiento.
 
 ---
 
