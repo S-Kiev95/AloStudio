@@ -406,3 +406,95 @@ async def test_dashboard_index_isolates_per_account(client, db_session):
     )
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+# ---------------------------------------------------------------------------
+# What the listing costs
+# ---------------------------------------------------------------------------
+class _QueryCounter:
+    def __init__(self) -> None:
+        self.total = 0
+
+    def __call__(self, conn, cursor, statement, params, context, executemany):
+        self.total += 1
+
+
+@pytest.fixture
+def query_counter(db_session):
+    from sqlalchemy import event
+
+    bind = db_session.get_bind()
+    target = getattr(bind, "sync_engine", bind)
+    counter = _QueryCounter()
+    event.listen(target, "before_cursor_execute", counter)
+    try:
+        yield counter
+    finally:
+        event.remove(target, "before_cursor_execute", counter)
+
+
+async def test_the_listing_does_not_query_per_row(
+    client, db_session, query_counter
+):
+    """It used to: contact, conversation, then a user and an account_user
+    for each of the two agent slots — up to six queries per row, so a
+    page of 12 cost about seventy.
+
+    Asserted as "the same for 12 rows as for 2" rather than a fixed
+    ceiling: a per-row query is the failure, and a count that grows with
+    the page is what proves it, independent of how much the surrounding
+    endpoint costs.
+    """
+    owner, headers = await _seed_admin(db_session, "-nplus1")
+
+    async def make(n: int) -> None:
+        # One survey per conversation — the table enforces it, which is
+        # also why each response brings its own contact to look up.
+        from app.domains.conversations.models import (
+            MESSAGE_TYPE_OUTGOING,
+            Message,
+        )
+
+        for i in range(n):
+            conv = await _seed_conversation(db_session, owner)
+            msg = Message(
+                account_id=owner.account.id,
+                inbox_id=conv.inbox_id,
+                conversation_id=conv.id,
+                message_type=MESSAGE_TYPE_OUTGOING,
+                content="¿Cómo te fue?",
+            )
+            db_session.add(msg)
+            await db_session.flush()
+            db_session.add(
+                CsatSurveyResponse(
+                    account_id=owner.account.id,
+                    conversation_id=conv.id,
+                    contact_id=conv.contact_id,
+                    message_id=msg.id,
+                    rating=(i % 5) + 1,
+                    assigned_agent_id=owner.user.id,
+                )
+            )
+        await db_session.flush()
+
+    async def cost() -> int:
+        db_session.expunge_all()
+        query_counter.total = 0
+        resp = await client.get(
+            f"/api/v1/accounts/{owner.account.id}/csat_survey_responses",
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        return query_counter.total
+
+    await make(2)
+    con_pocas = await cost()
+    await make(10)
+    con_muchas = await cost()
+
+    print(f"\n  2 respuestas: {con_pocas} consultas | 12: {con_muchas}")
+    assert con_muchas == con_pocas, (
+        f"2 respuestas costaron {con_pocas} consultas y 12 costaron "
+        f"{con_muchas}: algo se consulta por fila."
+    )

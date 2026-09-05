@@ -25,6 +25,7 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import lazyload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -46,28 +47,106 @@ router = APIRouter(
 )
 
 
-async def _present_agent_for(
-    session: AsyncSession, *, account_id: int, user_id: int | None
-) -> dict[str, Any] | None:
-    if user_id is None:
-        return None
-    user = await session.get(User, user_id)
-    if user is None:
-        return None
-    au = (
-        await session.exec(
-            select(AccountUser).where(
-                AccountUser.account_id == account_id,
-                AccountUser.user_id == user_id,
-            )
+async def _present_rows(
+    session: AsyncSession, *, account_id: int, rows: list[Any]
+) -> list[dict[str, Any]]:
+    """Present a page of responses with a fixed number of queries.
+
+    This used to loop: contact, conversation, then two per agent (the
+    user and its account_user) for each of the two agent slots — up to
+    six queries per row, so a page of 25 cost 150. Everything the page
+    needs is fetched by id in one round trip per table.
+    """
+    contact_ids = {r.contact_id for r in rows if r.contact_id is not None}
+    conversation_ids = {
+        r.conversation_id for r in rows if r.conversation_id is not None
+    }
+    user_ids = {
+        uid
+        for r in rows
+        for uid in (r.assigned_agent_id, r.review_notes_updated_by_id)
+        if uid is not None
+    }
+
+    contacts: dict[int, Contact] = {}
+    if contact_ids:
+        contacts = {
+            c.id: c
+            for c in (
+                await session.exec(
+                    select(Contact)
+                    .where(Contact.id.in_(contact_ids))  # type: ignore[attr-defined]
+                    .options(lazyload("*"))
+                )
+            ).all()
+        }
+
+    conversations: dict[int, Conversation] = {}
+    if conversation_ids:
+        conversations = {
+            c.id: c
+            for c in (
+                await session.exec(
+                    select(Conversation)
+                    .where(
+                        Conversation.id.in_(conversation_ids)  # type: ignore[attr-defined]
+                    )
+                    .options(lazyload("*"))
+                )
+            ).all()
+        }
+
+    users: dict[int, User] = {}
+    memberships: dict[int, AccountUser] = {}
+    if user_ids:
+        users = {
+            u.id: u
+            for u in (
+                await session.exec(
+                    select(User)
+                    .where(User.id.in_(user_ids))  # type: ignore[attr-defined]
+                    .options(lazyload("*"))
+                )
+            ).all()
+        }
+        memberships = {
+            au.user_id: au
+            for au in (
+                await session.exec(
+                    select(AccountUser)
+                    .where(
+                        AccountUser.account_id == account_id,
+                        AccountUser.user_id.in_(user_ids),  # type: ignore[attr-defined]
+                    )
+                    .options(lazyload("*"))
+                )
+            ).all()
+        }
+
+    def agent(user_id: int | None) -> dict[str, Any] | None:
+        if user_id is None:
+            return None
+        user = users.get(user_id)
+        if user is None:
+            return None
+        au = memberships.get(user_id)
+        return present_agent(
+            account_id=account_id,
+            account_user_availability=au.availability if au is not None else None,
+            account_user_auto_offline=au.auto_offline if au is not None else None,
+            user=user,
         )
-    ).first()
-    return present_agent(
-        account_id=account_id,
-        account_user_availability=au.availability if au is not None else None,
-        account_user_auto_offline=au.auto_offline if au is not None else None,
-        user=user,
-    )
+
+    return [
+        present_response(
+            r,
+            contact=contacts.get(r.contact_id),
+            conversation=conversations.get(r.conversation_id),
+            assigned_agent=agent(r.assigned_agent_id),
+            review_notes_updated_by=agent(r.review_notes_updated_by_id),
+        )
+        for r in rows
+    ]
 
 
 def _parse_ts(raw: str | None) -> datetime | None:
@@ -114,30 +193,9 @@ async def index_responses(
         range_end=_parse_ts(until),
         page=page,
     )
-    bodies: list[dict[str, Any]] = []
-    for r in rows:
-        contact = await session.get(Contact, r.contact_id)
-        conv = await session.get(Conversation, r.conversation_id)
-        assigned = await _present_agent_for(
-            session,
-            account_id=ctx.account.id,
-            user_id=r.assigned_agent_id,
-        )
-        updated_by = await _present_agent_for(
-            session,
-            account_id=ctx.account.id,
-            user_id=r.review_notes_updated_by_id,
-        )
-        bodies.append(
-            present_response(
-                r,
-                contact=contact,
-                conversation=conv,
-                assigned_agent=assigned,
-                review_notes_updated_by=updated_by,
-            )
-        )
-    return bodies
+    return await _present_rows(
+        session, account_id=ctx.account.id, rows=list(rows)
+    )
 
 
 @router.get("/metrics")
