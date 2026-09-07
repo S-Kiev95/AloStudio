@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy.orm import lazyload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -51,8 +52,13 @@ async def _agent_names(
 ) -> dict[int, str]:
     if not ids:
         return {}
+    # Names only — nothing here reads a relationship off these rows.
     users = (
-        await session.exec(select(User).where(User.id.in_(ids)))  # type: ignore[union-attr]
+        await session.exec(
+            select(User)
+            .where(User.id.in_(ids))  # type: ignore[union-attr]
+            .options(lazyload("*"))
+        )
     ).all()
     return {u.id: (u.name or "") for u in users}
 

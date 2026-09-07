@@ -38,6 +38,7 @@ from sqlalchemy import (
 from sqlalchemy import (
     func as sa_func,
 )
+from sqlalchemy.orm import lazyload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -226,12 +227,18 @@ async def build_agent_summary(
 
     # Every AccountUser yields a row (even with zero activity) — matches
     # Rails' ``account.account_users.map``.
+    #
+    # Every relationship in this codebase is ``lazy="selectin"``, so a bare
+    # ``select(AccountUser)`` also fetches each row's user, each row's
+    # account, and each of those accounts' whole member list — to read the
+    # one column the loop below reads. Same treatment in the other three
+    # summaries and in the CSV export.
     rows = list(
         (
             await session.exec(
-                select(AccountUser).where(
-                    AccountUser.account_id == account_id
-                )
+                select(AccountUser)
+                .where(AccountUser.account_id == account_id)
+                .options(lazyload("*"))
             )
         ).all()
     )
@@ -288,10 +295,13 @@ async def build_team_summary(
         extra_filter=join,
     )
 
+    # Reads ``id`` and ``name``; see the note in ``build_agent_summary``.
     teams = list(
         (
             await session.exec(
-                select(Team).where(Team.account_id == account_id)
+                select(Team)
+                .where(Team.account_id == account_id)
+                .options(lazyload("*"))
             )
         ).all()
     )
@@ -338,10 +348,14 @@ async def build_inbox_summary(
         until=until,
         business_hours=business_hours,
     )
+    # The dearest of the four: an Inbox eagerly pulls its channel row, its
+    # members and its account. The loop reads ``id`` and ``name``.
     inboxes = list(
         (
             await session.exec(
-                select(Inbox).where(Inbox.account_id == account_id)
+                select(Inbox)
+                .where(Inbox.account_id == account_id)
+                .options(lazyload("*"))
             )
         ).all()
     )
@@ -559,10 +573,13 @@ async def build_label_summary(
         extra_filter=report_join,
     )
 
+    # Reads ``id`` and ``title``.
     labels = list(
         (
             await session.exec(
-                select(Label).where(Label.account_id == account_id)
+                select(Label)
+                .where(Label.account_id == account_id)
+                .options(lazyload("*"))
             )
         ).all()
     )

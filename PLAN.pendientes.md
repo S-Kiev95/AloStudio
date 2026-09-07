@@ -103,10 +103,29 @@ El tope quedó fijado por un test que le pega al endpoint de etiquetas
 —el más plano que hay— y cuenta consultas: tres. Si alguien devuelve la
 carga anticipada a la autenticación, salta ahí y no en producción.
 
+**Los cuatro informes por entidad, hecho** (2026-09-06). Cada uno corre
+sus agregados y después lista las entidades para que aparezcan también
+las que no tuvieron actividad. Ese listado era un `select(Modelo)` pelado
+y los bucles leen dos columnas: `au.user_id`, `t.name`, `ib.name`,
+`lab.title`. Igual en el CSV, que sólo quiere nombres de agentes.
+
+Medido por HTTP, con dos filas de cada cosa: **5 consultas** para los
+cuatro (dos de autenticar, dos de agregados, una de listar). Antes, el de
+bandejas costaba **10** — un `Inbox` arrastra su canal, sus miembros y su
+cuenta.
+
+Comprobado revirtiendo el arreglo: agente, equipo y bandeja fallan;
+**etiquetas no**, porque `Label` no declara ninguna relación y ahí el
+`lazyload("*")` hoy no hace nada. Queda puesto igual, y el test empieza a
+cuidarlo el día que alguien le agregue una.
+
 **Falta**
 
-- Los endpoints que siguen arriba de diez tienen fan-out propio además
-  del de auth: contactos (20) y los informes. Mismo tratamiento.
+- Contactos (20). Es el distinto: el presentador sí lee una relación
+  (`contact_inboxes` → `inbox`), así que hay que cargarla explícita. Y
+  antes de tocar nada hace falta un test que afirme que ese array viene
+  lleno, porque `_safe_contact_inboxes` devuelve `[]` en silencio si la
+  relación no está cargada — una regresión sin excepción que avise.
 - *De fondo:* invertir el default a `lazy="raise"` y declarar la carga en
   cada consulta. Correcto a largo plazo, toca muchos sitios; con `raise`
   un olvido falla en los tests y no en producción.
