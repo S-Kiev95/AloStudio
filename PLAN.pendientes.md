@@ -119,16 +119,30 @@ Comprobado revirtiendo el arreglo: agente, equipo y bandeja fallan;
 `lazyload("*")` hoy no hace nada. Queda puesto igual, y el test empieza a
 cuidarlo el día que alguien le agregue una.
 
+**Contactos, hecho** (2026-09-06). El distinto de todos: el presentador
+sí lee una relación (`contact_inboxes` → `inbox`), así que hay que
+nombrarla, no apagarla.
+
+| endpoint (12 filas) | antes | después |
+|---|---|---|
+| lista de contactos | 16 | **6** |
+| búsqueda de contactos | 15 | **5** |
+
+Lo delicado acá no es el conteo. `_safe_contact_inboxes` devuelve `[]`
+para una colección que nunca se cargó —correcto para un contacto recién
+creado— así que olvidarse del `selectinload` vacía el array **en la
+respuesta, sin lanzar nada**. Por eso el test de paridad se escribió
+primero y se comprobó que pasaba *antes* del cambio: es el que cuida eso.
+El de conteo sólo evita que la lista vuelva a pagar el resto del esquema.
+
 **Falta**
 
-- Contactos (20). Es el distinto: el presentador sí lee una relación
-  (`contact_inboxes` → `inbox`), así que hay que cargarla explícita. Y
-  antes de tocar nada hace falta un test que afirme que ese array viene
-  lleno, porque `_safe_contact_inboxes` devuelve `[]` en silencio si la
-  relación no está cargada — una regresión sin excepción que avise.
 - *De fondo:* invertir el default a `lazy="raise"` y declarar la carga en
   cada consulta. Correcto a largo plazo, toca muchos sitios; con `raise`
-  un olvido falla en los tests y no en producción.
+  un olvido falla en los tests y no en producción. Es además lo único que
+  convierte el error silencioso de arriba en uno ruidoso.
+- El endpoint de filtro de contactos (`/contacts/filter`) usa el mismo
+  presentador y sigue con la carga por defecto. **No medido.**
 
 ---
 

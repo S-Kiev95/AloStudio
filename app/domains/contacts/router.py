@@ -43,6 +43,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy import func, or_
+from sqlalchemy.orm import lazyload, selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -103,6 +104,29 @@ actions_router = APIRouter(
 # ============================================================================
 # Contacts CRUD
 # ============================================================================
+# What ``present_contact`` reads off a row that is not a column, and
+# nothing else: the contact's inbox links and, through each of them, the
+# inbox. Every relationship here is declared ``lazy="selectin"``, so the
+# bare statement also fetched each contact's conversations, notes and
+# account — eighteen queries for a page of twelve, none of it in the body.
+#
+# ``lazyload("*")`` turns the eager defaults off for these two statements
+# only; the models are untouched, so every other query behaves as before.
+#
+# Getting this wrong fails quietly rather than loudly:
+# ``_safe_contact_inboxes`` returns ``[]`` for a collection that was never
+# loaded, so dropping the ``selectinload`` below would empty the array in
+# the response without raising. The parity test in
+# ``tests/integration/test_contacts_query_cost.py`` is what catches that.
+def _list_loaders() -> tuple[Any, ...]:
+    return (
+        lazyload("*"),
+        selectinload(Contact.contact_inboxes)
+        .selectinload(ContactInbox.inbox)
+        .lazyload("*"),
+    )
+
+
 @router.get("")
 async def index_contacts(
     ctx: Annotated[AccountContext, Depends(account_context)],
@@ -138,6 +162,7 @@ async def index_contacts(
         .order_by(Contact.id.desc())
         .offset(offset)
         .limit(RESULTS_PER_PAGE)
+        .options(*_list_loaders())
     )
     contacts = list((await session.exec(stmt)).all())
     return present_contacts_index(
@@ -236,6 +261,7 @@ async def search_contacts(
         .order_by(Contact.id.desc())
         .offset(offset)
         .limit(RESULTS_PER_PAGE + 1)
+        .options(*_list_loaders())
     )
     rows = list((await session.exec(stmt)).all())
     has_more = len(rows) > RESULTS_PER_PAGE
