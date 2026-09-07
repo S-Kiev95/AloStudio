@@ -1,4 +1,12 @@
-"""The prepared-answers endpoints, including scoping to a publication.
+"""The prepared-answers endpoints: the library itself.
+
+Scoping used to live here, when an answer carried a single ``post_id``.
+``32a1d15`` replaced that with a join table and a checklist on the
+publication — "the column goes rather than leaving a second, dead way to
+say the same thing" — and its tests are in
+``test_instagram_post_rules_router.py`` and
+``test_instagram_semantic_picks.py``. The four tests of the old shape that
+stayed behind here have been removed; they had been failing since.
 
 Embeddings are stubbed rather than left to the environment: a developer
 with a key in ``.env`` would otherwise have these tests billing real
@@ -105,14 +113,13 @@ def _url(owner, path: str) -> str:
     return f"/api/v1/accounts/{owner.account.id}{path}"
 
 
-async def _create(client, owner, headers, *, trigger, post_id=None):
+async def _create(client, owner, headers, *, trigger):
     return await client.post(
         _url(owner, "/instagram_comment_replies"),
         json={
             "trigger": trigger,
             "reply": f"respuesta a {trigger}",
             "enabled": True,
-            "post_id": post_id,
         },
         headers=headers,
     )
@@ -137,15 +144,6 @@ async def test_status_says_similarity_is_on_with_one(
         _url(owner, "/instagram_autoreply_status"), headers=headers
     )
     assert resp.json() == {"semantic_available": True}
-
-
-async def test_an_answer_defaults_to_shared(client, db_session):
-    owner, headers, _posts = await _seed(db_session, "-shared")
-    resp = await _create(client, owner, headers, trigger="hacen envíos?")
-    assert resp.status_code == 200
-    assert resp.json()["post_id"] is None
-    # Honest about the fact that it cannot match without a provider.
-    assert resp.json()["indexed"] is False
 
 
 async def test_an_answer_saved_with_a_provider_is_indexed(
@@ -191,54 +189,17 @@ async def test_re_saving_an_unindexed_answer_retries_the_embedding(
     assert resp.json()["indexed"] is True
 
 
-async def test_an_answer_can_belong_to_one_publication(client, db_session):
-    owner, headers, posts = await _seed(db_session, "-scoped")
-    resp = await _create(
-        client, owner, headers, trigger="qué talles?", post_id=posts[0].id
-    )
-    assert resp.status_code == 200
-    assert resp.json()["post_id"] == posts[0].id
-
-
-async def test_a_publication_from_another_account_is_rejected(
-    client, db_session
-):
-    owner, headers, _posts = await _seed(db_session, "-mine")
-    other, _other_headers, other_posts = await _seed(db_session, "-theirs")
-    resp = await _create(
-        client, owner, headers, trigger="fisgón", post_id=other_posts[0].id
-    )
-    assert resp.status_code == 404
-    assert other.account.id != owner.account.id
-
-
-async def test_listing_by_publication_returns_its_own_plus_the_shared(
-    client, db_session
-):
-    owner, headers, posts = await _seed(db_session, "-list")
-    await _create(client, owner, headers, trigger="compartida")
-    await _create(client, owner, headers, trigger="mía", post_id=posts[0].id)
-    await _create(client, owner, headers, trigger="ajena", post_id=posts[1].id)
-
-    resp = await client.get(
-        _url(owner, f"/instagram_comment_replies?post_id={posts[0].id}"),
-        headers=headers,
-    )
-    assert resp.status_code == 200
-    assert {r["trigger"] for r in resp.json()} == {"compartida", "mía"}
-
-
 async def test_listing_without_a_publication_returns_the_whole_library(
     client, db_session
 ):
-    owner, headers, posts = await _seed(db_session, "-all")
+    owner, headers, _posts = await _seed(db_session, "-all")
     await _create(client, owner, headers, trigger="compartida")
-    await _create(client, owner, headers, trigger="de un post", post_id=posts[0].id)
+    await _create(client, owner, headers, trigger="otra")
 
     resp = await client.get(
         _url(owner, "/instagram_comment_replies"), headers=headers
     )
-    assert {r["trigger"] for r in resp.json()} == {"compartida", "de un post"}
+    assert {r["trigger"] for r in resp.json()} == {"compartida", "otra"}
 
 
 async def test_an_agent_cannot_touch_the_library(client, db_session):
