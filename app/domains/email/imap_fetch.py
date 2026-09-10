@@ -34,7 +34,6 @@ from datetime import datetime
 from email.message import EmailMessage
 
 import aioimaplib
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.email.inbound import process_inbound_email
@@ -223,32 +222,4 @@ async def fetch_inbox_once(
     return ingested
 
 
-async def fetch_all_email_inboxes_once(session: AsyncSession) -> int:
-    """Iterate every IMAP-enabled Email channel + run one poll each.
-
-    Mirrors ``Inboxes::FetchImapEmailInboxesJob`` — the cron entry point
-    Chatwoot fires every minute. Returns the total count of messages
-    ingested across every inbox.
-    """
-    rows = list(
-        (
-            await session.exec(
-                select(EmailChannel, Inbox)
-                .join(
-                    Inbox,
-                    (Inbox.channel_type == CHANNEL_TYPE_EMAIL)
-                    & (Inbox.channel_id == EmailChannel.id),
-                )
-                .where(EmailChannel.imap_enabled.is_(True))
-            )
-        ).all()
-    )
-    total = 0
-    for channel, inbox in rows:
-        total += await fetch_inbox_once(
-            session, channel=channel, inbox=inbox
-        )
-    return total
-
-
-__all__ = ["fetch_all_email_inboxes_once", "fetch_inbox_once"]
+__all__ = ["fetch_inbox_once"]
