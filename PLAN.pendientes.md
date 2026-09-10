@@ -255,12 +255,15 @@ Instagram.
 
 **Deuda chica**
 
-- `"You are not authorized to do this action"` sale en inglés en la
-  interfaz. Es cadena de compatibilidad con Chatwoot y el backend debe
-  seguir devolviéndola, pero la UI puede traducirla — ya existe
-  `code: "not_authorized"` para distinguirla sin depender del texto.
-- `fetch_all_email_inboxes_once` en `imap_fetch.py` duplica la tarea del
-  worker y no lo usa nadie. Código muerto.
+- ~~`"You are not authorized to do this action"` en inglés~~ — hecho
+  (2026-09-10). El backend sigue devolviendo esa cadena porque es la que
+  lee un cliente de Chatwoot; `messageFromBody` la reemplaza por la
+  nuestra cuando el cuerpo trae `code: "not_authorized"`. Por el `code` y
+  nunca por el texto: atar la traducción a la redacción inglesa se rompe
+  el día que le arreglen una errata.
+- ~~`fetch_all_email_inboxes_once`~~ — borrada (2026-09-10). Duplicaba la
+  tarea del worker; las únicas referencias eran su propia definición y el
+  `__all__` de al lado.
 - El constructor de correo por bloques no tiene **columnas** (filas de
   dos columnas). Es lo siguiente si alguien lo pide.
 - El patrón "no ofrezcas un botón que no puede funcionar" se aplicó a
