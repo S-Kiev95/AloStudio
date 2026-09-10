@@ -13,9 +13,24 @@ export function middleware(req: NextRequest) {
     req.cookies.get(AUTH_COOKIES.accessToken)?.value,
   );
   if (!hasSession) {
-    const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("next", req.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+    // A *relative* Location, deliberately. ``NextResponse.redirect`` only
+    // takes an absolute URL, and the origin it would be built from is the
+    // one Next binds to — ``localhost:3000``. Behind the Tailscale Funnel
+    // that sent every signed-out visitor on the public URL to a machine
+    // that was not theirs, which is a dead end and looks like the app
+    // being down. Next does not read the ``Host`` header here either, so
+    // there is no absolute URL to build that would be right on both
+    // origins.
+    //
+    // A relative reference is legal in ``Location`` (RFC 7231 §7.1.2) and
+    // the browser resolves it against the URL it actually requested, so it
+    // is correct on localhost, on the Funnel, and on whatever the app is
+    // served from next — without trusting a proxy header.
+    const next = encodeURIComponent(req.nextUrl.pathname);
+    return new NextResponse(null, {
+      status: 307,
+      headers: { Location: `/login?next=${next}` },
+    });
   }
   return NextResponse.next();
 }

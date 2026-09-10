@@ -7,7 +7,13 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    include: ["{app,lib,components}/**/*.{test,spec}.{ts,tsx}"],
+    // The second pattern is for ``middleware.ts``, which Next requires at
+    // the project root and which is the only thing standing between a
+    // signed-out visitor and the dashboard.
+    include: [
+      "{app,lib,components}/**/*.{test,spec}.{ts,tsx}",
+      "*.{test,spec}.{ts,tsx}",
+    ],
     globals: true,
   },
 });
