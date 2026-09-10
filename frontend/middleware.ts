@@ -13,26 +13,44 @@ export function middleware(req: NextRequest) {
     req.cookies.get(AUTH_COOKIES.accessToken)?.value,
   );
   if (!hasSession) {
-    // A *relative* Location, deliberately. ``NextResponse.redirect`` only
-    // takes an absolute URL, and the origin it would be built from is the
-    // one Next binds to — ``localhost:3000``. Behind the Tailscale Funnel
-    // that sent every signed-out visitor on the public URL to a machine
-    // that was not theirs, which is a dead end and looks like the app
-    // being down. Next does not read the ``Host`` header here either, so
-    // there is no absolute URL to build that would be right on both
-    // origins.
-    //
-    // A relative reference is legal in ``Location`` (RFC 7231 §7.1.2) and
-    // the browser resolves it against the URL it actually requested, so it
-    // is correct on localhost, on the Funnel, and on whatever the app is
-    // served from next — without trusting a proxy header.
-    const next = encodeURIComponent(req.nextUrl.pathname);
-    return new NextResponse(null, {
-      status: 307,
-      headers: { Location: `/login?next=${next}` },
-    });
+    const loginUrl = new URL("/login", publicOrigin(req));
+    loginUrl.searchParams.set("next", req.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
   }
   return NextResponse.next();
+}
+
+/**
+ * The origin the visitor actually typed, not the one Next is bound to.
+ *
+ * ``req.nextUrl.origin`` is built from the listening address, so behind the
+ * Tailscale Funnel it is ``http://localhost:3000`` and the redirect sent
+ * signed-out visitors to their own machine — a dead end that reads as the
+ * app being down rather than as needing to sign in.
+ *
+ * A relative ``Location`` would sidestep the question, and is legal HTTP,
+ * but not here: Next parses that header as a URL and throws
+ * ``ERR_INVALID_URL`` on a relative one, which turns the bad redirect into
+ * a 500. Verified the hard way.
+ *
+ * So we read the proxy's own account of the request. ``x-forwarded-host``
+ * first, then ``host`` for a proxy that passes it through untouched. When
+ * neither says anything — no proxy at all, or one that hides both — this
+ * falls back to ``nextUrl.origin`` and behaves exactly as it used to.
+ */
+function publicOrigin(req: NextRequest): string {
+  const host =
+    req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  if (!host) return req.nextUrl.origin;
+
+  // ``x-forwarded-proto`` can be a list when more than one proxy is in the
+  // chain; the first entry is the one the client spoke.
+  const forwardedProto = req.headers
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim();
+  const proto = forwardedProto || req.nextUrl.protocol.replace(/:$/, "");
+  return `${proto}://${host}`;
 }
 
 export const config = {
