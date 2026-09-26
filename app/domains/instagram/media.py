@@ -21,6 +21,7 @@ from typing import Any
 
 import httpx
 
+from app.core.outbound import guarded_client
 from app.core.storage import object_url, presigned_put_url
 
 log = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ async def download_and_store_ig_media(
     Returns ``{external_url, extension}``, or ``None`` on any failure.
     """
     try:
-        async with httpx.AsyncClient(
+        async with guarded_client(
             timeout=_TIMEOUT, follow_redirects=True
         ) as client:
             resp = await client.get(url)

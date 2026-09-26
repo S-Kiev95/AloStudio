@@ -22,10 +22,26 @@ from collections.abc import AsyncIterator
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.main import app
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def signup_open(monkeypatch):
+    """These tests are about what signup does, so they open it.
+
+    It is closed by default — see ``test_signup_is_closed_by_default``.
+    Set through the environment rather than the settings overlay, because
+    the overlay is refreshed from the database and would close it again
+    mid-test.
+    """
+    monkeypatch.setenv("ENABLE_ACCOUNT_SIGNUP", "true")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture
@@ -145,3 +161,27 @@ async def test_signup_rejects_disposable_email(client):
     assert resp.status_code == 422
     detail = resp.json()["detail"]
     assert detail == {"message": "Email is invalid", "valid": True, "disposable": True}
+
+
+async def test_signup_is_closed_by_default(client, monkeypatch):
+    """Anonymous signup hands out a confirmed administrator session.
+
+    On a public URL that was the first link of a chain: register, create
+    an inbox, attach a URL pointing inside the server, read it back. So it
+    ships closed, and answers a plain 404 like Chatwoot's
+    ``check_signup_enabled`` — a closed installation does not advertise
+    the route.
+    """
+    monkeypatch.delenv("ENABLE_ACCOUNT_SIGNUP", raising=False)
+    get_settings.cache_clear()
+
+    resp = await client.post(
+        "/api/v1/accounts",
+        json={
+            "account_name": "Intruso",
+            "email": "intruso@example.com",
+            "password": "Password123!",
+        },
+    )
+    assert resp.status_code == 404
+    assert "access-token" not in resp.headers

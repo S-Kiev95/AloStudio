@@ -30,6 +30,7 @@ from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context
 from app.core.errors import ChatwootHTTPException
+from app.core.outbound import guarded_client
 from app.core.signed_links import expiry_from_now, is_valid, sign
 from app.core.storage import signed_read_url
 from app.domains.conversations.models import Attachment
@@ -59,7 +60,9 @@ async def _stream_attachment(att: Attachment) -> Response:
     when it isn't from the caller) and hand the bytes back."""
     read_url = signed_read_url(att.external_url or "")
     try:
-        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        # Guarded: ``external_url`` can come from a widget visitor or an
+        # unverified webhook, and this endpoint returns the body it gets.
+        async with guarded_client(timeout=_TIMEOUT) as client:
             resp = await client.get(read_url)
             resp.raise_for_status()
     except httpx.HTTPError as exc:

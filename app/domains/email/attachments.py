@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 import httpx
 
+from app.core.outbound import guarded_client
 from app.core.storage import signed_read_url
 from app.domains.conversations.models import Attachment
 
@@ -79,7 +80,9 @@ async def fetch_attachments(
         return out
 
     total = 0
-    async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=True) as client:
+    # Guarded, redirects included: what is fetched here is mailed out, so an
+    # internal URL would be read and delivered to whoever the reply goes to.
+    async with guarded_client(timeout=_TIMEOUT, follow_redirects=True) as client:
         for attachment in attachments:
             stored = (attachment.external_url or "").strip()
             if not stored:

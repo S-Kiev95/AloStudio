@@ -37,6 +37,7 @@ class ConfigSpec:
 META_GROUP = "Meta (Facebook e Instagram)"
 WEBHOOK_GROUP = "Webhooks"
 BRAND_GROUP = "Marca"
+ACCESS_GROUP = "Acceso"
 
 CONFIG_SPECS: tuple[ConfigSpec, ...] = (
     # --- Facebook Login (Messenger + the full Instagram API) -----------
@@ -92,6 +93,19 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         group=META_GROUP,
     ),
     # --- Webhooks ------------------------------------------------------
+    ConfigSpec(
+        name="ENABLE_ACCOUNT_SIGNUP",
+        setting="enable_account_signup",
+        title="Registro abierto de cuentas",
+        description=(
+            "Deja que cualquiera que llegue a la URL se cree una cuenta y "
+            "entre como administrador, sin confirmar el correo. Apagado, "
+            "sólo el operador da de alta cuentas. Activalo únicamente si la "
+            "instalación es de autoservicio."
+        ),
+        group=ACCESS_GROUP,
+        kind="boolean",
+    ),
     ConfigSpec(
         name="META_VERIFY_WEBHOOK_SIGNATURE",
         setting="meta_verify_webhook_signature",

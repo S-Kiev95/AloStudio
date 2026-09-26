@@ -35,6 +35,8 @@ from cryptography.hazmat.primitives.serialization import (
     PublicFormat,
 )
 
+from app.core.outbound import guarded_client
+
 _RECORD_SIZE = 4096
 
 
@@ -135,7 +137,6 @@ async def send_web_push(
     ``subscription`` is the browser ``PushSubscription`` JSON:
     ``{"endpoint": ..., "keys": {"p256dh": ..., "auth": ...}}``.
     """
-    import httpx
 
     endpoint = subscription["endpoint"]
     keys = subscription["keys"]
@@ -150,7 +151,7 @@ async def send_web_push(
         public_key_b64=vapid_public_key,
         subject=vapid_subject,
     )
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with guarded_client(timeout=10.0) as client:
         resp = await client.post(
             endpoint,
             content=body,

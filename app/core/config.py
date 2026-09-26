@@ -140,6 +140,16 @@ class Settings(BaseSettings):
     # the ``X-Hub-Signature-256`` header must validate against
     # ``meta_app_secret`` or the POST 401s (fails closed if unset).
     meta_verify_webhook_signature: bool = False
+    # Anonymous ``POST /api/v1/accounts``. OFF by default: when on, anyone
+    # who can reach the URL gets a confirmed account and an administrator
+    # session — no captcha, no email check. The operator turns it on from
+    # Ajustes → Instalación if the deployment really is self-serve.
+    enable_account_signup: bool = False
+    # Outbound requests to user-supplied URLs (webhooks, bot endpoints,
+    # attachment fetches) refuse loopback, private, link-local and
+    # carrier-grade (Tailscale) addresses. Local development pointing a
+    # webhook at ``localhost`` sets this to true; nothing else should.
+    allow_private_outbound_urls: bool = False
     # HMAC verification of inbound Twilio webhooks (CH-1).
     # SECURITY: leave this ON in production. With it OFF, anyone who
     # learns the /twilio/callback URL can POST forged SMS events.

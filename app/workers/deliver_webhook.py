@@ -47,6 +47,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.outbound import guarded_client
 from app.domains.webhooks.models import (
     RECEIVER_KIND_AGENT_BOT,
     RECEIVER_KIND_WEBHOOK,
@@ -155,7 +156,7 @@ async def deliver_webhook_now(
     headers = build_headers(body_bytes, secret, event_id)
 
     try:
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
+        async with guarded_client(timeout=HTTP_TIMEOUT_SECONDS) as client:
             resp = await client.post(url, content=body_bytes, headers=headers)
     except (httpx.TimeoutException, httpx.RequestError) as exc:
         return _failure_outcome(

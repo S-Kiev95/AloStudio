@@ -30,6 +30,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.auth.devise_token_auth import create_new_auth_token
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import AccountContext, current_user, require_admin
 from app.core.errors import ChatwootHTTPException
@@ -74,6 +75,17 @@ async def create_account(
     Errors map to HTTP 422 with the same JSON envelope Chatwoot emits
     (``{"message": "...", ...payload}``).
     """
+    # Chatwoot's ``check_signup_enabled``: a RoutingError, i.e. a plain 404,
+    # so a closed installation does not advertise that the route exists.
+    # Off by default — this endpoint hands anyone who can reach it a
+    # confirmed administrator session, and on a public URL that was the
+    # first link of a chain into the server's own network.
+    if not get_settings().enable_account_signup:
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Not Found"},
+        )
+
     # ensure_account_name before_action
     if not (payload.account_name or payload.user_full_name):
         raise _to_http(InvalidParams())
