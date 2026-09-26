@@ -31,6 +31,7 @@ from pydantic import BaseModel, EmailStr
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core import throttle
 from app.core.auth.devise_token_auth import (
     HEADER_CLIENT,
     create_new_auth_token,
@@ -92,20 +93,41 @@ _INVALID_CREDENTIALS_BODY = {
 @router.post("/sign_in", status_code=status.HTTP_200_OK)
 async def sign_in(
     payload: SignInRequest,
+    request: Request,
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     """Authenticate email+password, return user payload + auth headers."""
     normalized_email = payload.email.strip().lower()
+    address = throttle.client_address(request)
+
+    # Checked before the password: once an account is over the limit even
+    # the right password answers 429, so a correct guess reveals nothing.
+    verdict = await throttle.check(normalized_email, address)
+    if not verdict.allowed:
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "errors": ["Too many failed sign-in attempts. Try again later."],
+                "code": "too_many_attempts",
+                "retry_after": verdict.retry_after,
+            },
+            headers={"Retry-After": str(verdict.retry_after)},
+        )
 
     stmt = select(User).where(User.email == normalized_email)
     user = (await session.exec(stmt)).first()
 
     if user is None or not verify_password(payload.password, user.encrypted_password):
+        # Unknown addresses count too — otherwise the limit would tell an
+        # attacker which accounts exist.
+        await throttle.record_failure(normalized_email, address)
         raise ChatwootHTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=_INVALID_CREDENTIALS_BODY,
         )
+
+    await throttle.record_success(normalized_email)
 
     # active_for_authentication? — Devise's gate. We mirror the two checks
     # Chatwoot enables: confirmable (requires confirmed_at if the column

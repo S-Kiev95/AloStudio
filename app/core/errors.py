@@ -39,4 +39,8 @@ async def chatwoot_http_exception_handler(
     """Emit ``exc.detail`` directly as the response body (no ``detail``
     wrapper)."""
     body = exc.detail if isinstance(exc.detail, dict | list) else {"message": exc.detail}
-    return JSONResponse(status_code=exc.status_code, content=body)
+    # ``headers`` was accepted by HTTPException and silently dropped here —
+    # a 429's ``Retry-After`` never reached the client.
+    return JSONResponse(
+        status_code=exc.status_code, content=body, headers=exc.headers
+    )

@@ -31,7 +31,13 @@ export async function POST(req: Request): Promise<Response> {
   try {
     res = await fetch(`${BACKEND}/auth/sign_in`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        // The backend limits failed sign-ins per client address, and every
+        // request reaches it from this server — without the visitor's own
+        // address it can only limit per account.
+        ...forwardedFor(req),
+      },
       body: JSON.stringify({ email, password }),
     });
   } catch {
@@ -56,4 +62,9 @@ export async function POST(req: Request): Promise<Response> {
   }
   const data = (body as { data?: Record<string, unknown> })?.data ?? {};
   return NextResponse.json({ ok: true, accountId, user: data });
+}
+
+function forwardedFor(req: Request): Record<string, string> {
+  const xff = req.headers.get("x-forwarded-for");
+  return xff ? { "X-Forwarded-For": xff } : {};
 }

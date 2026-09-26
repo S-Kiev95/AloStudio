@@ -253,6 +253,31 @@ Instagram.
 - **Acceso Avanzado a `instagram_manage_messages`** + Verificación de
   Negocio: sin eso no se le puede escribir a alguien sin rol en la app.
 
+**Seguridad (auditoría 2026-09-26)**
+
+- ~~Registro anónimo abierto~~ y ~~SSRF en adjuntos/webhooks~~ — hechos
+  (`dfa3e8b`). ~~Login sin límite de intentos~~ — hecho (siguiente commit).
+- **Firma de webhooks de Meta apagada en staging** con el App Secret ya
+  cargado. Antes de prenderla: confirmar si WhatsApp está en la misma app
+  de Meta; si no, pasar WhatsApp a `verify_against_any_secret` primero.
+- Webhooks e integraciones aceptan el `inbox_id` de otra cuenta (filtra el
+  nombre de la bandeja). Los webhooks por bandeja nunca se disparan.
+- Tokens MCP en texto plano; siguen valiendo si sacan al usuario de la
+  cuenta.
+- DNS rebinding contra `app/core/outbound.py`: una resolución de ventana.
+
+**Trampa en los tests: "no hay ARQ" es en realidad un Redis roto.** El
+default de `tests/conftest.py` es `redis://localhost:6380`, y en Windows
+`localhost` prueba ::1 primero y se cuelga. Varios tests (p. ej.
+`test_listener_inline_fallback_*` en `test_webhook_retries.py`) dependen
+de que el encolado a ARQ *falle* para ejercer el camino inline; con
+`127.0.0.1` Redis responde, el trabajo se encola de verdad y el test se
+rompe. Lo honesto es forzar el camino inline explícitamente en esos tests
+(monkeypatch de `arq.create_pool`) y recién entonces pasar el default a
+`127.0.0.1`. Mientras tanto, cualquier test de algo que use Redis con
+timeout corto pasa **sin que Redis corra** — por eso los del límite de
+login apuntan a `127.0.0.1` por su cuenta.
+
 **Deuda chica**
 
 - ~~`"You are not authorized to do this action"` en inglés~~ — hecho

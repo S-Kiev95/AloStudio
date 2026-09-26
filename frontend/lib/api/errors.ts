@@ -42,6 +42,8 @@ export class ApiError extends Error {
  */
 const WORDING_BY_CODE: Record<string, string> = {
   not_authorized: "No tenés permiso para hacer esto.",
+  too_many_attempts:
+    "Demasiados intentos fallidos. Esperá unos minutos y probá de nuevo.",
 };
 
 export function messageFromBody(body: unknown, fallback: string): string {

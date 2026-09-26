@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { messageFromBody } from "@/lib/api/errors";
 import { type LoginInput, loginSchema } from "@/lib/auth/schemas";
 
 export default function LoginPage() {
@@ -30,9 +31,7 @@ export default function LoginPage() {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setFormError(
-        body?.errors?.[0] ?? body?.message ?? "No se pudo iniciar sesión.",
-      );
+      setFormError(messageFromBody(body, "No se pudo iniciar sesión."));
       return;
     }
     router.push(body.accountId ? `/accounts/${body.accountId}` : "/accounts");
