@@ -24,6 +24,7 @@ from app.domains.assignment_policies.router import (
 )
 from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
+from app.domains.auth.sso import router as auth_sso_router
 from app.domains.automation.router import router as automation_rules_router
 from app.domains.bulk_actions.router import router as bulk_actions_router
 from app.domains.campaigns.router import router as campaigns_router
@@ -168,6 +169,10 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(accounts_router)
     app.include_router(auth_router)
+    # SSO bridge from Postiz (own extension, not a Chatwoot mirror).
+    # ``POST /auth/sso`` exchanges a Postiz-minted HS256 JWT for a devise
+    # session; disabled (404) unless SSO_SHARED_SECRET is set.
+    app.include_router(auth_sso_router)
     app.include_router(resend_confirmation_router)
     app.include_router(profile_router)
     app.include_router(inboxes_router)

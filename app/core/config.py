@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     jwt_access_ttl_seconds: int = 3600
     jwt_refresh_ttl_seconds: int = 60 * 60 * 24 * 30
 
+    # --- SSO (Postiz bridge)
+    # HS256 shared secret for ``POST /auth/sso`` tokens minted by Postiz.
+    # Deliberately distinct from ``secret_key`` (which signs AloStudio's own
+    # tokens) so a leak of one can't forge the other. Empty = the endpoint
+    # answers 404 (feature off, fail closed). MUST match the secret Postiz
+    # signs with.
+    sso_shared_secret: str = ""
+
     # --- mail
     smtp_host: str = "localhost"
     smtp_port: int = 1025

@@ -1,0 +1,34 @@
+# Version control + local environments
+.git
+.venv
+venv
+.env
+.env.*
+
+# Python caches
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Not needed at runtime
+tests
+reference
+frontend
+docs
+scripts
+skills
+.claude
+.codex
+reports
+
+# Docs / presentations
+*.md
+*.pdf
+
+# Compose + CI live outside the image
+docker-compose*.yml
+Jenkins
+.github
