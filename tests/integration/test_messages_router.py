@@ -296,6 +296,10 @@ async def test_create_message_attaches_external_url(client, seeded, db_session):
     att = body["attachments"][0]
     assert att["data_url"] == "https://cdn.example.com/a.png"
     assert att["file_type"] == "image"
+    assert att["thumb_url"] == ""
+    # Not in Chatwoot's shape (it names files off the blob): additive, so a
+    # client can label the download.
+    assert att["fallback_title"] == "a.png"
 
 
 async def test_create_message_rejects_missing_conversation(client, seeded):

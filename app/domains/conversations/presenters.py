@@ -184,6 +184,11 @@ def _attachment_metadata(att: Attachment) -> dict[str, Any]:
     Blob URLs point at the authenticated media proxy (see
     :func:`_attachment_read_url`); location/contact carry their coordinates
     / card metadata.
+
+    Blob types (audio + the default branch) also carry ``fallback_title`` and
+    ``extension``. Chatwoot reads a file's name off its ActiveStorage blob;
+    we have no blob, so the original name lives in ``fallback_title`` and a
+    client needs it to label the download. Additive: every Chatwoot key stays.
     """
     ft = att.file_type
     read_url = _attachment_read_url(att)
@@ -213,12 +218,15 @@ def _attachment_metadata(att: Attachment) -> dict[str, Any]:
         meta = att.meta or {}
         return {
             "extension": att.extension,
+            "fallback_title": att.fallback_title,
             "data_url": read_url,
             "thumb_url": "",
             "transcribed_text": meta.get("transcribed_text", ""),
         }
     # image / video / file / share / story_mention / ig_* — default branch.
     return {
+        "extension": att.extension,
+        "fallback_title": att.fallback_title,
         "data_url": read_url,
         "thumb_url": "",
     }
