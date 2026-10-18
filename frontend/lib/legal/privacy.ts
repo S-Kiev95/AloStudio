@@ -7,28 +7,17 @@
  * which rules out anything that could be unpublished, expire, or sit
  * behind a login.
  *
- * ⚠️ THIS IS A STARTING TEMPLATE, NOT LEGAL ADVICE. It describes what
- * AloStudio's code actually does with data, which is the part that can
- * be stated factually. Everything about *who* operates the deployment —
- * legal name, jurisdiction, retention commitments — is a placeholder in
- * `OPERATOR` below and must be filled in and reviewed by whoever is
- * responsible for the deployment before it is published to real users.
+ * Who operates the deployment (name, mailbox, jurisdiction) lives in
+ * `./operator.ts`, shared with the terms and the data-deletion page.
  */
 
-export const OPERATOR = {
-  /** TODO: razón social del responsable del tratamiento. */
-  legalName: "AloStudio",
-  /** TODO: casilla que realmente atienda las solicitudes de datos. */
-  contactEmail: "privacidad@alostudio.app",
-} as const;
+import type { LegalSection } from "./operator";
 
-export const PRIVACY_LAST_UPDATED = "21 de agosto de 2026";
+export { OPERATOR } from "./operator";
 
-export type PrivacySection = {
-  title: string;
-  paragraphs: string[];
-  bullets?: string[];
-};
+export const PRIVACY_LAST_UPDATED = "15 de octubre de 2026";
+
+export type PrivacySection = LegalSection;
 
 export const PRIVACY_SECTIONS: PrivacySection[] = [
   {
@@ -71,6 +60,13 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     ],
   },
   {
+    title: "Publicación de contenido y estadísticas",
+    paragraphs: [
+      "AloStudio incluye un módulo de publicación que permite a la organización programar y publicar contenido en sus propias Páginas de Facebook, cuentas profesionales de Instagram y perfiles de Threads, responder comentarios y consultar estadísticas de esas publicaciones.",
+      "Para eso guarda la lista de Páginas y cuentas que la organización eligió conectar, el contenido que programa (texto, imágenes y videos), los identificadores de las publicaciones creadas y las métricas agregadas que Meta devuelve sobre ellas. No se accede a publicaciones de cuentas que la organización no conectó.",
+    ],
+  },
+  {
     title: "Con quién se comparten",
     paragraphs: [
       "Con los proveedores necesarios para que el servicio funcione, y sólo en la medida en que hacen falta:",
@@ -94,6 +90,8 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     paragraphs: [
       "Podés solicitar acceder a tus datos, rectificarlos, eliminarlos, oponerte a su tratamiento o pedir una copia en formato legible. La solicitud se atiende en los plazos que fije la normativa aplicable.",
       "Como AloStudio trata los datos por cuenta de la organización con la que te comunicaste, lo más rápido suele ser dirigirse a ella. Si preferís, escribí a la dirección del pie de esta página y la derivamos.",
+      "Este tratamiento se rige por la Ley N.º 18.331 de Protección de Datos Personales de Uruguay. Si considerás que tu solicitud no fue atendida, podés recurrir a la Unidad Reguladora y de Control de Datos Personales (URCDP).",
+      "Para pedir que se borren tus datos, seguí las instrucciones de la página Eliminación de datos, enlazada al pie.",
     ],
   },
   {
