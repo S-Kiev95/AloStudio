@@ -316,6 +316,7 @@ class WorkerSettings:
         from app.domains.notifications.mailer import send_notification_email_task
         from app.domains.notifications.push import send_notification_push_task
         from app.domains.portals.embeddings import reindex_article_task
+        from app.workers.business_agent import release_to_ai_task
         from app.workers.deliver_webhook import (
             MAX_ATTEMPTS as WEBHOOK_MAX_ATTEMPTS,
         )
@@ -332,6 +333,9 @@ class WorkerSettings:
             # Enqueued by the comment webhook when an inbox has
             # auto-reply switched on.
             send_comment_autoreply_task,
+            # Enqueued on resolve: hands a WhatsApp conversation the team
+            # owned back to Meta Business Agent.
+            release_to_ai_task,
             # Enqueued on-demand by the NotificationListener when an in-app
             # notification is created and the recipient wants it by email / push.
             send_notification_email_task,

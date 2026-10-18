@@ -87,7 +87,10 @@ export type Conversation = {
   ad_referral?: AdReferral | null;
   /** ``mail_subject`` on an email conversation — the subject the whole
    *  thread hangs off, which is per-thread and not per-message. */
-  additional_attributes?: { mail_subject?: string } & Record<string, unknown>;
+  additional_attributes?: {
+    mail_subject?: string;
+    thread_control?: ThreadControl;
+  } & Record<string, unknown>;
 };
 
 export type ConversationsIndex = {
@@ -315,6 +318,34 @@ export function useToggleStatus(accountId: string, displayId: number) {
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["conversation", accountId, displayId] });
+      qc.invalidateQueries({ queryKey: ["conversations", accountId] });
+    },
+  });
+}
+
+/** Who answers a WhatsApp conversation on a number run by Meta Business
+ *  Agent: Meta's AI (``ai_agent``) or the team in AloStudio (``app``).
+ *  ``metadata`` is what the AI said when it handed the chat off. */
+export type ThreadControl = {
+  owner: "ai_agent" | "app";
+  updated_at?: number;
+  metadata?: string;
+};
+
+/** Take the conversation from Meta's AI (``take``) or hand it back
+ *  (``release``). Meta has to accept first; a refusal comes back as 502
+ *  with Meta's reason. */
+export function useThreadControl(accountId: string, displayId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (action: "take" | "release") =>
+      apiFetch<Conversation>(`${base(accountId)}/${displayId}/thread_control`, {
+        method: "POST",
+        body: JSON.stringify({ action }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["conversation", accountId, displayId] });
+      qc.invalidateQueries({ queryKey: ["messages", accountId, displayId] });
       qc.invalidateQueries({ queryKey: ["conversations", accountId] });
     },
   });

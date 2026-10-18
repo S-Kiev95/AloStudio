@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/conversations";
 import { cn } from "@/lib/utils";
 
+import { AiHandoff } from "./ai-handoff";
 import { ContactPanel } from "./contact-panel";
 import { ConversationActions } from "./conversation-actions";
 import { ConversationParticipants } from "./conversation-participants";
@@ -152,6 +153,13 @@ export function ConversationView({
           )}
         </Button>
       </header>
+
+      {/* Meta Business Agent handoff (WhatsApp numbers answered by Meta's AI) */}
+      <AiHandoff
+        accountId={accountId}
+        displayId={displayId}
+        control={conv.data?.additional_attributes?.thread_control}
+      />
 
       {/* Actions (priority / assignee / labels) */}
       {conv.data ? (

@@ -1248,6 +1248,27 @@ async def _maybe_send_outbound_whatsapp(
         "template_params"
     )
 
+    # On a number answered by Meta Business Agent, an agent's reply first
+    # takes the conversation from the AI so both never answer at once.
+    # Campaigns, automations and bots don't take it.
+    if message.sender_type == "User":
+        from app.domains.whatsapp.business_agent import take_over_before_reply
+
+        try:
+            await take_over_before_reply(
+                session,
+                conversation=conversation,
+                channel=channel,
+                to_phone=to_phone,
+                user_name=_current_user_name(),
+            )
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception(
+                "whatsapp.send.take_over_failed message_id=%s", message.id
+            )
+
     try:
         if template_params:
             from app.domains.whatsapp.template_processor import (

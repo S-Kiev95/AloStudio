@@ -80,6 +80,7 @@ from app.domains.conversations.presenters import (
 from app.domains.conversations.schemas import (
     ConversationCreateRequest,
     ConversationCustomAttributesRequest,
+    ConversationThreadControlRequest,
     ConversationTogglePriorityRequest,
     ConversationToggleStatusRequest,
     ConversationUpdateRequest,
@@ -707,6 +708,33 @@ async def set_custom_attributes(
         conversation=conv,
         custom_attributes=payload.custom_attributes or {},
     )
+    return present_conversation_show(conv)
+
+
+@router.post("/{display_id}/thread_control")
+async def thread_control(
+    display_id: Annotated[int, Path()],
+    payload: ConversationThreadControlRequest,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """``POST /conversations/:id/thread_control`` — take a WhatsApp
+    conversation from Meta Business Agent, or hand it back.
+
+    AloStudio-only (Chatwoot has no Business Agent). Calls Meta's Thread
+    Control API first and records the new owner only when Meta accepts;
+    a refusal surfaces as 502 with Meta's reason.
+    """
+    from app.domains.whatsapp.business_agent import return_to_ai, take_over
+
+    assert ctx.account.id is not None
+    conv = await _load_conversation_by_display_id(
+        session, account_id=ctx.account.id, display_id=display_id
+    )
+    if payload.action == "take":
+        await take_over(session, conversation=conv, user_name=ctx.user.name)
+    else:
+        await return_to_ai(session, conversation=conv, user_name=ctx.user.name)
     return present_conversation_show(conv)
 
 

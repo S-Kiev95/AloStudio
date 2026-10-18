@@ -8,8 +8,10 @@ Ported from:
 Given Meta's webhook payload (Cloud API v17+ shape) and the matching
 :class:`WhatsappChannel`, this module:
 
-  1. Walks ``entry[0].changes[0].value.messages[]`` (the inbound
-     messages bundle) + ``contacts[]`` (sender profile data).
+  1. Walks every ``entry[].changes[].value.messages[]`` (the inbound
+     messages bundle) + ``contacts[]`` (sender profile data). Changes on
+     the ``messaging_handovers`` field go to
+     :mod:`app.domains.whatsapp.business_agent` instead.
   2. Resolves each ``from`` (E.164 phone) to a :class:`Contact` —
      creating one when the number is new on this account, attaching
      the WhatsApp profile name when present.
@@ -112,21 +114,26 @@ _STATUS_MAP: dict[str, int] = {
 # ---------------------------------------------------------------------------
 # Payload accessors
 # ---------------------------------------------------------------------------
-def _value(payload: dict[str, Any]) -> dict[str, Any]:
-    """Pluck ``entry[0].changes[0].value`` from a Cloud webhook payload.
+def _changes(payload: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """Every ``(field, value)`` in a Cloud webhook payload.
 
-    Returns an empty dict when any nested key is missing — Meta's
-    payload shape is well-defined but we want to fail soft on a
-    malformed body rather than raise into the webhook handler.
+    Meta can batch several entries and changes in one POST; each change
+    names its ``field`` (``messages`` carries messages and statuses,
+    ``messaging_handovers`` the Business Agent handoffs). A change with
+    no field is treated as ``messages``; other fields are skipped by the
+    caller.
     """
-    entry = (payload or {}).get("entry") or []
-    if not entry or not isinstance(entry[0], dict):
-        return {}
-    changes = entry[0].get("changes") or []
-    if not changes or not isinstance(changes[0], dict):
-        return {}
-    value = changes[0].get("value") or {}
-    return value if isinstance(value, dict) else {}
+    out: list[tuple[str, dict[str, Any]]] = []
+    for entry in (payload or {}).get("entry") or []:
+        if not isinstance(entry, dict):
+            continue
+        for change in entry.get("changes") or []:
+            if not isinstance(change, dict):
+                continue
+            value = change.get("value")
+            if isinstance(value, dict) and value:
+                out.append((str(change.get("field") or "messages"), value))
+    return out
 
 
 def _message_text(message: dict[str, Any]) -> str:
@@ -352,12 +359,74 @@ async def process_cloud_webhook(
     list is fine (statuses-only update, unprocessable message type,
     duplicate WAMID, etc).
     """
-    value = _value(payload)
-    if not value:
+    out: list[Message] = []
+    changes = _changes(payload)
+    for field, value in changes:
+        if field not in ("messages", "messaging_handovers"):
+            continue
+        if not _for_channel(value, channel):
+            log.info(
+                "whatsapp.inbound.skip reason=other_number field=%s channel_id=%s",
+                field,
+                channel.id,
+            )
+            continue
+        if len(changes) == 1:
+            out.extend(
+                await _process_change(
+                    session, channel=channel, inbox=inbox, field=field, value=value
+                )
+            )
+            continue
+        # A savepoint per change, so one that fails rolls back alone and
+        # the rest of the batch still lands.
+        try:
+            async with session.begin_nested():
+                out.extend(
+                    await _process_change(
+                        session,
+                        channel=channel,
+                        inbox=inbox,
+                        field=field,
+                        value=value,
+                    )
+                )
+        except Exception:
+            log.exception(
+                "whatsapp.inbound.change_failed field=%s channel_id=%s",
+                field,
+                channel.id,
+            )
+    return out
+
+
+async def _process_change(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    inbox: Inbox,
+    field: str,
+    value: dict[str, Any],
+) -> list[Message]:
+    if field == "messaging_handovers":
+        # Meta Business Agent handing a conversation to / from us.
+        from app.domains.whatsapp.business_agent import process_handover_value
+
+        await process_handover_value(
+            session, channel=channel, inbox=inbox, value=value
+        )
         return []
-    return await _process_value(
-        session, channel=channel, inbox=inbox, value=value
-    )
+    return await _process_value(session, channel=channel, inbox=inbox, value=value)
+
+
+def _for_channel(value: dict[str, Any], channel: WhatsappChannel) -> bool:
+    """Several numbers can share one callback URL, and Meta batches their
+    changes; a change naming another ``phone_number_id`` isn't ours."""
+    metadata = value.get("metadata")
+    named = metadata.get("phone_number_id") if isinstance(metadata, dict) else None
+    cfg = channel.provider_config or {}
+    ours = cfg.get("phone_number_id") if isinstance(cfg, dict) else None
+    return not named or not ours or str(named) == str(ours)
 
 
 async def process_360dialog_webhook(
@@ -469,6 +538,12 @@ async def _process_value(
         conversation = await _find_or_create_conversation(
             session, contact_inbox=contact_inbox
         )
+        # On a number answered by Meta Business Agent, Meta routes new
+        # conversations to the AI first.
+        from app.domains.whatsapp.business_agent import mark_ai_owner_if_unknown
+
+        if mark_ai_owner_if_unknown(conversation, channel):
+            session.add(conversation)
         # Ad attribution — present only when the person arrived from a
         # click-to-WhatsApp ad. Stamped before the message is created so the
         # conversation is already attributed when listeners fan out.

@@ -411,6 +411,14 @@ async def broadcast_event(
         await fan_out_to_csat(session, name, **payload)
     except Exception:
         log.exception("csat_listener.error event=%s", name)
+    # Meta Business Agent handoff — a resolved conversation the team owned
+    # goes back to the AI on WhatsApp numbers it answers.
+    from app.domains.whatsapp.listener import fan_out_to_whatsapp
+
+    try:
+        await fan_out_to_whatsapp(session, name, **payload)
+    except Exception:
+        log.exception("whatsapp_listener.error event=%s", name)
     # Reporting event emitter (Phase 7.1) — writes a ReportingEvent row
     # on resolve / first reply / reply / open. Source for dashboards.
     from app.domains.reporting.listener import fan_out_to_reporting

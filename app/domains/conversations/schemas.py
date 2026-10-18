@@ -23,7 +23,7 @@ Rails-ism parity notes:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -132,6 +132,20 @@ class ConversationTogglePriorityRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     priority: str | None = None
+
+
+# =========================================================================
+# POST /conversations/:id/thread_control
+# =========================================================================
+class ConversationThreadControlRequest(BaseModel):
+    """``POST /conversations/:id/thread_control`` — who answers on a
+    WhatsApp number run by Meta Business Agent: ``take`` moves the
+    conversation to the team, ``release`` hands it back to the AI.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    action: Literal["take", "release"]
 
 
 # =========================================================================
