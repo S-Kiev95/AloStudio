@@ -14,6 +14,13 @@ maps to an AloStudio ``Account`` via ``accounts.settings->>'postiz_org_id'``;
 the first visit for an org creates the account with the user as
 administrator, later visits attach unknown users as agents.
 
+``super_admin`` (optional) carries Postiz's own super-admin flag, which
+opens the installation settings (:mod:`app.domains.installation.deps`).
+Only a literal ``true`` counts, and it marks the session minted here, not
+the user. Anything else — the claim missing, ``false``, a string — strips
+the mark from every session of the user, so a super admin removed in
+Postiz loses it on their next SSO sign-in.
+
 Fail-closed: an empty ``SSO_SHARED_SECRET`` answers 404 (feature off) and any
 signature/expiry/claim problem answers 401. No sign-in throttle here — this
 is a machine-issued, short-lived, signed token, not a credential-guessing
@@ -40,6 +47,7 @@ from app.core.security import hash_password
 from app.core.tokens import base58_token
 from app.domains.accounts.models import Account
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
+from app.domains.installation.deps import SSO_SUPER_ADMIN_TOKEN_KEY
 from app.domains.users.models import (
     AccessToken,
     AccountUser,
@@ -98,6 +106,23 @@ async def _find_or_create_user(
     session.add(user)
     await session.flush()
     return user
+
+
+def _with_super_admin_mark(
+    tokens: dict[str, Any], *, client: str, claims: dict[str, Any]
+) -> dict[str, Any]:
+    """Postiz's super-admin flag onto the new session (see module docstring).
+
+    ``is True`` on purpose: a truthy ``"false"`` or ``1`` must not count.
+    Builds new entries instead of editing them, as ``tokens`` shares them
+    with the user's loaded column value.
+    """
+    if claims.get("super_admin") is True:
+        return {**tokens, client: {**tokens[client], SSO_SUPER_ADMIN_TOKEN_KEY: True}}
+    return {
+        key: {k: v for k, v in entry.items() if k != SSO_SUPER_ADMIN_TOKEN_KEY}
+        for key, entry in tokens.items()
+    }
 
 
 async def _ensure_membership(
@@ -205,7 +230,9 @@ async def sso_sign_in(
     user.current_sign_in_at = now
 
     headers, new_tokens = create_new_auth_token(user_tokens=user.tokens, uid=user.uid)
-    user.tokens = new_tokens
+    user.tokens = _with_super_admin_mark(
+        new_tokens, client=headers.client, claims=claims
+    )
     session.add(user)
     await session.flush()
 
