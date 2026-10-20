@@ -5,28 +5,43 @@ Postiz decides who operates the installation: its signed token says
 the exchange mints. A missing claim, ``false``, a truthy look-alike or a
 token signed with another secret never does, and neither does a session
 the same user opened with a password.
+
+Postiz also opens the inbox with several requests at once, so a first visit
+runs several exchanges in parallel: they must all succeed and leave one
+user, one account and every session they minted.
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+import asyncio
+import secrets
+from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import NullPool, delete
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.config import get_settings
 from app.core.db import get_session
+from app.domains.accounts.models import Account
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts import models as _contacts  # noqa: F401  (mapper)
 from app.domains.conversations import models as _conversations  # noqa: F401
 from app.domains.installation import service
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
-from app.domains.users.models import User
+from app.domains.users.models import (
+    ACCOUNT_USER_ROLE_ADMINISTRATOR,
+    AccessToken,
+    AccountUser,
+    User,
+)
 from app.main import app
 
 pytestmark = pytest.mark.integration
@@ -232,3 +247,208 @@ async def test_a_native_super_admin_keeps_the_role_without_the_claim(
     assert (await _user(db_session, email)).type == "SuperAdmin"
     assert (await client.get(CONFIGS, headers=native_session)).status_code == 200
     assert (await client.get(CONFIGS, headers=sso_session)).status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# First access in parallel
+# ---------------------------------------------------------------------------
+PARALLEL = 5
+RACE_DOMAIN = "sso-race.example.com"
+
+
+@pytest.fixture
+async def committed_sessions() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    """Sessions that commit, each on its own connection, as in production.
+
+    The races below only happen between separate transactions, which the
+    shared, rolled-back ``db_session`` can't have. Every row they leave
+    belongs to a ``RACE_DOMAIN`` user or a ``race-`` org and is deleted at
+    teardown.
+    """
+    engine = create_async_engine(get_settings().database_url, poolclass=NullPool)
+    sessions = async_sessionmaker(
+        bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
+    )
+    try:
+        yield sessions
+    finally:
+        async with sessions() as cleanup:
+            race_users = select(User.id).where(User.email.like(f"%@{RACE_DOMAIN}"))  # type: ignore[union-attr]
+            await cleanup.exec(  # type: ignore[call-overload]
+                delete(AccessToken).where(
+                    AccessToken.owner_type == "User",
+                    AccessToken.owner_id.in_(race_users),  # type: ignore[union-attr]
+                )
+            )
+            await cleanup.exec(  # type: ignore[call-overload]
+                delete(Account).where(
+                    Account.settings["postiz_org_id"].astext.like("race-%")
+                )
+            )
+            await cleanup.exec(  # type: ignore[call-overload]
+                delete(User).where(User.email.like(f"%@{RACE_DOMAIN}"))  # type: ignore[union-attr]
+            )
+            await cleanup.commit()
+        await engine.dispose()
+
+
+@pytest.fixture
+def _committing_requests(committed_sessions) -> Iterator[None]:
+    async def _override() -> AsyncIterator[AsyncSession]:
+        # Same contract as ``app.core.db.get_session``.
+        async with committed_sessions() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_session] = _override
+    try:
+        yield
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+@pytest.fixture
+async def parallel_client(_committing_requests) -> AsyncIterator[AsyncClient]:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+def _race_ids() -> tuple[str, str]:
+    """A fresh org id and email suffix, so no run sees another's rows."""
+    run = secrets.token_hex(4)
+    return f"race-{run}", f"{run}@{RACE_DOMAIN}"
+
+
+async def _sign_in_in_parallel(
+    client: AsyncClient, tokens: list[str]
+) -> list[dict[str, Any]]:
+    responses = await asyncio.gather(
+        *(client.post(SSO, json={"token": token}) for token in tokens)
+    )
+    assert [r.status_code for r in responses] == [200] * len(tokens), [
+        r.text for r in responses if r.status_code != 200
+    ]
+    return [{"client": r.headers["client"], **r.json()["data"]} for r in responses]
+
+
+async def _org_accounts(sessions, org_id: str) -> list[Account]:
+    async with sessions() as s:
+        return list(
+            (
+                await s.exec(
+                    select(Account).where(
+                        Account.settings["postiz_org_id"].astext == org_id
+                    )
+                )
+            ).all()
+        )
+
+
+async def test_a_first_visit_in_parallel_creates_one_user_and_one_account(
+    parallel_client, committed_sessions
+):
+    """Production, 2026-10-19: every exchange but the first answered 500
+    on ``index_users_on_uid_and_provider``."""
+    org_id, suffix = _race_ids()
+    email = f"director-{suffix}"
+
+    signed_in = await _sign_in_in_parallel(
+        parallel_client, [_token(email, org_id=org_id) for _ in range(PARALLEL)]
+    )
+
+    accounts = await _org_accounts(committed_sessions, org_id)
+    async with committed_sessions() as s:
+        users = (await s.exec(select(User).where(User.email == email))).all()
+        assert len(users) == 1
+        assert len(accounts) == 1
+        memberships = (
+            await s.exec(
+                select(AccountUser).where(AccountUser.account_id == accounts[0].id)
+            )
+        ).all()
+    assert [(m.user_id, m.role) for m in memberships] == [
+        (users[0].id, ACCOUNT_USER_ROLE_ADMINISTRATOR)
+    ]
+    assert {d["account_id"] for d in signed_in} == {accounts[0].id}
+    # Each exchange's session outlived the others' writes to ``tokens``.
+    assert {d["client"] for d in signed_in} <= set(users[0].tokens)
+
+
+async def test_members_of_a_new_org_in_parallel_share_one_account(
+    parallel_client, committed_sessions
+):
+    """Several people of the same new org open the inbox at once: one
+    account, everyone in it, one administrator."""
+    org_id, suffix = _race_ids()
+    emails = [f"member{i}-{suffix}" for i in range(PARALLEL)]
+
+    signed_in = await _sign_in_in_parallel(
+        parallel_client, [_token(email, org_id=org_id) for email in emails]
+    )
+
+    accounts = await _org_accounts(committed_sessions, org_id)
+    assert len(accounts) == 1
+    async with committed_sessions() as s:
+        memberships = (
+            await s.exec(
+                select(AccountUser).where(AccountUser.account_id == accounts[0].id)
+            )
+        ).all()
+    assert {m.user_id for m in memberships} == {d["id"] for d in signed_in}
+    assert len(memberships) == PARALLEL
+    assert [m.role for m in memberships].count(ACCOUNT_USER_ROLE_ADMINISTRATOR) == 1
+    assert {d["account_id"] for d in signed_in} == {accounts[0].id}
+
+
+async def test_parallel_exchanges_of_a_known_user_keep_every_session(
+    parallel_client, committed_sessions
+):
+    """Each exchange appends its session to the user's ``tokens``; none may
+    write back a stale copy that drops another's."""
+    org_id, suffix = _race_ids()
+    email = f"returning-{suffix}"
+    await _sign_in_in_parallel(parallel_client, [_token(email, org_id=org_id)])
+
+    signed_in = await _sign_in_in_parallel(
+        parallel_client, [_token(email, org_id=org_id) for _ in range(PARALLEL)]
+    )
+
+    async with committed_sessions() as s:
+        user = (await s.exec(select(User).where(User.email == email))).one()
+    assert {d["client"] for d in signed_in} <= set(user.tokens)
+
+
+@pytest.mark.usefixtures("_committing_requests")
+async def test_the_session_is_committed_before_the_response_leaves(
+    committed_sessions,
+):
+    """Postiz sends every request it held during the exchange as soon as
+    the response arrives; the session must already be in the database.
+    ``ASGITransport`` returns only once the app finishes, so the check runs
+    where the response starts."""
+    org_id, suffix = _race_ids()
+    email = f"eager-{suffix}"
+    committed_at_response: list[bool] = []
+
+    async def watching_app(scope, receive, send) -> None:
+        async def _send(message) -> None:
+            if message["type"] == "http.response.start":
+                async with committed_sessions() as s:
+                    user = (
+                        await s.exec(select(User).where(User.email == email))
+                    ).first()
+                committed_at_response.append(user is not None)
+            await send(message)
+
+        await app(scope, receive, _send)
+
+    transport = ASGITransport(app=watching_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        await _sign_in_in_parallel(ac, [_token(email, org_id=org_id)])
+
+    assert committed_at_response == [True]

@@ -36,6 +36,8 @@ from typing import Any
 import jwt
 from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -88,7 +90,13 @@ def _decode_sso_claims(token: str) -> dict[str, Any] | None:
 async def _find_or_create_user(
     session: AsyncSession, *, email: str, name: str
 ) -> User:
-    user = (await session.exec(select(User).where(User.email == email))).first()
+    # FOR NO KEY UPDATE: the caller appends this exchange's session to
+    # ``user.tokens``, and two exchanges for the same user would otherwise
+    # each write back the tokens they read, the later one dropping the
+    # other's session. Only non-key columns change, so rows that reference
+    # the user can still be inserted meanwhile.
+    by_email = select(User).where(User.email == email).with_for_update(key_share=True)
+    user = (await session.exec(by_email)).first()
     if user is not None:
         return user
     # Random, unguessable password — SSO users never sign in with it; the
@@ -103,8 +111,20 @@ async def _find_or_create_user(
         pubsub_token=base58_token(24),
         confirmed_at=datetime.now(UTC).replace(tzinfo=None),
     )
-    session.add(user)
-    await session.flush()
+    try:
+        # A savepoint: Postiz opens the inbox with several requests at once,
+        # so a first visit can run several exchanges in parallel, and the
+        # check above passes for all of them. The insert of whichever comes
+        # second waits for the first to commit, then collides on
+        # ``index_users_on_uid_and_provider``.
+        async with session.begin_nested():
+            session.add(user)
+            await session.flush()
+    except IntegrityError:
+        # The other exchange created the user: sign in as that one.
+        user = (await session.exec(by_email)).first()
+        if user is None:
+            raise
     return user
 
 
@@ -128,7 +148,18 @@ def _with_super_admin_mark(
 async def _ensure_membership(
     session: AsyncSession, *, user: User, org_id: str, org_name: str
 ) -> None:
-    """Link ``user`` to the account mapped to ``org_id``, creating it if needed."""
+    """Link ``user`` to the account mapped to ``org_id``, creating it if needed.
+
+    Serialized per org with a transaction-scoped advisory lock. Two members
+    of a new org signing in at once would otherwise both find no account and
+    create one each, as nothing in the schema keeps ``postiz_org_id``
+    unique, and two first members of a mapped account would both become its
+    administrator. The lock is held until the request commits, so the
+    second exchange sees what the first one wrote.
+    """
+    await session.exec(
+        select(func.pg_advisory_xact_lock(func.hashtext(f"postiz_org:{org_id}")))
+    )
     account = (
         await session.exec(
             select(Account).where(Account.settings["postiz_org_id"].astext == org_id)
@@ -188,7 +219,10 @@ async def _ensure_membership(
 async def sso_sign_in(
     payload: SsoRequest,
     response: Response,
-    session: AsyncSession = Depends(get_session),
+    # scope="function" commits before the response is sent, not after (the
+    # default): Postiz uses the minted session right away, for every
+    # request it held during the exchange.
+    session: AsyncSession = Depends(get_session, scope="function"),
 ) -> dict:
     """Exchange a Postiz-signed SSO token for an AloStudio session.
 
