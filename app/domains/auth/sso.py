@@ -147,8 +147,12 @@ def _with_super_admin_mark(
 
 async def _ensure_membership(
     session: AsyncSession, *, user: User, org_id: str, org_name: str
-) -> None:
+) -> int:
     """Link ``user`` to the account mapped to ``org_id``, creating it if needed.
+
+    Returns that account's id: the session is minted for it, so a user who
+    belongs to several Postiz orgs lands in the account of the org they
+    came from rather than in their first membership.
 
     Serialized per org with a transaction-scoped advisory lock. Two members
     of a new org signing in at once would otherwise both find no account and
@@ -185,7 +189,7 @@ async def _ensure_membership(
         }
         session.add(result.account)
         await session.flush()
-        return
+        return result.account.id
 
     membership = (
         await session.exec(
@@ -196,7 +200,7 @@ async def _ensure_membership(
         )
     ).first()
     if membership is not None:
-        return
+        return account.id
 
     # First user of an already-mapped account becomes its administrator
     # (covers accounts mapped out-of-band); everyone else lands as agent.
@@ -213,6 +217,7 @@ async def _ensure_membership(
         )
     )
     await session.flush()
+    return account.id
 
 
 @router.post("/sso", status_code=status.HTTP_200_OK)
@@ -255,7 +260,9 @@ async def sso_sign_in(
         )
 
     user = await _find_or_create_user(session, email=email, name=name)
-    await _ensure_membership(session, user=user, org_id=org_id, org_name=org_name)
+    account_id = await _ensure_membership(
+        session, user=user, org_id=org_id, org_name=org_name
+    )
 
     # Devise `trackable` hook, mirroring sign_in.
     now = datetime.now(UTC).replace(tzinfo=None)
@@ -303,4 +310,5 @@ async def sso_sign_in(
         user=user,
         access_token=access_token,
         account_users=list(memberships),
+        active_account_id=account_id,
     )

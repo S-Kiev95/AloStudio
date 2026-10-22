@@ -256,6 +256,26 @@ PARALLEL = 5
 RACE_DOMAIN = "sso-race.example.com"
 
 
+# ---------------------------------------------------------------------------
+# One user, several Postiz orgs
+# ---------------------------------------------------------------------------
+async def test_the_session_lands_in_the_account_of_the_org_it_came_from(client):
+    email = "multi@sso.example.com"
+
+    async def account_for(org_id: str) -> int:
+        token = _token(email, org_id=org_id, org_name=f"Org {org_id}")
+        resp = await client.post(SSO, json={"token": token})
+        assert resp.status_code == 200, resp.text
+        return resp.json()["data"]["account_id"]
+
+    account_a = await account_for("org-a")
+    account_b = await account_for("org-b")
+    assert account_a != account_b
+    # Not the first membership: each org keeps landing in its own account.
+    assert await account_for("org-b") == account_b
+    assert await account_for("org-a") == account_a
+
+
 @pytest.fixture
 async def committed_sessions() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
     """Sessions that commit, each on its own connection, as in production.
