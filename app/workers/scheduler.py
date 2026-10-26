@@ -230,17 +230,27 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         ig_fired = await fire_due_instagram_posts(ig_session)
         await ig_session.commit()
 
+    # Multi-network publications. Own session for the same reason: each
+    # claim is committed before its job is enqueued.
+    from app.workers.publishing import fire_due_publications
+
+    async with sessionmaker() as pub_session:
+        publications_fired = await fire_due_publications(pub_session)
+        await pub_session.commit()
+
     log.info(
         "scheduler.tick.done campaigns_fired=%s conversations_reopened=%s "
-        "instagram_posts_fired=%s",
+        "instagram_posts_fired=%s publications_fired=%s",
         campaigns_fired,
         conversations_reopened,
         len(ig_fired),
+        len(publications_fired),
     )
     return {
         "campaigns_fired": campaigns_fired,
         "conversations_reopened": conversations_reopened,
         "instagram_posts_fired": len(ig_fired),
+        "publications_fired": len(publications_fired),
     }
 
 
@@ -326,10 +336,18 @@ class WorkerSettings:
         from app.workers.instagram_autoreply import (
             send_comment_autoreply_task,
         )
+        from app.workers.publishing import (
+            JOB_TIMEOUT_SECONDS as PUBLICATION_JOB_TIMEOUT_SECONDS,
+        )
+        from app.workers.publishing import publish_publication_task
 
         return [
             tick_5min,
             publish_instagram_post_task,
+            # Enqueued when a publication is due (scheduler) or published
+            # now (REST); retries itself on rate limits. Longer timeout than
+            # ARQ's default: one job publishes several channels.
+            func(publish_publication_task, timeout=PUBLICATION_JOB_TIMEOUT_SECONDS),
             # Enqueued by the comment webhook when an inbox has
             # auto-reply switched on.
             send_comment_autoreply_task,

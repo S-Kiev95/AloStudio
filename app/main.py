@@ -79,6 +79,7 @@ from app.domains.notifications.subscriptions_router import (
 from app.domains.portals.public_router import public_router as portals_public_router
 from app.domains.portals.router import router as portals_router
 from app.domains.products.router import router as products_router
+from app.domains.publishing.router import router as publishing_router
 from app.domains.reporting.router import (
     live_reports_router,
     summary_reports_router,
@@ -295,6 +296,9 @@ def create_app() -> FastAPI:
     # posts/stories link to products for AI/CRM context.
     app.include_router(products_router)
     app.include_router(appointments_router)
+    # Multi-network publishing: one publication, many channels, each
+    # published by its network adapter.
+    app.include_router(publishing_router)
     # Twilio SMS webhook (Phase 5f). ``/twilio/callback`` —
     # form-encoded payload, channel resolved by MessagingServiceSid
     # then (AccountSid, To). Twilio's WhatsApp medium ships in 5f.6.
