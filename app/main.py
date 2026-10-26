@@ -16,6 +16,7 @@ from app.domains.agent_bots.router import (
 from app.domains.agent_bots.router import (
     router as agent_bots_router,
 )
+from app.domains.appointments.router import router as appointments_router
 from app.domains.assignment_policies.router import (
     inbox_router as inbox_assignment_policy_router,
 )
@@ -293,6 +294,7 @@ def create_app() -> FastAPI:
     # Product catalogue (feat/instagram-graph I.11). Account-scoped CRUD;
     # posts/stories link to products for AI/CRM context.
     app.include_router(products_router)
+    app.include_router(appointments_router)
     # Twilio SMS webhook (Phase 5f). ``/twilio/callback`` —
     # form-encoded payload, channel resolved by MessagingServiceSid
     # then (AccountSid, To). Twilio's WhatsApp medium ships in 5f.6.

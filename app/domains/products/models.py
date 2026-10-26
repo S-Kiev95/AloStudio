@@ -19,6 +19,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlmodel import Field
 
@@ -31,6 +32,11 @@ class Product(TimestampMixin, table=True):
     __tablename__ = "products"
     __table_args__ = (
         Index("index_products_on_account_id", "account_id"),
+        UniqueConstraint(
+            "account_id",
+            "external_id",
+            name="uniq_products_account_external_id",
+        ),
     )
 
     id: int | None = Field(
@@ -66,6 +72,9 @@ class Product(TimestampMixin, table=True):
     enabled: bool = Field(
         default=True,
         sa_column=Column(Boolean, nullable=False, server_default="true"),
+    )
+    external_id: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
     )
 
 

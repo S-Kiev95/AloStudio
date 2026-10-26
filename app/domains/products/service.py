@@ -39,6 +39,7 @@ async def create_product(
         url=payload.get("url"),
         image_url=payload.get("image_url"),
         enabled=payload.get("enabled", True),
+        external_id=payload.get("external_id"),
     )
     session.add(product)
     await session.flush()
