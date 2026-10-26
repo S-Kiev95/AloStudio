@@ -15,11 +15,12 @@ signed (unguessable) and expiring.
 from __future__ import annotations
 
 import mimetypes
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Query
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 
 from app.core.config import get_settings
 from app.core.errors import ChatwootHTTPException
@@ -73,23 +74,36 @@ async def serve_public_media(
     )
     if not is_valid(_payload(key), exp, sig):
         raise not_found
+    # Streamed, not buffered: a reel can be hundreds of MB and Meta may
+    # fetch it more than once.
+    client = httpx.AsyncClient(timeout=_TIMEOUT)
     try:
-        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            resp = await client.get(signed_read_url(object_url(key)))
-            resp.raise_for_status()
+        resp = await client.send(
+            client.build_request("GET", signed_read_url(object_url(key))),
+            stream=True,
+        )
+        resp.raise_for_status()
     except httpx.HTTPError as exc:
+        await client.aclose()
         raise not_found from exc
+
+    async def _body() -> AsyncIterator[bytes]:
+        try:
+            async for chunk in resp.aiter_bytes():
+                yield chunk
+        finally:
+            await resp.aclose()
+            await client.aclose()
 
     content_type = (
         mimetypes.guess_type(key)[0]
         or resp.headers.get("content-type")
         or "application/octet-stream"
     )
-    return Response(
-        content=resp.content,
-        media_type=content_type,
-        headers={"Cache-Control": "public, max-age=3600"},
-    )
+    headers = {"Cache-Control": "public, max-age=3600"}
+    if resp.headers.get("content-length"):
+        headers["Content-Length"] = resp.headers["content-length"]
+    return StreamingResponse(_body(), media_type=content_type, headers=headers)
 
 
 __all__ = ["PUBLIC_MEDIA_TTL_SECONDS", "public_media_url", "router"]

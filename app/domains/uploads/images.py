@@ -80,6 +80,8 @@ def to_instagram_jpeg(data: bytes) -> bytes:
         raise ImageConversionError("not a decodable image") from exc
     except OSError as exc:  # truncated / malformed payloads
         raise ImageConversionError(str(exc)) from exc
+    except Image.DecompressionBombError as exc:  # absurd pixel counts
+        raise ImageConversionError(str(exc)) from exc
 
 
 __all__ = ["MAX_BYTES", "MAX_EDGE", "ImageConversionError", "to_instagram_jpeg"]
