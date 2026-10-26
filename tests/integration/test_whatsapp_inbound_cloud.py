@@ -219,6 +219,50 @@ async def test_duplicate_wamid_is_idempotent(db_session):
     assert len(rows) == 1
 
 
+async def test_parallel_redelivery_of_a_wamid_is_skipped_quietly(
+    db_session, monkeypatch
+):
+    """Meta delivered one message twice at once: both requests passed the
+    duplicate check before either inserted. The loser used to poison the
+    session and the webhook answered 500 on commit."""
+    from app.domains.whatsapp import incoming_cloud
+
+    channel, inbox = await _seed_inbox(db_session, suffix="-race")
+    payload = _text_message_payload(
+        from_phone="5554445566", wamid="wamid.race", body="twice"
+    )
+    real_build = incoming_cloud._build_media_attachments
+    raced = False
+
+    async def _other_delivery_lands_first(**kwargs):
+        # Runs after this delivery's duplicate check and before its insert,
+        # the window the parallel request committed in.
+        nonlocal raced
+        if not raced:
+            raced = True
+            await process_cloud_webhook(
+                db_session, channel=channel, inbox=inbox, payload=payload
+            )
+        return await real_build(**kwargs)
+
+    monkeypatch.setattr(
+        incoming_cloud, "_build_media_attachments", _other_delivery_lands_first
+    )
+    out = await process_cloud_webhook(
+        db_session, channel=channel, inbox=inbox, payload=payload
+    )
+    assert out == []
+    # The session is still usable, so the request can commit.
+    rows = list(
+        (
+            await db_session.exec(
+                select(Message).where(Message.source_id == "wamid.race")
+            )
+        ).all()
+    )
+    assert len(rows) == 1
+
+
 async def test_unprocessable_message_types_are_dropped(db_session):
     channel, inbox = await _seed_inbox(db_session, suffix="-react")
     # Reaction + ephemeral types: Chatwoot drops these at the front of

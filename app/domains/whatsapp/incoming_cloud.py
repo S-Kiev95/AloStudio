@@ -52,6 +52,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -555,19 +556,30 @@ async def _process_value(
             channel=channel, msg=msg, msg_type=str(msg_type)
         )
         try:
-            inserted = await create_message(
-                session,
-                conversation=conversation,
-                params=_MessageBuilderParams(
-                    # For media, content is the caption (mirrors
-                    # ``@message.content ||= attachment_payload[:caption]``).
-                    content=body or media_caption,
-                    message_type="incoming",
-                    source_id=str(wamid),
-                    attachments=attachments or None,
-                ),
-                user_id=None,
+            # A savepoint, so losing the race below rolls back only this
+            # insert and the session stays usable for the request's commit.
+            async with session.begin_nested():
+                inserted = await create_message(
+                    session,
+                    conversation=conversation,
+                    params=_MessageBuilderParams(
+                        # For media, content is the caption (mirrors
+                        # ``@message.content ||= attachment_payload[:caption]``).
+                        content=body or media_caption,
+                        message_type="incoming",
+                        source_id=str(wamid),
+                        attachments=attachments or None,
+                    ),
+                    user_id=None,
+                )
+        except IntegrityError:
+            # The duplicate check above passed and the row still collided:
+            # Meta delivered the same WAMID twice in parallel and the other
+            # request committed in between. Already stored, not an error.
+            log.info(
+                "whatsapp.inbound.skip reason=duplicate_race wamid=%s", wamid
             )
+            continue
         except Exception:
             log.exception(
                 "whatsapp.inbound.create_message_failed wamid=%s", wamid
