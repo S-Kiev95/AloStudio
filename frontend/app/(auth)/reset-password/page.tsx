@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 import { ResetForm } from "./reset-form";
 
 /**
@@ -19,27 +17,26 @@ export default async function ResetPasswordPage({
   const token = Array.isArray(raw) ? raw[0] : raw;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Nueva contraseña</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {token ? (
-          <ResetForm token={token} />
-        ) : (
-          <div className="space-y-3">
-            <p role="alert" className="text-sm text-danger">
-              Enlace inválido o incompleto.
-            </p>
-            <Link
-              href="/forgot-password"
-              className="text-sm text-info hover:underline"
-            >
-              Pedir un nuevo enlace
-            </Link>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <div className="neon-sign">
+        <h1 className="text-[28px] leading-[1.2]">Nueva contraseña</h1>
+      </div>
+
+      {token ? (
+        <ResetForm token={token} />
+      ) : (
+        <div className="space-y-3">
+          <p role="alert" className="text-sm text-danger">
+            Enlace inválido o incompleto.
+          </p>
+          <Link
+            href="/forgot-password"
+            className="inline-block text-sm text-info hover:underline"
+          >
+            Pedir un nuevo enlace
+          </Link>
+        </div>
+      )}
+    </div>
   );
 }

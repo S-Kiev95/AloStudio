@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { messageFromBody } from "@/lib/api/errors";
 
 /**
@@ -50,49 +50,44 @@ function SsoExchange() {
   }, [params, router]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Acceso desde Postiz</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {error ? (
-          <div className="space-y-4">
-            <p
-              role="alert"
-              className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
-            >
-              {error}
-            </p>
-            <Link
-              href="/login"
-              className="block text-center text-sm text-info hover:underline"
-            >
-              Ir a iniciar sesión
-            </Link>
-          </div>
-        ) : (
-          <p className="text-sm text-fg-muted">Iniciando sesión…</p>
-        )}
-      </CardContent>
-    </Card>
+    <div className="space-y-5">
+      <div className="neon-sign">
+        <h1 className="text-[28px] leading-[1.2]">Acceso desde Postiz</h1>
+      </div>
+      {error ? (
+        <div className="space-y-4">
+          <p
+            role="alert"
+            className="rounded-control border border-danger/40 bg-danger/10 px-3.5 py-2.5 text-sm text-danger"
+          >
+            {error}
+          </p>
+          <Link
+            href="/login"
+            className="block text-center text-sm text-info hover:underline"
+          >
+            Ir a iniciar sesión
+          </Link>
+        </div>
+      ) : (
+        <p className="text-sm text-fg-muted">Iniciando sesión…</p>
+      )}
+    </div>
   );
 }
 
 export default function SsoPage() {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-bg p-4">
-      <span className="flex items-center gap-2.5">
-        <span
-          className="grid h-9 w-9 place-items-center rounded-lg text-base font-bold text-primary-fg shadow-[0_2px_12px_rgb(252_213_53/0.4)]"
-          style={{ background: "var(--gradient-primary)" }}
-        >
-          A
-        </span>
-        <span className="text-xl font-semibold tracking-tight text-fg">
-          AloStudio
-        </span>
-      </span>
-      <div className="w-full max-w-sm">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center p-4 sm:p-6">
+      <div className="fixed right-3 top-3 z-20">
+        <ThemeToggle />
+      </div>
+      <div className="glass-panel w-full max-w-[420px] rounded-panel bg-surface p-7 sm:p-9">
+        <div className="mb-7">
+          <span className="neon-wordmark inline-block select-none text-[38px] leading-none">
+            AloStudio
+          </span>
+        </div>
         <Suspense>
           <SsoExchange />
         </Suspense>

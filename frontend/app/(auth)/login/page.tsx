@@ -7,7 +7,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { messageFromBody } from "@/lib/api/errors";
@@ -39,78 +38,75 @@ export default function LoginPage() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Iniciar sesión</CardTitle>
-        <p className="mt-1 text-sm text-fg-muted">Accedé a tu cuenta de AloStudio.</p>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          {formError ? (
-            <p
-              role="alert"
-              className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
-            >
-              {formError}
+    <div className="space-y-6">
+      <div>
+        <div className="neon-sign">
+          <h1 className="text-[28px] leading-[1.2]">Iniciar sesión</h1>
+        </div>
+        <p className="mt-1.5 text-sm text-fg-muted">
+          Accedé a tu cuenta de AloStudio.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        {formError ? (
+          <p
+            role="alert"
+            className="rounded-control border border-danger/40 bg-danger/10 px-3.5 py-2.5 text-sm text-danger"
+          >
+            {formError}
+          </p>
+        ) : null}
+
+        <div className="space-y-1.5">
+          <Label htmlFor="email" required>
+            Email
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "email-error" : undefined}
+            {...register("email")}
+          />
+          {errors.email ? (
+            <p id="email-error" role="alert" className="text-sm text-danger">
+              {errors.email.message}
             </p>
           ) : null}
+        </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="email" required>
-              Email
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              aria-invalid={Boolean(errors.email)}
-              aria-describedby={errors.email ? "email-error" : undefined}
-              {...register("email")}
-            />
-            {errors.email ? (
-              <p id="email-error" role="alert" className="text-sm text-danger">
-                {errors.email.message}
-              </p>
-            ) : null}
-          </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="password" required>
+            Contraseña
+          </Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? "password-error" : undefined}
+            {...register("password")}
+          />
+          {errors.password ? (
+            <p id="password-error" role="alert" className="text-sm text-danger">
+              {errors.password.message}
+            </p>
+          ) : null}
+        </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="password" required>
-              Contraseña
-            </Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              aria-invalid={Boolean(errors.password)}
-              aria-describedby={
-                errors.password ? "password-error" : undefined
-              }
-              {...register("password")}
-            />
-            {errors.password ? (
-              <p
-                id="password-error"
-                role="alert"
-                className="text-sm text-danger"
-              >
-                {errors.password.message}
-              </p>
-            ) : null}
-          </div>
+        <Button type="submit" className="w-full" loading={isSubmitting}>
+          Entrar
+        </Button>
 
-          <Button type="submit" className="w-full" loading={isSubmitting}>
-            Entrar
-          </Button>
-
-          <Link
-            href="/forgot-password"
-            className="block text-center text-sm text-info hover:underline"
-          >
-            ¿Olvidaste tu contraseña?
-          </Link>
-        </form>
-      </CardContent>
-    </Card>
+        <Link
+          href="/forgot-password"
+          className="block pt-1 text-center text-sm text-info hover:underline"
+        >
+          ¿Olvidaste tu contraseña?
+        </Link>
+      </form>
+    </div>
   );
 }

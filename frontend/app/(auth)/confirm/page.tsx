@@ -1,5 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 import { ConfirmClient } from "./confirm-client";
 
 /**
@@ -16,13 +14,11 @@ export default async function ConfirmPage({
   const token = Array.isArray(raw) ? raw[0] : raw;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Confirmar email</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ConfirmClient token={token ?? null} />
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <div className="neon-sign">
+        <h1 className="text-[28px] leading-[1.2]">Confirmar email</h1>
+      </div>
+      <ConfirmClient token={token ?? null} />
+    </div>
   );
 }

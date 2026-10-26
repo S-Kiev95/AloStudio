@@ -12,6 +12,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "AloStudio";
   const options = {
     body: data.body || "",
+    icon: "/brand/alostudio-icon-192.png",
+    badge: "/brand/alostudio-icon-180.png",
     tag: data.url || undefined,
     data: { url: data.url || "/" },
   };
