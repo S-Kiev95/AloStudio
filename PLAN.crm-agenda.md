@@ -110,4 +110,72 @@ Todos los tests nuevos y los de `tests/integration/test_products.py` pasan, `ruf
 
 ## Estado
 
-_(lo completa el agente al terminar)_
+### Qué se hizo
+
+1. **Backend — Dominio `app/domains/appointments/` y migración Alembic**:
+   - Modelo `Appointment` (`app/domains/appointments/models.py`) con `TimestampMixin`, FKs (`accounts.id` `CASCADE`, `contacts.id` `CASCADE`, `products.id` `SET NULL`, `users.id` `SET NULL`), índices (`account_id`, `contact_id`, `(account_id, starts_at)`), borrado físico y `external_id` opcional único por cuenta para idempotencia de importación (también agregado `external_id` nullable con constraint `(account_id, external_id)` en `products` sin alterar comportamiento existente).
+   - Migración `alembic/versions/c6d7e8f9a0b1_crm_appointments.py` con `down_revision = "b5c6d7e8f9a0"`, `upgrade` y `downgrade` verificados contra Postgres.
+   - Schemas (`schemas.py`), servicio (`service.py`), presenter (`presenters.py`, incluyendo `contact` y `product` embebidos y fechas ISO 8601) y router HTTP (`router.py`) registrado en `app/main.py` junto a `products_router`.
+   - Endpoints `GET`, `POST`, `GET /{appointment_id}`, `PATCH /{appointment_id}` y `DELETE /{appointment_id}` bajo `/api/v1/accounts/{account_id}/appointments` accesibles para `administrator` y `agent`, con validaciones `ends_at >= starts_at` (422), pertenencia de `contact_id` y `product_id` a la misma cuenta (422) y aislamiento multi-tenant (404).
+
+2. **MCP (`app/mcp/tools/appointments.py` + registro en `app/mcp/tools/__init__.py`)**:
+   - Tools `list_products`, `list_appointments` (con alias `from` en el schema JSON), `create_appointment` y `update_appointment_status`, reutilizando las validaciones de cuenta/permisos de `contacts.py` y delegando toda la lógica a los servicios de `products` y `appointments`.
+
+3. **Frontend (`frontend/app/accounts/[accountId]/agenda/page.tsx` y `frontend/components/agenda/*`)**:
+   - Cliente de API React Query en `frontend/lib/api/appointments.ts` siguiendo `frontend/lib/api/products.ts`.
+   - Vista semanal lunes a domingo en la zona horaria del navegador (`week-view.tsx` + `week-utils.ts`) con navegación semana anterior / Hoy / semana siguiente, y vista de lista con paginación y filtro por estado (`agenda-view.tsx`).
+   - Diálogo de creación/edición (`appointment-dialog.tsx`) con buscador de contactos contra la API, selector de producto opcional, título, inicio, fin, estado y notas; cambio rápido de estado y borrado desde cada cita.
+   - Ítem `"Agenda"` en `frontend/components/shell/nav.ts` junto a `"Productos"`.
+   - Bloque `"Próximas citas"` con botón `"Agendar cita"` integrado en el detalle del contacto (`frontend/components/contacts/contact-detail-view.tsx` + `contact-appointments-card.tsx`).
+
+4. **Importador desde Postiz (`scripts/import_postiz_crm.py` + `app/domains/appointments/importer.py`)**:
+   - CLI con `--account-id`, `--file` y `--dry-run`.
+   - Resolución de cliente → contacto por `externalContactId` (en la misma cuenta), email, teléfono o creación nueva; idempotencia mediante `custom_attributes.postiz_crm_id` en contactos y `(account_id, external_id)` en productos y citas (además de marcador en `Note.content` para no duplicar notas al re-ejecutar).
+   - Nota sobre etiquetas de contactos: `Contact` en AloStudio aún no tiene tabla puente `contact_labels` (solo conversaciones tienen `conversation_labels`, según `app/domains/contacts/models.py` y `app/domains/labels/service.py`), por lo que el importador asegura la existencia de cada tag normalizado en la tabla `labels` de la cuenta **y** persiste la lista deduplicada en `contact.custom_attributes["tags"]`.
+
+5. **Tests**:
+   - `tests/integration/test_appointments.py`: CRUD completo, filtros `from`/`to`/`status`/`contact_id`, `ends_at < starts_at` → 422, contacto/producto de otra cuenta → 422, cita de otra cuenta → 404, creación por rol `agent`, y `ON DELETE SET NULL` al borrar el producto asociado.
+   - `tests/integration/test_mcp_appointment_tools.py`: cobertura de `list_products`, `create_appointment`, `list_appointments` (con `from`/`to`/`status`), `update_appointment_status` y validación de permisos/errores.
+   - `tests/integration/test_import_postiz_crm.py`: `--dry-run`, importación completa y segunda corrida idempotente sin duplicados.
+   - `frontend/components/agenda/week-view.test.tsx`: agrupación lunes–domingo por día local en orden cronológico, estados/producto/fallback de contacto, acciones de edición/estado/borrado y navegación/filtros en `AgendaView`.
+
+### Qué quedó sin hacer / fuera de alcance
+
+- Todo lo listado explícitamente en **Fuera de alcance** (no implementado por diseño):
+  - Webhooks salientes de eventos de citas (`appointment_created`, `appointment_updated`, etc.).
+  - Recordatorios automáticos por WhatsApp o email antes de `starts_at`.
+  - Sincronización bidireccional con Google Calendar.
+  - Eliminación del CRM en Postiz / ejecución real contra el dump productivo de Postiz (queda listo `scripts/import_postiz_crm.py` para correr con `--dry-run` y luego en firme cuando Claude genere `export.json`).
+- Si en el futuro se incorpora una tabla relacional `contact_labels` para contactos, convendrá migrar/vincular `contact.custom_attributes["tags"]` hacia esa relación.
+
+### Salida de verificaciones y tests
+
+- **Ruff (`..\AloStudio\.venv\Scripts\python.exe -m ruff check app tests scripts/import_postiz_crm.py`)**:
+  ```text
+  All checks passed!
+  ```
+- **Alembic (`..\AloStudio\.venv\Scripts\python.exe -m alembic heads`)**:
+  ```text
+  c6d7e8f9a0b1 (head)
+  ```
+- **Pytest (`..\AloStudio\.venv\Scripts\python.exe -m pytest tests/integration/test_appointments.py tests/integration/test_mcp_appointment_tools.py tests/integration/test_import_postiz_crm.py tests/integration/test_products.py -q -p no:cacheprovider`)**:
+  ```text
+  ..........................                                               [100%]
+  26 passed in 110.95s (0:01:50)
+  ```
+- **Frontend Typecheck (`npm run typecheck`)**:
+  ```text
+  > alostudio-frontend@0.1.0 typecheck
+  > tsc --noEmit
+  (0 errores)
+  ```
+- **Frontend Lint (`npm run lint`)**:
+  ```text
+  ✔ No ESLint warnings or errors
+  ```
+- **Frontend Vitest (`npm test`)**:
+  ```text
+  Test Files  68 passed (68)
+       Tests  284 passed (284)
+    Duration  12.13s
+  ```
