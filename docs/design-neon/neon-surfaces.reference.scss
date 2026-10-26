@@ -1,0 +1,484 @@
+
+/* ---------------------------------------------------------------------------
+ * AloStudio neon world — shared surfaces.
+ * "Lit tube": the one state that glows. Used by the active rail item and by
+ * primary actions; everything else stays unlit glass (1px --neon-glass).
+ * In the components layer so a caller's bg and rounded utilities still win
+ * (a destructive red Button, a transparent Button, an unselected state).
+ * ------------------------------------------------------------------------- */
+@layer components {
+  .lit-tube {
+    color: var(--neon-lit-text);
+    box-shadow:
+      inset 0 0 0 1px var(--neon-core),
+      inset 0 0 12px -2px var(--neon-halo),
+      0 0 0 1px var(--neon-halo-far),
+      0 2px 14px -2px var(--neon-halo);
+    transition:
+      box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+      color 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Primary actions are bent glass carrying current: a cobalt body, a bright
+     core edge and a halo that reads at phone size. */
+  .lit-tube-solid {
+    background-color: var(--neon-core);
+    color: #fff;
+    border-radius: 10px;
+    box-shadow:
+      inset 0 0 0 1px var(--neon-edge),
+      inset 0 0 14px -4px rgba(255, 255, 255, 0.35),
+      0 0 0 1px var(--neon-halo),
+      0 2px 22px -2px var(--neon-halo);
+    transition:
+      box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .lit-tube-solid:hover {
+    background-color: var(--neon-core-hover);
+    box-shadow:
+      inset 0 0 0 1px var(--neon-edge-strong),
+      inset 0 0 14px -4px rgba(255, 255, 255, 0.45),
+      0 0 0 1px var(--neon-halo),
+      0 4px 30px 0 var(--neon-halo);
+  }
+
+  /* Ignition: a lit state switches on with one quick ease-out, never a loop. */
+  .lit-tube-ignite {
+    animation: lit-ignite 360ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* The page title is the shop sign: Tilt Neon lettering with its own glow. */
+  .neon-sign {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    color: var(--neon-lit-text);
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 8px var(--neon-core),
+      0 0 22px var(--neon-halo),
+      0 0 44px var(--neon-halo);
+  }
+  /* The sign's glow must not be clipped by a truncating title element. */
+  .neon-sign > h1,
+  .neon-sign > div {
+    overflow: visible;
+  }
+
+  /* Navigation lettering is neon too: unlit rows hum at low current, hover
+     brings the tube up, the current row is fully lit (with its icon). */
+  .neon-nav {
+    color: var(--neon-unlit-text);
+    text-shadow:
+      0 0 3px var(--neon-hum),
+      0 0 12px var(--neon-hum-far);
+    transition:
+      color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      text-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .neon-nav svg {
+    filter: drop-shadow(0 0 3px var(--neon-hum));
+    transition: filter 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .neon-nav:hover {
+    color: var(--neon-lit-text);
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 8px var(--neon-halo),
+      0 0 18px var(--neon-halo);
+  }
+  .neon-nav:hover svg {
+    filter: drop-shadow(0 0 2px var(--neon-lit-text))
+      drop-shadow(0 0 6px var(--neon-halo));
+  }
+  .neon-nav-lit {
+    color: #fff;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 7px var(--neon-core),
+      0 0 16px var(--neon-core),
+      0 0 32px var(--neon-halo);
+  }
+  .neon-nav-lit svg {
+    filter: drop-shadow(0 0 2px var(--neon-lit-text))
+      drop-shadow(0 0 7px var(--neon-core));
+  }
+
+  /* Brand wordmark, script neon (placeholder until the owner's logo lands). */
+  .neon-wordmark {
+    font-family: var(--font-script), cursive;
+    color: var(--neon-lit-text);
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 6px var(--neon-core),
+      0 0 18px var(--neon-core),
+      0 0 40px var(--neon-halo);
+  }
+
+  /* Workspace panel: unlit glass, a hairline edge catching light at the top. */
+  .glass-panel {
+    box-shadow:
+      inset 0 0 0 1px var(--neon-glass),
+      inset 0 1px 0 0 var(--neon-glass-highlight);
+  }
+
+  /* Tab whose content is showing: lit text over a short bent tube. */
+  .neon-tab {
+    position: relative;
+  }
+  .neon-tab-active {
+    color: var(--neon-lit-text);
+  }
+  .neon-tab-active::after {
+    content: '';
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--neon-core);
+    box-shadow:
+      0 0 6px var(--neon-halo),
+      0 0 14px var(--neon-halo-far);
+  }
+
+  /* Recessed glass field; lights up while it holds focus. */
+  .glass-field {
+    background-color: var(--neon-field);
+    border-color: var(--neon-glass);
+    transition:
+      border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .glass-field:focus-within,
+  .glass-field:focus {
+    border-color: var(--neon-core);
+    box-shadow: 0 0 0 3px var(--neon-halo-far);
+  }
+
+  /* Secondary actions are unlit glass: outline, no fill glow. */
+  .bg-btnSimple {
+    box-shadow: inset 0 0 0 1px var(--neon-glass);
+  }
+  /* Agent chat (CopilotKit) speaks the same glass: recessed field, lit on focus.
+     Primary and background colours are set inline by agent.chat.tsx. */
+  .agent {
+    --copilot-kit-contrast-color: #fff;
+    --copilot-kit-input-background-color: var(--neon-field);
+    --copilot-kit-secondary-color: var(--new-bgColorInner);
+    --copilot-kit-secondary-contrast-color: var(--new-btn-text);
+    --copilot-kit-separator-color: var(--neon-glass);
+  }
+  .agent .copilotKitInput {
+    background-color: var(--neon-field) !important;
+    border: 1px solid var(--neon-glass) !important;
+    border-radius: 14px !important;
+    transition:
+      border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .agent .copilotKitInput:focus-within {
+    border-color: var(--neon-core) !important;
+    box-shadow: 0 0 0 3px var(--neon-halo-far);
+  }
+
+  /* Home channel orbit: two glass rings on a plane tipped back and twisted,
+     turning in opposite directions, each carrying a spark of current. The
+     glyphs are billboards: they undo the plane's tilt and the ring's spin so
+     they always face the viewer upright, and pass behind the core. */
+  .orbit {
+    --orbit-size: 400px;
+    --orbit-badge: 52px;
+    --orbit-tilt: -16deg;
+    --orbit-incl: 62deg;
+    position: relative;
+    width: var(--orbit-size);
+    height: calc(var(--orbit-size) * 0.72);
+    flex-shrink: 0;
+    perspective: 1400px;
+    transform-style: preserve-3d;
+  }
+  .orbit-plane {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--orbit-size);
+    height: var(--orbit-size);
+    margin: calc(var(--orbit-size) / -2) 0 0 calc(var(--orbit-size) / -2);
+    transform: rotateZ(var(--orbit-tilt)) rotateX(var(--orbit-incl));
+    transform-style: preserve-3d;
+  }
+  .orbit-ring {
+    position: absolute;
+    border-radius: 50%;
+    transform-style: preserve-3d;
+    box-shadow:
+      inset 0 0 0 1px var(--neon-glass),
+      0 0 18px -6px var(--neon-halo-far);
+    animation: spin var(--orbit-dur) linear infinite;
+  }
+  .orbit-ring-outer {
+    --orbit-dur: 72s;
+    inset: calc(var(--orbit-badge) / 2);
+  }
+  .orbit-ring-inner {
+    --orbit-dur: 48s;
+    inset: calc(var(--orbit-size) * 0.25);
+    animation-direction: reverse;
+  }
+  .orbit-ring::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -3px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--neon-lit-text);
+    box-shadow:
+      0 0 6px var(--neon-core),
+      0 0 16px var(--neon-halo);
+    transform: translateY(-50%);
+  }
+  .orbit-slot {
+    position: absolute;
+    inset: 0;
+    transform: rotate(var(--angle));
+    transform-style: preserve-3d;
+    pointer-events: none;
+  }
+  .orbit-badge {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: var(--orbit-badge);
+    height: var(--orbit-badge);
+    margin: calc(var(--orbit-badge) / -2) 0 0 calc(var(--orbit-badge) / -2);
+    transform: rotate(calc(-1 * var(--angle)));
+    transform-style: preserve-3d;
+  }
+  /* A channel glyph's disc: night badge with an unlit-glass rim. */
+  .glyph-disc {
+    border-radius: 50%;
+    background: var(--neon-orbit-badge);
+    box-shadow: inset 0 0 0 1px var(--neon-glass);
+  }
+  /* The billboard: the badge disc itself, facing the viewer. */
+  .orbit-glow {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--neon-orbit-badge);
+    box-shadow: inset 0 0 0 1px var(--neon-glass);
+    transform: rotateX(calc(-1 * var(--orbit-incl)))
+      rotateZ(calc(-1 * var(--orbit-tilt)));
+  }
+  .orbit-ring-outer .orbit-glow {
+    animation: orbit-billboard var(--orbit-dur) linear infinite reverse;
+  }
+  .orbit-ring-inner .orbit-glow {
+    animation: orbit-billboard var(--orbit-dur) linear infinite;
+  }
+  .orbit-light {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 3px var(--glyph-color))
+      drop-shadow(0 0 10px color-mix(in srgb, var(--glyph-color) 55%, transparent));
+  }
+  .orbit-glyph {
+    width: 50%;
+    height: 50%;
+    background-color: var(--glyph-color);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+  .orbit-core {
+    --orbit-core: 112px;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--orbit-core);
+    height: var(--orbit-core);
+    margin: calc(var(--orbit-core) / -2) 0 0 calc(var(--orbit-core) / -2);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(
+      circle,
+      var(--neon-halo-far) 0%,
+      var(--neon-field) 72%
+    );
+  }
+  @media (max-width: 1025px) {
+    .orbit {
+      --orbit-size: min(320px, 86vw);
+      --orbit-badge: 44px;
+    }
+    .orbit-core {
+      --orbit-core: 88px;
+    }
+  }
+
+  /* Auth screens: the form title is a sign, set in the same face as the
+     product panel's headline beside it. */
+  .auth-form h1 {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }
+
+  /* Auth product panel: rows of customer messages drifting sideways, faded
+     at both edges; hovering holds them still to read. */
+  .auth-marquee {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 12%,
+      #000 88%,
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 12%,
+      #000 88%,
+      transparent
+    );
+  }
+  .auth-marquee-track {
+    animation: marquee-left 180s linear infinite;
+  }
+  .auth-marquee-track-reverse {
+    animation-name: marquee-right;
+  }
+  .auth-marquee:hover .auth-marquee-track,
+  .auth-marquee-paused .auth-marquee-track {
+    animation-play-state: paused;
+  }
+  .auth-channel-glyph {
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  /* Daylight: tubes are unlit, so lettering keeps its colour without glow. */
+  .light .neon-sign,
+  .light .neon-wordmark,
+  .light .neon-nav-lit {
+    color: var(--neon-core);
+    text-shadow: none;
+  }
+  .light .neon-nav,
+  .light .neon-nav:hover {
+    text-shadow: none;
+  }
+  .light .neon-nav svg,
+  .light .neon-nav-lit svg {
+    filter: none;
+  }
+}
+
+@keyframes orbit-billboard {
+  from {
+    transform: rotateZ(0deg) rotateX(calc(-1 * var(--orbit-incl)))
+      rotateZ(calc(-1 * var(--orbit-tilt)));
+  }
+  to {
+    transform: rotateZ(360deg) rotateX(calc(-1 * var(--orbit-incl)))
+      rotateZ(calc(-1 * var(--orbit-tilt)));
+  }
+}
+
+@keyframes lit-ignite {
+  0% {
+    box-shadow: inset 0 0 0 1px var(--neon-glass);
+  }
+}
+
+@keyframes marquee-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee-right {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-ring,
+  .orbit-ring-outer .orbit-glow,
+  .orbit-ring-inner .orbit-glow,
+  .lit-tube,
+  .lit-tube-solid,
+  .lit-tube-ignite,
+  .auth-marquee-track {
+    animation: none;
+    transition: none;
+  }
+  .auth-marquee-toggle {
+    display: none;
+  }
+}
+
+/* Browser surfaces carry the world too. In the base layer so component and
+   utility classes (outline-none, focus:ring-*) still win where they are set. */
+@layer base {
+  /* Light spilling from the signs onto the room, top left. */
+  body.dark,
+  body.light {
+    /* !important: upstream sets the body background shorthand !important. */
+    background-image: radial-gradient(
+      ellipse 70% 45% at 14% -10%,
+      var(--neon-ambient),
+      transparent 70%
+    ) !important;
+    background-attachment: fixed !important;
+  }
+  .dark,
+  .light {
+    accent-color: var(--neon-core);
+    caret-color: var(--neon-core);
+    scrollbar-color: var(--neon-scrollbar) transparent;
+  }
+  .dark ::selection,
+  .light ::selection {
+    background: var(--neon-selection);
+  }
+  /* Column labels read like the small print on a sign's backplate. */
+  :where(.dark, .light) thead th {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+  }
+  :where(.dark, .light) :focus-visible {
+    outline: 2px solid var(--neon-core);
+    outline-offset: 2px;
+  }
+}
+.dark table,
+.light table {
+  font-variant-numeric: tabular-nums;
+}
