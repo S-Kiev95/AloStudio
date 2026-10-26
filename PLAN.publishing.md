@@ -149,4 +149,33 @@ Todos los tests nuevos y los de Instagram pasan, `ruff check app tests` sin erro
 
 ## Estado
 
-_(lo completa el agente al terminar)_
+Lo implementó Claude (Antigravity se quedó sin cuota al arrancar), con las mismas reglas: escrito desde cero, sin leer Postiz. Fuentes: la referencia de la Graph API de Meta para páginas (feed, photos, videos, errores) y el código de este repo.
+
+**Hecho**
+
+- Modelo `Publication` / `PublicationTarget` y migración `d7e8f9a0b1c2` (sube y baja limpia sobre la base de tests).
+- Adaptadores en `app/domains/publishing/adapters/`: interfaz (`supports`, `channel_label`, `validate`, `publish`) y registro; `instagram` reutiliza `create_post` / `publish_post` / `reset_for_retry` del servicio de Instagram; `facebook_page` publica texto (con link), una imagen, varias imágenes (`attached_media`) y video (host de video), con errores en español.
+- Servicio, cola (`app/workers/publishing.py`), tick del scheduler y tarea registrada en el worker (timeout de 30 min), API `/publications` y tools MCP `list_publication_channels`, `list_publications`, `create_publication`, `cancel_publication`.
+- Fuera de `adapters/`, ningún archivo del dominio nombra una red.
+
+**Cambios por la revisión de patrones (agente revisor)**
+
+- Commit por destino en `publish_pending_targets`: una publicación aceptada por la red sobrevive a un crash o timeout del trabajo, así no se republica.
+- `recover_stale_publications` en cada tick: una publicación trabada en `publishing` más de 60 min se re-encola; un destino agarrado a mitad de publicar queda `failed` con "no se sabe si salió", no se reenvía.
+- Si encolar falla, el reclamo se libera y el próximo tick lo reintenta.
+- El reclamo vuelve a chequear la fecha; las mutaciones bloquean la fila (`for_update`); editar solo el texto no exige fecha futura; cero destinos = `failed`.
+- Facebook: timeout al publicar = no reintentable (puede haber salido); falla del permalink no anula la publicación; token en el cuerpo del POST, no en la URL.
+- **Decisión a confirmar con el dueño:** escritura solo para administradores (como la publicación de Instagram existente); los agentes leen. El plan decía admin o agente.
+
+**Verificaciones (corridas por Claude)**
+
+- `ruff check app tests` → All checks passed.
+- `alembic heads` → `d7e8f9a0b1c2 (head)`, uno solo.
+- Tests nuevos: `test_publishing.py` (13), `test_publishing_worker.py` (10), `test_publishing_facebook.py` (12), `test_publishing_instagram.py` (9), `test_mcp_publishing_tools.py` (3).
+- Suite amplia: nuevos + `test_scheduler.py` + `test_instagram_*.py` + `test_mcp_*.py` + `test_facebook_*.py` → **349 passed**.
+
+**Pendiente**
+
+- Frontend: calendario y compositor (tanda siguiente).
+- Facebook en producción necesita `pages_manage_posts` en la conexión de páginas y aprobado por Meta.
+- La base de tests local quedó migrada a `d7e8f9a0b1c2`.
