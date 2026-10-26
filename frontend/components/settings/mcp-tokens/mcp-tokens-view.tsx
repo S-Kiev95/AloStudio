@@ -49,9 +49,9 @@ export function MCPTokensView({ accountId }: { accountId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-fg">Tokens MCP</h2>
+        <h2 className="text-xl font-medium text-fg">Tokens MCP</h2>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
@@ -107,7 +107,7 @@ export function MCPTokensView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -119,7 +119,7 @@ export function MCPTokensView({ accountId }: { accountId: string }) {
             No hay tokens todavía.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((t) => (
               <TokenRow
                 key={t.id}
@@ -193,16 +193,16 @@ function TokenRow({
   return (
     <li
       className={cn(
-        "flex items-center gap-3 px-4 py-3",
-        highlight && "bg-warning/5",
+        "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-hover-glass",
+        highlight && "bg-focused",
       )}
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-focused text-lit">
         <KeyRound className="h-4 w-4" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">{token.name}</p>
-        <p className="text-xs text-fg-muted">{lastUsed}</p>
+        <p className="font-numeric text-xs tabular-nums text-fg-muted">{lastUsed}</p>
         {error ? (
           <p role="alert" className="text-xs text-danger">
             {error}
@@ -211,12 +211,12 @@ function TokenRow({
       </div>
       <span
         className={cn(
-          "rounded-full px-2 py-0.5 text-xs font-medium",
+          "rounded-sm px-2 py-0.5 text-xs font-medium",
           token.scope === "admin"
             ? "bg-danger/10 text-danger"
             : token.scope === "write"
               ? "bg-warning/10 text-warning"
-              : "bg-info/10 text-info",
+              : "bg-focused text-lit",
         )}
       >
         {SCOPE_LABEL[token.scope]}
@@ -227,7 +227,7 @@ function TokenRow({
         title="Rotar secret"
         onClick={onRotate}
         disabled={rotate.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <RefreshCw className="h-4 w-4" aria-hidden />
       </button>
@@ -236,7 +236,7 @@ function TokenRow({
         aria-label="Editar"
         title="Editar"
         onClick={onEdit}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </button>

@@ -22,7 +22,7 @@ export function AutomationRuleNewView({ accountId }: { accountId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <Link
         href={`/accounts/${accountId}/settings/automation`}
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"

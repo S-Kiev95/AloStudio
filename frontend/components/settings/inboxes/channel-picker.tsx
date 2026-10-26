@@ -40,7 +40,7 @@ export function ChannelPicker({ accountId }: { accountId: string }) {
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Volver
         </Link>
-        <h2 className="mt-2 text-xl font-semibold text-fg">Elegí un canal</h2>
+        <h2 className="mt-2 text-xl font-medium text-fg">Elegí un canal</h2>
         <p className="text-sm text-fg-muted">
           Conectá un canal de mensajería a tu cuenta.
         </p>
@@ -53,9 +53,9 @@ export function ChannelPicker({ accountId }: { accountId: string }) {
             <Link
               key={c.type}
               href={`/accounts/${accountId}/settings/inboxes/new/${c.type}`}
-              className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex flex-col gap-2 rounded-md border border-glass bg-surface p-4 transition-colors hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
             >
-              <span className="grid h-10 w-10 place-items-center rounded-md bg-primary/10 text-primary">
+              <span className="grid h-10 w-10 place-items-center rounded-md bg-focused text-lit">
                 <Icon className="h-5 w-5" aria-hidden />
               </span>
               <span className="font-medium text-fg">{c.label}</span>

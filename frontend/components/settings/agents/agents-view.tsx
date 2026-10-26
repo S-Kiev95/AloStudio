@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import {
   type Agent,
   ROLE_ADMINISTRATOR,
@@ -20,10 +21,6 @@ import {
   useRemoveAgent,
   useUpdateAgent,
 } from "@/lib/api/agents-admin";
-import { cn } from "@/lib/utils";
-
-const selectClass =
-  "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function AgentsView({ accountId }: { accountId: string }) {
   const { data, isLoading, isError } = useAgents(accountId);
@@ -62,9 +59,9 @@ export function AgentsView({ accountId }: { accountId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-fg">Agentes</h2>
+        <h2 className="text-xl font-medium text-fg">Agentes</h2>
         {!showInvite ? (
           <Button size="sm" onClick={() => setShowInvite(true)}>
             <Plus className="h-4 w-4" aria-hidden />
@@ -119,7 +116,7 @@ export function AgentsView({ accountId }: { accountId: string }) {
                 <Label htmlFor="i-role">Rol</Label>
                 <select
                   id="i-role"
-                  className={selectClass}
+                  className={selectClassName()}
                   value={role}
                   onChange={(e) => setRole(e.target.value as AgentRole)}
                 >
@@ -151,7 +148,7 @@ export function AgentsView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -163,7 +160,7 @@ export function AgentsView({ accountId }: { accountId: string }) {
             No hay agentes en esta cuenta todavía.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((a) => (
               <AgentRow key={a.id} accountId={accountId} agent={a} />
             ))}
@@ -216,13 +213,13 @@ function AgentRow({
   }
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2">
+    <li className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-hover-glass">
       <Avatar name={agent.name || agent.email || "?"} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">
           {agent.name}
           {agent.confirmed === false ? (
-            <span className="ml-2 rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-warning">
+            <span className="ml-2 rounded-sm bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-warning">
               Pendiente
             </span>
           ) : null}
@@ -244,10 +241,7 @@ function AgentRow({
         value={currentRole}
         onChange={(e) => changeRole(e.target.value as AgentRole)}
         disabled={update.isPending}
-        className={cn(
-          "h-9 rounded-md border border-border bg-surface px-2 text-xs text-fg",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        )}
+        className={selectClassName("sm")}
       >
         <option value="agent">{ROLE_LABEL.agent}</option>
         <option value="administrator">{ROLE_LABEL.administrator}</option>
@@ -265,4 +259,3 @@ function AgentRow({
     </li>
   );
 }
-

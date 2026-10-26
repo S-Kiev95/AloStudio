@@ -36,9 +36,9 @@ export function WebhooksView({ accountId }: { accountId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-fg">Webhooks</h2>
+        <h2 className="text-xl font-medium text-fg">Webhooks</h2>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
@@ -80,7 +80,7 @@ export function WebhooksView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -92,7 +92,7 @@ export function WebhooksView({ accountId }: { accountId: string }) {
             No hay webhooks todavía.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((w) => (
               <WebhookRow
                 key={w.id}
@@ -134,8 +134,8 @@ function WebhookRow({
   }
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+    <li className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-hover-glass">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-focused text-lit">
         <WebhookIcon className="h-4 w-4" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
@@ -159,7 +159,7 @@ function WebhookRow({
         aria-label="Editar"
         title="Editar"
         onClick={onEdit}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </button>

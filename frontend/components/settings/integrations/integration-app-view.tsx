@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { selectClassName } from "@/components/ui/select";
 import { useInboxes } from "@/lib/api/inboxes";
 import {
   type IntegrationApp,
@@ -15,6 +16,7 @@ import {
   useDeleteIntegrationHook,
   useIntegrationApp,
 } from "@/lib/api/integrations";
+import { cn } from "@/lib/utils";
 
 export function IntegrationAppView({
   accountId,
@@ -26,7 +28,7 @@ export function IntegrationAppView({
   const { data: app, isLoading, isError } = useIntegrationApp(accountId, appId);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <Link
         href={`/accounts/${accountId}/settings/integrations`}
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
@@ -70,7 +72,7 @@ export function IntegrationAppView({
                   Esta integración aún no está conectada.
                 </p>
               ) : (
-                <ul className="divide-y divide-border">
+                <ul className="divide-y divide-glass">
                   {app.hooks.map((hook) => (
                     <HookRow key={hook.id} accountId={accountId} hook={hook} />
                   ))}
@@ -175,7 +177,7 @@ function InlineConnectForm({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-border p-3">
+    <div className="space-y-3 rounded-md border border-glass p-3">
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}
@@ -189,7 +191,7 @@ function InlineConnectForm({
             aria-label="Bandeja de entrada"
             value={inboxId}
             onChange={(e) => setInboxId(e.target.value)}
-            className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(selectClassName("sm"), "w-full")}
           >
             <option value="">Elegí una bandeja…</option>
             {inboxes.data?.map((i) => (
@@ -222,7 +224,7 @@ function InlineConnectForm({
               aria-label={`Quitar ajuste ${idx + 1}`}
               onClick={() => setRows((rs) => rs.filter((_, i) => i !== idx))}
               disabled={rows.length === 1}
-              className="rounded p-1.5 text-fg-muted hover:text-danger disabled:opacity-40"
+              className="rounded-sm p-1.5 text-fg-muted hover:text-danger disabled:opacity-40"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -231,7 +233,7 @@ function InlineConnectForm({
         <button
           type="button"
           onClick={() => setRows((rs) => [...rs, { key: "", value: "" }])}
-          className="text-xs font-medium text-primary hover:underline"
+          className="text-xs font-medium text-lit hover:underline"
         >
           + Agregar ajuste
         </button>
@@ -296,7 +298,7 @@ function HookRow({
         title="Eliminar"
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

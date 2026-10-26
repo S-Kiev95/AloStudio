@@ -19,9 +19,9 @@ export function AutomationRulesView({ accountId }: { accountId: string }) {
   const { data, isLoading, isError } = useAutomationRules(accountId);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-fg">Automatización</h2>
+        <h2 className="text-xl font-medium text-fg">Automatización</h2>
         <Link
           href={`/accounts/${accountId}/settings/automation/new`}
           className={buttonVariants({ size: "sm" })}
@@ -31,7 +31,7 @@ export function AutomationRulesView({ accountId }: { accountId: string }) {
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -43,7 +43,7 @@ export function AutomationRulesView({ accountId }: { accountId: string }) {
             No hay reglas todavía.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((r) => (
               <RuleRow key={r.id} accountId={accountId} rule={r} />
             ))}
@@ -84,12 +84,12 @@ function RuleRow({
   }
 
   return (
-    <li className="flex items-center gap-1 pr-2 hover:bg-surface-2">
+    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-hover-glass">
       <Link
         href={`/accounts/${accountId}/settings/automation/${rule.id}`}
         className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-focused text-lit">
           <Zap className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
@@ -109,7 +109,7 @@ function RuleRow({
         </div>
         <span
           className={cn(
-            "rounded-full px-2 py-0.5 text-xs font-medium",
+            "rounded-sm px-2 py-0.5 text-xs font-medium",
             rule.active
               ? "bg-success/10 text-success"
               : "bg-surface-2 text-fg-muted",
@@ -137,14 +137,15 @@ function RuleRow({
         }
         disabled={update.isPending}
         className={cn(
-          "h-5 w-9 shrink-0 rounded-full p-0.5 transition-colors disabled:opacity-50",
-          rule.active ? "bg-success" : "bg-surface-2",
+          "h-6 w-10 shrink-0 rounded-pill border border-glass p-0.5 transition-colors disabled:opacity-50",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
+          rule.active ? "bg-focused" : "bg-field",
         )}
       >
         <span
           className={cn(
-            "block h-4 w-4 rounded-full bg-surface transition-transform",
-            rule.active ? "translate-x-4" : "translate-x-0",
+            "block h-4 w-4 rounded-pill transition-transform",
+            rule.active ? "translate-x-4 bg-neon" : "translate-x-0 bg-fg-muted",
           )}
         />
       </button>
@@ -154,7 +155,7 @@ function RuleRow({
         title="Clonar"
         onClick={(e) => run(() => clone.mutateAsync(rule.id), "No se pudo clonar.", e)}
         disabled={clone.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Copy className="h-4 w-4" aria-hidden />
       </button>
@@ -169,7 +170,7 @@ function RuleRow({
           run(() => del.mutateAsync(rule.id), "No se pudo eliminar.");
         }}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

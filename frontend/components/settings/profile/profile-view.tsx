@@ -99,8 +99,8 @@ export function ProfileView() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4 md:p-6">
-      <h2 className="text-xl font-semibold text-fg">Mi perfil</h2>
+    <div className="max-w-2xl space-y-4">
+      <h2 className="text-xl font-medium text-fg">Mi perfil</h2>
 
       <Card>
         <CardHeader>
@@ -125,7 +125,7 @@ export function ProfileView() {
               ) : null}
 
               <div className="flex items-center gap-4">
-                <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 text-fg-muted">
+                <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-glass bg-surface-2 text-fg-muted">
                   {avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

@@ -36,9 +36,9 @@ export function LabelsView({ accountId }: { accountId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-fg">Etiquetas</h2>
+        <h2 className="text-xl font-medium text-fg">Etiquetas</h2>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
@@ -78,7 +78,7 @@ export function LabelsView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -90,7 +90,7 @@ export function LabelsView({ accountId }: { accountId: string }) {
             No hay etiquetas todavía.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((l) => (
               <LabelRow
                 key={l.id}
@@ -132,9 +132,9 @@ function LabelRow({
   }
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
+    <li className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-hover-glass">
       <span
-        className="h-5 w-5 shrink-0 rounded-full border border-border"
+        className="h-5 w-5 shrink-0 rounded-full border border-glass"
         aria-hidden
         style={{ backgroundColor: label.color ?? "transparent" }}
       />
@@ -168,7 +168,7 @@ function LabelRow({
         aria-label="Editar"
         title="Editar"
         onClick={onEdit}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </button>

@@ -37,9 +37,9 @@ export function AgentBotsView({ accountId }: { accountId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-fg">Bots</h2>
+        <h2 className="text-xl font-medium text-fg">Bots</h2>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
@@ -79,7 +79,7 @@ export function AgentBotsView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -91,7 +91,7 @@ export function AgentBotsView({ accountId }: { accountId: string }) {
             No hay bots todavía.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((b) => (
               <BotRow
                 key={b.id}
@@ -134,15 +134,15 @@ function BotRow({
   }
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+    <li className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-hover-glass">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-focused text-lit">
         <Bot className="h-4 w-4" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">
           {bot.name}
           {bot.system_bot ? (
-            <span className="ml-2 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase text-fg-muted">
+            <span className="ml-2 rounded-sm bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase text-fg-muted">
               Sistema
             </span>
           ) : null}
@@ -178,7 +178,7 @@ function BotRow({
               }, "No se pudo rotar el secret.")
             }
             disabled={reset.isPending}
-            className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <KeyRound className="h-4 w-4" aria-hidden />
           </button>
@@ -187,7 +187,7 @@ function BotRow({
             aria-label="Editar"
             title="Editar"
             onClick={onEdit}
-            className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Pencil className="h-4 w-4" aria-hidden />
           </button>

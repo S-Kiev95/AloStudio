@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { useInboxes } from "@/lib/api/inboxes";
 import {
   WEBHOOK_EVENTS,
@@ -13,9 +14,6 @@ import {
   type WebhookInput,
 } from "@/lib/api/webhooks";
 import { cn } from "@/lib/utils";
-
-const selectClass =
-  "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function WebhookForm({
   accountId,
@@ -106,7 +104,7 @@ export function WebhookForm({
         <Label htmlFor="wh-inbox">Bandeja (opcional)</Label>
         <select
           id="wh-inbox"
-          className={selectClass}
+          className={selectClassName()}
           value={inboxId}
           onChange={(e) => setInboxId(e.target.value)}
         >
@@ -131,10 +129,10 @@ export function WebhookForm({
                 onClick={() => toggle(ev)}
                 aria-pressed={on}
                 className={cn(
-                  "rounded-full border px-2 py-0.5 text-xs",
+                  "rounded-sm border px-2 py-0.5 text-xs transition-colors",
                   on
-                    ? "border-primary bg-surface-2 font-semibold text-fg"
-                    : "border-border text-fg-muted hover:bg-surface-2",
+                    ? "border-neon bg-focused font-medium text-lit"
+                    : "border-glass bg-field text-fg-muted hover:bg-hover-glass hover:text-fg",
                 )}
               >
                 {ev}

@@ -37,7 +37,9 @@ export function InstallationView() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-lg font-semibold">Configuración de la instalación</h1>
+        <h2 className="text-xl font-medium text-fg">
+          Configuración de la instalación
+        </h2>
         <p className="text-sm text-fg-muted">
           Ajustes que valen para todo AloStudio, no para una cuenta. Podés
           dejarlos vacíos y completarlos cuando tengas las credenciales — la
@@ -103,7 +105,7 @@ function ConfigRow({ config }: { config: InstallationConfig }) {
             checked={on}
             disabled={!config.editable || set.isPending}
             onChange={(e) => save(e.target.checked)}
-            className="mt-1 h-4 w-4 shrink-0"
+            className="mt-1 h-4 w-4 shrink-0 rounded border-glass accent-neon"
           />
         </div>
         <SourceNote config={config} onReset={reset} pending={clear.isPending} />
@@ -177,7 +179,7 @@ function SourceNote({
             type="button"
             onClick={onReset}
             disabled={pending}
-            className="text-info hover:underline disabled:opacity-50"
+            className="text-lit hover:underline disabled:opacity-50"
           >
             volver al valor del servidor
           </button>

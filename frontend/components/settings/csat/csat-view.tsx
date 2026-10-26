@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   type CsatMetrics,
   type CsatResponse,
@@ -12,14 +13,13 @@ import {
   useCsatResponses,
 } from "@/lib/api/csat";
 import { relativeTime } from "@/lib/time";
-import { cn } from "@/lib/utils";
 
 import { RatingStars } from "./rating-stars";
 
 const RANGES = [
-  { days: 7, label: "7 días" },
-  { days: 30, label: "30 días" },
-  { days: 90, label: "90 días" },
+  { value: 7, label: "7 días" },
+  { value: 30, label: "30 días" },
+  { value: 90, label: "90 días" },
 ] as const;
 
 const RATING_FILTERS = [
@@ -48,28 +48,16 @@ export function CsatView({ accountId }: { accountId: string }) {
   });
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-fg">CSAT</h2>
-        <div className="flex gap-2">
-          {RANGES.map((r) => (
-            <button
-              key={r.days}
-              type="button"
-              onClick={() => setDays(r.days)}
-              aria-pressed={days === r.days}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-medium",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                days === r.days
-                  ? "bg-surface-2 font-semibold text-fg"
-                  : "border border-border bg-surface text-fg hover:bg-surface-2",
-              )}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+        <h2 className="text-xl font-medium text-fg">CSAT</h2>
+        <SegmentedControl
+          size="sm"
+          ariaLabel="Período"
+          value={days}
+          onValueChange={setDays}
+          options={RANGES}
+        />
       </div>
 
       {/* Metric cards */}
@@ -87,25 +75,13 @@ export function CsatView({ accountId }: { accountId: string }) {
       ) : null}
 
       {/* Rating filter */}
-      <div className="flex flex-wrap gap-2">
-        {RATING_FILTERS.map((r) => (
-          <button
-            key={r.label}
-            type="button"
-            onClick={() => setRating(r.value)}
-            aria-pressed={rating === r.value}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              rating === r.value
-                ? "bg-surface-2 font-semibold text-fg"
-                : "border border-border bg-surface text-fg hover:bg-surface-2",
-            )}
-          >
-            {r.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        size="sm"
+        ariaLabel="Calificación"
+        value={rating}
+        onValueChange={setRating}
+        options={RATING_FILTERS}
+      />
 
       {/* Response list */}
       <Card>
@@ -124,7 +100,7 @@ export function CsatView({ accountId }: { accountId: string }) {
               Sin respuestas en este período.
             </p>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="divide-y divide-glass">
               {responses.data?.map((r) => (
                 <ResponseRow key={r.id} accountId={accountId} response={r} />
               ))}
@@ -154,28 +130,34 @@ function MetricsCards({ data }: { data: CsatMetrics }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Card className="p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
           Encuestas enviadas
         </p>
-        <p className="mt-1 text-2xl font-semibold text-fg">{totalSent}</p>
+        <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
+          {totalSent}
+        </p>
       </Card>
       <Card className="p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
           Respuestas
         </p>
-        <p className="mt-1 text-2xl font-semibold text-fg">{data.total_count}</p>
+        <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
+          {data.total_count}
+        </p>
       </Card>
       <Card className="p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
           Tasa de respuesta
         </p>
-        <p className="mt-1 text-2xl font-semibold text-fg">{responseRate}%</p>
+        <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
+          {responseRate}%
+        </p>
       </Card>
       <Card className="p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
           Promedio
         </p>
-        <p className="mt-1 text-2xl font-semibold text-fg">
+        <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
           {avg !== null ? `${avg.toFixed(1)} / 5` : "—"}
         </p>
       </Card>
@@ -199,16 +181,16 @@ function RatingBreakdown({ data }: { data: CsatMetrics }) {
       <CardContent className="space-y-2">
         {buckets.map((b) => (
           <div key={b.rating} className="flex items-center gap-3">
-            <span className="w-12 shrink-0 text-sm text-fg-muted">
+            <span className="w-12 shrink-0 font-numeric text-sm tabular-nums text-fg-muted">
               {b.rating} ★
             </span>
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
               <div
-                className="h-full bg-primary"
+                className="h-full bg-neon"
                 style={{ width: `${b.pct}%` }}
               />
             </div>
-            <span className="w-16 shrink-0 text-right text-xs text-fg-muted">
+            <span className="w-16 shrink-0 text-right font-numeric text-xs tabular-nums text-fg-muted">
               {b.count} · {b.pct}%
             </span>
           </div>
@@ -228,7 +210,7 @@ function ResponseRow({
   const contactName = response.contact?.name?.trim() || "Anónimo";
   return (
     <li className="flex items-start gap-3 py-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-focused text-lit">
         <MessageSquareQuote className="h-4 w-4" aria-hidden />
       </span>
       <div className="min-w-0 flex-1 space-y-1">
@@ -238,7 +220,7 @@ function ResponseRow({
           {response.conversation_id ? (
             <Link
               href={`/accounts/${accountId}/conversations/${response.conversation_id}`}
-              className="text-xs text-info hover:underline"
+              className="font-numeric text-xs tabular-nums text-lit hover:underline"
             >
               #{response.conversation_id}
             </Link>

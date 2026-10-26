@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { selectClassName } from "@/components/ui/select";
 import { useInboxes } from "@/lib/api/inboxes";
 import {
   type WorkingHour,
@@ -14,9 +15,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-
-const selectClass =
-  "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function WorkingHoursView({ accountId }: { accountId: string }) {
   const inboxes = useInboxes(accountId);
@@ -30,16 +28,16 @@ export function WorkingHoursView({ accountId }: { accountId: string }) {
   }, [inboxId, inboxes.data]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-fg">Horarios laborales</h2>
+        <h2 className="text-xl font-medium text-fg">Horarios laborales</h2>
         <div className="flex items-center gap-2">
           <label htmlFor="wh-inbox" className="text-sm text-fg-muted">
             Bandeja
           </label>
           <select
             id="wh-inbox"
-            className={cn(selectClass, "w-auto min-w-44")}
+            className={cn(selectClassName(), "w-auto min-w-44")}
             value={inboxId ?? ""}
             onChange={(e) => setInboxId(Number(e.target.value) || null)}
             disabled={inboxes.isLoading}
@@ -170,7 +168,7 @@ function DayRow({
 }) {
   const disabled = row.closed_all_day || row.open_all_day;
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface p-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-md border border-glass bg-surface-2/40 p-3">
       <p className="w-24 shrink-0 text-sm font-medium text-fg">
         {DAYS_ES[row.day_of_week] ?? `Día ${row.day_of_week}`}
       </p>
@@ -185,6 +183,7 @@ function DayRow({
               open_all_day: e.target.checked ? false : row.open_all_day,
             })
           }
+          className="h-4 w-4 rounded border-glass accent-neon"
         />
         Cerrado
       </label>
@@ -199,6 +198,7 @@ function DayRow({
               closed_all_day: e.target.checked ? false : row.closed_all_day,
             })
           }
+          className="h-4 w-4 rounded border-glass accent-neon"
         />
         24 horas
       </label>
@@ -258,7 +258,7 @@ function TimeField({
           const [h, m] = raw.split(":");
           onChange(Number(h), Number(m));
         }}
-        className="h-9 rounded-md border border-border bg-surface px-2 text-sm text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="glass-field h-9 rounded-control border border-glass bg-field px-2.5 font-numeric text-sm tabular-nums text-fg disabled:opacity-50"
       />
     </label>
   );

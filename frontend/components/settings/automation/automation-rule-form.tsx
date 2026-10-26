@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AUTOMATION_EVENT_LABELS,
@@ -33,9 +34,6 @@ import {
 } from "./condition-row";
 
 type ActionDraft = { action_name: AutomationActionName; text: string };
-
-const selectClass =
-  "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function AutomationRuleForm({
   initial,
@@ -160,7 +158,7 @@ export function AutomationRuleForm({
         <Label htmlFor="ar-event">Evento</Label>
         <select
           id="ar-event"
-          className={selectClass}
+          className={selectClassName()}
           value={eventName}
           onChange={(e) => setEventName(e.target.value as AutomationEvent)}
         >
@@ -177,6 +175,7 @@ export function AutomationRuleForm({
           type="checkbox"
           checked={active}
           onChange={(e) => setActive(e.target.checked)}
+          className="h-4 w-4 rounded border-glass accent-neon"
         />
         Activa
       </label>

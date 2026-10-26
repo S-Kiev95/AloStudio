@@ -102,9 +102,9 @@ export function SettingsSidebar({ accountId }: { accountId: string }) {
   return (
     <nav
       aria-label="Ajustes"
-      className="w-full shrink-0 border-b border-border bg-surface md:w-56 md:border-b-0 md:border-r"
+      className="w-full shrink-0 border-b border-glass pb-2 md:w-56 md:border-b-0 md:border-r md:pb-0 md:pr-3"
     >
-      <ul className="flex gap-1 overflow-x-auto p-2 md:flex-col md:gap-0.5 md:overflow-visible md:p-3">
+      <ul className="flex gap-1 overflow-x-auto md:flex-col md:gap-0.5 md:overflow-visible">
         {SETTINGS_ITEMS.map((item) => {
           const href = `${baseHref}/${item.segment}`;
           const active = pathname.startsWith(href);
@@ -116,7 +116,7 @@ export function SettingsSidebar({ accountId }: { accountId: string }) {
                   title={`Llega en ${item.milestone}`}
                 >
                   {item.label}
-                  <span className="rounded bg-surface-2 px-1 py-0.5 text-[9px] uppercase">
+                  <span className="rounded-sm bg-surface-2 px-1 py-0.5 text-[9px] uppercase">
                     {item.milestone}
                   </span>
                 </span>
@@ -129,11 +129,11 @@ export function SettingsSidebar({ accountId }: { accountId: string }) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "block whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "block whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
                   active
-                    ? "bg-primary/10 text-primary"
-                    : "text-fg hover:bg-surface-2",
+                    ? "bg-focused text-lit"
+                    : "text-fg-muted hover:bg-hover-glass hover:text-fg",
                 )}
               >
                 {item.label}

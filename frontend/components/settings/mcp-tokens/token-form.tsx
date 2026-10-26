@@ -5,15 +5,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import {
   MCP_SCOPES,
   type MCPScope,
   type MCPTokenInfo,
   type MCPTokenUpdateInput,
 } from "@/lib/api/mcp-tokens";
-
-const selectClass =
-  "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function TokenForm({
   initial,
@@ -67,7 +65,7 @@ export function TokenForm({
         <Label htmlFor="mt-scope">Permisos</Label>
         <select
           id="mt-scope"
-          className={selectClass}
+          className={selectClassName()}
           value={scope}
           onChange={(e) => setScope(e.target.value as MCPScope)}
         >

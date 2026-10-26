@@ -16,6 +16,7 @@ import { type ChangeEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type Align,
@@ -112,8 +113,10 @@ export function BlockEditor({
             <li key={block.id}>
               <div
                 className={cn(
-                  "rounded-lg border",
-                  selected === block.id ? "border-primary" : "border-border",
+                  "rounded-md border",
+                  selected === block.id
+                    ? "border-neon bg-focused/40"
+                    : "border-glass bg-field",
                 )}
               >
                 <div className="flex items-center gap-1 px-2 py-1.5">
@@ -122,7 +125,7 @@ export function BlockEditor({
                     onClick={() =>
                       setSelected(selected === block.id ? null : block.id)
                     }
-                    className="flex-1 text-left text-sm font-medium"
+                    className="flex-1 text-left text-sm font-medium text-fg"
                     aria-expanded={selected === block.id}
                   >
                     {BLOCK_NAMES[block.type]}
@@ -150,7 +153,7 @@ export function BlockEditor({
                 </div>
 
                 {selected === block.id ? (
-                  <div className="space-y-3 border-t border-border p-3">
+                  <div className="space-y-3 border-t border-glass p-3">
                     <BlockFields
                       accountId={accountId}
                       block={block}
@@ -198,7 +201,7 @@ export function BlockEditor({
       <div className="space-y-1.5">
         <p className="text-xs font-medium text-fg-muted">Vista previa</p>
         <div
-          className="overflow-auto rounded-lg border border-border bg-white"
+          className="overflow-auto rounded-md border border-glass bg-white"
           // The preview is the generator's own output, so the two can
           // never drift.
           dangerouslySetInnerHTML={{
@@ -234,7 +237,7 @@ function IconButton({
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className="rounded p-1 text-fg-muted hover:bg-surface-2 disabled:opacity-40"
+      className="rounded-sm p-1 text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-40"
     >
       {children}
     </button>
@@ -249,7 +252,7 @@ function PageControls({
   onChange: (p: BlockDocument["page"]) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3 rounded-lg border border-border p-3">
+    <div className="grid grid-cols-2 gap-3 rounded-md border border-glass p-3">
       <ColorField
         id="page-bg"
         label="Fondo"
@@ -272,7 +275,7 @@ function PageControls({
           step={20}
           value={page.width}
           onChange={(e) => onChange({ ...page, width: Number(e.target.value) })}
-          className="w-full"
+          className="w-full accent-neon"
         />
       </div>
     </div>
@@ -362,7 +365,7 @@ function TextFields({
           onChange={(e) =>
             onChange({ fontSize: Number(e.target.value) } as Partial<Block>)
           }
-          className="w-full"
+          className="w-full accent-neon"
         />
       </div>
       <label className="flex items-center gap-2 text-sm">
@@ -370,7 +373,7 @@ function TextFields({
           type="checkbox"
           checked={block.bold}
           onChange={(e) => onChange({ bold: e.target.checked } as Partial<Block>)}
-          className="h-4 w-4"
+          className="h-4 w-4 rounded border-glass accent-neon"
         />
         Negrita
       </label>
@@ -389,7 +392,7 @@ function ImageFields({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null as string | null);
 
   async function upload(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -480,7 +483,7 @@ function ImageFields({
           onChange={(e) =>
             onChange({ widthPct: Number(e.target.value) } as Partial<Block>)
           }
-          className="w-full"
+          className="w-full accent-neon"
         />
       </div>
       <AlignField
@@ -570,7 +573,7 @@ function SpacerFields({
         onChange={(e) =>
           onChange({ height: Number(e.target.value) } as Partial<Block>)
         }
-        className="w-full"
+        className="w-full accent-neon"
       />
     </div>
   );
@@ -592,7 +595,7 @@ function SignatureFields({
           onChange={(e) =>
             onChange({ showAgent: e.target.checked } as Partial<Block>)
           }
-          className="h-4 w-4"
+          className="h-4 w-4 rounded border-glass accent-neon"
         />
         Firma de quien responde
       </label>
@@ -603,7 +606,7 @@ function SignatureFields({
           onChange={(e) =>
             onChange({ showMailbox: e.target.checked } as Partial<Block>)
           }
-          className="h-4 w-4"
+          className="h-4 w-4 rounded border-glass accent-neon"
         />
         Firma de la casilla
       </label>
@@ -627,7 +630,7 @@ function AlignField({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value as Align)}
-        className="h-10 w-full rounded-md border border-border bg-surface px-2 text-sm"
+        className={cn(selectClassName("sm"), "w-full")}
       >
         <option value="left">Izquierda</option>
         <option value="center">Centro</option>
@@ -656,7 +659,7 @@ function ColorField({
         type="color"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-10 w-full rounded-md border border-border bg-surface"
+        className="h-10 w-full cursor-pointer rounded-control border border-glass bg-field"
       />
     </div>
   );

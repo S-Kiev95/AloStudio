@@ -40,10 +40,10 @@ export function InboxesView({ accountId }: { accountId: string }) {
   const newHref = `/accounts/${accountId}/settings/inboxes/new`;
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-fg">Bandejas de entrada</h2>
+          <h2 className="text-xl font-medium text-fg">Bandejas de entrada</h2>
           <p className="text-sm text-fg-muted">Canales conectados a tu cuenta.</p>
         </div>
         <Link href={newHref} className={buttonVariants({ size: "sm" })}>
@@ -52,7 +52,7 @@ export function InboxesView({ accountId }: { accountId: string }) {
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -71,7 +71,7 @@ export function InboxesView({ accountId }: { accountId: string }) {
             </Link>
           </div>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {inboxes!.map((ix) => (
               <InboxRow key={ix.id} accountId={accountId} inbox={ix} />
             ))}
@@ -104,12 +104,12 @@ function InboxRow({
   }
 
   return (
-    <li className="flex items-center gap-1 pr-2 hover:bg-surface-2">
+    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-hover-glass">
       <Link
         href={`/accounts/${accountId}/settings/inboxes/${inbox.id}`}
         className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-focused text-lit">
           <Icon className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">

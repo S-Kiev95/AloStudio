@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   ATTRIBUTE_DISPLAY_TYPES,
   type AttributeModel,
@@ -19,10 +20,10 @@ import { cn } from "@/lib/utils";
 
 import { CustomAttributeForm } from "./custom-attribute-form";
 
-const MODEL_FILTERS: { key: AttributeModel | undefined; label: string }[] = [
-  { key: undefined, label: "Todos" },
-  { key: "conversation_attribute", label: "Conversaciones" },
-  { key: "contact_attribute", label: "Contactos" },
+const MODEL_FILTERS: { value: AttributeModel | undefined; label: string }[] = [
+  { value: undefined, label: "Todos" },
+  { value: "conversation_attribute", label: "Conversaciones" },
+  { value: "contact_attribute", label: "Contactos" },
 ];
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(
@@ -50,9 +51,9 @@ export function CustomAttributesView({ accountId }: { accountId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-fg">
+        <h2 className="text-xl font-medium text-fg">
           Atributos personalizados
         </h2>
         {!creating && !editing ? (
@@ -94,27 +95,15 @@ export function CustomAttributesView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        {MODEL_FILTERS.map((f) => (
-          <button
-            key={f.label}
-            type="button"
-            onClick={() => setModel(f.key)}
-            aria-pressed={model === f.key}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              model === f.key
-                ? "bg-surface-2 font-semibold text-fg"
-                : "border border-border bg-surface text-fg hover:bg-surface-2",
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        size="sm"
+        ariaLabel="Modelo"
+        value={model}
+        onValueChange={setModel}
+        options={MODEL_FILTERS}
+      />
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -126,7 +115,7 @@ export function CustomAttributesView({ accountId }: { accountId: string }) {
             No hay atributos definidos todavía.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((a) => (
               <AttrRow
                 key={a.id}
@@ -169,7 +158,7 @@ function AttrRow({
   }
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
+    <li className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-hover-glass">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">
           {attribute.attribute_display_name}
@@ -190,10 +179,10 @@ function AttrRow({
       </div>
       <span
         className={cn(
-          "rounded-full px-2 py-0.5 text-xs",
+          "rounded-sm px-2 py-0.5 text-xs font-medium",
           attribute.attribute_model === "conversation_attribute"
-            ? "bg-info/10 text-info"
-            : "bg-warning/10 text-warning",
+            ? "bg-focused text-lit"
+            : "bg-surface-2 text-fg-muted",
         )}
       >
         {attribute.attribute_model === "conversation_attribute"
@@ -205,7 +194,7 @@ function AttrRow({
         aria-label="Editar"
         title="Editar"
         onClick={onEdit}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </button>

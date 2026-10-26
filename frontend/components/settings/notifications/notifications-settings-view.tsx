@@ -69,13 +69,13 @@ export function NotificationsSettingsView({
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4 md:p-6">
-      <h2 className="text-xl font-semibold text-fg">Notificaciones</h2>
+    <div className="max-w-2xl space-y-4">
+      <h2 className="text-xl font-medium text-fg">Notificaciones</h2>
       <p className="text-sm text-fg-muted">
         Elegí qué eventos te van a llegar por email o como notificación en la
         app. La campanita del topbar muestra todas, independiente de esto.
       </p>
-      <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-fg-muted">
+      <p className="rounded-md border border-glass bg-surface-2 px-3 py-2 text-xs text-fg-muted">
         El email se envía cuando activás un evento en la columna Email. Para
         recibir push en este dispositivo, activalo abajo y marcá los eventos en
         la columna Push. La campanita en la app funciona siempre.
@@ -112,17 +112,17 @@ export function NotificationsSettingsView({
                 <p className="text-sm text-success">Preferencias guardadas.</p>
               ) : null}
 
-              <div className="overflow-hidden rounded-md border border-border">
+              <div className="overflow-hidden rounded-md border border-glass">
                 <table className="w-full text-sm">
-                  <thead className="bg-surface-2 text-xs uppercase text-fg-muted">
+                  <thead className="bg-surface-2 text-[11px] uppercase tracking-[0.08em] text-fg-muted">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium">
+                      <th className="px-3 py-2.5 text-left font-medium">
                         Evento
                       </th>
-                      <th className="w-20 px-3 py-2 text-center font-medium">
+                      <th className="w-20 px-3 py-2.5 text-center font-medium">
                         Email
                       </th>
-                      <th className="w-20 px-3 py-2 text-center font-medium">
+                      <th className="w-20 px-3 py-2.5 text-center font-medium">
                         En la app
                       </th>
                     </tr>
@@ -132,32 +132,32 @@ export function NotificationsSettingsView({
                       <tr
                         key={t}
                         className={cn(
-                          "border-t border-border",
-                          "hover:bg-surface-2/40",
+                          "border-t border-glass transition-colors",
+                          "hover:bg-hover-glass",
                         )}
                       >
-                        <td className="px-3 py-2 text-fg">
+                        <td className="px-3 py-2.5 text-fg">
                           {NOTIFICATION_TYPE_LABELS[t]}
                         </td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-3 py-2.5 text-center">
                           <label className="inline-flex cursor-pointer items-center">
                             <input
                               type="checkbox"
                               aria-label={`Email — ${NOTIFICATION_TYPE_LABELS[t]}`}
                               checked={email.has(t)}
                               onChange={() => toggle(email, setEmail, t)}
-                              className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
+                              className="h-4 w-4 cursor-pointer rounded border-glass accent-neon"
                             />
                           </label>
                         </td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-3 py-2.5 text-center">
                           <label className="inline-flex cursor-pointer items-center">
                             <input
                               type="checkbox"
                               aria-label={`En la app — ${NOTIFICATION_TYPE_LABELS[t]}`}
                               checked={push.has(t)}
                               onChange={() => toggle(push, setPush, t)}
-                              className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
+                              className="h-4 w-4 cursor-pointer rounded border-glass accent-neon"
                             />
                           </label>
                         </td>

@@ -64,7 +64,7 @@ export function EmailTemplatesView({ accountId }: { accountId: string }) {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-lg font-semibold">Plantillas de correo</h1>
+        <h2 className="text-xl font-medium text-fg">Plantillas de correo</h2>
         <p className="text-sm text-fg-muted">
           El diseño con el que salen los correos. Una organización puede
           tener varias — bienvenida, cierre de ticket, avisos — y cada
@@ -95,8 +95,8 @@ export function EmailTemplatesView({ accountId }: { accountId: string }) {
                     className={cn(
                       "flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
                       t.id === selected
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-surface-2",
+                        ? "border-neon bg-focused text-lit"
+                        : "border-glass bg-field text-fg hover:bg-hover-glass",
                     )}
                   >
                     <Mail className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
@@ -260,7 +260,7 @@ function TemplateEditor({
             />
           </div>
 
-          <div className="flex gap-1 rounded-lg border border-border p-1">
+          <div className="flex gap-1 rounded-control border border-glass bg-field p-1">
             {(
               [
                 ["blocks", "Bloques"],
@@ -288,9 +288,10 @@ function TemplateEditor({
                 }}
                 className={cn(
                   "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
                   mode === value
-                    ? "bg-primary text-primary-fg"
-                    : "text-fg-muted hover:bg-surface-2",
+                    ? "bg-focused text-lit"
+                    : "text-fg-muted hover:bg-hover-glass hover:text-fg",
                 )}
               >
                 {label}

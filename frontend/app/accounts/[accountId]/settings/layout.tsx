@@ -9,7 +9,7 @@ export default async function SettingsLayout({
 }) {
   const { accountId } = await params;
   return (
-    <div className="flex flex-col gap-0 md:flex-row md:gap-6">
+    <div className="flex flex-col gap-4 md:flex-row md:gap-6">
       <SettingsSidebar accountId={accountId} />
       <div className="min-w-0 flex-1">{children}</div>
     </div>

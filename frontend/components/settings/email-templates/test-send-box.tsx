@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { useTestSendEmailTemplate } from "@/lib/api/email-templates";
 import { useInboxes } from "@/lib/api/inboxes";
 
@@ -70,9 +71,9 @@ export function TestSendBox({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-border p-3">
+    <div className="space-y-3 rounded-md border border-glass p-3">
       <div>
-        <p className="text-sm font-medium">Enviarte una prueba</p>
+        <p className="text-sm font-medium text-fg">Enviarte una prueba</p>
         <p className="mt-0.5 text-xs text-fg-muted">
           La vista previa de arriba es el navegador. Gmail y Outlook
           renderizan distinto — mandate la plantilla y miratela ahí.
@@ -86,7 +87,7 @@ export function TestSendBox({
             id="test-inbox"
             value={chosen}
             onChange={(e) => setInboxId(e.target.value)}
-            className="h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={selectClassName()}
           >
             {mailboxes.map((i) => (
               <option key={i.id} value={i.id}>

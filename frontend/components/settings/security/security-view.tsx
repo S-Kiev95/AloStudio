@@ -47,8 +47,8 @@ export function SecurityView() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4 md:p-6">
-      <h2 className="text-xl font-semibold text-fg">Seguridad</h2>
+    <div className="max-w-2xl space-y-4">
+      <h2 className="text-xl font-medium text-fg">Seguridad</h2>
 
       <Card>
         <CardHeader>

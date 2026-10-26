@@ -16,9 +16,9 @@ export function MacrosView({ accountId }: { accountId: string }) {
   const { data, isLoading, isError } = useMacros(accountId);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-fg">Macros</h2>
+        <h2 className="text-xl font-medium text-fg">Macros</h2>
         <Link
           href={`/accounts/${accountId}/settings/macros/new`}
           className={buttonVariants({ size: "sm" })}
@@ -28,7 +28,7 @@ export function MacrosView({ accountId }: { accountId: string }) {
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -40,7 +40,7 @@ export function MacrosView({ accountId }: { accountId: string }) {
             No hay macros todavía.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((m) => (
               <MacroRow key={m.id} accountId={accountId} macro={m} />
             ))}
@@ -68,12 +68,12 @@ function MacroRow({ accountId, macro }: { accountId: string; macro: Macro }) {
   }
 
   return (
-    <li className="flex items-center gap-1 pr-2 hover:bg-surface-2">
+    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-hover-glass">
       <Link
         href={`/accounts/${accountId}/settings/macros/${macro.id}`}
         className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-focused text-lit">
           <Zap className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
@@ -91,9 +91,9 @@ function MacroRow({ accountId, macro }: { accountId: string; macro: Macro }) {
         </div>
         <span
           className={cn(
-            "rounded-full px-2 py-0.5 text-xs font-medium",
+            "rounded-sm px-2 py-0.5 text-xs font-medium",
             macro.visibility === "global"
-              ? "bg-info/10 text-info"
+              ? "bg-focused text-lit"
               : "bg-surface-2 text-fg-muted",
           )}
         >
@@ -106,7 +106,7 @@ function MacroRow({ accountId, macro }: { accountId: string; macro: Macro }) {
         title="Eliminar"
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

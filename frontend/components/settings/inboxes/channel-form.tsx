@@ -7,6 +7,7 @@ import { type FormEvent, type ReactNode, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { selectClassName } from "@/components/ui/select";
 import { ApiError } from "@/lib/api/errors";
 import { type ChannelPayload, useCreateInbox } from "@/lib/api/inboxes";
 import { channelDef, type ChannelDef } from "@/lib/inboxes/channel-catalog";
@@ -80,13 +81,13 @@ export function ChannelForm({
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Cambiar canal
         </Link>
-        <h2 className="mt-2 text-xl font-semibold text-fg">{def.label}</h2>
+        <h2 className="mt-2 text-xl font-medium text-fg">{def.label}</h2>
         <p className="text-sm text-fg-muted">{def.blurb}</p>
       </div>
 
       <form
         onSubmit={submit}
-        className="space-y-4 rounded-lg border border-border bg-surface p-4"
+        className="space-y-4 rounded-md border border-glass bg-surface p-5"
       >
         <Field label="Nombre de la bandeja" required>
           <Input
@@ -106,7 +107,7 @@ export function ChannelForm({
                   onChange={(e) =>
                     setField(f.name, e.target.checked ? "true" : "")
                   }
-                  className="h-4 w-4 rounded border-border"
+                  className="h-4 w-4 rounded border-glass accent-neon"
                 />
                 Activar
               </label>
@@ -114,7 +115,7 @@ export function ChannelForm({
               <select
                 value={values[f.name] ?? f.options?.[0]?.value ?? ""}
                 onChange={(e) => setField(f.name, e.target.value)}
-                className="h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                className={selectClassName()}
               >
                 {f.options?.map((o) => (
                   <option key={o.value} value={o.value}>

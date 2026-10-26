@@ -5,15 +5,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   AssignmentPolicy,
   AssignmentPolicyInput,
   ConversationPriority,
 } from "@/lib/api/assignment-policies";
-
-const selectClass =
-  "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const PRIORITY_LABELS: Record<ConversationPriority, string> = {
   earliest_created: "La creada primero",
@@ -109,7 +107,7 @@ export function AssignmentPolicyForm({
         <Label htmlFor="ap-priority">Prioridad de conversación</Label>
         <select
           id="ap-priority"
-          className={selectClass}
+          className={selectClassName()}
           value={priority}
           onChange={(e) =>
             setPriority(e.target.value as ConversationPriority)
@@ -163,7 +161,7 @@ export function AssignmentPolicyForm({
           type="checkbox"
           checked={enabled}
           onChange={(e) => setEnabled(e.target.checked)}
-          className="h-4 w-4 rounded border-border text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-4 w-4 rounded border-glass accent-neon focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         Política activa
       </label>

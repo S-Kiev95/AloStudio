@@ -4,6 +4,7 @@ import { type FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useEmailTemplates } from "@/lib/api/email-templates";
 import { type InboxDetail, useUpdateInbox } from "@/lib/api/inboxes";
@@ -125,7 +126,7 @@ export function EmailTemplatePanel({
   return (
     <div className="space-y-4">
       {templates.length > 0 ? (
-        <div className="space-y-1.5 rounded-lg border border-border p-3">
+        <div className="space-y-1.5 rounded-md border border-glass p-3">
           <Label htmlFor="shared-template">Plantilla</Label>
           <select
             id="shared-template"
@@ -133,7 +134,7 @@ export function EmailTemplatePanel({
             onChange={(e) =>
               chooseShared(e.target.value === "" ? null : Number(e.target.value))
             }
-            className="h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={selectClassName()}
           >
             <option value="">El diseño propio de esta casilla</option>
             {templates.map((t) => (
@@ -155,7 +156,7 @@ export function EmailTemplatePanel({
       ) : null}
 
       {linked ? (
-        <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-fg-muted">
+        <p className="rounded-md border border-glass bg-surface-2 px-3 py-2 text-sm text-fg-muted">
           Esta casilla usa «{linked.name}». Para cambiar el diseño andá a
           Ajustes → Plantillas de correo. Lo de abajo queda guardado y
           vuelve a usarse si elegís «el diseño propio».
@@ -169,7 +170,7 @@ export function EmailTemplatePanel({
         </p>
       ) : null}
 
-      <div className="flex gap-1 rounded-lg border border-border p-1">
+      <div className="flex gap-1 rounded-control border border-glass bg-field p-1">
         {(
           [
             ["design", "Diseñador"],
@@ -191,9 +192,10 @@ export function EmailTemplatePanel({
             }}
             className={cn(
               "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
               mode === value
-                ? "bg-primary text-primary-fg"
-                : "text-fg-muted hover:bg-surface-2",
+                ? "bg-focused text-lit"
+                : "text-fg-muted hover:bg-hover-glass hover:text-fg",
             )}
           >
             {label}
@@ -234,14 +236,14 @@ export function EmailTemplatePanel({
         </p>
       </div>
 
-      <div className="rounded-lg border border-border p-3">
+      <div className="rounded-md border border-glass p-3">
         <p className="mb-2 text-xs font-semibold text-fg">
           Marcadores que podés usar
         </p>
         <ul className="space-y-1">
           {PLACEHOLDERS.map((p) => (
             <li key={p.token} className="flex flex-wrap gap-2 text-xs">
-              <code className="rounded bg-surface-2 px-1.5 py-0.5 text-primary">
+              <code className="rounded-sm bg-surface-2 px-1.5 py-0.5 text-lit">
                 {p.token}
               </code>
               <span className="text-fg-muted">{p.what}</span>

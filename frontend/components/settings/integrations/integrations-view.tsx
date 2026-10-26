@@ -10,10 +10,10 @@ export function IntegrationsView({ accountId }: { accountId: string }) {
   const { data, isLoading, isError } = useIntegrationApps(accountId);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
-      <h2 className="text-xl font-semibold text-fg">Integraciones</h2>
+    <div className="max-w-3xl space-y-4">
+      <h2 className="text-xl font-medium text-fg">Integraciones</h2>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -25,7 +25,7 @@ export function IntegrationsView({ accountId }: { accountId: string }) {
             No hay integraciones disponibles.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((app) => (
               <AppRow key={app.id} accountId={accountId} app={app} />
             ))}
@@ -48,9 +48,9 @@ function AppRow({
     <li>
       <Link
         href={`/accounts/${accountId}/settings/integrations/${app.id}`}
-        className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-hover-glass focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-focused text-lit">
           <Puzzle className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
@@ -61,7 +61,7 @@ function AppRow({
         </div>
         <span
           className={cn(
-            "rounded-full px-2 py-0.5 text-xs font-medium",
+            "rounded-sm px-2 py-0.5 text-xs font-medium",
             connected
               ? "bg-success/10 text-success"
               : app.enabled

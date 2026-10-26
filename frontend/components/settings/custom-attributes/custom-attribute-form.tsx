@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ATTRIBUTE_DISPLAY_TYPES,
@@ -15,9 +16,6 @@ import {
   type CustomAttributeInput,
 } from "@/lib/api/custom-attributes";
 import { cn } from "@/lib/utils";
-
-const selectClass =
-  "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function CustomAttributeForm({
   initial,
@@ -109,7 +107,7 @@ export function CustomAttributeForm({
           <Label htmlFor="ca-type">Tipo</Label>
           <select
             id="ca-type"
-            className={selectClass}
+            className={selectClassName()}
             value={displayType}
             onChange={(e) =>
               setDisplayType(e.target.value as AttributeDisplayType)
@@ -126,7 +124,7 @@ export function CustomAttributeForm({
           <Label htmlFor="ca-model">Aplica a</Label>
           <select
             id="ca-model"
-            className={selectClass}
+            className={selectClassName()}
             value={model}
             onChange={(e) => setModel(e.target.value as AttributeModel)}
             disabled={Boolean(initial)}
@@ -183,7 +181,7 @@ export function CustomAttributeForm({
                 <span
                   key={v}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full",
+                    "inline-flex items-center gap-1 rounded-sm border border-glass",
                     "bg-surface-2 px-2 py-0.5 text-xs text-fg",
                   )}
                 >
@@ -194,7 +192,7 @@ export function CustomAttributeForm({
                     onClick={() =>
                       setValues((prev) => prev.filter((x) => x !== v))
                     }
-                    className="rounded-full p-0.5 hover:text-danger"
+                    className="rounded-sm p-0.5 hover:text-danger"
                   >
                     <X className="h-3 w-3" aria-hidden />
                   </button>

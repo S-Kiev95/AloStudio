@@ -3,6 +3,7 @@
 import { Trash2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import { selectClassName } from "@/components/ui/select";
 import {
   FILTER_OPERATOR_LABELS,
   FILTER_OPERATORS,
@@ -38,7 +39,7 @@ export function ConditionRow({
   const isLast = index === total - 1;
 
   return (
-    <div className="space-y-2 rounded-md border border-border bg-surface p-2">
+    <div className="space-y-2 rounded-md border border-glass bg-surface-2/40 p-2">
       <div className="flex flex-wrap items-start gap-2">
         <select
           aria-label="Atributo"
@@ -46,7 +47,7 @@ export function ConditionRow({
           onChange={(e) =>
             onChange({ ...value, attribute_key: e.target.value })
           }
-          className="h-9 rounded-md border border-border bg-surface px-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={selectClassName("sm")}
         >
           {STANDARD_ATTRIBUTES.map((a) => (
             <option key={a.key} value={a.key}>
@@ -64,7 +65,7 @@ export function ConditionRow({
               filter_operator: e.target.value as FilterOperator,
             })
           }
-          className="h-9 rounded-md border border-border bg-surface px-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={selectClassName("sm")}
         >
           {FILTER_OPERATORS.map((op) => (
             <option key={op} value={op}>
@@ -92,7 +93,7 @@ export function ConditionRow({
           aria-label="Quitar condición"
           title="Quitar condición"
           onClick={onRemove}
-          className="rounded-md p-2 text-fg-muted hover:bg-surface-2 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="rounded-md p-2 text-fg-muted hover:bg-hover-glass hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Trash2 className="h-4 w-4" aria-hidden />
         </button>
@@ -105,6 +106,7 @@ export function ConditionRow({
               type="radio"
               checked={value.query_operator === "AND"}
               onChange={() => onChange({ ...value, query_operator: "AND" })}
+              className="accent-neon"
             />
             Y (todas)
           </label>
@@ -113,6 +115,7 @@ export function ConditionRow({
               type="radio"
               checked={value.query_operator === "OR"}
               onChange={() => onChange({ ...value, query_operator: "OR" })}
+              className="accent-neon"
             />
             O (cualquiera)
           </label>
