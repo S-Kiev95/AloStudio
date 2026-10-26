@@ -102,4 +102,131 @@ Recomponer el layout de pantallas (por ejemplo el Home con la órbita de canales
 
 ## Estado
 
-_(lo completa el agente al terminar)_
+### Qué se hizo
+
+1. **Tokens, superficies, radios y fuentes (`7287619`)**
+   - Reescritos los tokens semánticos en `frontend/app/globals.css` para `:root` (día) y `.dark` (noche) siguiendo `docs/design-neon/DESIGN.md` y `docs/design-neon/neon-tokens.reference.scss`, más todos los tokens `--neon-*` (`--neon-core`, `--neon-core-hover`, `--neon-halo`, `--neon-halo-far`, `--neon-edge`, `--neon-lit-text`, `--neon-unlit-text`, `--neon-hum`, `--neon-glass`, `--neon-glass-highlight`, `--neon-field`, `--neon-hover-glass`, `--neon-focused-glass`, `--neon-electrode`, `--neon-ambient-spill`, `--neon-settings`).
+   - Clases de superficie neón (`.glass-panel`, `.neon-wordmark`, `.neon-sign`, `.neon-nav-row`, `.neon-tab`, `.neon-btn-primary`, `.neon-btn-simple`, `.neon-btn-ai`, `.neon-field-input`, `.neon-toggle`, `.neon-table`, `@keyframes neon-ignite`) con soporte completo de día y `@media (prefers-reduced-motion: reduce)`.
+   - Mapeo en `frontend/tailwind.config.ts`: colores neón (`bg-field`, `text-lit`, `text-unlit`, `bg-focused`, `bg-hover-glass`, `text-electrode`, `border-glass`, `bg-settings`), radios (`panel: 16px`, `control: 10px`, `lg: 8px`, `sm: 4px`), sombra `menu` para menús flotantes y tipografías `Geologica` (`font-sans`, `font-numeric` con `tabular-nums`), `Tilt_Neon` (`font-display`) y `Neonderthaw` (`font-script`) cargadas con `next/font/google` en `frontend/app/layout.tsx` (eliminado `Inter`).
+
+2. **Componentes base en `frontend/components/ui/` (`d481340`)**
+   - `Button` (`primary` tubo cobalto encendido, `secondary` panel elevado sin luz, `simple` vidrio translúcido, `ai` naranja electrodo `--neon-electrode`, `destructive`, `ghost`; 40px / radio 10px y área táctil mínima de 44px en móvil) + tests en `button.test.tsx`.
+   - `Input`, `Textarea` y nuevo `Select` compartido sobre campo hundido (`--neon-field`, borde de vidrio de 1px, radio 10px, 44px de alto en inputs/selects, foco cobalto + anillo de 3px en 180ms).
+   - `Card` (radio 8px, borde de vidrio, cero sombras/halos), `Label`, `Avatar`.
+   - `Tabs` / `NavTabs` (riel de 1px con tubo cobalto de 2px bajo la pestaña activa, `Tilt Neon` 17px) + tests en `tabs.test.tsx`, y `SegmentedControl` compartido para selectores de vista/estado.
+
+3. **Shell y `PageHeader` (`cc23a9d`)**
+   - `DashboardShell` con marco de 12px (`8px` en móvil) y dos paneles `.glass-panel` redondeados (`16px`, sin sombras): barra lateral de `236px` (y cajón de altura completa en móvil) + panel de trabajo.
+   - Wordmark `AloStudio` en `Neonderthaw` 36px (`.neon-wordmark`) arriba de la barra lateral; filas de navegación en `SidebarNav` con `Tilt Neon` 16px, 44px de alto, radio 10px y *Humming Sidebar Exception* en noche (en día sin brillo), manteniendo intactas todas las rutas y grupos de `nav.ts`.
+   - Barra superior del panel de trabajo con el cartel de la sección (`.neon-sign`, `Tilt Neon` 34px / 24px móvil) a la izquierda y `ThemeToggle`, `NotificationBell`, `AccountSwitcher` y `AgentMenu` a la derecha.
+   - Nuevo `PageHeader` (`frontend/components/shell/page-header.tsx` + `page-header.test.tsx`) sincronizado con el cartel de `DashboardShell` sin duplicar `<h1>`.
+
+4. **Marca, íconos PWA y pantallas públicas de autenticación (`c9d6e47`)**
+   - `frontend/app/icon.png` (512×512) y `frontend/app/apple-icon.png` (180×180) desde `frontend/public/brand/`, `frontend/app/manifest.ts` apuntando a `/brand/alostudio-icon-{192,512}.png` con colores `#060912` / `#4d7cff`, y actualización del ícono por defecto en `frontend/public/sw.js`.
+   - Rediseño neón de `frontend/app/(auth)/layout.tsx`, `/login`, `/forgot-password`, `/reset-password`, `/confirm` y `/auth/sso`.
+   - Eliminación total de referencias a `#fcd535`, `#f0b90b`, `252 213 53`, `240 185 11`, `"Binance"` y `"yellow"` en `frontend/`.
+
+5. **Barrido completo de pantallas y ajustes (`f078bbc`, `bd6a4aa`)**
+   - Aplicados `PageHeader`, `Tabs` / `NavTabs`, `SegmentedControl`, `Select`, `.neon-table` (encabezados en panel elevado de 11px uppercase con tracking, divisores de vidrio y `tabular-nums`) y `.neon-toggle` en `overview`, `agenda`, `conversations`, `contacts`, `products`, `campaigns`, `reports`, `instagram`, `help-center`, `notifications`, `accounts`, `system` y las 20 subpantallas de `/accounts/[accountId]/settings/*`.
+   - Eliminados `rounded-xl`, `rounded-2xl`, `shadow-sm/md/lg/xl`, `shadow-glow`, `bg-gradient-*`, `text-black` y `bg-black` residuales en componentes, preservando los colores de marca de canales externos y los colores configurables por el usuario en Help Center / plantillas de email.
+
+6. **Documentación y capturas (`f7a1562`)**
+   - Reescrito `frontend/DESIGN-SYSTEM.md` documentando el sistema "The Hand-Bent Neon Room", tokens, superficies, componentes y reglas con nombre, apuntando a `docs/design-neon/DESIGN.md`.
+   - Capturas de `/login` a `1440×900` en noche y día guardadas en `docs/design-neon/after/login-night.png` y `docs/design-neon/after/login-day.png`.
+
+### Qué quedó pendiente / fuera de alcance
+
+- **Recomposición de layouts (fuera de alcance según el plan):**
+  - El Home actual conserva las métricas y accesos operativos de AloStudio (no la órbita de canales sociales de `screens/home.png`).
+  - La sección `/agenda` mantiene su calendario semanal/lista de turnos (no el calendario mensual de publicaciones sociales de `screens/calendar.png`, que vendrá al migrar publicación).
+  - `/accounts/[accountId]/settings/*` conserva su subnavegación lateral de 20 secciones (estilizada con `bg-focused text-lit` sin halos según *Don't add halos to the settings sub-nav*), ya que no entra en una barra horizontal única de 6 pestañas como en `screens/settings.png`.
+- **Revisión con backend activo:**
+  - Las pantallas autenticadas bajo `/accounts/[accountId]/*` y la suite E2E (`npm run test:e2e`) requieren el backend Python y PostgreSQL corriendo; tal como indica la sección *Entorno*, quedan listas para revisión con el backend levantado.
+
+### Verificaciones ejecutadas (todas sobre `frontend/` completo)
+
+#### 1. `npm run typecheck` (ejecutado sobre todo `frontend/`)
+
+```text
+> alostudio-frontend@0.1.0 typecheck
+> tsc --noEmit
+```
+*(Código de salida: `0`)*
+
+#### 2. `npm run lint` (ejecutado sobre todo `frontend/`)
+
+```text
+> alostudio-frontend@0.1.0 lint
+> next lint
+
+`next lint` is deprecated and will be removed in Next.js 16.
+For new projects, use create-next-app to choose your preferred linter.
+For existing projects, migrate to the ESLint CLI:
+npx @next/codemod@canary next-lint-to-eslint-cli .
+
+✔ No ESLint warnings or errors
+```
+*(Código de salida: `0`)*
+
+#### 3. `npm test` (ejecutado sobre todo `frontend/`)
+
+```text
+> alostudio-frontend@0.1.0 test
+> vitest run
+
+ RUN  v2.1.9 C:/Users/Zeek/Desktop/AloStudio-design/frontend
+ ...
+ Test Files  70 passed (70)
+      Tests  290 passed (290)
+   Start at  02:17:09
+   Duration  12.31s (transform 5.77s, setup 16.72s, collect 54.96s, tests 25.21s, environment 124.37s, prepare 18.81s)
+```
+*(Código de salida: `0` — las 70 suites y 290 pruebas unitarias/componentes de `frontend/` pasaron completas)*
+
+#### 4. `npm run build` (ejecutado sobre todo `frontend/`)
+
+```text
+> alostudio-frontend@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.18
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 13.4s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/24) ...
+ ✓ Generating static pages (24/24)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                           Size  First Load JS
+┌ ƒ /                                                                175 B         102 kB
+├ ○ /_not-found                                                      175 B         102 kB
+├ ƒ /accounts                                                        175 B         102 kB
+├ ƒ /accounts/[accountId]                                          2.89 kB         129 kB
+...
+├ ○ /apple-icon.png                                                    0 B            0 B
+├ ○ /auth/sso                                                      3.94 kB         116 kB
+├ ƒ /confirm                                                       2.39 kB         115 kB
+├ ○ /eliminacion-de-datos                                            197 B         106 kB
+├ ○ /forgot-password                                               2.55 kB         138 kB
+├ ○ /icon.png                                                          0 B            0 B
+├ ○ /login                                                            3 kB         138 kB
+├ ○ /manifest.webmanifest                                            175 B         102 kB
+├ ○ /privacidad                                                      197 B         106 kB
+├ ƒ /reset-password                                                2.59 kB         138 kB
+├ ○ /robots.txt                                                      175 B         102 kB
+└ ○ /terminos                                                        197 B         106 kB
++ First Load JS shared by all                                       102 kB
+
+ƒ Middleware                                                       34.3 kB
+```
+*(Código de salida: `0`)*
+
+#### 5. Búsqueda de restos amarillos / Binance en `frontend/`
+
+```text
+$ git grep -i -E "fcd535|f0b90b|252[ _]213[ _]53|240[ _]185[ _]11|binance|yellow" -- frontend/
+(sin coincidencias — código de salida: 1)
+```
