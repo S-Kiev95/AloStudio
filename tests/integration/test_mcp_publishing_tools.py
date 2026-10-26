@@ -18,6 +18,7 @@ from app.core.models_registry import import_all_models
 from app.domains.accounts.models import Account
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+from app.domains.media_library.models import MediaAsset
 from app.mcp.server import build_server
 from app.mcp.service import create_token
 
@@ -145,6 +146,27 @@ async def test_mcp_schedule_list_and_cancel(mcp_session):
             )
         )
         assert deleted == {"deleted": created["id"]}
+
+
+async def test_mcp_lists_the_media_library(mcp_session):
+    owner, _inbox = await _seed(mcp_session, suffix="-media")
+    asset = MediaAsset(
+        account_id=owner.account.id,
+        kind="image",
+        key=f"accounts/{owner.account.id}/uploads/x/foto.jpg",
+        filename="foto.jpg",
+        content_type="image/jpeg",
+        size_bytes=10,
+    )
+    mcp_session.add(asset)
+    await mcp_session.commit()
+
+    async with Client(build_server()) as client:
+        listed = _body(await client.call_tool("list_media", {}))
+
+    (item,) = listed["media"]
+    assert item["id"] == asset.id
+    assert item["kind"] == "image"
 
 
 async def test_mcp_validation_errors_reach_the_agent(mcp_session):
