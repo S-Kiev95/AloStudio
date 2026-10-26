@@ -75,7 +75,7 @@ export function TrafficHeatmap({ data }: { data: TrafficRow[] }) {
                 <th
                   key={row.date}
                   scope="col"
-                  className="whitespace-nowrap p-1 font-normal text-fg-muted"
+                  className="whitespace-nowrap p-1 font-numeric font-normal tabular-nums text-fg-muted"
                 >
                   {shortDate(row.date)}
                 </th>
@@ -87,7 +87,7 @@ export function TrafficHeatmap({ data }: { data: TrafficRow[] }) {
               <tr key={h}>
                 <th
                   scope="row"
-                  className="sticky left-0 bg-surface pr-2 text-right font-normal text-fg-muted"
+                  className="sticky left-0 bg-surface pr-2 text-right font-numeric font-normal tabular-nums text-fg-muted"
                 >
                   {hourLabel(h)}
                 </th>
@@ -105,7 +105,7 @@ export function TrafficHeatmap({ data }: { data: TrafficRow[] }) {
                         className={
                           count === 0
                             ? "h-5 w-8 rounded-sm bg-surface-2 transition-shadow"
-                            : "h-5 w-8 rounded-sm bg-primary transition-shadow hover:ring-2 hover:ring-fg/40"
+                            : "h-5 w-8 rounded-sm bg-neon transition-shadow hover:ring-2 hover:ring-lit/50"
                         }
                         style={
                           count === 0
@@ -134,7 +134,7 @@ export function TrafficHeatmap({ data }: { data: TrafficRow[] }) {
             transform: "translate(-50%, -100%)",
             pointerEvents: "none",
           }}
-          className="z-50 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs shadow-md"
+          className="z-50 whitespace-nowrap rounded-md border border-glass bg-surface-2 px-2.5 py-1.5 text-xs shadow-menu"
         >
           <p className="font-numeric tabular-nums text-fg-muted">
             {hovered.when}

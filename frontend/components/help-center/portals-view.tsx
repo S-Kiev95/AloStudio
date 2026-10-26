@@ -4,6 +4,7 @@ import { BookOpen, ChevronRight, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -29,16 +30,18 @@ export function PortalsView({ accountId }: { accountId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-fg">Help Center</h2>
-        {!creating ? (
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" aria-hidden />
-            Nuevo portal
-          </Button>
-        ) : null}
-      </div>
+    <div className="mx-auto max-w-3xl space-y-4">
+      <PageHeader
+        title="Help Center"
+        actions={
+          !creating ? (
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus className="h-4 w-4" aria-hidden />
+              Nuevo portal
+            </Button>
+          ) : undefined
+        }
+      />
 
       {creating ? (
         <Card>
@@ -56,7 +59,7 @@ export function PortalsView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -68,7 +71,7 @@ export function PortalsView({ accountId }: { accountId: string }) {
             No hay portales todavía. Creá uno para empezar.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((p) => (
               <PortalRow key={p.id} accountId={accountId} portal={p} />
             ))}
@@ -104,10 +107,10 @@ function PortalRow({
   }
 
   return (
-    <li className="flex items-center gap-1 pr-2 hover:bg-surface-2">
+    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-hover-glass">
       <Link
         href={`/accounts/${accountId}/help-center/${portal.slug}`}
-        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neon"
       >
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
@@ -119,7 +122,7 @@ function PortalRow({
           <p className="truncate text-sm font-medium text-fg">
             {portal.name}
             {portal.archived ? (
-              <span className="ml-2 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase text-fg-muted">
+              <span className="ml-2 rounded-sm bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase text-fg-muted">
                 Archivado
               </span>
             ) : null}
@@ -142,8 +145,8 @@ function PortalRow({
         onClick={onDelete}
         disabled={del.isPending}
         className={cn(
-          "rounded-md p-1.5 text-fg-muted hover:bg-surface hover:text-danger disabled:opacity-50",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon",
         )}
       >
         <Trash2 className="h-4 w-4" aria-hidden />

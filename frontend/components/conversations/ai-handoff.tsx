@@ -27,11 +27,13 @@ export function AiHandoff({
   const aiAnswering = control.owner === "ai_agent";
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border py-2">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-glass py-2">
       <span
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-          aiAnswering ? "bg-primary/10 text-primary" : "bg-success/10 text-success",
+          aiAnswering
+            ? "bg-electrode/15 text-electrode"
+            : "bg-success/10 text-success",
         )}
         aria-hidden
       >
@@ -55,7 +57,7 @@ export function AiHandoff({
         ) : null}
       </div>
       <Button
-        variant={aiAnswering ? "primary" : "secondary"}
+        variant={aiAnswering ? "primary" : "ai"}
         size="sm"
         loading={mutation.isPending}
         onClick={() => mutation.mutate(aiAnswering ? "take" : "release")}

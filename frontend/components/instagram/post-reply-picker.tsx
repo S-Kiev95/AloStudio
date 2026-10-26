@@ -79,13 +79,13 @@ export function PostReplyPicker({
         </p>
       ) : null}
 
-      <p className="text-xs text-fg-muted">
+      <p className="font-numeric text-xs tabular-nums text-fg-muted">
         {current.size === 0
           ? `Sin elegir ninguna, esta publicación puede usar las ${answers.length}.`
           : `Esta publicación usa ${current.size} de ${answers.length}.`}
       </p>
 
-      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+      <ul className="divide-y divide-glass overflow-hidden rounded-md border border-glass">
         {answers.map((r) => {
           const on = current.has(r.id);
           return (
@@ -97,17 +97,17 @@ export function PostReplyPicker({
                 onClick={() => toggle(r.id)}
                 className={cn(
                   "flex w-full items-start gap-3 p-3 text-left transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  on ? "bg-primary/5" : "hover:bg-surface-2",
+                  "focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neon",
+                  on ? "bg-focused" : "hover:bg-hover-glass",
                 )}
               >
                 <span
                   aria-hidden
                   className={cn(
-                    "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                    "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border",
                     on
-                      ? "border-primary bg-primary text-primary-fg"
-                      : "border-border",
+                      ? "border-neon bg-neon text-white"
+                      : "border-glass",
                   )}
                 >
                   {on ? <Check className="h-3 w-3" /> : null}

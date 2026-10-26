@@ -3,8 +3,10 @@
 import { Package, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   type Product,
   type ProductInput,
@@ -17,17 +19,19 @@ import { cn } from "@/lib/utils";
 
 import { ProductForm } from "./product-form";
 
-const FILTERS = [
-  { key: undefined, label: "Todos" },
-  { key: true, label: "Activos" },
-  { key: false, label: "Inactivos" },
-] as const;
+const FILTERS: { value: "all" | "active" | "inactive"; label: string }[] = [
+  { value: "all", label: "Todos" },
+  { value: "active", label: "Activos" },
+  { value: "inactive", label: "Inactivos" },
+];
 
 export function ProductsView({ accountId }: { accountId: string }) {
-  const [enabled, setEnabled] = useState<boolean | undefined>(undefined);
+  const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
   const [editing, setEditing] = useState<Product | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const enabled =
+    filter === "all" ? undefined : filter === "active" ? true : false;
   const { data, isLoading, isError } = useProducts(accountId, { enabled });
   const create = useCreateProduct(accountId);
   const update = useUpdateProduct(accountId);
@@ -45,15 +49,17 @@ export function ProductsView({ accountId }: { accountId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-fg">Productos</h2>
-        {!creating && !editing ? (
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" aria-hidden />
-            Nuevo producto
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Productos"
+        actions={
+          !creating && !editing ? (
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus className="h-4 w-4" aria-hidden />
+              Nuevo producto
+            </Button>
+          ) : undefined
+        }
+      />
 
       {creating ? (
         <Card>
@@ -86,27 +92,15 @@ export function ProductsView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.label}
-            type="button"
-            onClick={() => setEnabled(f.key)}
-            aria-pressed={enabled === f.key}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              enabled === f.key
-                ? "bg-surface-2 font-semibold text-fg"
-                : "border border-border bg-surface text-fg hover:bg-surface-2",
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        ariaLabel="Filtrar productos"
+        size="sm"
+        value={filter}
+        onValueChange={setFilter}
+        options={FILTERS}
+      />
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -118,7 +112,7 @@ export function ProductsView({ accountId }: { accountId: string }) {
             No hay productos todavía.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((p) => (
               <ProductRow
                 key={p.id}
@@ -165,8 +159,8 @@ function ProductRow({
       : "—";
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2">
-      <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-surface-2 text-fg-muted">
+    <li className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-hover-glass">
+      <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-md border border-glass bg-surface-2 text-fg-muted">
         {product.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -181,7 +175,7 @@ function ProductRow({
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">{product.name}</p>
-        <p className="text-xs text-fg-muted">
+        <p className="font-numeric text-xs tabular-nums text-fg-muted">
           {priceLabel}
           {product.sku ? ` · SKU ${product.sku}` : ""}
         </p>
@@ -193,7 +187,7 @@ function ProductRow({
       </div>
       <span
         className={cn(
-          "rounded-full px-2 py-0.5 text-xs font-medium",
+          "rounded-pill px-2 py-0.5 text-xs font-medium",
           product.enabled
             ? "bg-success/10 text-success"
             : "bg-surface-2 text-fg-muted",
@@ -206,7 +200,7 @@ function ProductRow({
         aria-label="Editar"
         title="Editar"
         onClick={onEdit}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </button>
@@ -216,7 +210,7 @@ function ProductRow({
         title="Eliminar"
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

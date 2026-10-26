@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAgents } from "@/lib/api/account";
 import {
@@ -22,8 +23,7 @@ import {
 } from "@/lib/api/whatsapp-templates";
 import { cn } from "@/lib/utils";
 
-const selectClass =
-  "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const selectClass = selectClassName();
 
 export function CampaignForm({
   accountId,
@@ -229,6 +229,7 @@ export function CampaignForm({
                 checked={campaignType === t.value}
                 onChange={() => setCampaignType(t.value)}
                 disabled={Boolean(initial)}
+                className="accent-neon"
               />
               {t.label}
             </label>
@@ -279,16 +280,16 @@ export function CampaignForm({
       </div>
 
       {isWhatsapp ? (
-        <div className="space-y-3 rounded-md border border-border bg-surface-2 p-3">
+        <div className="space-y-3 rounded-md border border-glass bg-surface-2 p-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase text-fg-muted">
+            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
               Plantilla de WhatsApp
             </p>
             <button
               type="button"
               onClick={() => syncTemplates.mutate()}
               disabled={syncTemplates.isPending}
-              className="text-xs font-medium text-info hover:underline disabled:opacity-50"
+              className="text-xs font-medium text-lit hover:underline disabled:opacity-50"
             >
               {syncTemplates.isPending
                 ? "Actualizando…"
@@ -325,7 +326,7 @@ export function CampaignForm({
                 </select>
               </div>
               {selectedTemplate?.body_text ? (
-                <p className="whitespace-pre-wrap rounded-md bg-surface p-2 text-sm text-fg-muted">
+                <p className="whitespace-pre-wrap rounded-md border border-glass bg-surface p-2 text-sm text-fg-muted">
                   {selectedTemplate.body_text}
                 </p>
               ) : null}
@@ -371,6 +372,7 @@ export function CampaignForm({
             type="datetime-local"
             value={scheduledAt}
             onChange={(e) => setScheduledAt(e.target.value)}
+            className="tabular-nums"
           />
           {labels.data?.length ? (
             <div className="mt-3 space-y-1.5">
@@ -385,10 +387,10 @@ export function CampaignForm({
                       onClick={() => toggleLabel(l.id)}
                       aria-pressed={on}
                       className={cn(
-                        "rounded-full border px-2 py-0.5 text-xs",
+                        "rounded-pill border px-2.5 py-0.5 text-xs transition-colors",
                         on
-                          ? "border-primary bg-surface-2 font-semibold text-fg"
-                          : "border-border text-fg-muted hover:bg-surface-2",
+                          ? "border-neon bg-focused font-medium text-lit"
+                          : "border-glass bg-field text-fg-muted hover:bg-hover-glass",
                       )}
                     >
                       {l.title}
@@ -403,8 +405,8 @@ export function CampaignForm({
           ) : null}
         </div>
       ) : (
-        <div className="space-y-3 rounded-md border border-border bg-surface-2 p-3">
-          <p className="text-xs font-medium uppercase text-fg-muted">
+        <div className="space-y-3 rounded-md border border-glass bg-surface-2 p-3">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
             Reglas del trigger
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -434,6 +436,7 @@ export function CampaignForm({
               type="checkbox"
               checked={businessHoursOnly}
               onChange={(e) => setBusinessHoursOnly(e.target.checked)}
+              className="accent-neon"
             />
             Disparar solo durante horario laboral
           </label>
@@ -445,6 +448,7 @@ export function CampaignForm({
           type="checkbox"
           checked={enabled}
           onChange={(e) => setEnabled(e.target.checked)}
+          className="accent-neon"
         />
         Activa
       </label>

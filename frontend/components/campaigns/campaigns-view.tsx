@@ -4,7 +4,9 @@ import { ChevronRight, Megaphone, Plus, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { PageHeader } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   type Campaign,
   type CampaignType,
@@ -33,39 +35,29 @@ export function CampaignsView({ accountId }: { accountId: string }) {
     : (data ?? []);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-fg">Campañas</h2>
-        <Link
-          href={`/accounts/${accountId}/campaigns/new`}
-          className={buttonVariants({ size: "sm" })}
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-          Nueva campaña
-        </Link>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {TYPE_FILTERS.map((f) => (
-          <button
-            key={f.label}
-            type="button"
-            onClick={() => setType(f.value)}
-            aria-pressed={type === f.value}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              type === f.value
-                ? "bg-surface-2 font-semibold text-fg"
-                : "border border-border bg-surface text-fg hover:bg-surface-2",
-            )}
+    <div className="mx-auto max-w-3xl space-y-4">
+      <PageHeader
+        title="Campañas"
+        actions={
+          <Link
+            href={`/accounts/${accountId}/campaigns/new`}
+            className={buttonVariants({ size: "sm" })}
           >
-            {f.label}
-          </button>
-        ))}
-      </div>
+            <Plus className="h-4 w-4" aria-hidden />
+            Nueva campaña
+          </Link>
+        }
+      />
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <SegmentedControl
+        ariaLabel="Filtrar campañas"
+        size="sm"
+        value={type}
+        onValueChange={setType}
+        options={TYPE_FILTERS}
+      />
+
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -77,7 +69,7 @@ export function CampaignsView({ accountId }: { accountId: string }) {
             No hay campañas en este filtro.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {filtered.map((c) => (
               <CampaignRow key={c.display_id} accountId={accountId} campaign={c} />
             ))}
@@ -124,15 +116,15 @@ function CampaignRow({
   const TypeIcon = ongoing ? Megaphone : Send;
 
   return (
-    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-surface-2">
+    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-hover-glass">
       <Link
         href={`/accounts/${accountId}/campaigns/${campaign.display_id}`}
-        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neon"
       >
         <span
           className={cn(
-            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-            ongoing ? "bg-primary/10 text-primary" : "bg-info/10 text-info",
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-md",
+            ongoing ? "bg-focused text-lit" : "bg-info/10 text-info",
           )}
         >
           <TypeIcon className="h-4 w-4" aria-hidden />
@@ -141,19 +133,21 @@ function CampaignRow({
           <p className="truncate text-sm font-medium text-fg">
             {campaign.title ?? <span className="text-fg-muted">(sin título)</span>}
           </p>
-          <p className="truncate text-xs text-fg-muted">{when}</p>
+          <p className="truncate font-numeric text-xs tabular-nums text-fg-muted">
+            {when}
+          </p>
           {error ? (
             <p role="alert" className="text-xs text-danger">
               {error}
             </p>
           ) : null}
         </div>
-        <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-fg-muted">
+        <span className="rounded-pill bg-surface-2 px-2 py-0.5 text-xs font-medium text-fg-muted">
           {TYPE_LABEL[campaign.campaign_type]}
         </span>
         <span
           className={cn(
-            "rounded-full px-2 py-0.5 text-xs font-medium",
+            "rounded-pill px-2 py-0.5 text-xs font-medium",
             campaign.enabled
               ? "bg-success/10 text-success"
               : "bg-surface-2 text-fg-muted",
@@ -168,7 +162,7 @@ function CampaignRow({
         title="Eliminar"
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

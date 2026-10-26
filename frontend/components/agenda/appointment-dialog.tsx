@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type Appointment,
@@ -218,13 +219,13 @@ export function AppointmentDialog({
       ref={dialogRef}
       onClose={onClose}
       aria-labelledby="appointment-dialog-title"
-      className="w-full max-w-lg rounded-xl border border-border bg-surface p-0 text-fg shadow-lg backdrop:bg-black/50"
+      className="w-full max-w-lg rounded-panel border border-glass bg-surface p-0 text-fg shadow-menu backdrop:bg-backdrop/75"
     >
       <form onSubmit={handleSubmit} className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <h2
             id="appointment-dialog-title"
-            className="text-lg font-semibold text-fg"
+            className="text-lg font-medium text-fg"
           >
             {initial ? "Editar cita" : "Nueva cita"}
           </h2>
@@ -232,7 +233,7 @@ export function AppointmentDialog({
             type="button"
             aria-label="Cerrar diálogo"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>
@@ -250,7 +251,7 @@ export function AppointmentDialog({
             Contacto
           </Label>
           {selectedContact && !pickingContact ? (
-            <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface-2 px-3 py-2 text-sm">
+            <div className="flex items-center justify-between gap-2 rounded-control border border-glass bg-field px-3 py-2 text-sm">
               <div className="flex min-w-0 items-center gap-2">
                 <UserIcon
                   className="h-4 w-4 shrink-0 text-fg-muted"
@@ -300,7 +301,7 @@ export function AppointmentDialog({
                   No se encontraron contactos.
                 </p>
               ) : (
-                <ul className="max-h-40 divide-y divide-border overflow-y-auto rounded-md border border-border bg-surface">
+                <ul className="max-h-40 divide-y divide-glass overflow-y-auto rounded-md border border-glass bg-surface">
                   {candidateContacts.map((c) => {
                     const label = contactDisplayName(c);
                     const sub = [c.email, c.phone_number]
@@ -315,8 +316,8 @@ export function AppointmentDialog({
                             setPickingContact(false);
                           }}
                           className={cn(
-                            "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            selectedContact?.id === c.id && "bg-surface-2",
+                            "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon",
+                            selectedContact?.id === c.id && "bg-focused text-lit",
                           )}
                         >
                           <span className="font-medium text-fg">{label}</span>
@@ -390,7 +391,7 @@ export function AppointmentDialog({
               id="appt-product"
               value={productId}
               onChange={(e) => setProductId(e.target.value)}
-              className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={selectClassName()}
             >
               <option value="">Sin producto</option>
               {availableProducts.map((p) => (
@@ -409,7 +410,7 @@ export function AppointmentDialog({
               id="appt-status"
               value={status}
               onChange={(e) => setStatus(e.target.value as AppointmentStatus)}
-              className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={selectClassName()}
             >
               {APPOINTMENT_STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>

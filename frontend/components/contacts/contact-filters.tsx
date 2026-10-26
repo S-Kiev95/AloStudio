@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { selectClassName } from "@/components/ui/select";
 import type { FilterCondition, FilterOperator } from "@/lib/api/conversations";
 import { cn } from "@/lib/utils";
 
@@ -55,8 +56,7 @@ const OP_LABELS: Record<FilterOperator, string> = {
   is_less_than: "antes de",
 };
 
-const SELECT_CLS =
-  "h-9 rounded-md border border-border bg-surface px-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const SELECT_CLS = selectClassName("sm");
 
 const needsValue = (op: FilterOperator) =>
   op !== "is_present" && op !== "is_not_present";
@@ -156,7 +156,7 @@ export function ContactFilters({
   }
 
   return (
-    <div className="mb-3 space-y-3 rounded-md border border-border bg-surface-2 p-3">
+    <div className="mb-3 space-y-3 rounded-md border border-glass bg-surface-2 p-3">
       {rows.map((row, i) => {
         const def = attrDef(row.attribute_key);
         return (
@@ -201,7 +201,7 @@ export function ContactFilters({
               onClick={() => removeRow(i)}
               disabled={rows.length <= 1}
               aria-label="Quitar condición"
-              className="ml-auto rounded-md p-1 text-fg-muted hover:bg-surface hover:text-fg disabled:opacity-40"
+              className="ml-auto rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-40"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -213,7 +213,7 @@ export function ContactFilters({
         <button
           type="button"
           onClick={() => setRows((prev) => [...prev, blankRow()])}
-          className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-fg hover:bg-surface-2"
+          className="rounded-control border border-glass bg-field px-3 py-1.5 text-sm font-medium text-fg hover:bg-hover-glass"
         >
           + Agregar condición
         </button>
@@ -240,7 +240,7 @@ export function ContactFilters({
         ) : null}
       </div>
 
-      <div className="flex items-center gap-2 border-t border-border pt-3">
+      <div className="flex items-center gap-2 border-t border-glass pt-3">
         <Button type="button" size="sm" onClick={apply}>
           Aplicar
         </Button>
@@ -258,7 +258,7 @@ export function ContactFilters({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+      <div className="flex flex-wrap items-center gap-2 border-t border-glass pt-3">
         <input
           type="text"
           value={saveName}
@@ -283,8 +283,8 @@ export function ContactFilters({
 
 function matchCls(active: boolean) {
   return cn(
-    "rounded px-2 py-0.5 font-medium",
-    active ? "bg-surface text-fg" : "text-fg-muted hover:text-fg",
+    "rounded-sm px-2 py-0.5 font-medium",
+    active ? "bg-focused text-lit" : "text-fg-muted hover:text-fg",
   );
 }
 

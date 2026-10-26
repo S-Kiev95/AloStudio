@@ -5,11 +5,11 @@ import { useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import type { Message } from "@/lib/api/conversations";
+import { cn } from "@/lib/utils";
 
 type EmailMeta = NonNullable<
   NonNullable<Message["content_attributes"]>["email"]
 >;
-import { cn } from "@/lib/utils";
 
 /** One email in a thread, as a card rather than a chat bubble.
  *
@@ -43,10 +43,10 @@ export function EmailMessage({
   return (
     <article
       className={cn(
-        "rounded-xl border transition-colors",
+        "rounded-md border transition-colors",
         outgoing
-          ? "border-primary/25 bg-primary/[0.04]"
-          : "border-border bg-surface",
+          ? "border-neon/25 bg-focused"
+          : "border-glass bg-surface",
       )}
     >
       <button
@@ -58,12 +58,12 @@ export function EmailMessage({
         <Avatar name={author} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2">
-            <span className="text-sm font-semibold text-fg">{author}</span>
+            <span className="text-sm font-medium text-fg">{author}</span>
             {address ? (
               <span className="truncate text-xs text-fg-muted">{address}</span>
             ) : null}
             {outgoing ? (
-              <span className="text-xs text-primary">enviado</span>
+              <span className="text-xs text-lit">enviado</span>
             ) : null}
           </div>
           {open ? (
@@ -75,14 +75,14 @@ export function EmailMessage({
         <div className="flex shrink-0 items-center gap-2">
           {message.attachments?.length ? (
             <span
-              className="flex items-center gap-0.5 text-xs text-fg-muted"
+              className="flex items-center gap-0.5 font-numeric text-xs tabular-nums text-fg-muted"
               title={`${message.attachments.length} adjunto(s)`}
             >
               <Paperclip className="h-3.5 w-3.5" aria-hidden />
               {message.attachments.length}
             </span>
           ) : null}
-          <time className="text-xs text-fg-muted">
+          <time className="font-numeric text-xs tabular-nums text-fg-muted">
             {new Date(message.created_at * 1000).toLocaleString()}
           </time>
           <ChevronDown
@@ -96,7 +96,7 @@ export function EmailMessage({
       </button>
 
       {open ? (
-        <div className="border-t border-border px-3 py-3">
+        <div className="border-t border-glass px-3 py-3">
           {/* Whitespace preserved: an email is written with line breaks
               and paragraphs, and collapsing them turns a quoted reply
               into an unreadable run-on. */}
@@ -152,7 +152,7 @@ function Attachments({
             href={a.data_url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg hover:bg-surface-2"
+            className="inline-flex items-center gap-1.5 rounded-md border border-glass px-2.5 py-1.5 text-xs text-fg hover:bg-hover-glass"
           >
             <Paperclip className="h-3.5 w-3.5 text-fg-muted" aria-hidden />
             <span className="max-w-[16rem] truncate">

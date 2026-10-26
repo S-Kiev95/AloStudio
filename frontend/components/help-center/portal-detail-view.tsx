@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { selectClassName } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   type PortalInput,
   usePortal,
@@ -49,7 +51,7 @@ export function PortalDetailView({
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="mx-auto max-w-3xl space-y-4">
       <Link
         href={`/accounts/${accountId}/help-center`}
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
@@ -87,7 +89,7 @@ export function PortalDetailView({
               </span>
             )}
             <div className="min-w-0 flex-1">
-              <h2 className="truncate text-xl font-semibold text-fg">
+              <h2 className="truncate text-xl font-medium text-fg">
                 {portal.name}
               </h2>
               <p className="truncate text-xs text-fg-muted">/{portal.slug}</p>
@@ -100,7 +102,7 @@ export function PortalDetailView({
                 value={locale}
                 onChange={(e) => setLocale(e.target.value)}
                 aria-label="Idioma"
-                className="h-9 shrink-0 rounded-md border border-border bg-surface px-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className={cn(selectClassName("sm"), "shrink-0")}
               >
                 <option value="">Todos los idiomas</option>
                 {allowedLocales.map((l) => (
@@ -112,25 +114,15 @@ export function PortalDetailView({
             ) : null}
           </div>
 
-          <div className="flex gap-1 border-b border-border">
-            {TABS.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                onClick={() => setTab(t.value)}
-                aria-pressed={tab === t.value}
-                className={cn(
-                  "-mb-px border-b-2 px-3 py-2 text-sm font-medium",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  tab === t.value
-                    ? "border-primary text-fg"
-                    : "border-transparent text-fg-muted hover:text-fg",
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+            <TabsList>
+              {TABS.map((t) => (
+                <TabsTrigger key={t.value} value={t.value}>
+                  {t.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
           {tab === "articles" ? (
             <ArticlesPanel
@@ -197,7 +189,7 @@ function ReindexButton({
         onClick={run}
         disabled={reindex.isPending}
         title="Regenerar los embeddings de búsqueda de todos los artículos"
-        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-fg hover:bg-surface-2 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex items-center gap-1.5 rounded-control border border-glass bg-field px-2.5 py-1.5 text-xs font-medium text-fg hover:bg-hover-glass disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
         <RefreshCw
           className={cn("h-3.5 w-3.5", reindex.isPending && "animate-spin")}

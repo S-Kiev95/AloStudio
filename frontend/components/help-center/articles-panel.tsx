@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   type Article,
   type ArticleStatus,
@@ -66,7 +67,7 @@ export function ArticlesPanel({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-fg">Artículos</h3>
+        <h3 className="text-sm font-medium text-fg">Artículos</h3>
         <Link
           href={`/accounts/${accountId}/help-center/${slug}/articles/new`}
           className={buttonVariants({ size: "sm" })}
@@ -87,41 +88,29 @@ export function ArticlesPanel({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar artículos…"
-          className="h-11 w-full rounded-md border border-border bg-surface pl-9 pr-9 text-sm text-fg placeholder:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+          className="glass-field h-11 w-full rounded-control border border-glass bg-field pl-9 pr-9 text-sm text-fg placeholder:text-fg-muted"
         />
         {query ? (
           <button
             type="button"
             aria-label="Limpiar búsqueda"
             onClick={() => setQuery("")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-surface-2 hover:text-fg"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>
         ) : null}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((f) => (
-          <button
-            key={f.label}
-            type="button"
-            onClick={() => setStatus(f.value)}
-            aria-pressed={status === f.value}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              status === f.value
-                ? "bg-surface-2 font-semibold text-fg"
-                : "border border-border bg-surface text-fg hover:bg-surface-2",
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        ariaLabel="Estado del artículo"
+        size="sm"
+        value={status}
+        onValueChange={setStatus}
+        options={STATUS_FILTERS}
+      />
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-6 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -135,7 +124,7 @@ export function ArticlesPanel({
               : "No hay artículos todavía."}
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((a) => (
               <ArticleRow
                 key={a.id}
@@ -178,12 +167,12 @@ function ArticleRow({
   }
 
   return (
-    <li className="flex items-center gap-1 pr-2 hover:bg-surface-2">
+    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-hover-glass">
       <Link
         href={`/accounts/${accountId}/help-center/${slug}/articles/${article.id}`}
-        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neon"
       >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-surface-2 text-fg-muted">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-surface-2 text-fg-muted">
           <FileText className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
@@ -198,13 +187,13 @@ function ArticleRow({
             </p>
           ) : null}
         </div>
-        <span className="flex items-center gap-1 text-xs text-fg-muted">
+        <span className="flex items-center gap-1 font-numeric text-xs tabular-nums text-fg-muted">
           <Eye className="h-3 w-3" aria-hidden />
           {article.views}
         </span>
         <span
           className={cn(
-            "rounded-full px-2 py-0.5 text-xs font-medium",
+            "rounded-pill px-2 py-0.5 text-xs font-medium",
             STATUS_BADGE[article.status],
           )}
         >
@@ -217,7 +206,7 @@ function ArticleRow({
         title="Eliminar"
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

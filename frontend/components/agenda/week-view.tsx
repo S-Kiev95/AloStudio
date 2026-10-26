@@ -46,26 +46,26 @@ export function WeekView({
             aria-label={`${day.longName} ${day.dayNumber}`}
             data-day-key={day.key}
             className={cn(
-              "flex min-h-48 flex-col rounded-xl border bg-surface shadow-sm",
-              isToday ? "border-primary" : "border-border",
+              "flex min-h-48 flex-col rounded-md border bg-surface",
+              isToday ? "border-neon" : "border-glass",
             )}
           >
-            <header className="flex items-center justify-between border-b border-border px-3 py-2">
+            <header className="flex items-center justify-between border-b border-glass px-3 py-2">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xs font-semibold uppercase text-fg-muted">
+                <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
                   {day.shortName}
                 </span>
                 <span
                   className={cn(
-                    "text-sm font-semibold tabular-nums",
-                    isToday ? "text-primary" : "text-fg",
+                    "font-numeric text-sm font-semibold tabular-nums",
+                    isToday ? "text-lit" : "text-fg",
                   )}
                 >
                   {day.dayNumber}
                 </span>
               </div>
               {isToday ? (
-                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-fg">
+                <span className="rounded-pill bg-focused px-2 py-0.5 text-[11px] font-medium text-lit">
                   Hoy
                 </span>
               ) : null}
@@ -87,10 +87,10 @@ export function WeekView({
                   return (
                     <article
                       key={appt.id}
-                      className="space-y-1.5 rounded-lg border border-border bg-surface-2 p-2.5 text-xs"
+                      className="space-y-1.5 rounded-md border border-glass bg-surface-2 p-2.5 text-xs"
                     >
                       <div className="flex items-start justify-between gap-1">
-                        <span className="font-semibold tabular-nums text-fg">
+                        <span className="font-numeric font-semibold tabular-nums text-fg">
                           {formatTimeRange(appt.starts_at, appt.ends_at)}
                         </span>
                         <AppointmentStatusBadge status={appt.status} />
@@ -122,7 +122,7 @@ export function WeekView({
                               e.target.value as AppointmentStatus,
                             )
                           }
-                          className="h-7 min-w-0 flex-1 rounded border border-border bg-surface px-1.5 text-xs text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="glass-field h-7 min-w-0 flex-1 rounded-sm border border-glass bg-field px-1.5 text-xs text-fg"
                         >
                           {APPOINTMENT_STATUS_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -135,7 +135,7 @@ export function WeekView({
                           aria-label={`Editar ${appt.title}`}
                           title="Editar"
                           onClick={() => onEdit(appt)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-surface hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                         >
                           <Pencil className="h-3.5 w-3.5" aria-hidden />
                         </button>
@@ -144,7 +144,7 @@ export function WeekView({
                           aria-label={`Eliminar ${appt.title}`}
                           title="Eliminar"
                           onClick={() => onDelete(appt)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-surface hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                         >
                           <Trash2 className="h-3.5 w-3.5" aria-hidden />
                         </button>

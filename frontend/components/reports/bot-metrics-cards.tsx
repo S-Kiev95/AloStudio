@@ -19,10 +19,10 @@ export function BotMetricsCards({ data }: { data: BotMetrics }) {
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {CARDS.map((c) => (
         <Card key={c.key} className="p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
             {c.label}
           </p>
-          <p className="mt-1 text-2xl font-semibold text-fg">
+          <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
             {data[c.key].toLocaleString()}
             {c.suffix ?? ""}
           </p>

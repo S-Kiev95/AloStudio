@@ -29,7 +29,7 @@ export function EmailComposer({
   const [cc, setCc] = useState("");
   const [bcc, setBcc] = useState("");
   const [showCopies, setShowCopies] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null as string | null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -53,7 +53,7 @@ export function EmailComposer({
   return (
     <form
       onSubmit={submit}
-      className="space-y-2 rounded-xl border border-border bg-surface p-3"
+      className="space-y-2 rounded-md border border-glass bg-surface p-3"
     >
       {error ? (
         <p role="alert" className="text-sm text-danger">
@@ -69,7 +69,7 @@ export function EmailComposer({
           <button
             type="button"
             onClick={() => setShowCopies(true)}
-            className="rounded px-1.5 py-0.5 text-primary hover:bg-surface-2"
+            className="rounded-sm px-1.5 py-0.5 text-lit hover:bg-hover-glass"
           >
             CC / CCO
           </button>

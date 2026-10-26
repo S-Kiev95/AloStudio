@@ -46,7 +46,7 @@ export function CategoriesPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-fg">Categorías</h3>
+        <h3 className="text-sm font-medium text-fg">Categorías</h3>
         {!creating && !editing ? (
           <Button size="sm" variant="ghost" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
@@ -86,7 +86,7 @@ export function CategoriesPanel({
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
           <p className="p-6 text-center text-sm text-fg-muted">Cargando…</p>
         ) : isError ? (
@@ -98,7 +98,7 @@ export function CategoriesPanel({
             No hay categorías en este portal todavía.
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {data?.map((c) => (
               <CategoryRow
                 key={c.id}
@@ -143,8 +143,8 @@ function CategoryRow({
   }
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-surface-2 text-sm">
+    <li className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-hover-glass">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-surface-2 text-sm">
         {category.icon ?? "📁"}
       </span>
       <div className="min-w-0 flex-1">
@@ -164,7 +164,7 @@ function CategoryRow({
         aria-label="Editar"
         title="Editar"
         onClick={onEdit}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </button>
@@ -174,7 +174,7 @@ function CategoryRow({
         title="Eliminar"
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

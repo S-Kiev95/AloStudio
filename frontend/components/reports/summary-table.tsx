@@ -104,17 +104,17 @@ export function SummaryTable({
   const hasSpend = rows.some((r) => r.spend != null);
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-md border border-glass">
       <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border text-left">
-            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-fg-muted">
+        <thead className="bg-surface-2">
+          <tr className="border-b border-glass text-left">
+            <th className="px-3 py-2.5 text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
               {entityLabel}
             </th>
             {COLUMNS.map((c) => (
               <th
                 key={c.key}
-                className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wide text-fg-muted"
+                className="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted"
               >
                 {c.label}
               </th>
@@ -123,7 +123,7 @@ export function SummaryTable({
               ? MONEY_COLUMNS.map((c) => (
                   <th
                     key={c.key}
-                    className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wide text-primary"
+                    className="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-[0.08em] text-table-focused"
                   >
                     {c.label}
                   </th>
@@ -131,10 +131,10 @@ export function SummaryTable({
               : null}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody className="divide-y divide-glass">
           {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-surface-2">
-              <td className="max-w-[12rem] truncate px-3 py-2 font-medium text-fg">
+            <tr key={row.id} className="transition-colors hover:bg-hover-glass">
+              <td className="max-w-[12rem] truncate px-3 py-2.5 font-medium text-fg">
                 {nameOf(row)}
               </td>
               {COLUMNS.map((c) => {
@@ -147,7 +147,7 @@ export function SummaryTable({
                   <td
                     key={c.key}
                     className={cn(
-                      "px-3 py-2 text-right font-numeric tabular-nums",
+                      "px-3 py-2.5 text-right font-numeric tabular-nums",
                       v === 0 ? "text-fg-muted" : "text-fg",
                     )}
                   >
@@ -159,7 +159,7 @@ export function SummaryTable({
                 ? MONEY_COLUMNS.map((c) => (
                     <td
                       key={c.key}
-                      className="px-3 py-2 text-right font-numeric tabular-nums text-fg"
+                      className="px-3 py-2.5 text-right font-numeric tabular-nums text-fg"
                     >
                       {money(row[c.key], row.currency)}
                     </td>

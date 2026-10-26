@@ -1,5 +1,6 @@
 "use client";
 
+import { selectClassName } from "@/components/ui/select";
 import { useAgents, useLabels } from "@/lib/api/account";
 import {
   type Priority,
@@ -19,10 +20,7 @@ const PRIORITY_LABEL: Record<Priority, string> = {
   urgent: "Urgente",
 };
 
-const selectClass = cn(
-  "h-9 rounded-md border border-border bg-surface px-2 text-sm text-fg",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-);
+const selectClass = selectClassName("sm");
 
 /**
  * Compact actions bar for a conversation: priority, assignee, labels.
@@ -60,7 +58,7 @@ export function ConversationActions({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-border pb-3 pt-1">
+    <div className="flex flex-wrap items-center gap-3 border-b border-glass pb-3 pt-1">
       <label className="flex items-center gap-1.5 text-xs text-fg-muted">
         Prioridad
         <select
@@ -135,10 +133,10 @@ export function ConversationActions({
                 disabled={setLabels.isPending}
                 aria-pressed={on}
                 className={cn(
-                  "rounded-full border px-2 py-0.5 text-xs",
+                  "rounded-pill border px-2.5 py-0.5 text-xs transition-colors",
                   on
-                    ? "border-primary bg-surface-2 font-semibold text-fg"
-                    : "border-border text-fg-muted hover:bg-surface-2",
+                    ? "border-neon bg-focused font-medium text-lit"
+                    : "border-glass text-fg-muted hover:bg-hover-glass",
                 )}
               >
                 {l.title}

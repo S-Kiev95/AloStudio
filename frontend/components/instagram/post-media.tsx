@@ -74,7 +74,7 @@ export function MediaIconTile({
   return (
     <span
       className={cn(
-        "grid shrink-0 place-items-center rounded-lg border border-border bg-surface-2 text-fg-muted",
+        "grid shrink-0 place-items-center rounded-md border border-glass bg-surface-2 text-fg-muted",
         className,
       )}
     >
@@ -91,7 +91,7 @@ export function PostThumb({ post }: { post: InstagramPost }) {
     return <MediaIconTile mediaType={post.media_type} className="h-12 w-12" />;
   }
   return (
-    <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-2">
+    <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-glass bg-surface-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url}
@@ -114,7 +114,7 @@ function MediaFrame({ item }: { item: MediaItem }) {
         controls
         preload="metadata"
         src={item.url}
-        className="max-h-[28rem] w-full rounded-lg border border-border bg-black object-contain"
+        className="max-h-[28rem] w-full rounded-md border border-glass bg-field object-contain"
       >
         <track kind="captions" />
       </video>
@@ -122,7 +122,7 @@ function MediaFrame({ item }: { item: MediaItem }) {
   }
   if (broken) {
     return (
-      <div className="grid h-48 w-full place-items-center rounded-lg border border-border bg-surface-2 text-xs text-fg-muted">
+      <div className="grid h-48 w-full place-items-center rounded-md border border-glass bg-surface-2 text-xs text-fg-muted">
         No se pudo cargar la vista previa.
       </div>
     );
@@ -134,7 +134,7 @@ function MediaFrame({ item }: { item: MediaItem }) {
       alt="Vista previa de la publicación"
       loading="lazy"
       onError={() => setBroken(true)}
-      className="max-h-[28rem] w-full rounded-lg border border-border bg-surface-2 object-contain"
+      className="max-h-[28rem] w-full rounded-md border border-glass bg-surface-2 object-contain"
     />
   );
 }
@@ -167,8 +167,10 @@ export function PostMediaPreview({ post }: { post: InstagramPost }) {
               aria-current={i === index ? "true" : undefined}
               aria-label={`Elemento ${i + 1} de ${items.length}`}
               className={cn(
-                "relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                i === index ? "border-primary" : "border-border opacity-70 hover:opacity-100",
+                "relative h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon",
+                i === index
+                  ? "border-neon"
+                  : "border-glass opacity-70 hover:opacity-100",
               )}
             >
               {item.kind === "image" ? (

@@ -170,10 +170,10 @@ export function PostAutoreplyRules({
       </div>
 
       {open ? (
-        <div className="space-y-3 rounded-lg border border-border p-3">
+        <div className="space-y-3 rounded-md border border-glass p-3">
           {/* Named, because the form sits above the list and an edit would
               otherwise look like a second rule being written. */}
-          <p className="text-sm font-semibold text-fg">
+          <p className="text-sm font-medium text-fg">
             {editing ? "Editar regla" : "Nueva regla"}
           </p>
           {error ? (
@@ -190,14 +190,19 @@ export function PostAutoreplyRules({
                 aria-pressed={matchType === m.value}
                 onClick={() => setMatchType(m.value)}
                 className={cn(
-                  "rounded-lg border p-2.5 text-left transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "rounded-md border p-2.5 text-left transition-colors",
+                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
                   matchType === m.value
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-surface hover:bg-surface-2",
+                    ? "border-neon bg-focused"
+                    : "border-glass bg-field hover:bg-hover-glass",
                 )}
               >
-                <span className="block text-sm font-semibold text-fg">
+                <span
+                  className={cn(
+                    "block text-sm font-medium",
+                    matchType === m.value ? "text-lit" : "text-fg",
+                  )}
+                >
                   {m.label}
                 </span>
                 <span className="mt-0.5 block text-xs text-fg-muted">
@@ -240,7 +245,7 @@ export function PostAutoreplyRules({
             </div>
           ) : (
             <>
-              <p className="rounded-lg border border-border bg-surface-2 p-2.5 text-xs text-fg-muted">
+              <p className="rounded-md border border-glass bg-surface-2 p-2.5 text-xs text-fg-muted">
                 {semanticAvailable
                   ? "Usa tus respuestas preparadas. Al guardar la regla vas a poder elegir cuáles usa esta publicación."
                   : "Este modo no está configurado en el servidor (falta la clave de embeddings), así que la regla no va a contestar nada todavía."}
@@ -255,14 +260,19 @@ export function PostAutoreplyRules({
                       aria-pressed={strictness === s.value}
                       onClick={() => setStrictness(s.value)}
                       className={cn(
-                        "rounded-lg border p-2.5 text-left transition-colors",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "rounded-md border p-2.5 text-left transition-colors",
+                        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
                         strictness === s.value
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-surface hover:bg-surface-2",
+                          ? "border-neon bg-focused"
+                          : "border-glass bg-field hover:bg-hover-glass",
                       )}
                     >
-                      <span className="block text-sm font-semibold text-fg">
+                      <span
+                        className={cn(
+                          "block text-sm font-medium",
+                          strictness === s.value ? "text-lit" : "text-fg",
+                        )}
+                      >
                         {s.label}
                       </span>
                       <span className="mt-0.5 block text-xs text-fg-muted">
@@ -306,13 +316,19 @@ export function PostAutoreplyRules({
                     aria-pressed={delivery === d.v}
                     onClick={() => setDelivery(d.v)}
                     className={cn(
-                      "flex-1 rounded-lg border p-2.5 text-left transition-colors",
+                      "flex-1 rounded-md border p-2.5 text-left transition-colors",
+                      "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
                       delivery === d.v
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-surface hover:bg-surface-2",
+                        ? "border-neon bg-focused"
+                        : "border-glass bg-field hover:bg-hover-glass",
                     )}
                   >
-                    <span className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+                    <span
+                      className={cn(
+                        "flex items-center gap-1.5 text-sm font-medium",
+                        delivery === d.v ? "text-lit" : "text-fg",
+                      )}
+                    >
                       <Icon className="h-4 w-4" aria-hidden />
                       {d.label}
                     </span>
@@ -349,16 +365,19 @@ export function PostAutoreplyRules({
           responda una persona.
         </p>
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+        <ul className="divide-y divide-glass overflow-hidden rounded-md border border-glass">
           {rules.data?.map((r: PostRule) => (
-            <li key={r.id} className="flex items-start gap-3 p-3">
+            <li
+              key={r.id}
+              className="flex items-start gap-3 p-3 transition-colors hover:bg-hover-glass"
+            >
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-1.5 text-xs">
-                  <span className="rounded-full bg-surface-2 px-2 py-0.5 font-medium text-fg">
+                  <span className="rounded-pill bg-surface-2 px-2 py-0.5 font-medium text-fg">
                     {MATCH_LABEL[r.match_type]}
                   </span>
                   {r.keywords ? (
-                    <span className="font-medium text-primary">
+                    <span className="font-medium text-lit">
                       {r.keywords}
                     </span>
                   ) : null}
@@ -382,7 +401,7 @@ export function PostAutoreplyRules({
                 type="button"
                 aria-label="Editar regla"
                 onClick={() => edit(r)}
-                className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg"
+                className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg"
               >
                 <Pencil className="h-4 w-4" aria-hidden />
               </button>
@@ -393,7 +412,7 @@ export function PostAutoreplyRules({
                 onClick={() => {
                   if (window.confirm("¿Eliminar esta regla?")) del.mutate(r.id);
                 }}
-                className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50"
+                className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" aria-hidden />
               </button>
@@ -405,9 +424,9 @@ export function PostAutoreplyRules({
       {/* Only once a rule can actually use them — answers with no semantic
           rule on the post would sit there doing nothing. */}
       {hasSemanticRule ? (
-        <div className="space-y-2 border-t border-border pt-4">
+        <div className="space-y-2 border-t border-glass pt-4">
           <div>
-            <p className="text-sm font-semibold text-fg">
+            <p className="text-sm font-medium text-fg">
               Qué respuestas usa esta publicación
             </p>
             <p className="text-xs text-fg-muted">

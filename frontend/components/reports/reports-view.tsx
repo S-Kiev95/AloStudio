@@ -3,7 +3,11 @@
 import { Download } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { PageHeader } from "@/components/shell/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { selectClassName } from "@/components/ui/select";
 import {
   type MetricKey,
   SUMMARY_SCOPES,
@@ -18,7 +22,6 @@ import {
   useReportTimeseries,
 } from "@/lib/api/reports";
 import { formatDuration } from "@/lib/time";
-import { cn } from "@/lib/utils";
 
 import { BotMetricsCards } from "./bot-metrics-cards";
 import { MetricChart } from "./metric-chart";
@@ -27,9 +30,9 @@ import { SummaryTable } from "./summary-table";
 import { TrafficHeatmap } from "./traffic-heatmap";
 
 const RANGES = [
-  { days: 7, label: "7 días" },
-  { days: 30, label: "30 días" },
-  { days: 90, label: "90 días" },
+  { value: 7, label: "7 días" },
+  { value: 30, label: "30 días" },
+  { value: 90, label: "90 días" },
 ] as const;
 
 const LIVE_CARDS = [
@@ -38,6 +41,11 @@ const LIVE_CARDS = [
   { key: "unassigned", label: "Sin asignar" },
   { key: "pending", label: "Pendientes" },
 ] as const;
+
+const SCOPE_OPTIONS = SUMMARY_SCOPES.map((s) => ({
+  value: s.key,
+  label: s.label,
+}));
 
 export function ReportsView({ accountId }: { accountId: string }) {
   const [days, setDays] = useState<number>(30);
@@ -58,37 +66,27 @@ export function ReportsView({ accountId }: { accountId: string }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-fg">Reportes</h2>
-        <div className="flex gap-2">
-          {RANGES.map((r) => (
-            <button
-              key={r.days}
-              type="button"
-              onClick={() => setDays(r.days)}
-              aria-pressed={days === r.days}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-medium",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                days === r.days
-                  ? "bg-surface-2 font-semibold text-fg"
-                  : "border border-border bg-surface text-fg hover:bg-surface-2",
-              )}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="Reportes"
+        actions={
+          <SegmentedControl
+            ariaLabel="Período"
+            size="sm"
+            value={days}
+            onValueChange={setDays}
+            options={RANGES}
+          />
+        }
+      />
 
       {/* Live snapshot */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {LIVE_CARDS.map((c) => (
           <Card key={c.key} className="p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
               {c.label}
             </p>
-            <p className="mt-1 text-2xl font-semibold text-fg">
+            <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
               {live.isLoading ? "…" : (live.data?.[c.key] ?? 0).toLocaleString()}
             </p>
           </Card>
@@ -115,7 +113,7 @@ export function ReportsView({ accountId }: { accountId: string }) {
               aria-label="Métrica"
               value={metric}
               onChange={(e) => setMetric(e.target.value as MetricKey)}
-              className="h-9 rounded-md border border-border bg-surface px-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={selectClassName("sm")}
             >
               {TIMESERIES_METRICS.map((m) => (
                 <option key={m.key} value={m.key}>
@@ -180,31 +178,21 @@ export function ReportsView({ accountId }: { accountId: string }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle>Desglose</CardTitle>
             <div className="flex flex-wrap items-center gap-2">
-              {SUMMARY_SCOPES.map((s) => (
-                <button
-                  key={s.key}
-                  type="button"
-                  onClick={() => setScope(s.key)}
-                  aria-pressed={scope === s.key}
-                  className={cn(
-                    "rounded-md px-3 py-1.5 text-sm font-medium",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    scope === s.key
-                      ? "bg-surface-2 font-semibold text-fg"
-                      : "border border-border bg-surface text-fg hover:bg-surface-2",
-                  )}
-                >
-                  {s.label}
-                </button>
-              ))}
+              <SegmentedControl
+                ariaLabel="Ámbito"
+                size="sm"
+                value={scope}
+                onValueChange={setScope}
+                options={SCOPE_OPTIONS}
+              />
               <span
-                className="mx-1 hidden h-6 w-px bg-border sm:block"
+                className="mx-1 hidden h-6 w-px bg-glass sm:block"
                 aria-hidden
               />
               <a
                 href={summaryExportUrl(accountId, scope, range, "csv")}
                 download
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className={buttonVariants({ variant: "simple", size: "sm" })}
               >
                 <Download className="h-4 w-4" aria-hidden />
                 CSV
@@ -212,7 +200,7 @@ export function ReportsView({ accountId }: { accountId: string }) {
               <a
                 href={summaryExportUrl(accountId, scope, range, "xlsx")}
                 download
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className={buttonVariants({ variant: "simple", size: "sm" })}
               >
                 <Download className="h-4 w-4" aria-hidden />
                 Excel

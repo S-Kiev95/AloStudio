@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 
+import { PageHeader } from "@/components/shell/page-header";
 import { Avatar } from "@/components/ui/avatar";
+import { selectClassName } from "@/components/ui/select";
 import { useAgents, useLabels } from "@/lib/api/account";
 import {
   type Conversation,
@@ -162,7 +164,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="mb-4 text-2xl font-semibold text-fg">Conversaciones</h1>
+      <PageHeader title="Conversaciones" className="mb-4" />
 
       <div className="mb-3 flex gap-2">
         <div className="relative flex-1">
@@ -183,7 +185,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
               if (v.trim()) setFilters([]); // search and filters are exclusive
             }}
             placeholder="Buscar en los mensajes…"
-            className="h-11 w-full rounded-md border border-border bg-surface pl-9 pr-9 text-sm text-fg placeholder:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+            className="glass-field h-11 w-full rounded-control border border-glass bg-field pl-9 pr-9 text-sm text-fg placeholder:text-fg-muted"
           />
           {q ? (
             <button
@@ -193,7 +195,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
                 setParams({ q: null, page: null });
                 clearSelected();
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-surface-2 hover:text-fg"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -205,17 +207,17 @@ export function ConversationList({ accountId }: { accountId: string }) {
           aria-pressed={showFilters}
           aria-label="Filtros"
           className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 text-sm font-medium transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "inline-flex shrink-0 items-center gap-1.5 rounded-control border border-glass px-3 text-sm font-medium transition-colors",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
             showFilters || filtering
-              ? "bg-surface-2 text-fg"
-              : "bg-surface text-fg-muted hover:bg-surface-2 hover:text-fg",
+              ? "bg-focused text-lit"
+              : "bg-field text-fg-muted hover:bg-hover-glass hover:text-fg",
           )}
         >
           <SlidersHorizontal className="h-4 w-4" aria-hidden />
           Filtros
           {filters.length > 0 ? (
-            <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-fg tabular-nums">
+            <span className="rounded-pill bg-neon px-1.5 font-numeric text-[10px] font-semibold tabular-nums text-white">
               {filters.length}
             </span>
           ) : null}
@@ -231,12 +233,12 @@ export function ConversationList({ accountId }: { accountId: string }) {
           {views.data!.map((v) => (
             <span
               key={v.id}
-              className="inline-flex items-center gap-1 rounded-full border border-border bg-surface py-1 pl-3 pr-1 text-xs"
+              className="inline-flex items-center gap-1 rounded-pill border border-glass bg-field py-1 pl-3 pr-1 text-xs"
             >
               <button
                 type="button"
                 onClick={() => applyView(v)}
-                className="font-medium text-fg hover:text-primary"
+                className="font-medium text-fg hover:text-lit"
               >
                 {v.name}
               </button>
@@ -244,7 +246,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
                 type="button"
                 onClick={() => deleteView.mutate(v.id)}
                 aria-label={`Eliminar vista ${v.name}`}
-                className="rounded-full p-0.5 text-fg-muted hover:bg-surface-2 hover:text-danger"
+                className="rounded-pill p-0.5 text-fg-muted hover:bg-hover-glass hover:text-danger"
               >
                 <X className="h-3 w-3" aria-hidden />
               </button>
@@ -254,11 +256,11 @@ export function ConversationList({ accountId }: { accountId: string }) {
       ) : null}
 
       {selected.size > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
-          <span className="text-sm font-medium tabular-nums text-fg">
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-glass bg-surface-2 px-3 py-2">
+          <span className="font-numeric text-sm font-medium tabular-nums text-fg">
             {selected.size} seleccionada{selected.size === 1 ? "" : "s"}
           </span>
-          <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+          <span className="mx-1 h-4 w-px bg-glass" aria-hidden />
           <FilterButton
             active={false}
             disabled={bulk.isPending}
@@ -280,7 +282,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
           >
             Pendiente
           </FilterButton>
-          <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+          <span className="mx-1 h-4 w-px bg-glass" aria-hidden />
           <select
             aria-label="Asignar a"
             value=""
@@ -291,7 +293,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
               void bulkAssign(v === "none" ? null : Number(v));
               e.currentTarget.value = "";
             }}
-            className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm font-medium text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
+            className={selectClassName("sm")}
           >
             <option value="">Asignar a…</option>
             <option value="none">Sin asignar</option>
@@ -312,7 +314,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
                 void bulkAddLabel(v);
                 e.currentTarget.value = "";
               }}
-              className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm font-medium text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
+              className={selectClassName("sm")}
             >
               <option value="">Etiquetar…</option>
               {labels.data!.map((l) => (
@@ -326,7 +328,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
             type="button"
             onClick={clearSelected}
             aria-label="Cancelar selección"
-            className="ml-auto rounded-md p-1 text-fg-muted hover:bg-surface hover:text-fg"
+            className="ml-auto rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>
@@ -347,7 +349,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
           <span className="font-medium text-fg">“{trimmed}”</span>
         </p>
       ) : filtering ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-2 text-sm">
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-glass bg-surface-2 px-3 py-2 text-sm">
           <span className="font-medium text-fg">
             {filters.length} filtro{filters.length === 1 ? "" : "s"} activo
             {filters.length === 1 ? "" : "s"}
@@ -381,7 +383,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
               {t.label}
             </FilterButton>
           ))}
-          <span className="mx-1 w-px self-stretch bg-border" aria-hidden />
+          <span className="mx-1 w-px self-stretch bg-glass" aria-hidden />
           {ASSIGNEE_TABS.map((t) => (
             <FilterButton
               key={t.label}
@@ -397,7 +399,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {active.isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : active.isError ? (
@@ -413,7 +415,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
                 : "No hay conversaciones en este filtro."}
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {items.map((c) => (
               <ConversationRow
                 key={c.id}
@@ -438,7 +440,9 @@ export function ConversationList({ accountId }: { accountId: string }) {
         >
           Anterior
         </FilterButton>
-        <span className="text-xs text-fg-muted tabular-nums">Página {page}</span>
+        <span className="font-numeric text-xs tabular-nums text-fg-muted">
+          Página {page}
+        </span>
         <FilterButton
           active={false}
           disabled={items.length < PER_PAGE}
@@ -472,12 +476,12 @@ function FilterButton({
       disabled={disabled}
       aria-pressed={active}
       className={cn(
-        "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "rounded-control px-3 py-1.5 text-sm font-medium transition-colors",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
         "disabled:opacity-40",
         active
-          ? "border border-border bg-surface-2 font-semibold text-fg"
-          : "border border-border bg-surface text-fg-muted hover:bg-surface-2 hover:text-fg",
+          ? "border border-glass bg-focused text-lit"
+          : "border border-glass bg-field text-fg-muted hover:bg-hover-glass hover:text-fg",
       )}
     >
       {children}
@@ -504,19 +508,19 @@ function ConversationRow({
   const unread = conv.unread_count > 0;
 
   return (
-    <li className="flex items-center transition-colors hover:bg-surface-2">
+    <li className="flex items-center transition-colors hover:bg-hover-glass">
       <label className="flex shrink-0 cursor-pointer items-center py-3 pl-4 pr-1">
         <input
           type="checkbox"
           checked={selected}
           onChange={onToggle}
           aria-label={`Seleccionar ${name}`}
-          className="h-4 w-4 rounded border-border accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-4 w-4 rounded-sm border-glass accent-neon focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
         />
       </label>
       <Link
         href={`/accounts/${accountId}/conversations/${conv.id}`}
-        className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neon"
       >
         <Avatar name={name} />
         <div className="min-w-0 flex-1">
@@ -534,7 +538,7 @@ function ConversationRow({
               {name}
             </span>
             {unread ? (
-              <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-fg tabular-nums shadow-glow">
+              <span className="rounded-pill bg-neon px-1.5 font-numeric text-[10px] font-semibold tabular-nums text-white">
                 {conv.unread_count}
               </span>
             ) : null}
@@ -543,7 +547,7 @@ function ConversationRow({
               // an ad paid for. The headline rides in the tooltip so the row
               // stays two lines.
               <Megaphone
-                className="h-3.5 w-3.5 shrink-0 text-primary"
+                className="h-3.5 w-3.5 shrink-0 text-neon"
                 aria-label={`Vino de ${
                   conv.ad_referral.headline ?? "un anuncio"
                 }`}
@@ -557,13 +561,13 @@ function ConversationRow({
           <p
             className={cn(
               "truncate text-xs",
-              unread ? "text-fg/70" : "text-fg-muted",
+              unread ? "text-fg/80" : "text-fg-muted",
             )}
           >
             {last || "—"}
           </p>
         </div>
-        <span className="shrink-0 text-[11px] text-fg-muted tabular-nums">
+        <span className="shrink-0 font-numeric text-[11px] tabular-nums text-fg-muted">
           {relativeTime(conv.last_activity_at || conv.timestamp)}
         </span>
       </Link>

@@ -4,8 +4,10 @@ import { CheckCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   NOTIFICATION_TYPE_LABELS,
   useDeleteNotification,
@@ -40,63 +42,39 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-fg">Notificaciones</h1>
-          <p className="text-sm text-fg-muted">
+    <div className="mx-auto max-w-3xl space-y-4">
+      <PageHeader
+        title="Notificaciones"
+        description={
+          <span className="font-numeric tabular-nums">
             {unread.data ?? 0} sin leer · {total} en total
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div
-            role="tablist"
-            aria-label="Filtro"
-            className="inline-flex rounded-md border border-border bg-surface p-0.5"
-          >
-            <button
-              role="tab"
-              aria-selected={filter === "all"}
-              onClick={() => {
-                setFilter("all");
-                setPage(1);
-              }}
-              className={cn(
-                "rounded px-3 py-1 text-xs font-medium",
-                filter === "all"
-                  ? "bg-surface-2 font-semibold text-fg"
-                  : "text-fg-muted hover:text-fg",
-              )}
-            >
-              Todas
-            </button>
-            <button
-              role="tab"
-              aria-selected={filter === "unread"}
-              onClick={() => {
-                setFilter("unread");
-                setPage(1);
-              }}
-              className={cn(
-                "rounded px-3 py-1 text-xs font-medium",
-                filter === "unread"
-                  ? "bg-surface-2 font-semibold text-fg"
-                  : "text-fg-muted hover:text-fg",
-              )}
-            >
-              No leídas
-            </button>
-          </div>
+          </span>
+        }
+        actions={
           <Button
             variant="secondary"
+            size="sm"
             onClick={() => markAllRead.mutate()}
             disabled={!unread.data || markAllRead.isPending}
           >
-            <CheckCheck className="mr-1 h-4 w-4" aria-hidden />
+            <CheckCheck className="h-4 w-4" aria-hidden />
             Marcar todo
           </Button>
-        </div>
-      </header>
+        }
+      />
+
+      <Tabs
+        value={filter}
+        onValueChange={(next) => {
+          setFilter(next as "all" | "unread");
+          setPage(1);
+        }}
+      >
+        <TabsList aria-label="Filtro">
+          <TabsTrigger value="all">Todas</TabsTrigger>
+          <TabsTrigger value="unread">No leídas</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       <Card>
         <CardContent className="p-0">
@@ -113,7 +91,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
                 : "Todavía no tenés notificaciones."}
             </p>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="divide-y divide-glass">
               {rows.map((n) => {
                 const isUnread = n.read_at == null;
                 const label =
@@ -126,13 +104,13 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
                 return (
                   <li
                     key={n.id}
-                    className="group/row flex items-center gap-3 px-4 py-3 hover:bg-surface-2"
+                    className="group/row flex items-center gap-3 px-4 py-3 transition-colors hover:bg-hover-glass"
                   >
                     <span
                       aria-hidden
                       className={cn(
                         "h-2 w-2 shrink-0 rounded-full",
-                        isUnread ? "bg-primary" : "bg-transparent",
+                        isUnread ? "bg-neon" : "bg-transparent",
                       )}
                     />
                     <div className="min-w-0 flex-1">
@@ -152,7 +130,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
                           >
                             {label}
                           </p>
-                          <p className="mt-0.5 text-xs text-fg-muted">
+                          <p className="mt-0.5 font-numeric text-xs tabular-nums text-fg-muted">
                             {n.primary_actor?.display_id != null
                               ? `Conversación #${n.primary_actor.display_id}`
                               : null}
@@ -175,7 +153,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
                           >
                             {label}
                           </p>
-                          <p className="mt-0.5 text-xs text-fg-muted">
+                          <p className="mt-0.5 font-numeric text-xs tabular-nums text-fg-muted">
                             {relativeTime(n.last_activity_at)}
                           </p>
                         </>
@@ -186,7 +164,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
                         <button
                           type="button"
                           onClick={() => markRead.mutate(n.id)}
-                          className="rounded-md px-2 py-1 text-xs text-fg-muted hover:bg-surface"
+                          className="rounded-md px-2 py-1 text-xs text-fg-muted hover:bg-hover-glass hover:text-fg"
                         >
                           Marcar leído
                         </button>
@@ -195,7 +173,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
                         type="button"
                         aria-label="Borrar notificación"
                         onClick={() => deleteOne.mutate(n.id)}
-                        className="rounded-md p-1 text-fg-muted hover:bg-surface"
+                        className="rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-danger"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />
                       </button>
@@ -211,10 +189,11 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
       {totalPages > 1 ? (
         <nav
           aria-label="Paginación"
-          className="flex items-center justify-between text-sm text-fg-muted"
+          className="flex items-center justify-between font-numeric text-sm tabular-nums text-fg-muted"
         >
           <Button
             variant="secondary"
+            size="sm"
             disabled={page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
@@ -225,6 +204,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
           </span>
           <Button
             variant="secondary"
+            size="sm"
             disabled={page >= totalPages}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           >

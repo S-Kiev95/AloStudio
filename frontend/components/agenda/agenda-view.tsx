@@ -14,7 +14,10 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
+import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { selectClassName } from "@/components/ui/select";
 import {
   type Appointment,
   type AppointmentStatus,
@@ -22,7 +25,6 @@ import {
   useDeleteAppointment,
   useUpdateAppointment,
 } from "@/lib/api/appointments";
-import { cn } from "@/lib/utils";
 
 import { AppointmentDialog } from "./appointment-dialog";
 import {
@@ -41,14 +43,14 @@ import { WeekView } from "./week-view";
 type ViewMode = "week" | "list";
 
 const STATUS_FILTERS: {
-  key: AppointmentStatus | undefined;
+  value: AppointmentStatus | undefined;
   label: string;
 }[] = [
-  { key: undefined, label: "Todas" },
-  { key: "scheduled", label: "Programadas" },
-  { key: "confirmed", label: "Confirmadas" },
-  { key: "done", label: "Realizadas" },
-  { key: "cancelled", label: "Canceladas" },
+  { value: undefined, label: "Todas" },
+  { value: "scheduled", label: "Programadas" },
+  { value: "confirmed", label: "Confirmadas" },
+  { value: "done", label: "Realizadas" },
+  { value: "cancelled", label: "Canceladas" },
 ];
 
 export function AgendaView({ accountId }: { accountId: string }) {
@@ -116,61 +118,54 @@ export function AgendaView({ accountId }: { accountId: string }) {
   const appointments = data ?? [];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-fg">Agenda</h1>
-          <p className="text-sm text-fg-muted">
-            Citas y turnos programados con tus contactos.
-          </p>
-        </div>
-        <Button
-          size="sm"
-          onClick={() => {
-            setEditing(null);
-            setDialogOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-          Nueva cita
-        </Button>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-4">
+      <PageHeader
+        title="Agenda"
+        description="Citas y turnos programados con tus contactos."
+        actions={
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditing(null);
+              setDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Nueva cita
+          </Button>
+        }
+      />
 
       {/* Controles de vista y navegación semanal */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
-          <button
-            type="button"
-            aria-pressed={mode === "week"}
-            onClick={() => setMode("week")}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              mode === "week"
-                ? "bg-surface-2 font-semibold text-fg"
-                : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <CalendarIcon className="h-4 w-4" aria-hidden />
-            Semana
-          </button>
-          <button
-            type="button"
-            aria-pressed={mode === "list"}
-            onClick={() => {
-              setMode("list");
-              setPage(1);
-            }}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              mode === "list"
-                ? "bg-surface-2 font-semibold text-fg"
-                : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <List className="h-4 w-4" aria-hidden />
-            Lista
-          </button>
-        </div>
+        <SegmentedControl
+          ariaLabel="Modo de vista"
+          value={mode}
+          onValueChange={(next) => {
+            setMode(next);
+            if (next === "list") setPage(1);
+          }}
+          options={[
+            {
+              value: "week" as ViewMode,
+              label: (
+                <>
+                  <CalendarIcon className="h-4 w-4" aria-hidden />
+                  Semana
+                </>
+              ),
+            },
+            {
+              value: "list" as ViewMode,
+              label: (
+                <>
+                  <List className="h-4 w-4" aria-hidden />
+                  Lista
+                </>
+              ),
+            },
+          ]}
+        />
 
         {mode === "week" ? (
           <div className="flex items-center gap-2">
@@ -200,7 +195,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
             >
               <ChevronRight className="h-4 w-4" aria-hidden />
             </Button>
-            <span className="ml-1 text-sm font-medium tabular-nums text-fg">
+            <span className="ml-1 font-numeric text-sm font-medium tabular-nums text-fg">
               {formatWeekRangeLabel(weekStart)}
             </span>
           </div>
@@ -208,27 +203,16 @@ export function AgendaView({ accountId }: { accountId: string }) {
       </div>
 
       {/* Filtro por estado */}
-      <div className="flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((f) => (
-          <button
-            key={f.label}
-            type="button"
-            aria-pressed={statusFilter === f.key}
-            onClick={() => {
-              setStatusFilter(f.key);
-              setPage(1);
-            }}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              statusFilter === f.key
-                ? "bg-surface-2 font-semibold text-fg"
-                : "border border-border bg-surface text-fg hover:bg-surface-2",
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        ariaLabel="Filtrar por estado"
+        size="sm"
+        value={statusFilter}
+        onValueChange={(next) => {
+          setStatusFilter(next);
+          setPage(1);
+        }}
+        options={STATUS_FILTERS}
+      />
 
       {actionError ? (
         <p role="alert" className="text-sm text-danger">
@@ -237,13 +221,13 @@ export function AgendaView({ accountId }: { accountId: string }) {
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-xl border border-border bg-surface p-8 text-center text-sm text-fg-muted shadow-sm">
+        <div className="rounded-md border border-glass bg-surface p-8 text-center text-sm text-fg-muted">
           Cargando citas…
         </div>
       ) : isError ? (
         <div
           role="alert"
-          className="rounded-xl border border-border bg-surface p-8 text-center text-sm text-danger shadow-sm"
+          className="rounded-md border border-glass bg-surface p-8 text-center text-sm text-danger"
         >
           No se pudieron cargar las citas.
         </div>
@@ -259,12 +243,12 @@ export function AgendaView({ accountId }: { accountId: string }) {
           onDelete={handleDelete}
         />
       ) : appointments.length === 0 ? (
-        <div className="rounded-xl border border-border bg-surface p-8 text-center text-sm text-fg-muted shadow-sm">
+        <div className="rounded-md border border-glass bg-surface p-8 text-center text-sm text-fg-muted">
           No hay citas para el filtro seleccionado.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
-          <ul className="divide-y divide-border">
+        <div className="overflow-hidden rounded-md border border-glass bg-surface">
+          <ul className="divide-y divide-glass">
             {appointments.map((appt) => {
               const contactLabel =
                 appt.contact?.name?.trim() ||
@@ -275,7 +259,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
               return (
                 <li
                   key={appt.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
+                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-hover-glass"
                 >
                   <div className="min-w-0 flex-1 space-y-0.5">
                     <div className="flex flex-wrap items-center gap-2">
@@ -285,7 +269,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
                       <AppointmentStatusBadge status={appt.status} />
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-fg-muted">
-                      <span className="font-medium tabular-nums text-fg">
+                      <span className="font-numeric font-medium tabular-nums text-fg">
                         {formatDateTimeLocal(appt.starts_at)}
                       </span>
                       <Link
@@ -317,7 +301,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
                           e.target.value as AppointmentStatus,
                         )
                       }
-                      className="h-9 rounded-md border border-border bg-surface px-2 text-xs text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className={selectClassName("sm")}
                     >
                       {APPOINTMENT_STATUS_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -333,7 +317,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
                         setEditing(appt);
                         setDialogOpen(true);
                       }}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                     >
                       <Pencil className="h-4 w-4" aria-hidden />
                     </button>
@@ -343,7 +327,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
                       title="Eliminar"
                       onClick={() => handleDelete(appt)}
                       disabled={deleteMutation.isPending}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden />
                     </button>
@@ -354,8 +338,8 @@ export function AgendaView({ accountId }: { accountId: string }) {
           </ul>
 
           {page > 1 || appointments.length >= 50 ? (
-            <div className="flex items-center justify-between border-t border-border px-4 py-2.5 text-xs text-fg-muted">
-              <span>Página {page}</span>
+            <div className="flex items-center justify-between border-t border-glass px-4 py-2.5 text-xs text-fg-muted">
+              <span className="font-numeric tabular-nums">Página {page}</span>
               <div className="flex gap-2">
                 <Button
                   size="sm"

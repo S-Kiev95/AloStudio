@@ -25,11 +25,11 @@ export function FallbackPanel({
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 p-6 text-center">
       {Icon ? (
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-2 text-fg-muted">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-focused text-lit">
           <Icon className="h-6 w-6" aria-hidden />
         </span>
       ) : null}
-      <h1 className="text-xl font-semibold text-fg">{title}</h1>
+      <h1 className="font-display text-2xl font-normal text-fg">{title}</h1>
       {description ? (
         <p className="text-sm text-fg-muted">{description}</p>
       ) : null}

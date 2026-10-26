@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ARTICLE_STATUSES,
@@ -14,8 +15,7 @@ import {
   type Category,
 } from "@/lib/api/portals";
 
-const selectClass =
-  "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const selectClass = selectClassName();
 
 export function ArticleForm({
   categories,

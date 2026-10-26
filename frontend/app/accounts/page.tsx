@@ -41,11 +41,15 @@ export default async function AccountsIndex() {
   if (accountId) redirect(`/accounts/${accountId}`);
 
   return (
-    <main className="mx-auto max-w-md p-8 text-fg">
-      <h1 className="text-xl font-semibold">Sin cuentas</h1>
-      <p className="mt-2 text-sm text-fg-muted">
-        Tu usuario no tiene cuentas asociadas todavía.
-      </p>
+    <main className="mx-auto flex min-h-dvh max-w-md items-center justify-center p-6 text-fg">
+      <div className="glass-panel w-full rounded-panel p-8">
+        <div className="neon-sign">
+          <h1 className="text-[28px] leading-[1.2]">Sin cuentas</h1>
+        </div>
+        <p className="mt-2 text-sm text-fg-muted">
+          Tu usuario no tiene cuentas asociadas todavía.
+        </p>
+      </div>
     </main>
   );
 }

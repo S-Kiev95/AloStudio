@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { selectClassName } from "@/components/ui/select";
 import {
   type Appointment,
   type AppointmentContact,
@@ -107,7 +108,7 @@ export function ContactAppointmentsCard({
             No hay próximas citas agendadas para este contacto.
           </p>
         ) : (
-          <ul className="divide-y divide-border rounded-lg border border-border">
+          <ul className="divide-y divide-glass rounded-md border border-glass">
             {upcoming.map((appt) => (
               <li
                 key={appt.id}
@@ -121,7 +122,7 @@ export function ContactAppointmentsCard({
                     <AppointmentStatusBadge status={appt.status} />
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-xs text-fg-muted">
-                    <span className="tabular-nums text-fg">
+                    <span className="font-numeric tabular-nums text-fg">
                       {formatDateTimeLocal(appt.starts_at)}
                     </span>
                     {appt.product ? (
@@ -143,7 +144,7 @@ export function ContactAppointmentsCard({
                         e.target.value as AppointmentStatus,
                       )
                     }
-                    className="h-8 rounded-md border border-border bg-surface px-2 text-xs text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className={selectClassName("sm")}
                   >
                     {APPOINTMENT_STATUS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -159,7 +160,7 @@ export function ContactAppointmentsCard({
                       setEditing(appt);
                       setDialogOpen(true);
                     }}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                   >
                     <Pencil className="h-3.5 w-3.5" aria-hidden />
                   </button>
@@ -169,7 +170,7 @@ export function ContactAppointmentsCard({
                     title="Eliminar"
                     onClick={() => handleDelete(appt)}
                     disabled={deleteMutation.isPending}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   </button>

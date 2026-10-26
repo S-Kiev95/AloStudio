@@ -17,6 +17,8 @@ import { useMemo } from "react";
 
 import { MetricChart } from "@/components/reports/metric-chart";
 import { SummaryCards } from "@/components/reports/summary-cards";
+import { PageHeader } from "@/components/shell/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   type LiveMetrics,
@@ -92,7 +94,7 @@ const ACTIONS: {
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
+    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
       {children}
     </p>
   );
@@ -112,7 +114,7 @@ function LiveCard({
     <Card className="flex items-center gap-3 p-4">
       <span
         className={cn(
-          "grid h-11 w-11 shrink-0 place-items-center rounded-lg",
+          "grid h-11 w-11 shrink-0 place-items-center rounded-md",
           TONE[def.tone],
         )}
       >
@@ -139,9 +141,9 @@ function ActionRow({
   return (
     <Link
       href={`/accounts/${accountId}/${action.segment}`}
-      className="group flex items-center gap-3 rounded-lg border border-transparent px-2 py-2 transition-colors hover:border-border hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+      className="group flex items-center gap-3 rounded-md border border-transparent px-2 py-2 transition-colors hover:border-glass hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
     >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-2 text-fg-muted transition-colors group-hover:bg-surface-3 group-hover:text-fg">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-surface-2 text-fg-muted transition-colors group-hover:bg-focused group-hover:text-lit">
         <Icon className="h-4 w-4" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
@@ -170,23 +172,20 @@ export function AccountOverview({ accountId }: { accountId: string }) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-fg sm:text-3xl">
-            {greeting()}
-          </h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            Un vistazo a tu cuenta — estado actual y últimos 7 días.
-          </p>
-        </div>
-        <Link
-          href={`/accounts/${accountId}/reports`}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-fg shadow-sm transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-        >
-          Ver reportes
-          <ArrowRight className="h-4 w-4" aria-hidden />
-        </Link>
-      </div>
+      <PageHeader
+        signTitle="Inicio"
+        title={greeting()}
+        description="Un vistazo a tu cuenta — estado actual y últimos 7 días."
+        actions={
+          <Link
+            href={`/accounts/${accountId}/reports`}
+            className={buttonVariants({ variant: "secondary", size: "sm" })}
+          >
+            Ver reportes
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        }
+      />
 
       <section className="space-y-3">
         <SectionLabel>Ahora mismo</SectionLabel>
@@ -223,7 +222,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
         <Card className="p-5 lg:col-span-2">
           <div className="mb-4 flex items-start justify-between">
             <div>
-              <p className="text-sm font-semibold text-fg">Conversaciones</p>
+              <p className="text-sm font-medium text-fg">Conversaciones</p>
               <p className="text-xs text-fg-muted">Últimos 7 días</p>
             </div>
             <p className="font-numeric text-2xl font-semibold tabular-nums text-fg">
@@ -231,7 +230,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
             </p>
           </div>
           {series.isLoading ? (
-            <div className="h-48 animate-pulse rounded-lg bg-surface-2" />
+            <div className="h-48 animate-pulse rounded-md bg-surface-2" />
           ) : (
             <MetricChart
               data={series.data ?? []}
@@ -241,7 +240,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
         </Card>
 
         <Card className="p-5">
-          <p className="mb-3 text-sm font-semibold text-fg">Accesos rápidos</p>
+          <p className="mb-3 text-sm font-medium text-fg">Accesos rápidos</p>
           <div className="flex flex-col gap-1">
             {ACTIONS.map((action) => (
               <ActionRow

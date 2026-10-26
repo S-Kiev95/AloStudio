@@ -128,15 +128,17 @@ export function MessageComposer({
   }
 
   return (
-    <div className="border-t border-border bg-surface p-3">
+    <div className="border-t border-glass bg-surface p-3">
       <div className="mb-2 flex items-center gap-2">
         <button
           type="button"
           onClick={() => setIsPrivate(false)}
           aria-pressed={!isPrivate}
           className={cn(
-            "rounded-md px-2 py-1 text-xs font-medium",
-            !isPrivate ? "bg-surface-2 font-semibold text-fg" : "text-fg-muted hover:bg-surface-2",
+            "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+            !isPrivate
+              ? "bg-focused text-lit"
+              : "text-fg-muted hover:bg-hover-glass hover:text-fg",
           )}
         >
           Responder
@@ -146,8 +148,10 @@ export function MessageComposer({
           onClick={() => setIsPrivate(true)}
           aria-pressed={isPrivate}
           className={cn(
-            "rounded-md px-2 py-1 text-xs font-medium",
-            isPrivate ? "bg-warning/15 font-semibold text-warning" : "text-fg-muted hover:bg-surface-2",
+            "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+            isPrivate
+              ? "bg-warning/15 text-warning"
+              : "text-fg-muted hover:bg-hover-glass hover:text-fg",
           )}
         >
           Nota privada
@@ -160,7 +164,7 @@ export function MessageComposer({
             att.previewUrl ? (
               <div
                 key={att.key}
-                className="group relative h-20 w-20 overflow-hidden rounded-md border border-border"
+                className="group relative h-20 w-20 overflow-hidden rounded-md border border-glass"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -172,7 +176,7 @@ export function MessageComposer({
                   type="button"
                   onClick={() => removeAttachment(att.key)}
                   aria-label={`Quitar ${att.name}`}
-                  className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+                  className="absolute right-1 top-1 rounded-full bg-backdrop/75 p-0.5 text-white hover:bg-backdrop/90"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden />
                 </button>
@@ -180,7 +184,7 @@ export function MessageComposer({
             ) : (
               <span
                 key={att.key}
-                className="flex items-center gap-2 rounded-md border border-border bg-surface-2 px-2 py-1 text-xs"
+                className="flex items-center gap-2 rounded-md border border-glass bg-surface-2 px-2 py-1 text-xs"
               >
                 <Paperclip
                   className="h-3 w-3 shrink-0 text-fg-muted"
@@ -193,7 +197,7 @@ export function MessageComposer({
                   type="button"
                   onClick={() => removeAttachment(att.key)}
                   aria-label={`Quitar ${att.name}`}
-                  className="rounded p-0.5 text-fg-muted hover:text-danger"
+                  className="rounded-sm p-0.5 text-fg-muted hover:text-danger"
                 >
                   <X className="h-3 w-3" aria-hidden />
                 </button>
@@ -229,16 +233,16 @@ export function MessageComposer({
             <ul
               role="listbox"
               aria-label="Respuestas predefinidas"
-              className="absolute bottom-full left-0 z-10 mb-1 max-h-56 w-full overflow-auto rounded-md border border-border bg-surface shadow-lg"
+              className="absolute bottom-full left-0 z-10 mb-1 max-h-56 w-full overflow-auto rounded-md border border-glass bg-surface-2 shadow-menu"
             >
               {cannedMatches.map((c) => (
                 <li key={c.id}>
                   <button
                     type="button"
                     onClick={() => insertCanned(c.content)}
-                    className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none"
+                    className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-hover-glass focus-visible:bg-hover-glass focus-visible:outline-none"
                   >
-                    <code className="text-xs font-semibold text-primary">
+                    <code className="text-xs font-semibold text-lit">
                       /{c.short_code}
                     </code>
                     <span className="w-full truncate text-xs text-fg-muted">

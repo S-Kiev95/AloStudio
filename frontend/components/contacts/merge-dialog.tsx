@@ -90,12 +90,12 @@ export function MergeDialog({
     <dialog
       ref={ref}
       onClose={onClose}
-      className="rounded-lg border border-border bg-surface p-0 text-fg shadow-xl backdrop:bg-black/50 w-full max-w-md"
+      className="w-full max-w-md rounded-panel border border-glass bg-surface p-0 text-fg shadow-menu backdrop:bg-backdrop/75"
     >
       <div className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-fg">
+            <h2 className="text-lg font-medium text-fg">
               Combinar contactos
             </h2>
             <p className="mt-1 text-sm text-fg-muted">
@@ -108,7 +108,7 @@ export function MergeDialog({
             type="button"
             aria-label="Cerrar"
             onClick={onClose}
-            className="rounded-md p-1 text-fg-muted hover:bg-surface-2"
+            className="rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>
@@ -139,7 +139,7 @@ export function MergeDialog({
             ) : candidates.length === 0 ? (
               <p className="text-sm text-fg-muted">Sin resultados.</p>
             ) : (
-              <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-md border border-border bg-surface">
+              <ul className="max-h-48 divide-y divide-glass overflow-y-auto rounded-md border border-glass bg-surface">
                 {candidates.map((c) => {
                   const label =
                     c.name?.trim() ||
@@ -156,8 +156,8 @@ export function MergeDialog({
                         type="button"
                         onClick={() => setSelected(c)}
                         className={cn(
-                          "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-surface-2",
-                          isSelected && "bg-primary/10 text-primary",
+                          "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-hover-glass",
+                          isSelected && "bg-focused text-lit",
                         )}
                       >
                         <span className="font-medium">{label}</span>

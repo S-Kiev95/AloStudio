@@ -50,12 +50,12 @@ export function ConnectCapabilitiesDialog({
       ref={ref}
       onClose={onClose}
       aria-labelledby="connect-caps-title"
-      className="w-full max-w-lg rounded-lg border border-border bg-surface p-0 text-fg shadow-xl backdrop:bg-black/50"
+      className="w-full max-w-lg rounded-panel border border-glass bg-surface p-0 text-fg shadow-menu backdrop:bg-backdrop/75"
     >
       <div className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 id="connect-caps-title" className="text-lg font-semibold">
+            <h2 id="connect-caps-title" className="text-lg font-medium">
               Conectar por {flow.title}
             </h2>
             <p className="mt-1 text-sm text-fg-muted">{flow.summary}</p>
@@ -64,7 +64,7 @@ export function ConnectCapabilitiesDialog({
             type="button"
             aria-label="Cerrar"
             onClick={onClose}
-            className="rounded-md p-1 text-fg-muted hover:bg-surface-2"
+            className="rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>
@@ -72,7 +72,7 @@ export function ConnectCapabilitiesDialog({
 
         <CapabilityList capabilities={flow.capabilities} />
 
-        <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-fg-muted">
+        <p className="rounded-md border border-glass bg-surface-2 px-3 py-2 text-xs text-fg-muted">
           {flow.requirement}
         </p>
 

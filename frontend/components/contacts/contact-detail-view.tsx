@@ -8,12 +8,12 @@ import { useState } from "react";
 import { ContactAppointmentsCard } from "@/components/agenda/contact-appointments-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   type ContactInput,
   useContact,
   useUpdateContact,
 } from "@/lib/api/contacts";
-import { cn } from "@/lib/utils";
 
 import { ContactForm } from "./contact-form";
 import { ContactableInboxesPanel } from "./contactable-inboxes-panel";
@@ -49,7 +49,7 @@ export function ContactDetailView({
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+    <div className="mx-auto max-w-3xl space-y-4">
       <Link
         href={`/accounts/${accountId}/contacts`}
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
@@ -67,11 +67,11 @@ export function ContactDetailView({
       ) : (
         <>
           <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-focused text-lit">
               <UserIcon className="h-5 w-5" aria-hidden />
             </span>
             <div className="min-w-0 flex-1">
-              <h2 className="truncate text-xl font-semibold text-fg">
+              <h2 className="truncate text-xl font-medium text-fg">
                 {contact.name?.trim() ||
                   contact.email?.trim() ||
                   contact.phone_number?.trim() ||
@@ -85,7 +85,7 @@ export function ContactDetailView({
                   </span>
                 ) : null}
                 {contact.phone_number ? (
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 font-numeric tabular-nums">
                     <Phone className="h-3 w-3" aria-hidden />
                     {contact.phone_number}
                   </span>
@@ -94,7 +94,7 @@ export function ContactDetailView({
               </p>
             </div>
             {contact.blocked ? (
-              <span className="rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">
+              <span className="rounded-pill bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">
                 Bloqueado
               </span>
             ) : null}
@@ -122,25 +122,15 @@ export function ContactDetailView({
 
           <ContactAppointmentsCard accountId={accountId} contact={contact} />
 
-          <div className="flex gap-1 border-b border-border">
-            {TABS.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                onClick={() => setTab(t.value)}
-                aria-pressed={tab === t.value}
-                className={cn(
-                  "-mb-px border-b-2 px-3 py-2 text-sm font-medium",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  tab === t.value
-                    ? "border-primary text-fg"
-                    : "border-transparent text-fg-muted hover:text-fg",
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+            <TabsList>
+              {TABS.map((t) => (
+                <TabsTrigger key={t.value} value={t.value}>
+                  {t.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
           {tab === "info" ? (
             <Card>

@@ -33,7 +33,7 @@ function ImageAttachment({ src }: { src: string }) {
           src={src}
           alt="Adjunto"
           loading="lazy"
-          className="max-h-56 max-w-full rounded-md border border-border object-contain"
+          className="max-h-56 max-w-full rounded-md border border-glass object-contain"
         />
       </button>
       {open ? (
@@ -42,14 +42,14 @@ function ImageAttachment({ src }: { src: string }) {
           aria-modal="true"
           aria-label="Imagen ampliada"
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/80 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-backdrop/85 p-4"
         >
           <button
             type="button"
             aria-label="Cerrar"
             autoFocus
             onClick={() => setOpen(false)}
-            className="absolute right-4 top-4 rounded-md p-2 text-white/80 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            className="absolute right-4 top-4 rounded-md p-2 text-white/80 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
           >
             <X className="h-6 w-6" aria-hidden />
           </button>
@@ -58,7 +58,7 @@ function ImageAttachment({ src }: { src: string }) {
             src={src}
             alt="Adjunto"
             onClick={(e) => e.stopPropagation()}
-            className="max-h-full max-w-full rounded object-contain"
+            className="max-h-full max-w-full rounded-md object-contain"
           />
         </div>
       ) : null}
@@ -110,7 +110,7 @@ function AudioAttachment({ src }: { src: string }) {
   const pct = dur ? (cur / dur) * 100 : 0;
 
   return (
-    <div className="mt-1 flex w-56 max-w-full items-center gap-2 rounded-full bg-surface-2 px-2 py-1.5">
+    <div className="mt-1 flex w-56 max-w-full items-center gap-2 rounded-pill bg-surface-2 px-2 py-1.5">
       <audio
         ref={ref}
         src={src}
@@ -127,7 +127,7 @@ function AudioAttachment({ src }: { src: string }) {
         type="button"
         onClick={toggle}
         aria-label={playing ? "Pausar" : "Reproducir"}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neon text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
         {playing ? (
           <Pause className="h-4 w-4" aria-hidden />
@@ -145,12 +145,12 @@ function AudioAttachment({ src }: { src: string }) {
             style={{ height: `${Math.max(h * 100, 14)}%` }}
             className={cn(
               "w-[2px] rounded-full",
-              i / WAVE.length < pct / 100 ? "bg-primary" : "bg-fg-muted/40",
+              i / WAVE.length < pct / 100 ? "bg-neon" : "bg-fg-muted/40",
             )}
           />
         ))}
       </div>
-      <span className="shrink-0 text-[10px] tabular-nums text-fg-muted">
+      <span className="shrink-0 font-numeric text-[10px] tabular-nums text-fg-muted">
         {fmtTime(cur > 0 ? cur : dur)}
       </span>
     </div>
@@ -189,7 +189,7 @@ function LocationAttachment({
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Ver ubicación: ${label}`}
-        className="mt-1 block w-56 max-w-full cursor-pointer overflow-hidden rounded-md border border-border text-left"
+        className="mt-1 block w-56 max-w-full cursor-pointer overflow-hidden rounded-md border border-glass text-left"
       >
         {/* Taller than its clip window so OSM's attribution/donation footer
             is cropped out; OSM is credited in the modal. */}
@@ -201,7 +201,7 @@ function LocationAttachment({
             className="pointer-events-none absolute inset-x-0 top-0 h-44 w-full border-0"
           />
         </div>
-        <span className="flex items-center gap-1.5 bg-surface px-2 py-1.5 text-xs font-medium text-primary">
+        <span className="flex items-center gap-1.5 bg-surface px-2 py-1.5 text-xs font-medium text-lit">
           <MapPin className="h-3 w-3 shrink-0" aria-hidden />
           <span className="truncate">{label}</span>
         </span>
@@ -212,22 +212,22 @@ function LocationAttachment({
           role="dialog"
           aria-modal="true"
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop/85 p-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-surface"
+            className="flex w-full max-w-2xl flex-col overflow-hidden rounded-panel border border-glass bg-surface shadow-menu"
           >
-            <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+            <div className="flex items-center justify-between gap-2 border-b border-glass px-3 py-2">
               <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-fg">
-                <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                <MapPin className="h-4 w-4 shrink-0 text-lit" aria-hidden />
                 <span className="truncate">{label}</span>
               </span>
               <button
                 type="button"
                 aria-label="Cerrar"
                 onClick={() => setOpen(false)}
-                className="rounded-md p-1 text-fg-muted hover:bg-surface-2 hover:text-fg"
+                className="rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
               >
                 <X className="h-5 w-5" aria-hidden />
               </button>
@@ -241,7 +241,7 @@ function LocationAttachment({
               href={maps}
               target="_blank"
               rel="noreferrer"
-              className="border-t border-border bg-surface px-3 py-2 text-center text-xs font-medium text-primary hover:underline"
+              className="border-t border-glass bg-surface px-3 py-2 text-center text-xs font-medium text-lit hover:underline"
             >
               Abrir en Google Maps · © OpenStreetMap
             </a>
@@ -293,7 +293,7 @@ function AttachmentView({ att }: { att: Attachment }) {
       <video
         controls
         src={att.data_url}
-        className="mt-1 max-h-56 max-w-full rounded-md border border-border"
+        className="mt-1 max-h-56 max-w-full rounded-md border border-glass"
       >
         <track kind="captions" />
       </video>
@@ -304,7 +304,7 @@ function AttachmentView({ att }: { att: Attachment }) {
       href={att.data_url}
       target="_blank"
       rel="noreferrer"
-      className="mt-1 flex items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1 text-xs font-medium text-primary hover:underline"
+      className="mt-1 flex items-center gap-1.5 rounded-md border border-glass bg-surface px-2 py-1 text-xs font-medium text-lit hover:underline"
     >
       <Paperclip className="h-3 w-3 shrink-0" aria-hidden />
       Descargar adjunto
@@ -350,15 +350,15 @@ export function MessageBubble({
       ) : null}
       <div
         className={cn(
-          "max-w-[75%] px-3.5 py-2 text-sm shadow-sm",
-          // Directional bubbles: outgoing lean on a warm brand tint, incoming
+          "max-w-[75%] px-3.5 py-2 text-sm",
+          // Directional bubbles: outgoing lean on cobalt focused glass, incoming
           // stay neutral, so the thread reads left/right at a glance. The
           // asymmetric corner gives each side its "tail".
           isPrivate
-            ? "rounded-2xl border border-warning/40 bg-warning/10 text-fg"
+            ? "rounded-panel border border-warning/40 bg-warning/10 text-fg"
             : outgoing
-              ? "rounded-2xl rounded-br-md border border-primary/25 bg-primary/10 text-fg"
-              : "rounded-2xl rounded-bl-md border border-border bg-surface text-fg",
+              ? "rounded-panel rounded-br-sm border border-neon/25 bg-focused text-fg"
+              : "rounded-panel rounded-bl-sm border border-glass bg-surface text-fg",
         )}
       >
         {isPrivate ? (
@@ -383,7 +383,7 @@ export function MessageBubble({
             ))}
           </>
         )}
-        <span className="mt-1 block text-right text-[10px] tabular-nums text-fg-muted">
+        <span className="mt-1 block text-right font-numeric text-[10px] tabular-nums text-fg-muted">
           {clockTime(message.created_at)}
         </span>
       </div>
@@ -402,7 +402,7 @@ function DeleteButton({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       aria-label="Eliminar mensaje"
       title="Eliminar mensaje"
-      className="shrink-0 rounded-md p-1 text-fg-muted opacity-0 transition hover:bg-surface-2 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
+      className="shrink-0 rounded-md p-1 text-fg-muted opacity-0 transition hover:bg-hover-glass hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
     >
       <Trash2 className="h-3.5 w-3.5" aria-hidden />
     </button>

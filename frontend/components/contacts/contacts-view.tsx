@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
+import { PageHeader } from "@/components/shell/page-header";
 import { Avatar } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,17 +102,19 @@ export function ContactsView({ accountId }: { accountId: string }) {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-fg">Contactos</h2>
-        <Link
-          href={`/accounts/${accountId}/contacts/new`}
-          className={buttonVariants({ size: "sm" })}
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-          Nuevo contacto
-        </Link>
-      </div>
+    <div className="mx-auto max-w-4xl space-y-4">
+      <PageHeader
+        title="Contactos"
+        actions={
+          <Link
+            href={`/accounts/${accountId}/contacts/new`}
+            className={buttonVariants({ size: "sm" })}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Nuevo contacto
+          </Link>
+        }
+      />
 
       <div className="flex gap-2">
         <div className="relative flex-1">
@@ -137,11 +140,11 @@ export function ContactsView({ accountId }: { accountId: string }) {
           onClick={() => setShowFilters((s) => !s)}
           aria-pressed={showFilters}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-md border border-border px-3 text-sm font-medium",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "inline-flex items-center gap-1.5 rounded-control border border-glass px-3 text-sm font-medium transition-colors",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
             showFilters || filtering
-              ? "bg-surface-2 text-fg"
-              : "bg-surface text-fg-muted hover:bg-surface-2",
+              ? "bg-focused text-lit"
+              : "bg-field text-fg-muted hover:bg-hover-glass hover:text-fg",
           )}
         >
           <SlidersHorizontal className="h-4 w-4" aria-hidden />
@@ -169,12 +172,12 @@ export function ContactsView({ accountId }: { accountId: string }) {
           {segments.data?.map((seg) => (
             <span
               key={seg.id}
-              className="inline-flex items-center rounded-full border border-border text-xs"
+              className="inline-flex items-center rounded-pill border border-glass bg-field text-xs"
             >
               <button
                 type="button"
                 onClick={() => applySegment(seg)}
-                className="rounded-l-full px-2.5 py-0.5 font-medium text-fg hover:bg-surface-2"
+                className="rounded-l-pill px-2.5 py-0.5 font-medium text-fg hover:bg-hover-glass"
               >
                 {seg.name}
               </button>
@@ -182,7 +185,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
                 type="button"
                 aria-label={`Eliminar segmento ${seg.name}`}
                 onClick={() => deleteSegment.mutate(seg.id)}
-                className="rounded-r-full py-0.5 pl-1 pr-2 text-fg-muted hover:text-danger"
+                className="rounded-r-pill py-0.5 pl-1 pr-2 text-fg-muted hover:text-danger"
               >
                 <X className="h-3 w-3" aria-hidden />
               </button>
@@ -206,15 +209,17 @@ export function ContactsView({ accountId }: { accountId: string }) {
                   setPage(1);
                 }}
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "inline-flex items-center gap-1 rounded-pill border px-2.5 py-0.5 text-xs transition-colors",
+                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
                   on
-                    ? "border-primary bg-surface-2 font-semibold text-fg"
-                    : "border-border text-fg-muted hover:bg-surface-2",
+                    ? "border-neon bg-focused font-medium text-lit"
+                    : "border-glass bg-field text-fg-muted hover:bg-hover-glass",
                 )}
               >
                 {co.name}
-                <span className="text-fg-muted">{co.count}</span>
+                <span className="font-numeric tabular-nums text-fg-muted">
+                  {co.count}
+                </span>
                 {on ? <X className="h-3 w-3" aria-hidden /> : null}
               </button>
             );
@@ -222,7 +227,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {active.isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
         ) : active.isError ? (
@@ -240,7 +245,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
                   : "No hay contactos todavía."}
           </p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-glass">
             {items.map((c) => (
               <ContactRow key={c.id} accountId={accountId} contact={c} />
             ))}
@@ -250,7 +255,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
 
       {/* Pagination */}
       {items.length > 0 ? (
-        <div className="flex items-center justify-between text-sm text-fg-muted">
+        <div className="flex items-center justify-between font-numeric text-sm tabular-nums text-fg-muted">
           <span>
             {searching
               ? `Página ${page}`
@@ -262,9 +267,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
               aria-label="Página anterior"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1 || active.isFetching}
-              className={cn(
-                "rounded-md border border-border bg-surface p-1.5 text-fg-muted hover:bg-surface-2 disabled:opacity-50",
-              )}
+              className="rounded-md border border-glass bg-field p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-50"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden />
             </button>
@@ -273,9 +276,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
               aria-label="Página siguiente"
               onClick={() => setPage((p) => p + 1)}
               disabled={!hasMore || active.isFetching}
-              className={cn(
-                "rounded-md border border-border bg-surface p-1.5 text-fg-muted hover:bg-surface-2 disabled:opacity-50",
-              )}
+              className="rounded-md border border-glass bg-field p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-50"
             >
               <ChevronRight className="h-4 w-4" aria-hidden />
             </button>
@@ -318,17 +319,17 @@ function ContactRow({
     `Contacto #${contact.id}`;
 
   return (
-    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-surface-2">
+    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-hover-glass">
       <Link
         href={`/accounts/${accountId}/contacts/${contact.id}`}
-        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neon"
       >
         <Avatar name={displayName} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-fg">
             {displayName}
             {contact.blocked ? (
-              <span className="ml-2 rounded bg-danger/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-danger">
+              <span className="ml-2 rounded-sm bg-danger/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-danger">
                 Bloqueado
               </span>
             ) : null}
@@ -341,7 +342,7 @@ function ContactRow({
               </span>
             ) : null}
             {contact.phone_number ? (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 font-numeric tabular-nums">
                 <Phone className="h-3 w-3" aria-hidden />
                 {contact.phone_number}
               </span>
@@ -363,7 +364,7 @@ function ContactRow({
         title="Eliminar"
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

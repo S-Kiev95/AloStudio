@@ -68,7 +68,7 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
         </p>
       ) : null}
 
-      <div className="space-y-2 rounded-lg border border-border p-3">
+      <div className="space-y-2 rounded-md border border-glass p-3">
         <div className="space-y-1.5">
           <Label htmlFor="trigger" required>
             Si preguntan algo como…
@@ -119,9 +119,12 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
           nada.
         </p>
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+        <ul className="divide-y divide-glass overflow-hidden rounded-md border border-glass">
           {list.data?.map((r) => (
-            <li key={r.id} className="flex items-start gap-3 p-3">
+            <li
+              key={r.id}
+              className="flex items-start gap-3 p-3 transition-colors hover:bg-hover-glass"
+            >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-fg">
                   {r.trigger}
@@ -142,7 +145,7 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
                   setTrigger(r.trigger);
                   setReply(r.reply);
                 }}
-                className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg"
+                className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg"
               >
                 <Pencil className="h-4 w-4" aria-hidden />
               </button>
@@ -155,7 +158,7 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
                     del.mutate(r.id);
                   }
                 }}
-                className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50"
+                className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" aria-hidden />
               </button>
@@ -189,7 +192,7 @@ function UnavailableNotice() {
   return (
     <div
       role="alert"
-      className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm"
+      className="rounded-md border border-warning/30 bg-warning/5 p-3 text-sm"
     >
       <p className="flex items-center gap-1.5 font-medium text-warning">
         <TriangleAlert className="h-4 w-4" aria-hidden />
