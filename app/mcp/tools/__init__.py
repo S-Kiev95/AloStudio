@@ -20,6 +20,7 @@ def register_all(mcp: FastMCP) -> None:
     from app.mcp.tools.instagram import register as register_instagram
     from app.mcp.tools.messages import register as register_messages
     from app.mcp.tools.meta import register as register_meta
+    from app.mcp.tools.publishing import register as register_publishing
 
     register_health(mcp)
     register_conversations(mcp)
@@ -28,6 +29,7 @@ def register_all(mcp: FastMCP) -> None:
     register_meta(mcp)
     register_instagram(mcp)
     register_appointments(mcp)
+    register_publishing(mcp)
 
 
 __all__ = ["register_all"]
