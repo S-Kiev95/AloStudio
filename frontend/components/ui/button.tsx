@@ -5,25 +5,29 @@ import { type ButtonHTMLAttributes, forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Button — design-system variants. Visible focus ring, ≥44px hit area on
- * the default size, clear disabled + loading states (DESIGN-SYSTEM §4/§5).
+ * Button — "The Hand-Bent Neon Room" (docs/design-neon/DESIGN.md).
+ * Primary is the cobalt lit tube (40px tall, 10px radius, 24px horizontal
+ * padding, >=44px touch target). Secondary, simple, ghost and destructive
+ * drop the cobalt tube; `ai` uses Electrode Orange exclusively for AI actions.
  */
 const buttonVariants = cva(
-  "inline-flex select-none touch-manipulation items-center justify-center gap-2 rounded-md text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:translate-y-px disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none disabled:active:translate-y-0",
+  "relative inline-flex select-none touch-manipulation items-center justify-center gap-2 rounded-control text-sm font-medium transition-[color,background-color,border-color,box-shadow,opacity] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none",
   {
     variants: {
       variant: {
-        primary:
-          "bg-primary text-primary-fg shadow-glow hover:bg-primary-active",
+        primary: "lit-tube-solid",
         secondary:
-          "border border-border bg-surface text-fg shadow-sm hover:border-border-strong hover:bg-surface-2",
-        ghost: "text-fg hover:bg-surface-2",
-        destructive: "bg-danger text-white shadow-sm hover:bg-danger/90",
+          "border border-glass bg-surface-2 text-fg hover:border-border-strong hover:bg-hover-glass",
+        simple:
+          "border border-glass bg-btn-simple text-fg hover:opacity-85",
+        ghost: "text-fg-muted hover:bg-hover-glass hover:text-fg",
+        destructive: "bg-danger-solid text-white hover:opacity-90",
+        ai: "bg-electrode text-white hover:opacity-90",
       },
       size: {
-        sm: "h-9 px-3",
-        md: "h-11 px-4",
-        icon: "h-11 w-11",
+        sm: "h-9 px-3.5 after:absolute after:-inset-y-1 after:inset-x-0 after:content-['']",
+        md: "h-10 px-6 after:absolute after:-inset-y-0.5 after:inset-x-0 after:content-['']",
+        icon: "h-10 w-10 after:absolute after:-inset-0.5 after:content-['']",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },

@@ -1,24 +1,18 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Avatar — a contact's initial on a colour that's deterministic from their
- * name, so the same person is always the same hue and a list reads as people
- * rather than a column of identical grey discs.
- *
- * The hue is decorative, not semantic (it never means "error"/"ok"), so it
- * lives off the status tokens on its own pleasant, distinct palette. Each chip
- * is `color-mix(hue, --surface)` for the wash + the raw hue for the glyph, so
- * it stays legible in both themes without a per-theme table.
+ * Avatar — deterministic cool-spectrum hue per contact name within the
+ * cobalt-glass palette (never Electrode Orange, never warning).
  */
 const HUES = [
-  "#6366f1", // indigo
+  "#3d6bff", // cobalt
   "#0ea5e9", // sky
   "#14b8a6", // teal
   "#10b981", // emerald
-  "#f59e0b", // amber
-  "#f97316", // orange
-  "#f43f5e", // rose
-  "#8b5cf6", // violet
+  "#38bdf8", // cyan
+  "#818cf8", // periwinkle
+  "#2dd4bf", // mint
+  "#fb7185", // rose
 ];
 
 function hueFor(seed: string): string {
@@ -51,12 +45,12 @@ export function Avatar({
     <span
       aria-hidden
       className={cn(
-        "grid shrink-0 place-items-center rounded-full font-semibold",
+        "grid shrink-0 place-items-center rounded-full font-medium ring-1 ring-inset ring-glass",
         SIZES[size],
         className,
       )}
       style={{
-        background: `color-mix(in srgb, ${hue} 18%, var(--surface))`,
+        background: `color-mix(in srgb, ${hue} 20%, var(--neon-focused-glass))`,
         color: hue,
       }}
     >

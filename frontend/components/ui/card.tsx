@@ -3,9 +3,8 @@ import { type HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Card — an elevated surface. Soft shadow lifts it off the canvas (flat
- * outlines read as "unfinished"); `interactive` adds a hover lift for cards
- * that are themselves links/buttons.
+ * Card — unlit cobalt-glass container (8px corners, 1px Unlit Glass border,
+ * zero shadow and zero glow — DESIGN.md Light-Not-Lift Rule).
  */
 export function Card({
   className,
@@ -15,9 +14,9 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-surface shadow-sm",
+        "rounded-md border border-glass bg-surface",
         interactive &&
-          "transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md",
+          "transition-colors duration-200 hover:border-border-strong hover:bg-hover-glass",
         className,
       )}
       {...props}
@@ -36,12 +35,10 @@ export function CardTitle({
   className,
   ...props
 }: HTMLAttributes<HTMLHeadingElement>) {
-  // h2, not h1 — a card is a section, and pages carry their own h1. Balanced
-  // wrapping keeps multi-word titles from orphaning a single word.
   return (
     <h2
       className={cn(
-        "text-lg font-semibold tracking-tight text-fg text-balance",
+        "text-base font-medium leading-[1.4] text-fg text-balance",
         className,
       )}
       {...props}
@@ -54,7 +51,10 @@ export function CardDescription({
   ...props
 }: HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p className={cn("mt-1 text-sm text-fg-muted text-pretty", className)} {...props} />
+    <p
+      className={cn("mt-1 text-sm leading-[1.45] text-fg-muted text-pretty", className)}
+      {...props}
+    />
   );
 }
 
