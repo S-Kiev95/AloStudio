@@ -3,87 +3,133 @@
 @tailwind utilities;
 
 /*
- * Semantic design tokens — Binance-style visual language (see
- * .claude/skills/binance-design + DESIGN-SYSTEM.md). One high-voltage
- * accent: Binance Yellow (--primary #fcd535) with black text on it, over a
- * near-black canvas in dark mode; clean white/ink in light mode. The same
- * yellow + black primary button reads identically in both themes. Dark is
- * the default (Binance is dark-first); next-themes toggles the `.dark` class.
- *
- * Depth comes from three tokens the flat foundation lacked: --gradient-primary
- * (the accent as a lit gradient — brand mark, key numbers), --canvas-accent (a
- * faint anchored glow so the background reads as a dimensional surface, not a
- * flat sheet), and a sharper elevation + border-highlight scale.
+ * AloStudio — "The Hand-Bent Neon Room" (see docs/design-neon/DESIGN.md and
+ * DESIGN-SYSTEM.md). Semantic tokens stay intact so existing screens follow
+ * automatically; --neon-* tokens carry the cobalt glass world in daylight
+ * (:root) and night (.dark, toggled by next-themes).
  */
 :root {
   color-scheme: light;
-  --bg: #f6f7f9;
+  --bg: #eef1f8;
   --surface: #ffffff;
-  --surface-2: #eff1f4;
-  --surface-3: #e2e6ea;
-  --fg: #14161a;
-  --fg-muted: #6b7280;
-  --border: #e6e9ee;
-  --border-strong: #ced4dc;
-  --primary: #fcd535;
-  --primary-active: #f0b90b;
-  --primary-fg: #181a20;
-  --success: #0b9d63;
-  --warning: #c2520c;
-  --danger: #d9344a;
-  --info: #2563eb;
-  --ring: #2563eb;
-  /* The accent as a lit gradient — brand mark, hero numbers, key CTAs. */
-  --gradient-primary: linear-gradient(135deg, #fcd535 0%, #f0b90b 100%);
-  /* A faint, anchored wash so the canvas has depth instead of reading flat. */
+  --surface-2: #f3f5fb;
+  --surface-3: #e6ecff;
+  --fg: #0c1124;
+  --fg-muted: #5f6987;
+  --border: #e3e7f3;
+  --border-strong: #d3d9ea;
+  --primary: #2f5bf0;
+  --primary-active: #1f47d6;
+  --primary-fg: #ffffff;
+  --success: #0d7a52;
+  --warning: #9a5206;
+  --danger: #cc2444;
+  --danger-solid: #c41e3d;
+  --info: #2f5bf0;
+  --ring: #2f5bf0;
+
+  --neon-core: #2f5bf0;
+  --neon-core-hover: #1f47d6;
+  --neon-lit-text: #1a3bb8;
+  --neon-halo: rgba(47, 91, 240, 0.28);
+  --neon-halo-far: rgba(47, 91, 240, 0.10);
+  --neon-electrode: #e5512a;
+  --neon-glass: #d6dcef;
+  --neon-selection: rgba(47, 91, 240, 0.20);
+  --neon-scrollbar: #c3cbe3;
+  --neon-edge: rgba(255, 255, 255, 0.50);
+  --neon-edge-strong: rgba(255, 255, 255, 0.65);
+  --neon-glass-highlight: rgba(255, 255, 255, 0.90);
+  --neon-field: #f7f9fe;
+  --neon-hover-glass: #f3f5fb;
+  --neon-focused-glass: #e6ecff;
+  --neon-button-simple: #e9edf7;
+  --neon-ambient: rgba(47, 91, 240, 0.06);
+  --neon-unlit-text: #4f5b7c;
+  --neon-hum: transparent;
+  --neon-hum-far: transparent;
+  --neon-backdrop: #0b1533;
+  --neon-settings: #f5f7fc;
+  --neon-table-text-focused: #2f5bf0;
+
+  --gradient-primary: var(--neon-core);
   --canvas-accent: radial-gradient(
-    1100px 560px at 88% -8%,
-    rgb(252 213 53 / 0.09),
-    transparent 58%
+    ellipse 70% 45% at 14% -10%,
+    var(--neon-ambient),
+    transparent 70%
   );
-  /* A hairline top-highlight that makes raised surfaces catch light. */
-  --edge-highlight: inset 0 1px 0 rgb(255 255 255 / 0.6);
-  /* Elevation — soft, low-contrast in light mode. */
-  --shadow-sm: 0 1px 2px rgb(24 26 32 / 0.04), 0 1px 3px rgb(24 26 32 / 0.06);
-  --shadow-md: 0 2px 6px rgb(24 26 32 / 0.05), 0 8px 24px rgb(24 26 32 / 0.06);
-  --shadow-lg: 0 4px 12px rgb(24 26 32 / 0.08), 0 16px 40px rgb(24 26 32 / 0.1);
-  /* A faint wash so the primary CTA feels lit. */
-  --glow-primary: 0 1px 2px rgb(240 185 11 / 0.35);
+  --edge-highlight: inset 0 1px 0 0 var(--neon-glass-highlight);
+  --menu-shadow: 0 12px 32px -8px rgba(12, 17, 36, 0.16);
+  --shadow-sm: none;
+  --shadow-md: var(--menu-shadow);
+  --shadow-lg: var(--menu-shadow);
+  --glow-primary:
+    inset 0 0 0 1px var(--neon-edge),
+    inset 0 0 14px -4px rgba(255, 255, 255, 0.35),
+    0 0 0 1px var(--neon-halo),
+    0 2px 22px -2px var(--neon-halo);
 }
 
-/* Dark theme (Binance signature) — near-black canvas, surface steps as
- * borders, single yellow accent. Applied via the `.dark` class. */
 .dark {
   color-scheme: dark;
-  --bg: #0b0e11;
-  --surface: #181c22;
-  --surface-2: #262b33;
-  --surface-3: #333a44;
-  --fg: #eaecef;
-  --fg-muted: #848e9c;
-  --border: #262b33;
-  --border-strong: #3d4551;
-  --primary: #fcd535;
-  --primary-active: #f0b90b;
-  --primary-fg: #181a20;
-  --success: #0ecb81;
-  --warning: #ff9f43;
-  --danger: #f6465d;
-  --info: #3b82f6;
-  --ring: #3b82f6;
-  --gradient-primary: linear-gradient(135deg, #fcd535 0%, #f0b90b 100%);
-  /* Warmer, larger glow — carries the near-black canvas off flat. */
+  --bg: #060912;
+  --surface: #0b1020;
+  --surface-2: #0f1528;
+  --surface-3: #101a3d;
+  --fg: #e7ecff;
+  --fg-muted: #8d97b8;
+  --border: #1c2644;
+  --border-strong: #2a3660;
+  --primary: #3d6bff;
+  --primary-active: #5a82ff;
+  --primary-fg: #ffffff;
+  --success: #34d399;
+  --warning: #f5b841;
+  --danger: #ff6b85;
+  --danger-solid: #c92542;
+  --info: #7fa0ff;
+  --ring: #3d6bff;
+
+  --neon-core: #3d6bff;
+  --neon-core-hover: #5a82ff;
+  --neon-lit-text: #dbe4ff;
+  --neon-halo: rgba(61, 107, 255, 0.42);
+  --neon-halo-far: rgba(61, 107, 255, 0.16);
+  --neon-electrode: #ff6a3d;
+  --neon-glass: #1c2644;
+  --neon-selection: rgba(61, 107, 255, 0.38);
+  --neon-scrollbar: #26325a;
+  --neon-edge: rgba(219, 228, 255, 0.45);
+  --neon-edge-strong: rgba(219, 228, 255, 0.60);
+  --neon-glass-highlight: rgba(127, 160, 255, 0.10);
+  --neon-field: #070b16;
+  --neon-hover-glass: #111834;
+  --neon-focused-glass: #101a3d;
+  --neon-button-simple: rgba(24, 33, 61, 0.55);
+  --neon-ambient: rgba(61, 107, 255, 0.10);
+  --neon-unlit-text: #9eb0e6;
+  --neon-hum: rgba(91, 130, 255, 0.55);
+  --neon-hum-far: rgba(61, 107, 255, 0.28);
+  --neon-backdrop: #01030a;
+  --neon-settings: #131a30;
+  --neon-table-text-focused: #7fa0ff;
+
+  --gradient-primary: var(--neon-core);
   --canvas-accent: radial-gradient(
-    1200px 620px at 85% -12%,
-    rgb(252 213 53 / 0.08),
-    transparent 60%
+    ellipse 70% 45% at 14% -10%,
+    var(--neon-ambient),
+    transparent 70%
   );
-  --edge-highlight: inset 0 1px 0 rgb(255 255 255 / 0.04);
-  /* Elevation — deeper on the near-black canvas so surfaces actually lift. */
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 2px 8px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.36);
-  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.5), 0 24px 56px rgb(0 0 0 / 0.4);
-  --glow-primary: 0 0 0 1px rgb(240 185 11 / 0.15), 0 2px 12px rgb(252 213 53 / 0.18);
+  --edge-highlight: inset 0 1px 0 0 var(--neon-glass-highlight);
+  --menu-shadow: 0 12px 32px -8px rgba(1, 3, 10, 0.80);
+  --shadow-sm: none;
+  --shadow-md: var(--menu-shadow);
+  --shadow-lg: var(--menu-shadow);
+  --glow-primary:
+    inset 0 0 0 1px var(--neon-edge),
+    inset 0 0 14px -4px rgba(255, 255, 255, 0.35),
+    0 0 0 1px var(--neon-halo),
+    0 2px 22px -2px var(--neon-halo);
 }
 
 @layer base {
@@ -91,36 +137,47 @@
   body {
     max-width: 100vw;
   }
+  :root,
+  .dark {
+    accent-color: var(--neon-core);
+    caret-color: var(--neon-core);
+  }
   body {
-    /* The anchored glow rides over the flat canvas colour and stays put on
-       scroll, so long pages keep their depth instead of tiling. */
-    background: var(--canvas-accent) fixed, var(--bg);
+    background-color: var(--bg);
+    background-image: var(--canvas-accent);
+    background-attachment: fixed;
     color: var(--fg);
     font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-    font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-  /* Headings carry the weight — tighter tracking, balanced wrapping. */
   h1,
   h2,
   h3 {
-    letter-spacing: -0.02em;
     text-wrap: balance;
   }
-  /* Tabular figures for data columns / prices / timestamps. */
-  .tabular-nums {
+  .tabular-nums,
+  .font-numeric,
+  table {
     font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
   }
-  /* Yellow-tinted selection ties highlights to the brand. */
+  thead th {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+  }
+  :where(:focus-visible) {
+    outline: 2px solid var(--neon-core);
+    outline-offset: 2px;
+  }
   ::selection {
-    background: rgb(252 213 53 / 0.28);
+    background: var(--neon-selection);
     color: var(--fg);
   }
-  /* Thin, theme-aware scrollbars — a big part of the "premium dark" read. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--surface-3) transparent;
+    scrollbar-color: var(--neon-scrollbar) transparent;
   }
   *::-webkit-scrollbar {
     width: 10px;
@@ -130,7 +187,7 @@
     background: transparent;
   }
   *::-webkit-scrollbar-thumb {
-    background: var(--surface-3);
+    background: var(--neon-scrollbar);
     border: 2px solid transparent;
     background-clip: padding-box;
     border-radius: 9999px;
@@ -142,29 +199,206 @@
 }
 
 @layer components {
-  /* The brand/accent rendered as gradient text — brand mark, hero metrics. */
-  .text-gradient {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
+  /* Active nav row outline: cobalt core + halo. */
+  .lit-tube {
+    color: var(--neon-lit-text);
+    box-shadow:
+      inset 0 0 0 1px var(--neon-core),
+      inset 0 0 12px -2px var(--neon-halo),
+      0 0 0 1px var(--neon-halo-far),
+      0 2px 14px -2px var(--neon-halo);
+    transition:
+      box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+      color 220ms cubic-bezier(0.16, 1, 0.3, 1);
   }
-  /* A raised surface that catches light along its top edge. */
-  .surface-raised {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    box-shadow: var(--edge-highlight), var(--shadow-md);
+
+  /* Primary button: bent cobalt tube carrying current. */
+  .lit-tube-solid {
+    background-color: var(--neon-core);
+    color: #ffffff;
+    border-radius: 10px;
+    box-shadow:
+      inset 0 0 0 1px var(--neon-edge),
+      inset 0 0 14px -4px rgba(255, 255, 255, 0.35),
+      0 0 0 1px var(--neon-halo),
+      0 2px 22px -2px var(--neon-halo);
+    transition:
+      box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .lit-tube-solid:hover:not(:disabled) {
+    background-color: var(--neon-core-hover);
+    box-shadow:
+      inset 0 0 0 1px var(--neon-edge-strong),
+      inset 0 0 14px -4px rgba(255, 255, 255, 0.45),
+      0 0 0 1px var(--neon-halo),
+      0 4px 30px 0 var(--neon-halo);
+  }
+
+  /* Ignition: a lit state switches on once on arrival, never a loop. */
+  .lit-tube-ignite {
+    animation: lit-ignite 360ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Page sign: Tilt Neon lettering. Plain cobalt in daylight, glowing in night. */
+  .neon-sign {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    color: var(--neon-core);
+    text-shadow: none;
+  }
+  .dark .neon-sign {
+    color: var(--neon-lit-text);
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 8px var(--neon-core),
+      0 0 22px var(--neon-halo),
+      0 0 44px var(--neon-halo);
+  }
+  .neon-sign > h1,
+  .neon-sign > div {
+    overflow: visible;
+  }
+
+  /* Main sidebar navigation: Humming Sidebar Exception in night, flat in daylight. */
+  .neon-nav {
+    color: var(--neon-unlit-text);
+    text-shadow: none;
+    transition:
+      color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      text-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .neon-nav svg {
+    filter: none;
+    transition: filter 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .neon-nav:hover {
+    color: var(--neon-lit-text);
+    text-shadow: none;
+  }
+  .neon-nav-lit {
+    color: var(--neon-core);
+    text-shadow: none;
+  }
+  .neon-nav-lit svg {
+    filter: none;
+  }
+
+  .dark .neon-nav {
+    color: var(--neon-unlit-text);
+    text-shadow:
+      0 0 3px var(--neon-hum),
+      0 0 12px var(--neon-hum-far);
+  }
+  .dark .neon-nav svg {
+    filter: drop-shadow(0 0 3px var(--neon-hum));
+  }
+  .dark .neon-nav:hover {
+    color: var(--neon-lit-text);
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 8px var(--neon-halo),
+      0 0 18px var(--neon-halo);
+  }
+  .dark .neon-nav:hover svg {
+    filter:
+      drop-shadow(0 0 2px var(--neon-lit-text))
+      drop-shadow(0 0 6px var(--neon-halo));
+  }
+  .dark .neon-nav-lit {
+    color: #ffffff;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 7px var(--neon-core),
+      0 0 16px var(--neon-core),
+      0 0 32px var(--neon-halo);
+  }
+  .dark .neon-nav-lit svg {
+    filter:
+      drop-shadow(0 0 2px var(--neon-lit-text))
+      drop-shadow(0 0 7px var(--neon-core));
+  }
+
+  /* Brand wordmark in Neonderthaw script: plain cobalt in daylight, glowing in night. */
+  .neon-wordmark {
+    font-family: var(--font-script), cursive;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--neon-core);
+    text-shadow: none;
+  }
+  .dark .neon-wordmark {
+    color: var(--neon-lit-text);
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 6px var(--neon-core),
+      0 0 18px var(--neon-core),
+      0 0 40px var(--neon-halo);
+  }
+
+  /* Shell panel: unlit glass hairline + 1px top highlight, no drop shadow. */
+  .glass-panel {
+    box-shadow:
+      inset 0 0 0 1px var(--neon-glass),
+      inset 0 1px 0 0 var(--neon-glass-highlight);
+  }
+
+  /* Section tab rail: lit text over a 2px glowing cobalt bar on the rail. */
+  .neon-tab {
+    position: relative;
+  }
+  .neon-tab-active {
+    color: var(--neon-lit-text);
+  }
+  .neon-tab-active::after {
+    content: "";
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--neon-core);
+    box-shadow:
+      0 0 6px var(--neon-halo),
+      0 0 14px var(--neon-halo-far);
+  }
+
+  /* Recessed glass field; switches on a cobalt border + 3px halo ring on focus. */
+  .glass-field {
+    background-color: var(--neon-field);
+    border-color: var(--neon-glass);
+    transition:
+      border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .glass-field:focus-within,
+  .glass-field:focus {
+    border-color: var(--neon-core);
+    box-shadow: 0 0 0 3px var(--neon-halo-far);
+    outline: none;
   }
 }
 
-/*
- * Honor the OS "reduce motion" setting — Tailwind's transitions/animations
- * don't opt in on their own (Web Interface Guidelines). Collapse to near-zero
- * rather than fully off so state changes still register; a spinner freezes,
- * which the "Cargando…" copy already conveys.
- */
+@keyframes lit-ignite {
+  0% {
+    box-shadow: inset 0 0 0 1px var(--neon-glass);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .lit-tube,
+  .lit-tube-solid,
+  .lit-tube-ignite,
+  .neon-nav,
+  .neon-nav svg,
+  .glass-field {
+    animation: none !important;
+    transition: none !important;
+  }
   *,
   *::before,
   *::after {
