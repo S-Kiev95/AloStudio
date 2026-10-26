@@ -127,13 +127,15 @@ export function DashboardShell({
               <Menu className="h-5 w-5" aria-hidden />
             </button>
 
-            <div className="neon-sign min-w-0">
-              <h1 className="text-[24px] leading-[1.2] lg:text-[34px]">
+            <div className="neon-sign min-w-0 flex-1">
+              {/* Below lg the controls leave little room: truncate instead of
+                  running under them. On desktop the glow may overflow. */}
+              <h1 className="text-[24px] leading-[1.2] max-lg:truncate lg:text-[34px]">
                 {signTitle}
               </h1>
             </div>
 
-            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
               <ThemeToggle />
               <NotificationBell accountId={accountId} />
               <span className="mx-0.5 hidden h-5 w-px bg-glass sm:block" aria-hidden />

@@ -257,10 +257,6 @@
       0 0 22px var(--neon-halo),
       0 0 44px var(--neon-halo);
   }
-  .neon-sign > h1,
-  .neon-sign > div {
-    overflow: visible;
-  }
 
   /* Main sidebar navigation: Humming Sidebar Exception in night, flat in daylight. */
   .neon-nav {

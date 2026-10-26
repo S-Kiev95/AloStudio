@@ -28,7 +28,9 @@ export function AccountSwitcher({
           "hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
         )}
       >
-        <span className="max-w-[9rem] truncate sm:max-w-[12rem]">
+        {/* On phones the name gives its room to the page sign; the menu
+            still lists every account by name. */}
+        <span className="max-w-[9rem] truncate max-sm:sr-only sm:max-w-[12rem]">
           {active?.name ?? "Cuenta"}
         </span>
         <ChevronsUpDown className="h-4 w-4 text-fg-muted" aria-hidden />
