@@ -1,6 +1,7 @@
 import {
   BarChart3,
   BookOpen,
+  Calendar,
   Home,
   Instagram,
   type LucideIcon,
@@ -29,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "contacts", label: "Contactos", icon: Users, segment: "contacts" },
   { key: "instagram", label: "Instagram", icon: Instagram, segment: "instagram" },
   { key: "products", label: "Productos", icon: Package, segment: "products" },
+  { key: "agenda", label: "Agenda", icon: Calendar, segment: "agenda" },
   {
     key: "help-center",
     label: "Help Center",
@@ -55,7 +57,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { label: "Bandeja", keys: ["conversations", "contacts", "instagram"] },
   {
     label: "Crecimiento",
-    keys: ["products", "help-center", "campaigns", "reports"],
+    keys: ["products", "agenda", "help-center", "campaigns", "reports"],
   },
   { label: null, keys: ["settings"] },
 ];

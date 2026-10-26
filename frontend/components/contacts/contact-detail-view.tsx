@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ContactAppointmentsCard } from "@/components/agenda/contact-appointments-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -118,6 +119,8 @@ export function ContactDetailView({
               router.push(`/accounts/${accountId}/contacts`);
             }}
           />
+
+          <ContactAppointmentsCard accountId={accountId} contact={contact} />
 
           <div className="flex gap-1 border-b border-border">
             {TABS.map((t) => (
