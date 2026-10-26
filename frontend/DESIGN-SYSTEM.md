@@ -1,130 +1,141 @@
-# AloStudio — Design System
+# AloStudio — Sistema de Diseño ("The Hand-Bent Neon Room")
 
-The single source of truth for the frontend UI. Synthesised by applying
-the **ui-ux-pro-max** skill to AloStudio's product type, and paired with
-the **next-best-practices** skill for implementation. Every screen
-(F.1+) must follow this.
-
-> Skills (installed via `npx skills add`, in `.agents/skills/`, gitignored):
-> - **ui-ux-pro-max** — design decisions (style, color, type, a11y, UX).
-> - **next-best-practices** — Next.js conventions (RSC, async APIs, etc.).
-
-## Product profile (drives every choice)
-- **Type:** B2B SaaS / admin **dashboard** — data-dense (conversation
-  inboxes, tables, forms) + a content composer (Instagram publishing).
-- **Tone:** professional, calm, content-first. Not playful, not flashy.
-- **Style:** **Binance-style** — a single high-voltage yellow accent
-  (`#fcd535`, black text on it) over a near-black canvas (dark-first); flat
-  color-block separation, no glassmorphism / atmospheric gradients. See the
-  `binance-design` skill for the full token set + component specs.
-- **Must-haves:** dark **and** light mode (dark is the default — Binance is
-  dark-first), accessibility-first, responsive (sidebar desktop ≥1024 → drawer mobile).
+Guía de implementación del sistema de diseño de AloStudio en `frontend/`.
+La fuente de verdad normativa es [`docs/design-neon/DESIGN.md`](../docs/design-neon/DESIGN.md).
 
 ---
 
-## 1. Color — semantic tokens (never raw hex in components)
+## 1. Concepto y dirección visual
 
-Define as CSS variables in `app/globals.css`, mapped to Tailwind via
-`tailwind.config.ts`. Use `bg-surface`, `text-fg`, `text-primary`, etc.
-**Both themes meet WCAG AA (4.5:1 body, 3:1 large/UI).**
+El espacio de trabajo es una sala oscura de vidrio cobalto curvado a mano (*The Hand-Bent Neon Room*).
+Todas las superficies son paneles de vidrio apagado (tonos azul marino escalonados con borde hairline de `1px` y reflejo superior, nunca levantados con sombras). La corriente eléctrica solo circula por aquello que orienta o recibe acción directa:
 
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `--bg` | `#fafafa` | `#0b0e11` | app background (Binance canvas) |
-| `--surface` | `#ffffff` | `#1e2329` | cards, panels |
-| `--surface-2` | `#f5f5f5` | `#2b3139` | subtle fills, hover, elevated |
-| `--fg` | `#181a20` | `#eaecef` | primary text |
-| `--fg-muted` | `#707a8a` | `#848e9c` | secondary text (≥3:1) |
-| `--border` | `#eaecef` | `#2b3139` | dividers, inputs (hairline) |
-| `--primary` | `#fcd535` | `#fcd535` | Binance Yellow — brand / primary CTA |
-| `--primary-fg` | `#181a20` | `#181a20` | text on primary (black on yellow) |
-| `--success` | `#0b9d63` | `#0ecb81` | published, online (trading-up green) |
-| `--warning` | `#c2520c` | `#ff9f43` | pending, scheduled |
-| `--danger` | `#d9344a` | `#f6465d` | failed, destructive (trading-down red) |
-| `--info` | `#2563eb` | `#3b82f6` | info, links, focus ring |
+- La marca `AloStudio` arriba de la barra lateral.
+- El cartel de la página en la barra superior.
+- La fila activa de la navegación principal.
+- El tubo de `2px` bajo la pestaña abierta.
+- El botón de acción principal (`primary`).
+- El campo con foco mientras se escribe en él.
 
-Rules: dark mode uses **desaturated/lighter tonal variants** (not
-inverted); functional color **always** pairs with icon/text (color is
-never the only signal); status chips (post state, availability) use
-token + label.
-
-## 2. Typography
-- **Font:** `Inter` via `next/font/google` (self-hosted, `display: swap`),
-  CSS var `--font-sans`. Monospace `ui-monospace` for ids/tokens.
-- **Tabular numbers** (`font-variant-numeric: tabular-nums`) on every
-  data column, count, price, timestamp → no layout shift.
-- **Scale (px):** 12 · 14 · 16(base) · 18 · 20 · 24 · 30. Body 16,
-  line-height 1.5; headings 600–700; labels 500.
-- Line length 60–75ch for long text; truncate with tooltip for ids.
-
-## 3. Spacing, layout, radius, elevation
-- **4 / 8 spacing rhythm** (Tailwind default). Section tiers 16/24/32/48.
-- Container `max-w-7xl`; content gutters scale up on wide screens.
-- Radius (Binance scale): `sm 4 · md 6 · lg 8 · xl 12 · pill 9999`.
-  Inputs/buttons `md` (6px); cards `lg`/`xl`; pill for top-of-page CTAs.
-- **Elevation scale** (don't invent shadows): `e0` flat border · `e1`
-  cards · `e2` dropdowns/popovers · `e3` modals. Dark mode leans on
-  border + `surface-2`, lighter shadows.
-- `z-index` scale: `base 0 · sticky 10 · dropdown 20 · overlay 40 ·
-  modal 50 · toast 60`.
-
-## 4. Components (shadcn/ui + Lucide)
-- **shadcn/ui** (Radix) for primitives — accessible by default; own the
-  code. **Lucide** icons only (SVG; **no emoji as icons**), one size
-  scale (`16/20/24`), consistent stroke (`1.5`).
-- **Buttons:** one **primary CTA per screen**; variants
-  primary/secondary/ghost/destructive; disabled = reduced opacity +
-  `disabled` attr + no pointer; async = spinner + disabled.
-- **Forms:** visible `<label>` (not placeholder-only), required `*`,
-  helper text persistent, **validate on blur**, error **below field** +
-  `role="alert"`/`aria-live`, focus first invalid on submit; semantic
-  input types; password show/hide; confirm destructive actions.
-- **Tables** (conversations, posts, products): sortable headers with
-  `aria-sort`; tabular nums; sticky header; **empty / loading (skeleton)
-  / error** states always; virtualize ≥50 rows.
-- **Status chips:** post state (pending/publishing/published/failed/
-  deleted), agent availability — token color + text + icon.
-- **Toasts:** `aria-live="polite"`, don't steal focus, auto-dismiss 3–5s,
-  offer undo on destructive/bulk.
-
-## 5. Interaction & accessibility (CRITICAL — non-negotiable)
-- Visible **focus rings** (2px) on all interactive elements — never
-  remove. Tab order matches visual order. Keyboard-operable everything.
-- Hit targets **≥44×44** (use padding/`hitSlop`-equivalent on icon btns).
-- `aria-label` on icon-only buttons; sequential headings; skip-to-content.
-- Transitions **150–300ms**, `transform`/`opacity` only; honour
-  `prefers-reduced-motion`. No layout-shifting press states.
-- Loading >300ms → skeleton, not a bare spinner. Reserve space → CLS<0.1.
-
-## 6. Charts (reports, F.8)
-Match type to data (trend→line, comparison→bar, proportion→donut ≤5);
-legends + tooltips (keyboard-reachable); accessible palette + patterns
-(not color-only); empty/loading/error states; tabular/locale number
-formatting; provide a table alternative for a11y.
+Existe una versión diurna (`:root`, modo claro) sobre fondo blanco frío donde los paneles mantienen su geometría de vidrio sin brillo exterior y el cartel pasa a cobalto plano. El modo nocturno (`.dark`, tema por defecto mediante `next-themes`) enciende los halos sobre el fondo marino con derrame ambiental arriba a la izquierda.
 
 ---
 
-## 7. Next.js conventions (next-best-practices)
-- **Server Components by default**; `'use client'` only for interactive
-  leaves (forms, realtime widgets). Keep client bundles small.
-- **Async APIs (Next 15):** `await cookies()/headers()`, `await params`,
-  `await searchParams` (already done in the BFF proxy).
-- `next/font` for fonts, `next/image` for images (never `<img>`).
-- **Route handlers** for the BFF proxy + auth; **Server Actions** for
-  mutations where they fit; data-fetch with `Promise.all`/Suspense (no
-  waterfalls).
-- `error.tsx` / `not-found.tsx` per segment; wrap `useSearchParams` users
-  in `<Suspense>`. `output: 'standalone'` for the Docker build.
-- Metadata via `generateMetadata`; OG images via `next/og` for the public
-  help center.
+## 2. Reglas con nombre
 
-## 8. Per-screen checklist (run before each F.x merge)
-- [ ] Semantic tokens only (no raw hex); light **and** dark verified.
-- [ ] Body contrast ≥4.5:1, secondary ≥3:1, in both themes.
-- [ ] Keyboard-operable; visible focus; icon buttons have `aria-label`.
-- [ ] Touch targets ≥44px; one primary CTA; clear disabled/loading.
-- [ ] Forms: labels, blur-validation, error below field + aria-live.
-- [ ] Empty / loading (skeleton) / error states for every async view.
-- [ ] No emoji icons; Lucide only; consistent size/stroke.
-- [ ] `prefers-reduced-motion` respected; no CLS on load.
-- [ ] Responsive at 375 / 768 / 1024 / 1440; no horizontal scroll.
+1. **The Lit-Means-Current Rule:** la luz indica únicamente dónde estás, sobre qué actuás o dónde estás escribiendo (marca, cartel, fila activa del menú principal, tubo de pestaña activa, botón primario y campo con foco). Filas seleccionadas, conmutadores (`SegmentedControl`), toggles, filtros y la subnavegación de Ajustes expresan selección con `bg-focused` y `text-lit`, nunca con halo.
+2. **The Humming Sidebar Exception:** solo en la barra lateral principal (`.neon-nav`, `.neon-nav-lit`) y en modo noche, las filas apagadas mantienen un zumbido tenue (`--neon-unlit-text` + `--neon-hum`), el hover sube a `--neon-lit-text` con halo y la fila activa queda incandescente dentro de su contorno `.lit-tube` con ignición al llegar. En modo día desaparece todo brillo.
+3. **The Electrode Rule:** el naranja electrodo (`--neon-electrode`, `text-electrode`, `<Button variant="ai">`) está reservado exclusivamente para acciones de inteligencia artificial o agentes autónomos. Nunca se usa para advertencias (`--warning`), insignias decorativas ni estados generales.
+4. **The Token-First Rule:** el color llega a los componentes mediante variables CSS (`--neon-*` y tokens semánticos) mapeadas en `tailwind.config.ts` y las clases de superficie en `app/globals.css`. Se preservan únicamente los colores de marca de canales externos (WhatsApp, Instagram, Telegram, etc.) y los colores configurables por el usuario en el Help Center o plantillas de correo.
+5. **The Three Faces Rule:**
+   - **Tilt Neon** (`--font-display`, `font-display`): nombra lugares — carteles de página (`34px` desktop / `24px` móvil), filas de navegación (`16px`) y pestañas (`17px`). Nunca en cuerpo de texto, botones ni celdas de datos.
+   - **Geologica** (`--font-sans`, `font-sans`, pesos `300–700`, `latin` + `latin-ext`): todo lo que se lee o se ingresa (títulos internos, formularios, tablas, botones, etiquetas).
+   - **Neonderthaw** (`--font-script`, `font-script`, `36px`): exclusivamente para el wordmark `AloStudio` en la barra lateral y cabeceras públicas de autenticación.
+6. **The Counting Rule:** todas las tablas, métricas y contadores usan números tabulares (`font-variant-numeric: tabular-nums`, `tabular-nums` / `font-numeric`) para alinear importes, horas y cantidades en columna.
+7. **The Light-Not-Lift Rule:** un resplandor significa "está encendido", nunca "flota". Cards, filas, listas y modales no llevan halo ni `drop-shadow`; solo menús desplegables y popovers usan `shadow-menu` (`--menu-shadow`).
+8. **The Ignition Rule:** un estado encendido prende una sola vez en `360ms` (`cubic-bezier(0.16, 1, 0.3, 1)`), y las transiciones entre estados toman `220ms` (`180ms` en campos). Jamás hay parpadeos ni animaciones en bucle. Con `prefers-reduced-motion: reduce` toda ignición y transición de luz se desactiva.
+
+---
+
+## 3. Tokens y utilidades Tailwind
+
+Definidos en [`app/globals.css`](app/globals.css) (`:root` día y `.dark` noche) y expuestos en [`tailwind.config.ts`](tailwind.config.ts). Ambos temas cumplen contraste WCAG AA.
+
+### Tokens del mundo neón (`--neon-*`)
+
+| Variable CSS | Día (`:root`) | Noche (`.dark`) | Utilidad Tailwind | Uso |
+|---|---|---|---|---|
+| `--neon-core` | `#2f5bf0` | `#3d6bff` | `bg-neon`, `text-neon`, `border-neon`, `accent-neon` | Núcleo de tubo cobalto, botón primario, borde en foco, perilla activa |
+| `--neon-core-hover` | `#1f47d6` | `#5a82ff` | `bg-neon-hover` | Hover del botón primario |
+| `--neon-lit-text` | `#1a3bb8` | `#dbe4ff` | `text-lit` | Texto encendido o seleccionado |
+| `--neon-unlit-text` | `#4f5b7c` | `#9eb0e6` | `text-unlit-text` | Filas inactivas de la barra lateral |
+| `--neon-electrode` | `#e5512a` | `#ff6a3d` | `bg-electrode`, `text-electrode`, `border-electrode` | Acciones de IA (`variant="ai"`) |
+| `--neon-glass` | `#d6dcef` | `#1c2644` | `border-glass`, `divide-glass` | Hairlines de `1px` en paneles, cards, tablas, campos y riel de pestañas |
+| `--neon-field` | `#f7f9fe` | `#070b16` | `bg-field` | Pozo hundido de inputs, textareas, selects y conmutadores |
+| `--neon-hover-glass` | `#f3f5fb` | `#111834` | `bg-hover-glass` | Hover de filas y controles tranquilos |
+| `--neon-focused-glass` | `#e6ecff` | `#101a3d` | `bg-focused`, `bg-focused-glass` | Selección sin halo (filas activas, subnav, segmentos, track de toggle encendido) |
+| `--neon-button-simple` | `#e9edf7` | `rgba(24, 33, 61, 0.55)` | `bg-btn-simple` | Botones utilitarios tranquilos (`variant="simple"`) |
+| `--neon-settings` | `#f5f7fc` | `#131a30` | `bg-settings-surface` | Superficie secundaria de configuración |
+| `--neon-backdrop` | `#0b1533` | `#01030a` | `bg-backdrop` | Velo detrás de modales y cajón móvil |
+| `--neon-table-text-focused` | `#2f5bf0` | `#7fa0ff` | `text-table-focused` | Acento textual en celdas focalizadas |
+
+### Tokens semánticos
+
+| Variable CSS | Día (`:root`) | Noche (`.dark`) | Utilidad Tailwind | Equivalencia |
+|---|---|---|---|---|
+| `--bg` | `#eef1f8` | `#060912` | `bg-bg` | Suelo de la sala + derrame ambiental (`--canvas-accent`) |
+| `--surface` | `#ffffff` | `#0b1020` | `bg-surface` | Panel principal / cards |
+| `--surface-2` | `#f3f5fb` | `#0f1528` | `bg-surface-2` | Panel elevado, encabezado de tabla, botón secundario |
+| `--surface-3` | `#e6ecff` | `#101a3d` | `bg-surface-3` | Equivalente a `--neon-focused-glass` |
+| `--fg` | `#0c1124` | `#e7ecff` | `text-fg` | Texto primario |
+| `--fg-muted` | `#5f6987` | `#8d97b8` | `text-fg-muted` | Texto secundario, etiquetas inactivas |
+| `--border` | `#e3e7f3` | `#1c2644` | `border-border` | Borde estándar |
+| `--border-strong` | `#d3d9ea` | `#2a3660` | `border-border-strong` | Separador reforzado |
+| `--primary` / `--primary-fg` | `#2f5bf0` / `#ffffff` | `#3d6bff` / `#ffffff` | `bg-primary`, `text-primary-fg` | Cobalto primario con texto blanco |
+| `--success` | `#0d7a52` | `#34d399` | `text-success`, `bg-success` | Estado positivo / publicado / en línea |
+| `--warning` | `#9a5206` | `#f5b841` | `text-warning`, `bg-warning` | Estado pendiente / advertencia ámbar (nunca naranja electrodo) |
+| `--danger` / `--danger-solid` | `#cc2444` / `#c41e3d` | `#ff6b85` / `#c92542` | `text-danger`, `bg-danger-solid` | Error textual y relleno destructivo AA con blanco |
+| `--info` | `#2f5bf0` | `#7fa0ff` | `text-info` | Enlaces e indicadores informativos |
+
+### Clases de superficie (`@layer components` en `app/globals.css`)
+
+- `.glass-panel`: borde interior `1px` `--neon-glass` + reflejo superior `1px` `--neon-glass-highlight`, sin sombra exterior. Usado en los dos paneles del shell y tarjetas de autenticación.
+- `.neon-wordmark`: Neonderthaw `36px` con brillo cobalto en noche y cobalto plano en día.
+- `.neon-sign`: cartel de página en Tilt Neon con resplandor en noche y cobalto plano en día.
+- `.neon-nav` / `.neon-nav-lit`: filas apagadas con zumbido y fila activa encendida en la barra lateral principal.
+- `.lit-tube` / `.lit-tube-ignite`: contorno de tubo cobalto encendido + animación única de `360ms`.
+- `.lit-tube-solid`: cuerpo sólido de tubo encendido para `<Button variant="primary">`.
+- `.neon-tab` / `.neon-tab-active`: pestaña sobre riel con barra luminosa de `2px` e inset horizontal de `14px`.
+- `.glass-field`: pozo `--neon-field` con borde `--neon-glass` que al recibir foco conmuta a `--neon-core` y anillo `3px` `--neon-halo-far` en `180ms`.
+
+---
+
+## 4. Geometría, radios y sombras
+
+- **Radios:**
+  - `rounded-sm` (`4px`): chips e insignias compactas.
+  - `rounded-md` (`8px`): cards, tablas y subnavegación de Ajustes.
+  - `rounded-control` (`10px`): botones, filas de navegación principal, inputs, textareas, selects y grupos segmentados.
+  - `rounded-panel` (`16px`): los dos paneles principales del shell (barra lateral y panel de trabajo).
+  - `rounded-pill` (`100px`): toggles tipo pastilla.
+- **Sombras:**
+  - `shadow-sm` → `none` (las cards y contenedores nunca flotan).
+  - `shadow-menu` (`shadow-md` / `shadow-lg`) → caída oscura suave exclusiva para menús desplegables y popovers.
+
+---
+
+## 5. Componentes compartidos
+
+### `components/ui/`
+
+- **[`Button`](components/ui/button.tsx):** `40px` de alto (`rounded-control`), área táctil mínima de `44px` (`min-h-11` en móvil). Variantes:
+  - `primary` (por defecto): `.lit-tube-solid`, texto blanco. Si el consumidor pasa un `bg-*` propio, desactiva automáticamente `.lit-tube-solid` para no mezclar brillo cobalto con fondos ajenos.
+  - `secondary`: `bg-surface-2`, borde `border-glass`, sin luz.
+  - `simple`: `bg-btn-simple` translúcido con `border-glass`, sin luz.
+  - `ghost`: transparente con hover `bg-hover-glass`.
+  - `destructive`: `bg-danger-solid` con texto blanco, sin halo cobalto.
+  - `ai`: naranja electrodo (`bg-electrode text-white`), exclusivo para acciones de IA.
+- **[`Input`](components/ui/input.tsx), [`Textarea`](components/ui/textarea.tsx), [`Select`](components/ui/select.tsx) (`selectClassName`):** campos hundidos `.glass-field` (`44px` de alto en tamaño `md`, `rounded-control`, texto Geologica `14px`).
+- **[`Card`](components/ui/card.tsx):** `rounded-md` (`8px`), `border-glass`, `bg-surface`, padding interno de `20px`, sin sombra ni resplandor.
+- **[`Label`](components/ui/label.tsx) y [`Avatar`](components/ui/avatar.tsx):** etiquetas Geologica `12px` `font-medium`; avatares circulares sobre `bg-focused text-lit` con `border-glass`.
+- **[`Tabs`](components/ui/tabs.tsx) y `NavTabs`:** riel inferior `border-glass` con pestañas en Tilt Neon `17px` (`px-[14px] py-[10px]`) y tubo activo `.neon-tab-active`.
+- **[`SegmentedControl`](components/ui/segmented-control.tsx):** selector compacto sin luz sobre `bg-field` con opción activa `bg-focused text-lit` (`aria-pressed`), para vistas (`Semana / Lista`), rangos (`7d / 30d / 90d`) y filtros rápidos.
+
+### `components/shell/`
+
+- **[`DashboardShell`](components/shell/dashboard-shell.tsx):** marco exterior de `12px` (`8px` en móvil) con barra lateral `.glass-panel` de `236px` a la izquierda (wordmark `.neon-wordmark` + [`SidebarNav`](components/shell/sidebar-nav.tsx)) y panel de trabajo `.glass-panel` a la derecha con barra superior (`80px` desktop / `64px` móvil: cartel `.neon-sign` `<h1>` a la izquierda; tema, notificaciones, cuenta y menú de agente a la derecha). En móvil la barra lateral abre como cajón de altura completa.
+- **[`PageHeader`](components/shell/page-header.tsx):** sincroniza el título de la sección con el cartel `.neon-sign` del topbar y renderiza la fila opcional de migas de pan (`eyebrow`), descripción secundaria y acciones principales de la pantalla. En las subpáginas de `/settings/*`, el cartel permanece en `Ajustes` y cada subsección encabeza su panel con `<h2>`.
+
+### Tablas y Toggles
+
+- **Tablas:** contenedor `overflow-hidden rounded-md border border-glass bg-surface`, `<thead className="bg-surface-2">` con `th` en `11px` mayúsculas y tracking `0.08em` (aplicado globalmente en `app/globals.css`), filas con `border-t border-glass` y `hover:bg-hover-glass`, cifras alineadas con `tabular-nums`.
+- **Toggles (`role="switch"`):** pastilla `rounded-pill border border-glass`; apagado `bg-field` con perilla `bg-fg-muted`; encendido `bg-focused` con perilla `bg-neon` (el riel nunca brilla).
+
+---
+
+## 6. Accesibilidad y convenciones Next.js
+
+- Anillo `:focus-visible` global de `2px` en `--neon-core` con `2px` de offset; nunca eliminar outlines sin reemplazo visible.
+- Objetivos táctiles `>= 44x44px`; botones de solo ícono siempre con `aria-label` descriptivo; íconos SVG de `lucide-react` (sin emojis como íconos).
+- `prefers-reduced-motion: reduce` desactiva animaciones de ignición y transiciones de brillo/sombra.
+- Server Components por defecto; `'use client'` solo en hojas interactivas; fuentes autoalojadas una sola vez mediante `next/font/google` en [`app/layout.tsx`](app/layout.tsx).
