@@ -34,7 +34,6 @@ export function NotificationBell({ accountId }: { accountId: string }) {
   const markAllRead = useMarkAllNotificationsRead(accountId);
   const deleteOne = useDeleteNotification(accountId);
 
-  // Close the dropdown when clicking outside.
   useEffect(() => {
     if (!open) return;
     function onDocClick(e: MouseEvent) {
@@ -64,15 +63,16 @@ export function NotificationBell({ accountId }: { accountId: string }) {
       <summary
         aria-label={`Notificaciones${unreadCount ? ` (${unreadCount} sin leer)` : ""}`}
         className={cn(
-          "relative flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md text-fg-muted",
-          "hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "relative flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-control text-fg-muted transition-colors",
+          "after:absolute after:-inset-0.5 after:content-['']",
+          "hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
         )}
       >
         <Bell className="h-5 w-5" aria-hidden />
         {unreadCount > 0 ? (
           <span
             aria-hidden
-            className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold leading-none text-white"
+            className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-danger-solid px-1 text-[10px] font-semibold leading-none text-white tabular-nums"
           >
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
@@ -80,24 +80,24 @@ export function NotificationBell({ accountId }: { accountId: string }) {
       </summary>
 
       <div
-        className="absolute right-0 z-30 mt-1 flex w-[22rem] flex-col overflow-hidden rounded-md border border-border bg-surface shadow-lg"
+        className="absolute right-0 z-30 mt-1.5 flex w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu"
         role="dialog"
         aria-label="Notificaciones"
       >
-        <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <h2 className="text-sm font-semibold text-fg">Notificaciones</h2>
+        <div className="flex items-center justify-between border-b border-glass px-3 py-2.5">
+          <h2 className="text-sm font-medium text-fg">Notificaciones</h2>
           <button
             type="button"
             onClick={() => markAllRead.mutate()}
             disabled={!unreadCount || markAllRead.isPending}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-fg-muted hover:bg-surface-2 disabled:opacity-40"
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg disabled:opacity-40"
           >
             <CheckCheck className="h-3.5 w-3.5" aria-hidden />
             Marcar todo
           </button>
         </div>
 
-        <ul className="max-h-[28rem] divide-y divide-border overflow-y-auto">
+        <ul className="max-h-[28rem] divide-y divide-glass overflow-y-auto">
           {list.isLoading && open ? (
             <li className="px-3 py-6 text-center text-sm text-fg-muted">
               Cargando…
@@ -120,10 +120,10 @@ export function NotificationBell({ accountId }: { accountId: string }) {
         </ul>
 
         {rows.length > 0 ? (
-          <div className="border-t border-border bg-surface-2 px-3 py-2 text-right">
+          <div className="border-t border-glass bg-surface px-3 py-2 text-right">
             <Link
               href={`/accounts/${accountId}/notifications`}
-              className="text-xs font-medium text-primary hover:underline"
+              className="text-xs font-medium text-info hover:underline"
               onClick={() => {
                 detailsRef.current?.removeAttribute("open");
                 setOpen(false);
@@ -161,7 +161,7 @@ function NotificationRow({
       {isUnread ? (
         <span
           aria-hidden
-          className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-primary"
+          className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-neon"
         />
       ) : (
         <span aria-hidden className="mt-1.5 inline-block h-2 w-2 shrink-0" />
@@ -189,7 +189,7 @@ function NotificationRow({
   );
 
   return (
-    <li className="group/row flex items-start gap-1 px-3 py-2 hover:bg-surface-2">
+    <li className="group/row flex items-start gap-1 px-3 py-2 transition-colors hover:bg-hover-glass">
       {href ? (
         <Link href={href} onClick={onMarkRead} className="min-w-0 flex-1">
           {body}
@@ -207,7 +207,7 @@ function NotificationRow({
         type="button"
         aria-label="Borrar notificación"
         onClick={onDelete}
-        className="mt-1 rounded-md p-1 text-fg-muted opacity-0 hover:bg-surface focus-visible:opacity-100 group-hover/row:opacity-100"
+        className="mt-1 rounded-md p-1 text-fg-muted opacity-0 transition-opacity hover:bg-surface hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100"
       >
         <Trash2 className="h-3.5 w-3.5" aria-hidden />
       </button>

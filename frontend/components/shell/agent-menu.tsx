@@ -35,20 +35,21 @@ export function AgentMenu({
     <details className="group relative">
       <summary
         className={cn(
-          "flex cursor-pointer list-none items-center gap-2 rounded-md px-1.5 py-1 text-sm text-fg",
-          "hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "relative flex h-10 cursor-pointer list-none items-center gap-2 rounded-control px-1.5 text-sm text-fg transition-colors",
+          "after:absolute after:-inset-y-0.5 after:inset-x-0 after:content-['']",
+          "hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
         )}
         aria-label="Menú de usuario"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-fg">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-focused text-xs font-medium text-lit ring-1 ring-inset ring-glass">
           {initials}
         </span>
       </summary>
       <div
-        className="absolute right-0 z-20 mt-1 w-60 overflow-hidden rounded-md border border-border bg-surface shadow-md"
+        className="absolute right-0 z-30 mt-1.5 w-60 overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu"
         role="menu"
       >
-        <div className="border-b border-border px-3 py-3">
+        <div className="border-b border-glass px-3 py-3">
           <p className="flex items-center gap-2 text-sm font-medium text-fg">
             <UserCircle2 className="h-4 w-4 text-fg-muted" aria-hidden />
             <span className="truncate">{name || "Usuario"}</span>
@@ -60,7 +61,7 @@ export function AgentMenu({
           onClick={onLogout}
           disabled={loading}
           role="menuitem"
-          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-surface-2 disabled:opacity-50"
+          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger transition-colors hover:bg-hover-glass disabled:opacity-50"
         >
           <LogOut className="h-4 w-4" aria-hidden />
           Cerrar sesión

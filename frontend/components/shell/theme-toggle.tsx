@@ -34,9 +34,10 @@ export function ThemeToggle() {
       aria-label={`Tema: ${LABEL[current]}`}
       title={`Tema: ${LABEL[current]}`}
       className={cn(
-        "inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted",
-        "hover:bg-surface-2 hover:text-fg",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+        "relative inline-flex h-10 w-10 items-center justify-center rounded-control text-fg-muted transition-colors",
+        "after:absolute after:-inset-0.5 after:content-['']",
+        "hover:bg-hover-glass hover:text-fg",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
       )}
     >
       <Icon className="h-5 w-5" aria-hidden />

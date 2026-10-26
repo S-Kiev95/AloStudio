@@ -1,32 +1,52 @@
 "use client";
 
 import { Menu, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useMemo, useState, type ReactNode } from "react";
 
 import type { Profile } from "@/lib/auth/profile";
 import { useCable } from "@/lib/realtime/use-cable";
 
 import { AccountSwitcher } from "./account-switcher";
 import { AgentMenu } from "./agent-menu";
+import { NAV_ITEMS, navHref } from "./nav";
 import { NotificationBell } from "./notification-bell";
+import { PageSignContext } from "./page-header";
 import { SidebarNav } from "./sidebar-nav";
 import { ThemeToggle } from "./theme-toggle";
 
-/** Yellow brand mark + wordmark, shared by the desktop sidebar + mobile drawer.
- *  The tile carries the lit accent gradient + a soft glow so it reads as the
- *  brand anchor rather than a flat square. */
-function Brand() {
+function Brand({
+  href,
+  onClick,
+}: {
+  href: string;
+  onClick?: () => void;
+}) {
   return (
-    <span className="flex items-center gap-2.5">
-      <span
-        className="grid h-8 w-8 place-items-center rounded-lg text-sm font-bold text-primary-fg shadow-[0_2px_10px_rgb(252_213_53/0.35)]"
-        style={{ background: "var(--gradient-primary)" }}
-      >
-        A
-      </span>
-      <span className="text-lg font-semibold tracking-tight">AloStudio</span>
-    </span>
+    <Link
+      href={href}
+      onClick={onClick}
+      className="neon-wordmark inline-block select-none rounded-sm text-[36px] leading-none"
+    >
+      AloStudio
+    </Link>
   );
+}
+
+function resolveDefaultSign(pathname: string, accountId: string): string {
+  const base = `/accounts/${accountId}`;
+  if (pathname === `${base}/notifications` || pathname.startsWith(`${base}/notifications/`)) {
+    return "Notificaciones";
+  }
+  for (const item of NAV_ITEMS) {
+    if (!item.segment) continue;
+    const href = navHref(accountId, item.segment);
+    if (pathname === href || pathname.startsWith(`${href}/`)) {
+      return item.label;
+    }
+  }
+  return "Inicio";
 }
 
 export function DashboardShell({
@@ -38,73 +58,98 @@ export function DashboardShell({
   profile: Profile;
   children: ReactNode;
 }) {
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [customSign, setCustomSign] = useState<string | null>(null);
 
-  // Realtime: subscribe once per account; events invalidate query caches.
   useCable({
     pubsubToken: profile.pubsubToken,
     userId: profile.id,
     accountId,
   });
 
+  const signCtx = useMemo(() => ({ setSignTitle: setCustomSign }), []);
+  const signTitle = customSign ?? resolveDefaultSign(pathname, accountId);
+  const homeHref = navHref(accountId, "");
+
   return (
-    <div className="min-h-dvh bg-bg text-fg">
-      {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-surface lg:block">
-        <div className="flex h-14 items-center border-b border-border px-5">
-          <Brand />
-        </div>
-        <SidebarNav accountId={accountId} />
-      </aside>
-
-      {/* Mobile drawer */}
-      {mobileOpen ? (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <button
-            aria-label="Cerrar menú"
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setMobileOpen(false)}
-          />
-          <aside className="absolute inset-y-0 left-0 w-64 border-r border-border bg-surface">
-            <div className="flex h-14 items-center justify-between border-b border-border px-5">
-              <Brand />
-              <button
-                aria-label="Cerrar menú"
-                onClick={() => setMobileOpen(false)}
-                className="rounded-md p-1 text-fg-muted hover:bg-surface-2"
-              >
-                <X className="h-5 w-5" aria-hidden />
-              </button>
-            </div>
-            <SidebarNav
-              accountId={accountId}
-              onNavigate={() => setMobileOpen(false)}
-            />
-          </aside>
-        </div>
-      ) : null}
-
-      <div className="lg:pl-64">
-        {/* Topbar — flat on the canvas with a hairline divider (no
-            glassmorphism: Binance trusts color-block contrast over blur). */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-bg px-4">
-          <button
-            aria-label="Abrir menú"
-            onClick={() => setMobileOpen(true)}
-            className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 lg:hidden"
-          >
-            <Menu className="h-5 w-5" aria-hidden />
-          </button>
-          <AccountSwitcher accountId={accountId} accounts={profile.accounts} />
-          <div className="ml-auto flex items-center gap-1">
-            <NotificationBell accountId={accountId} />
-            <ThemeToggle />
-            <AgentMenu name={profile.name} email={profile.email} />
+    <PageSignContext.Provider value={signCtx}>
+      <div className="flex min-h-dvh gap-3 p-2 text-fg lg:p-3">
+        {/* Desktop glass sidebar (236px) */}
+        <aside className="glass-panel hidden rounded-panel bg-surface lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-24px)] lg:w-[236px] lg:shrink-0 lg:flex-col">
+          <div className="px-[14px] pb-[28px] pt-[18px]">
+            <Brand href={homeHref} />
           </div>
-        </header>
+          <SidebarNav accountId={accountId} />
+        </aside>
 
-        <main id="main-content" className="p-4 sm:p-6">{children}</main>
+        {/* Mobile full-height drawer */}
+        {mobileOpen ? (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <button
+              type="button"
+              aria-label="Cerrar menú"
+              className="absolute inset-0 bg-backdrop/80"
+              onClick={() => setMobileOpen(false)}
+            />
+            <aside className="glass-panel absolute inset-y-0 left-0 flex w-[236px] flex-col bg-surface">
+              <div className="flex items-center justify-between px-[14px] pb-5 pt-[18px]">
+                <Brand
+                  href={homeHref}
+                  onClick={() => setMobileOpen(false)}
+                />
+                <button
+                  type="button"
+                  aria-label="Cerrar menú"
+                  onClick={() => setMobileOpen(false)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-control text-fg-muted hover:bg-hover-glass hover:text-fg"
+                >
+                  <X className="h-5 w-5" aria-hidden />
+                </button>
+              </div>
+              <SidebarNav
+                accountId={accountId}
+                onNavigate={() => setMobileOpen(false)}
+              />
+            </aside>
+          </div>
+        ) : null}
+
+        {/* Work glass panel */}
+        <div className="glass-panel flex min-w-0 flex-1 flex-col rounded-panel bg-surface">
+          <header className="flex h-16 shrink-0 items-center gap-3 border-b border-glass px-4 lg:h-20 lg:px-6">
+            <button
+              type="button"
+              aria-label="Abrir menú"
+              onClick={() => setMobileOpen(true)}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-fg-muted hover:bg-hover-glass hover:text-fg lg:hidden"
+            >
+              <Menu className="h-5 w-5" aria-hidden />
+            </button>
+
+            <div className="neon-sign min-w-0">
+              <h1 className="text-[24px] leading-[1.2] lg:text-[34px]">
+                {signTitle}
+              </h1>
+            </div>
+
+            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+              <ThemeToggle />
+              <NotificationBell accountId={accountId} />
+              <span className="mx-0.5 hidden h-5 w-px bg-glass sm:block" aria-hidden />
+              <AccountSwitcher
+                accountId={accountId}
+                accounts={profile.accounts}
+              />
+              <AgentMenu name={profile.name} email={profile.email} />
+            </div>
+          </header>
+
+          <main id="main-content" className="flex-1 p-4 sm:p-5 lg:p-6">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </PageSignContext.Provider>
   );
 }
