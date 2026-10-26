@@ -17,6 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.errors import ChatwootHTTPException
 from app.domains.inboxes.models import Inbox
+from app.domains.media_library import service as media_library
 from app.domains.publishing.adapters import (
     PublishResult,
     adapter_for_inbox,
@@ -60,15 +61,44 @@ def _aware(dt: datetime | None) -> datetime | None:
     return dt
 
 
-def _normalize_media(raw: Any) -> list[dict[str, str]]:
+async def _normalize_media(
+    session: AsyncSession, *, account_id: int, raw: Any
+) -> list[dict[str, Any]]:
+    """Each item is either ``{"media_id": int}`` — an asset of the account's
+    library, stored with its kind and a current link — or an external
+    ``{"type", "url"}``."""
     if raw is None:
         return []
     if not isinstance(raw, list):
         raise _unprocessable("media tiene que ser una lista")
-    media: list[dict[str, str]] = []
+
+    def _asset_id(item: Any) -> int | None:
+        # ``bool`` is an ``int`` in Python: ``true`` must not mean asset 1.
+        value = item.get("media_id") if isinstance(item, dict) else None
+        return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+    asset_ids = [i for i in (_asset_id(item) for item in raw) if i is not None]
+    assets = await media_library.get_assets(
+        session, account_id=account_id, asset_ids=asset_ids
+    )
+    media: list[dict[str, Any]] = []
     for i, item in enumerate(raw):
         if not isinstance(item, dict):
             raise _unprocessable(f"media[{i}] es inválido")
+        if item.get("media_id") is not None:
+            asset = assets.get(_asset_id(item))  # type: ignore[arg-type]
+            if asset is None:
+                raise _unprocessable(
+                    f"media[{i}] no está en la biblioteca de esta cuenta"
+                )
+            media.append(
+                {
+                    "type": asset.kind,
+                    "url": media_library.asset_public_url(asset),
+                    "media_id": asset.id,
+                }
+            )
+            continue
         kind = item.get("type")
         url = item.get("url")
         if kind not in MEDIA_TYPES:
@@ -79,6 +109,31 @@ def _normalize_media(raw: Any) -> list[dict[str, str]]:
             raise _unprocessable(f"media[{i}].url tiene que ser una URL pública")
         media.append({"type": kind, "url": url})
     return media
+
+
+async def _refresh_library_links(
+    session: AsyncSession, publication: Publication
+) -> bool:
+    """Re-sign the links of library media right before publishing: the
+    stored ones expire, and a post can go out weeks after it was written.
+    Returns False when an asset was deleted from the library meanwhile."""
+    media = publication.media or []
+    asset_ids = [m["media_id"] for m in media if m.get("media_id") is not None]
+    if not asset_ids:
+        return True
+    assets = await media_library.get_assets(
+        session, account_id=publication.account_id, asset_ids=asset_ids
+    )
+    if len(assets) != len(set(asset_ids)):
+        return False
+    publication.media = [
+        {**m, "url": media_library.asset_public_url(assets[m["media_id"]])}
+        if m.get("media_id") is not None
+        else m
+        for m in media
+    ]
+    session.add(publication)
+    return True
 
 
 async def list_channels(
@@ -195,7 +250,9 @@ async def create_publication(
     payload: dict[str, Any],
     created_by_id: int | None = None,
 ) -> Publication:
-    media = _normalize_media(payload.get("media"))
+    media = await _normalize_media(
+        session, account_id=account_id, raw=payload.get("media")
+    )
     state, scheduled_for = _resolve_schedule(
         draft=bool(payload.get("draft")),
         scheduled_for=_aware(payload.get("scheduled_for")),
@@ -324,7 +381,9 @@ async def update_publication(
     if "content" in payload:
         publication.content = payload["content"]
     if "media" in payload and payload["media"] is not None:
-        publication.media = _normalize_media(payload["media"])
+        publication.media = await _normalize_media(
+            session, account_id=publication.account_id, raw=payload["media"]
+        )
 
     # Only a new date or a draft toggle reschedules; editing the text of a
     # publication whose date just passed must not trip the future check.
@@ -566,6 +625,18 @@ async def publish_pending_targets(
     targets = (
         await targets_by_publication(session, publication_ids=[publication_id])
     )[publication_id]
+    if not await _refresh_library_links(session, publication):
+        # Nothing pending can go out; the loop below skips them and the
+        # usual wrap-up settles the publication.
+        for target in targets:
+            if target.state == TARGET_STATE_PENDING:
+                target.state = TARGET_STATE_FAILED
+                target.error_code = "missing_media"
+                target.error_message = (
+                    "Un archivo de la publicación ya no está en la biblioteca."
+                )
+                session.add(target)
+    await session.commit()
     retry_needed = False
     for target in targets:
         if target.state != TARGET_STATE_PENDING:
@@ -613,7 +684,10 @@ async def publish_pending_targets(
         session.add(publication)
         await session.commit()
 
-    if not retry_needed:
+    # A target a crashed run left mid-publish is the stale recovery's to
+    # settle; until then the publication isn't finished.
+    unsettled = any(t.state == TARGET_STATE_PUBLISHING for t in targets)
+    if not retry_needed and not unsettled:
         publication.state = _aggregate_state(targets)
         if publication.state != PUBLICATION_STATE_FAILED:
             publication.published_at = datetime.now(UTC)

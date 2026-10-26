@@ -1,4 +1,4 @@
-"""MCP tools — multi-network publishing (posts scheduled to social channels)."""
+"""MCP tools — multi-network publishing and the media library it draws on."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from app.core.errors import ChatwootHTTPException
+from app.domains.media_library import service as media_svc
+from app.domains.media_library.presenters import present_asset
 from app.domains.publishing import service as svc
 from app.domains.publishing.presenters import (
     present_channel,
@@ -52,6 +54,23 @@ def register(mcp: FastMCP) -> None:
             "channels": [present_channel(inbox, net) for inbox, net in channels]
         }
 
+    @mcp.tool(name="list_media")
+    @requires("read")
+    async def list_media(
+        kind: str | None = None, page: int = 1
+    ) -> dict[str, Any]:
+        """Images and videos in the account's media library, newest first
+        (use their id as ``{"media_id": id}`` in create_publication)."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        try:
+            rows = await media_svc.list_assets(
+                ctx.session, account_id=ctx.account.id, kind=kind, page=page
+            )
+        except ChatwootHTTPException as exc:
+            raise _as_value_error(exc) from exc
+        return {"media": [present_asset(a) for a in rows]}
+
     @mcp.tool(name="list_publications")
     @requires("read")
     async def list_publications(
@@ -80,14 +99,15 @@ def register(mcp: FastMCP) -> None:
     async def create_publication(
         inbox_ids: list[int],
         content: str | None = None,
-        media: list[dict[str, str]] | None = None,
+        media: list[dict[str, Any]] | None = None,
         scheduled_for: str | None = None,
         settings: dict[str, dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Schedule a post to one or more channels.
 
-        ``media`` is an ordered list of ``{"type": "image"|"video", "url"}``
-        with public URLs. ``settings`` maps an inbox_id (as a string) to that
+        ``media`` is an ordered list; each item is ``{"media_id": id}`` from
+        list_media (preferred) or ``{"type": "image"|"video", "url"}`` with a
+        public URL. ``settings`` maps an inbox_id (as a string) to that
         channel's options, e.g. ``{"12": {"post_type": "reels"}}``. Without
         ``scheduled_for`` the post goes out on the next scheduler run
         (within about 5 minutes).

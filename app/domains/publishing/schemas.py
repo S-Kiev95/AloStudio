@@ -9,10 +9,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class MediaItem(BaseModel):
+    """A library asset (``media_id``) or an external file (``type`` + ``url``)."""
+
     model_config = ConfigDict(extra="ignore")
 
-    type: str
-    url: str
+    media_id: int | None = None
+    type: str | None = None
+    url: str | None = None
 
 
 class PublicationTargetIn(BaseModel):
