@@ -44,7 +44,8 @@ RECEIVER_KIND_AGENT_BOT = "agent_bot"
 WEBHOOK_TYPE_ACCOUNT = 0
 WEBHOOK_TYPE_INBOX = 1
 
-# Mirrors ``Webhook::ALLOWED_WEBHOOK_EVENTS`` (v4.13.0).
+# Mirrors ``Webhook::ALLOWED_WEBHOOK_EVENTS`` (v4.13.0), plus AloStudio's
+# own events at the end (CRM agenda and publishing; not in Chatwoot).
 ALLOWED_WEBHOOK_EVENTS: tuple[str, ...] = (
     "conversation_status_changed",
     "conversation_updated",
@@ -58,6 +59,9 @@ ALLOWED_WEBHOOK_EVENTS: tuple[str, ...] = (
     "inbox_updated",
     "conversation_typing_on",
     "conversation_typing_off",
+    "appointment_created",
+    "appointment_updated",
+    "publication_completed",
 )
 
 

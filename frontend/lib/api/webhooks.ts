@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
 
-/** Mirrors backend's ALLOWED_WEBHOOK_EVENTS (v4.13.0). */
+/** Mirrors backend's ALLOWED_WEBHOOK_EVENTS (v4.13.0 + AloStudio's own). */
 export const WEBHOOK_EVENTS = [
   "conversation_created",
   "conversation_updated",
@@ -16,6 +16,9 @@ export const WEBHOOK_EVENTS = [
   "inbox_created",
   "inbox_updated",
   "webwidget_triggered",
+  "appointment_created",
+  "appointment_updated",
+  "publication_completed",
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
