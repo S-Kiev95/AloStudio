@@ -16,6 +16,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.errors import ChatwootHTTPException
+from app.domains.conversations.events import PUBLICATION_COMPLETED, dispatcher
 from app.domains.inboxes.models import Inbox
 from app.domains.media_library import service as media_library
 from app.domains.publishing.adapters import (
@@ -542,6 +543,7 @@ async def recover_stale_publications(
         )
     ).all()
     requeue: list[int] = []
+    finished: list[Publication] = []
     for publication in stale:
         targets = (
             await targets_by_publication(
@@ -561,10 +563,17 @@ async def recover_stale_publications(
             requeue.append(publication.id)  # type: ignore[arg-type]
         else:
             publication.state = _aggregate_state(targets)
+            if publication.state != PUBLICATION_STATE_FAILED:
+                publication.published_at = datetime.now(UTC)
+            finished.append(publication)
         # Touch it, so the next tick doesn't take it as stale again.
         publication.updated_at = datetime.now(UTC)
         session.add(publication)
     await session.flush()
+    for publication in finished:
+        await dispatcher.dispatch(
+            session, PUBLICATION_COMPLETED, publication=publication
+        )
     return requeue
 
 
@@ -693,7 +702,16 @@ async def publish_pending_targets(
             publication.published_at = datetime.now(UTC)
         session.add(publication)
         await session.commit()
+        await _dispatch_completed(session, publication)
     return retry_needed
+
+
+async def _dispatch_completed(session: AsyncSession, publication: Publication) -> None:
+    """``publication.completed`` once every target is settled (published,
+    partially published or failed). Committed again because a webhook the
+    worker can't enqueue is delivered inline and may record a dead letter."""
+    await dispatcher.dispatch(session, PUBLICATION_COMPLETED, publication=publication)
+    await session.commit()
 
 
 __all__ = [

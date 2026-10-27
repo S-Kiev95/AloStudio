@@ -16,7 +16,24 @@ from app.domains.appointments.models import (
     Appointment,
 )
 from app.domains.contacts.models import Contact
+from app.domains.conversations.events import (
+    APPOINTMENT_CREATED,
+    APPOINTMENT_UPDATED,
+    dispatcher,
+)
 from app.domains.products.models import Product
+
+# Attributes whose change makes an ``appointment.updated`` event.
+_EVENT_ATTRIBUTES = (
+    "contact_id",
+    "product_id",
+    "title",
+    "description",
+    "starts_at",
+    "ends_at",
+    "status",
+    "notes",
+)
 
 
 def _validate_title(raw: Any) -> str:
@@ -140,6 +157,7 @@ async def create_appointment(
     account_id: int,
     payload: dict[str, Any],
     created_by_id: int | None = None,
+    emit_event: bool = True,
 ) -> Appointment:
     title = _validate_title(payload.get("title"))
     await _ensure_contact_in_account(
@@ -182,6 +200,10 @@ async def create_appointment(
     session.add(appointment)
     await session.flush()
     await session.refresh(appointment)
+    if emit_event:
+        await dispatcher.dispatch(
+            session, APPOINTMENT_CREATED, appointment=appointment
+        )
     return appointment
 
 
@@ -245,6 +267,7 @@ async def update_appointment(
     appointment: Appointment,
     payload: dict[str, Any],
 ) -> Appointment:
+    before = {key: getattr(appointment, key) for key in _EVENT_ATTRIBUTES}
     if "title" in payload and payload["title"] is not None:
         appointment.title = _validate_title(payload["title"])
     elif "title" in payload and payload["title"] is None:
@@ -310,6 +333,19 @@ async def update_appointment(
     session.add(appointment)
     await session.flush()
     await session.refresh(appointment)
+    # Same shape as Rails' ``previous_changes``: {attr: [previous, current]}.
+    changes = {
+        key: [before[key], getattr(appointment, key)]
+        for key in _EVENT_ATTRIBUTES
+        if before[key] != getattr(appointment, key)
+    }
+    if changes:
+        await dispatcher.dispatch(
+            session,
+            APPOINTMENT_UPDATED,
+            appointment=appointment,
+            changed_attributes=changes,
+        )
     return appointment
 
 

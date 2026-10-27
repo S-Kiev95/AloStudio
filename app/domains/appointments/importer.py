@@ -430,6 +430,9 @@ async def import_postiz_crm(
                     "notes": appt.get("notes"),
                     "external_id": appt_id,
                 },
+                # A bulk import announces nothing, like Chatwoot's
+                # ``Contact.import``.
+                emit_event=False,
             )
 
     return stats
