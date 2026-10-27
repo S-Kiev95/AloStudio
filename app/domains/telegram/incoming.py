@@ -46,7 +46,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.contacts.models import Contact, ContactInbox
-from app.domains.contacts.service import ContactInboxBuilder
+from app.domains.contacts.service import ContactInboxBuilder, dispatch_contact_created
 from app.domains.conversations.models import (
     Conversation,
     Message,
@@ -147,6 +147,7 @@ async def _find_or_create_contact(
     session.add(contact)
     await session.flush()
     await session.refresh(contact)
+    await dispatch_contact_created(session, contact)
     return contact
 
 

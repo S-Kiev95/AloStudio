@@ -78,7 +78,9 @@ from app.domains.contacts.service import (
     ContactInboxBuilder,
     ContactMergeAction,
     company_name_expr,
+    contact_snapshot,
     create_contact,
+    dispatch_contact_updated,
     list_companies,
     update_contact,
 )
@@ -432,6 +434,7 @@ async def destroy_custom_attributes(
     Response is ``{"payload": <contact>}`` (``destroy_custom_attributes.json.jbuilder``).
     """
     contact = await _find_contact_in_account(session, ctx, contact_id)
+    before = contact_snapshot(contact)
     remaining = {
         k: v
         for k, v in (contact.custom_attributes or {}).items()
@@ -440,6 +443,7 @@ async def destroy_custom_attributes(
     contact.custom_attributes = remaining
     session.add(contact)
     await session.flush()
+    await dispatch_contact_updated(session, contact, before)
     return {"payload": present_contact(contact, with_contact_inboxes=True)}
 
 

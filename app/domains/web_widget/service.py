@@ -24,7 +24,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.widget_token import encode_widget_token
 from app.domains.contacts.models import Contact, ContactInbox
-from app.domains.contacts.service import ContactInboxBuilder
+from app.domains.contacts.service import ContactInboxBuilder, dispatch_contact_created
 from app.domains.inboxes.models import Inbox, WebWidget
 
 
@@ -77,6 +77,7 @@ async def build_contact_inbox_with_token(
     session.add(contact)
     await session.flush()
     await session.refresh(contact)
+    await dispatch_contact_created(session, contact)
 
     contact_inbox = await ContactInboxBuilder(
         session=session,

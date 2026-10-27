@@ -46,7 +46,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
-    from app.domains.contacts.models import ContactInbox
+    from app.domains.contacts.models import Contact, ContactInbox
     from app.domains.teams.models import Team
     from app.domains.users.models import User
 
@@ -765,9 +765,7 @@ async def mute_conversation_with_activity(
     if conversation.contact is None:
         return
     await toggle_status(session, conversation=conversation, status="resolved")
-    conversation.contact.blocked = True
-    session.add(conversation.contact)
-    await session.flush()
+    await _set_contact_blocked(session, conversation.contact, blocked=True)
     content = mute_change_activity_content(
         user_name=_current_user_name(), change_type="muted"
     )
@@ -783,9 +781,7 @@ async def unmute_conversation_with_activity(
     """Port of ``ConversationMuteHelpers#unmute!``."""
     if conversation.contact is None:
         return
-    conversation.contact.blocked = False
-    session.add(conversation.contact)
-    await session.flush()
+    await _set_contact_blocked(session, conversation.contact, blocked=False)
     content = mute_change_activity_content(
         user_name=_current_user_name(), change_type="unmuted"
     )
@@ -793,6 +789,24 @@ async def unmute_conversation_with_activity(
         await create_activity_message(
             session, conversation=conversation, content=content
         )
+
+
+async def _set_contact_blocked(
+    session: AsyncSession, contact: Contact, *, blocked: bool
+) -> None:
+    """``contact.update!(blocked: …)`` — which in Rails also fires
+    ``contact.updated``."""
+    # Late import: contacts depends on conversations, not the other way.
+    from app.domains.contacts.service import (
+        contact_snapshot,
+        dispatch_contact_updated,
+    )
+
+    before = contact_snapshot(contact)
+    contact.blocked = blocked
+    session.add(contact)
+    await session.flush()
+    await dispatch_contact_updated(session, contact, before)
 
 
 # =========================================================================

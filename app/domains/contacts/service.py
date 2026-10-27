@@ -18,6 +18,7 @@ Phase 3 scope for merge:
 
 from __future__ import annotations
 
+import copy
 import re
 import uuid
 from collections.abc import Callable
@@ -31,6 +32,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.errors import ChatwootHTTPException
 from app.domains.contacts.models import Contact, ContactInbox, Note
+from app.domains.conversations.events import CONTACT_CREATED, CONTACT_UPDATED, dispatcher
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
@@ -288,6 +290,7 @@ class ContactMergeAction:
         if present, otherwise mergee".
         """
         merged = self._compute_merged_attrs()
+        before = contact_snapshot(self.base)
 
         # Apply merged attributes to base, then detach + delete mergee
         # so the destroy doesn't cascade-kill the base contact's rows we
@@ -301,6 +304,8 @@ class ContactMergeAction:
             setattr(self.base, key, value)
         self.session.add(self.base)
         await self.session.flush()
+        # Rails: ``@base_contact.update!`` fires ``contact.updated``.
+        await dispatch_contact_updated(self.session, self.base, before)
 
     def _compute_merged_attrs(self) -> dict[str, Any]:
         scalar_keys = ("identifier", "name", "email", "phone_number")
@@ -457,10 +462,57 @@ class ContactIdentifyAction:
 
         if not updates:
             return
+        before = contact_snapshot(self.contact)
         for key, value in updates.items():
             setattr(self.contact, key, value)
         self.session.add(self.contact)
         await self.session.flush()
+        await dispatch_contact_updated(self.session, self.contact, before)
+
+
+# =========================================================================
+# Contact events (webhooks, realtime)
+# =========================================================================
+# Attributes whose change makes a ``contact.updated`` event — the ones
+# ``Contact#webhook_data`` exposes.
+_EVENT_ATTRIBUTES = (
+    "name",
+    "email",
+    "phone_number",
+    "identifier",
+    "blocked",
+    "additional_attributes",
+    "custom_attributes",
+)
+
+
+def contact_snapshot(contact: Contact) -> dict[str, Any]:
+    """The event-relevant attributes, copied, to diff after an update."""
+    return {key: copy.deepcopy(getattr(contact, key)) for key in _EVENT_ATTRIBUTES}
+
+
+async def dispatch_contact_created(session: AsyncSession, contact: Contact) -> None:
+    """Mirror Rails' ``after_create_commit :dispatch_create_event``. Every
+    path that creates a contact (REST, inbound channels, widget) calls this
+    once the row is flushed; bulk imports don't, like ``Contact.import``."""
+    await dispatcher.dispatch(session, CONTACT_CREATED, contact=contact)
+
+
+async def dispatch_contact_updated(
+    session: AsyncSession, contact: Contact, before: dict[str, Any]
+) -> None:
+    """Mirror ``after_update_commit :dispatch_update_event`` with Rails'
+    ``previous_changes`` shape (``{attr: [previous, current]}``). No event
+    when nothing the webhook exposes changed."""
+    changes = {
+        key: [before.get(key), value]
+        for key, value in contact_snapshot(contact).items()
+        if before.get(key) != value
+    }
+    if changes:
+        await dispatcher.dispatch(
+            session, CONTACT_UPDATED, contact=contact, changed_attributes=changes
+        )
 
 
 # =========================================================================
@@ -493,6 +545,7 @@ async def create_contact(
     # Rehydrate server-assigned timestamps + the ``contact_inboxes``
     # relationship so the presenter can render without lazy loads.
     await session.refresh(contact, attribute_names=["contact_inboxes"])
+    await dispatch_contact_created(session, contact)
     return contact
 
 
@@ -504,6 +557,7 @@ async def update_contact(
 ) -> Contact:
     data = normalize_contact_write(payload)
     assert_valid_contact_identity(data)
+    before = contact_snapshot(contact)
 
     scalar_keys = ("name", "email", "phone_number", "identifier", "blocked")
     for key in scalar_keys:
@@ -530,6 +584,7 @@ async def update_contact(
         await session.rollback()
         raise _uniqueness_422(e) from e
     await session.refresh(contact, attribute_names=["contact_inboxes"])
+    await dispatch_contact_updated(session, contact, before)
     return contact
 
 

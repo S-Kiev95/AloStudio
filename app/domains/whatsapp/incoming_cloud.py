@@ -57,7 +57,12 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.contacts.models import Contact, ContactInbox
-from app.domains.contacts.service import ContactInboxBuilder
+from app.domains.contacts.service import (
+    ContactInboxBuilder,
+    contact_snapshot,
+    dispatch_contact_created,
+    dispatch_contact_updated,
+)
 from app.domains.conversations.ad_referral import (
     parse_whatsapp_referral,
     stamp_conversation,
@@ -253,9 +258,11 @@ async def _find_or_create_contact(
         # ``set_contact_from_message`` behaviour where a new profile
         # name overrides the prior anonymous label.
         if name and (not existing.name or existing.name == phone_number):
+            before = contact_snapshot(existing)
             existing.name = name
             session.add(existing)
             await session.flush()
+            await dispatch_contact_updated(session, existing, before)
         return existing
 
     contact = Contact(
@@ -266,6 +273,7 @@ async def _find_or_create_contact(
     session.add(contact)
     await session.flush()
     await session.refresh(contact)
+    await dispatch_contact_created(session, contact)
     return contact
 
 

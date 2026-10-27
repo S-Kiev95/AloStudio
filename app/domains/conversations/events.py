@@ -59,6 +59,15 @@ MESSAGE_UPDATED = "message.updated"
 FIRST_REPLY_CREATED = "first.reply.created"
 REPLY_CREATED = "reply.created"
 
+CONTACT_CREATED = "contact.created"
+CONTACT_UPDATED = "contact.updated"
+
+# AloStudio extensions — not in Chatwoot. Same naming scheme, so the
+# webhook listener maps them like any other event.
+APPOINTMENT_CREATED = "appointment.created"
+APPOINTMENT_UPDATED = "appointment.updated"
+PUBLICATION_COMPLETED = "publication.completed"
+
 
 @dataclass
 class Event:
@@ -116,7 +125,11 @@ dispatcher = EventDispatcher()
 
 
 __all__ = [
+    "APPOINTMENT_CREATED",
+    "APPOINTMENT_UPDATED",
     "ASSIGNEE_CHANGED",
+    "CONTACT_CREATED",
+    "CONTACT_UPDATED",
     "CONVERSATION_BOT_HANDOFF",
     "CONVERSATION_CONTACT_CHANGED",
     "CONVERSATION_CREATED",
@@ -131,6 +144,7 @@ __all__ = [
     "FIRST_REPLY_CREATED",
     "MESSAGE_CREATED",
     "MESSAGE_UPDATED",
+    "PUBLICATION_COMPLETED",
     "REPLY_CREATED",
     "TEAM_CHANGED",
     "Event",

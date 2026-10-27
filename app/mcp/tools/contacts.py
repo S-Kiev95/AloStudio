@@ -16,6 +16,7 @@ from sqlalchemy import or_
 from sqlmodel import select
 
 from app.domains.contacts.models import Contact
+from app.domains.contacts.service import contact_snapshot, dispatch_contact_updated
 from app.domains.conversations.models import Conversation
 from app.mcp.context import current_mcp_context
 from app.mcp.permissions import requires
@@ -124,6 +125,7 @@ def register(mcp: FastMCP) -> None:
             raise ValueError("key can't be blank")
         contact = await _find_contact(contact_id)
         ctx = current_mcp_context()
+        before = contact_snapshot(contact)
         attrs = dict(contact.custom_attributes or {})
         if value is None:
             attrs.pop(key, None)
@@ -132,6 +134,7 @@ def register(mcp: FastMCP) -> None:
         contact.custom_attributes = attrs
         ctx.session.add(contact)
         await ctx.session.flush()
+        await dispatch_contact_updated(ctx.session, contact, before)
         return _present(contact)
 
     @mcp.tool(name="set_conversation_custom_attribute")
