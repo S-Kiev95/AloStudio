@@ -38,7 +38,7 @@ Base `/api/v1/accounts/{accountId}`. Errores 422 con `{"message": string, "error
 
 **Canales donde se puede publicar** — `GET /publications/channels` → `Channel[]`
 
-Un canal es una cuenta de una red donde la cuenta de AloStudio publica. Todo se refiere a él por `id` (`channel_id`). Hoy son Instagram y páginas de Facebook, que nacen de una bandeja de entrada (`inbox_id`); más adelante se suman redes que se conectan aparte y tienen `inbox_id: null` (esa conexión queda fuera de este plan). No asumas que la lista de redes es fija: para una red desconocida mostrá un ícono genérico y su `network` como nombre.
+Un canal es una cuenta de una red donde la cuenta de AloStudio publica. Todo se refiere a él por `id` (`channel_id`). Instagram y páginas de Facebook nacen de una bandeja de entrada (`inbox_id`); las demás redes (hoy Threads, `network: "threads"`) se conectan desde esta pantalla y tienen `inbox_id: null`. No asumas que la lista de redes es fija: para una red desconocida mostrá un ícono genérico y su `network` como nombre.
 
 ```ts
 type Network = "instagram" | "facebook_page" | string;
@@ -111,6 +111,13 @@ type Publication = {
 };
 ```
 
+**Conectar redes que no son bandejas**
+
+- `GET /publications/networks` → `{ network: string; label: string; configured: boolean }[]`.
+- `POST /publications/channels/connect/{network}` (solo administrador) → `{ authorize_url: string }`: mandá el navegador ahí (`window.location.href`). 422 con `message` si la instalación no está configurada para esa red.
+- Al volver, la red deja al usuario en `/accounts/{accountId}/publications` con `?connected=<network>&channel=<id>` si salió bien o `?connect_error=<mensaje>` si no: mostrá un aviso con eso y limpiá la query.
+- `DELETE /publications/channels/{id}` (solo administrador) → `{}`; 422 para los canales de una bandeja (se quitan desde la bandeja).
+
 Reglas de estado: se edita solo en `draft` o `scheduled`; se borra en `draft`, `scheduled` o `failed`; se reintenta en `failed` o `partially_published`.
 
 Reglas de cada red (el backend las valida igual; mostralas antes de enviar para no esperar al 422):
@@ -121,6 +128,7 @@ Reglas de cada red (el backend las valida igual; mostralas antes de enviar para 
 | Instagram `reels` | hasta 2200 | exactamente 1 video |
 | Instagram `story` | hasta 2200 (no se muestra) | exactamente 1 imagen o video |
 | Página de Facebook | hasta 63206; texto **o** medios obligatorio | hasta 10 imágenes, o 1 video solo |
+| Threads | hasta 500 (cada emoji cuenta como varios); texto **o** medios obligatorio | hasta 20 imágenes o videos (más de 1 = carrusel) |
 
 **Biblioteca de medios**
 
@@ -172,7 +180,7 @@ Las cifras de los posts se actualizan cada hora y las de los canales una vez por
 
 - Vistas **Semana** (lunes a domingo, por hora, con la línea de "ahora" como en la referencia), **Mes** (grilla de 6 semanas) y **Lista** (por día, con filtro de estado). Barra con anterior / rango / siguiente y "Hoy". Fechas en la zona horaria del navegador. Reutilizá `components/agenda/week-utils.ts` donde aplique.
 - Cada publicación es una tarjeta en su día y hora: miniatura del primer medio, ícono de cada red de sus destinos, las primeras palabras del texto y el estado con color (`draft` Borrador, `scheduled` Programada, `publishing` Publicando, `published` Publicada, `partially_published` Publicada en parte, `failed` Falló). En Mes, si no entran, "+N más".
-- Panel de canales a la derecha (colapsable; abajo en móvil): los canales de `/publications/channels` con avatar (o ícono de red), nombre y usuario, los de `status: "reconnect"` marcados con su `status_message`, y un filtro por canal (`channel_id`). Sin canales: estado vacío que lleva a `Ajustes > Bandejas de entrada` (`/accounts/{accountId}/settings/inboxes`) para conectar Instagram o una página de Facebook.
+- Panel de canales a la derecha (colapsable; abajo en móvil): los canales de `/publications/channels` con avatar (o ícono de red), nombre y usuario, los de `status: "reconnect"` marcados con su `status_message`, y un filtro por canal (`channel_id`). Botón **"Agregar canal"** (administrador): un menú con las redes de `/publications/networks` (las de `configured: false` deshabilitadas, con "Falta configurar en Ajustes → Instalación") más "Instagram o página de Facebook", que lleva a `Ajustes > Bandejas de entrada` (`/accounts/{accountId}/settings/inboxes`). En un canal con `status: "reconnect"`, "Volver a conectar" repite la conexión de su red; en uno sin bandeja, "Quitar" (con confirmación). Sin canales: estado vacío con el mismo botón.
 - Botón **"Nueva publicación"**. Un administrador también crea haciendo clic en un hueco vacío de Semana o en un día de Mes (fecha precargada).
 - Clic en una tarjeta: si es editable abre el editor; si no, el detalle (sección 4).
 
@@ -214,11 +222,12 @@ Con Vitest y `fetch` simulado, como los tests existentes:
 - El editor arma el cuerpo correcto: borrador, programada con fecha ISO, `media_id` en orden, `post_type` y `content_override` por canal; muestra los errores de reglas y los de un 422.
 - El detalle muestra cifras, error y link, y oculta las acciones a un agente.
 - Medios rechaza un archivo demasiado grande antes de subir.
+- "Agregar canal" pide la URL de conexión y navega a ella; el aviso de `?connected` / `?connect_error` se muestra y la query se limpia.
 - Estadísticas muestra totales, "—" para cifras ausentes y el estado vacío sin canales.
 
 ## Fuera de alcance
 
-Cambios de backend, redes nuevas (Threads, TikTok, YouTube…), quitar o cambiar la pantalla de Instagram existente, arrastrar publicaciones para reprogramarlas, generar textos con IA, comentarios de los posts, vistas previas fieles a cada red. Si algo de esto parece necesario, anotalo en **Estado** y no lo hagas.
+Cambios de backend, pantallas propias de cada red (más allá del menú "Agregar canal" y la tabla de reglas), quitar o cambiar la pantalla de Instagram existente, arrastrar publicaciones para reprogramarlas, generar textos con IA, comentarios de los posts, vistas previas fieles a cada red. Si algo de esto parece necesario, anotalo en **Estado** y no lo hagas.
 
 ## Terminado cuando
 
