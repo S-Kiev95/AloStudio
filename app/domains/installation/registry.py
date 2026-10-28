@@ -38,6 +38,7 @@ META_GROUP = "Meta (Facebook e Instagram)"
 WEBHOOK_GROUP = "Webhooks"
 BRAND_GROUP = "Marca"
 ACCESS_GROUP = "Acceso"
+PUBLISHING_GROUP = "Redes para publicar"
 
 CONFIG_SPECS: tuple[ConfigSpec, ...] = (
     # --- Facebook Login (Messenger + the full Instagram API) -----------
@@ -91,6 +92,38 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "Meta, incluido el https y la barra final."
         ),
         group=META_GROUP,
+    ),
+    # --- Publishing networks -------------------------------------------
+    ConfigSpec(
+        name="PUBLISHING_OAUTH_REDIRECT_URI",
+        setting="publishing_oauth_redirect_uri",
+        title="URL de retorno al conectar redes",
+        description=(
+            "Adónde vuelve el navegador después de autorizar una red para "
+            "publicar (Threads y las que se sumen). Es "
+            "https://<tu dominio>/api/v1/publishing/oauth/callback y se carga "
+            "igual en la app de cada red."
+        ),
+        group=PUBLISHING_GROUP,
+    ),
+    ConfigSpec(
+        name="THREADS_APP_ID",
+        setting="threads_app_id",
+        title="App ID de Threads",
+        description=(
+            "El \"Threads App ID\" de la app de Meta (Configuración básica), "
+            "distinto del App ID de Facebook y del de Instagram."
+        ),
+        group=PUBLISHING_GROUP,
+    ),
+    ConfigSpec(
+        name="THREADS_APP_SECRET",
+        setting="threads_app_secret",
+        title="App Secret de Threads",
+        description="La clave secreta de Threads de la misma app.",
+        group=PUBLISHING_GROUP,
+        kind="password",
+        secret=True,
     ),
     # --- Webhooks ------------------------------------------------------
     ConfigSpec(

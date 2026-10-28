@@ -410,8 +410,8 @@ class WorkerSettings:
             # so it never contends with the :00 tick.
             cron(sync_ad_insights_task, minute={17}),
             # Post figures hourly for the same rate-limit reason, offset
-            # from the ads sync; channel snapshots once a day, early UTC,
-            # when the previous day is complete.
+            # from the ads sync; channel tokens and snapshots once a day,
+            # early UTC, when the previous day is complete.
             cron(
                 sync_publishing_metrics_task,
                 minute={37},

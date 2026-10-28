@@ -8,18 +8,24 @@ from __future__ import annotations
 
 from app.domains.inboxes.models import Inbox
 from app.domains.publishing.adapters.base import (
+    ChannelConnectionError,
+    ConnectedAccount,
+    Credentials,
     MetricsResult,
     PublishingAdapter,
     PublishResult,
     channel_inbox,
+    mark_reconnect,
     target_text,
 )
 from app.domains.publishing.adapters.facebook_page import FacebookPageAdapter
 from app.domains.publishing.adapters.instagram import InstagramAdapter
+from app.domains.publishing.adapters.threads import ThreadsAdapter
 
 _ADAPTERS: tuple[PublishingAdapter, ...] = (
     InstagramAdapter(),
     FacebookPageAdapter(),
+    ThreadsAdapter(),
 )
 
 
@@ -30,6 +36,11 @@ def adapter_for_network(network: str) -> PublishingAdapter | None:
     return None
 
 
+def connectable_adapters() -> list[PublishingAdapter]:
+    """Networks whose channels are connected apart from inboxes."""
+    return [adapter for adapter in _ADAPTERS if adapter.label is not None]
+
+
 def adapter_for_inbox(inbox: Inbox) -> PublishingAdapter | None:
     for adapter in _ADAPTERS:
         if adapter.supports(inbox):
@@ -38,11 +49,16 @@ def adapter_for_inbox(inbox: Inbox) -> PublishingAdapter | None:
 
 
 __all__ = [
+    "ChannelConnectionError",
+    "ConnectedAccount",
+    "Credentials",
     "MetricsResult",
     "PublishResult",
     "PublishingAdapter",
     "adapter_for_inbox",
     "adapter_for_network",
     "channel_inbox",
+    "connectable_adapters",
+    "mark_reconnect",
     "target_text",
 ]

@@ -80,6 +80,9 @@ from app.domains.notifications.subscriptions_router import (
 from app.domains.portals.public_router import public_router as portals_public_router
 from app.domains.portals.router import router as portals_router
 from app.domains.products.router import router as products_router
+from app.domains.publishing.router import (
+    callback_router as publishing_oauth_callback_router,
+)
 from app.domains.publishing.router import router as publishing_router
 from app.domains.reporting.router import (
     live_reports_router,
@@ -300,6 +303,7 @@ def create_app() -> FastAPI:
     # Multi-network publishing: one publication, many channels, each
     # published by its network adapter.
     app.include_router(publishing_router)
+    app.include_router(publishing_oauth_callback_router)
     # Account media library, reused by publications.
     app.include_router(media_library_router)
     # Twilio SMS webhook (Phase 5f). ``/twilio/callback`` —

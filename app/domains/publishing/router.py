@@ -3,6 +3,9 @@ like Instagram publishing — posting goes out under the brand).
 
 Route map:
   * ``GET    /api/v1/accounts/{account_id}/publications/channels``
+  * ``POST   /api/v1/accounts/{account_id}/publications/channels/connect/{network}``
+  * ``DELETE /api/v1/accounts/{account_id}/publications/channels/{channel_id}``
+  * ``GET    /api/v1/accounts/{account_id}/publications/networks``
   * ``GET    /api/v1/accounts/{account_id}/publications/analytics``
   * ``GET    /api/v1/accounts/{account_id}/publications``
   * ``POST   /api/v1/accounts/{account_id}/publications``
@@ -14,25 +17,34 @@ Route map:
 
 A publication without a date (or due now) is claimed and enqueued right
 away; a future one waits for the scheduler tick.
+
+``GET /api/v1/publishing/oauth/callback`` (no session: the signed ``state``
+carries the account) is where networks send the browser back after the
+owner authorizes an account.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi.responses import RedirectResponse, Response
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
-from app.domains.publishing import analytics
+from app.core.oauth_state import verify_oauth_state
+from app.domains.publishing import analytics, connections
 from app.domains.publishing import service as svc
 from app.domains.publishing.models import (
     PUBLICATION_STATE_PUBLISHING,
     PUBLICATION_STATE_SCHEDULED,
     Publication,
+    PublishingChannel,
 )
 from app.domains.publishing.presenters import (
     present_channel,
@@ -45,6 +57,7 @@ router = APIRouter(
     prefix="/api/v1/accounts/{account_id}/publications",
     tags=["publications"],
 )
+callback_router = APIRouter(tags=["publications"])
 
 
 async def _find_publication(
@@ -101,6 +114,40 @@ async def index_channels(
     assert ctx.account.id is not None
     channels = await svc.list_channels(session, account_id=ctx.account.id)
     return [present_channel(channel) for channel in channels]
+
+
+@router.get("/networks")
+async def index_networks(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+) -> list[dict[str, Any]]:
+    """Networks whose channels are connected here (not through an inbox)."""
+    return connections.connectable_networks()
+
+
+@router.post("/channels/connect/{network}", status_code=status.HTTP_200_OK)
+async def connect_channel(
+    network: Annotated[str, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+) -> dict[str, Any]:
+    """The URL the owner's browser goes to, to authorize an account."""
+    assert ctx.account.id is not None
+    return {"authorize_url": connections.start_connection(ctx.account.id, network)}
+
+
+@router.delete("/channels/{channel_id}", status_code=status.HTTP_200_OK)
+async def delete_channel_endpoint(
+    channel_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    channel = await session.get(PublishingChannel, channel_id)
+    if channel is None or channel.account_id != ctx.account.id:
+        raise ChatwootHTTPException(
+            status_code=404,
+            detail={"error": "Resource could not be found"},
+        )
+    await connections.delete_channel(session, channel=channel)
+    return {}
 
 
 @router.get("/analytics")
@@ -233,3 +280,56 @@ def _aware(dt: datetime | None) -> datetime | None:
 
 
 __all__ = ["router"]
+
+
+def _back_to_publications(account_id: int, **params: str) -> RedirectResponse:
+    """303 back to the account's publications screen with the outcome in
+    the query string (the network redirected the *browser* here)."""
+    base = get_settings().app_base_url.rstrip("/")
+    query = urlencode({k: v for k, v in params.items() if v})
+    return RedirectResponse(
+        f"{base}/accounts/{account_id}/publications?{query}", status_code=303
+    )
+
+
+@callback_router.get("/api/v1/publishing/oauth/callback")
+async def publishing_oauth_callback(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    code: Annotated[str | None, Query()] = None,
+    state: Annotated[str | None, Query()] = None,
+    error: Annotated[str | None, Query()] = None,
+) -> Response:
+    """Where a network sends the browser back. A state we can't verify has
+    no account to return to, so it stays a JSON 400."""
+    payload: dict[str, Any] = {}
+    if state:
+        try:
+            payload = verify_oauth_state(state)
+        except ChatwootHTTPException:
+            payload = {}
+    network = connections.network_of_state(payload)
+    if network is None or not isinstance(payload.get("account_id"), int):
+        raise ChatwootHTTPException(
+            status_code=400,
+            detail={"error": "missing or invalid oauth state"},
+        )
+    account_id: int = payload["account_id"]
+    if error or not code:
+        return _back_to_publications(
+            account_id,
+            connect_error="La conexión se canceló antes de autorizar la cuenta.",
+        )
+    try:
+        channel = await connections.complete_connection(
+            session, account_id=account_id, network=network, code=code
+        )
+    except ChatwootHTTPException as exc:
+        detail = exc.detail if isinstance(exc.detail, dict) else {}
+        return _back_to_publications(
+            account_id,
+            connect_error=str(detail.get("message") or "No se pudo conectar la cuenta."),
+        )
+    return _back_to_publications(
+        account_id, connected=network, channel=str(channel.id)
+    )
+

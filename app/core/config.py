@@ -183,6 +183,14 @@ class Settings(BaseSettings):
     # Facebook Page connect (host ``graph.instagram.com``).
     meta_instagram_app_id: str = ""
     meta_instagram_app_secret: str = ""
+    # Threads — the *Threads* app id + secret of the same Meta app
+    # (App settings > Basic > Threads App ID), distinct from both above.
+    threads_app_id: str = ""
+    threads_app_secret: str = ""
+    # Where every publishing network sends the browser back after the
+    # owner authorizes an account (``/api/v1/publishing/oauth/callback``
+    # on the public host). Registered as-is in each network's app.
+    publishing_oauth_redirect_uri: str = ""
 
 
 # Values from ``installation_configs`` that override the environment.

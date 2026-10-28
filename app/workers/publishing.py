@@ -180,15 +180,21 @@ async def sync_publishing_metrics_task(ctx: dict[str, Any]) -> dict[str, int]:
 
 
 async def snapshot_publishing_channels_task(ctx: dict[str, Any]) -> dict[str, int]:
-    """Daily: today's follower count and the last days' figures of each
-    publishing channel. Once a day, so a channel that fails isn't retried
-    every hour against its rate limit."""
-    from app.domains.publishing import analytics
+    """Daily: renew the tokens of channels about to expire, then take
+    today's follower count and the last days' figures of each publishing
+    channel. Once a day, so a channel that fails isn't retried every hour
+    against its rate limit."""
+    from app.domains.publishing import analytics, connections
 
     async with _session_factory(ctx)() as session:
+        renewed = await connections.refresh_expiring_channels(session)
         channels = await analytics.snapshot_channels(session)
-    log.info("publishing.metrics.channels_snapshotted channels=%s", channels)
-    return {"channels": channels}
+    log.info(
+        "publishing.metrics.channels_snapshotted channels=%s tokens_renewed=%s",
+        channels,
+        renewed,
+    )
+    return {"channels": channels, "tokens_renewed": renewed}
 
 
 __all__ = [
