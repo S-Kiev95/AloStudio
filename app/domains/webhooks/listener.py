@@ -31,8 +31,9 @@ ISO 8601 strings:
   * publication_completed — once every channel of a publication is
     settled, with the per-channel result.
 
-Record events (contact / appointment / publication) are delivered after
-the commit, like Rails' ``after_*_commit`` callbacks.
+Every event is delivered after the commit, like Rails' ``after_*_commit``
+callbacks; ``changed_attributes`` uses Rails' ``extract_changed_attributes``
+shape for every event.
 
 Deferred:
   * inbox_created / inbox_updated — not yet dispatched as ``INBOX_*``.
@@ -46,7 +47,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy import event
@@ -58,6 +58,8 @@ from app.domains.agent_bots.listener import (
     _build_conversation_webhook_body,
     _build_message_webhook_body,
     _is_webhook_sendable,
+    _jsonable,
+    extract_changed_attributes,
 )
 from app.domains.appointments.models import Appointment
 from app.domains.contacts.models import Contact
@@ -129,25 +131,18 @@ async def fan_out_to_webhooks(
             "body": body,
             "secret": hook.secret,
         }
-        if subscribed_name in _RECORD_EVENTS:
-            # Rails sends these from ``after_*_commit``: never announce a
-            # record a rollback is about to erase.
-            _deliver_after_commit(session, delivery)
-            continue
-        # v2.9: enqueue instead of POSTing inline. The ARQ task handles
-        # retries + dead-letter; the inline-fallback path (no ARQ pool)
-        # delivers once and writes the dead-letter row directly on
-        # failure so dev + test envs still see end-to-end behaviour.
-        await enqueue_delivery(session=session, **delivery)
+        # Rails dispatches from ``after_*_commit``: never announce what a
+        # rollback is about to erase. Once committed it is enqueued (v2.9);
+        # the ARQ task handles retries + dead-letter, and the inline
+        # fallback (no ARQ pool) delivers once and records the dead letter.
+        _deliver_after_commit(session, delivery)
 
 
 # ---------------------------------------------------------------------------
-# Delivery after commit (record events)
+# Delivery after commit
 # ---------------------------------------------------------------------------
-# Conversation and message events above still go out when dispatched,
-# inside the request's transaction (inherited behaviour). Record events
-# wait for the outermost commit and are dropped when the transaction — or
-# the savepoint they were raised in — rolls back.
+# Every webhook waits for the outermost commit and is dropped when the
+# transaction — or the savepoint it was raised in — rolls back.
 _PENDING_KEY = "webhooks_after_commit"
 _in_flight: set[asyncio.Task[None]] = set()
 
@@ -255,26 +250,6 @@ def _resolve_subject(
     return conversation.account_id, _build_conv
 
 
-def _jsonable(value: Any) -> Any:
-    return value.isoformat() if isinstance(value, datetime) else value
-
-
-def _changed_attributes(changes: Any) -> list[dict[str, Any]] | None:
-    """Rails' ``extract_changed_attributes``: ``{attr: [prev, cur]}`` →
-    ``[{attr: {previous_value, current_value}}]``."""
-    if not isinstance(changes, dict) or not changes:
-        return None
-    return [
-        {
-            key: {
-                "previous_value": _jsonable(value[0]),
-                "current_value": _jsonable(value[1]),
-            }
-        }
-        for key, value in changes.items()
-    ]
-
-
 def _contact_webhook_data(contact: Contact) -> dict[str, Any]:
     """Mirror ``Contact#webhook_data``. Avatars aren't stored yet (same
     empty value the contact presenter emits)."""
@@ -349,7 +324,7 @@ async def _resolve_record_subject(
     """(account_id, body_builder) for contact / appointment / publication
     events. ``(None, None)`` when the payload lacks its subject, or for an
     update with no change the webhook exposes."""
-    changed = _changed_attributes(payload.get("changed_attributes"))
+    changed = extract_changed_attributes(payload.get("changed_attributes"))
     if subscribed_name.endswith("_updated") and changed is None:
         return None, None
 

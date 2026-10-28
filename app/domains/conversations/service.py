@@ -316,17 +316,21 @@ async def toggle_status(
             await dispatcher.dispatch(
                 session, CONVERSATION_RESOLVED, conversation=conversation
             )
+        from app.domains.conversations.models import conversation_status_to_str
+
         await dispatcher.dispatch(
             session,
             CONVERSATION_UPDATED,
             conversation=conversation,
-            changed_attributes={"status": [prev_status, new_status]},
+            # Enum names, as Rails' ``previous_changes`` reports them.
+            changed_attributes={
+                "status": [
+                    conversation_status_to_str(prev_status),
+                    conversation_status_to_str(new_status),
+                ]
+            },
         )
         # Activity row — mirrors ``ActivityMessageHandler#handle_status_change``.
-        from app.domains.conversations.models import (
-            conversation_status_to_str,
-        )
-
         content = status_change_activity_content(
             status=conversation_status_to_str(new_status),
             user_name=_current_user_name(),
@@ -368,17 +372,23 @@ async def toggle_priority(
     await session.flush()
     await session.refresh(conversation)
     if prev != conversation.priority:
-        await dispatcher.dispatch(
-            session,
-            CONVERSATION_UPDATED,
-            conversation=conversation,
-            changed_attributes={"priority": [prev, conversation.priority]},
-        )
-        # Activity row — mirrors ``PriorityActivityMessageHandler``.
         from app.domains.conversations.models import (
             conversation_priority_to_str,
         )
 
+        await dispatcher.dispatch(
+            session,
+            CONVERSATION_UPDATED,
+            conversation=conversation,
+            # Enum names, as Rails' ``previous_changes`` reports them.
+            changed_attributes={
+                "priority": [
+                    conversation_priority_to_str(prev),
+                    conversation_priority_to_str(conversation.priority),
+                ]
+            },
+        )
+        # Activity row — mirrors ``PriorityActivityMessageHandler``.
         content = priority_change_activity_content(
             user_name=_current_user_name(),
             old_priority=conversation_priority_to_str(prev),

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -267,6 +268,27 @@ def _conversation_webhook_data(conv: Conversation) -> dict[str, Any]:
     }
 
 
+def _jsonable(value: Any) -> Any:
+    return value.isoformat() if isinstance(value, datetime) else value
+
+
+def extract_changed_attributes(changes: Any) -> list[dict[str, Any]] | None:
+    """Rails' ``BaseListener#extract_changed_attributes``: the dispatcher
+    carries ``previous_changes`` (``{attr: [prev, cur]}``); webhook and bot
+    payloads send ``[{attr: {previous_value, current_value}}]``."""
+    if not isinstance(changes, dict) or not changes:
+        return None
+    return [
+        {
+            key: {
+                "previous_value": _jsonable(value[0]),
+                "current_value": _jsonable(value[1]),
+            }
+        }
+        for key, value in changes.items()
+    ]
+
+
 def _build_message_webhook_body(
     *,
     conversation: Conversation,
@@ -315,8 +337,9 @@ def _build_conversation_webhook_body(
         "event": event_name,
         **_conversation_webhook_data(conversation),
     }
-    if changed_attributes is not None:
-        body["changed_attributes"] = changed_attributes
+    extracted = extract_changed_attributes(changed_attributes)
+    if extracted is not None:
+        body["changed_attributes"] = extracted
     if event_id is not None:
         body["event_id"] = event_id
     return body

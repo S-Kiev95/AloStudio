@@ -30,6 +30,7 @@ from app.domains.conversations.service import (
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
 from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser
+from app.domains.webhooks.listener import wait_for_pending_deliveries
 from app.domains.webhooks.models import Webhook
 from app.main import app
 
@@ -122,6 +123,12 @@ async def _seed_conversation(db_session, owner):
         contact_inbox=ci,
         params=ConversationBuilderParams(),
     )
+
+
+async def _committed(db_session) -> None:
+    """Webhooks go out after the commit (Rails' ``after_*_commit``)."""
+    await db_session.commit()
+    await wait_for_pending_deliveries()
 
 
 # ---------------------------------------------------------------------------
@@ -348,6 +355,7 @@ async def test_message_created_event_delivers_to_subscribed_webhook(
         params=MessageBuilderParams(content="hi", message_type="incoming"),
         user_id=None,
     )
+    await _committed(db_session)
     assert route.called
     req = route.calls.last.request
     body = json.loads(req.content)
@@ -402,6 +410,7 @@ async def test_webhook_skipped_for_unsubscribed_event(db_session):
         params=MessageBuilderParams(content="x", message_type="incoming"),
         user_id=None,
     )
+    await _committed(db_session)
     # Only conversation_created (fired by _seed_conversation) lands; the
     # message_created event must NOT trigger.
     sent_events = [
@@ -426,7 +435,7 @@ async def test_conversation_status_changed_event_delivers(db_session):
     hook = Webhook(
         account_id=owner.account.id,
         url="https://hooks.example.com/sc",
-        subscriptions=["conversation_status_changed"],
+        subscriptions=["conversation_status_changed", "conversation_updated"],
         webhook_type=0,
         secret="x",
     )
@@ -436,10 +445,17 @@ async def test_conversation_status_changed_event_delivers(db_session):
         return_value=httpx.Response(200)
     )
     await toggle_status(db_session, conversation=conv, status="resolved")
+    await _committed(db_session)
     assert route.called
-    body = json.loads(route.calls.last.request.content)
-    assert body["event"] == "conversation_status_changed"
-    assert body["status"] == "resolved"
+    bodies = {
+        b["event"]: b
+        for b in (json.loads(c.request.content) for c in route.calls)
+    }
+    assert bodies["conversation_status_changed"]["status"] == "resolved"
+    # Chatwoot's shape (``extract_changed_attributes``), not the raw pair.
+    assert bodies["conversation_updated"]["changed_attributes"] == [
+        {"status": {"previous_value": "open", "current_value": "resolved"}}
+    ]
 
 
 @respx.mock
@@ -484,4 +500,5 @@ async def test_webhook_per_account_isolation(db_session):
         params=MessageBuilderParams(content="iso", message_type="incoming"),
         user_id=None,
     )
+    await _committed(db_session)
     assert not route_a.called
