@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from datetime import date
 from typing import Any
 
 import httpx
@@ -30,6 +31,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import get_settings
 from app.domains.inboxes.models import CHANNEL_TYPE_FACEBOOK, FacebookPage, Inbox
 from app.domains.publishing.adapters.base import (
+    MetricsResult,
     PublishingAdapter,
     PublishResult,
     target_text,
@@ -50,12 +52,15 @@ _TRANSIENT_CODES = {1, 2}
 _PERMISSION_CODES = {10} | set(range(200, 300))
 
 _URL_RE = re.compile(r"https?://\S+")
+_MISSING_PAGE = "La página de Facebook ya no está conectada."
 
 
 class _GraphError(Exception):
-    def __init__(self, result: PublishResult) -> None:
+    def __init__(self, result: PublishResult, meta_message: str = "") -> None:
         super().__init__(result.error_message)
         self.result = result
+        # Meta's own text, for messages other than the publishing ones.
+        self.meta_message = meta_message
 
 
 def _graph_error(status: int, payload: Any) -> PublishResult:
@@ -102,6 +107,20 @@ def _graph_error(status: int, payload: Any) -> PublishResult:
     )
 
 
+def _metrics_error(exc: _GraphError) -> str:
+    """Like :func:`_graph_error`, worded for reading figures."""
+    code = exc.result.error_code
+    number = int(code) if code and code.isdigit() else None
+    if number in _TOKEN_ERROR_CODES:
+        return exc.result.error_message or ""
+    if number in _PERMISSION_CODES:
+        # Not the publishing permission: reading needs its own.
+        return "La página no dio permiso para leer estadísticas (pages_read_engagement)."
+    if exc.result.retryable:
+        return "Facebook no respondió por ahora; se reintenta más tarde."
+    return f"Facebook no devolvió estadísticas: {exc.meta_message}".strip()
+
+
 class FacebookPageAdapter(PublishingAdapter):
     network = "facebook_page"
 
@@ -137,25 +156,13 @@ class FacebookPageAdapter(PublishingAdapter):
         publication: Publication,
         target: PublicationTarget,
     ) -> PublishResult:
-        inbox = await session.get(Inbox, target.inbox_id)
-        page = (
-            await session.get(FacebookPage, inbox.channel_id)
-            if inbox is not None
-            else None
-        )
-        if page is None or not page.page_access_token:
+        page, api = await self._page_api(session, target.inbox_id)
+        if page is None or api is None:
             return PublishResult(
                 ok=False,
                 error_code="missing_page",
-                error_message="La página de Facebook ya no está conectada.",
+                error_message=_MISSING_PAGE,
             )
-
-        version = get_settings().meta_graph_api_version
-        api = _Graph(
-            base=f"{GRAPH_HOST}/{version}",
-            video_base=f"{GRAPH_VIDEO_HOST}/{version}",
-            token=page.page_access_token,
-        )
         text = target_text(publication, target)
         media = publication.media or []
         try:
@@ -206,6 +213,64 @@ class FacebookPageAdapter(PublishingAdapter):
             )
         return PublishResult(ok=True, external_id=post_id, permalink=permalink)
 
+    async def fetch_post_metrics(
+        self, session: AsyncSession, target: PublicationTarget
+    ) -> MetricsResult | None:
+        if not target.external_id:
+            return None
+        _page, api = await self._page_api(session, target.inbox_id)
+        if api is None:
+            return MetricsResult(ok=False, error_message=_MISSING_PAGE)
+        publication = await session.get(Publication, target.publication_id)
+        is_video = any(
+            item.get("type") == "video" for item in (publication.media if publication else [])
+        )
+        object_id = target.external_id
+        return await self._read(api, lambda: api.post_metrics(object_id, is_video=is_video))
+
+    async def fetch_channel_metrics(
+        self, session: AsyncSession, inbox: Inbox, *, days: list[date]
+    ) -> MetricsResult | None:
+        # Only the follower count: the Page's daily reach lives in its
+        # insights, which need ``read_insights`` (not requested yet).
+        page, api = await self._page_api(session, inbox.id)  # type: ignore[arg-type]
+        if page is None or api is None:
+            return MetricsResult(ok=False, error_message=_MISSING_PAGE)
+        return await self._read(api, lambda: api.page_metrics(page.page_id))
+
+    @staticmethod
+    async def _read(api: _Graph, call: Any) -> MetricsResult:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                api.client = client
+                metrics = await call()
+        except _GraphError as exc:
+            return MetricsResult(ok=False, error_message=_metrics_error(exc))
+        except httpx.HTTPError:
+            return MetricsResult(
+                ok=False, error_message="No se pudo conectar con Facebook."
+            )
+        return MetricsResult(ok=True, metrics=metrics)
+
+    @staticmethod
+    async def _page_api(
+        session: AsyncSession, inbox_id: int
+    ) -> tuple[FacebookPage | None, _Graph | None]:
+        inbox = await session.get(Inbox, inbox_id)
+        page = (
+            await session.get(FacebookPage, inbox.channel_id)
+            if inbox is not None
+            else None
+        )
+        if page is None or not page.page_access_token:
+            return page, None
+        version = get_settings().meta_graph_api_version
+        return page, _Graph(
+            base=f"{GRAPH_HOST}/{version}",
+            video_base=f"{GRAPH_VIDEO_HOST}/{version}",
+            token=page.page_access_token,
+        )
+
 
 class _Graph:
     """Minimal Graph client bound to one Page token."""
@@ -238,7 +303,11 @@ class _Graph:
         if resp.status_code >= 400 or (
             isinstance(payload, dict) and "error" in payload
         ):
-            raise _GraphError(_graph_error(resp.status_code, payload))
+            err = payload.get("error", {}) if isinstance(payload, dict) else {}
+            raise _GraphError(
+                _graph_error(resp.status_code, payload),
+                str(err.get("message") or "") if isinstance(err, dict) else "",
+            )
         return payload if isinstance(payload, dict) else {}
 
     async def post_text(self, page_id: str, text: str) -> str:
@@ -297,6 +366,71 @@ class _Graph:
         if isinstance(link, str) and link.startswith("/"):
             link = f"https://www.facebook.com{link}"
         return link if isinstance(link, str) else None
+
+    async def post_metrics(self, object_id: str, *, is_video: bool) -> dict[str, int]:
+        """Reactions, comments and shares from the post's edges (needs
+        ``pages_read_engagement``), plus views and reach from its insights
+        when ``read_insights`` allows it. Reactions are reported as
+        ``likes``. ``post_media_view`` / ``post_total_media_view_unique``
+        replace the ``post_impressions*`` metrics Meta retires after v25;
+        a video is a video object, which has no ``post_*`` insights."""
+        counts = "comments.limit(0).summary(true),reactions.limit(0).summary(true)"
+        try:
+            res = await self._request(
+                "GET", f"{self.base}/{object_id}", params={"fields": f"shares,{counts}"}
+            )
+            # Facebook leaves ``shares`` out when nobody shared the post.
+            shares: int | None = (res.get("shares") or {}).get("count", 0)
+        except _GraphError as exc:
+            # Videos have no ``shares`` field (error 100); anything else
+            # is a real failure.
+            if exc.result.error_code != "100":
+                raise
+            res = await self._request(
+                "GET", f"{self.base}/{object_id}", params={"fields": counts}
+            )
+            shares = None
+
+        metrics: dict[str, int] = {}
+        for key, edge in (("likes", "reactions"), ("comments", "comments")):
+            total = ((res.get(edge) or {}).get("summary") or {}).get("total_count")
+            if isinstance(total, int):
+                metrics[key] = total
+        if isinstance(shares, int):
+            metrics["shares"] = shares
+        metrics["interactions"] = sum(
+            metrics.get(k, 0) for k in ("likes", "comments", "shares")
+        )
+
+        if is_video:
+            return metrics
+        try:
+            insights = await self._request(
+                "GET",
+                f"{self.base}/{object_id}/insights",
+                params={"metric": "post_media_view,post_total_media_view_unique"},
+            )
+        except _GraphError:
+            return metrics
+        names = {"post_media_view": "views", "post_total_media_view_unique": "reach"}
+        for item in insights.get("data") or []:
+            values = item.get("values") if isinstance(item, dict) else None
+            value = values[0].get("value") if values else None
+            if item.get("name") in names and isinstance(value, int):
+                metrics[names[item["name"]]] = value
+        return metrics
+
+    async def page_metrics(self, page_id: str) -> dict[str, int]:
+        """The Page's follower count (``fan_count`` on older Pages)."""
+        res = await self._request(
+            "GET",
+            f"{self.base}/{page_id}",
+            params={"fields": "followers_count,fan_count"},
+        )
+        followers = res.get("followers_count")
+        if not isinstance(followers, int):
+            followers = res.get("fan_count")
+        return {"followers": followers} if isinstance(followers, int) else {}
 
 
 __all__ = ["FacebookPageAdapter"]

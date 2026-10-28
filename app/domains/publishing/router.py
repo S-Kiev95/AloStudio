@@ -3,12 +3,14 @@ like Instagram publishing — posting goes out under the brand).
 
 Route map:
   * ``GET    /api/v1/accounts/{account_id}/publications/channels``
+  * ``GET    /api/v1/accounts/{account_id}/publications/analytics``
   * ``GET    /api/v1/accounts/{account_id}/publications``
   * ``POST   /api/v1/accounts/{account_id}/publications``
   * ``GET    /api/v1/accounts/{account_id}/publications/{publication_id}``
   * ``PATCH  /api/v1/accounts/{account_id}/publications/{publication_id}``
   * ``DELETE /api/v1/accounts/{account_id}/publications/{publication_id}``
   * ``POST   /api/v1/accounts/{account_id}/publications/{publication_id}/retry``
+  * ``POST   /api/v1/accounts/{account_id}/publications/{publication_id}/refresh_metrics``
 
 A publication without a date (or due now) is claimed and enqueued right
 away; a future one waits for the scheduler tick.
@@ -16,7 +18,7 @@ away; a future one waits for the scheduler tick.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, status
@@ -25,6 +27,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
+from app.domains.publishing import analytics
 from app.domains.publishing import service as svc
 from app.domains.publishing.models import (
     PUBLICATION_STATE_PUBLISHING,
@@ -99,6 +102,26 @@ async def index_channels(
     channels = await svc.list_channels(session, account_id=ctx.account.id)
     return [present_channel(inbox, network) for inbox, network in channels]
 
+
+@router.get("/analytics")
+async def publications_analytics(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    from_: Annotated[datetime | None, Query(alias="from")] = None,
+    to: datetime | None = None,
+    inbox_id: int | None = None,
+) -> dict[str, Any]:
+    """Defaults to the last 30 days."""
+    assert ctx.account.id is not None
+    until = _aware(to) or datetime.now(UTC)
+    since = _aware(from_) or until - timedelta(days=30)
+    return await analytics.analytics_summary(
+        session,
+        account_id=ctx.account.id,
+        starts_from=since,
+        starts_to=until,
+        inbox_id=inbox_id,
+    )
 
 @router.get("")
 async def index_publications(
@@ -188,6 +211,25 @@ async def retry_publication_endpoint(
     updated = await svc.retry_publication(session, publication=row)
     await _publish_now_if_due(session, updated)
     return await present_one_publication(session, updated)
+
+
+@router.post("/{publication_id}/refresh_metrics", status_code=status.HTTP_200_OK)
+async def refresh_publication_metrics_endpoint(
+    publication_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Read the figures of every published channel now, instead of waiting
+    for the hourly refresh."""
+    row = await _find_publication(session, ctx, publication_id)
+    await analytics.refresh_publication_metrics(session, publication=row)
+    return await present_one_publication(session, row)
+
+
+def _aware(dt: datetime | None) -> datetime | None:
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
 
 
 __all__ = ["router"]

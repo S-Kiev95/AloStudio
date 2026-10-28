@@ -13,12 +13,14 @@ none → ``failed``.
 
 from __future__ import annotations
 
+from datetime import date as date_type
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
     BigInteger,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -207,10 +209,91 @@ class PublicationTarget(TimestampMixin, table=True):
         default_factory=dict,
         sa_column=Column(JSONB, nullable=False, server_default="{}"),
     )
+    # Latest engagement figures for the published post, with the normalised
+    # keys of ``METRIC_KEYS`` (only the ones the network reports). Cached:
+    # networks rate-limit insights, so a scheduled job refreshes them.
+    metrics: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
+    metrics_updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+    # Why the last refresh failed (missing permission, deleted post…);
+    # cleared by the next successful one.
+    metrics_error: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+
+
+# Normalised metric names. Each adapter maps its network's figures onto
+# these; a network that doesn't report one simply leaves it out.
+METRIC_KEYS: tuple[str, ...] = (
+    "views",
+    "reach",
+    "likes",
+    "comments",
+    "shares",
+    "saves",
+    "interactions",
+)
+CHANNEL_METRIC_KEYS: tuple[str, ...] = (
+    "followers",
+    "views",
+    "reach",
+    "interactions",
+)
+
+
+class ChannelMetricSnapshot(TimestampMixin, table=True):
+    """One day of a publishing channel's account-level figures: followers
+    as seen that day, plus that day's views/reach/interactions when the
+    network reports them (filled in a day or two later). Charts growth."""
+
+    __tablename__ = "channel_metric_snapshots"
+    __table_args__ = (
+        UniqueConstraint(
+            "inbox_id", "date", name="uniq_channel_metric_snapshots_inbox_date"
+        ),
+        Index(
+            "index_channel_metric_snapshots_on_account_id_and_date",
+            "account_id",
+            "date",
+        ),
+        Index("index_channel_metric_snapshots_on_date", "date"),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    inbox_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("inboxes.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    network: str = Field(sa_column=Column(String, nullable=False))
+    date: date_type = Field(sa_column=Column(Date, nullable=False))
+    metrics: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
 
 
 __all__ = [
+    "CHANNEL_METRIC_KEYS",
     "MEDIA_TYPES",
+    "METRIC_KEYS",
     "PUBLICATION_EDITABLE_STATES",
     "PUBLICATION_STATES",
     "PUBLICATION_STATE_DRAFT",
@@ -223,6 +306,7 @@ __all__ = [
     "TARGET_STATE_PENDING",
     "TARGET_STATE_PUBLISHED",
     "TARGET_STATE_PUBLISHING",
+    "ChannelMetricSnapshot",
     "Publication",
     "PublicationTarget",
 ]

@@ -11,13 +11,19 @@ the same post instead of creating a second one.
 
 from __future__ import annotations
 
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.errors import ChatwootHTTPException
-from app.domains.inboxes.models import CHANNEL_TYPE_INSTAGRAM, Inbox
+from app.domains.inboxes.models import (
+    CHANNEL_TYPE_INSTAGRAM,
+    Inbox,
+    InstagramChannel,
+)
 from app.domains.publishing.adapters.base import (
+    MetricsResult,
     PublishingAdapter,
     PublishResult,
     target_text,
@@ -27,6 +33,8 @@ from app.domains.publishing.models import Publication, PublicationTarget
 POST_TYPES: tuple[str, ...] = ("feed", "reels", "story")
 CAPTION_MAX = 2200
 CAROUSEL_MAX = 10
+# Instagram removes a story (and its insights) 24 h after publishing.
+STORY_LIFETIME = timedelta(hours=24)
 
 
 def _post_type(target: PublicationTarget) -> str:
@@ -161,6 +169,55 @@ class InstagramAdapter(PublishingAdapter):
             or "Instagram no pudo publicar el contenido.",
             retryable=is_throttle_error(post.error_code),
         )
+
+    async def fetch_post_metrics(
+        self, session: AsyncSession, target: PublicationTarget
+    ) -> MetricsResult | None:
+        from app.domains.instagram import insights
+        from app.domains.instagram.models import InstagramPost
+
+        channel = await self._channel(session, target.inbox_id)
+        if channel is None or not target.external_id:
+            return None
+        is_story = _post_type(target) == "story"
+        live_until = (target.published_at or datetime.now(UTC)) + STORY_LIFETIME
+        if is_story and datetime.now(UTC) >= live_until:
+            # An expired story no longer answers insights; the
+            # ``story_insights`` webhook stored its final figures.
+            post_id = (target.extra or {}).get("instagram_post_id")
+            post = await session.get(InstagramPost, post_id) if post_id else None
+            return MetricsResult(
+                ok=True,
+                metrics=insights.story_metrics_from_webhook(post.insights if post else None),
+            )
+        metrics, error = await insights.fetch_media_metrics(
+            session, channel, ig_media_id=target.external_id, is_story=is_story
+        )
+        return MetricsResult(ok=error is None, metrics=metrics or {}, error_message=error)
+
+    async def fetch_channel_metrics(
+        self, session: AsyncSession, inbox: Inbox, *, days: list[date]
+    ) -> MetricsResult | None:
+        from app.domains.instagram import insights
+
+        channel = await self._channel(session, inbox.id)  # type: ignore[arg-type]
+        if channel is None:
+            return None
+        current, daily, error = await insights.fetch_account_metrics(
+            session, channel, days=days
+        )
+        return MetricsResult(
+            ok=error is None, metrics=current or {}, daily=daily, error_message=error
+        )
+
+    @staticmethod
+    async def _channel(
+        session: AsyncSession, inbox_id: int
+    ) -> InstagramChannel | None:
+        inbox = await session.get(Inbox, inbox_id)
+        if inbox is None:
+            return None
+        return await session.get(InstagramChannel, inbox.channel_id)
 
 
 __all__ = ["InstagramAdapter", "build_instagram_post"]

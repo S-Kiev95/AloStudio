@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from app.domains.inboxes.models import Inbox
 from app.domains.publishing.adapters.base import (
+    MetricsResult,
     PublishingAdapter,
     PublishResult,
     target_text,
@@ -36,6 +37,7 @@ def adapter_for_inbox(inbox: Inbox) -> PublishingAdapter | None:
 
 
 __all__ = [
+    "MetricsResult",
     "PublishResult",
     "PublishingAdapter",
     "adapter_for_inbox",

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastmcp import FastMCP
@@ -11,6 +11,7 @@ from pydantic import Field
 from app.core.errors import ChatwootHTTPException
 from app.domains.media_library import service as media_svc
 from app.domains.media_library.presenters import present_asset
+from app.domains.publishing import analytics
 from app.domains.publishing import service as svc
 from app.domains.publishing.presenters import (
     present_channel,
@@ -138,6 +139,35 @@ def register(mcp: FastMCP) -> None:
         except ChatwootHTTPException as exc:
             raise _as_value_error(exc) from exc
         return await present_one_publication(ctx.session, publication)
+
+    @mcp.tool(name="get_publishing_analytics")
+    @requires("read")
+    async def get_publishing_analytics(
+        from_: Annotated[str | None, Field(alias="from")] = None,
+        to: str | None = None,
+        inbox_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Results of published posts in a period (default: last 30 days):
+        totals, per-channel figures and follower growth, and the best posts.
+        Post figures are refreshed hourly, channel figures daily."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        until = _parse_datetime(to, "to") or datetime.now(UTC)
+        since = _parse_datetime(from_, "from") or until - timedelta(days=30)
+        if until.tzinfo is None:
+            until = until.replace(tzinfo=UTC)
+        if since.tzinfo is None:
+            since = since.replace(tzinfo=UTC)
+        try:
+            return await analytics.analytics_summary(
+                ctx.session,
+                account_id=ctx.account.id,
+                starts_from=since,
+                starts_to=until,
+                inbox_id=inbox_id,
+            )
+        except ChatwootHTTPException as exc:
+            raise _as_value_error(exc) from exc
 
     @mcp.tool(name="cancel_publication")
     @requires("write")

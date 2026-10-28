@@ -389,6 +389,11 @@ class WorkerSettings:
         from arq.cron import cron
 
         from app.workers.email_poll import fetch_imap_inboxes_task
+        from app.workers.publishing import (
+            METRICS_JOB_TIMEOUT_SECONDS,
+            snapshot_publishing_channels_task,
+            sync_publishing_metrics_task,
+        )
 
         cls.redis_settings = RedisSettings.from_dsn(
             get_settings().arq_redis_url
@@ -404,6 +409,20 @@ class WorkerSettings:
             # more often would burn quota for nothing. Offset off the hour
             # so it never contends with the :00 tick.
             cron(sync_ad_insights_task, minute={17}),
+            # Post figures hourly for the same rate-limit reason, offset
+            # from the ads sync; channel snapshots once a day, early UTC,
+            # when the previous day is complete.
+            cron(
+                sync_publishing_metrics_task,
+                minute={37},
+                timeout=METRICS_JOB_TIMEOUT_SECONDS,
+            ),
+            cron(
+                snapshot_publishing_channels_task,
+                hour={3},
+                minute={47},
+                timeout=METRICS_JOB_TIMEOUT_SECONDS,
+            ),
             # Inbound mail, every two minutes. Faster than the 5-minute
             # tick because this is someone waiting for an answer, not a
             # background reconciliation — and offset off the tick so a

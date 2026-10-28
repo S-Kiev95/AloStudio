@@ -28,6 +28,9 @@ RETRY_BACKOFF_SECONDS = 900  # 15 min — network rate windows are coarse
 RETRY_MAX_TRIES = 3
 # Several targets, each possibly a video Meta has to process.
 JOB_TIMEOUT_SECONDS = 1800
+# A batch of posts (or every channel) read one after the other; kept under
+# the hour so two hourly runs never overlap.
+METRICS_JOB_TIMEOUT_SECONDS = 1800
 # Longer than a job (timeout) plus a retry wait (backoff), so a healthy
 # job is never taken for a dead one.
 STALE_AFTER = timedelta(minutes=60)
@@ -165,8 +168,33 @@ async def publish_publication_task(
     return {"publication_id": publication_id, "state": state}
 
 
+async def sync_publishing_metrics_task(ctx: dict[str, Any]) -> dict[str, int]:
+    """Hourly: refresh the figures of recent posts. Each post is committed on
+    its own inside :func:`analytics.sync_post_metrics`."""
+    from app.domains.publishing import analytics
+
+    async with _session_factory(ctx)() as session:
+        posts = await analytics.sync_post_metrics(session)
+    log.info("publishing.metrics.posts_synced posts=%s", posts)
+    return {"posts": posts}
+
+
+async def snapshot_publishing_channels_task(ctx: dict[str, Any]) -> dict[str, int]:
+    """Daily: today's follower count and the last days' figures of each
+    publishing channel. Once a day, so a channel that fails isn't retried
+    every hour against its rate limit."""
+    from app.domains.publishing import analytics
+
+    async with _session_factory(ctx)() as session:
+        channels = await analytics.snapshot_channels(session)
+    log.info("publishing.metrics.channels_snapshotted channels=%s", channels)
+    return {"channels": channels}
+
+
 __all__ = [
     "enqueue_publication",
     "fire_due_publications",
     "publish_publication_task",
+    "snapshot_publishing_channels_task",
+    "sync_publishing_metrics_task",
 ]

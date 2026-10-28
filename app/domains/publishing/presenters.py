@@ -44,6 +44,9 @@ def _present_target(
         "error_message": target.error_message,
         "attempts": target.attempts,
         "published_at": _iso(target.published_at),
+        "metrics": target.metrics or {},
+        "metrics_updated_at": _iso(target.metrics_updated_at),
+        "metrics_error": target.metrics_error,
     }
 
 

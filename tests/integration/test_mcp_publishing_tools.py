@@ -19,6 +19,7 @@ from app.domains.accounts.models import Account
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.media_library.models import MediaAsset
+from app.domains.publishing.models import ChannelMetricSnapshot
 from app.mcp.server import build_server
 from app.mcp.service import create_token
 
@@ -167,6 +168,28 @@ async def test_mcp_lists_the_media_library(mcp_session):
     (item,) = listed["media"]
     assert item["id"] == asset.id
     assert item["kind"] == "image"
+
+
+async def test_mcp_reports_publishing_analytics(mcp_session):
+    owner, inbox = await _seed(mcp_session, suffix="-stats")
+    mcp_session.add(
+        ChannelMetricSnapshot(
+            account_id=owner.account.id,
+            inbox_id=inbox.id,
+            network="facebook_page",
+            date=datetime.now(UTC).date(),
+            metrics={"followers": 321},
+        )
+    )
+    await mcp_session.commit()
+
+    async with Client(build_server()) as client:
+        report = _body(await client.call_tool("get_publishing_analytics", {}))
+
+    assert report["totals"]["posts"] == 0
+    (channel,) = report["channels"]
+    assert channel["channel"]["inbox_id"] == inbox.id
+    assert channel["followers"] == 321
 
 
 async def test_mcp_validation_errors_reach_the_agent(mcp_session):

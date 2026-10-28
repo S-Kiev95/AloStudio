@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import date
 from typing import Any, ClassVar
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -32,6 +33,22 @@ class PublishResult:
     # True when trying again later can succeed (rate limits, 5xx,
     # network errors); False for permissions, bad data or expired tokens.
     retryable: bool = False
+
+
+@dataclass
+class MetricsResult:
+    """Figures read from a network, keyed by the normalised names of
+    ``METRIC_KEYS`` / ``CHANNEL_METRIC_KEYS``. Like publishing, failures
+    come back here (``error_message`` in Spanish) instead of raising.
+
+    ``metrics`` is the current state (a post's lifetime figures, or a
+    channel's followers today); ``daily`` holds per-day channel figures,
+    each under the day they belong to."""
+
+    ok: bool
+    metrics: dict[str, int] = field(default_factory=dict)
+    daily: dict[date, dict[str, int]] = field(default_factory=dict)
+    error_message: str | None = None
 
 
 class PublishingAdapter(ABC):
@@ -64,6 +81,22 @@ class PublishingAdapter(ABC):
     ) -> PublishResult:
         """Publish one target. Must not raise on network-side errors."""
 
+    async def fetch_post_metrics(
+        self, session: AsyncSession, target: PublicationTarget
+    ) -> MetricsResult | None:
+        """Engagement figures of a published target. ``None`` when the
+        network offers none."""
+        return None
+
+    async def fetch_channel_metrics(
+        self, session: AsyncSession, inbox: Inbox, *, days: list[date]
+    ) -> MetricsResult | None:
+        """Account-level figures of the channel: followers now, and per-day
+        views/reach/interactions for ``days`` when the network reports them
+        (re-read a few days back: networks finish a day late). ``None``
+        when the network offers none."""
+        return None
+
 
 def target_text(publication: Publication, target: PublicationTarget) -> str:
     """The text a target goes out with: its override, or the shared one."""
@@ -72,4 +105,4 @@ def target_text(publication: Publication, target: PublicationTarget) -> str:
     return publication.content or ""
 
 
-__all__ = ["PublishResult", "PublishingAdapter", "target_text"]
+__all__ = ["MetricsResult", "PublishResult", "PublishingAdapter", "target_text"]
