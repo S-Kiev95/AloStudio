@@ -30,20 +30,33 @@ Rama `feat/publishing-ui`, worktree `C:\Users\Zeek\Desktop\AloStudio-publishing-
 - `cd frontend && npm ci` una vez; después `npm run typecheck`, `npm run lint` y `npm test`.
 - No levantes el backend ni el frontend contra datos reales: los tests usan `fetch` simulado, como `components/products/products-view.test.tsx`. La prueba en el navegador con datos reales la hace Claude.
 
-## API (contrato; ya existe, no cambia)
+## API (contrato)
+
+Todo existe en el backend salvo la identidad de canal por `channel_id` (abajo), que se está implementando en paralelo con este mismo contrato. Programá contra el contrato con `fetch` simulado; no esperes al backend.
 
 Base `/api/v1/accounts/{accountId}`. Errores 422 con `{"message": string, "errors"?: string[]}`: mostrá el `message` y la lista `errors` tal cual (vienen en español). Las escrituras de publicaciones son **solo para administradores**: un agente recibe 401 de denegación (el fetcher ya distingue denegación de sesión vencida).
 
 **Canales donde se puede publicar** — `GET /publications/channels` → `Channel[]`
 
+Un canal es una cuenta de una red donde la cuenta de AloStudio publica. Todo se refiere a él por `id` (`channel_id`). Hoy son Instagram y páginas de Facebook, que nacen de una bandeja de entrada (`inbox_id`); más adelante se suman redes que se conectan aparte y tienen `inbox_id: null` (esa conexión queda fuera de este plan). No asumas que la lista de redes es fija: para una red desconocida mostrá un ícono genérico y su `network` como nombre.
+
 ```ts
-type Network = "instagram" | "facebook_page";
-type Channel = { inbox_id: number; network: Network; name: string | null };
+type Network = "instagram" | "facebook_page" | string;
+type Channel = {
+  id: number;
+  network: Network;
+  name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  inbox_id: number | null;
+  status: "active" | "reconnect"; // "reconnect": hay que volver a conectarlo; no se puede elegir para publicar
+  status_message: string | null;
+};
 ```
 
 **Publicaciones**
 
-- `GET /publications?from&to&state&inbox_id&page` → `Publication[]`. Ordena por `scheduled_for` (o `created_at` si es un borrador sin fecha), `from` inclusivo y `to` exclusivo (ISO 8601). **50 por página fijo**: para cubrir un rango pedí páginas hasta que una venga con menos de 50.
+- `GET /publications?from&to&state&channel_id&page` → `Publication[]`. Ordena por `scheduled_for` (o `created_at` si es un borrador sin fecha), `from` inclusivo y `to` exclusivo (ISO 8601). **50 por página fijo**: para cubrir un rango pedí páginas hasta que una venga con menos de 50.
 - `POST /publications` → `Publication`. Sin `scheduled_for` (o con fecha pasada) y sin `draft`, sale **ya**.
 - `GET /publications/{id}`, `PATCH /publications/{id}` (mismo cuerpo que POST, todo opcional), `DELETE /publications/{id}` → `{}`.
 - `POST /publications/{id}/retry` → `Publication` (solo `failed` o `partially_published`; reintenta los destinos que fallaron).
@@ -52,7 +65,7 @@ type Channel = { inbox_id: number; network: Network; name: string | null };
 ```ts
 type MediaIn = { media_id: number } | { type: "image" | "video"; url: string };
 type TargetIn = {
-  inbox_id: number;
+  channel_id: number;
   settings?: { post_type?: "feed" | "reels" | "story" }; // solo Instagram; por defecto "feed"
   content_override?: string | null; // texto propio de ese canal
 };
@@ -124,7 +137,7 @@ type MediaAsset = {
 
 `url` es un link de vista previa que **vence a la hora**: `staleTime` menor a una hora y volvé a pedir la lista al reenfocar.
 
-**Estadísticas** — `GET /publications/analytics?from&to&inbox_id` (por defecto los últimos 30 días; período inválido o mayor a 366 días → 422)
+**Estadísticas** — `GET /publications/analytics?from&to&channel_id` (por defecto los últimos 30 días; período inválido o mayor a 366 días → 422)
 
 ```ts
 type Analytics = {
@@ -159,13 +172,13 @@ Las cifras de los posts se actualizan cada hora y las de los canales una vez por
 
 - Vistas **Semana** (lunes a domingo, por hora, con la línea de "ahora" como en la referencia), **Mes** (grilla de 6 semanas) y **Lista** (por día, con filtro de estado). Barra con anterior / rango / siguiente y "Hoy". Fechas en la zona horaria del navegador. Reutilizá `components/agenda/week-utils.ts` donde aplique.
 - Cada publicación es una tarjeta en su día y hora: miniatura del primer medio, ícono de cada red de sus destinos, las primeras palabras del texto y el estado con color (`draft` Borrador, `scheduled` Programada, `publishing` Publicando, `published` Publicada, `partially_published` Publicada en parte, `failed` Falló). En Mes, si no entran, "+N más".
-- Panel de canales a la derecha (colapsable; abajo en móvil): los canales de `/publications/channels` con nombre e ícono de red, y un filtro por canal (`inbox_id`). Sin canales: estado vacío que lleva a `Ajustes > Bandejas de entrada` (`/accounts/{accountId}/settings/inboxes`) para conectar Instagram o una página de Facebook.
+- Panel de canales a la derecha (colapsable; abajo en móvil): los canales de `/publications/channels` con avatar (o ícono de red), nombre y usuario, los de `status: "reconnect"` marcados con su `status_message`, y un filtro por canal (`channel_id`). Sin canales: estado vacío que lleva a `Ajustes > Bandejas de entrada` (`/accounts/{accountId}/settings/inboxes`) para conectar Instagram o una página de Facebook.
 - Botón **"Nueva publicación"**. Un administrador también crea haciendo clic en un hueco vacío de Semana o en un día de Mes (fecha precargada).
 - Clic en una tarjeta: si es editable abre el editor; si no, el detalle (sección 4).
 
 ## 3. Editor (diálogo)
 
-- **Canales**: elegir uno o más de `/publications/channels`.
+- **Canales**: elegir uno o más de `/publications/channels` (solo los de `status: "active"`).
 - **Texto** compartido, con contador contra el límite más chico de los canales elegidos.
 - **Medios**: elegir de la biblioteca (grilla con miniaturas, filtro imagen/video) o subir uno nuevo, que queda en la biblioteca. Mostrar los elegidos en orden, con quitar y mover. Se envían como `{ media_id }`.
 - **Por canal** (una fila por canal elegido): en Instagram, el tipo `feed` / `reels` / `story` con el `SegmentedControl` existente; en todos, "Personalizar texto para este canal", que manda `content_override`.
