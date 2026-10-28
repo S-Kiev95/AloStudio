@@ -47,13 +47,12 @@ def register(mcp: FastMCP) -> None:
     @requires("read")
     async def list_publication_channels() -> dict[str, Any]:
         """Social channels of the current account that can publish posts
-        (use their inbox_id in create_publication)."""
+        (use their id as channel_ids in create_publication). A channel with
+        status "reconnect" has to be connected again before it can publish."""
         ctx = current_mcp_context()
         assert ctx.account.id is not None
         channels = await svc.list_channels(ctx.session, account_id=ctx.account.id)
-        return {
-            "channels": [present_channel(inbox, net) for inbox, net in channels]
-        }
+        return {"channels": [present_channel(channel) for channel in channels]}
 
     @mcp.tool(name="list_media")
     @requires("read")
@@ -98,7 +97,7 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool(name="create_publication")
     @requires("write")
     async def create_publication(
-        inbox_ids: list[int],
+        channel_ids: list[int],
         content: str | None = None,
         media: list[dict[str, Any]] | None = None,
         scheduled_for: str | None = None,
@@ -108,7 +107,7 @@ def register(mcp: FastMCP) -> None:
 
         ``media`` is an ordered list; each item is ``{"media_id": id}`` from
         list_media (preferred) or ``{"type": "image"|"video", "url"}`` with a
-        public URL. ``settings`` maps an inbox_id (as a string) to that
+        public URL. ``settings`` maps a channel id (as a string) to that
         channel's options, e.g. ``{"12": {"post_type": "reels"}}``. Without
         ``scheduled_for`` the post goes out on the next scheduler run
         (within about 5 minutes).
@@ -129,10 +128,10 @@ def register(mcp: FastMCP) -> None:
                     ),
                     "targets": [
                         {
-                            "inbox_id": inbox_id,
-                            "settings": per_channel.get(str(inbox_id)) or {},
+                            "channel_id": channel_id,
+                            "settings": per_channel.get(str(channel_id)) or {},
                         }
-                        for inbox_id in inbox_ids
+                        for channel_id in channel_ids
                     ],
                 },
             )
@@ -145,7 +144,7 @@ def register(mcp: FastMCP) -> None:
     async def get_publishing_analytics(
         from_: Annotated[str | None, Field(alias="from")] = None,
         to: str | None = None,
-        inbox_id: int | None = None,
+        channel_id: int | None = None,
     ) -> dict[str, Any]:
         """Results of published posts in a period (default: last 30 days):
         totals, per-channel figures and follower growth, and the best posts.
@@ -164,7 +163,7 @@ def register(mcp: FastMCP) -> None:
                 account_id=ctx.account.id,
                 starts_from=since,
                 starts_to=until,
-                inbox_id=inbox_id,
+                channel_id=channel_id,
             )
         except ChatwootHTTPException as exc:
             raise _as_value_error(exc) from exc

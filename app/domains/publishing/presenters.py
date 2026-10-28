@@ -5,36 +5,44 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.domains.inboxes.models import Inbox
-from app.domains.publishing.adapters import adapter_for_network
-from app.domains.publishing.models import Publication, PublicationTarget
-from app.domains.publishing.service import targets_by_publication
+from app.domains.publishing.models import (
+    Publication,
+    PublicationTarget,
+    PublishingChannel,
+)
+from app.domains.publishing.service import channels_by_id, targets_by_publication
 
 
 def _iso(dt: datetime | None) -> str | None:
     return dt.isoformat() if dt is not None else None
 
 
-def present_channel(inbox: Inbox, network: str) -> dict[str, Any]:
-    adapter = adapter_for_network(network)
-    label = adapter.channel_label(inbox) if adapter else {"name": inbox.name}
-    return {"inbox_id": inbox.id, "network": network, **label}
+def present_channel(channel: PublishingChannel) -> dict[str, Any]:
+    """Never includes ``credentials``."""
+    return {
+        "id": channel.id,
+        "network": channel.network,
+        "name": channel.name,
+        "username": channel.username,
+        "avatar_url": channel.avatar_url,
+        "inbox_id": channel.inbox_id,
+        "status": channel.status,
+        "status_message": channel.status_message,
+    }
 
 
 def _present_target(
-    target: PublicationTarget, inbox: Inbox | None
+    target: PublicationTarget, channel: PublishingChannel | None
 ) -> dict[str, Any]:
-    channel = (
-        present_channel(inbox, target.network)
-        if inbox is not None
-        else {"inbox_id": target.inbox_id, "network": target.network, "name": None}
-    )
     return {
         "id": target.id,
-        "channel": channel,
+        "channel": (
+            present_channel(channel)
+            if channel is not None
+            else {"id": target.channel_id, "network": target.network, "name": None}
+        ),
         "settings": target.settings or {},
         "content_override": target.content_override,
         "state": target.state,
@@ -53,7 +61,7 @@ def _present_target(
 def present_publication(
     publication: Publication,
     targets: list[PublicationTarget],
-    inboxes: dict[int, Inbox],
+    channels: dict[int, PublishingChannel],
 ) -> dict[str, Any]:
     return {
         "id": publication.id,
@@ -66,29 +74,22 @@ def present_publication(
         "published_at": _iso(publication.published_at),
         "created_at": _iso(publication.created_at),
         "updated_at": _iso(publication.updated_at),
-        "targets": [_present_target(t, inboxes.get(t.inbox_id)) for t in targets],
+        "targets": [_present_target(t, channels.get(t.channel_id)) for t in targets],
     }
 
 
 async def present_publications(
     session: AsyncSession, publications: list[Publication]
 ) -> list[dict[str, Any]]:
-    """Batch-loads targets and their inboxes (no query per row)."""
+    """Batch-loads targets and their channels (no query per row)."""
     ids = [p.id for p in publications if p.id is not None]
     targets = await targets_by_publication(session, publication_ids=ids)
-    inbox_ids = {t.inbox_id for group in targets.values() for t in group}
-    inboxes: dict[int, Inbox] = {}
-    if inbox_ids:
-        inboxes = {
-            inbox.id: inbox
-            for inbox in (
-                await session.exec(
-                    select(Inbox).where(Inbox.id.in_(inbox_ids))  # type: ignore[union-attr]
-                )
-            ).all()
-        }
+    channels = await channels_by_id(
+        session,
+        channel_ids=list({t.channel_id for group in targets.values() for t in group}),
+    )
     return [
-        present_publication(p, targets.get(p.id, []), inboxes)  # type: ignore[arg-type]
+        present_publication(p, targets.get(p.id, []), channels)  # type: ignore[arg-type]
         for p in publications
     ]
 

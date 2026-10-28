@@ -1,8 +1,8 @@
 """Publishing service — account-scoped CRUD, validation and the publish loop.
 
 Network-agnostic on purpose: every network decision goes through the
-adapter registry (``adapter_for_inbox`` when a target is created,
-``adapter_for_network`` when it is published).
+adapter registry (``adapter_for_inbox`` when an inbox gets its channel,
+``adapter_for_network`` for everything a channel or target does).
 """
 
 from __future__ import annotations
@@ -12,7 +12,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import delete, func, update
-from sqlmodel import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.errors import ChatwootHTTPException
@@ -25,6 +26,7 @@ from app.domains.publishing.adapters import (
     adapter_for_network,
 )
 from app.domains.publishing.models import (
+    CHANNEL_STATUS_ACTIVE,
     MEDIA_TYPES,
     PUBLICATION_EDITABLE_STATES,
     PUBLICATION_STATE_DRAFT,
@@ -40,6 +42,7 @@ from app.domains.publishing.models import (
     TARGET_STATE_PUBLISHING,
     Publication,
     PublicationTarget,
+    PublishingChannel,
 )
 
 log = logging.getLogger(__name__)
@@ -137,24 +140,66 @@ async def _refresh_library_links(
     return True
 
 
+async def sync_inbox_channels(
+    session: AsyncSession, *, account_id: int | None = None
+) -> None:
+    """Give every inbox that an adapter publishes through its channel, and
+    keep the channel's name in step with the inbox. Idempotent; ``None``
+    covers every account (the daily snapshot job)."""
+    stmt = select(Inbox)
+    if account_id is not None:
+        stmt = stmt.where(Inbox.account_id == account_id)
+    now = datetime.now(UTC)
+    for inbox in (await session.exec(stmt)).all():
+        adapter = adapter_for_inbox(inbox)
+        if adapter is None:
+            continue
+        insert = pg_insert(PublishingChannel).values(
+            account_id=inbox.account_id,
+            network=adapter.network,
+            name=inbox.name,
+            inbox_id=inbox.id,
+            credentials={},
+            status=CHANNEL_STATUS_ACTIVE,
+            created_at=now,
+            updated_at=now,
+        )
+        await session.exec(  # type: ignore[call-overload]
+            insert.on_conflict_do_update(
+                constraint="uniq_publishing_channels_inbox",
+                set_={"name": inbox.name, "updated_at": now},
+                where=PublishingChannel.__table__.c.name.is_distinct_from(inbox.name),  # type: ignore[attr-defined]
+            )
+        )
+
+
 async def list_channels(
     session: AsyncSession, *, account_id: int
-) -> list[tuple[Inbox, str]]:
-    """The account's inboxes that some adapter can publish to, with the
-    adapter's network key."""
-    inboxes = (
+) -> list[PublishingChannel]:
+    """The account's channels that some adapter can publish to."""
+    await sync_inbox_channels(session, account_id=account_id)
+    channels = (
         await session.exec(
-            select(Inbox)
-            .where(Inbox.account_id == account_id)
-            .order_by(Inbox.id)  # type: ignore[arg-type]
+            select(PublishingChannel)
+            .where(PublishingChannel.account_id == account_id)
+            .order_by(col(PublishingChannel.id))
+            .execution_options(populate_existing=True)
         )
     ).all()
-    channels: list[tuple[Inbox, str]] = []
-    for inbox in inboxes:
-        adapter = adapter_for_inbox(inbox)
-        if adapter is not None:
-            channels.append((inbox, adapter.network))
-    return channels
+    return [c for c in channels if adapter_for_network(c.network) is not None]
+
+
+async def channels_by_id(
+    session: AsyncSession, *, channel_ids: list[int]
+) -> dict[int, PublishingChannel]:
+    if not channel_ids:
+        return {}
+    rows = (
+        await session.exec(
+            select(PublishingChannel).where(col(PublishingChannel.id).in_(channel_ids))
+        )
+    ).all()
+    return {c.id: c for c in rows}  # type: ignore[misc]
 
 
 async def _build_targets(
@@ -162,64 +207,59 @@ async def _build_targets(
     *,
     account_id: int,
     raw_targets: Any,
-) -> tuple[list[PublicationTarget], dict[int, Inbox]]:
+) -> tuple[list[PublicationTarget], dict[int, PublishingChannel]]:
     if not isinstance(raw_targets, list) or not raw_targets:
         raise _unprocessable("Elegí al menos un canal")
-    inbox_ids = [t.get("inbox_id") for t in raw_targets if isinstance(t, dict)]
-    if len(inbox_ids) != len(raw_targets) or not all(
-        isinstance(i, int) for i in inbox_ids
+    channel_ids = [t.get("channel_id") for t in raw_targets if isinstance(t, dict)]
+    if len(channel_ids) != len(raw_targets) or not all(
+        isinstance(i, int) and not isinstance(i, bool) for i in channel_ids
     ):
-        raise _unprocessable("Cada canal necesita su inbox_id")
-    if len(set(inbox_ids)) != len(inbox_ids):
+        raise _unprocessable("Cada canal necesita su channel_id")
+    if len(set(channel_ids)) != len(channel_ids):
         raise _unprocessable("Un canal aparece dos veces")
 
-    inboxes = {
-        inbox.id: inbox
-        for inbox in (
-            await session.exec(
-                select(Inbox).where(
-                    Inbox.account_id == account_id,
-                    Inbox.id.in_(inbox_ids),  # type: ignore[union-attr]
-                )
-            )
-        ).all()
-    }
+    found = await channels_by_id(session, channel_ids=channel_ids)  # type: ignore[arg-type]
+    channels = {cid: c for cid, c in found.items() if c.account_id == account_id}
     targets: list[PublicationTarget] = []
     for raw in raw_targets:
-        inbox = inboxes.get(raw["inbox_id"])
-        if inbox is None:
+        channel = channels.get(raw["channel_id"])
+        if channel is None:
             raise _unprocessable(
                 "El canal no existe o no pertenece a esta cuenta"
             )
-        adapter = adapter_for_inbox(inbox)
-        if adapter is None:
-            raise _unprocessable(f"El canal {inbox.name} no puede publicar")
+        if adapter_for_network(channel.network) is None:
+            raise _unprocessable(f"El canal {channel.name} no puede publicar")
+        if channel.status != CHANNEL_STATUS_ACTIVE:
+            raise _unprocessable(
+                f"Hay que volver a conectar el canal {channel.name} antes de publicar en él"
+            )
         settings = raw.get("settings") or {}
         if not isinstance(settings, dict):
-            raise _unprocessable(f"settings de {inbox.name} es inválido")
+            raise _unprocessable(f"settings de {channel.name} es inválido")
         targets.append(
             PublicationTarget(
                 account_id=account_id,
-                inbox_id=inbox.id,
-                network=adapter.network,
+                channel_id=channel.id,  # type: ignore[arg-type]
+                network=channel.network,
                 settings=settings,
                 content_override=raw.get("content_override"),
             )
         )
-    return targets, inboxes
+    return targets, channels
 
 
 def _validate_targets(
     publication: Publication,
     targets: list[PublicationTarget],
-    inboxes: dict[int, Inbox],
+    channels: dict[int, PublishingChannel],
 ) -> None:
     errors: list[str] = []
     for target in targets:
         adapter = adapter_for_network(target.network)
         if adapter is None:
             continue
-        name = inboxes[target.inbox_id].name
+        channel = channels.get(target.channel_id)
+        name = (channel.name if channel else None) or target.network
         errors.extend(
             f"{name}: {problem}"
             for problem in adapter.validate(publication, target)
@@ -266,10 +306,10 @@ async def create_publication(
         state=state,
         created_by_id=created_by_id,
     )
-    targets, inboxes = await _build_targets(
+    targets, channels = await _build_targets(
         session, account_id=account_id, raw_targets=payload.get("targets")
     )
-    _validate_targets(publication, targets, inboxes)
+    _validate_targets(publication, targets, channels)
 
     session.add(publication)
     await session.flush()
@@ -331,7 +371,7 @@ async def list_publications(
     starts_from: datetime | None = None,
     starts_to: datetime | None = None,
     state: str | None = None,
-    inbox_id: int | None = None,
+    channel_id: int | None = None,
     page: int = 1,
     per_page: int = 50,
 ) -> list[Publication]:
@@ -352,11 +392,11 @@ async def list_publications(
                 f"state tiene que ser uno de: {', '.join(PUBLICATION_STATES)}"
             )
         stmt = stmt.where(Publication.state == state)
-    if inbox_id is not None:
+    if channel_id is not None:
         stmt = stmt.where(
             Publication.id.in_(  # type: ignore[union-attr]
                 select(PublicationTarget.publication_id).where(
-                    PublicationTarget.inbox_id == inbox_id
+                    PublicationTarget.channel_id == channel_id
                 )
             )
         )
@@ -404,12 +444,12 @@ async def update_publication(
         )
 
     if payload.get("targets") is not None:
-        targets, inboxes = await _build_targets(
+        targets, channels = await _build_targets(
             session,
             account_id=publication.account_id,
             raw_targets=payload["targets"],
         )
-        _validate_targets(publication, targets, inboxes)
+        _validate_targets(publication, targets, channels)
         await session.exec(  # type: ignore[call-overload]
             delete(PublicationTarget).where(
                 PublicationTarget.publication_id == publication.id  # type: ignore[arg-type]
@@ -424,17 +464,10 @@ async def update_publication(
                 session, publication_ids=[publication.id]  # type: ignore[list-item]
             )
         )[publication.id]  # type: ignore[index]
-        inboxes = {
-            inbox.id: inbox
-            for inbox in (
-                await session.exec(
-                    select(Inbox).where(
-                        Inbox.id.in_([t.inbox_id for t in current])  # type: ignore[union-attr]
-                    )
-                )
-            ).all()
-        }
-        _validate_targets(publication, current, inboxes)
+        channels = await channels_by_id(
+            session, channel_ids=[t.channel_id for t in current]
+        )
+        _validate_targets(publication, current, channels)
 
     session.add(publication)
     await session.flush()
@@ -579,7 +612,7 @@ async def recover_stale_publications(
 
 def _aggregate_state(targets: list[PublicationTarget]) -> str:
     published = sum(1 for t in targets if t.state == TARGET_STATE_PUBLISHED)
-    # No targets left (their inboxes were deleted): nothing went out.
+    # No targets left (their channels were deleted): nothing went out.
     if not targets:
         return PUBLICATION_STATE_FAILED
     if published == len(targets):

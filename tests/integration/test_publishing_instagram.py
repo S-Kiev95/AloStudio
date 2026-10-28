@@ -18,6 +18,7 @@ from app.domains.publishing.adapters.instagram import (
     InstagramAdapter,
     build_instagram_post,
 )
+from tests.integration._publishing import channel_id_of
 
 import_all_models()
 
@@ -60,7 +61,7 @@ async def _target(db_session, suffix: str, *, media: list, settings=None):
             "content": "Hola Instagram",
             "media": media,
             "scheduled_for": datetime.now(UTC) + timedelta(hours=1),
-            "targets": [{"inbox_id": inbox.id, "settings": settings or {}}],
+            "targets": [{"channel_id": await channel_id_of(db_session, inbox), "settings": settings or {}}],
         },
     )
     (target,) = (

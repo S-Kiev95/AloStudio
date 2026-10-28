@@ -34,9 +34,14 @@ from app.domains.publishing.adapters.base import (
     MetricsResult,
     PublishingAdapter,
     PublishResult,
+    channel_inbox,
     target_text,
 )
-from app.domains.publishing.models import Publication, PublicationTarget
+from app.domains.publishing.models import (
+    Publication,
+    PublicationTarget,
+    PublishingChannel,
+)
 
 log = logging.getLogger(__name__)
 
@@ -156,7 +161,7 @@ class FacebookPageAdapter(PublishingAdapter):
         publication: Publication,
         target: PublicationTarget,
     ) -> PublishResult:
-        page, api = await self._page_api(session, target.inbox_id)
+        page, api = await self._page_api(session, target.channel_id)
         if page is None or api is None:
             return PublishResult(
                 ok=False,
@@ -218,7 +223,7 @@ class FacebookPageAdapter(PublishingAdapter):
     ) -> MetricsResult | None:
         if not target.external_id:
             return None
-        _page, api = await self._page_api(session, target.inbox_id)
+        _page, api = await self._page_api(session, target.channel_id)
         if api is None:
             return MetricsResult(ok=False, error_message=_MISSING_PAGE)
         publication = await session.get(Publication, target.publication_id)
@@ -229,11 +234,11 @@ class FacebookPageAdapter(PublishingAdapter):
         return await self._read(api, lambda: api.post_metrics(object_id, is_video=is_video))
 
     async def fetch_channel_metrics(
-        self, session: AsyncSession, inbox: Inbox, *, days: list[date]
+        self, session: AsyncSession, channel: PublishingChannel, *, days: list[date]
     ) -> MetricsResult | None:
         # Only the follower count: the Page's daily reach lives in its
         # insights, which need ``read_insights`` (not requested yet).
-        page, api = await self._page_api(session, inbox.id)  # type: ignore[arg-type]
+        page, api = await self._page_api(session, channel.id)  # type: ignore[arg-type]
         if page is None or api is None:
             return MetricsResult(ok=False, error_message=_MISSING_PAGE)
         return await self._read(api, lambda: api.page_metrics(page.page_id))
@@ -254,9 +259,9 @@ class FacebookPageAdapter(PublishingAdapter):
 
     @staticmethod
     async def _page_api(
-        session: AsyncSession, inbox_id: int
+        session: AsyncSession, channel_id: int
     ) -> tuple[FacebookPage | None, _Graph | None]:
-        inbox = await session.get(Inbox, inbox_id)
+        inbox = await channel_inbox(session, channel_id)
         page = (
             await session.get(FacebookPage, inbox.channel_id)
             if inbox is not None

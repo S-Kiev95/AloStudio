@@ -16,6 +16,7 @@ from app.domains.publishing.adapters.facebook_page import FacebookPageAdapter
 from app.domains.publishing.adapters.instagram import InstagramAdapter
 from app.domains.publishing.models import Publication
 from app.workers import publishing as publishing_worker
+from tests.integration._publishing import channel_id_of
 
 import_all_models()
 
@@ -68,7 +69,7 @@ async def _publication(db_session, account, inboxes, *, scheduled_for=None):
             "media": [IMAGE],
             "scheduled_for": scheduled_for
             or datetime.now(UTC) + timedelta(hours=1),
-            "targets": [{"inbox_id": i.id} for i in inboxes],
+            "targets": [{"channel_id": await channel_id_of(db_session, i)} for i in inboxes],
         },
     )
 
@@ -138,17 +139,17 @@ async def test_one_target_failing_does_not_stop_the_other(db_session, monkeypatc
     assert publication.state == "partially_published"
     assert publication.published_at is not None
     targets = {
-        t.inbox_id: t
+        t.network: t
         for t in (
             await svc.targets_by_publication(
                 db_session, publication_ids=[publication.id]
             )
         )[publication.id]
     }
-    assert targets[fb.id].state == "published"
-    assert targets[fb.id].external_id == "PAGE_1"
-    assert targets[ig.id].state == "failed"
-    assert targets[ig.id].error_message == "imagen rota"
+    assert targets["facebook_page"].state == "published"
+    assert targets["facebook_page"].external_id == "PAGE_1"
+    assert targets["instagram"].state == "failed"
+    assert targets["instagram"].error_message == "imagen rota"
 
 
 async def test_retryable_error_waits_then_fails_on_last_try(db_session, monkeypatch):
@@ -216,15 +217,15 @@ async def test_unexpected_adapter_error_is_contained(db_session, monkeypatch):
     await db_session.refresh(publication)
     assert publication.state == "partially_published"
     targets = {
-        t.inbox_id: t
+        t.network: t
         for t in (
             await svc.targets_by_publication(
                 db_session, publication_ids=[publication.id]
             )
         )[publication.id]
     }
-    assert targets[ig.id].state == "failed"
-    assert targets[ig.id].error_code == "unexpected_error"
+    assert targets["instagram"].state == "failed"
+    assert targets["instagram"].error_code == "unexpected_error"
 
 
 async def test_claim_skips_a_date_moved_forward(db_session):
@@ -259,14 +260,14 @@ async def test_stale_publishing_is_recovered_without_republishing(db_session, mo
     publication = await _publication(db_session, account, [fb, ig])
     await _claim(db_session, publication)
     targets = {
-        t.inbox_id: t
+        t.network: t
         for t in (
             await svc.targets_by_publication(db_session, publication_ids=[publication.id])
         )[publication.id]
     }
     # The job died while sending to Facebook; Instagram never started.
-    targets[fb.id].state = "publishing"
-    db_session.add(targets[fb.id])
+    targets["facebook_page"].state = "publishing"
+    db_session.add(targets["facebook_page"])
     publication = await db_session.get(Publication, publication.id)
     publication.updated_at = datetime.now(UTC) - timedelta(hours=2)
     db_session.add(publication)
@@ -280,11 +281,11 @@ async def test_stale_publishing_is_recovered_without_republishing(db_session, mo
     monkeypatch.setattr(publishing_worker, "enqueue_publication", _fake)
 
     assert await publishing_worker.fire_due_publications(db_session) == [publication.id]
-    await db_session.refresh(targets[fb.id])
-    await db_session.refresh(targets[ig.id])
-    assert targets[fb.id].state == "failed"
-    assert targets[fb.id].error_code == "interrupted"
-    assert targets[ig.id].state == "pending"
+    await db_session.refresh(targets["facebook_page"])
+    await db_session.refresh(targets["instagram"])
+    assert targets["facebook_page"].state == "failed"
+    assert targets["facebook_page"].error_code == "interrupted"
+    assert targets["instagram"].state == "pending"
     assert enqueued == [publication.id]
 
 

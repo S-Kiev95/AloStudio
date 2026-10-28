@@ -16,6 +16,7 @@ from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.publishing import service as svc
 from app.domains.publishing.adapters.facebook_page import FacebookPageAdapter
+from tests.integration._publishing import channel_id_of
 
 import_all_models()
 
@@ -71,7 +72,7 @@ async def _target(db_session, suffix: str, *, content: str, media: list):
             "content": content,
             "media": media,
             "scheduled_for": datetime.now(UTC) + timedelta(hours=1),
-            "targets": [{"inbox_id": inbox.id}],
+            "targets": [{"channel_id": await channel_id_of(db_session, inbox)}],
         },
     )
     (target,) = (

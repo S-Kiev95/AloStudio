@@ -33,6 +33,7 @@ from app.domains.publishing.adapters.facebook_page import FacebookPageAdapter
 from app.domains.webhooks import listener as webhook_listener
 from app.domains.webhooks.service import create_webhook
 from app.domains.whatsapp import incoming_cloud
+from tests.integration._publishing import channel_id_of
 
 import_all_models()
 
@@ -304,7 +305,7 @@ async def test_publication_completed_reports_each_channel(db_session, deliveries
         payload={
             "content": "Hola",
             "scheduled_for": datetime.now(UTC) + timedelta(hours=1),
-            "targets": [{"inbox_id": page.id}],
+            "targets": [{"channel_id": await channel_id_of(db_session, page)}],
         },
     )
     publication.scheduled_for = datetime.now(UTC) - timedelta(minutes=1)
@@ -325,6 +326,7 @@ async def test_publication_completed_reports_each_channel(db_session, deliveries
     assert body["state"] == "published"
     assert body["published_at"] is not None
     (target,) = body["targets"]
+    assert target["channel_id"] == await channel_id_of(db_session, page)
     assert target["inbox_id"] == page.id
     assert target["network"] == "facebook_page"
     assert target["state"] == "published"

@@ -26,9 +26,14 @@ from app.domains.publishing.adapters.base import (
     MetricsResult,
     PublishingAdapter,
     PublishResult,
+    channel_inbox,
     target_text,
 )
-from app.domains.publishing.models import Publication, PublicationTarget
+from app.domains.publishing.models import (
+    Publication,
+    PublicationTarget,
+    PublishingChannel,
+)
 
 POST_TYPES: tuple[str, ...] = ("feed", "reels", "story")
 CAPTION_MAX = 2200
@@ -112,7 +117,7 @@ class InstagramAdapter(PublishingAdapter):
         from app.domains.instagram import publishing_service as ig
         from app.domains.instagram.publisher import is_throttle_error
 
-        inbox = await session.get(Inbox, target.inbox_id)
+        inbox = await channel_inbox(session, target.channel_id)
         if inbox is None:
             return PublishResult(
                 ok=False,
@@ -133,7 +138,7 @@ class InstagramAdapter(PublishingAdapter):
                 post = await ig.create_post(
                     session,
                     account_id=target.account_id,
-                    inbox_id=target.inbox_id,
+                    inbox_id=inbox.id,
                     channel_instagram_id=inbox.channel_id,
                     media_type=media_type,
                     source=source,
@@ -176,7 +181,7 @@ class InstagramAdapter(PublishingAdapter):
         from app.domains.instagram import insights
         from app.domains.instagram.models import InstagramPost
 
-        channel = await self._channel(session, target.inbox_id)
+        channel = await self._channel(session, target.channel_id)
         if channel is None or not target.external_id:
             return None
         is_story = _post_type(target) == "story"
@@ -196,15 +201,15 @@ class InstagramAdapter(PublishingAdapter):
         return MetricsResult(ok=error is None, metrics=metrics or {}, error_message=error)
 
     async def fetch_channel_metrics(
-        self, session: AsyncSession, inbox: Inbox, *, days: list[date]
+        self, session: AsyncSession, channel: PublishingChannel, *, days: list[date]
     ) -> MetricsResult | None:
         from app.domains.instagram import insights
 
-        channel = await self._channel(session, inbox.id)  # type: ignore[arg-type]
-        if channel is None:
+        instagram = await self._channel(session, channel.id)  # type: ignore[arg-type]
+        if instagram is None:
             return None
         current, daily, error = await insights.fetch_account_metrics(
-            session, channel, days=days
+            session, instagram, days=days
         )
         return MetricsResult(
             ok=error is None, metrics=current or {}, daily=daily, error_message=error
@@ -212,9 +217,9 @@ class InstagramAdapter(PublishingAdapter):
 
     @staticmethod
     async def _channel(
-        session: AsyncSession, inbox_id: int
+        session: AsyncSession, channel_id: int
     ) -> InstagramChannel | None:
-        inbox = await session.get(Inbox, inbox_id)
+        inbox = await channel_inbox(session, channel_id)
         if inbox is None:
             return None
         return await session.get(InstagramChannel, inbox.channel_id)

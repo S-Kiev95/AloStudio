@@ -20,21 +20,21 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.domains.inboxes.models import Inbox
 from app.domains.publishing import service as svc
 from app.domains.publishing.adapters import (
     MetricsResult,
-    adapter_for_inbox,
     adapter_for_network,
     target_text,
 )
 from app.domains.publishing.models import (
     CHANNEL_METRIC_KEYS,
+    CHANNEL_STATUS_ACTIVE,
     METRIC_KEYS,
     TARGET_STATE_PUBLISHED,
     ChannelMetricSnapshot,
     Publication,
     PublicationTarget,
+    PublishingChannel,
 )
 from app.domains.publishing.presenters import present_channel
 
@@ -172,33 +172,41 @@ async def sync_post_metrics(
 async def snapshot_channels(
     session: AsyncSession, *, today: date | None = None
 ) -> int:
-    """Store today's follower count of every publishing channel that has no
-    snapshot today yet, and merge in the per-day figures of the last
+    """Store today's follower count of every active publishing channel that
+    has no snapshot today yet, and merge in the per-day figures of the last
     :data:`CHANNEL_LOOKBACK_DAYS` complete days. Each channel is committed
     on its own. Returns how many channels were stored."""
     today = today or datetime.now(UTC).date()
     days = [today - timedelta(days=n) for n in range(1, CHANNEL_LOOKBACK_DAYS + 1)]
-    done = select(ChannelMetricSnapshot.inbox_id).where(
+    # Inboxes connected since the last listing still get their channel.
+    await svc.sync_inbox_channels(session)
+    await session.commit()
+    done = select(ChannelMetricSnapshot.channel_id).where(
         ChannelMetricSnapshot.date == today
     )
-    inbox_ids = (
+    channel_ids = (
         await session.exec(
-            select(Inbox.id).where(col(Inbox.id).not_in(done)).order_by(col(Inbox.id))
+            select(PublishingChannel.id)
+            .where(
+                PublishingChannel.status == CHANNEL_STATUS_ACTIVE,
+                col(PublishingChannel.id).not_in(done),
+            )
+            .order_by(col(PublishingChannel.id))
         )
     ).all()
     stored = 0
-    for inbox_id in inbox_ids:
+    for channel_id in channel_ids:
         try:
-            inbox = await session.get(Inbox, inbox_id)
-            adapter = adapter_for_inbox(inbox) if inbox is not None else None
-            if inbox is None or adapter is None:
+            channel = await session.get(PublishingChannel, channel_id)
+            adapter = adapter_for_network(channel.network) if channel is not None else None
+            if channel is None or adapter is None:
                 continue
-            result = await adapter.fetch_channel_metrics(session, inbox, days=days)
+            result = await adapter.fetch_channel_metrics(session, channel, days=days)
             if result is None or not result.ok:
                 if result is not None and result.error_message:
                     log.info(
-                        "publishing.metrics.channel_unavailable inbox_id=%s reason=%s",
-                        inbox_id,
+                        "publishing.metrics.channel_unavailable channel_id=%s reason=%s",
+                        channel_id,
                         result.error_message,
                     )
                 continue
@@ -206,23 +214,20 @@ async def snapshot_channels(
             if result.metrics:
                 rows[today] = {**rows.get(today, {}), **result.metrics}
             for day, figures in rows.items():
-                await _merge_snapshot(
-                    session, inbox=inbox, network=adapter.network, day=day, metrics=figures
-                )
+                await _merge_snapshot(session, channel=channel, day=day, metrics=figures)
             await session.commit()
             stored += int(bool(rows))
         except Exception:
             # One channel must not sink the rest.
             await session.rollback()
-            log.exception("publishing.metrics.channel_failed inbox_id=%s", inbox_id)
+            log.exception("publishing.metrics.channel_failed channel_id=%s", channel_id)
     return stored
 
 
 async def _merge_snapshot(
     session: AsyncSession,
     *,
-    inbox: Inbox,
-    network: str,
+    channel: PublishingChannel,
     day: date,
     metrics: dict[str, int],
 ) -> None:
@@ -230,16 +235,16 @@ async def _merge_snapshot(
     read again (that day's follower count, say) are kept."""
     now = datetime.now(UTC)
     stmt = pg_insert(ChannelMetricSnapshot).values(
-        account_id=inbox.account_id,
-        inbox_id=inbox.id,
-        network=network,
+        account_id=channel.account_id,
+        channel_id=channel.id,
+        network=channel.network,
         date=day,
         metrics=metrics,
         created_at=now,
         updated_at=now,
     )
     stmt = stmt.on_conflict_do_update(
-        constraint="uniq_channel_metric_snapshots_inbox_date",
+        constraint="uniq_channel_metric_snapshots_channel_date",
         set_={
             "metrics": ChannelMetricSnapshot.__table__.c.metrics.op("||")(  # type: ignore[attr-defined]
                 stmt.excluded.metrics
@@ -259,7 +264,7 @@ async def analytics_summary(
     account_id: int,
     starts_from: datetime,
     starts_to: datetime,
-    inbox_id: int | None = None,
+    channel_id: int | None = None,
 ) -> dict[str, Any]:
     """Totals, per-channel figures and growth, and the best posts of the
     period (posts by publish date, ``from`` inclusive, ``to`` exclusive;
@@ -278,8 +283,8 @@ async def analytics_summary(
             PublicationTarget.published_at < starts_to,  # type: ignore[operator]
         )
     )
-    if inbox_id is not None:
-        stmt = stmt.where(PublicationTarget.inbox_id == inbox_id)
+    if channel_id is not None:
+        stmt = stmt.where(PublicationTarget.channel_id == channel_id)
     rows = list((await session.exec(stmt)).all())
 
     snapshot_stmt = (
@@ -294,11 +299,11 @@ async def analytics_summary(
     snapshots = list((await session.exec(snapshot_stmt)).all())
 
     channels = []
-    for inbox, network in await svc.list_channels(session, account_id=account_id):
-        if inbox_id is not None and inbox.id != inbox_id:
+    for channel in await svc.list_channels(session, account_id=account_id):
+        if channel_id is not None and channel.id != channel_id:
             continue
-        posts = [t.metrics or {} for t, _ in rows if t.inbox_id == inbox.id]
-        series = [s for s in snapshots if s.inbox_id == inbox.id]
+        posts = [t.metrics or {} for t, _ in rows if t.channel_id == channel.id]
+        series = [s for s in snapshots if s.channel_id == channel.id]
         followers = [
             s.metrics["followers"]
             for s in series
@@ -306,7 +311,7 @@ async def analytics_summary(
         ]
         channels.append(
             {
-                "channel": present_channel(inbox, network),
+                "channel": present_channel(channel),
                 "posts": len(posts),
                 "metrics": _sum(posts, METRIC_KEYS),
                 "followers": followers[-1] if followers else None,
@@ -327,7 +332,7 @@ async def analytics_summary(
             }
         )
 
-    inboxes = {c["channel"]["inbox_id"]: c["channel"] for c in channels}
+    presented = {c["channel"]["id"]: c["channel"] for c in channels}
     best = sorted(rows, key=lambda r: _interactions(r[0].metrics or {}), reverse=True)
     return {
         "from": starts_from.isoformat(),
@@ -341,7 +346,7 @@ async def analytics_summary(
             {
                 "publication_id": publication.id,
                 "target_id": target.id,
-                "channel": inboxes.get(target.inbox_id),
+                "channel": presented.get(target.channel_id),
                 "content": target_text(publication, target)[:280],
                 "permalink": target.permalink,
                 "published_at": target.published_at.isoformat()

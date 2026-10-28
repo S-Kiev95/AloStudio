@@ -21,12 +21,13 @@ from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.instagram.models import InstagramPost
 from app.domains.publishing import analytics
 from app.domains.publishing import service as svc
-from app.domains.publishing.adapters import MetricsResult
+from app.domains.publishing.adapters import MetricsResult, adapter_for_inbox
 from app.domains.publishing.adapters.facebook_page import FacebookPageAdapter
 from app.domains.publishing.adapters.instagram import InstagramAdapter
 from app.domains.publishing.models import ChannelMetricSnapshot, PublicationTarget
 from app.domains.teams import models as _teams  # noqa: F401
 from app.main import app
+from tests.integration._publishing import channel_id_of, channel_of
 
 pytestmark = pytest.mark.integration
 
@@ -104,7 +105,7 @@ async def _published(
             "content": f"post {external_id}",
             "media": [{"type": media_type, "url": f"https://cdn.example.com/a.{media_type}"}],
             "scheduled_for": datetime.now(UTC) + timedelta(hours=1),
-            "targets": [{"inbox_id": inbox.id, "settings": settings or {}}],
+            "targets": [{"channel_id": await channel_id_of(db_session, inbox), "settings": settings or {}}],
         },
     )
     publication.state = "published"
@@ -150,7 +151,7 @@ async def test_facebook_post_and_page_metrics(db_session):
 
     assert await analytics.refresh_target_metrics(db_session, target)
     channel = await FacebookPageAdapter().fetch_channel_metrics(
-        db_session, page, days=[date(2026, 10, 26)]
+        db_session, await channel_of(db_session, page), days=[date(2026, 10, 26)]
     )
 
     assert target.metrics == {
@@ -269,7 +270,7 @@ async def test_instagram_media_and_account_metrics(db_session):
             },
         )
     )
-    adapter = analytics.adapter_for_inbox(insta)
+    adapter = adapter_for_inbox(insta)
     ig_user = respx.get(url__regex=rf"{_graph()}/1784\w+\?").mock(
         return_value=httpx.Response(200, json={"followers_count": 512})
     )
@@ -281,7 +282,9 @@ async def test_instagram_media_and_account_metrics(db_session):
     days = [date(2026, 10, 26), date(2026, 10, 25)]
 
     assert await analytics.refresh_target_metrics(db_session, target)
-    result = await adapter.fetch_channel_metrics(db_session, insta, days=days)
+    result = await adapter.fetch_channel_metrics(
+        db_session, await channel_of(db_session, insta), days=days
+    )
 
     assert target.metrics == {
         "views": 300,
@@ -361,7 +364,7 @@ async def test_sync_refreshes_recent_stale_posts_only(db_session, monkeypatch):
 
 
 async def test_one_snapshot_per_channel_per_day(db_session, monkeypatch):
-    owner, page, insta, _ = await _seed(db_session, "-snap")
+    owner, page, _insta, _ = await _seed(db_session, "-snap")
 
     async def _fb(self, session, inbox, *, days):
         return MetricsResult(ok=True, metrics={"followers": 100})
@@ -386,18 +389,19 @@ async def test_one_snapshot_per_channel_per_day(db_session, monkeypatch):
             )
         )
     ).all()
-    assert [(r.inbox_id, r.metrics) for r in rows] == [(page.id, {"followers": 100})]
-    assert insta.id not in [r.inbox_id for r in rows]
+    page_channel = await channel_id_of(db_session, page)
+    assert [(r.channel_id, r.metrics) for r in rows] == [(page_channel, {"followers": 100})]
 
 
 async def test_snapshot_merges_the_last_days_figures(db_session, monkeypatch):
     owner, _page, insta, _ = await _seed(db_session, "-merge")
     today = date(2026, 10, 27)
     yesterday = today - timedelta(days=1)
+    insta_channel = await channel_id_of(db_session, insta)
     # Yesterday's run stored that day's follower count.
     db_session.add(
         ChannelMetricSnapshot(
-            account_id=owner.account.id, inbox_id=insta.id, network="instagram",
+            account_id=owner.account.id, channel_id=insta_channel, network="instagram",
             date=yesterday, metrics={"followers": 500},
         )
     )
@@ -425,7 +429,7 @@ async def test_snapshot_merges_the_last_days_figures(db_session, monkeypatch):
     rows = (
         await db_session.exec(
             select(ChannelMetricSnapshot)
-            .where(ChannelMetricSnapshot.inbox_id == insta.id)
+            .where(ChannelMetricSnapshot.channel_id == insta_channel)
             .order_by(ChannelMetricSnapshot.date)
             .execution_options(populate_existing=True)
         )
@@ -450,10 +454,11 @@ async def test_summary_endpoint(client, db_session):
     )
     outside.metrics = {"likes": 999}
     db_session.add_all([fb_post, ig_post, outside])
+    page_channel = await channel_id_of(db_session, page)
     for day, followers in ((date.today() - timedelta(days=3), 90), (date.today(), 100)):
         db_session.add(
             ChannelMetricSnapshot(
-                account_id=owner.account.id, inbox_id=page.id, network="facebook_page",
+                account_id=owner.account.id, channel_id=page_channel, network="facebook_page",
                 date=day, metrics={"followers": followers},
             )
         )
@@ -477,7 +482,7 @@ async def test_summary_endpoint(client, db_session):
     r = await client.get(
         f"/api/v1/accounts/{owner.account.id}/publications/analytics",
         headers=h,
-        params={"inbox_id": insta.id},
+        params={"channel_id": await channel_id_of(db_session, insta)},
     )
     assert r.json()["totals"]["posts"] == 1
 

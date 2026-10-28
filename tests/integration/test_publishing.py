@@ -14,11 +14,16 @@ from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.conversations import models as _conversations  # noqa: F401
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
-from app.domains.publishing.models import Publication, PublicationTarget
+from app.domains.publishing.models import (
+    Publication,
+    PublicationTarget,
+    PublishingChannel,
+)
 from app.domains.teams import models as _teams  # noqa: F401
 from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser
 from app.main import app
 from app.workers import publishing as publishing_worker
+from tests.integration._publishing import channel_id_of, channel_of
 
 pytestmark = pytest.mark.integration
 
@@ -144,6 +149,56 @@ async def test_channels_lists_only_publishable_inboxes(client, db_session):
     assert r.status_code == 200, r.text
     channels = {c["inbox_id"]: c["network"] for c in r.json()}
     assert channels == {fb.id: "facebook_page", ig.id: "instagram"}
+    assert all(c["status"] == "active" and "credentials" not in c for c in r.json())
+
+    # Listing again reuses the same channels.
+    again = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/publications/channels", headers=h
+    )
+    assert [c["id"] for c in again.json()] == [c["id"] for c in r.json()]
+
+
+async def test_channel_name_follows_its_inbox(client, db_session):
+    owner, h = await _seed_admin(db_session, "-rename")
+    fb = await _inbox(db_session, owner.account, kind="facebook", suffix="rename")
+    channel = await channel_of(db_session, fb)
+    fb.name = "Pagina nueva"
+    db_session.add(fb)
+    await db_session.flush()
+
+    r = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/publications/channels", headers=h
+    )
+    assert [(c["id"], c["name"]) for c in r.json()] == [(channel.id, "Pagina nueva")]
+
+
+async def test_channels_without_adapter_or_to_reconnect(client, db_session, enqueued):
+    owner, h = await _seed_admin(db_session, "-recon")
+    fb = await _inbox(db_session, owner.account, kind="facebook", suffix="recon")
+    channel = await channel_of(db_session, fb)
+    channel.status = "reconnect"
+    channel.status_message = "El token venció"
+    # A network AloStudio can't publish to (yet) is left out of the list.
+    db_session.add_all([
+        channel,
+        PublishingChannel(
+            account_id=owner.account.id, network="unknown_net", name="X", external_id="1"
+        ),
+    ])
+    await db_session.flush()
+    url = f"/api/v1/accounts/{owner.account.id}/publications"
+
+    r = await client.get(f"{url}/channels", headers=h)
+    assert [(c["id"], c["status"], c["status_message"]) for c in r.json()] == [
+        (channel.id, "reconnect", "El token venció")
+    ]
+
+    r = await client.post(
+        url, headers=h, json={"content": "x", "targets": [{"channel_id": channel.id}]}
+    )
+    assert r.status_code == 422
+    assert "volver a conectar" in r.json()["message"]
+    assert enqueued == []
 
 
 async def test_create_scheduled_waits_for_the_scheduler(client, db_session, enqueued):
@@ -159,8 +214,8 @@ async def test_create_scheduled_waits_for_the_scheduler(client, db_session, enqu
             "media": [IMAGE],
             "scheduled_for": _future(),
             "targets": [
-                {"inbox_id": fb.id},
-                {"inbox_id": ig.id, "settings": {"post_type": "feed"}},
+                {"channel_id": await channel_id_of(db_session, fb)},
+                {"channel_id": await channel_id_of(db_session, ig), "settings": {"post_type": "feed"}},
             ],
         },
     )
@@ -183,7 +238,7 @@ async def test_create_without_date_is_published_now(client, db_session, enqueued
     r = await client.post(
         f"/api/v1/accounts/{owner.account.id}/publications",
         headers=h,
-        json={"content": "Ya", "targets": [{"inbox_id": fb.id}]},
+        json={"content": "Ya", "targets": [{"channel_id": await channel_id_of(db_session, fb)}]},
     )
     assert r.status_code == 200, r.text
     assert r.json()["state"] == "publishing"
@@ -197,7 +252,7 @@ async def test_draft_is_never_enqueued(client, db_session, enqueued):
     r = await client.post(
         f"/api/v1/accounts/{owner.account.id}/publications",
         headers=h,
-        json={"content": "Idea", "draft": True, "targets": [{"inbox_id": fb.id}]},
+        json={"content": "Idea", "draft": True, "targets": [{"channel_id": await channel_id_of(db_session, fb)}]},
     )
     assert r.status_code == 200, r.text
     assert r.json()["state"] == "draft"
@@ -208,14 +263,16 @@ async def test_rejects_bad_channels(client, db_session, enqueued):
     owner, h = await _seed_admin(db_session, "-bad")
     other, _ = await _seed_admin(db_session, "-bad-other")
     fb = await _inbox(db_session, owner.account, kind="facebook", suffix="bad")
-    api = await _inbox(db_session, owner.account, kind="api", suffix="bad")
+    await _inbox(db_session, owner.account, kind="api", suffix="bad")
+    fb_channel = await channel_id_of(db_session, fb)
     foreign = await _inbox(db_session, other.account, kind="facebook", suffix="badf")
     url = f"/api/v1/accounts/{owner.account.id}/publications"
 
     for targets in (
-        [{"inbox_id": foreign.id}],
-        [{"inbox_id": api.id}],
-        [{"inbox_id": fb.id}, {"inbox_id": fb.id}],
+        [{"channel_id": await channel_id_of(db_session, foreign)}],
+        # An inbox no adapter publishes through has no channel.
+        [{"channel_id": 999_999_999}],
+        [{"channel_id": fb_channel}, {"channel_id": fb_channel}],
     ):
         r = await client.post(
             url, headers=h, json={"content": "x", "targets": targets}
@@ -234,7 +291,7 @@ async def test_adapter_validation_errors_name_the_channel(client, db_session):
         json={
             "content": "Sin foto",
             "scheduled_for": _future(),
-            "targets": [{"inbox_id": ig.id}],
+            "targets": [{"channel_id": await channel_id_of(db_session, ig)}],
         },
     )
     assert r.status_code == 422
@@ -251,7 +308,7 @@ async def test_rejects_past_dates_and_bad_media(client, db_session):
     r = await client.post(
         url,
         headers=h,
-        json={"content": "x", "scheduled_for": past, "targets": [{"inbox_id": fb.id}]},
+        json={"content": "x", "scheduled_for": past, "targets": [{"channel_id": await channel_id_of(db_session, fb)}]},
     )
     assert r.status_code == 422
 
@@ -261,7 +318,7 @@ async def test_rejects_past_dates_and_bad_media(client, db_session):
         json={
             "content": "x",
             "media": [{"type": "gif", "url": "https://x/y.gif"}],
-            "targets": [{"inbox_id": fb.id}],
+            "targets": [{"channel_id": await channel_id_of(db_session, fb)}],
         },
     )
     assert r.status_code == 422
@@ -275,7 +332,7 @@ async def test_list_filters_by_date_state_and_channel(client, db_session, enqueu
 
     soon = (await client.post(
         url, headers=h,
-        json={"content": "pronto", "scheduled_for": _future(2), "targets": [{"inbox_id": fb.id}]},
+        json={"content": "pronto", "scheduled_for": _future(2), "targets": [{"channel_id": await channel_id_of(db_session, fb)}]},
     )).json()
     later = (await client.post(
         url, headers=h,
@@ -283,7 +340,7 @@ async def test_list_filters_by_date_state_and_channel(client, db_session, enqueu
             "content": "despues",
             "media": [IMAGE],
             "scheduled_for": _future(72),
-            "targets": [{"inbox_id": ig.id}],
+            "targets": [{"channel_id": await channel_id_of(db_session, ig)}],
         },
     )).json()
 
@@ -291,7 +348,7 @@ async def test_list_filters_by_date_state_and_channel(client, db_session, enqueu
     r = await client.get(url, headers=h, params={"to": window_to})
     assert [p["id"] for p in r.json()] == [soon["id"]]
 
-    r = await client.get(url, headers=h, params={"inbox_id": ig.id})
+    r = await client.get(url, headers=h, params={"channel_id": await channel_id_of(db_session, ig)})
     assert [p["id"] for p in r.json()] == [later["id"]]
 
     r = await client.get(url, headers=h, params={"state": "scheduled"})
@@ -308,7 +365,7 @@ async def test_edit_and_delete_only_before_publishing(client, db_session, enqueu
 
     created = (await client.post(
         url, headers=h,
-        json={"content": "v1", "scheduled_for": _future(), "targets": [{"inbox_id": fb.id}]},
+        json={"content": "v1", "scheduled_for": _future(), "targets": [{"channel_id": await channel_id_of(db_session, fb)}]},
     )).json()
     r = await client.patch(f"{url}/{created['id']}", headers=h, json={"content": "v2"})
     assert r.status_code == 200, r.text
@@ -336,7 +393,7 @@ async def test_edit_and_delete_only_before_publishing(client, db_session, enqueu
 
     other = (await client.post(
         url, headers=h,
-        json={"content": "borrar", "scheduled_for": _future(), "targets": [{"inbox_id": fb.id}]},
+        json={"content": "borrar", "scheduled_for": _future(), "targets": [{"channel_id": await channel_id_of(db_session, fb)}]},
     )).json()
     r = await client.delete(f"{url}/{other['id']}", headers=h)
     assert r.status_code == 200
@@ -355,7 +412,7 @@ async def test_agent_reads_but_only_admins_publish(client, db_session, enqueued)
     r = await client.post(
         url,
         headers=agent_h,
-        json={"content": "desde agente", "scheduled_for": _future(), "targets": [{"inbox_id": fb.id}]},
+        json={"content": "desde agente", "scheduled_for": _future(), "targets": [{"channel_id": await channel_id_of(db_session, fb)}]},
     )
     assert r.status_code == 401
 
@@ -372,7 +429,7 @@ async def test_retry_requeues_only_failed_targets(client, db_session, enqueued):
             "content": "x",
             "media": [IMAGE],
             "scheduled_for": _future(),
-            "targets": [{"inbox_id": fb.id}, {"inbox_id": ig.id}],
+            "targets": [{"channel_id": await channel_id_of(db_session, fb)}, {"channel_id": await channel_id_of(db_session, ig)}],
         },
     )).json()
     r = await client.post(f"{url}/{created['id']}/retry", headers=h)
@@ -385,8 +442,8 @@ async def test_retry_requeues_only_failed_targets(client, db_session, enqueued):
         select(PublicationTarget).where(PublicationTarget.publication_id == created["id"])
     )).all()
     for target in targets:
-        target.state = "published" if target.inbox_id == fb.id else "failed"
-        target.error_message = None if target.inbox_id == fb.id else "boom"
+        target.state = "published" if target.network == "facebook_page" else "failed"
+        target.error_message = None if target.network == "facebook_page" else "boom"
         db_session.add(target)
     await db_session.flush()
 
@@ -407,7 +464,7 @@ async def test_other_account_publication_is_404(client, db_session, enqueued):
     created = (await client.post(
         f"/api/v1/accounts/{owner.account.id}/publications",
         headers=h,
-        json={"content": "x", "scheduled_for": _future(), "targets": [{"inbox_id": fb.id}]},
+        json={"content": "x", "scheduled_for": _future(), "targets": [{"channel_id": await channel_id_of(db_session, fb)}]},
     )).json()
     r = await client.get(
         f"/api/v1/accounts/{other.account.id}/publications/{created['id']}",

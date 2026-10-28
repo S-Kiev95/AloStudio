@@ -22,6 +22,7 @@ from app.domains.media_library.models import MediaAsset
 from app.domains.publishing.models import ChannelMetricSnapshot
 from app.mcp.server import build_server
 from app.mcp.service import create_token
+from tests.integration._publishing import channel_id_of
 
 import_all_models()
 
@@ -113,15 +114,20 @@ async def test_mcp_schedule_list_and_cancel(mcp_session):
 
     async with Client(build_server()) as client:
         channels = _body(await client.call_tool("list_publication_channels", {}))
-        assert channels["channels"] == [
-            {"inbox_id": inbox.id, "network": "facebook_page", "name": "Pagina MCP"}
-        ]
+        (channel,) = channels["channels"]
+        assert (channel["inbox_id"], channel["network"], channel["name"]) == (
+            inbox.id,
+            "facebook_page",
+            "Pagina MCP",
+        )
+        assert channel["status"] == "active"
+        assert "credentials" not in channel
 
         created = _body(
             await client.call_tool(
                 "create_publication",
                 {
-                    "inbox_ids": [inbox.id],
+                    "channel_ids": [channel["id"]],
                     "content": "Promo del agente",
                     "scheduled_for": when.isoformat(),
                 },
@@ -175,7 +181,7 @@ async def test_mcp_reports_publishing_analytics(mcp_session):
     mcp_session.add(
         ChannelMetricSnapshot(
             account_id=owner.account.id,
-            inbox_id=inbox.id,
+            channel_id=await channel_id_of(mcp_session, inbox),
             network="facebook_page",
             date=datetime.now(UTC).date(),
             metrics={"followers": 321},
@@ -194,11 +200,13 @@ async def test_mcp_reports_publishing_analytics(mcp_session):
 
 async def test_mcp_validation_errors_reach_the_agent(mcp_session):
     _owner, inbox = await _seed(mcp_session, suffix="-err")
+    channel_id = await channel_id_of(mcp_session, inbox)
+    await mcp_session.commit()
 
     async with Client(build_server()) as client:
         with pytest.raises(Exception, match="texto o al menos"):
             await client.call_tool(
-                "create_publication", {"inbox_ids": [inbox.id], "content": ""}
+                "create_publication", {"channel_ids": [channel_id], "content": ""}
             )
 
 
@@ -209,5 +217,5 @@ async def test_mcp_create_requires_write_scope(mcp_session):
         with pytest.raises(Exception, match="requires 'write'"):
             await client.call_tool(
                 "create_publication",
-                {"inbox_ids": [inbox.id], "content": "no"},
+                {"channel_ids": [await channel_id_of(mcp_session, inbox)], "content": "no"},
             )

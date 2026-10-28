@@ -100,7 +100,7 @@ async def index_channels(
 ) -> list[dict[str, Any]]:
     assert ctx.account.id is not None
     channels = await svc.list_channels(session, account_id=ctx.account.id)
-    return [present_channel(inbox, network) for inbox, network in channels]
+    return [present_channel(channel) for channel in channels]
 
 
 @router.get("/analytics")
@@ -109,7 +109,7 @@ async def publications_analytics(
     session: Annotated[AsyncSession, Depends(get_session)],
     from_: Annotated[datetime | None, Query(alias="from")] = None,
     to: datetime | None = None,
-    inbox_id: int | None = None,
+    channel_id: int | None = None,
 ) -> dict[str, Any]:
     """Defaults to the last 30 days."""
     assert ctx.account.id is not None
@@ -120,7 +120,7 @@ async def publications_analytics(
         account_id=ctx.account.id,
         starts_from=since,
         starts_to=until,
-        inbox_id=inbox_id,
+        channel_id=channel_id,
     )
 
 @router.get("")
@@ -130,7 +130,7 @@ async def index_publications(
     from_: Annotated[datetime | None, Query(alias="from")] = None,
     to: datetime | None = None,
     state: str | None = None,
-    inbox_id: int | None = None,
+    channel_id: int | None = None,
     page: int = 1,
 ) -> list[dict[str, Any]]:
     assert ctx.account.id is not None
@@ -140,7 +140,7 @@ async def index_publications(
         starts_from=from_,
         starts_to=to,
         state=state,
-        inbox_id=inbox_id,
+        channel_id=channel_id,
         page=page,
     )
     return await present_publications(session, rows)

@@ -1,7 +1,7 @@
 """Publications and their per-channel targets (account-scoped).
 
 A :class:`Publication` is written and scheduled once; each
-:class:`PublicationTarget` is one channel (an inbox) it goes out to. The
+:class:`PublicationTarget` is one :class:`PublishingChannel` it goes out to. The
 network-specific work happens in ``app.domains.publishing.adapters`` — the
 models only store which adapter owns a target (``network``) and the
 adapter's own options (``settings``) and references (``extra``).
@@ -29,6 +29,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy import text as sa_text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
@@ -62,6 +63,87 @@ TARGET_STATE_PUBLISHED = "published"
 TARGET_STATE_FAILED = "failed"
 
 MEDIA_TYPES: tuple[str, ...] = ("image", "video")
+
+CHANNEL_STATUS_ACTIVE = "active"
+# The network stopped accepting the stored credentials: someone has to
+# connect the account again before it can publish.
+CHANNEL_STATUS_RECONNECT = "reconnect"
+
+
+class PublishingChannel(TimestampMixin, table=True):
+    """An account on a social network that the account publishes to.
+
+    Networks that also message through an inbox (Instagram, Facebook
+    Pages) get one channel per inbox (``inbox_id``), created from the inbox
+    and using its credentials. Networks that only publish hold their own
+    in ``credentials``, keyed by the network's account id
+    (``external_id``). Publications, targets and figures refer to the
+    channel, never to the inbox, so both kinds work the same way.
+    """
+
+    __tablename__ = "publishing_channels"
+    __table_args__ = (
+        UniqueConstraint("inbox_id", name="uniq_publishing_channels_inbox"),
+        Index(
+            "uniq_publishing_channels_account_network_external",
+            "account_id",
+            "network",
+            "external_id",
+            unique=True,
+            postgresql_where=sa_text("external_id IS NOT NULL"),
+        ),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    # Key of the adapter that publishes to this channel.
+    network: str = Field(sa_column=Column(String, nullable=False))
+    name: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    username: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    avatar_url: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    external_id: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    inbox_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("inboxes.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+    )
+    # Tokens of a network that doesn't go through an inbox. Never presented.
+    credentials: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
+    token_expires_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+    status: str = Field(
+        default=CHANNEL_STATUS_ACTIVE,
+        sa_column=Column(
+            String, nullable=False, server_default=CHANNEL_STATUS_ACTIVE
+        ),
+    )
+    status_message: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
 
 
 class Publication(TimestampMixin, table=True):
@@ -132,14 +214,14 @@ class PublicationTarget(TimestampMixin, table=True):
     # Lookups by publication use the leading column of the unique index.
     __table_args__ = (
         Index(
-            "index_publication_targets_on_account_id_and_inbox_id",
+            "index_publication_targets_on_account_id_and_channel_id",
             "account_id",
-            "inbox_id",
+            "channel_id",
         ),
         UniqueConstraint(
             "publication_id",
-            "inbox_id",
-            name="uniq_publication_targets_publication_inbox",
+            "channel_id",
+            name="uniq_publication_targets_publication_channel",
         ),
     )
 
@@ -161,10 +243,10 @@ class PublicationTarget(TimestampMixin, table=True):
             nullable=False,
         ),
     )
-    inbox_id: int = Field(
+    channel_id: int = Field(
         sa_column=Column(
             BigInteger,
-            ForeignKey("inboxes.id", ondelete="CASCADE"),
+            ForeignKey("publishing_channels.id", ondelete="CASCADE"),
             nullable=False,
         ),
     )
@@ -254,7 +336,7 @@ class ChannelMetricSnapshot(TimestampMixin, table=True):
     __tablename__ = "channel_metric_snapshots"
     __table_args__ = (
         UniqueConstraint(
-            "inbox_id", "date", name="uniq_channel_metric_snapshots_inbox_date"
+            "channel_id", "date", name="uniq_channel_metric_snapshots_channel_date"
         ),
         Index(
             "index_channel_metric_snapshots_on_account_id_and_date",
@@ -275,10 +357,10 @@ class ChannelMetricSnapshot(TimestampMixin, table=True):
             nullable=False,
         ),
     )
-    inbox_id: int = Field(
+    channel_id: int = Field(
         sa_column=Column(
             BigInteger,
-            ForeignKey("inboxes.id", ondelete="CASCADE"),
+            ForeignKey("publishing_channels.id", ondelete="CASCADE"),
             nullable=False,
         ),
     )
@@ -292,6 +374,8 @@ class ChannelMetricSnapshot(TimestampMixin, table=True):
 
 __all__ = [
     "CHANNEL_METRIC_KEYS",
+    "CHANNEL_STATUS_ACTIVE",
+    "CHANNEL_STATUS_RECONNECT",
     "MEDIA_TYPES",
     "METRIC_KEYS",
     "PUBLICATION_EDITABLE_STATES",
@@ -309,4 +393,5 @@ __all__ = [
     "ChannelMetricSnapshot",
     "Publication",
     "PublicationTarget",
+    "PublishingChannel",
 ]

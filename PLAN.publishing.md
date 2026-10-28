@@ -179,3 +179,15 @@ Lo implementó Claude (Antigravity se quedó sin cuota al arrancar), con las mis
 - Frontend: calendario y compositor (tanda siguiente).
 - Facebook en producción necesita `pages_manage_posts` en la conexión de páginas y aprobado por Meta.
 - La base de tests local quedó migrada a `d7e8f9a0b1c2`.
+
+## Canales de publicación (2026-10-28)
+
+Para sumar redes que no son bandejas (Threads, TikTok, YouTube, LinkedIn, X, Google Business Profile, Telegram, Discord, Slack, Twitch), el destino de una publicación dejó de ser una bandeja y pasó a ser un **canal de publicación** (`PublishingChannel`, tabla `publishing_channels`, migración `0a1b2c3d4e5f`).
+
+- **Instagram y páginas de Facebook** siguen publicando con las credenciales de su bandeja: cada bandeja que un adaptador `supports` tiene un canal con `inbox_id`, creado y renombrado por `sync_inbox_channels` (al listar canales y antes de la foto diaria de estadísticas). Borrar la bandeja borra su canal.
+- **Las redes nuevas** guardan sus credenciales en el canal (`credentials`, `token_expires_at`, `external_id` de la cuenta en la red) y no tocan las bandejas. `status = "reconnect"` (con `status_message`) marca un canal cuyo token dejó de servir: no se puede elegir para publicar ni se le toman estadísticas.
+- `PublicationTarget` y `ChannelMetricSnapshot` apuntan a `channel_id`. La migración crea un canal por cada bandeja que ya usaban y traslada las filas; el downgrade las devuelve (y descarta las de canales sin bandeja).
+- API, MCP y webhooks hablan de `channel_id`: `GET /publications/channels` devuelve `{id, network, name, username, avatar_url, inbox_id, status, status_message}` (nunca `credentials`); los destinos se crean con `{"channel_id"}`; los filtros de listado y estadísticas son `channel_id`; la tool MCP `create_publication` recibe `channel_ids`; el webhook `publication_completed` manda `channel_id` y, si hay bandeja, `inbox_id`.
+- Adaptadores: `supports(inbox)` ahora es opcional (por defecto `False`), `fetch_channel_metrics` recibe el canal y `channel_inbox(session, channel_id)` da la bandeja a los adaptadores que la usan. Se quitó `channel_label`.
+
+**Siguiente paso:** conexión de cuentas para las redes nuevas: `POST /publications/channels/connect/{network}` → URL de autorización con `state` firmado, callback que crea o actualiza el canal (upsert por `account_id, network, external_id`), `DELETE /publications/channels/{id}` para los canales sin bandeja, y refresco de tokens antes de publicar. La primera red sería Threads, que usa la app de Meta existente y se puede probar con cuentas que tengan rol en la app antes de la revisión de Meta.

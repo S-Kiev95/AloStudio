@@ -287,13 +287,16 @@ def _appointment_webhook_data(appointment: Appointment) -> dict[str, Any]:
 async def _publication_webhook_data(
     session: AsyncSession, publication: Publication
 ) -> dict[str, Any]:
-    from app.domains.publishing.service import targets_by_publication
+    from app.domains.publishing.service import channels_by_id, targets_by_publication
 
     targets = (
         await targets_by_publication(
             session, publication_ids=[publication.id]  # type: ignore[list-item]
         )
     ).get(publication.id, [])  # type: ignore[call-overload]
+    channels = await channels_by_id(
+        session, channel_ids=[t.channel_id for t in targets]
+    )
     return {
         "account": {"id": publication.account_id},
         "id": publication.id,
@@ -304,7 +307,11 @@ async def _publication_webhook_data(
         "published_at": _jsonable(publication.published_at),
         "targets": [
             {
-                "inbox_id": t.inbox_id,
+                "channel_id": t.channel_id,
+                # Set for channels that publish through an inbox.
+                "inbox_id": channels[t.channel_id].inbox_id
+                if t.channel_id in channels
+                else None,
                 "network": t.network,
                 "state": t.state,
                 "external_id": t.external_id,

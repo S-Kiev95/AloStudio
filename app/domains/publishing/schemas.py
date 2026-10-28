@@ -21,7 +21,7 @@ class MediaItem(BaseModel):
 class PublicationTargetIn(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    inbox_id: int
+    channel_id: int
     settings: dict[str, Any] = Field(default_factory=dict)
     content_override: str | None = None
 

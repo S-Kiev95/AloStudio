@@ -11,6 +11,7 @@ from app.domains.publishing.adapters.base import (
     MetricsResult,
     PublishingAdapter,
     PublishResult,
+    channel_inbox,
     target_text,
 )
 from app.domains.publishing.adapters.facebook_page import FacebookPageAdapter
@@ -42,5 +43,6 @@ __all__ = [
     "PublishingAdapter",
     "adapter_for_inbox",
     "adapter_for_network",
+    "channel_inbox",
     "target_text",
 ]

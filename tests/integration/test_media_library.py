@@ -34,6 +34,7 @@ from app.domains.uploads.public_router import public_media_url
 from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser
 from app.main import app
 from app.workers import publishing as publishing_worker
+from tests.integration._publishing import channel_id_of
 
 pytestmark = pytest.mark.integration
 
@@ -206,7 +207,7 @@ async def test_boolean_media_id_is_not_an_asset(client, db_session, store):
             "content": "x",
             "media": [{"media_id": True}],
             "scheduled_for": _future(),
-            "targets": [{"inbox_id": page.id}],
+            "targets": [{"channel_id": await channel_id_of(db_session, page)}],
         },
     )
     assert r.status_code == 422
@@ -258,7 +259,7 @@ async def test_publication_uses_library_media(client, db_session, store):
             "content": "con foto",
             "media": [{"media_id": asset["id"]}],
             "scheduled_for": _future(),
-            "targets": [{"inbox_id": page.id}],
+            "targets": [{"channel_id": await channel_id_of(db_session, page)}],
         },
     )
     assert r.status_code == 200, r.text
@@ -274,7 +275,7 @@ async def test_publication_uses_library_media(client, db_session, store):
             "content": "ajena",
             "media": [{"media_id": foreign["id"]}],
             "scheduled_for": _future(),
-            "targets": [{"inbox_id": page.id}],
+            "targets": [{"channel_id": await channel_id_of(db_session, page)}],
         },
     )
     assert r.status_code == 422
@@ -292,7 +293,7 @@ async def test_media_in_a_pending_publication_cannot_be_deleted(client, db_sessi
                 "content": "x",
                 "media": [{"media_id": asset["id"]}],
                 "scheduled_for": _future(),
-                "targets": [{"inbox_id": page.id}],
+                "targets": [{"channel_id": await channel_id_of(db_session, page)}],
             },
         )
     ).json()
@@ -353,7 +354,7 @@ async def test_links_are_signed_again_when_publishing(db_session, store, monkeyp
             "content": "x",
             "media": [{"media_id": asset.id}],
             "scheduled_for": datetime.now(UTC) + timedelta(hours=1),
-            "targets": [{"inbox_id": page.id}],
+            "targets": [{"channel_id": await channel_id_of(db_session, page)}],
         },
     )
     publication.scheduled_for = datetime.now(UTC) - timedelta(minutes=1)
@@ -389,7 +390,7 @@ async def test_deleted_media_fails_the_publication(db_session, store, monkeypatc
             "content": "x",
             "media": [{"media_id": asset.id}],
             "scheduled_for": datetime.now(UTC) + timedelta(hours=1),
-            "targets": [{"inbox_id": page.id}],
+            "targets": [{"channel_id": await channel_id_of(db_session, page)}],
         },
     )
     publication.scheduled_for = datetime.now(UTC) - timedelta(minutes=1)
