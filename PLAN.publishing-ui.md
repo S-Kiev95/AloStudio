@@ -15,6 +15,7 @@ Rama `feat/publishing-ui`, worktree `C:\Users\Zeek\Desktop\AloStudio-publishing-
 - `docs/design-neon/DESIGN.md` y `frontend/DESIGN-SYSTEM.md`: el sistema de diseño neón ya aplicado en toda la app. Respetalo; no inventes estilos nuevos.
 - `docs/design-neon/screens/calendar.png` y `docs/design-neon/screens/analytics.png`: **referencia de layout**, no de textos. El calendario tiene la barra de rango con flechas y "Hoy", el selector Día/Semana/Mes, el alternador calendario/lista y el panel de canales a la derecha. Analytics tiene el estado vacío centrado con las redes soportadas. Los textos van en español y las redes son solo las que soporta AloStudio.
 - `docs/design-neon/after/agenda-*.png`: cómo quedó la agenda, que es el patrón visual más cercano.
+- `docs/design-neon/postiz/`: capturas a 1440 px de la versión anterior del producto, **la referencia que el dueño quiere seguir**. Para este plan: `02-calendario-semana.jpg` (barra de rango, Día/Semana/Mes, alternador calendario/lista, botón "Crear publicación" y panel de canales con "Agregar canal"), `05-medios-vacio.jpg`, `04-estadisticas-vacio.jpg`, `01-inicio.jpg` y la columna izquierda de cualquiera (el menú). Copiá la disposición, el espaciado y la jerarquía; los textos van en español y con lo que hace AloStudio. Las demás capturas (bandeja, ajustes) son para un plan siguiente: no las implementes ahora.
 
 ## Reglas para el agente
 
