@@ -10,6 +10,7 @@ from app.domains.inboxes.models import Inbox
 from app.domains.publishing.adapters.base import (
     ChannelConnectionError,
     ConnectedAccount,
+    ConnectionField,
     Credentials,
     MetricsResult,
     PublishingAdapter,
@@ -18,14 +19,18 @@ from app.domains.publishing.adapters.base import (
     mark_reconnect,
     target_text,
 )
+from app.domains.publishing.adapters.discord import DiscordAdapter
 from app.domains.publishing.adapters.facebook_page import FacebookPageAdapter
 from app.domains.publishing.adapters.instagram import InstagramAdapter
+from app.domains.publishing.adapters.telegram import TelegramAdapter
 from app.domains.publishing.adapters.threads import ThreadsAdapter
 
 _ADAPTERS: tuple[PublishingAdapter, ...] = (
     InstagramAdapter(),
     FacebookPageAdapter(),
     ThreadsAdapter(),
+    TelegramAdapter(),
+    DiscordAdapter(),
 )
 
 
@@ -51,6 +56,7 @@ def adapter_for_inbox(inbox: Inbox) -> PublishingAdapter | None:
 __all__ = [
     "ChannelConnectionError",
     "ConnectedAccount",
+    "ConnectionField",
     "Credentials",
     "MetricsResult",
     "PublishResult",

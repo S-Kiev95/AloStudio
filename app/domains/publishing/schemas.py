@@ -48,7 +48,16 @@ class PublicationUpdate(BaseModel):
     targets: list[PublicationTargetIn] | None = Field(default=None, min_length=1)
 
 
+class ChannelConnectIn(BaseModel):
+    """Values pasted to connect a network that connects by form."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    fields: dict[str, str] = Field(default_factory=dict)
+
+
 __all__ = [
+    "ChannelConnectIn",
     "MediaItem",
     "PublicationCreate",
     "PublicationTargetIn",

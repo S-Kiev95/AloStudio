@@ -51,7 +51,11 @@ from app.domains.publishing.presenters import (
     present_one_publication,
     present_publications,
 )
-from app.domains.publishing.schemas import PublicationCreate, PublicationUpdate
+from app.domains.publishing.schemas import (
+    ChannelConnectIn,
+    PublicationCreate,
+    PublicationUpdate,
+)
 
 router = APIRouter(
     prefix="/api/v1/accounts/{account_id}/publications",
@@ -128,9 +132,21 @@ async def index_networks(
 async def connect_channel(
     network: Annotated[str, Path()],
     ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    payload: ChannelConnectIn | None = None,
 ) -> dict[str, Any]:
-    """The URL the owner's browser goes to, to authorize an account."""
+    """``{"authorize_url"}`` the owner's browser goes to, for a network that
+    authorizes; ``{"channel"}`` already connected, for one that connects by
+    form (``{"fields": {...}}`` as ``/networks`` describes)."""
     assert ctx.account.id is not None
+    if connections.connects_by_form(network):
+        channel = await connections.connect_with_fields(
+            session,
+            account_id=ctx.account.id,
+            network=network,
+            values=payload.fields if payload else {},
+        )
+        return {"channel": present_channel(channel)}
     return {"authorize_url": connections.start_connection(ctx.account.id, network)}
 
 

@@ -76,6 +76,16 @@ class ConnectedAccount(Credentials):
     avatar_url: str | None = None
 
 
+@dataclass(frozen=True)
+class ConnectionField:
+    """One value the owner pastes to connect a channel by form."""
+
+    name: str
+    label: str
+    help: str = ""
+    secret: bool = False
+
+
 class ChannelConnectionError(Exception):
     """A connection or token renewal the network refused; the message is
     in Spanish, for the owner."""
@@ -89,6 +99,10 @@ class PublishingAdapter(ABC):
     #: Name shown to connect a channel of a network that doesn't publish
     #: through an inbox; ``None`` for those that do.
     label: ClassVar[str | None] = None
+    #: Networks connected by pasting values (a bot token, a webhook URL)
+    #: instead of authorizing in the network: the values asked for, all
+    #: required. Empty for networks that authorize.
+    connection_fields: ClassVar[tuple[ConnectionField, ...]] = ()
 
     def supports(self, inbox: Inbox) -> bool:
         """Whether this adapter publishes through the inbox (networks that
@@ -111,6 +125,11 @@ class PublishingAdapter(ABC):
     ) -> ConnectedAccount:
         """Trade the authorization code for the account and its
         credentials. Raises :class:`ChannelConnectionError`."""
+        raise NotImplementedError
+
+    async def connect_with_fields(self, values: dict[str, str]) -> ConnectedAccount:
+        """Check the pasted ``connection_fields`` with the network and return
+        the account they reach. Raises :class:`ChannelConnectionError`."""
         raise NotImplementedError
 
     async def refresh_credentials(
@@ -187,6 +206,7 @@ def target_text(publication: Publication, target: PublicationTarget) -> str:
 __all__ = [
     "ChannelConnectionError",
     "ConnectedAccount",
+    "ConnectionField",
     "Credentials",
     "MetricsResult",
     "PublishResult",

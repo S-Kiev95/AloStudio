@@ -1,16 +1,19 @@
 """Connecting channels of networks that don't publish through an inbox.
 
-The owner asks to connect a network, their browser goes to that network to
-authorize an account and comes back to one callback for every network
-(``publishing_oauth_redirect_uri``); the signed ``state`` says which account
-and network it was. The account becomes a channel — or refreshes the one it
-already is, matched by the network's account id. Every network step goes
-through the adapter, so nothing here names a network.
+Most networks authorize: the owner's browser goes to the network and comes
+back to one callback for every network (``publishing_oauth_redirect_uri``),
+where the signed ``state`` says which account and network it was. Others
+connect by form: the owner pastes what the adapter asks for (a bot token, a
+webhook URL) and the adapter checks it with the network. Either way the
+account becomes a channel — or refreshes the one it already is, matched by
+the network's account id. Every network step goes through the adapter, so
+nothing here names a network.
 """
 
 from __future__ import annotations
 
 import logging
+from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -22,6 +25,7 @@ from app.core.errors import ChatwootHTTPException
 from app.core.oauth_state import sign_oauth_state
 from app.domains.publishing.adapters import (
     ChannelConnectionError,
+    ConnectedAccount,
     PublishingAdapter,
     adapter_for_network,
     connectable_adapters,
@@ -61,9 +65,15 @@ def connectable_networks() -> list[dict[str, Any]]:
             "network": adapter.network,
             "label": adapter.label,
             "configured": not adapter.missing_connection_settings(),
+            "kind": "form" if adapter.connection_fields else "authorize",
+            "fields": [asdict(f) for f in adapter.connection_fields],
         }
         for adapter in connectable_adapters()
     ]
+
+
+def connects_by_form(network: str) -> bool:
+    return bool(_connectable(network).connection_fields)
 
 
 def start_connection(account_id: int, network: str) -> str:
@@ -104,6 +114,39 @@ async def complete_connection(
         )
     except ChannelConnectionError as exc:
         raise _unprocessable(str(exc)) from exc
+    return await _store(session, account_id=account_id, adapter=adapter, connected=connected)
+
+
+async def connect_with_fields(
+    session: AsyncSession,
+    *,
+    account_id: int,
+    network: str,
+    values: dict[str, str],
+) -> PublishingChannel:
+    """Connect a network that takes pasted values. 422 when one is missing or
+    the network rejects them."""
+    adapter = _connectable(network)
+    clean = {k: (v or "").strip() for k, v in values.items()}
+    missing = [f.label for f in adapter.connection_fields if not clean.get(f.name)]
+    if missing:
+        raise _unprocessable(f"Falta completar: {', '.join(missing)}")
+    try:
+        connected = await adapter.connect_with_fields(
+            {f.name: clean[f.name] for f in adapter.connection_fields}
+        )
+    except ChannelConnectionError as exc:
+        raise _unprocessable(str(exc)) from exc
+    return await _store(session, account_id=account_id, adapter=adapter, connected=connected)
+
+
+async def _store(
+    session: AsyncSession,
+    *,
+    account_id: int,
+    adapter: PublishingAdapter,
+    connected: ConnectedAccount,
+) -> PublishingChannel:
     if not connected.external_id:
         raise _unprocessable(f"{adapter.label} no identificó la cuenta autorizada")
 
@@ -189,7 +232,9 @@ async def refresh_expiring_channels(
 
 __all__ = [
     "complete_connection",
+    "connect_with_fields",
     "connectable_networks",
+    "connects_by_form",
     "delete_channel",
     "network_of_state",
     "refresh_expiring_channels",

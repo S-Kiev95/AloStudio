@@ -171,7 +171,13 @@ async def test_networks_and_connect_need_the_settings(client, db_session):
     settings.threads_app_id = ""
     try:
         r = await client.get(f"{base}/networks", headers=h)
-        assert {"network": "threads", "label": "Threads", "configured": False} in r.json()
+        assert {
+            "network": "threads",
+            "label": "Threads",
+            "configured": False,
+            "kind": "authorize",
+            "fields": [],
+        } in r.json()
         r = await client.post(f"{base}/channels/connect/threads", headers=h)
         assert r.status_code == 422
         assert "THREADS_APP_ID" in r.json()["message"]
