@@ -19,6 +19,7 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
     Date,
     DateTime,
@@ -372,6 +373,76 @@ class ChannelMetricSnapshot(TimestampMixin, table=True):
     )
 
 
+
+class PublishingSignature(TimestampMixin, table=True):
+    """A saved text the composer adds to a publication (contact details,
+    hashtags…). At most one per account is added on its own to every new
+    publication (``auto_add``)."""
+
+    __tablename__ = "publishing_signatures"
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    content: str = Field(sa_column=Column(Text, nullable=False))
+    auto_add: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="false"),
+    )
+    created_by_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+
+
+class PublicationSet(TimestampMixin, table=True):
+    """The composer saved under a name — text, media and the channels with
+    their per-network settings — so a publication can start from it.
+    ``payload`` has the shape of a publication request without the date:
+    ``{"content", "media": [...], "targets": [{"channel_id", "settings",
+    "content_override"}]}``."""
+
+    __tablename__ = "publication_sets"
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    name: str = Field(sa_column=Column(String, nullable=False))
+    payload: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
+    created_by_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+
 __all__ = [
     "CHANNEL_METRIC_KEYS",
     "CHANNEL_STATUS_ACTIVE",
@@ -392,6 +463,8 @@ __all__ = [
     "TARGET_STATE_PUBLISHING",
     "ChannelMetricSnapshot",
     "Publication",
+    "PublicationSet",
     "PublicationTarget",
     "PublishingChannel",
+    "PublishingSignature",
 ]

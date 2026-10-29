@@ -6,6 +6,8 @@ Route map:
   * ``POST   /api/v1/accounts/{account_id}/publications/channels/connect/{network}``
   * ``DELETE /api/v1/accounts/{account_id}/publications/channels/{channel_id}``
   * ``GET    /api/v1/accounts/{account_id}/publications/networks``
+  * ``GET    /api/v1/accounts/{account_id}/publications/signatures`` (+ POST, PATCH/DELETE ``/{id}``)
+  * ``GET    /api/v1/accounts/{account_id}/publications/sets`` (+ POST, PATCH/DELETE ``/{id}``)
   * ``GET    /api/v1/accounts/{account_id}/publications/analytics``
   * ``GET    /api/v1/accounts/{account_id}/publications``
   * ``POST   /api/v1/accounts/{account_id}/publications``
@@ -38,23 +40,31 @@ from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
 from app.core.oauth_state import verify_oauth_state
-from app.domains.publishing import analytics, connections
+from app.domains.publishing import analytics, connections, presets
 from app.domains.publishing import service as svc
 from app.domains.publishing.models import (
     PUBLICATION_STATE_PUBLISHING,
     PUBLICATION_STATE_SCHEDULED,
     Publication,
+    PublicationSet,
     PublishingChannel,
+    PublishingSignature,
 )
 from app.domains.publishing.presenters import (
     present_channel,
     present_one_publication,
     present_publications,
+    present_sets,
+    present_signature,
 )
 from app.domains.publishing.schemas import (
     ChannelConnectIn,
     PublicationCreate,
+    PublicationSetIn,
+    PublicationSetUpdate,
     PublicationUpdate,
+    SignatureIn,
+    SignatureUpdate,
 )
 
 router = APIRouter(
@@ -163,6 +173,140 @@ async def delete_channel_endpoint(
             detail={"error": "Resource could not be found"},
         )
     await connections.delete_channel(session, channel=channel)
+    return {}
+
+
+def _not_found() -> ChatwootHTTPException:
+    return ChatwootHTTPException(
+        status_code=404, detail={"error": "Resource could not be found"}
+    )
+
+
+# -- Signatures (agents read; admins write, like publications) --------------
+@router.get("/signatures")
+async def index_signatures(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    assert ctx.account.id is not None
+    rows = await presets.list_signatures(session, account_id=ctx.account.id)
+    return [present_signature(row) for row in rows]
+
+
+@router.post("/signatures", status_code=status.HTTP_200_OK)
+async def create_signature(
+    payload: SignatureIn,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    signature = await presets.save_signature(
+        session,
+        signature=PublishingSignature(
+            account_id=ctx.account.id, content=payload.content, created_by_id=ctx.user.id
+        ),
+        auto_add=payload.auto_add,
+    )
+    return present_signature(signature)
+
+
+@router.patch("/signatures/{signature_id}")
+async def update_signature(
+    signature_id: Annotated[int, Path()],
+    payload: SignatureUpdate,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    signature = await presets.get_signature(
+        session, account_id=ctx.account.id, signature_id=signature_id
+    )
+    if signature is None:
+        raise _not_found()
+    signature = await presets.save_signature(
+        session, signature=signature, content=payload.content, auto_add=payload.auto_add
+    )
+    return present_signature(signature)
+
+
+@router.delete("/signatures/{signature_id}", status_code=status.HTTP_200_OK)
+async def delete_signature_endpoint(
+    signature_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    signature = await presets.get_signature(
+        session, account_id=ctx.account.id, signature_id=signature_id
+    )
+    if signature is None:
+        raise _not_found()
+    await presets.delete_signature(session, signature=signature)
+    return {}
+
+
+# -- Sets ---------------------------------------------------------------------
+@router.get("/sets")
+async def index_sets(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    assert ctx.account.id is not None
+    rows = await presets.list_sets(session, account_id=ctx.account.id)
+    return await present_sets(session, rows)
+
+
+@router.post("/sets", status_code=status.HTTP_200_OK)
+async def create_set(
+    payload: PublicationSetIn,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    publication_set = await presets.save_set(
+        session,
+        publication_set=PublicationSet(
+            account_id=ctx.account.id, name=payload.name, created_by_id=ctx.user.id
+        ),
+        values=payload.model_dump(),
+    )
+    return (await present_sets(session, [publication_set]))[0]
+
+
+@router.patch("/sets/{set_id}")
+async def update_set(
+    set_id: Annotated[int, Path()],
+    payload: PublicationSetUpdate,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    publication_set = await presets.get_set(
+        session, account_id=ctx.account.id, set_id=set_id
+    )
+    if publication_set is None:
+        raise _not_found()
+    publication_set = await presets.save_set(
+        session,
+        publication_set=publication_set,
+        values=payload.model_dump(exclude_unset=True),
+    )
+    return (await present_sets(session, [publication_set]))[0]
+
+
+@router.delete("/sets/{set_id}", status_code=status.HTTP_200_OK)
+async def delete_set_endpoint(
+    set_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    publication_set = await presets.get_set(
+        session, account_id=ctx.account.id, set_id=set_id
+    )
+    if publication_set is None:
+        raise _not_found()
+    await presets.delete_set(session, publication_set=publication_set)
     return {}
 
 

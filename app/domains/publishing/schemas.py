@@ -48,6 +48,40 @@ class PublicationUpdate(BaseModel):
     targets: list[PublicationTargetIn] | None = Field(default=None, min_length=1)
 
 
+class SignatureIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    content: str = Field(min_length=1, max_length=2000)
+    auto_add: bool = False
+
+
+class SignatureUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    content: str | None = Field(default=None, min_length=1, max_length=2000)
+    auto_add: bool | None = None
+
+
+class PublicationSetIn(BaseModel):
+    """A saved composer: everything a publication takes but its date."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = Field(min_length=1, max_length=120)
+    content: str | None = None
+    media: list[MediaItem] = Field(default_factory=list)
+    targets: list[PublicationTargetIn] = Field(default_factory=list)
+
+
+class PublicationSetUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    content: str | None = None
+    media: list[MediaItem] | None = None
+    targets: list[PublicationTargetIn] | None = None
+
+
 class ChannelConnectIn(BaseModel):
     """Values pasted to connect a network that connects by form."""
 
@@ -60,6 +94,10 @@ __all__ = [
     "ChannelConnectIn",
     "MediaItem",
     "PublicationCreate",
+    "PublicationSetIn",
+    "PublicationSetUpdate",
     "PublicationTargetIn",
     "PublicationUpdate",
+    "SignatureIn",
+    "SignatureUpdate",
 ]
