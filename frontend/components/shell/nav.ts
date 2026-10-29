@@ -1,13 +1,14 @@
 import {
   BarChart3,
   BookOpen,
-  Calendar,
+  CalendarDays,
+  ChartLine,
   Home,
+  Images,
+  Inbox,
   Instagram,
   type LucideIcon,
   Megaphone,
-  MessagesSquare,
-  Package,
   Settings,
   Users,
 } from "lucide-react";
@@ -17,20 +18,44 @@ export type NavItem = {
   label: string;
   icon: LucideIcon;
   segment: string; // "" = account home
+  /** Additional segments under `/accounts/[accountId]/` that activate this item. */
+  matchSegments?: string[];
 };
 
 export const NAV_ITEMS: NavItem[] = [
   { key: "home", label: "Inicio", icon: Home, segment: "" },
   {
+    key: "calendar",
+    label: "Calendario",
+    icon: CalendarDays,
+    segment: "publications",
+  },
+  {
+    key: "analytics",
+    label: "Estadísticas",
+    icon: ChartLine,
+    segment: "publications/analytics",
+  },
+  {
+    key: "media",
+    label: "Medios",
+    icon: Images,
+    segment: "publications/media",
+  },
+  {
     key: "conversations",
-    label: "Conversaciones",
-    icon: MessagesSquare,
+    label: "Bandeja",
+    icon: Inbox,
     segment: "conversations",
   },
-  { key: "contacts", label: "Contactos", icon: Users, segment: "contacts" },
+  {
+    key: "crm",
+    label: "CRM",
+    icon: Users,
+    segment: "contacts",
+    matchSegments: ["contacts", "products", "agenda"],
+  },
   { key: "instagram", label: "Instagram", icon: Instagram, segment: "instagram" },
-  { key: "products", label: "Productos", icon: Package, segment: "products" },
-  { key: "agenda", label: "Agenda", icon: Calendar, segment: "agenda" },
   {
     key: "help-center",
     label: "Help Center",
@@ -47,21 +72,60 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "settings", label: "Ajustes", icon: Settings, segment: "settings" },
 ];
 
-/** The nav grouped into labelled sections — a quieter, more scannable sidebar
- *  than one flat list of nine. `label: null` renders headerless (Inicio sits
- *  on its own up top; Ajustes on its own at the bottom). */
+/** Flat main section list up top with Ajustes pinned to the bottom (DESIGN.md). */
 export type NavGroup = { label: string | null; keys: string[] };
 
 export const NAV_GROUPS: NavGroup[] = [
-  { label: null, keys: ["home"] },
-  { label: "Bandeja", keys: ["conversations", "contacts", "instagram"] },
   {
-    label: "Crecimiento",
-    keys: ["products", "agenda", "help-center", "campaigns", "reports"],
+    label: null,
+    keys: [
+      "home",
+      "calendar",
+      "analytics",
+      "media",
+      "conversations",
+      "crm",
+      "instagram",
+      "help-center",
+      "campaigns",
+      "reports",
+    ],
   },
   { label: null, keys: ["settings"] },
 ];
 
 export function navHref(accountId: string, segment: string): string {
   return segment ? `/accounts/${accountId}/${segment}` : `/accounts/${accountId}`;
+}
+
+/**
+ * Resolve which ``NavItem.key`` is active for ``pathname`` using longest-prefix
+ * matching so ``publications/media`` and ``publications/analytics`` do not
+ * highlight ``Calendario`` (``publications``), while subroutes and CRM tabs do.
+ */
+export function activeNavItemKey(
+  pathname: string,
+  accountId: string,
+): string | null {
+  const homeHref = navHref(accountId, "");
+  if (pathname === homeHref) return "home";
+
+  let bestKey: string | null = null;
+  let bestLen = -1;
+
+  for (const item of NAV_ITEMS) {
+    const segments = item.matchSegments ?? (item.segment ? [item.segment] : []);
+    for (const seg of segments) {
+      if (!seg) continue;
+      const href = navHref(accountId, seg);
+      if (pathname === href || pathname.startsWith(`${href}/`)) {
+        if (href.length > bestLen) {
+          bestLen = href.length;
+          bestKey = item.key;
+        }
+      }
+    }
+  }
+
+  return bestKey;
 }
