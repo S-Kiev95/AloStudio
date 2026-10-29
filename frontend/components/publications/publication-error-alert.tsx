@@ -20,7 +20,7 @@ export function PublicationErrorAlert({
     <div
       role="alert"
       className={cn(
-        "flex items-start justify-between gap-2 rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger",
+        "flex items-start justify-between gap-2 rounded-md border border-danger bg-surface-2 px-3 py-2 text-sm text-danger",
         className,
       )}
     >
@@ -39,7 +39,7 @@ export function PublicationErrorAlert({
           type="button"
           aria-label="Cerrar aviso"
           onClick={onDismiss}
-          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-danger/80 hover:bg-danger/10 hover:text-danger"
+          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-danger hover:bg-hover-glass"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
         </button>

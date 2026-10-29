@@ -151,6 +151,16 @@ export type Signature = {
   updated_at: string | null;
 };
 
+export type SignatureIn = {
+  content: string;
+  auto_add?: boolean;
+};
+
+export type SignaturePatchIn = {
+  content?: string;
+  auto_add?: boolean;
+};
+
 export type PublicationSetMedia =
   | { media_id: number; type: "image" | "video"; url: string }
   | { type: "image" | "video"; url: string };
@@ -177,6 +187,96 @@ export type PublicationSetIn = {
   content?: string | null;
   media?: MediaIn[];
   targets: TargetIn[];
+};
+
+export type PublicationSetPatchIn = {
+  name?: string;
+  content?: string | null;
+  media?: MediaIn[];
+  targets?: TargetIn[];
+};
+
+export type AutopostMode = "publish" | "draft";
+
+export type Autopost = {
+  id: number;
+  name: string;
+  feed_url: string;
+  mode: AutopostMode;
+  active: boolean;
+  start_with_latest: boolean;
+  channel_ids: number[]; // vacío = todos los canales
+  last_checked_at: string | null;
+  last_error: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AutopostIn = {
+  name: string;
+  feed_url: string;
+  mode?: AutopostMode;
+  active?: boolean;
+  start_with_latest?: boolean;
+  channel_ids?: number[];
+};
+
+export type AutopostPatchIn = Partial<AutopostIn>;
+
+export type FeedPreviewItem = {
+  title: string;
+  link: string;
+  image_url: string | null;
+  published_at: string | null;
+};
+
+export type FeedPreviewResponse = {
+  items: FeedPreviewItem[];
+};
+
+export type PlugKind = {
+  kind: string;
+  label: string;
+  description: string;
+  message_max: number | null;
+};
+
+export type PlugCatalogEntry = {
+  network: string;
+  kinds: PlugKind[];
+};
+
+export type PlugRun = {
+  target_id: number;
+  ok: boolean;
+  error_message: string | null;
+  ran_at: string | null;
+};
+
+export type Plug = {
+  id: number;
+  channel_id: number;
+  kind: string;
+  likes_threshold: number;
+  message: string | null;
+  active: boolean;
+  runs: PlugRun[];
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type PlugIn = {
+  channel_id: number;
+  kind: string;
+  likes_threshold: number;
+  message?: string | null;
+  active?: boolean;
+};
+
+export type PlugPatchIn = {
+  likes_threshold?: number;
+  message?: string | null;
+  active?: boolean;
 };
 
 export type ParsedPublicationError = {
@@ -469,6 +569,9 @@ export function usePublicationAnalytics(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Signatures
+// ---------------------------------------------------------------------------
 export function usePublicationSignatures(accountId: string, enabled = true) {
   return useQuery({
     queryKey: ["publication-signatures", accountId],
@@ -477,6 +580,50 @@ export function usePublicationSignatures(accountId: string, enabled = true) {
   });
 }
 
+export function useCreatePublicationSignature(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SignatureIn) =>
+      apiFetch<Signature>(`${base(accountId)}/signatures`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publication-signatures", accountId] });
+    },
+  });
+}
+
+export function useUpdatePublicationSignature(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; patch: SignaturePatchIn }) =>
+      apiFetch<Signature>(`${base(accountId)}/signatures/${input.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input.patch),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publication-signatures", accountId] });
+    },
+  });
+}
+
+export function useDeletePublicationSignature(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Record<string, never>>(`${base(accountId)}/signatures/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publication-signatures", accountId] });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Sets
+// ---------------------------------------------------------------------------
 export function usePublicationSets(accountId: string, enabled = true) {
   return useQuery({
     queryKey: ["publication-sets", accountId],
@@ -495,6 +642,157 @@ export function useCreatePublicationSet(accountId: string) {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["publication-sets", accountId] });
+    },
+  });
+}
+
+export function useUpdatePublicationSet(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; patch: PublicationSetPatchIn }) =>
+      apiFetch<PublicationSet>(`${base(accountId)}/sets/${input.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input.patch),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publication-sets", accountId] });
+    },
+  });
+}
+
+export function useDeletePublicationSet(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Record<string, never>>(`${base(accountId)}/sets/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publication-sets", accountId] });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Auto post (RSS / Atom feeds)
+// ---------------------------------------------------------------------------
+export function usePublicationAutoposts(accountId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["publication-autoposts", accountId],
+    queryFn: () => apiFetch<Autopost[]>(`${base(accountId)}/autoposts`),
+    enabled,
+  });
+}
+
+export function useCreatePublicationAutopost(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AutopostIn) =>
+      apiFetch<Autopost>(`${base(accountId)}/autoposts`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publication-autoposts", accountId] });
+    },
+  });
+}
+
+export function useUpdatePublicationAutopost(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; patch: AutopostPatchIn }) =>
+      apiFetch<Autopost>(`${base(accountId)}/autoposts/${input.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input.patch),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publication-autoposts", accountId] });
+    },
+  });
+}
+
+export function useDeletePublicationAutopost(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Record<string, never>>(`${base(accountId)}/autoposts/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publication-autoposts", accountId] });
+    },
+  });
+}
+
+export function usePreviewPublicationAutopost(accountId: string) {
+  return useMutation({
+    mutationFn: (feed_url: string) =>
+      apiFetch<FeedPreviewResponse>(`${base(accountId)}/autoposts/preview`, {
+        method: "POST",
+        body: JSON.stringify({ feed_url }),
+      }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Plugs (automatic actions at N likes)
+// ---------------------------------------------------------------------------
+export function usePublicationPlugsCatalog(accountId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["publication-plugs-catalog", accountId],
+    queryFn: () =>
+      apiFetch<PlugCatalogEntry[]>(`${base(accountId)}/plugs/catalog`),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function usePublicationPlugs(accountId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["publication-plugs", accountId],
+    queryFn: () => apiFetch<Plug[]>(`${base(accountId)}/plugs`),
+    enabled,
+  });
+}
+
+export function useCreatePublicationPlug(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PlugIn) =>
+      apiFetch<Plug>(`${base(accountId)}/plugs`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publication-plugs", accountId] });
+    },
+  });
+}
+
+export function useUpdatePublicationPlug(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; patch: PlugPatchIn }) =>
+      apiFetch<Plug>(`${base(accountId)}/plugs/${input.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input.patch),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publication-plugs", accountId] });
+    },
+  });
+}
+
+export function useDeletePublicationPlug(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Record<string, never>>(`${base(accountId)}/plugs/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publication-plugs", accountId] });
     },
   });
 }

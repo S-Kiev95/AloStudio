@@ -30,7 +30,7 @@ export function SecretReveal({
   }
 
   return (
-    <div className="space-y-3 rounded-md border border-warning/30 bg-warning/5 p-4">
+    <div className="space-y-3 rounded-md border border-warning bg-surface-2 p-4">
       <div>
         <p className="text-sm font-medium text-fg">Guardalo ahora</p>
         <p className="text-xs text-fg-muted">

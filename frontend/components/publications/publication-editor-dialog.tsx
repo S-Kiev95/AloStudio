@@ -45,6 +45,7 @@ import {
   usePublicationSets,
   usePublicationSignatures,
   useUpdatePublication,
+  useUpdatePublicationSet,
 } from "@/lib/api/publications";
 import { cn } from "@/lib/utils";
 
@@ -105,7 +106,9 @@ export function PublicationEditorDialog({
   onClose,
   channels,
   isAdmin,
+  mode = "publication",
   initial,
+  initialSet,
   defaultScheduledFor,
   onOpenDetail,
 }: {
@@ -114,10 +117,13 @@ export function PublicationEditorDialog({
   onClose: () => void;
   channels: Channel[];
   isAdmin: boolean;
+  mode?: "publication" | "set";
   initial?: Publication | null;
+  initialSet?: PublicationSet | null;
   defaultScheduledFor?: Date | null;
   onOpenDetail?: (publication: Publication) => void;
 }) {
+  const isSetMode = mode === "set";
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -125,6 +131,11 @@ export function PublicationEditorDialog({
 
   const activeChannels = useMemo(
     () => channels.filter((c) => c.status === "active"),
+    [channels],
+  );
+
+  const channelById = useMemo(
+    () => new Map(channels.map((c) => [c.id, c])),
     [channels],
   );
 
@@ -151,7 +162,7 @@ export function PublicationEditorDialog({
   const [apiError, setApiError] = useState<ParsedPublicationError | null>(null);
 
   const signaturesQuery = usePublicationSignatures(accountId, open);
-  const setsQuery = usePublicationSets(accountId, open);
+  const setsQuery = usePublicationSets(accountId, open && !isSetMode);
   const libraryQuery = useInfiniteMediaAssets(accountId, {
     kind: libraryKind,
     enabled: open && libraryOpen,
@@ -161,8 +172,13 @@ export function PublicationEditorDialog({
   const createMutation = useCreatePublication(accountId);
   const updateMutation = useUpdatePublication(accountId);
   const createSetMutation = useCreatePublicationSet(accountId);
+  const updateSetMutation = useUpdatePublicationSet(accountId);
 
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const isSubmitting =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    createSetMutation.isPending ||
+    updateSetMutation.isPending;
 
   useEffect(() => {
     const el = dialogRef.current;
@@ -184,7 +200,7 @@ export function PublicationEditorDialog({
     }
   }, [open]);
 
-  // Reset form state whenever the dialog opens or switches target publication.
+  // Reset form state whenever the dialog opens or switches target publication/set.
   useEffect(() => {
     if (!open) return;
     setSubmitAttempted(false);
@@ -193,9 +209,51 @@ export function PublicationEditorDialog({
     setSignaturesOpen(false);
     setSetsOpen(false);
     setSavingSetOpen(false);
-    setSetName("");
     setSetFeedback(null);
 
+    if (isSetMode) {
+      autoSigAppliedRef.current = true;
+      if (initialSet) {
+        setSetName(initialSet.name);
+        setContent(initialSet.content ?? "");
+        setSelectedMedia(
+          initialSet.media.map((m) => ({
+            media_id: "media_id" in m ? m.media_id : undefined,
+            type: m.type,
+            url: m.url,
+          })),
+        );
+        const validIds: number[] = [];
+        const cfgs: Record<number, PerChannelConfig> = {};
+        for (const t of initialSet.targets) {
+          const ch = t.channel ?? channelById.get(t.channel_id);
+          if (!ch || ch.status !== "active") continue;
+          if (!validIds.includes(ch.id)) {
+            validIds.push(ch.id);
+          }
+          cfgs[ch.id] = {
+            postType: normalizePostType(t.settings?.post_type),
+            customizeText: t.content_override !== null,
+            customText: t.content_override ?? "",
+          };
+        }
+        setSelectedChannelIds(validIds);
+        setChannelConfigs(cfgs);
+      } else {
+        setSetName("");
+        setSelectedChannelIds(
+          activeChannels.length === 1 ? [activeChannels[0].id] : [],
+        );
+        setChannelConfigs({});
+        setContent("");
+        setSelectedMedia([]);
+      }
+      setWhenMode("now");
+      setScheduledFor("");
+      return;
+    }
+
+    setSetName("");
     if (initial) {
       autoSigAppliedRef.current = true;
       const validIds: number[] = [];
@@ -247,23 +305,18 @@ export function PublicationEditorDialog({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initial, defaultScheduledFor]);
+  }, [open, isSetMode, initial, initialSet, defaultScheduledFor]);
 
   // Auto-add signature when opening a NEW publication.
   useEffect(() => {
-    if (!open || initial || autoSigAppliedRef.current) return;
+    if (!open || isSetMode || initial || autoSigAppliedRef.current) return;
     if (!signaturesQuery.data) return;
     autoSigAppliedRef.current = true;
     const autoSig = signaturesQuery.data.find((s) => s.auto_add);
     if (autoSig) {
       setContent((prev) => (prev === "" ? `\n\n${autoSig.content}` : prev));
     }
-  }, [open, initial, signaturesQuery.data]);
-
-  const channelById = useMemo(
-    () => new Map(channels.map((c) => [c.id, c])),
-    [channels],
-  );
+  }, [open, isSetMode, initial, signaturesQuery.data]);
 
   const selectedChannels = useMemo(
     () =>
@@ -314,11 +367,12 @@ export function PublicationEditorDialog({
     const nextIds: number[] = [];
     const nextConfigs: Record<number, PerChannelConfig> = {};
     for (const t of pubSet.targets) {
-      if (!t.channel || t.channel.status !== "active") continue;
-      if (!nextIds.includes(t.channel.id)) {
-        nextIds.push(t.channel.id);
+      const ch = t.channel ?? channelById.get(t.channel_id);
+      if (!ch || ch.status !== "active") continue;
+      if (!nextIds.includes(ch.id)) {
+        nextIds.push(ch.id);
       }
-      nextConfigs[t.channel.id] = {
+      nextConfigs[ch.id] = {
         postType: normalizePostType(t.settings?.post_type),
         customizeText: t.content_override !== null,
         customText: t.content_override ?? "",
@@ -485,6 +539,43 @@ export function PublicationEditorDialog({
     }
   }
 
+  async function submitSetMode() {
+    setApiError(null);
+    const trimmedName = setName.trim();
+    if (!trimmedName) {
+      setApiError({ message: "Indicá un nombre para el set.", errors: [] });
+      return;
+    }
+    if (selectedChannels.length === 0) {
+      setApiError({
+        message: "Elegí al menos un canal antes de guardar el set.",
+        errors: [],
+      });
+      return;
+    }
+
+    const payload = {
+      name: trimmedName,
+      content: content || null,
+      media: serializeMedia(selectedMedia),
+      targets: buildTargetsPayload(),
+    };
+
+    try {
+      if (initialSet) {
+        await updateSetMutation.mutateAsync({
+          id: initialSet.id,
+          patch: payload,
+        });
+      } else {
+        await createSetMutation.mutateAsync(payload);
+      }
+      onClose();
+    } catch (err) {
+      setApiError(parsePublicationError(err, "No se pudo guardar el set."));
+    }
+  }
+
   async function submitPublication(asDraft: boolean) {
     setSubmitAttempted(true);
     setApiError(null);
@@ -540,12 +631,20 @@ export function PublicationEditorDialog({
   const libraryItems: MediaAsset[] =
     libraryQuery.data?.pages.flatMap((p) => p) ?? [];
 
+  const dialogTitle = isSetMode
+    ? initialSet
+      ? "Editar set"
+      : "Agregar set"
+    : initial
+      ? "Editar publicación"
+      : "Nueva publicación";
+
   return (
     <dialog
       ref={dialogRef}
       onClose={onClose}
       aria-labelledby="publication-editor-title"
-      className="max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-panel border border-glass bg-surface p-0 text-fg shadow-menu backdrop:bg-backdrop/75"
+      className="max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-panel border border-glass bg-surface p-0 text-fg shadow-menu backdrop:bg-backdrop backdrop:opacity-80"
     >
       <div className="space-y-5 p-5">
         {/* Header + Sets toolbar */}
@@ -555,12 +654,12 @@ export function PublicationEditorDialog({
               id="publication-editor-title"
               className="text-lg font-medium text-fg"
             >
-              {initial ? "Editar publicación" : "Nueva publicación"}
+              {dialogTitle}
             </h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {initial && onOpenDetail ? (
+            {!isSetMode && initial && onOpenDetail ? (
               <Button
                 type="button"
                 size="sm"
@@ -572,7 +671,7 @@ export function PublicationEditorDialog({
               </Button>
             ) : null}
 
-            {sets.length > 0 ? (
+            {!isSetMode && sets.length > 0 ? (
               <div className="relative">
                 <Button
                   type="button"
@@ -609,7 +708,7 @@ export function PublicationEditorDialog({
               </div>
             ) : null}
 
-            {isAdmin ? (
+            {!isSetMode && isAdmin ? (
               <Button
                 type="button"
                 size="sm"
@@ -635,8 +734,8 @@ export function PublicationEditorDialog({
           </div>
         </div>
 
-        {/* Save-as-set inline box */}
-        {savingSetOpen ? (
+        {/* Save-as-set inline box (publication mode) */}
+        {!isSetMode && savingSetOpen ? (
           <div className="flex flex-wrap items-end gap-2 rounded-md border border-glass bg-surface-2 p-3">
             <div className="min-w-[200px] flex-1 space-y-1">
               <Label htmlFor="pub-set-name" required>
@@ -671,7 +770,7 @@ export function PublicationEditorDialog({
         {setFeedback ? (
           <p
             role="status"
-            className="rounded-md border border-success/30 bg-success/5 px-3 py-2 text-xs text-success"
+            className="rounded-md border border-success bg-surface-2 px-3 py-2 text-xs text-success"
           >
             {setFeedback}
           </p>
@@ -684,13 +783,29 @@ export function PublicationEditorDialog({
           />
         </div>
 
+        {/* Nombre del set (set mode) */}
+        {isSetMode ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="pub-editor-set-name" required>
+              Nombre del set
+            </Label>
+            <Input
+              id="pub-editor-set-name"
+              value={setName}
+              maxLength={120}
+              onChange={(e) => setSetName(e.target.value)}
+              placeholder="Ej: Lanzamiento semanal"
+            />
+          </div>
+        ) : null}
+
         {/* Canales */}
         <div className="space-y-2">
           <Label required>Canales</Label>
           {activeChannels.length === 0 ? (
             <p className="rounded-md border border-glass bg-field px-3 py-2.5 text-xs text-fg-muted">
               No hay canales activos disponibles. Conectá o reconectá un canal
-              en el panel derecho.
+              en el calendario.
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -965,7 +1080,7 @@ export function PublicationEditorDialog({
                               muted
                               className="h-full w-full object-cover"
                             />
-                            <span className="absolute left-1 top-1 rounded-sm bg-backdrop/80 px-1 py-0.5 text-[9px] uppercase text-fg">
+                            <span className="absolute left-1 top-1 rounded-sm bg-backdrop px-1 py-0.5 text-[9px] uppercase text-white">
                               <Film className="inline h-2.5 w-2.5" aria-hidden />
                             </span>
                           </>
@@ -1107,32 +1222,34 @@ export function PublicationEditorDialog({
           </div>
         ) : null}
 
-        {/* Cuándo */}
-        <div className="space-y-2">
-          <Label>Cuándo</Label>
-          <div className="flex flex-wrap items-center gap-3">
-            <SegmentedControl
-              ariaLabel="Cuándo publicar"
-              size="sm"
-              value={whenMode}
-              onValueChange={setWhenMode}
-              options={[
-                { value: "now" as WhenMode, label: "Publicar ahora" },
-                { value: "schedule" as WhenMode, label: "Programar" },
-              ]}
-            />
-            {whenMode === "schedule" ? (
-              <Input
-                id="pub-scheduled-for"
-                aria-label="Fecha y hora de publicación"
-                type="datetime-local"
-                value={scheduledFor}
-                onChange={(e) => setScheduledFor(e.target.value)}
-                className="w-auto tabular-nums"
+        {/* Cuándo (publication mode only) */}
+        {!isSetMode ? (
+          <div className="space-y-2">
+            <Label>Cuándo</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              <SegmentedControl
+                ariaLabel="Cuándo publicar"
+                size="sm"
+                value={whenMode}
+                onValueChange={setWhenMode}
+                options={[
+                  { value: "now" as WhenMode, label: "Publicar ahora" },
+                  { value: "schedule" as WhenMode, label: "Programar" },
+                ]}
               />
-            ) : null}
+              {whenMode === "schedule" ? (
+                <Input
+                  id="pub-scheduled-for"
+                  aria-label="Fecha y hora de publicación"
+                  type="datetime-local"
+                  value={scheduledFor}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                  className="w-auto tabular-nums"
+                />
+              ) : null}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {/* Vista previa simple por canal */}
         {selectedChannels.length > 0 ? (
@@ -1152,7 +1269,7 @@ export function PublicationEditorDialog({
                 return (
                   <div
                     key={ch.id}
-                    className="space-y-2 rounded-md border border-glass bg-field/60 p-3 text-xs"
+                    className="space-y-2 rounded-md border border-glass bg-field p-3 text-xs"
                   >
                     <div className="flex items-center gap-1.5 font-medium text-fg">
                       <NetworkIcon network={ch.network} />
@@ -1201,14 +1318,14 @@ export function PublicationEditorDialog({
         ) : null}
 
         {/* Rule warnings / errors before submit */}
-        {ruleProblems.length > 0 ? (
+        {!isSetMode && ruleProblems.length > 0 ? (
           <div
             role={submitAttempted ? "alert" : "status"}
             className={cn(
-              "rounded-md border px-3 py-2 text-xs",
+              "rounded-md border bg-surface-2 px-3 py-2 text-xs",
               submitAttempted
-                ? "border-danger/30 bg-danger/5 text-danger"
-                : "border-warning/30 bg-warning/10 text-warning",
+                ? "border-danger text-danger"
+                : "border-warning text-warning",
             )}
           >
             <p className="font-medium">Revisá las reglas de cada red:</p>
@@ -1230,21 +1347,33 @@ export function PublicationEditorDialog({
           >
             Cancelar
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            loading={isSubmitting}
-            onClick={() => void submitPublication(true)}
-          >
-            Guardar borrador
-          </Button>
-          <Button
-            type="button"
-            loading={isSubmitting}
-            onClick={() => void submitPublication(false)}
-          >
-            {whenMode === "schedule" ? "Programar" : "Publicar ahora"}
-          </Button>
+          {isSetMode ? (
+            <Button
+              type="button"
+              loading={isSubmitting}
+              onClick={() => void submitSetMode()}
+            >
+              Guardar set
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                loading={isSubmitting}
+                onClick={() => void submitPublication(true)}
+              >
+                Guardar borrador
+              </Button>
+              <Button
+                type="button"
+                loading={isSubmitting}
+                onClick={() => void submitPublication(false)}
+              >
+                {whenMode === "schedule" ? "Programar" : "Publicar ahora"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </dialog>
