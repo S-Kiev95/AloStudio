@@ -59,6 +59,7 @@ export type ConversationMeta = {
   sender?: { id: number; name: string; thumbnail?: string } | null;
   channel?: string | null;
   assignee?: { id: number; name: string } | null;
+  team?: { id: number; name: string } | null;
 };
 
 /** Which Meta ad this conversation came from — null unless the person
@@ -113,6 +114,7 @@ export type MessagesIndex = {
 export type ConversationFilters = {
   status?: string;
   assigneeType?: string;
+  inboxId?: number;
   page?: number;
 };
 
@@ -127,13 +129,23 @@ export function useConversations(
   accountId: string,
   filters: ConversationFilters,
 ) {
-  const { status = "open", assigneeType, page = 1 } = filters;
+  const { status = "open", assigneeType, inboxId, page = 1 } = filters;
   return useQuery({
-    queryKey: ["conversations", accountId, status, assigneeType ?? null, page],
+    queryKey: [
+      "conversations",
+      accountId,
+      status,
+      assigneeType ?? null,
+      inboxId ?? null,
+      page,
+    ],
     queryFn: () => {
       const sp = new URLSearchParams();
       sp.set("status", status);
       if (assigneeType) sp.set("assignee_type", assigneeType);
+      if (inboxId != null && Number.isFinite(inboxId)) {
+        sp.set("inbox_id", String(inboxId));
+      }
       sp.set("page", String(page));
       return apiFetch<ConversationsIndex>(`${base(accountId)}?${sp}`);
     },
@@ -377,6 +389,21 @@ export function useAssignAgent(accountId: string, displayId: number) {
       apiFetch<unknown>(`${base(accountId)}/${displayId}/assignments`, {
         method: "POST",
         body: JSON.stringify({ assignee_id: assigneeId }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["conversation", accountId, displayId] });
+      qc.invalidateQueries({ queryKey: ["conversations", accountId] });
+    },
+  });
+}
+
+export function useAssignTeam(accountId: string, displayId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (teamId: number | null) =>
+      apiFetch<unknown>(`${base(accountId)}/${displayId}/assignments`, {
+        method: "POST",
+        body: JSON.stringify({ team_id: teamId }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["conversation", accountId, displayId] });

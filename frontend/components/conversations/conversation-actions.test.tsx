@@ -17,6 +17,7 @@ let executeBody: unknown = null;
 
 const server = setupServer(
   http.get("*/agents", () => HttpResponse.json([])),
+  http.get("*/teams", () => HttpResponse.json([])),
   http.get("*/labels", () => HttpResponse.json({ payload: [] })),
   http.get("*/macros", () =>
     HttpResponse.json({

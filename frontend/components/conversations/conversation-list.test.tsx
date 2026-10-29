@@ -41,6 +41,7 @@ const server = setupServer(
   http.get("*/custom_filters", () => HttpResponse.json([])),
   http.get("*/agents", () => HttpResponse.json([])),
   http.get("*/labels", () => HttpResponse.json({ payload: [] })),
+  http.get("*/inboxes", () => HttpResponse.json({ payload: [] })),
   http.get("*/conversations", () =>
     HttpResponse.json({
       data: {
