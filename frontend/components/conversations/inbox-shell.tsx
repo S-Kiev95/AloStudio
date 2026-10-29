@@ -25,7 +25,7 @@ export function InboxShell({
     /^\/accounts\/[^/]+\/conversations\/\d+(?:\/|$)/.test(pathname);
 
   return (
-    <div className="flex min-h-[calc(100dvh-11rem)] overflow-hidden rounded-md border border-glass bg-surface lg:h-[calc(100dvh-11rem)]">
+    <div className="flex min-h-[calc(100dvh-13.5rem)] overflow-hidden rounded-md border border-glass bg-surface lg:h-[calc(100dvh-13.5rem)]">
       <div
         className={cn(
           "flex min-h-0 w-full flex-col lg:w-[320px] lg:shrink-0 lg:border-r lg:border-glass",
