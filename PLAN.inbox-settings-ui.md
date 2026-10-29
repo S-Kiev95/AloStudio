@@ -489,3 +489,10 @@ Error: Not implemented: navigation (except hash changes)
    Start at  19:06:45
    Duration  23.68s (transform 8.55s, setup 29.86s, collect 90.02s, tests 61.77s, environment 250.18s, prepare 34.29s)
 ```
+
+### Revisión de Claude (2026-10-29)
+
+- Corrí de nuevo los tres comandos sobre `9d0160c`: typecheck y lint sin errores, 83 archivos y 328 tests en verde. Lo de arriba es cierto, y se cumplieron las notas de la revisión anterior (sin `color/NN`, `textLength` en plugs, `Array.from` en firmas, errores a la vista).
+- Probé en el navegador contra un backend de `main` con datos sembrados (144 conversaciones en 3 bandejas, canales, firmas, sets): lista y conversación juntas sin recargar la lista (un solo pedido de `/conversations`), burbujas, asignado/equipo/etiqueta, panel del contacto; Reportes con cifras y gráfico; Canales; Firmas (marcar automática le saca la marca a la otra); Auto post con "Probar" contra un feed real (5 entradas) y contra una URL que no es feed (422 debajo del campo), guardado en borrador con un solo canal; Plugs (contador 31/500 con un emoji en Threads, el mensaje desaparece con "Repostear", alta); editor en modo set.
+- Corregido en `7301496`: la pestaña Canales mostraba "Conectar canal" y "Desconectar" a los agentes (ahora solo administradores, con test), y el panel del contacto pedía `/contacts/-1` mientras cargaba la conversación (404; venía de antes).
+- Menor, sin tocar: a un agente sin bandejas asignadas Canales le dice "No hay canales conectados todavía", aunque la cuenta tenga canales.
