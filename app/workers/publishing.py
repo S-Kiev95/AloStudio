@@ -169,14 +169,16 @@ async def publish_publication_task(
 
 
 async def sync_publishing_metrics_task(ctx: dict[str, Any]) -> dict[str, int]:
-    """Hourly: refresh the figures of recent posts. Each post is committed on
-    its own inside :func:`analytics.sync_post_metrics`."""
-    from app.domains.publishing import analytics
+    """Hourly: refresh the figures of recent posts, then fire the plugs those
+    figures trigger. Each post and each plug run is committed on its own."""
+    from app.domains.publishing import analytics, plugs
 
     async with _session_factory(ctx)() as session:
         posts = await analytics.sync_post_metrics(session)
-    log.info("publishing.metrics.posts_synced posts=%s", posts)
-    return {"posts": posts}
+        # Fresh likes: fire the plugs whose threshold was just reached.
+        plug_runs = await plugs.run_due_plugs(session)
+    log.info("publishing.metrics.posts_synced posts=%s plug_runs=%s", posts, plug_runs)
+    return {"posts": posts, "plug_runs": plug_runs}
 
 
 async def snapshot_publishing_channels_task(ctx: dict[str, Any]) -> dict[str, int]:

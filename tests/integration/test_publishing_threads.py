@@ -202,7 +202,9 @@ async def test_connect_returns_the_authorization_window(client, db_session, thre
     assert url.netloc == "threads.net" and url.path == "/oauth/authorize"
     assert query["client_id"] == ["THAPP"]
     assert query["redirect_uri"] == [threads_config.publishing_oauth_redirect_uri]
-    assert query["scope"] == ["threads_basic,threads_content_publish,threads_manage_insights"]
+    assert query["scope"] == [
+        "threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies"
+    ]
     assert query["response_type"] == ["code"]
     assert connections.network_of_state(verify_oauth_state(query["state"][0])) == "threads"
 

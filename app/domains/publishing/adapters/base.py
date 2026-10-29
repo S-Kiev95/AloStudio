@@ -86,6 +86,18 @@ class ConnectionField:
     secret: bool = False
 
 
+@dataclass(frozen=True)
+class PlugKind:
+    """An automatic action a network can take on a channel's own posts once
+    they reach a number of likes."""
+
+    kind: str
+    label: str
+    description: str
+    # The plug posts a text (a reply…): required, up to this many characters.
+    message_max: int | None = None
+
+
 class ChannelConnectionError(Exception):
     """A connection or token renewal the network refused; the message is
     in Spanish, for the owner."""
@@ -103,6 +115,8 @@ class PublishingAdapter(ABC):
     #: instead of authorizing in the network: the values asked for, all
     #: required. Empty for networks that authorize.
     connection_fields: ClassVar[tuple[ConnectionField, ...]] = ()
+    #: Automatic actions this network offers on a channel's posts.
+    plug_kinds: ClassVar[tuple[PlugKind, ...]] = ()
 
     def supports(self, inbox: Inbox) -> bool:
         """Whether this adapter publishes through the inbox (networks that
@@ -139,6 +153,18 @@ class PublishingAdapter(ABC):
         the network's don't. Raises :class:`ChannelConnectionError` when
         they can't be renewed and the owner has to connect again."""
         return None
+
+    async def run_plug(
+        self,
+        session: AsyncSession,
+        *,
+        kind: str,
+        target: PublicationTarget,
+        message: str | None,
+    ) -> PublishResult:
+        """Carry out one of ``plug_kinds`` on a published target. Like
+        ``publish``, failures come back in the result."""
+        raise NotImplementedError
 
     @abstractmethod
     def validate(
@@ -209,6 +235,7 @@ __all__ = [
     "ConnectionField",
     "Credentials",
     "MetricsResult",
+    "PlugKind",
     "PublishResult",
     "PublishingAdapter",
     "channel_inbox",

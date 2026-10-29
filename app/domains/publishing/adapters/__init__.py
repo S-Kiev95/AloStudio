@@ -13,6 +13,7 @@ from app.domains.publishing.adapters.base import (
     ConnectionField,
     Credentials,
     MetricsResult,
+    PlugKind,
     PublishingAdapter,
     PublishResult,
     channel_inbox,
@@ -41,6 +42,10 @@ def adapter_for_network(network: str) -> PublishingAdapter | None:
     return None
 
 
+def all_adapters() -> tuple[PublishingAdapter, ...]:
+    return _ADAPTERS
+
+
 def connectable_adapters() -> list[PublishingAdapter]:
     """Networks whose channels are connected apart from inboxes."""
     return [adapter for adapter in _ADAPTERS if adapter.label is not None]
@@ -59,10 +64,12 @@ __all__ = [
     "ConnectionField",
     "Credentials",
     "MetricsResult",
+    "PlugKind",
     "PublishResult",
     "PublishingAdapter",
     "adapter_for_inbox",
     "adapter_for_network",
+    "all_adapters",
     "channel_inbox",
     "connectable_adapters",
     "mark_reconnect",

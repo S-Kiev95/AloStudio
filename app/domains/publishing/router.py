@@ -10,6 +10,8 @@ Route map:
   * ``GET    /api/v1/accounts/{account_id}/publications/sets`` (+ POST, PATCH/DELETE ``/{id}``)
   * ``GET    /api/v1/accounts/{account_id}/publications/autoposts`` (+ POST, PATCH/DELETE ``/{id}``)
   * ``POST   /api/v1/accounts/{account_id}/publications/autoposts/preview``
+  * ``GET    /api/v1/accounts/{account_id}/publications/plugs`` (+ POST, PATCH/DELETE ``/{id}``)
+  * ``GET    /api/v1/accounts/{account_id}/publications/plugs/catalog``
   * ``GET    /api/v1/accounts/{account_id}/publications/analytics``
   * ``GET    /api/v1/accounts/{account_id}/publications``
   * ``POST   /api/v1/accounts/{account_id}/publications``
@@ -42,7 +44,7 @@ from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
 from app.core.oauth_state import verify_oauth_state
-from app.domains.publishing import analytics, autopost, connections, presets
+from app.domains.publishing import analytics, autopost, connections, plugs, presets
 from app.domains.publishing import service as svc
 from app.domains.publishing.models import (
     PUBLICATION_STATE_PUBLISHING,
@@ -51,12 +53,14 @@ from app.domains.publishing.models import (
     PublicationSet,
     PublishingAutopost,
     PublishingChannel,
+    PublishingPlug,
     PublishingSignature,
 )
 from app.domains.publishing.presenters import (
     present_autopost,
     present_channel,
     present_one_publication,
+    present_plug,
     present_publications,
     present_sets,
     present_signature,
@@ -66,6 +70,8 @@ from app.domains.publishing.schemas import (
     AutopostUpdate,
     ChannelConnectIn,
     FeedPreviewIn,
+    PlugIn,
+    PlugUpdate,
     PublicationCreate,
     PublicationSetIn,
     PublicationSetUpdate,
@@ -397,6 +403,80 @@ async def delete_autopost_endpoint(
     if row is None:
         raise _not_found()
     await autopost.delete_autopost(session, autopost=row)
+    return {}
+
+
+# -- Plugs (automatic actions at N likes) -------------------------------------
+@router.get("/plugs/catalog")
+async def plugs_catalog(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+) -> list[dict[str, Any]]:
+    """What each network offers: ``[{network, kinds: [{kind, label,
+    description, message_max}]}]``."""
+    return plugs.catalog()
+
+
+@router.get("/plugs")
+async def index_plugs(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    assert ctx.account.id is not None
+    rows = await plugs.list_plugs(session, account_id=ctx.account.id)
+    runs = await plugs.runs_by_plug(session, plug_ids=[p.id for p in rows])  # type: ignore[misc]
+    return [present_plug(p, runs.get(p.id, [])) for p in rows]  # type: ignore[arg-type]
+
+
+@router.post("/plugs", status_code=status.HTTP_200_OK)
+async def create_plug(
+    payload: PlugIn,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    plug = await plugs.save_plug(
+        session,
+        plug=PublishingPlug(
+            account_id=ctx.account.id,
+            channel_id=payload.channel_id,
+            kind=payload.kind,
+            likes_threshold=payload.likes_threshold,
+            created_by_id=ctx.user.id,
+        ),
+        values=payload.model_dump(),
+    )
+    return present_plug(plug, [])
+
+
+@router.patch("/plugs/{plug_id}")
+async def update_plug(
+    plug_id: Annotated[int, Path()],
+    payload: PlugUpdate,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    plug = await plugs.get_plug(session, account_id=ctx.account.id, plug_id=plug_id)
+    if plug is None:
+        raise _not_found()
+    plug = await plugs.save_plug(
+        session, plug=plug, values=payload.model_dump(exclude_unset=True)
+    )
+    runs = await plugs.runs_by_plug(session, plug_ids=[plug_id])
+    return present_plug(plug, runs.get(plug_id, []))
+
+
+@router.delete("/plugs/{plug_id}", status_code=status.HTTP_200_OK)
+async def delete_plug_endpoint(
+    plug_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    plug = await plugs.get_plug(session, account_id=ctx.account.id, plug_id=plug_id)
+    if plug is None:
+        raise _not_found()
+    await plugs.delete_plug(session, plug=plug)
     return {}
 
 

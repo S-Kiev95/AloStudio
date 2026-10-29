@@ -14,6 +14,8 @@ from app.domains.publishing.models import (
     PublicationTarget,
     PublishingAutopost,
     PublishingChannel,
+    PublishingPlug,
+    PublishingPlugRun,
     PublishingSignature,
 )
 from app.domains.publishing.service import channels_by_id, targets_by_publication
@@ -121,6 +123,29 @@ def present_autopost(autopost: PublishingAutopost) -> dict[str, Any]:
     }
 
 
+def present_plug(plug: PublishingPlug, runs: list[PublishingPlugRun]) -> dict[str, Any]:
+    """With its last few runs, newest first."""
+    return {
+        "id": plug.id,
+        "channel_id": plug.channel_id,
+        "kind": plug.kind,
+        "likes_threshold": plug.likes_threshold,
+        "message": plug.message,
+        "active": plug.active,
+        "runs": [
+            {
+                "target_id": run.target_id,
+                "ok": run.ok,
+                "error_message": run.error_message,
+                "ran_at": _iso(run.created_at),
+            }
+            for run in runs[:10]
+        ],
+        "created_at": _iso(plug.created_at),
+        "updated_at": _iso(plug.updated_at),
+    }
+
+
 def present_signature(signature: PublishingSignature) -> dict[str, Any]:
     return {
         "id": signature.id,
@@ -196,6 +221,7 @@ __all__ = [
     "present_autopost",
     "present_channel",
     "present_one_publication",
+    "present_plug",
     "present_publication",
     "present_publications",
     "present_sets",

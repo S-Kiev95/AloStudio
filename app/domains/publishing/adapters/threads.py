@@ -13,6 +13,9 @@ version ``v1.0``):
     ``status`` is ``FINISHED`` and publish it (``POST /{user}/threads_publish``).
   * Figures: ``GET /{media}/insights`` and ``GET /{user}/threads_insights``
     (``threads_manage_insights``).
+  * Plugs: a reply to the channel's own post (a TEXT container with
+    ``reply_to_id``, ``threads_manage_replies``) and a repost
+    (``POST /{media}/repost``).
 
 The channel keeps the long-lived token in ``credentials["access_token"]``
 and the Threads user id in ``external_id``. Like every adapter, nothing
@@ -37,6 +40,7 @@ from app.domains.publishing.adapters.base import (
     ConnectedAccount,
     Credentials,
     MetricsResult,
+    PlugKind,
     PublishingAdapter,
     PublishResult,
     mark_reconnect,
@@ -57,7 +61,11 @@ SCOPES: tuple[str, ...] = (
     "threads_basic",
     "threads_content_publish",
     "threads_manage_insights",
+    "threads_manage_replies",
 )
+
+PLUG_REPLY = "reply_after_likes"
+PLUG_REPOST = "repost_after_likes"
 
 TEXT_MAX = 500
 CAROUSEL_MIN = 2
@@ -273,6 +281,25 @@ def _expires_at(payload: dict[str, Any]) -> datetime | None:
 class ThreadsAdapter(PublishingAdapter):
     network = "threads"
     label = "Threads"
+    plug_kinds = (
+        PlugKind(
+            kind=PLUG_REPLY,
+            label="Responder al llegar a N me gusta",
+            description=(
+                "Cuando un post llega a esa cantidad de me gusta, publica tu mensaje "
+                "como respuesta a ese mismo post (por ejemplo, un link o una oferta)."
+            ),
+            message_max=TEXT_MAX,
+        ),
+        PlugKind(
+            kind=PLUG_REPOST,
+            label="Repostear al llegar a N me gusta",
+            description=(
+                "Cuando un post llega a esa cantidad de me gusta, lo repostea en tu "
+                "perfil para que lo vuelvan a ver tus seguidores."
+            ),
+        ),
+    )
 
     # -- Connecting ---------------------------------------------------------
     def missing_connection_settings(self) -> list[str]:
@@ -481,6 +508,54 @@ class ThreadsAdapter(PublishingAdapter):
         if text:
             fields["text"] = text
         return await api.create_container(user_id, fields)
+
+    # -- Plugs ----------------------------------------------------------------
+    async def run_plug(
+        self,
+        session: AsyncSession,
+        *,
+        kind: str,
+        target: PublicationTarget,
+        message: str | None,
+    ) -> PublishResult:
+        channel = await session.get(PublishingChannel, target.channel_id)
+        token = _token_of(channel)
+        if channel is None or token is None or not channel.external_id or not target.external_id:
+            return PublishResult(
+                ok=False, error_code="missing_channel", error_message=_MISSING_CHANNEL
+            )
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                api = _Threads(client, token)
+                if kind == PLUG_REPOST:
+                    res = await api._call(
+                        "POST", f"{target.external_id}/repost", doing="repostear"
+                    )
+                    return PublishResult(ok=True, external_id=str(res.get("id") or ""))
+                container = await api.create_container(
+                    channel.external_id,
+                    {
+                        "media_type": "TEXT",
+                        "text": message or "",
+                        "reply_to_id": target.external_id,
+                    },
+                )
+                await api.wait_until_ready(container)
+                reply_id = await api.publish(channel.external_id, container)
+        except _ThreadsError as exc:
+            if exc.reconnect:
+                await mark_reconnect(session, channel.id, exc.message)  # type: ignore[arg-type]
+            return PublishResult(
+                ok=False, error_code=exc.code, error_message=exc.message, retryable=exc.retryable
+            )
+        except httpx.HTTPError:
+            return PublishResult(
+                ok=False,
+                error_code="network_error",
+                error_message="No se pudo conectar con Threads.",
+                retryable=True,
+            )
+        return PublishResult(ok=True, external_id=reply_id)
 
     # -- Figures --------------------------------------------------------------
     async def fetch_post_metrics(

@@ -507,6 +507,85 @@ class PublishingAutopost(TimestampMixin, table=True):
         ),
     )
 
+
+class PublishingPlug(TimestampMixin, table=True):
+    """An automatic action on a channel's own posts once they reach
+    ``likes_threshold`` likes (reply with ``message``, repost…). Which
+    ``kind`` a network offers is up to its adapter (``plug_kinds``)."""
+
+    __tablename__ = "publishing_plugs"
+    __table_args__ = (
+        UniqueConstraint("channel_id", "kind", name="uniq_publishing_plugs_channel_kind"),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    channel_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("publishing_channels.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    kind: str = Field(sa_column=Column(String, nullable=False))
+    likes_threshold: int = Field(sa_column=Column(Integer, nullable=False))
+    message: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    active: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=False, server_default="true"),
+    )
+    created_by_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+
+
+class PublishingPlugRun(TimestampMixin, table=True):
+    """A plug fired on one post. One per plug and post, so it never fires
+    twice; a failure stays recorded and is not retried."""
+
+    __tablename__ = "publishing_plug_runs"
+    __table_args__ = (
+        UniqueConstraint("plug_id", "target_id", name="uniq_publishing_plug_runs_plug_target"),
+    )
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    plug_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("publishing_plugs.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    target_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("publication_targets.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+    )
+    ok: bool = Field(sa_column=Column(Boolean, nullable=False))
+    external_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    error_message: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+
+
 __all__ = [
     "AUTOPOST_MODES",
     "AUTOPOST_MODE_DRAFT",
@@ -534,5 +613,7 @@ __all__ = [
     "PublicationTarget",
     "PublishingAutopost",
     "PublishingChannel",
+    "PublishingPlug",
+    "PublishingPlugRun",
     "PublishingSignature",
 ]

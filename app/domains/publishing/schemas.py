@@ -110,6 +110,24 @@ class FeedPreviewIn(BaseModel):
     feed_url: str = Field(min_length=1, max_length=2000)
 
 
+class PlugIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    channel_id: int
+    kind: str = Field(min_length=1, max_length=60)
+    likes_threshold: int
+    message: str | None = None
+    active: bool = True
+
+
+class PlugUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    likes_threshold: int | None = None
+    message: str | None = None
+    active: bool | None = None
+
+
 class ChannelConnectIn(BaseModel):
     """Values pasted to connect a network that connects by form."""
 
@@ -124,6 +142,8 @@ __all__ = [
     "ChannelConnectIn",
     "FeedPreviewIn",
     "MediaItem",
+    "PlugIn",
+    "PlugUpdate",
     "PublicationCreate",
     "PublicationSetIn",
     "PublicationSetUpdate",

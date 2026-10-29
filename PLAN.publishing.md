@@ -220,3 +220,9 @@ Configuración (Ajustes → Instalación, grupo "Redes para publicar"): `PUBLISH
 - Seguridad: el feed lo trae `guarded_client` (sin direcciones privadas, redirecciones incluidas), con tope de 2 MB, y se parsea con la librería estándar (RSS 2.0, Atom, Media RSS).
 - API: `GET/POST /publications/autoposts`, `PATCH/DELETE /publications/autoposts/{id}` y `POST /publications/autoposts/preview` (`{feed_url}` → las 5 entradas más nuevas, para probar antes de guardar). Escritura solo administradores. Una URL nueva se lee al guardarla: si no es un feed, 422.
 - Pendiente para cuando haya proveedor de IA: generar el texto y la imagen de cada entrada (Postiz lo ofrece como opción).
+
+**Plugs (2026-10-29):** `publishing/plugs.py`, migración `3d4e5f6a7b8c`, tablas `publishing_plugs` (una por canal y tipo) y `publishing_plug_runs` (una por plug y post).
+
+- Acción automática sobre los posts propios de un canal cuando llegan a `likes_threshold` me gusta. Qué acciones hay lo decide cada adaptador (`plug_kinds`: `PlugKind` con `kind`, `label`, `description` y `message_max` si publica un texto) y las ejecuta con `run_plug`. Hoy Threads: `reply_after_likes` (responde su propio post con el mensaje; pide `threads_manage_replies`, que se sumó a los permisos de la conexión) y `repost_after_likes`.
+- Se evalúan en la tarea horaria, justo después de refrescar las cifras de los posts: posts publicados de los últimos 30 días con `likes` ≥ umbral y sin corrida previa de ese plug; hasta 50 por hora, cada una con su commit. Cada intento, bueno o fallido, queda en `publishing_plug_runs` y no se repite.
+- API: `GET /publications/plugs/catalog` (qué ofrece cada red), `GET/POST /publications/plugs`, `PATCH/DELETE /publications/plugs/{id}` (con las últimas 10 corridas). Escritura solo administradores.
