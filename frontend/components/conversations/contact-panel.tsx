@@ -239,11 +239,14 @@ function OtherConversations({
   currentDisplayId: number;
 }) {
   // Best-effort: the conversation list endpoint takes no contact filter
-  // in the current backend port, so we fetch the open page and filter
-  // client-side. Good enough for the common case (a few open convos per
-  // contact); paginate-and-search lands when the backend exposes a
-  // contact_id filter or we wire ``GET /contacts/:id/conversations``.
-  const list = useConversations(accountId, { status: "open" });
+  // in the current backend port, so we reuse the open-conversations cache
+  // already populated by the left-hand list without triggering extra fetches
+  // when switching between conversations.
+  const list = useConversations(
+    accountId,
+    { status: "open" },
+    { refetchOnMount: false },
+  );
   const all = list.data?.data?.payload ?? [];
   const others = all.filter(
     (c) =>

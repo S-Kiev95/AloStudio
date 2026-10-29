@@ -128,6 +128,7 @@ function base(accountId: string): string {
 export function useConversations(
   accountId: string,
   filters: ConversationFilters,
+  options?: { refetchOnMount?: boolean },
 ) {
   const { status = "open", assigneeType, inboxId, page = 1 } = filters;
   return useQuery({
@@ -149,6 +150,7 @@ export function useConversations(
       sp.set("page", String(page));
       return apiFetch<ConversationsIndex>(`${base(accountId)}?${sp}`);
     },
+    refetchOnMount: options?.refetchOnMount,
   });
 }
 
