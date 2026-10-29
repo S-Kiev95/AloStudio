@@ -655,3 +655,15 @@ Error: Not implemented: navigation (except hash changes)
    Start at  17:23:05
    Duration  20.26s (transform 8.58s, setup 27.49s, collect 80.68s, tests 39.80s, environment 201.11s, prepare 22.87s)
 ```
+
+### Revisión de Claude (2026-10-29)
+
+- Corrí de nuevo los tres comandos sobre `4cd924d`: typecheck y lint sin errores, 78 archivos y 313 tests en verde. Lo de arriba es cierto.
+- Probé en el navegador con un backend de `feat/signatures-sets` y una base aparte con datos sembrados (5 canales, uno a reconectar; 74 publicaciones en todos los estados; cifras, firmas, sets y un agente): menú, Semana/Mes/Lista, paginación (pide la página 2), "+N más", filtro de estado, detalle con reintento real, editor con firma automática y "Usar set", y qué ve un agente (sin crear, editar, borrar, conectar ni acciones del detalle; puede subir medios).
+- Corregido en `8a11e34`:
+  - Reglas y contadores contaban `text.length` (unidades UTF-16): un emoji valía 2 en todas las redes. Ahora cuentan como el backend (puntos de código; en Threads, cada emoji por sus bytes UTF-8). Antes 198 emoji marcaban 396/500 y el backend los rechazaba con 422.
+  - El 422 del backend quedaba arriba del diálogo, fuera de la vista de quien tocó Guardar abajo: ahora se desplaza hasta el aviso.
+  - Estadísticas mandaba `from`/`to` como fechas sueltas: el backend las lee como medianoche UTC con `to` exclusivo y dejaba afuera lo de hoy (y el día "Hasta"). Ahora manda medianoches locales, hoy incluido.
+  - El gráfico diario reusa `MetricChart`. Sus barras eran invisibles: `bg-primary/60` no genera CSS porque `primary` es `var(--primary)` con un hex. Ahora usa `opacity-60`.
+- Pendiente fuera de este plan: el mismo problema de opacidad está en ~95 clases de 39 archivos de `main` (`bg-danger/10`, `bg-success/10`, `bg-backdrop/75`…): ninguna genera CSS. Se arregla una vez en `tailwind.config.ts` (colores con `<alpha-value>`), revisando a ojo toda la app porque cambia el aspecto de avisos y fondos de diálogos.
+- Menores, sin tocar: `useUploadMedia` repite la lógica de 401 de `apiFetch`; al editar, un destino cuyo canal pasó a "reconnect" se quita del PATCH sin avisar.
