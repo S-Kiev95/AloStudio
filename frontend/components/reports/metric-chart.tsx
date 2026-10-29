@@ -38,9 +38,13 @@ export function MetricChart({
               className="group flex flex-1 flex-col justify-end"
               title={`${shortDate(d.timestamp)}: ${formatValue(d.value)}`}
             >
+              {/* `opacity-60`, not `bg-primary/60`: the theme colours are
+                  `var(--…)` holding a hex, and Tailwind 3 can't put an
+                  alpha on those — it emitted no rule and every bar was
+                  transparent until hovered. */}
               <div
                 data-bar
-                className="w-full rounded-t bg-primary/60 transition-colors group-hover:bg-primary"
+                className="w-full rounded-t bg-primary opacity-60 transition-opacity group-hover:opacity-100"
                 style={{ height: `${d.value > 0 ? Math.max(pct, 2) : 0}%` }}
               />
             </div>

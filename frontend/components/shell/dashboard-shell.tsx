@@ -10,7 +10,7 @@ import { useCable } from "@/lib/realtime/use-cable";
 
 import { AccountSwitcher } from "./account-switcher";
 import { AgentMenu } from "./agent-menu";
-import { NAV_ITEMS, navHref } from "./nav";
+import { activeNavItemKey, NAV_ITEMS, navHref } from "./nav";
 import { NotificationBell } from "./notification-bell";
 import { PageSignContext } from "./page-header";
 import { SidebarNav } from "./sidebar-nav";
@@ -36,15 +36,16 @@ function Brand({
 
 function resolveDefaultSign(pathname: string, accountId: string): string {
   const base = `/accounts/${accountId}`;
-  if (pathname === `${base}/notifications` || pathname.startsWith(`${base}/notifications/`)) {
+  if (
+    pathname === `${base}/notifications` ||
+    pathname.startsWith(`${base}/notifications/`)
+  ) {
     return "Notificaciones";
   }
-  for (const item of NAV_ITEMS) {
-    if (!item.segment) continue;
-    const href = navHref(accountId, item.segment);
-    if (pathname === href || pathname.startsWith(`${href}/`)) {
-      return item.label;
-    }
+  const activeKey = activeNavItemKey(pathname, accountId);
+  if (activeKey) {
+    const matched = NAV_ITEMS.find((item) => item.key === activeKey);
+    if (matched) return matched.label;
   }
   return "Inicio";
 }
@@ -58,7 +59,7 @@ export function DashboardShell({
   profile: Profile;
   children: ReactNode;
 }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [customSign, setCustomSign] = useState<string | null>(null);
 

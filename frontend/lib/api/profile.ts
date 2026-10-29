@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { ROLE_ADMINISTRATOR } from "./account";
 import { apiFetch } from "./fetcher";
 
 /**
@@ -24,7 +25,7 @@ export type ProfileUser = {
   accounts?: {
     id: number;
     name: string;
-    role?: string;
+    role?: number;
     availability?: string;
   }[];
 };
@@ -58,6 +59,14 @@ export function useProfile() {
     },
     staleTime: 60_000,
   });
+}
+
+/** True when the signed-in user is an administrator on ``accountId``. */
+export function useIsAccountAdmin(accountId: string): boolean {
+  const profile = useProfile();
+  const targetId = Number(accountId);
+  const entry = profile.data?.accounts?.find((a) => a.id === targetId);
+  return entry?.role === ROLE_ADMINISTRATOR;
 }
 
 function invalidate(qc: ReturnType<typeof useQueryClient>) {

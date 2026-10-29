@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-import { NAV_GROUPS, NAV_ITEMS, navHref } from "./nav";
+import { activeNavItemKey, NAV_GROUPS, NAV_ITEMS, navHref } from "./nav";
 
 const BY_KEY = new Map(NAV_ITEMS.map((item) => [item.key, item]));
 
@@ -22,7 +22,8 @@ export function SidebarNav({
   accountId: string;
   onNavigate?: () => void;
 }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
+  const activeKey = activeNavItemKey(pathname, accountId);
 
   return (
     <nav
@@ -48,10 +49,7 @@ export function SidebarNav({
               const item = BY_KEY.get(key);
               if (!item) return null;
               const href = navHref(accountId, item.segment);
-              const active =
-                item.segment === ""
-                  ? pathname === href
-                  : pathname === href || pathname.startsWith(`${href}/`);
+              const active = activeKey === item.key;
               const Icon = item.icon;
               return (
                 <Link
