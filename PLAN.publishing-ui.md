@@ -188,8 +188,19 @@ Las cifras de los posts se actualizan cada hora y las de los canales una vez por
 
 ## 1. Navegación y rutas
 
-- Ítem **"Publicaciones"** en `frontend/components/shell/nav.ts` (ícono `CalendarClock` de `lucide-react`), en el grupo "Crecimiento", primero.
-- Rutas en `frontend/app/accounts/[accountId]/publications/`: `page.tsx` (Calendario), `media/page.tsx` (Medios), `analytics/page.tsx` (Estadísticas) y un `layout.tsx` con pestañas `NavTabs`, como `components/instagram/instagram-tabs.tsx`.
+El dueño quiere el menú lateral como el de su versión anterior (referencia: `docs/design-neon/screens/calendar.png`, columna izquierda): cada sección principal es un ítem propio, sin pestañas que agrupen publicación.
+
+- Rutas en `frontend/app/accounts/[accountId]/publications/`: `page.tsx` (Calendario), `media/page.tsx` (Medios), `analytics/page.tsx` (Estadísticas). Sin `layout.tsx` de pestañas.
+- `frontend/components/shell/nav.ts`, en este orden y con estos íconos de `lucide-react`:
+  1. Inicio (`Home`, como está).
+  2. **Calendario** (`CalendarDays`) → `publications`.
+  3. **Estadísticas** (`ChartLine`) → `publications/analytics`.
+  4. **Medios** (`Images`) → `publications/media`.
+  5. **Bandeja** (`Inbox`) → `conversations` (el ítem "Conversaciones" actual, renombrado).
+  6. **CRM** (`Users`) → `contacts`: agrupa Contactos, Productos y Agenda, que dejan de ser ítems sueltos. En esas tres pantallas, pestañas `NavTabs` (como `components/instagram/instagram-tabs.tsx`) Contactos | Productos | Agenda, con un `layout.tsx` compartido o el mismo componente de pestañas en cada página. Las rutas no cambian.
+  7. Instagram, Help Center, Campañas y Reportes siguen como están, después de CRM.
+  8. Ajustes, abajo, como está.
+  Ajustá `NAV_GROUPS` para que refleje este orden (los grupos con título pueden desaparecer si quedan raros; que se vea como la referencia). Un ítem queda activo también en sus subrutas (`publications/media` no debe marcar Calendario).
 - Componentes en `frontend/components/publications/`; hooks y tipos en `frontend/lib/api/publications.ts` y `frontend/lib/api/media.ts` (un hook por consulta o mutación, como `appointments.ts`; las mutaciones invalidan las consultas afectadas).
 
 ## 2. Calendario
