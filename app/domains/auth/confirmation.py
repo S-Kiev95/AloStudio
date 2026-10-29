@@ -31,7 +31,9 @@ from enum import StrEnum
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.mail import send_mail_later, system_message
 from app.domains.users.models import User
 
 
@@ -64,11 +66,30 @@ def _new_confirmation_token() -> str:
 
 
 async def _dispatch_confirmation_email(user: User, raw_token: str) -> None:
-    """Stub for the Devise ``Devise::Mailer#confirmation_instructions``.
+    """Devise's ``confirmation_instructions`` mail: a link to the
+    dashboard's confirm page, sent in the background."""
+    if user.email:
+        link = (
+            f"{get_settings().app_base_url.rstrip('/')}/confirm"
+            f"?confirmation_token={raw_token}"
+        )
+        send_mail_later(
+            system_message(
+                to=user.email,
+                subject="Confirmá tu email en AloStudio",
+                body=f"""Hola {user.name or user.email},
 
-    Same policy as the password reset mailer: log a preview today, swap
-    for an ARQ enqueue once the mail worker ships.
-    """
+Para confirmar tu email y empezar a usar AloStudio, hacé clic acá:
+
+    {link}
+
+Si no creaste una cuenta, podés ignorar este email.
+
+— AloStudio
+""",
+            ),
+            context="auth.confirmation",
+        )
     get_logger("auth.confirmation").info(
         "confirmation_token_issued",
         user_id=user.id,

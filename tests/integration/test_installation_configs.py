@@ -148,6 +148,17 @@ async def test_a_boolean_config_round_trips_as_a_boolean(client, db_session):
     assert get_settings().meta_verify_webhook_signature is False
 
 
+async def test_a_port_is_stored_as_a_number(client, db_session):
+    _owner, headers = await _seed(db_session, "-port", super_admin=True)
+    resp = await client.put(f"{CONFIGS}/SMTP_PORT", headers=headers, json={"value": " 465 "})
+    assert resp.status_code == 200, resp.text
+    assert get_settings().smtp_port == 465
+
+    resp = await client.put(f"{CONFIGS}/SMTP_PORT", headers=headers, json={"value": "abc"})
+    assert resp.status_code == 422
+    assert get_settings().smtp_port == 465
+
+
 # ---------------------------------------------------------------------------
 # Secrets
 # ---------------------------------------------------------------------------

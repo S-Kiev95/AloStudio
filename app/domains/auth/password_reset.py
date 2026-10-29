@@ -10,8 +10,8 @@ Ports the Ruby helpers behind
        ``key = HMAC_SHA256(secret_key_base, "reset_password_token")``.
     3. Store ``enc = HMAC_SHA256(key, raw)`` in ``users.reset_password_token``.
     4. Stamp ``reset_password_sent_at = Time.now``.
-    5. Send the raw token to the user by email (out of scope for Phase 1;
-       logged instead — see ``_dispatch_reset_email``).
+    5. Email the user a link to ``/reset-password?token=<raw>`` (sent in
+       the background — see ``_dispatch_reset_email``).
 
   * ``PasswordsController#update`` (consume):
     1. Take the raw token from the request, re-hash it with the same HMAC.
@@ -32,9 +32,9 @@ hand us a valid raw token whose digest we'd recognise (assuming the
 deployments — out of scope). The key point is we don't ever store the
 raw token and we use a constant-time compare on lookup.
 
-Email delivery is deferred — :func:`_dispatch_reset_email` just logs the
-raw token today. When the ARQ mailer lands (post-Phase-1), swap the body
-of that function for an enqueue call; no callers change.
+The email goes out through the installation's SMTP server
+(:mod:`app.core.mail`), in the background so the endpoint answers in the
+same time whether or not the address has an account.
 """
 
 from __future__ import annotations
@@ -50,6 +50,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.mail import send_mail_later, system_message
 from app.core.security import hash_password
 from app.domains.users.models import User
 
@@ -103,12 +104,29 @@ def _new_raw_token() -> str:
 
 
 async def _dispatch_reset_email(user: User, raw_token: str) -> None:
-    """Stub for the Devise mailer.
+    """Devise's ``reset_password_instructions`` mail: a link to the
+    dashboard's reset page, valid for :data:`RESET_PASSWORD_WITHIN`."""
+    if user.email:
+        link = f"{get_settings().app_base_url.rstrip('/')}/reset-password?token={raw_token}"
+        send_mail_later(
+            system_message(
+                to=user.email,
+                subject="Elegí tu contraseña de AloStudio",
+                body=f"""Hola {user.name or user.email},
 
-    Phase 1 logs the raw token so the MailHog inspector or test harness
-    can pick it up. When the ARQ mailer ships, replace the body with an
-    enqueue and keep the signature.
-    """
+Recibimos un pedido para elegir una contraseña nueva para tu cuenta de AloStudio.
+Hacé clic acá para elegirla:
+
+    {link}
+
+El enlace vence en 6 horas. Si no lo pediste, podés ignorar este email:
+tu contraseña no cambia.
+
+— AloStudio
+""",
+            ),
+            context="auth.password_reset",
+        )
     get_logger("auth.password_reset").info(
         "password_reset_token_issued",
         user_id=user.id,

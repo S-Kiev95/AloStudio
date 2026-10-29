@@ -46,7 +46,7 @@ async def client(db_session) -> AsyncIterator[AsyncClient]:
 def stub_invitation_mail():
     """Stub the SMTP send so tests don't hit MailHog (and stay deterministic)."""
     with patch(
-        "app.domains.agents.service.aiosmtplib.send",
+        "app.core.mail.aiosmtplib.send",
         new_callable=AsyncMock,
     ) as send:
         yield send

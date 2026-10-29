@@ -17,12 +17,15 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.auth.devise_token_auth import create_new_auth_token
+from app.core.config import get_settings
 from app.core.db import get_session
+from app.core.mail import wait_for_pending_mail
 from app.core.security import verify_password
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.auth.password_reset import (
@@ -33,6 +36,13 @@ from app.domains.auth.password_reset import (
 from app.main import app
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def sent_mail():
+    """Capture the mails the flow sends instead of reaching an SMTP server."""
+    with patch("app.core.mail.aiosmtplib.send", new_callable=AsyncMock) as send:
+        yield send
 
 
 @pytest.fixture
@@ -248,3 +258,31 @@ async def test_service_consume_returns_none_for_bad_token(db_session, seeded_use
         db_session, raw_token="wrong", password="anything"
     )
     assert got is None
+
+
+async def test_reset_request_emails_the_link(client, seeded_user, sent_mail):
+    r = await client.post("/auth/password", json={"email": "forgetful@rocket.example.com"})
+    await wait_for_pending_mail()
+
+    assert r.status_code == 200
+    (call,) = sent_mail.await_args_list
+    msg = call.args[0]
+    assert msg["To"] == "forgetful@rocket.example.com"
+    base = get_settings().app_base_url.rstrip("/")
+    assert f"{base}/reset-password?token=" in msg.get_content()
+
+    # An unknown email answers the same and sends nothing.
+    r = await client.post("/auth/password", json={"email": "nobody@rocket.example.com"})
+    await wait_for_pending_mail()
+    assert r.status_code == 200
+    assert sent_mail.await_count == 1
+
+
+async def test_a_mail_server_failure_does_not_fail_the_request(client, seeded_user, sent_mail):
+    sent_mail.side_effect = OSError("connection refused")
+
+    r = await client.post("/auth/password", json={"email": "forgetful@rocket.example.com"})
+    await wait_for_pending_mail()
+
+    assert r.status_code == 200
+

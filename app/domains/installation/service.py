@@ -21,7 +21,12 @@ from typing import Any
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.config import clear_settings_overlay, get_settings, set_settings_overlay
+from app.core.config import (
+    Settings,
+    clear_settings_overlay,
+    get_settings,
+    set_settings_overlay,
+)
 from app.core.errors import ChatwootHTTPException
 from app.domains.installation.models import InstallationConfig
 from app.domains.installation.registry import CONFIG_SPECS, ConfigSpec, spec_for
@@ -199,7 +204,18 @@ def _coerce(spec: ConfigSpec, value: Any) -> Any:
         if isinstance(value, bool):
             return value
         return str(value).strip().lower() in {"1", "true", "t", "yes", "on"}
-    return "" if value is None else str(value).strip()
+    text = "" if value is None else str(value).strip()
+    field = Settings.model_fields.get(spec.setting)
+    if field is not None and field.annotation is int:
+        # A port: the dashboard sends text, ``Settings`` reads a number.
+        try:
+            return int(text)
+        except ValueError:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={"message": f"'{spec.name}' tiene que ser un número."},
+            ) from None
+    return text
 
 
 __all__ = [

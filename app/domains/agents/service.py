@@ -30,11 +30,11 @@ import secrets
 from datetime import UTC, datetime
 from email.message import EmailMessage
 
-import aiosmtplib
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
+from app.core.mail import send_mail
 from app.core.security import hash_password
 from app.domains.accounts.models import Account
 from app.domains.auth.password_reset import (
@@ -227,7 +227,6 @@ async def _send_invitation_email(
     resend or surface the link directly via the database in dev (we also
     return the ``raw_token`` from :func:`invite_agent` for tests).
     """
-    settings = get_settings()
     if not invitee.email:
         return
 
@@ -235,24 +234,7 @@ async def _send_invitation_email(
         invitee=invitee, inviter=inviter, account=account, raw_token=raw_token
     )
 
-    try:
-        await aiosmtplib.send(
-            msg,
-            hostname=settings.smtp_host,
-            port=settings.smtp_port,
-            username=settings.smtp_user or None,
-            password=settings.smtp_password or None,
-            use_tls=settings.smtp_tls,
-            start_tls=False,
-            timeout=10.0,
-        )
-    except (aiosmtplib.SMTPException, OSError, TimeoutError) as exc:
-        log.warning(
-            "agents.invite.send_failed account_id=%s invitee=%s error=%s",
-            account.id,
-            invitee.email,
-            exc,
-        )
+    await send_mail(msg, context=f"agents.invite account_id={account.id}")
 
 
 __all__ = [

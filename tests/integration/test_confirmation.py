@@ -17,12 +17,14 @@ Parity anchors (``DeviseOverrides::ConfirmationsController`` +
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 
 from app.core.db import get_session
+from app.core.mail import wait_for_pending_mail
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.auth.confirmation import (
     ConfirmationError,
@@ -33,6 +35,13 @@ from app.domains.users.models import User
 from app.main import app
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def sent_mail():
+    """Capture the mails the flow sends instead of reaching an SMTP server."""
+    with patch("app.core.mail.aiosmtplib.send", new_callable=AsyncMock) as send:
+        yield send
 
 
 @pytest.fixture
@@ -241,3 +250,14 @@ async def test_resend_is_case_insensitive(client, db_session, unconfirmed_user):
         )
     ).one()
     assert refreshed.confirmation_token is not None
+
+
+async def test_issuing_a_confirmation_emails_the_link(db_session, unconfirmed_user, sent_mail):
+    issued = await issue_confirmation_token(db_session, unconfirmed_user.user)
+    await wait_for_pending_mail()
+
+    (call,) = sent_mail.await_args_list
+    msg = call.args[0]
+    assert msg["To"] == unconfirmed_user.user.email
+    assert f"/confirm?confirmation_token={issued.raw_token}" in msg.get_content()
+

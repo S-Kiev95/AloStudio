@@ -39,6 +39,7 @@ WEBHOOK_GROUP = "Webhooks"
 BRAND_GROUP = "Marca"
 ACCESS_GROUP = "Acceso"
 PUBLISHING_GROUP = "Redes para publicar"
+MAIL_GROUP = "Correo saliente"
 
 CONFIG_SPECS: tuple[ConfigSpec, ...] = (
     # --- Facebook Login (Messenger + the full Instagram API) -----------
@@ -92,6 +93,62 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "Meta, incluido el https y la barra final."
         ),
         group=META_GROUP,
+    ),
+    # --- Outgoing mail (resets, confirmations, invitations) ------------
+    ConfigSpec(
+        name="SMTP_HOST",
+        setting="smtp_host",
+        title="Servidor SMTP",
+        description=(
+            "Por dónde salen los emails de AloStudio (recuperar contraseña, "
+            "confirmaciones, invitaciones, avisos). Con Gmail: smtp.gmail.com."
+        ),
+        group=MAIL_GROUP,
+    ),
+    ConfigSpec(
+        name="SMTP_PORT",
+        setting="smtp_port",
+        title="Puerto SMTP",
+        description="Con Gmail: 465 (con TLS activado).",
+        group=MAIL_GROUP,
+    ),
+    ConfigSpec(
+        name="SMTP_TLS",
+        setting="smtp_tls",
+        title="Conexión cifrada (TLS)",
+        description="Activado para el puerto 465 (Gmail).",
+        group=MAIL_GROUP,
+        kind="boolean",
+    ),
+    ConfigSpec(
+        name="SMTP_USER",
+        setting="smtp_user",
+        title="Usuario SMTP",
+        description="Con Gmail: la dirección completa de la cuenta que envía.",
+        group=MAIL_GROUP,
+    ),
+    ConfigSpec(
+        name="SMTP_PASSWORD",
+        setting="smtp_password",
+        title="Contraseña SMTP",
+        description=(
+            "Con Gmail: una contraseña de aplicación de 16 letras "
+            "(Cuenta de Google → Seguridad → Contraseñas de aplicaciones; "
+            "necesita la verificación en dos pasos). No la de tu cuenta."
+        ),
+        group=MAIL_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="MAIL_FROM",
+        setting="mail_from",
+        title="Remitente",
+        description=(
+            'Quién figura como remitente, por ejemplo "AloStudio '
+            '<tucorreo@gmail.com>". Con Gmail tiene que ser la misma cuenta.'
+        ),
+        group=MAIL_GROUP,
     ),
     # --- Publishing networks -------------------------------------------
     ConfigSpec(
