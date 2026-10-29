@@ -19,6 +19,34 @@ function channelDisplayLabel(channel: Channel): string {
   return base;
 }
 
+const utf8 = new TextEncoder();
+
+// The Threads adapter's test for an emoji: a character outside the BMP, a
+// symbol (So), a format character (Cf, like the zero-width joiner) or the
+// emoji variation selector.
+function isThreadsEmoji(char: string): boolean {
+  return (
+    (char.codePointAt(0) ?? 0) > 0xffff ||
+    /^[\p{So}\p{Cf}]$/u.test(char) ||
+    char === "️"
+  );
+}
+
+/**
+ * Length of ``text`` as the backend counts it for ``network``: code points
+ * (Python's ``len``), and on Threads each emoji by its UTF-8 bytes
+ * (``threads_length``). ``text.length`` counts UTF-16 units, which makes an
+ * emoji 2 everywhere: too long for most networks, too short for Threads.
+ */
+export function textLength(network: string, text: string): number {
+  if (network !== "threads") return Array.from(text).length;
+  let total = 0;
+  for (const char of text) {
+    total += isThreadsEmoji(char) ? utf8.encode(char).length : 1;
+  }
+  return total;
+}
+
 /**
  * Character limit for ``network`` given current media selection, or ``null``
  * when the network has no known client-side limit.
@@ -47,25 +75,29 @@ export function channelCharLimit(
   }
 }
 
-/** Smallest character limit across the chosen channels that use the shared text. */
+/**
+ * Smallest character limit across the chosen channels that use the shared
+ * text, with the network it comes from (its count is the one to show: see
+ * ``textLength``).
+ */
 export function minSharedCharLimit(
   targets: TargetRuleInput[],
   media: MediaCandidate[],
-): number | null {
-  let min: number | null = null;
+): { limit: number; network: string } | null {
+  let min: { limit: number; network: string } | null = null;
   for (const t of targets) {
     if (t.customContent !== null) continue;
     const limit = channelCharLimit(t.channel.network, media);
-    if (limit !== null && (min === null || limit < min)) {
-      min = limit;
+    if (limit !== null && (min === null || limit < min.limit)) {
+      min = { limit, network: t.channel.network };
     }
   }
   // If every chosen channel has custom text, fall back to the min across all chosen channels.
   if (min === null) {
     for (const t of targets) {
       const limit = channelCharLimit(t.channel.network, media);
-      if (limit !== null && (min === null || limit < min)) {
-        min = limit;
+      if (limit !== null && (min === null || limit < min.limit)) {
+        min = { limit, network: t.channel.network };
       }
     }
   }
@@ -96,11 +128,12 @@ export function validatePublicationTargets(
     const text = t.customContent !== null ? t.customContent : sharedContent;
     const hasText = text.trim().length > 0;
     const net = t.channel.network;
+    const length = textLength(net, text);
 
     if (net === "instagram") {
-      if (text.length > 2200) {
+      if (length > 2200) {
         problems.push(
-          `${label} (Instagram): el texto supera los 2200 caracteres (${text.length}/2200).`,
+          `${label} (Instagram): el texto supera los 2200 caracteres (${length}/2200).`,
         );
       }
       if (t.postType === "feed") {
@@ -131,7 +164,7 @@ export function validatePublicationTargets(
           `${label} (Facebook): escribí un texto o agregá al menos un medio.`,
         );
       }
-      if (text.length > 63206) {
+      if (length > 63206) {
         problems.push(
           `${label} (Facebook): el texto supera los 63206 caracteres.`,
         );
@@ -154,9 +187,9 @@ export function validatePublicationTargets(
           `${label} (Threads): escribí un texto o agregá al menos un medio.`,
         );
       }
-      if (text.length > 500) {
+      if (length > 500) {
         problems.push(
-          `${label} (Threads): el texto supera los 500 caracteres (${text.length}/500).`,
+          `${label} (Threads): el texto supera los 500 caracteres, contando cada emoji como varios (${length}/500).`,
         );
       }
       if (media.length > 20) {
@@ -174,9 +207,9 @@ export function validatePublicationTargets(
         );
       }
       const limit = media.length > 0 ? 1024 : 4096;
-      if (text.length > limit) {
+      if (length > limit) {
         problems.push(
-          `${label} (Telegram): el texto supera los ${limit} caracteres${media.length > 0 ? " con medios" : ""} (${text.length}/${limit}).`,
+          `${label} (Telegram): el texto supera los ${limit} caracteres${media.length > 0 ? " con medios" : ""} (${length}/${limit}).`,
         );
       }
       if (media.length > 10) {
@@ -196,7 +229,7 @@ export function validatePublicationTargets(
       const videoLinkChars = media
         .filter((m) => m.type === "video")
         .reduce((sum, v) => sum + (v.url ? v.url.length + 1 : 0), 0);
-      const effectiveLen = text.length + videoLinkChars;
+      const effectiveLen = length + videoLinkChars;
       if (effectiveLen > 2000) {
         problems.push(
           `${label} (Discord): el texto${videoCount > 0 ? " más los links de video" : ""} supera los 2000 caracteres.`,

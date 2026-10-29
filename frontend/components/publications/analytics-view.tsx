@@ -16,6 +16,7 @@ import {
   formatDateTimeLocal,
   formatLocalDateKey,
 } from "@/components/agenda/week-utils";
+import { MetricChart } from "@/components/reports/metric-chart";
 import { PageHeader } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +26,6 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { selectClassName } from "@/components/ui/select";
 import {
   type AnalyticsChannel,
-  type AnalyticsSeriesPoint,
   type MetricName,
   parsePublicationError,
   usePublicationAnalytics,
@@ -71,32 +71,28 @@ const METRIC_LABELS: { key: MetricName; label: string }[] = [
   { key: "saves", label: "Guardados" },
 ];
 
-function formatShortIsoDate(ymd: string): string {
-  const parts = ymd.split("-").map(Number);
-  if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
-    const d = new Date(parts[0], parts[1] - 1, parts[2]);
-    return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
-  }
-  const fallback = new Date(ymd);
-  if (Number.isNaN(fallback.getTime())) return ymd;
-  return fallback.toLocaleDateString("es-ES", {
-    day: "numeric",
-    month: "short",
-  });
+/** Local midnight of a ``YYYY-MM-DD`` date, or ``null``. */
+function localDay(ymd: string): Date | null {
+  const [y, m, d] = ymd.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const date = new Date(y, m - 1, d);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function validateCustomRange(from: string, to: string): string | null {
   if (!from || !to) return "Seleccioná las fechas Desde y Hasta.";
-  const start = new Date(`${from}T00:00:00Z`);
-  const end = new Date(`${to}T00:00:00Z`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+  const start = localDay(from);
+  const end = localDay(to);
+  if (!start || !end) {
     return "Las fechas ingresadas no son válidas.";
   }
   if (end.getTime() < start.getTime()) {
     return "La fecha Hasta debe ser igual o posterior a Desde.";
   }
-  const diffDays = Math.round((end.getTime() - start.getTime()) / 86_400_000);
-  if (diffDays > 366) {
+  // Both ends count: the period runs through the whole "Hasta" day.
+  const days =
+    Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+  if (days > 366) {
     return "El período no puede superar un año (366 días).";
   }
   return null;
@@ -110,7 +106,7 @@ export function PublicationsAnalyticsView({
   const today = useMemo(() => new Date(), []);
   const [period, setPeriod] = useState<PeriodOption>(30);
   const [customFrom, setCustomFrom] = useState<string>(() =>
-    formatLocalDateKey(addDaysLocal(today, -30)),
+    formatLocalDateKey(addDaysLocal(today, -29)),
   );
   const [customTo, setCustomTo] = useState<string>(() =>
     formatLocalDateKey(today),
@@ -121,20 +117,25 @@ export function PublicationsAnalyticsView({
   const channels = channelsQuery.data ?? [];
   const hasChannels = channels.length > 0;
 
+  // The backend takes instants, ``from`` inclusive and ``to`` exclusive:
+  // send the local midnights around the chosen days, so the period covers
+  // them whole in the browser's time zone (today included).
   const computedRange = useMemo(() => {
     if (period === "custom") {
-      return { from: customFrom, to: customTo };
+      const start = localDay(customFrom);
+      const end = localDay(customTo);
+      return start && end
+        ? { from: start.toISOString(), to: addDaysLocal(end, 1).toISOString() }
+        : { from: "", to: "" };
     }
     return {
-      from: formatLocalDateKey(addDaysLocal(today, -period)),
-      to: formatLocalDateKey(today),
+      from: addDaysLocal(today, -(period - 1)).toISOString(),
+      to: addDaysLocal(today, 1).toISOString(),
     };
   }, [period, customFrom, customTo, today]);
 
   const customError =
-    period === "custom"
-      ? validateCustomRange(computedRange.from, computedRange.to)
-      : null;
+    period === "custom" ? validateCustomRange(customFrom, customTo) : null;
 
   const selectedChannelId = channelIdStr ? Number(channelIdStr) : undefined;
 
@@ -458,7 +459,6 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
         ))}
       </div>
 
-      {/* Daily series chart (same zero-dep pattern as components/reports/metric-chart.tsx) */}
       <div className="space-y-3 border-t border-glass pt-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-medium text-fg-muted">Evolución diaria</p>
@@ -474,7 +474,14 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
           />
         </div>
 
-        <DailySeriesBarChart series={entry.series} metric={seriesMetric} />
+        <MetricChart
+          data={entry.series.map((pt) => ({
+            // Local midnight: the chart labels the timestamp in local time.
+            timestamp: (localDay(pt.date)?.getTime() ?? 0) / 1000,
+            value: pt[seriesMetric] ?? 0,
+          }))}
+          formatValue={(v) => v.toLocaleString()}
+        />
       </div>
     </Card>
   );
@@ -501,56 +508,5 @@ function FollowersDelta({ delta }: { delta: number | null }) {
       <Icon className="h-3 w-3" aria-hidden />
       {up ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
     </span>
-  );
-}
-
-function DailySeriesBarChart({
-  series,
-  metric,
-}: {
-  series: AnalyticsSeriesPoint[];
-  metric: SeriesMetric;
-}) {
-  if (!series.length) {
-    return (
-      <p className="py-8 text-center text-xs text-fg-muted">
-        Sin datos diarios en el período seleccionado.
-      </p>
-    );
-  }
-
-  const values = series.map((pt) => pt[metric] ?? 0);
-  const max = Math.max(...values, 1);
-  const metricLabel = metric === "reach" ? "Alcance" : "Vistas";
-
-  return (
-    <div>
-      <div data-chart-row className="flex h-36 gap-px">
-        {series.map((pt) => {
-          const val = pt[metric] ?? 0;
-          const pct = (val / max) * 100;
-          return (
-            <div
-              key={pt.date}
-              className="group flex flex-1 flex-col justify-end"
-              title={`${formatShortIsoDate(pt.date)} — ${metricLabel}: ${formatMetricValue(pt[metric])}`}
-            >
-              <div
-                data-bar
-                className="w-full rounded-t bg-primary/60 transition-colors group-hover:bg-primary"
-                style={{ height: `${val > 0 ? Math.max(pct, 2) : 0}%` }}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <div
-        data-axis
-        className="mt-2 flex justify-between font-numeric text-xs tabular-nums text-fg-muted"
-      >
-        <span>{formatShortIsoDate(series[0].date)}</span>
-        <span>{formatShortIsoDate(series[series.length - 1].date)}</span>
-      </div>
-    </div>
   );
 }

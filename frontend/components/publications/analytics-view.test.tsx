@@ -151,4 +151,24 @@ describe("PublicationsAnalyticsView", () => {
       screen.getByRole("link", { name: /Ver publicación/i }),
     ).toHaveAttribute("href", "https://instagram.com/p/primavera");
   });
+
+  it("pide el período como instantes: de la medianoche local de hace 29 días a la de mañana", async () => {
+    let requested: URL | null = null;
+    server.use(
+      http.get("*/api/v1/accounts/1/publications/analytics", ({ request }) => {
+        requested = new URL(request.url);
+        return HttpResponse.json(ANALYTICS_DATA);
+      }),
+    );
+
+    renderAnalytics();
+    await screen.findByTestId("total-card-posts");
+
+    // The backend reads `to` as exclusive: today has to fall inside it.
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+    const to = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    expect(requested!.searchParams.get("from")).toBe(from.toISOString());
+    expect(requested!.searchParams.get("to")).toBe(to.toISOString());
+  });
 });

@@ -53,6 +53,7 @@ import {
   channelCharLimit,
   minSharedCharLimit,
   type TargetRuleInput,
+  textLength,
   validatePublicationTargets,
 } from "./network-rules";
 import { PublicationErrorAlert } from "./publication-error-alert";
@@ -119,6 +120,7 @@ export function PublicationEditorDialog({
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
   const autoSigAppliedRef = useRef(false);
 
   const activeChannels = useMemo(
@@ -411,10 +413,19 @@ export function PublicationEditorDialog({
     [selectedChannels, channelConfigs],
   );
 
-  const minCharLimit = useMemo(
+  const sharedLimit = useMemo(
     () => minSharedCharLimit(ruleTargets, selectedMedia),
     [ruleTargets, selectedMedia],
   );
+  const sharedLength = sharedLimit
+    ? textLength(sharedLimit.network, content)
+    : Array.from(content).length;
+
+  // The actions sit at the bottom of a scrolling dialog and the error at
+  // the top: bring it into view, or a rejected save looks like a dead click.
+  useEffect(() => {
+    if (apiError) errorRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [apiError]);
 
   const ruleProblems = useMemo(
     () => validatePublicationTargets(content, selectedMedia, ruleTargets),
@@ -666,10 +677,12 @@ export function PublicationEditorDialog({
           </p>
         ) : null}
 
-        <PublicationErrorAlert
-          error={apiError}
-          onDismiss={() => setApiError(null)}
-        />
+        <div ref={errorRef}>
+          <PublicationErrorAlert
+            error={apiError}
+            onDismiss={() => setApiError(null)}
+          />
+        </div>
 
         {/* Canales */}
         <div className="space-y-2">
@@ -763,14 +776,14 @@ export function PublicationEditorDialog({
                 data-testid="shared-char-counter"
                 className={cn(
                   "font-numeric text-xs tabular-nums",
-                  minCharLimit !== null && content.length > minCharLimit
+                  sharedLimit !== null && sharedLength > sharedLimit.limit
                     ? "font-semibold text-danger"
                     : "text-fg-muted",
                 )}
               >
-                {minCharLimit !== null
-                  ? `${content.length} / ${minCharLimit}`
-                  : `${content.length} caracteres`}
+                {sharedLimit !== null
+                  ? `${sharedLength} / ${sharedLimit.limit}`
+                  : `${sharedLength} caracteres`}
               </span>
             </div>
           </div>
@@ -1001,6 +1014,7 @@ export function PublicationEditorDialog({
                 const cfg = configFor(ch.id);
                 const name = channelDisplayName(ch);
                 const ownLimit = channelCharLimit(ch.network, selectedMedia);
+                const ownLength = textLength(ch.network, cfg.customText);
 
                 return (
                   <div
@@ -1068,11 +1082,11 @@ export function PublicationEditorDialog({
                             <span
                               className={cn(
                                 "font-numeric tabular-nums",
-                                cfg.customText.length > ownLimit &&
+                                ownLength > ownLimit &&
                                   "font-semibold text-danger",
                               )}
                             >
-                              {cfg.customText.length} / {ownLimit}
+                              {ownLength} / {ownLimit}
                             </span>
                           ) : null}
                         </div>
