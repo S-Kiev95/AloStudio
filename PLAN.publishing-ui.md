@@ -185,6 +185,25 @@ type Analytics = {
 
 Las cifras de los posts se actualizan cada hora y las de los canales una vez por día (03:47 UTC): decilo en la pantalla.
 
+**Firmas y sets** (para el editor; las pantallas para administrarlos van en un plan siguiente)
+
+```ts
+type Signature = { id: number; content: string; auto_add: boolean; created_at: string | null; updated_at: string | null };
+type PublicationSet = {
+  id: number;
+  name: string;
+  content: string | null;
+  media: ({ media_id: number; type: "image" | "video"; url: string } | { type: "image" | "video"; url: string })[];
+  targets: { channel_id: number; channel: Channel | null; settings: { post_type?: string }; content_override: string | null }[];
+  created_at: string | null;
+  updated_at: string | null;
+};
+```
+
+- `GET /publications/signatures` → `Signature[]`. A lo sumo una tiene `auto_add: true`.
+- `GET /publications/sets` → `PublicationSet[]` (ordenados por nombre). `channel: null` = el canal ya no existe: ignoralo al cargar el set.
+- `POST /publications/sets` (solo administrador) con `{ name, content, media: [{ media_id } | { type, url }], targets: [{ channel_id, settings, content_override }] }` → `PublicationSet`. 422 con `message` si un canal o archivo no es de la cuenta.
+
 **Rol del usuario**: `useProfile()` de `lib/api/profile.ts` trae `accounts[]`; la cuenta actual es la de `id === Number(accountId)`. Es administrador si `role === ROLE_ADMINISTRATOR` (`1`, de `lib/api/account.ts`). Ojo: el backend manda `role` como número aunque el tipo de `profile.ts` diga `string`; corregí ese tipo a `number`. Para un agente, ocultá crear, editar, borrar, reintentar y actualizar estadísticas (puede ver todo y subir medios).
 
 ## 1. Navegación y rutas
@@ -222,6 +241,8 @@ El dueño quiere el menú lateral como el de su versión anterior (referencia: `
 - **Vista previa** simple por canal: nombre del canal, el texto que le toca y el primer medio. No imites la interfaz de cada red.
 - Acciones: **Guardar borrador** (`draft: true`), **Programar** o **Publicar ahora** (`draft: false`). Mostrá los problemas de la tabla de reglas antes de enviar y los 422 del backend tal cual.
 - Editar una publicación existente usa `PATCH` con el mismo formulario precargado.
+- **Firmas**: un botón "Firma" junto al texto abre la lista de `/publications/signatures` y agrega la elegida al final del texto (en una línea nueva). Al abrir el editor para una publicación **nueva**, si hay una firma con `auto_add`, el texto arranca con esa firma (dos saltos de línea antes, para escribir arriba).
+- **Sets**: arriba del editor, "Usar set" (si hay sets) carga uno: reemplaza texto, medios y canales con los del set (con su `settings` y `content_override`), sin tocar la fecha. "Guardar como set" (administrador) pide un nombre y manda el editor actual a `POST /publications/sets` (los medios de la biblioteca como `{ media_id }`).
 
 ## 4. Detalle
 
@@ -250,6 +271,7 @@ Con Vitest y `fetch` simulado, como los tests existentes:
 - El editor arma el cuerpo correcto: borrador, programada con fecha ISO, `media_id` en orden, `post_type` y `content_override` por canal; muestra los errores de reglas y los de un 422.
 - El detalle muestra cifras, error y link, y oculta las acciones a un agente.
 - Medios rechaza un archivo demasiado grande antes de subir.
+- El editor nuevo arranca con la firma automática; "Usar set" carga texto, medios y canales; "Guardar como set" manda el cuerpo esperado.
 - "Agregar canal" con una red `authorize` pide la URL de conexión y navega a ella; con una red `form` abre el diálogo, manda `{ fields }` y muestra el 422 en el diálogo. El aviso de `?connected` / `?connect_error` se muestra y la query se limpia.
 - Estadísticas muestra totales, "—" para cifras ausentes y el estado vacío sin canales.
 
