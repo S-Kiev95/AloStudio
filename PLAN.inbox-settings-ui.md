@@ -13,6 +13,15 @@ Rama `feat/inbox-settings-ui`, worktree `C:\Users\Zeek\Desktop\AloStudio-inbox-u
 
 Las mismas de `PLAN.publishing-ui.md` (worktree propio, no leer Postiz ni el repo principal, sin backend, sin push ni ssh, sin `.env`, sin bases, sin librerías nuevas, commits chicos con `Co-Authored-By: Antigravity <noreply@google.com>`, sección **Estado** con la salida real de `npm run typecheck`, `npm run lint` y `npm test`).
 
+## Notas de la revisión del plan anterior (cumplilas)
+
+- **Sin modificadores de opacidad sobre colores del tema** (`bg-danger/10`, `border-warning/30`, `bg-backdrop/75`, `bg-primary/60`…). Los colores son `var(--…)` con un hex adentro y Tailwind 3 no genera ninguna regla para esas clases: quedan transparentes. Al gráfico de estadísticas del plan anterior le pasó eso. Usá tokens sólidos (`bg-surface-2`, `bg-focused`, `bg-field`, `border-glass`, `text-danger`…) o `opacity-*`.
+- **Largo de texto como el backend**, nunca `.length`. `components/publications/network-rules.ts` exporta `textLength(network, text)`: puntos de código, y en Threads cada emoji por sus bytes UTF-8. Usala para el mensaje de un plug, con la red del canal: es como lo va a contar la red al publicarlo. Para la firma (1–2000), `Array.from(texto).length`.
+- **Fechas**: si mandás un instante, que sea ISO con zona (`toISOString()` de una fecha local). Nunca `YYYY-MM-DD` suelto.
+- **Reutilizá antes de copiar**: `MetricChart` (`components/reports/metric-chart.tsx`), `PublicationEditorDialog` (en modo set, para "Agregar set" y editar), `PublicationErrorAlert`, `parsePublicationError`, `useIsAccountAdmin` y `NavTabs`.
+- En un diálogo largo, si el error del backend queda lejos del botón que lo provocó, llevalo a la vista (como hace hoy el editor de publicaciones).
+- Cada commit tiene que contener todo el cambio que describe su mensaje.
+
 ## 1. Bandeja en tres columnas
 
 Hoy `/conversations` es una lista a todo el ancho y `/conversations/[id]` una pantalla aparte (conversación + `ContactPanel` a la derecha en pantallas grandes). Pasa a ser una sola vista, como `07-bandeja-conversacion.jpg`:
