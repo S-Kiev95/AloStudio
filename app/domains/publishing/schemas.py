@@ -82,6 +82,34 @@ class PublicationSetUpdate(BaseModel):
     targets: list[PublicationTargetIn] | None = None
 
 
+class AutopostIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = Field(min_length=1, max_length=120)
+    feed_url: str = Field(min_length=1, max_length=2000)
+    mode: str = "publish"
+    active: bool = True
+    start_with_latest: bool = False
+    channel_ids: list[int] = Field(default_factory=list)
+
+
+class AutopostUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    feed_url: str | None = Field(default=None, min_length=1, max_length=2000)
+    mode: str | None = None
+    active: bool | None = None
+    start_with_latest: bool | None = None
+    channel_ids: list[int] | None = None
+
+
+class FeedPreviewIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    feed_url: str = Field(min_length=1, max_length=2000)
+
+
 class ChannelConnectIn(BaseModel):
     """Values pasted to connect a network that connects by form."""
 
@@ -91,7 +119,10 @@ class ChannelConnectIn(BaseModel):
 
 
 __all__ = [
+    "AutopostIn",
+    "AutopostUpdate",
     "ChannelConnectIn",
+    "FeedPreviewIn",
     "MediaItem",
     "PublicationCreate",
     "PublicationSetIn",

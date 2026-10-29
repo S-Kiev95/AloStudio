@@ -8,6 +8,8 @@ Route map:
   * ``GET    /api/v1/accounts/{account_id}/publications/networks``
   * ``GET    /api/v1/accounts/{account_id}/publications/signatures`` (+ POST, PATCH/DELETE ``/{id}``)
   * ``GET    /api/v1/accounts/{account_id}/publications/sets`` (+ POST, PATCH/DELETE ``/{id}``)
+  * ``GET    /api/v1/accounts/{account_id}/publications/autoposts`` (+ POST, PATCH/DELETE ``/{id}``)
+  * ``POST   /api/v1/accounts/{account_id}/publications/autoposts/preview``
   * ``GET    /api/v1/accounts/{account_id}/publications/analytics``
   * ``GET    /api/v1/accounts/{account_id}/publications``
   * ``POST   /api/v1/accounts/{account_id}/publications``
@@ -40,17 +42,19 @@ from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
 from app.core.oauth_state import verify_oauth_state
-from app.domains.publishing import analytics, connections, presets
+from app.domains.publishing import analytics, autopost, connections, presets
 from app.domains.publishing import service as svc
 from app.domains.publishing.models import (
     PUBLICATION_STATE_PUBLISHING,
     PUBLICATION_STATE_SCHEDULED,
     Publication,
     PublicationSet,
+    PublishingAutopost,
     PublishingChannel,
     PublishingSignature,
 )
 from app.domains.publishing.presenters import (
+    present_autopost,
     present_channel,
     present_one_publication,
     present_publications,
@@ -58,7 +62,10 @@ from app.domains.publishing.presenters import (
     present_signature,
 )
 from app.domains.publishing.schemas import (
+    AutopostIn,
+    AutopostUpdate,
     ChannelConnectIn,
+    FeedPreviewIn,
     PublicationCreate,
     PublicationSetIn,
     PublicationSetUpdate,
@@ -307,6 +314,89 @@ async def delete_set_endpoint(
     if publication_set is None:
         raise _not_found()
     await presets.delete_set(session, publication_set=publication_set)
+    return {}
+
+
+# -- Auto post (RSS / Atom) ----------------------------------------------------
+@router.get("/autoposts")
+async def index_autoposts(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    assert ctx.account.id is not None
+    rows = await autopost.list_autoposts(session, account_id=ctx.account.id)
+    return [present_autopost(row) for row in rows]
+
+
+@router.post("/autoposts/preview", status_code=status.HTTP_200_OK)
+async def preview_autopost_feed(
+    payload: FeedPreviewIn,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+) -> dict[str, Any]:
+    """The feed's newest entries, to check a URL before saving it."""
+    items = await autopost.preview_feed(payload.feed_url.strip())
+    return {
+        "items": [
+            {
+                "title": i.title,
+                "link": i.link,
+                "image_url": i.image_url,
+                "published_at": i.published_at.isoformat() if i.published_at else None,
+            }
+            for i in items
+        ]
+    }
+
+
+@router.post("/autoposts", status_code=status.HTTP_200_OK)
+async def create_autopost(
+    payload: AutopostIn,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    row = await autopost.save_autopost(
+        session,
+        autopost=PublishingAutopost(
+            account_id=ctx.account.id, name=payload.name, feed_url="", created_by_id=ctx.user.id
+        ),
+        values=payload.model_dump(),
+    )
+    return present_autopost(row)
+
+
+@router.patch("/autoposts/{autopost_id}")
+async def update_autopost(
+    autopost_id: Annotated[int, Path()],
+    payload: AutopostUpdate,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    row = await autopost.get_autopost(
+        session, account_id=ctx.account.id, autopost_id=autopost_id
+    )
+    if row is None:
+        raise _not_found()
+    row = await autopost.save_autopost(
+        session, autopost=row, values=payload.model_dump(exclude_unset=True)
+    )
+    return present_autopost(row)
+
+
+@router.delete("/autoposts/{autopost_id}", status_code=status.HTTP_200_OK)
+async def delete_autopost_endpoint(
+    autopost_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    row = await autopost.get_autopost(
+        session, account_id=ctx.account.id, autopost_id=autopost_id
+    )
+    if row is None:
+        raise _not_found()
+    await autopost.delete_autopost(session, autopost=row)
     return {}
 
 

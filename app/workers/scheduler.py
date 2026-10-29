@@ -392,6 +392,7 @@ class WorkerSettings:
         from app.workers.publishing import (
             METRICS_JOB_TIMEOUT_SECONDS,
             snapshot_publishing_channels_task,
+            sync_autoposts_task,
             sync_publishing_metrics_task,
         )
 
@@ -415,6 +416,13 @@ class WorkerSettings:
             cron(
                 sync_publishing_metrics_task,
                 minute={37},
+                timeout=METRICS_JOB_TIMEOUT_SECONDS,
+            ),
+            # New entries of the auto post feeds, every 15 minutes, off the
+            # 5-minute tick.
+            cron(
+                sync_autoposts_task,
+                minute={4, 19, 34, 49},
                 timeout=METRICS_JOB_TIMEOUT_SECONDS,
             ),
             cron(

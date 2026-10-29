@@ -197,10 +197,22 @@ async def snapshot_publishing_channels_task(ctx: dict[str, Any]) -> dict[str, in
     return {"channels": channels, "tokens_renewed": renewed}
 
 
+async def sync_autoposts_task(ctx: dict[str, Any]) -> dict[str, int]:
+    """Every 15 minutes: turn the new entries of the accounts' feeds into
+    publications. Each feed is committed on its own."""
+    from app.domains.publishing import autopost
+
+    async with _session_factory(ctx)() as session:
+        created = await autopost.sync_all(session)
+    log.info("publishing.autopost.synced publications=%s", created)
+    return {"publications": created}
+
+
 __all__ = [
     "enqueue_publication",
     "fire_due_publications",
     "publish_publication_task",
     "snapshot_publishing_channels_task",
+    "sync_autoposts_task",
     "sync_publishing_metrics_task",
 ]

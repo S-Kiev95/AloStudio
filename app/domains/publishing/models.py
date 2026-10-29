@@ -443,7 +443,74 @@ class PublicationSet(TimestampMixin, table=True):
         ),
     )
 
+
+AUTOPOST_MODE_PUBLISH = "publish"
+AUTOPOST_MODE_DRAFT = "draft"
+AUTOPOST_MODES: tuple[str, ...] = (AUTOPOST_MODE_PUBLISH, AUTOPOST_MODE_DRAFT)
+
+
+class PublishingAutopost(TimestampMixin, table=True):
+    """An RSS/Atom feed whose new entries become publications: published
+    right away, or saved as drafts for someone to review (``mode``)."""
+
+    __tablename__ = "publishing_autoposts"
+
+    id: int | None = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("accounts.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    name: str = Field(sa_column=Column(String, nullable=False))
+    feed_url: str = Field(sa_column=Column(Text, nullable=False))
+    mode: str = Field(
+        default=AUTOPOST_MODE_PUBLISH,
+        sa_column=Column(String, nullable=False, server_default=AUTOPOST_MODE_PUBLISH),
+    )
+    active: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=False, server_default="true"),
+    )
+    # Channels it publishes to; empty means every active channel of the
+    # account at the time of each entry.
+    channel_ids: list[int] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default="[]"),
+    )
+    # On the first read, also publish the newest entry already in the feed
+    # (otherwise only entries that appear afterwards).
+    start_with_latest: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="false"),
+    )
+    # The newest entry seen (its guid, id or link): entries above it are new.
+    last_item_key: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+    last_checked_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+    last_error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    created_by_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+
 __all__ = [
+    "AUTOPOST_MODES",
+    "AUTOPOST_MODE_DRAFT",
+    "AUTOPOST_MODE_PUBLISH",
     "CHANNEL_METRIC_KEYS",
     "CHANNEL_STATUS_ACTIVE",
     "CHANNEL_STATUS_RECONNECT",
@@ -465,6 +532,7 @@ __all__ = [
     "Publication",
     "PublicationSet",
     "PublicationTarget",
+    "PublishingAutopost",
     "PublishingChannel",
     "PublishingSignature",
 ]

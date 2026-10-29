@@ -12,6 +12,7 @@ from app.domains.publishing.models import (
     Publication,
     PublicationSet,
     PublicationTarget,
+    PublishingAutopost,
     PublishingChannel,
     PublishingSignature,
 )
@@ -104,6 +105,22 @@ async def present_one_publication(
 
 
 
+def present_autopost(autopost: PublishingAutopost) -> dict[str, Any]:
+    return {
+        "id": autopost.id,
+        "name": autopost.name,
+        "feed_url": autopost.feed_url,
+        "mode": autopost.mode,
+        "active": autopost.active,
+        "start_with_latest": autopost.start_with_latest,
+        "channel_ids": autopost.channel_ids or [],
+        "last_checked_at": _iso(autopost.last_checked_at),
+        "last_error": autopost.last_error,
+        "created_at": _iso(autopost.created_at),
+        "updated_at": _iso(autopost.updated_at),
+    }
+
+
 def present_signature(signature: PublishingSignature) -> dict[str, Any]:
     return {
         "id": signature.id,
@@ -176,6 +193,7 @@ async def present_sets(
     ]
 
 __all__ = [
+    "present_autopost",
     "present_channel",
     "present_one_publication",
     "present_publication",
