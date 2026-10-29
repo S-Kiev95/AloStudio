@@ -113,8 +113,22 @@ type Publication = {
 
 **Conectar redes que no son bandejas**
 
-- `GET /publications/networks` → `{ network: string; label: string; configured: boolean }[]`.
-- `POST /publications/channels/connect/{network}` (solo administrador) → `{ authorize_url: string }`: mandá el navegador ahí (`window.location.href`). 422 con `message` si la instalación no está configurada para esa red.
+Hay dos formas, y `/networks` dice cuál usa cada red:
+
+```ts
+type ConnectionField = { name: string; label: string; help: string; secret: boolean };
+type NetworkOption = {
+  network: string;
+  label: string;
+  configured: boolean;
+  kind: "authorize" | "form";
+  fields: ConnectionField[]; // vacío para "authorize"
+};
+```
+
+- `GET /publications/networks` → `NetworkOption[]` (hoy: Threads por autorización; Telegram y Discord por formulario).
+- `kind: "authorize"`: `POST /publications/channels/connect/{network}` sin cuerpo (solo administrador) → `{ authorize_url: string }`: mandá el navegador ahí (`window.location.href`). 422 con `message` si la instalación no está configurada para esa red.
+- `kind: "form"`: un diálogo con un campo por `fields` (los `secret` como contraseña, con su `help` debajo, todos obligatorios) y `POST /publications/channels/connect/{network}` con `{ fields: { [name]: valor } }` → `{ channel: Channel }`, ya conectado: refrescá la lista de canales. Si la red rechaza los datos vuelve 422 con `message` en español: mostralo en el diálogo sin cerrarlo.
 - Al volver, la red deja al usuario en `/accounts/{accountId}/publications` con `?connected=<network>&channel=<id>` si salió bien o `?connect_error=<mensaje>` si no: mostrá un aviso con eso y limpiá la query.
 - `DELETE /publications/channels/{id}` (solo administrador) → `{}`; 422 para los canales de una bandeja (se quitan desde la bandeja).
 
@@ -129,6 +143,8 @@ Reglas de cada red (el backend las valida igual; mostralas antes de enviar para 
 | Instagram `story` | hasta 2200 (no se muestra) | exactamente 1 imagen o video |
 | Página de Facebook | hasta 63206; texto **o** medios obligatorio | hasta 10 imágenes, o 1 video solo |
 | Threads | hasta 500 (cada emoji cuenta como varios); texto **o** medios obligatorio | hasta 20 imágenes o videos (más de 1 = carrusel) |
+| Telegram | hasta 4096 sin medios, 1024 con medios; texto **o** medios obligatorio | hasta 10 imágenes o videos (más de 1 = álbum) |
+| Discord | hasta 2000, contando un link por cada video; texto **o** medios obligatorio | hasta 10 imágenes (los videos van como link) |
 
 **Biblioteca de medios**
 
@@ -222,7 +238,7 @@ Con Vitest y `fetch` simulado, como los tests existentes:
 - El editor arma el cuerpo correcto: borrador, programada con fecha ISO, `media_id` en orden, `post_type` y `content_override` por canal; muestra los errores de reglas y los de un 422.
 - El detalle muestra cifras, error y link, y oculta las acciones a un agente.
 - Medios rechaza un archivo demasiado grande antes de subir.
-- "Agregar canal" pide la URL de conexión y navega a ella; el aviso de `?connected` / `?connect_error` se muestra y la query se limpia.
+- "Agregar canal" con una red `authorize` pide la URL de conexión y navega a ella; con una red `form` abre el diálogo, manda `{ fields }` y muestra el 422 en el diálogo. El aviso de `?connected` / `?connect_error` se muestra y la query se limpia.
 - Estadísticas muestra totales, "—" para cifras ausentes y el estado vacío sin canales.
 
 ## Fuera de alcance
