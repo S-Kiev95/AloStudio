@@ -407,6 +407,9 @@ class ThreadsAdapter(PublishingAdapter):
         )
 
     # -- Publishing ---------------------------------------------------------
+    def text_length(self, text: str) -> int:
+        return threads_length(text)
+
     def validate(
         self, publication: Publication, target: PublicationTarget
     ) -> list[str]:
@@ -415,7 +418,7 @@ class ThreadsAdapter(PublishingAdapter):
         media = publication.media or []
         if not text.strip() and not media:
             errors.append("Threads necesita texto o al menos una imagen o video.")
-        if threads_length(text) > TEXT_MAX:
+        if self.text_length(text) > TEXT_MAX:
             errors.append(
                 f"El texto para Threads supera los {TEXT_MAX} caracteres "
                 "(cada emoji cuenta como varios)."

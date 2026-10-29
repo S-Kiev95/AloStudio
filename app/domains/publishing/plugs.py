@@ -97,7 +97,11 @@ async def save_plug(
     if kind.message_max is not None:
         if not plug.message:
             raise svc._unprocessable("Esta acción necesita el mensaje que va a publicar")
-        if len(plug.message) > kind.message_max:
+        # Measured as the network will count it when the plug runs, or a
+        # message accepted here would only fail then.
+        adapter = adapter_for_network(channel.network) if channel else None
+        length = adapter.text_length(plug.message) if adapter else len(plug.message)
+        if length > kind.message_max:
             raise svc._unprocessable(
                 f"El mensaje supera los {kind.message_max} caracteres"
             )

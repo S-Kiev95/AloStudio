@@ -165,6 +165,22 @@ async def test_invalid_plugs_are_refused(client, db_session):
         assert r.status_code == 422, (body, r.text)
 
 
+async def test_the_message_is_measured_as_the_network_counts_it(client, db_session):
+    owner, h = await _seed(db_session, "-emoji")
+    channel = await _threads(db_session, owner.account)
+    base = f"/api/v1/accounts/{owner.account.id}/publications/plugs"
+    reply = {"channel_id": channel.id, "kind": "reply_after_likes", "likes_threshold": 5}
+
+    # 200 emoji are 200 characters to len(), but Threads counts each one by
+    # its UTF-8 bytes: 800, over its 500. Accepting it would only fail when
+    # the plug runs.
+    r = await client.post(base, headers=h, json={**reply, "message": "😀" * 200})
+    assert r.status_code == 422, r.text
+
+    r = await client.post(base, headers=h, json={**reply, "message": "😀" * 125})  # 500 exactly
+    assert r.status_code == 200, r.text
+
+
 # ---------------------------------------------------------------------------
 # Running
 # ---------------------------------------------------------------------------

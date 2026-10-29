@@ -166,6 +166,12 @@ class PublishingAdapter(ABC):
         ``publish``, failures come back in the result."""
         raise NotImplementedError
 
+    def text_length(self, text: str) -> int:
+        """Length of ``text`` as the network counts it against its limits.
+        Characters by default; a network that counts some of them as more
+        (Threads and its emoji) says so here."""
+        return len(text)
+
     @abstractmethod
     def validate(
         self, publication: Publication, target: PublicationTarget
