@@ -85,8 +85,19 @@ const conv43 = {
 };
 
 let conversationsListHits = 0;
+let currentRole = 1; // ROLE_ADMINISTRATOR
 
 const server = setupServer(
+  http.get("*/api/v1/profile", () =>
+    HttpResponse.json({
+      data: {
+        id: 1,
+        name: "Zeek",
+        email: "zeek@alostudio.test",
+        accounts: [{ id: 1, name: "AloStudio", role: currentRole }],
+      },
+    }),
+  ),
   http.get("*/api/v1/accounts/:accountId/conversations", () => {
     conversationsListHits += 1;
     return HttpResponse.json({
@@ -249,6 +260,7 @@ const server = setupServer(
 beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
 beforeEach(() => {
   conversationsListHits = 0;
+  currentRole = 1;
   mockPathname = "/accounts/1/conversations";
 });
 afterEach(() => server.resetHandlers());
@@ -388,16 +400,40 @@ describe("Bandeja en tres columnas y pestañas", () => {
     );
 
     expect(await screen.findByText("Instagram Oficial")).toBeInTheDocument();
+    // Admin-only: shows once the profile says so.
     expect(
-      screen.getByRole("link", { name: /conectar canal/i }),
+      await screen.findByRole("link", { name: /conectar canal/i }),
     ).toHaveAttribute("href", "/accounts/1/settings/inboxes/new");
     expect(
       screen.getByRole("link", { name: /detalles de conexión/i }),
     ).toHaveAttribute("href", "/accounts/1/settings/inboxes/7");
 
-    fireEvent.click(screen.getByRole("button", { name: "Desconectar" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Desconectar" }));
     await waitFor(() => {
       expect(deletedInboxId).toBe(7);
     });
+  });
+
+  it("a un agente le muestra los canales sin Conectar ni Desconectar", async () => {
+    currentRole = 0; // ROLE_AGENT
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={qc}>
+        <InboxChannelsView accountId="1" />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("Instagram Oficial")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(qc.getQueryData(["profile"])).toBeTruthy();
+    });
+    expect(
+      screen.getByRole("link", { name: /detalles de conexión/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /conectar canal/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Desconectar" })).toBeNull();
   });
 });

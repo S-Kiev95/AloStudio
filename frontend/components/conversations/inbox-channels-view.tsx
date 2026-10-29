@@ -22,6 +22,7 @@ import {
   useDeleteInbox,
   useInboxes,
 } from "@/lib/api/inboxes";
+import { useIsAccountAdmin } from "@/lib/api/profile";
 import { cn } from "@/lib/utils";
 
 const CHANNEL_ICON: Record<string, LucideIcon> = {
@@ -38,6 +39,9 @@ const CHANNEL_ICON: Record<string, LucideIcon> = {
 
 export function InboxChannelsView({ accountId }: { accountId: string }) {
   const { data: inboxes, isLoading, isError } = useInboxes(accountId);
+  // Connecting and disconnecting are admin-only: an agent would only get
+  // the backend's denial.
+  const isAdmin = useIsAccountAdmin(accountId);
   const newHref = `/accounts/${accountId}/settings/inboxes/new`;
 
   return (
@@ -49,10 +53,12 @@ export function InboxChannelsView({ accountId }: { accountId: string }) {
             Todos los canales conectados acá llegan a la misma bandeja.
           </p>
         </div>
-        <Link href={newHref} className={buttonVariants({ size: "sm" })}>
-          <Plus className="h-4 w-4" aria-hidden />
-          Conectar canal
-        </Link>
+        {isAdmin ? (
+          <Link href={newHref} className={buttonVariants({ size: "sm" })}>
+            <Plus className="h-4 w-4" aria-hidden />
+            Conectar canal
+          </Link>
+        ) : null}
       </div>
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
@@ -67,18 +73,25 @@ export function InboxChannelsView({ accountId }: { accountId: string }) {
             <p className="text-sm text-fg-muted">
               No hay canales conectados todavía.
             </p>
-            <Link
-              href={newHref}
-              className={cn(buttonVariants({ size: "sm" }), "mt-3")}
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-              Conectar canal
-            </Link>
+            {isAdmin ? (
+              <Link
+                href={newHref}
+                className={cn(buttonVariants({ size: "sm" }), "mt-3")}
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+                Conectar canal
+              </Link>
+            ) : null}
           </div>
         ) : (
           <ul className="divide-y divide-glass">
             {inboxes!.map((ix) => (
-              <ChannelRow key={ix.id} accountId={accountId} inbox={ix} />
+              <ChannelRow
+                key={ix.id}
+                accountId={accountId}
+                inbox={ix}
+                isAdmin={isAdmin}
+              />
             ))}
           </ul>
         )}
@@ -90,9 +103,11 @@ export function InboxChannelsView({ accountId }: { accountId: string }) {
 function ChannelRow({
   accountId,
   inbox,
+  isAdmin,
 }: {
   accountId: string;
   inbox: Inbox;
+  isAdmin: boolean;
 }) {
   const del = useDeleteInbox(accountId);
   const [error, setError] = useState<string | null>(null);
@@ -133,16 +148,18 @@ function ChannelRow({
         >
           Detalles de conexión
         </Link>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          loading={del.isPending}
-          onClick={onDisconnect}
-          className="text-fg-muted hover:text-danger"
-        >
-          Desconectar
-        </Button>
+        {isAdmin ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            loading={del.isPending}
+            onClick={onDisconnect}
+            className="text-fg-muted hover:text-danger"
+          >
+            Desconectar
+          </Button>
+        ) : null}
       </div>
     </li>
   );
