@@ -9,9 +9,15 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 
+import { SettingsSidebar } from "../settings-sidebar";
 import { MCPTokensView } from "./mcp-tokens-view";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/accounts/1/settings/mcp_tokens",
+}));
 
 const tokens = [
   {
@@ -49,13 +55,41 @@ function renderWithQuery(ui: React.ReactElement) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
-describe("MCPTokensView", () => {
-  it("lists tokens with scope badges and last-used", async () => {
+describe("MCPTokensView y menú lateral de Ajustes", () => {
+  it("muestra el título 'API y MCP', la explicación de uso y lista tokens con alcances", async () => {
     renderWithQuery(<MCPTokensView accountId="1" />);
+    expect(
+      screen.getByRole("heading", { name: "API y MCP" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/conectar el agente de IA, n8n/i),
+    ).toBeInTheDocument();
     expect(await screen.findByText("agente-soporte")).toBeInTheDocument();
     expect(await screen.findByText("lectura-bi")).toBeInTheDocument();
     expect(screen.getByText("Escritura")).toBeInTheDocument();
     expect(screen.getByText("Lectura")).toBeInTheDocument();
     expect(screen.getByText("Nunca usado")).toBeInTheDocument();
+  });
+
+  it("incluye el grupo Publicación (Firmas, Sets, Auto post, Plugs) y API y MCP en SettingsSidebar", () => {
+    render(<SettingsSidebar accountId="1" />);
+    expect(screen.getByText("Publicación")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: "Firmas" })[0],
+    ).toHaveAttribute("href", "/accounts/1/settings/signatures");
+    expect(screen.getAllByRole("link", { name: "Sets" })[0]).toHaveAttribute(
+      "href",
+      "/accounts/1/settings/sets",
+    );
+    expect(
+      screen.getAllByRole("link", { name: "Auto post" })[0],
+    ).toHaveAttribute("href", "/accounts/1/settings/autoposts");
+    expect(screen.getAllByRole("link", { name: "Plugs" })[0]).toHaveAttribute(
+      "href",
+      "/accounts/1/settings/plugs",
+    );
+    expect(
+      screen.getAllByRole("link", { name: "API y MCP" })[0],
+    ).toHaveAttribute("href", "/accounts/1/settings/mcp_tokens");
   });
 });
