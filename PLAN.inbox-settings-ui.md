@@ -100,4 +100,392 @@ Cambios de backend, la pantalla de chat del agente de IA, videos con IA, apps OA
 
 ## Estado
 
-_(lo completa el agente al terminar)_
+### Qué se hizo
+
+- **1. Bandeja en tres columnas**:
+  - `frontend/components/conversations/inbox-shell.tsx` y grupo de rutas `frontend/app/accounts/[accountId]/conversations/(inbox)/{layout.tsx,page.tsx,[id]/page.tsx}`: unificación de `/conversations` y `/conversations/[id]` bajo un único layout persistente que mantiene `ConversationList` montada (~320 px a la izquierda) sin recargar la lista al cambiar de conversación, muestra `"Elegí una conversación para empezar"` centrado cuando no hay conversación abierta y alterna de a una columna con `"Volver"` en pantallas chicas.
+  - `frontend/components/conversations/conversation-list.tsx` y `frontend/lib/api/conversations.ts`: versión compacta de filas con avatar de iniciales (`Avatar` ampliado a dos iniciales y tamaño `xl`), nombre, ícono de canal, última línea de mensaje, fecha corta y burbuja de no leídos; pestañas superiores **Todas / Míos / Sin asignar** con contadores, buscador, pastillas **Abiertas / Resueltas / Pendientes / Todas**, selector de bandeja de entrada (`inbox_id`) y resaltado `aria-current="page"` de la conversación abierta.
+  - `frontend/components/conversations/{conversation-view,conversation-actions,message-bubble,message-composer,contact-panel,conversation-participants,ai-handoff,email-message}.tsx`: encabezado con avatar, nombre, `#id`, estado y botón **Resolver**, segunda fila con Asignado, Equipo (`useAssignTeam`) y **+ Etiqueta**, burbujas diferenciadas (contacto en superficie neutra a la izquierda, equipo en color primario a la derecha, notas privadas con superficie propia, autor y hora debajo), editor inferior con **Nota privada**, **Respuestas rápidas**, adjuntar y **Enviar**, y `ContactPanel` (~280 px a la derecha) con avatar grande, nombre, estado, email, teléfono y atributos personalizados compartiendo la caché de conversaciones abiertas (`refetchOnMount: false`) para no disparar recargas al cambiar de chat.
+- **2. Pestañas de la bandeja**:
+  - `frontend/components/conversations/inbox-tabs.tsx` y `frontend/app/accounts/[accountId]/conversations/layout.tsx`: `NavTabs` encima de la bandeja con **Conversaciones** | **Reportes** | **Canales** (sin duplicar Contactos, que viven en CRM).
+  - `frontend/components/conversations/inbox-reports-view.tsx` y `frontend/app/accounts/[accountId]/conversations/reports/page.tsx`: resumen con abiertas, resueltas, pendientes, mensajes de hoy, contactos, agentes conectados, gráfico de mensajes de los últimos 7 días reutilizando `MetricChart` y enlace a `/accounts/{accountId}/reports`.
+  - `frontend/components/conversations/inbox-channels-view.tsx` y `frontend/app/accounts/[accountId]/conversations/channels/page.tsx`: lista de bandejas conectadas con **Conectar canal**, **Detalles de conexión** y **Desconectar** reutilizando los hooks y rutas de `inboxes`.
+- **3. Ajustes de publicación**:
+  - `frontend/lib/api/publications.ts`: un hook de React Query por consulta o mutación para firmas (`usePublicationSignatures`, `useCreatePublicationSignature`, `useUpdatePublicationSignature`, `useDeletePublicationSignature`), sets (`usePublicationSets`, `useCreatePublicationSet`, `useUpdatePublicationSet`, `useDeletePublicationSet`), auto post (`usePublicationAutoposts`, `useCreatePublicationAutopost`, `useUpdatePublicationAutopost`, `useDeletePublicationAutopost`, `usePreviewPublicationAutopost`) y plugs (`usePublicationPlugsCatalog`, `usePublicationPlugs`, `useCreatePublicationPlug`, `useUpdatePublicationPlug`, `useDeletePublicationPlug`).
+  - `frontend/components/settings/settings-sidebar.tsx`: nuevo grupo **Publicación** (**Firmas**, **Sets**, **Auto post**, **Plugs**) y renombrado de `mcp_tokens` a **API y MCP**.
+  - **Firmas** (`frontend/components/settings/signatures/signatures-view.tsx`, `settings/signatures/page.tsx`): listado con marca `Automática`, acciones de administrador (`useIsAccountAdmin`, agentes solo lectura), diálogo con contador de puntos de código `Array.from(texto).length / 2000` y casilla `"¿Agregar sola a cada publicación nueva?"`.
+  - **Sets** (`frontend/components/settings/sets/sets-view.tsx`, `settings/sets/page.tsx`, `publication-editor-dialog.tsx`): listado `Sets (N)` con nombre, avatares de canales y fecha; **Agregar set** y **Editar** reutilizan `PublicationEditorDialog` en `mode="set"` (sin selector de fecha y con botón **Guardar set**).
+  - **Auto post** (`frontend/components/settings/autoposts/autoposts-view.tsx`, `settings/autoposts/page.tsx`): listado con nombre, URL, estado activo/pausado, `"Revisado hace…"` y `last_error` si existe; diálogo con botón **Probar** (muestra hasta las 5 entradas más nuevas o el 422 del backend), modo (`Publicar enseguida` / `Guardar como borrador`), canales (todos o algunos), `"Publicar también la última entrada que ya está en el feed"` y `"Activo"`.
+  - **Plugs** (`frontend/components/settings/plugs/plugs-view.tsx`, `settings/plugs/page.tsx`): cruce de canales con `/publications/plugs/catalog`; estado vacío `"Conectá Threads para usar acciones automáticas"` con link al calendario cuando no hay canales compatibles; listado por canal con umbral, mensaje, estado y últimas corridas (`Bien` / `Falló` con motivo); diálogo que muestra el campo de mensaje **únicamente** cuando `message_max !== null` y cuenta caracteres con `textLength(network, text)`.
+  - **API y MCP** (`frontend/components/settings/mcp-tokens/mcp-tokens-view.tsx`, `secret-reveal.tsx`): título actualizado a **API y MCP** y texto explicativo para conectar el agente de IA, n8n, CLI u otras herramientas externas sin alterar la funcionalidad existente.
+  - Cumplimiento estricto de las **Notas de la revisión del plan anterior**: cero modificadores de opacidad `/NN` sobre colores del tema en todos los archivos tocados, scroll automático de errores (`scrollIntoView`) en diálogos, conteo exacto de texto (`textLength` / `Array.from`), fechas ISO con zona y preservación textual de `message` en respuestas 422.
+- **4. Tests**:
+  - `frontend/components/conversations/inbox-three-column.test.tsx`: verifica que lista, conversación y panel de contacto se muestran juntos, que el estado vacío aparece sin selección, que cambiar de conversación actualiza la vista central y el contacto sin volver a pedir `GET /conversations`, y cubre `InboxTabs`, `InboxReportsView` e `InboxChannelsView`.
+  - `frontend/components/settings/signatures/signatures-view.test.tsx`, `sets/sets-view.test.tsx`, `autoposts/autoposts-view.test.tsx`, `plugs/plugs-view.test.tsx` y `mcp-tokens/mcp-tokens-view.test.tsx`: cubren listado, creación (verificando el cuerpo enviado), edición, borrado, modo solo lectura para agentes, errores 422, **Probar** del auto post (entradas y error 422) y aparición condicional del mensaje en plugs solo cuando la acción define `message_max` con conteo UTF-8 en Threads.
+
+### Qué quedó pendiente / fuera de alcance
+
+- Ningún punto de las secciones 1 a 4 quedó pendiente.
+- Se respetó estrictamente **Fuera de alcance**: sin cambios de backend, sin pantalla de chat del agente de IA, sin generación de videos con IA, sin apps OAuth y sin cambios en la lógica de carga/envío de mensajes.
+- No se levantaron bases de datos ni servidores contra entorno real; la verificación visual interactiva en navegador con sesión real queda para la revisión posterior.
+
+### Qué se revisó a mano
+
+- Contraste visual contra las capturas `06-bandeja-lista.jpg`, `07-bandeja-conversacion.jpg`, `09-bandeja-reportes.jpg`, `10-bandeja-canales.jpg`, `12-ajustes-generales.png`, `13-ajustes-agentes.jpg`, `16-ajustes-autopost.jpg`, `17-ajustes-sets.jpg`, `18-ajustes-firmas.jpg` y `20-ajustes-plugs.jpg`, así como `docs/design-neon/DESIGN.md` y `frontend/DESIGN-SYSTEM.md`.
+- Escaneo completo sobre todos los archivos creados o modificados en la rama para confirmar la ausencia total de clases Tailwind con modificador de opacidad sobre variables del tema (`bg-*/NN`, `border-*/NN`, `text-*/NN`, etc.).
+- Revisión de `git diff --name-status` respecto de `main` para confirmar que solo se tocaron archivos bajo `frontend/` y `PLAN.inbox-settings-ui.md`, sin tocar `package.json`, `package-lock.json`, `.env*` ni el backend.
+
+### Salida completa de los comandos de verificación
+
+#### 1. `npm run typecheck`
+
+```text
+> alostudio-frontend@0.1.0 typecheck
+> tsc --noEmit
+```
+
+#### 2. `npm run lint`
+
+```text
+> alostudio-frontend@0.1.0 lint
+> next lint
+
+`next lint` is deprecated and will be removed in Next.js 16.
+For new projects, use create-next-app to choose your preferred linter.
+For existing projects, migrate to the ESLint CLI:
+npx @next/codemod@canary next-lint-to-eslint-cli .
+
+✔ No ESLint warnings or errors
+```
+
+#### 3. `npm test`
+
+```text
+> alostudio-frontend@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 C:/Users/Zeek/Desktop/AloStudio-inbox-ui/frontend
+
+ ✓ lib/inboxes/email-blocks.test.ts (15 tests) 11ms
+ ✓ components/publications/network-rules.test.ts (3 tests) 8ms
+ ✓ components/reports/summary-table.test.tsx (3 tests) 273ms
+ ✓ components/settings/inboxes/email-branding-panel.test.tsx (7 tests) 436ms
+ ✓ components/publications/media-library-view.test.tsx (3 tests) 661ms
+   ✓ MediaLibraryView > rechaza una imagen mayor a 30 MB y un video mayor a 200 MB antes de subir 355ms
+ ✓ components/instagram/post-reply-picker.test.tsx (11 tests) 780ms
+ ✓ components/publications/analytics-view.test.tsx (3 tests) 610ms
+ ✓ components/instagram/instagram-connection.test.tsx (8 tests) 563ms
+ ✓ components/publications/publication-detail-dialog.test.tsx (2 tests) 820ms
+   ✓ PublicationDetailDialog > muestra cifras, 'actualizado hace…', error del destino y link, y oculta acciones a un agente 355ms
+   ✓ PublicationDetailDialog > habilita Reintentar y Actualizar estadísticas para un administrador en partially_published y Borrar en failed 459ms
+ ✓ components/agenda/week-view.test.tsx (3 tests) 798ms
+   ✓ AgendaView > loads the current week in weekly view, navigates weeks, and filters by status 416ms
+ ✓ components/contacts/contacts-view.test.tsx (4 tests) 936ms
+   ✓ ContactsView > filters the list when a company chip is clicked 307ms
+ ✓ components/conversations/conversation-list.test.tsx (4 tests) 895ms
+   ✓ ConversationList > renders conversations returned by the API 312ms
+stderr | components/settings/inboxes/email-template-panel.test.tsx > EmailTemplatePanel > surfaces a rejected save
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+
+ ✓ components/settings/signatures/signatures-view.test.tsx (2 tests) 1062ms
+   ✓ SignaturesView > lista firmas, crea (cuerpo correcto y conteo de puntos de código), edita y borra 791ms
+ ✓ components/settings/inboxes/email-transport-panel.test.tsx (13 tests) 1195ms
+ ✓ components/settings/sets/sets-view.test.tsx (2 tests) 1121ms
+   ✓ SetsView > lista sets con canales y fecha, crea en modo set con el editor, edita y borra 1057ms
+stderr | components/settings/inboxes/email-template-panel.test.tsx > EmailTemplatePanel, the visual designer > saves the generated HTML together with its settings
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+
+stderr | components/settings/inboxes/email-template-panel.test.tsx > EmailTemplatePanel, the visual designer > sends no design when the HTML was edited by hand
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+
+ ✓ components/settings/autoposts/autoposts-view.test.tsx (2 tests) 1415ms
+   ✓ AutopostsView > lista feeds con revisado hace y último error, prueba el feed (entradas y error 422), crea, edita y borra 1364ms
+stderr | components/settings/inboxes/email-template-panel.test.tsx > EmailTemplatePanel, the visual designer > sends no design when the HTML was edited by hand
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+
+ ✓ components/settings/inboxes/email-template-panel.test.tsx (15 tests) 1480ms
+   ✓ EmailTemplatePanel > saves the authored HTML 386ms
+stderr | components/settings/inboxes/email-template-panel.test.tsx
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+
+stderr | VirtualConsole.<anonymous> (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\virtual-console.js:29:45)
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+
+ ✓ components/settings/plugs/plugs-view.test.tsx (3 tests) 1559ms
+   ✓ PlugsView > pide mensaje solo cuando la acción tiene message_max, cuenta UTF-8 de Threads y permite listar, crear, editar y borrar 992ms
+ ✓ components/publications/calendar-view.test.tsx (5 tests) 1815ms
+   ✓ CalendarView — grilla, paginación y estados > ubica cada publicación en su día y hora local, pide todas las páginas del rango y pinta el estado 755ms
+   ✓ CalendarView — conexión de canales y avisos de query > 'Agregar canal' con una red authorize pide authorize_url sin cuerpo y navega a ella 409ms
+   ✓ CalendarView — conexión de canales y avisos de query > 'Agregar canal' con una red form abre el diálogo, envía { fields } y muestra el 422 sin cerrarlo 314ms
+ ✓ components/settings/email-templates/email-templates-view.test.tsx (15 tests) 1946ms
+ ✓ components/instagram/post-autoreply-rules.test.tsx (17 tests) 2470ms
+   ✓ PostAutoreplyRules > saves a keyword rule 334ms
+ ✓ components/conversations/inbox-three-column.test.tsx (3 tests) 1608ms
+   ✓ Bandeja en tres columnas y pestañas > muestra lista y estado vacío juntos, y cambia entre conversaciones sin recargar la lista 1157ms
+   ✓ Bandeja en tres columnas y pestañas > muestra el resumen de reportes de la bandeja y la lista de canales conectados 406ms
+ ✓ components/publications/publication-editor-dialog.test.tsx (5 tests) 2819ms
+   ✓ PublicationEditorDialog — armado del cuerpo, reglas y 422 > arma el cuerpo de publicación programada con fecha ISO, media_id reordenados, post_type y content_override 1362ms
+   ✓ PublicationEditorDialog — armado del cuerpo, reglas y 422 > arma borrador (draft: true) y respeta post_type: 'reels' en Instagram 527ms
+   ✓ PublicationEditorDialog — armado del cuerpo, reglas y 422 > muestra errores de la tabla de reglas antes de enviar y muestra el 422 del backend con message y errors[] 417ms
+   ✓ PublicationEditorDialog — firmas y sets > 'Usar set' carga texto, medios y canales activos (ignorando channel: null) sin cambiar la fecha, y 'Guardar como set' envía el cuerpo esperado 366ms
+ ✓ components/settings/installation/installation-view.test.tsx (6 tests) 2282ms
+   ✓ Configuración de la instalación > no deja guardar un campo vacío 1917ms
+ ✓ components/settings/assignment-policies/assignment-policies-view.test.tsx (3 tests) 2338ms
+   ✓ AssignmentPoliciesView > creates a policy, wrapping the body in assignment_policy 2068ms
+ ✓ middleware.test.ts (7 tests) 30ms
+ ✓ lib/inboxes/email-template-design.test.ts (12 tests) 8ms
+ ✓ components/conversations/email-message.test.tsx (9 tests) 347ms
+ ✓ components/instagram/connect-capabilities-dialog.test.tsx (6 tests) 316ms
+ ✓ components/conversations/email-composer.test.tsx (8 tests) 492ms
+ ✓ lib/api/notifications.test.tsx (3 tests) 284ms
+ ✓ components/conversations/conversation-filters.test.tsx (3 tests) 532ms
+ ✓ components/instagram/autoreply-view.test.tsx (4 tests) 1979ms
+   ✓ AutoreplyView (prepared answers) > says an empty library answers nothing 526ms
+   ✓ when the server has no embedding provider > says so instead of blaming the answer 1115ms
+stderr | components/reports/reports-view.test.tsx > ReportsView > offers CSV + Excel export links for the current scope
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-inbox-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5) undefined
+
+ ✓ components/reports/reports-view.test.tsx (2 tests) 2738ms
+   ✓ ReportsView > renders live counters and summary metrics 445ms
+   ✓ ReportsView > offers CSV + Excel export links for the current scope 2287ms
+ ✓ components/settings/integrations/integration-app-view.test.tsx (2 tests) 2434ms
+   ✓ IntegrationAppView connect > renders an OAuth link for external-action apps 425ms
+   ✓ IntegrationAppView connect > creates a hook from the inline settings form 2002ms
+ ✓ components/settings/inboxes/channel-form.test.tsx (4 tests) 2640ms
+   ✓ ChannelForm, creating an email inbox > omits a box left unticked rather than sending false as text 1411ms
+   ✓ ChannelForm, creating an email inbox > still sends the text fields 788ms
+ ✓ components/reports/metric-chart.test.tsx (6 tests) 1108ms
+   ✓ MetricChart > gives the tallest bar the full height 1053ms
+ ✓ lib/api/reports-gaps.test.ts (6 tests) 7ms
+ ✓ components/settings/mcp-tokens/mcp-tokens-view.test.tsx (2 tests) 2488ms
+   ✓ MCPTokensView y menú lateral de Ajustes > muestra el título 'API y MCP', la explicación de uso y lista tokens con alcances 2283ms
+ ✓ components/settings/automation/automation-rules-view.test.tsx (3 tests) 183ms
+ ✓ components/help-center/portal-detail-view.test.tsx (3 tests) 2459ms
+   ✓ PortalDetailView locale picker > filters articles by the picked portal locale 2238ms
+ ✓ components/conversations/ai-handoff.test.tsx (4 tests) 1975ms
+   ✓ AiHandoff > renders nothing on conversations Meta's AI never touched 813ms
+   ✓ AiHandoff > lets the team take a conversation the AI is answering 892ms
+ ✓ components/settings/macros/macros-view.test.tsx (4 tests) 229ms
+ ✓ components/conversations/conversation-participants.test.tsx (3 tests) 397ms
+ ✓ components/settings/profile/profile-view.test.tsx (1 test) 269ms
+ ✓ components/ui/tabs.test.tsx (3 tests) 202ms
+ ✓ lib/api/fetcher.test.ts (5 tests) 9ms
+ ✓ components/settings/csat/csat-view.test.tsx (1 test) 257ms
+ ✓ components/campaigns/campaigns-view.test.tsx (1 test) 248ms
+ ✓ components/settings/custom-attributes/custom-attributes-view.test.tsx (1 test) 1397ms
+   ✓ CustomAttributesView > lists attributes with model badge and type 1360ms
+ ✓ lib/realtime/cable.test.ts (3 tests) 7ms
+ ✓ components/shell/nav.test.tsx (3 tests) 263ms
+ ✓ lib/api/errors.test.ts (8 tests) 6ms
+ ✓ components/instagram/comments-panel.test.tsx (2 tests) 287ms
+ ✓ components/conversations/message-composer-canned.test.tsx (2 tests) 252ms
+ ✓ components/reports/traffic-heatmap.test.tsx (3 tests) 223ms
+ ✓ components/campaigns/campaign-analytics-panel.test.tsx (1 test) 179ms
+ ✓ components/settings/integrations/integrations-view.test.tsx (1 test) 175ms
+ ✓ lib/api/uploads.test.ts (3 tests) 70ms
+ ✓ components/settings/agents/agents-view.test.tsx (1 test) 311ms
+   ✓ AgentsView > lists agents with role + pending badge + email 301ms
+ ✓ components/shell/page-header.test.tsx (2 tests) 224ms
+ ✓ components/settings/webhooks/webhooks-view.test.tsx (1 test) 211ms
+ ✓ components/products/products-view.test.tsx (1 test) 256ms
+ ✓ components/help-center/portals-view.test.tsx (1 test) 486ms
+   ✓ PortalsView > lists portals with archived badge and custom domain 450ms
+ ✓ components/conversations/conversation-actions.test.tsx (1 test) 595ms
+   ✓ ConversationActions macros > runs the picked macro on the current conversation 560ms
+ ✓ components/settings/canned-responses/canned-responses-view.test.tsx (2 tests) 1267ms
+   ✓ CannedResponsesView > lists responses with their short codes and content 358ms
+   ✓ CannedResponsesView > sends the debounced search term to the backend 878ms
+ ✓ components/help-center/articles-panel.test.tsx (2 tests) 2100ms
+   ✓ ArticlesPanel search > sends the debounced query to the articles endpoint 827ms
+   ✓ ArticlesPanel search > clears the search with the reset button 1238ms
+ ✓ components/settings/agent-bots/agent-bots-view.test.tsx (1 test) 176ms
+ ✓ components/settings/teams/teams-view.test.tsx (1 test) 173ms
+ ✓ components/conversations/message-composer.test.tsx (1 test) 145ms
+ ✓ components/settings/labels/labels-view.test.tsx (1 test) 253ms
+ ✓ lib/api/instagram.test.tsx (1 test) 122ms
+ ✓ components/ui/button.test.tsx (3 tests) 142ms
+ ✓ app/privacidad/page.test.tsx (3 tests) 166ms
+ ✓ components/conversations/channel-badge.test.tsx (5 tests) 107ms
+ ✓ components/settings/notifications/push-toggle.test.tsx (1 test) 104ms
+ ✓ lib/time.test.ts (4 tests) 4ms
+ ✓ components/crm/crm-tabs.test.tsx (1 test) 82ms
+ ✓ lib/auth/schemas.test.ts (3 tests) 4ms
+ ✓ components/help-center/portal-form.test.tsx (1 test) 185ms
+ ✓ app/terminos/page.test.tsx (2 tests) 116ms
+ ✓ components/reports/bot-metrics-cards.test.tsx (1 test) 60ms
+ ✓ app/eliminacion-de-datos/page.test.tsx (2 tests) 87ms
+
+ Test Files  83 passed (83)
+      Tests  328 passed (328)
+   Start at  19:06:45
+   Duration  23.68s (transform 8.55s, setup 29.86s, collect 90.02s, tests 61.77s, environment 250.18s, prepare 34.29s)
+```
