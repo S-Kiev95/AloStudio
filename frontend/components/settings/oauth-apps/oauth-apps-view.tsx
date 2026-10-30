@@ -16,7 +16,7 @@ import {
   useRotateOAuthAppSecret,
   useUpdateOAuthApp,
 } from "@/lib/api/oauth";
-import { useIsAccountAdmin } from "@/lib/api/profile";
+import { useIsAccountAdmin, useProfile } from "@/lib/api/profile";
 import { cn } from "@/lib/utils";
 
 import { AppForm } from "./app-form";
@@ -31,10 +31,20 @@ function errorMessage(e: unknown, fallback: string): string {
 }
 
 export function OAuthAppsView({ accountId }: { accountId: string }) {
+  const profile = useProfile();
   const isAdmin = useIsAccountAdmin(accountId);
   const [tab, setTab] = useState<"apps" | "approved">("apps");
   // An agent only has "Apps aprobadas": registering apps is for admins.
   const current = isAdmin ? tab : "approved";
+
+  if (profile.isLoading) {
+    return (
+      <div className="max-w-3xl space-y-4">
+        <h2 className="text-xl font-medium text-fg">Apps OAuth</h2>
+        <p className="text-sm text-fg-muted">Cargando…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl space-y-4">
