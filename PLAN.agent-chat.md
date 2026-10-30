@@ -609,3 +609,10 @@ Error: Not implemented: navigation (except hash changes)
    Start at  13:48:42
    Duration  39.31s (transform 9.19s, setup 130.86s, collect 124.38s, tests 112.49s, environment 403.34s, prepare 30.58s)
 ```
+
+### Revisión de Claude (2026-10-30)
+
+- Corrí de nuevo los tres comandos sobre `5b1a02d`: typecheck y lint sin errores, 84 archivos y 344 tests en verde. Se cumplieron las notas de las revisiones anteriores (sin `color/NN`, `can_write` oculta lo que el backend niega, errores junto a lo que los provocó).
+- Probé backend y pantalla juntos en el navegador, con un OpenAI simulado en local: chat nuevo, "Consultó tus canales", una propuesta inválida (Instagram sin imagen) que vuelve al modelo sin llegar al usuario, la propuesta corregida en la tarjeta ("Sale el sáb 31 oct, 10:00": la hora sin zona del modelo se lee en la del navegador), confirmar, "Ver en el calendario" abriendo el detalle con `?publication=`, la etiqueta "Por confirmar" en la lista, la vista angosta con el botón "Chats", y un usuario agente (nota de solo lectura, sin la sugerencia de armar, sin ver los chats de otros).
+- Corregido en `9f3d7ea`: si el primer mensaje de un chat nuevo daba 502, la pantalla volvía al estado vacío aunque el chat había quedado guardado; el backend ahora devuelve `thread_id` y la pantalla lo muestra (con test). El botón de borrar un chat solo aparecía con el mouse: en pantallas angostas queda siempre visible.
+- Sin tocar: `vitest.setup.ts` sube la espera de Testing Library a 4 s para todos los tests (`876cd29`); ayuda con la CPU cargada y solo demora los fallos.
