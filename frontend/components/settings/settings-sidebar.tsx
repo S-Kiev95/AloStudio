@@ -10,6 +10,7 @@ export type SettingsItem = {
   label: string;
   milestone: string;
   done: boolean;
+  group?: "general" | "publishing";
 };
 
 export const SETTINGS_ITEMS: SettingsItem[] = [
@@ -77,7 +78,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
   { segment: "csat", label: "CSAT", milestone: "F.9g", done: true },
   {
     segment: "mcp_tokens",
-    label: "Tokens MCP",
+    label: "API y MCP",
     milestone: "F.9h",
     done: true,
   },
@@ -93,54 +94,135 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     milestone: "F.9i",
     done: true,
   },
+  {
+    segment: "signatures",
+    label: "Firmas",
+    milestone: "F.7",
+    done: true,
+    group: "publishing",
+  },
+  {
+    segment: "sets",
+    label: "Sets",
+    milestone: "F.7",
+    done: true,
+    group: "publishing",
+  },
+  {
+    segment: "autoposts",
+    label: "Auto post",
+    milestone: "F.7",
+    done: true,
+    group: "publishing",
+  },
+  {
+    segment: "plugs",
+    label: "Plugs",
+    milestone: "F.7",
+    done: true,
+    group: "publishing",
+  },
 ];
 
+function SidebarRow({
+  baseHref,
+  pathname,
+  item,
+}: {
+  baseHref: string;
+  pathname: string;
+  item: SettingsItem;
+}) {
+  const href = `${baseHref}/${item.segment}`;
+  const active = pathname === href || pathname.startsWith(`${href}/`);
+  if (!item.done) {
+    return (
+      <li className="shrink-0">
+        <span
+          className="flex cursor-not-allowed items-center justify-between gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm text-fg-muted opacity-60"
+          title={`Llega en ${item.milestone}`}
+        >
+          {item.label}
+          <span className="rounded-sm bg-surface-2 px-1 py-0.5 text-[9px] uppercase">
+            {item.milestone}
+          </span>
+        </span>
+      </li>
+    );
+  }
+  return (
+    <li className="shrink-0">
+      <Link
+        href={href}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "block whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
+          active
+            ? "bg-focused text-lit"
+            : "text-fg-muted hover:bg-hover-glass hover:text-fg",
+        )}
+      >
+        {item.label}
+      </Link>
+    </li>
+  );
+}
+
 export function SettingsSidebar({ accountId }: { accountId: string }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const baseHref = `/accounts/${accountId}/settings`;
+
+  const generalItems = SETTINGS_ITEMS.filter((i) => i.group !== "publishing");
+  const publishingItems = SETTINGS_ITEMS.filter(
+    (i) => i.group === "publishing",
+  );
 
   return (
     <nav
       aria-label="Ajustes"
       className="w-full shrink-0 border-b border-glass pb-2 md:w-56 md:border-b-0 md:border-r md:pb-0 md:pr-3"
     >
-      <ul className="flex gap-1 overflow-x-auto md:flex-col md:gap-0.5 md:overflow-visible">
-        {SETTINGS_ITEMS.map((item) => {
-          const href = `${baseHref}/${item.segment}`;
-          const active = pathname.startsWith(href);
-          if (!item.done) {
-            return (
-              <li key={item.segment} className="shrink-0">
-                <span
-                  className="flex cursor-not-allowed items-center justify-between gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm text-fg-muted opacity-60"
-                  title={`Llega en ${item.milestone}`}
-                >
-                  {item.label}
-                  <span className="rounded-sm bg-surface-2 px-1 py-0.5 text-[9px] uppercase">
-                    {item.milestone}
-                  </span>
-                </span>
-              </li>
-            );
-          }
-          return (
-            <li key={item.segment} className="shrink-0">
-              <Link
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "block whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
-                  active
-                    ? "bg-focused text-lit"
-                    : "text-fg-muted hover:bg-hover-glass hover:text-fg",
-                )}
-              >
-                {item.label}
-              </Link>
-            </li>
-          );
-        })}
+      <div className="hidden md:block">
+        <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+          Publicación
+        </p>
+        <ul className="flex flex-col gap-0.5">
+          {publishingItems.map((item) => (
+            <SidebarRow
+              key={item.segment}
+              baseHref={baseHref}
+              pathname={pathname}
+              item={item}
+            />
+          ))}
+        </ul>
+
+        <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+          Cuenta y bandeja
+        </p>
+        <ul className="flex flex-col gap-0.5">
+          {generalItems.map((item) => (
+            <SidebarRow
+              key={item.segment}
+              baseHref={baseHref}
+              pathname={pathname}
+              item={item}
+            />
+          ))}
+        </ul>
+      </div>
+
+      {/* Horizontal pill strip on small screens */}
+      <ul className="flex gap-1 overflow-x-auto md:hidden">
+        {[...publishingItems, ...generalItems].map((item) => (
+          <SidebarRow
+            key={item.segment}
+            baseHref={baseHref}
+            pathname={pathname}
+            item={item}
+          />
+        ))}
       </ul>
     </nav>
   );

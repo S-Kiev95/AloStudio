@@ -27,13 +27,13 @@ export function AiHandoff({
   const aiAnswering = control.owner === "ai_agent";
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-glass py-2">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-glass px-4 py-2">
       <span
         className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface-2",
           aiAnswering
-            ? "bg-electrode/15 text-electrode"
-            : "bg-success/10 text-success",
+            ? "border-electrode text-electrode"
+            : "border-success text-success",
         )}
         aria-hidden
       >

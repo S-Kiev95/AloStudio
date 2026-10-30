@@ -42,14 +42,14 @@ function ImageAttachment({ src }: { src: string }) {
           aria-modal="true"
           aria-label="Imagen ampliada"
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-backdrop/85 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-backdrop p-4"
         >
           <button
             type="button"
             aria-label="Cerrar"
             autoFocus
             onClick={() => setOpen(false)}
-            className="absolute right-4 top-4 rounded-md p-2 text-white/80 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
+            className="absolute right-4 top-4 rounded-md bg-surface-2 p-2 text-fg hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
           >
             <X className="h-6 w-6" aria-hidden />
           </button>
@@ -110,7 +110,7 @@ function AudioAttachment({ src }: { src: string }) {
   const pct = dur ? (cur / dur) * 100 : 0;
 
   return (
-    <div className="mt-1 flex w-56 max-w-full items-center gap-2 rounded-pill bg-surface-2 px-2 py-1.5">
+    <div className="mt-1 flex w-56 max-w-full items-center gap-2 rounded-pill bg-surface-2 px-2 py-1.5 text-fg">
       <audio
         ref={ref}
         src={src}
@@ -145,7 +145,7 @@ function AudioAttachment({ src }: { src: string }) {
             style={{ height: `${Math.max(h * 100, 14)}%` }}
             className={cn(
               "w-[2px] rounded-full",
-              i / WAVE.length < pct / 100 ? "bg-neon" : "bg-fg-muted/40",
+              i / WAVE.length < pct / 100 ? "bg-neon" : "bg-border-strong",
             )}
           />
         ))}
@@ -212,7 +212,7 @@ function LocationAttachment({
           role="dialog"
           aria-modal="true"
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop/85 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop p-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -314,14 +314,16 @@ function AttachmentView({ att }: { att: Attachment }) {
 
 /**
  * One message in the thread. Outgoing = right + primary; incoming = left +
- * surface; activity = centered system note; private notes get a warning
- * tint + a lock. Attachments render inline (image preview or a download link).
+ * neutral surface; activity = centered system note; private notes get their
+ * own warning border + lock. Author and time render underneath each bubble.
  */
 export function MessageBubble({
   message,
+  contactName,
   onDelete,
 }: {
   message: Message;
+  contactName?: string;
   onDelete?: (id: number) => void;
 }) {
   if (message.message_type === MESSAGE_TYPE.activity) {
@@ -337,58 +339,76 @@ export function MessageBubble({
   const deleted = message.content_attributes?.deleted === true;
   const canDelete = Boolean(onDelete) && !deleted;
 
+  const author =
+    message.sender?.name?.trim() || (!outgoing ? contactName?.trim() : "");
+  const time = clockTime(message.created_at);
+  const caption = [author, time].filter(Boolean).join(" · ");
+
   return (
     <div
       className={cn(
-        "group flex items-center gap-1.5",
-        outgoing ? "justify-end" : "justify-start",
+        "group flex flex-col",
+        outgoing ? "items-end" : "items-start",
       )}
     >
-      {/* Delete on the left for outgoing (bubble is right-aligned). */}
-      {canDelete && outgoing ? (
-        <DeleteButton onClick={() => onDelete?.(message.id)} />
-      ) : null}
-      <div
-        className={cn(
-          "max-w-[75%] px-3.5 py-2 text-sm",
-          // Directional bubbles: outgoing lean on cobalt focused glass, incoming
-          // stay neutral, so the thread reads left/right at a glance. The
-          // asymmetric corner gives each side its "tail".
-          isPrivate
-            ? "rounded-panel border border-warning/40 bg-warning/10 text-fg"
-            : outgoing
-              ? "rounded-panel rounded-br-sm border border-neon/25 bg-focused text-fg"
-              : "rounded-panel rounded-bl-sm border border-glass bg-surface text-fg",
-        )}
-      >
-        {isPrivate ? (
-          <span className="mb-1 flex items-center gap-1 text-xs font-medium text-warning">
-            <Lock className="h-3 w-3" aria-hidden /> Nota privada
-          </span>
+      <div className="flex max-w-[80%] items-center gap-1.5">
+        {/* Delete on the left for outgoing (bubble is right-aligned). */}
+        {canDelete && outgoing ? (
+          <DeleteButton onClick={() => onDelete?.(message.id)} />
         ) : null}
-        {deleted ? (
-          <p className="flex items-center gap-1.5 italic text-fg-muted">
-            <Trash2 className="h-3 w-3 shrink-0" aria-hidden />
-            {message.content || "Este mensaje fue eliminado"}
-          </p>
-        ) : (
-          <>
-            {message.content ? (
-              <p className="whitespace-pre-wrap break-words">
-                {message.content}
-              </p>
-            ) : null}
-            {message.attachments?.map((att) => (
-              <AttachmentView key={att.id} att={att} />
-            ))}
-          </>
-        )}
-        <span className="mt-1 block text-right font-numeric text-[10px] tabular-nums text-fg-muted">
-          {clockTime(message.created_at)}
-        </span>
+        <div
+          className={cn(
+            "min-w-0 px-3.5 py-2 text-sm",
+            // Directional bubbles: incoming on neutral surface, outgoing in
+            // primary color, private notes with distinct warning framing.
+            isPrivate
+              ? "rounded-panel border border-warning bg-surface-2 text-fg"
+              : outgoing
+                ? "rounded-panel rounded-br-sm bg-primary text-primary-fg"
+                : "rounded-panel rounded-bl-sm border border-glass bg-surface-2 text-fg",
+          )}
+        >
+          {isPrivate ? (
+            <span className="mb-1 flex items-center gap-1 text-xs font-medium text-warning">
+              <Lock className="h-3 w-3" aria-hidden /> Nota privada
+            </span>
+          ) : null}
+          {deleted ? (
+            <p
+              className={cn(
+                "flex items-center gap-1.5 italic",
+                outgoing && !isPrivate ? "opacity-85" : "text-fg-muted",
+              )}
+            >
+              <Trash2 className="h-3 w-3 shrink-0" aria-hidden />
+              {message.content || "Este mensaje fue eliminado"}
+            </p>
+          ) : (
+            <>
+              {message.content ? (
+                <p className="whitespace-pre-wrap break-words">
+                  {message.content}
+                </p>
+              ) : null}
+              {message.attachments?.map((att) => (
+                <AttachmentView key={att.id} att={att} />
+              ))}
+            </>
+          )}
+        </div>
+        {canDelete && !outgoing ? (
+          <DeleteButton onClick={() => onDelete?.(message.id)} />
+        ) : null}
       </div>
-      {canDelete && !outgoing ? (
-        <DeleteButton onClick={() => onDelete?.(message.id)} />
+      {caption ? (
+        <span
+          className={cn(
+            "mt-1 font-numeric text-[11px] tabular-nums text-fg-muted",
+            outgoing ? "text-right" : "text-left",
+          )}
+        >
+          {caption}
+        </span>
       ) : null}
     </div>
   );

@@ -164,7 +164,9 @@ export function useContact(accountId: string, contactId: number) {
       );
       return res.payload;
     },
-    enabled: Number.isFinite(contactId),
+    // Ids are positive: -1 stands for "no contact yet" (the inbox panel
+    // renders before its conversation loads) and must not hit the API.
+    enabled: Number.isFinite(contactId) && contactId > 0,
   });
 }
 
@@ -267,7 +269,9 @@ export function useContactableInboxes(accountId: string, contactId: number) {
       );
       return res.payload;
     },
-    enabled: Number.isFinite(contactId),
+    // Ids are positive: -1 stands for "no contact yet" (the inbox panel
+    // renders before its conversation loads) and must not hit the API.
+    enabled: Number.isFinite(contactId) && contactId > 0,
   });
 }
 
@@ -281,7 +285,9 @@ export function useContactNotes(accountId: string, contactId: number) {
       apiFetch<ContactNote[]>(
         `${base(accountId)}/${contactId}/notes`,
       ),
-    enabled: Number.isFinite(contactId),
+    // Ids are positive: -1 stands for "no contact yet" (the inbox panel
+    // renders before its conversation loads) and must not hit the API.
+    enabled: Number.isFinite(contactId) && contactId > 0,
   });
 }
 

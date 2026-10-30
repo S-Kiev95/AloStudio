@@ -45,7 +45,7 @@ export function EmailMessage({
       className={cn(
         "rounded-md border transition-colors",
         outgoing
-          ? "border-neon/25 bg-focused"
+          ? "border-neon bg-focused"
           : "border-glass bg-surface",
       )}
     >

@@ -51,7 +51,7 @@ export function MCPTokensView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-medium text-fg">Tokens MCP</h2>
+        <h2 className="text-xl font-medium text-fg">API y MCP</h2>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
@@ -61,9 +61,10 @@ export function MCPTokensView({ accountId }: { accountId: string }) {
       </div>
 
       <p className="text-sm text-fg-muted">
-        Estos tokens autentican agentes de IA contra el servidor MCP. Cada
-        token está atado a esta cuenta y tiene un alcance (lectura, escritura
-        o admin).
+        Usá estos tokens para automatizar tu cuenta y conectar el agente de IA,
+        n8n, la CLI u otras herramientas externas a AloStudio mediante la API y
+        el servidor MCP. Cada token queda asociado a esta cuenta con alcance de
+        lectura, escritura o administración.
       </p>
 
       {secret ? (
@@ -211,12 +212,12 @@ function TokenRow({
       </div>
       <span
         className={cn(
-          "rounded-sm px-2 py-0.5 text-xs font-medium",
+          "rounded-sm border px-2 py-0.5 text-xs font-medium",
           token.scope === "admin"
-            ? "bg-danger/10 text-danger"
+            ? "border-danger bg-surface-2 text-danger"
             : token.scope === "write"
-              ? "bg-warning/10 text-warning"
-              : "bg-focused text-lit",
+              ? "border-warning bg-surface-2 text-warning"
+              : "border-glass bg-focused text-lit",
         )}
       >
         {SCOPE_LABEL[token.scope]}

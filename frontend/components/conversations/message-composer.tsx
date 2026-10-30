@@ -1,7 +1,7 @@
 "use client";
 
-import { Paperclip, Send, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { Lock, Paperclip, Send, Zap, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,28 +31,55 @@ export function MessageComposer({
 }) {
   const [content, setContent] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const keyRef = useRef(0);
   const send = useSendMessage(accountId, displayId);
   const canned = useCannedResponses(accountId);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setPickerOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [pickerOpen]);
 
   // Canned-response quick-insert: while the whole draft is a single
   // "/token", offer the matching responses (Chatwoot's "/" shortcut).
   const slashMatch = /^\/(\S*)$/.exec(content);
   const slashQuery = slashMatch ? slashMatch[1].toLowerCase() : null;
-  const cannedMatches =
+  const allCanned = canned.data ?? [];
+  const slashMatches =
     slashQuery !== null
-      ? (canned.data ?? [])
+      ? allCanned
           .filter((c) => c.short_code.toLowerCase().includes(slashQuery))
           .slice(0, 6)
       : [];
 
+  const showListbox =
+    (slashQuery !== null && slashMatches.length > 0) || pickerOpen;
+  const visibleCanned =
+    slashQuery !== null ? slashMatches : allCanned.slice(0, 8);
+
   function insertCanned(text: string) {
     setContent(text);
+    setPickerOpen(false);
     // Refocus so the agent keeps editing right after inserting.
     requestAnimationFrame(() => textareaRef.current?.focus());
   }
@@ -116,6 +143,7 @@ export function MessageComposer({
       {
         onSuccess: () => {
           setContent("");
+          setPickerOpen(false);
           setAttachments((prev) => {
             prev.forEach(
               (a) => a.previewUrl && URL.revokeObjectURL(a.previewUrl),
@@ -128,35 +156,37 @@ export function MessageComposer({
   }
 
   return (
-    <div className="border-t border-glass bg-surface p-3">
-      <div className="mb-2 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setIsPrivate(false)}
-          aria-pressed={!isPrivate}
-          className={cn(
-            "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-            !isPrivate
-              ? "bg-focused text-lit"
-              : "text-fg-muted hover:bg-hover-glass hover:text-fg",
-          )}
+    <div ref={wrapRef} className="relative border-t border-glass bg-surface p-3">
+      {showListbox ? (
+        <ul
+          role="listbox"
+          aria-label="Respuestas predefinidas"
+          className="absolute bottom-full left-3 right-3 z-20 mb-1 max-h-56 overflow-auto rounded-md border border-glass bg-surface-2 shadow-menu"
         >
-          Responder
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsPrivate(true)}
-          aria-pressed={isPrivate}
-          className={cn(
-            "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-            isPrivate
-              ? "bg-warning/15 text-warning"
-              : "text-fg-muted hover:bg-hover-glass hover:text-fg",
+          {visibleCanned.length === 0 ? (
+            <li className="px-3 py-2 text-xs text-fg-muted">
+              No hay respuestas rápidas configuradas.
+            </li>
+          ) : (
+            visibleCanned.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => insertCanned(c.content)}
+                  className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-hover-glass focus-visible:bg-hover-glass focus-visible:outline-none"
+                >
+                  <code className="text-xs font-semibold text-lit">
+                    /{c.short_code}
+                  </code>
+                  <span className="w-full truncate text-xs text-fg-muted">
+                    {c.content}
+                  </span>
+                </button>
+              </li>
+            ))
           )}
-        >
-          Nota privada
-        </button>
-      </div>
+        </ul>
+      ) : null}
 
       {attachments.length > 0 ? (
         <div className="mb-2 flex flex-wrap gap-2">
@@ -176,7 +206,7 @@ export function MessageComposer({
                   type="button"
                   onClick={() => removeAttachment(att.key)}
                   aria-label={`Quitar ${att.name}`}
-                  className="absolute right-1 top-1 rounded-full bg-backdrop/75 p-0.5 text-white hover:bg-backdrop/90"
+                  className="absolute right-1 top-1 rounded-full bg-backdrop p-0.5 text-white hover:opacity-90"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden />
                 </button>
@@ -207,7 +237,59 @@ export function MessageComposer({
         </div>
       ) : null}
 
-      <div className="flex items-end gap-2">
+      <Textarea
+        ref={textareaRef}
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        rows={3}
+        placeholder={
+          isPrivate
+            ? "Nota interna (no la ve el cliente)…"
+            : "Escribí una respuesta… escribí / para respuestas rápidas"
+        }
+        aria-label={isPrivate ? "Nota privada" : "Respuesta"}
+        className={cn(isPrivate && "border-warning")}
+      />
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setIsPrivate((v) => !v)}
+          aria-pressed={isPrivate}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1.5 text-xs font-medium transition-colors",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
+            isPrivate
+              ? "border-warning bg-surface-2 text-warning"
+              : "border-glass bg-field text-fg-muted hover:bg-hover-glass hover:text-fg",
+          )}
+        >
+          <Lock className="h-3.5 w-3.5" aria-hidden />
+          Nota privada
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPickerOpen((v) => !v)}
+          aria-expanded={showListbox}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1.5 text-xs font-medium transition-colors",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
+            pickerOpen
+              ? "border-neon bg-focused text-lit"
+              : "border-glass bg-field text-fg-muted hover:bg-hover-glass hover:text-fg",
+          )}
+        >
+          <Zap className="h-3.5 w-3.5" aria-hidden />
+          Respuestas rápidas
+        </button>
+
         <input
           ref={fileRef}
           type="file"
@@ -220,64 +302,26 @@ export function MessageComposer({
         <Button
           type="button"
           variant="secondary"
-          size="icon"
+          size="sm"
           onClick={() => fileRef.current?.click()}
           loading={uploading}
-          disabled={uploading || send.isPending || attachments.length >= MAX_ATTACHMENTS}
+          disabled={
+            uploading || send.isPending || attachments.length >= MAX_ATTACHMENTS
+          }
           aria-label="Adjuntar archivos"
         >
-          <Paperclip className="h-4 w-4" aria-hidden />
+          <Paperclip className="h-3.5 w-3.5" aria-hidden />
         </Button>
-        <div className="relative flex-1">
-          {cannedMatches.length > 0 ? (
-            <ul
-              role="listbox"
-              aria-label="Respuestas predefinidas"
-              className="absolute bottom-full left-0 z-10 mb-1 max-h-56 w-full overflow-auto rounded-md border border-glass bg-surface-2 shadow-menu"
-            >
-              {cannedMatches.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => insertCanned(c.content)}
-                    className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-hover-glass focus-visible:bg-hover-glass focus-visible:outline-none"
-                  >
-                    <code className="text-xs font-semibold text-lit">
-                      /{c.short_code}
-                    </code>
-                    <span className="w-full truncate text-xs text-fg-muted">
-                      {c.content}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <Textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                submit();
-              }
-            }}
-            rows={2}
-            placeholder={
-              isPrivate ? "Nota interna (no la ve el cliente)…" : "Escribí una respuesta…"
-            }
-            aria-label={isPrivate ? "Nota privada" : "Respuesta"}
-          />
-        </div>
+
         <Button
           onClick={submit}
           loading={send.isPending}
           disabled={uploading || (!content.trim() && attachments.length === 0)}
-          size="icon"
-          aria-label="Enviar"
+          size="sm"
+          className="ml-auto"
         >
-          <Send className="h-4 w-4" aria-hidden />
+          <Send className="h-3.5 w-3.5" aria-hidden />
+          Enviar
         </Button>
       </div>
 

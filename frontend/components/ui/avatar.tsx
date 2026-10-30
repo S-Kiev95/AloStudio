@@ -27,7 +27,16 @@ const SIZES = {
   sm: "h-8 w-8 text-xs",
   md: "h-9 w-9 text-sm",
   lg: "h-11 w-11 text-base",
+  xl: "h-16 w-16 text-lg",
 } as const;
+
+function initialsFor(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+  }
+  return (parts[0]?.charAt(0) || "?").toUpperCase();
+}
 
 export function Avatar({
   name,
@@ -39,7 +48,7 @@ export function Avatar({
   className?: string;
 }) {
   const trimmed = name.trim();
-  const initial = (trimmed.charAt(0) || "?").toUpperCase();
+  const initial = initialsFor(trimmed);
   const hue = hueFor(trimmed || "?");
   return (
     <span

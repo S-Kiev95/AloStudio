@@ -3,6 +3,7 @@
 import { UserPlus, X } from "lucide-react";
 import { useState } from "react";
 
+import { selectClassName } from "@/components/ui/select";
 import { useAgents } from "@/lib/api/account";
 import {
   useAddParticipant,
@@ -45,13 +46,13 @@ export function ConversationParticipants({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3 pt-1">
+    <div className="flex flex-wrap items-center gap-2 border-b border-glass px-4 py-1.5">
       <span className="text-xs font-medium text-fg-muted">Participantes</span>
 
       {current.map((p) => (
         <span
           key={p.id}
-          className="flex items-center gap-1 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-xs text-fg"
+          className="flex items-center gap-1 rounded-pill border border-glass bg-surface-2 px-2 py-0.5 text-xs text-fg"
         >
           {p.name}
           <button
@@ -59,7 +60,7 @@ export function ConversationParticipants({
             aria-label={`Quitar ${p.name}`}
             onClick={() => remove.mutate(p.id)}
             disabled={remove.isPending}
-            className="rounded p-0.5 text-fg-muted hover:text-danger disabled:opacity-50"
+            className="rounded-sm p-0.5 text-fg-muted hover:text-danger disabled:opacity-50"
           >
             <X className="h-3 w-3" aria-hidden />
           </button>
@@ -74,7 +75,7 @@ export function ConversationParticipants({
         <label className="flex items-center gap-1 text-xs text-fg-muted">
           <UserPlus className="h-3.5 w-3.5" aria-hidden />
           <select
-            className="h-8 rounded-md border border-border bg-surface px-2 text-xs text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={selectClassName("sm")}
             value=""
             onChange={(e) => {
               const id = Number(e.target.value);
