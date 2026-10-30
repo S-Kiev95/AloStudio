@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from fastapi import FastAPI
+from fastmcp.utilities.lifespan import combine_lifespans
+from starlette.routing import Route
 
 from app.api.health import router as health_router
 from app.core.cable import router as cable_router
@@ -78,6 +80,10 @@ from app.domains.notifications.router import (
 from app.domains.notifications.subscriptions_router import (
     router as notification_subscriptions_router,
 )
+from app.domains.oauth.router import apps_router as oauth_apps_router
+from app.domains.oauth.router import authorizations_router as oauth_authorizations_router
+from app.domains.oauth.router import consent_router as oauth_consent_router
+from app.domains.oauth.router import protocol_router as oauth_protocol_router
 from app.domains.portals.public_router import public_router as portals_public_router
 from app.domains.portals.router import router as portals_router
 from app.domains.products.router import router as products_router
@@ -113,6 +119,8 @@ from app.domains.working_hours.router import (
 from app.domains.working_hours.router import (
     single_router as working_hours_single_router,
 )
+from app.mcp.http import MCP_PATH
+from app.mcp.http import build_http_app as build_mcp_http_app
 from app.mcp.router import router as mcp_tokens_router
 
 
@@ -154,10 +162,13 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    # The MCP server is served by this same app at /mcp (app.mcp.http); its
+    # session manager starts and stops with our lifespan.
+    mcp_http_app = build_mcp_http_app()
     app = FastAPI(
         title=settings.app_name,
         version="0.0.1",
-        lifespan=lifespan,
+        lifespan=combine_lifespans(lifespan, mcp_http_app.lifespan),
     )
     # Controllers raise ChatwootHTTPException for error envelopes that
     # must match the Ruby ``render json: {...}`` body byte-for-byte —
@@ -216,6 +227,13 @@ def create_app() -> FastAPI:
     # Account-scoped Bearer tokens consumed by the MCP server for AI
     # agents; this is the dashboard side admins use to manage them.
     app.include_router(mcp_tokens_router)
+    # OAuth 2.0 (AloStudio as authorization server): an account's apps,
+    # each user's approved apps, the consent, and the endpoints the apps
+    # call (token, revoke, discovery). The tokens work on /mcp.
+    app.include_router(oauth_apps_router)
+    app.include_router(oauth_authorizations_router)
+    app.include_router(oauth_consent_router)
+    app.include_router(oauth_protocol_router)
     # Macro CRUD + execute (Phase 6.2). Personal vs global visibility,
     # author/admin policy gates, ``POST /macros/:id/execute`` runs the
     # action plan against a given set of conversation_ids.
@@ -348,6 +366,9 @@ def create_app() -> FastAPI:
     # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
     # last so HTTP routes take precedence in any path-overlap edge.
     app.include_router(cable_router)
+    # MCP over HTTP at exactly /mcp: a Mount would answer a POST to /mcp
+    # with a 307 to /mcp/, which MCP clients do not follow.
+    app.router.routes.append(Route(MCP_PATH, endpoint=mcp_http_app))
     return app
 
 

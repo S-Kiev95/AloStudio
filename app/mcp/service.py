@@ -3,8 +3,8 @@
 Owns:
   * Token minting (returns a fresh 32-char URL-safe random) and
     rotation.
-  * Auth resolution: takes a Bearer token, returns the bound
-    :class:`MCPContext` or raises.
+  * Auth resolution: takes a Bearer token (an "API y MCP" token or an
+    OAuth access token), returns the bound :class:`MCPContext` or raises.
   * ``last_used_at`` bookkeeping on each successful resolve.
 """
 
@@ -17,6 +17,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.accounts.models import Account
+from app.domains.oauth import service as oauth
 from app.domains.users.models import User
 from app.mcp.context import MCPContext
 from app.mcp.models import MCPToken
@@ -121,6 +122,20 @@ async def resolve_token(
     """
     if not token_value or len(token_value) > 512:
         raise MCPAuthError("malformed token")
+
+    if token_value.startswith(oauth.ACCESS_TOKEN_PREFIX):
+        # An app the user authorized (OAuth): it acts as that user, with
+        # the scope granted, capped by their role.
+        grant = await oauth.resolve_access_token(session, token_value)
+        if grant is None:
+            raise MCPAuthError("invalid or expired access token")
+        await session.flush()
+        return MCPContext(
+            user=grant.user,
+            account=grant.account,
+            scope=grant.scope,  # type: ignore[arg-type]
+            session=session,
+        )
 
     row = (
         await session.exec(
