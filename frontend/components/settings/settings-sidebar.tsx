@@ -83,6 +83,12 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     done: true,
   },
   {
+    segment: "oauth_apps",
+    label: "Apps OAuth",
+    milestone: "F.7",
+    done: true,
+  },
+  {
     segment: "email_templates",
     label: "Plantillas de correo",
     milestone: "F.9i",
