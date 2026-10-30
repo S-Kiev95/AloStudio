@@ -20,6 +20,7 @@ import {
   canEditPublication,
   type Publication,
   type PublicationState,
+  usePublication,
   usePublicationChannels,
   usePublicationsRange,
 } from "@/lib/api/publications";
@@ -103,9 +104,29 @@ export function CalendarView({
       searchParams.has("channel") ||
       searchParams.has("connect_error")
     ) {
-      router.replace(pathname, { scroll: false });
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("connected");
+      next.delete("channel");
+      next.delete("connect_error");
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     }
   }, [searchParams, router, pathname]);
+
+  const rawPubParam = searchParams.get("publication");
+  const parsedPubParam =
+    rawPubParam && /^\d+$/.test(rawPubParam) && Number(rawPubParam) > 0
+      ? Number(rawPubParam)
+      : null;
+  const [urlPublicationId, setUrlPublicationId] = useState<number | null>(
+    parsedPubParam,
+  );
+
+  useEffect(() => {
+    if (parsedPubParam !== null) {
+      setUrlPublicationId(parsedPubParam);
+    }
+  }, [parsedPubParam]);
 
   const [period, setPeriod] = useState<CalendarPeriod>("week");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("calendar");
@@ -148,6 +169,34 @@ export function CalendarView({
     () => publicationsQuery.data ?? [],
     [publicationsQuery.data],
   );
+
+  const urlPublicationInRange = useMemo(
+    () =>
+      urlPublicationId !== null
+        ? publications.find((p) => p.id === urlPublicationId)
+        : undefined,
+    [publications, urlPublicationId],
+  );
+
+  const urlPublicationQuery = usePublication(
+    accountId,
+    detailPub === null && urlPublicationInRange === undefined
+      ? urlPublicationId
+      : null,
+  );
+
+  const effectiveDetailPub =
+    detailPub ?? urlPublicationInRange ?? urlPublicationQuery.data ?? null;
+
+  function clearUrlPublication() {
+    setUrlPublicationId(null);
+    if (searchParams.has("publication") || urlPublicationId !== null) {
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("publication");
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }
+  }
 
   const connectedBannerText = useMemo(() => {
     if (!connectSuccess) return null;
@@ -231,6 +280,23 @@ export function CalendarView({
             aria-label="Cerrar aviso"
             onClick={() => setConnectError(null)}
             className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-danger/10"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
+      ) : null}
+
+      {urlPublicationQuery.isError ? (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-2 rounded-md border border-danger bg-surface-2 px-3 py-2 text-sm text-danger"
+        >
+          <span>No se pudo cargar la publicación solicitada.</span>
+          <button
+            type="button"
+            aria-label="Cerrar aviso"
+            onClick={clearUrlPublication}
+            className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-hover-glass"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
@@ -451,12 +517,16 @@ export function CalendarView({
       {/* Detail Dialog */}
       <PublicationDetailDialog
         accountId={accountId}
-        publication={detailPub}
-        open={detailPub !== null}
-        onClose={() => setDetailPub(null)}
+        publication={effectiveDetailPub}
+        open={effectiveDetailPub !== null}
+        onClose={() => {
+          setDetailPub(null);
+          clearUrlPublication();
+        }}
         isAdmin={isAdmin}
         onEdit={(pub) => {
           setDetailPub(null);
+          clearUrlPublication();
           setEditingPub(pub);
           setPresetDate(null);
           setEditorOpen(true);

@@ -420,3 +420,50 @@ describe("CalendarView — conexión de canales y avisos de query", () => {
     );
   });
 });
+
+describe("CalendarView — abrir publicación desde ?publication=", () => {
+  it("pide la publicación con usePublication si no está en el rango cargado, abre el detalle y limpia la URL al cerrarlo", async () => {
+    searchParams = new URLSearchParams({ publication: "99" });
+
+    let singlePublicationHits = 0;
+    const futurePub = makePublication({
+      id: 99,
+      content: "Publicación creada desde el agente para diciembre",
+      localDate: new Date(2026, 11, 15, 10, 0, 0),
+      state: "scheduled",
+    });
+
+    server.use(
+      http.get("*/api/v1/accounts/1/publications", () => HttpResponse.json([])),
+      http.get("*/api/v1/accounts/1/publications/99", () => {
+        singlePublicationHits += 1;
+        return HttpResponse.json(futurePub);
+      }),
+    );
+
+    renderCalendar();
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /Detalle de publicación/i,
+    });
+    expect(dialog).toHaveAttribute("open");
+    expect(
+      within(dialog).getByText(
+        "Publicación creada desde el agente para diciembre",
+      ),
+    ).toBeInTheDocument();
+    expect(singlePublicationHits).toBeGreaterThanOrEqual(1);
+    expect(replace).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Cerrar diálogo" }),
+    );
+
+    expect(replace).toHaveBeenCalledWith("/accounts/1/publications", {
+      scroll: false,
+    });
+    expect(
+      screen.queryByRole("dialog", { name: /Detalle de publicación/i }),
+    ).not.toBeInTheDocument();
+  });
+});
