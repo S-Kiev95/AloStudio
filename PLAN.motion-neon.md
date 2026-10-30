@@ -43,7 +43,17 @@ Las mismas de `PLAN.publishing-ui.md`: trabajá **solo** en `C:\Users\Zeek\Deskt
 
 ## 4. Tests
 
-Con Vitest como el resto: `NeonWordmark` expone "AloStudio" una sola vez a lectores de pantalla (`getByLabelText`/`getByRole`), tiene una letra por `span`, y con `matchMedia("(prefers-reduced-motion: reduce)")` en `true` no programa temporizadores (usá `vi.useFakeTimers()`); el `template` renderiza a sus hijos. Actualizá los tests existentes que busquen el texto "AloStudio" si dejan de encontrarlo.
+Con Vitest como el resto: `NeonWordmark` expone "AloStudio" una sola vez a lectores de pantalla (`getByLabelText`/`getByRole`), tiene una letra por `span`, y con `matchMedia("(prefers-reduced-motion: reduce)")` en `true` no programa temporizadores (usá `vi.useFakeTimers()`); el `template` renderiza a sus hijos. Actualizá los tests existentes que busquen el texto "AloStudio" si dejan de encontrarlo. Para la sección 5: el encabezado muestra el saludo y los dos botones con sus `href`, y la órbita tiene `aria-hidden`.
+
+## 5. Inicio: la órbita de redes
+
+Pedido del dueño (2026-10-30): el Inicio (`components/overview/account-overview.tsx`, que ya tiene el saludo "Buenos días/tardes/noches") recupera el encabezado de la versión anterior. Referencia visual: `C:\Users\Zeek\Desktop\agy-refs\inicio-orbita.jpg`. Podés abrir esa imagen: es lo único fuera del worktree que podés leer.
+
+- Arriba, en dos columnas desde `md`: a la izquierda el saludo que ya existe, la línea "Todos tus canales, conversaciones y turnos en un solo lugar. Así están las cosas ahora y en los últimos 7 días." y dos botones: **Abrir bandeja** (primario, a `/accounts/{accountId}/conversations`) e **Ir al calendario** (secundario, a `/accounts/{accountId}/publications`). A la derecha, la órbita. El resto de la página queda como está.
+- La órbita, en `components/overview/network-orbit.tsx`: en el centro el monograma de la marca (`public/brand/alostudio-icon-512.png`) dentro de un círculo con borde y halo de neón (`--neon-core`, `--neon-halo`); alrededor, dos elipses finas (borde `--neon-glass`) y sobre ellas los íconos de las redes, cada uno en una burbuja redonda con su color de marca: WhatsApp, Instagram, Messenger, Facebook, Threads, TikTok, YouTube, X, Telegram y Gmail.
+- Los íconos giran lento por las elipses (una vuelta cada 40–60 s, las dos órbitas a distinta velocidad o en sentidos opuestos), solo con CSS: `@keyframes` con `offset-path`, o un contenedor que rota y cada burbuja contra-rotada para que el ícono quede derecho.
+- Íconos: SVG en línea, nada de librerías. Para las marcas que no tiene `lucide-react`, usá los trazados de Simple Icons (licencia CC0), en un solo archivo con un mapa por red.
+- Es decorativa: `aria-hidden` y sin foco. Con `prefers-reduced-motion` queda quieta. En pantallas angostas (< `md`) va debajo del texto y más chica, o se oculta si no entra sin romper el layout. En tema claro, la misma composición sin halo (como `.neon-wordmark` de día).
 
 ## Fuera de alcance
 
@@ -51,7 +61,7 @@ Librerías de animación, View Transitions experimentales de React/Next, animar 
 
 ## Terminado cuando
 
-Lo de las secciones 1 a 4 con typecheck, lint y tests en verde, y la marca se enciende y zumba en tema oscuro sin mover el layout.
+Lo de las secciones 1 a 5 con typecheck, lint y tests en verde: la marca se enciende y zumba en tema oscuro sin mover el layout, y el Inicio tiene su encabezado con la órbita de redes.
 
 ## Estado
 
