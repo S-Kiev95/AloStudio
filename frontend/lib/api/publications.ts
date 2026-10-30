@@ -335,7 +335,7 @@ function base(accountId: string): string {
   return `/api/v1/accounts/${accountId}/publications`;
 }
 
-function invalidatePublications(
+export function invalidatePublications(
   qc: ReturnType<typeof useQueryClient>,
   accountId: string,
   publicationId?: number,

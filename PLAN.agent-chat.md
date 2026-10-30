@@ -115,7 +115,7 @@ Base: `/api/v1/accounts/{account_id}/agent` (con `apiFetch`, igual que el resto)
 | Código | Cuándo | Qué hacer |
 |---|---|---|
 | 503 | No hay clave de OpenAI | Mostrar `message`. |
-| 502 | OpenAI falló o tardó demasiado | Mostrar `message` cerca del composer. El mensaje del usuario **quedó guardado**: volvé a pedir el chat en vez de reponer el texto en el composer. |
+| 502 | OpenAI falló o tardó demasiado | Mostrar `message` cerca del composer. El mensaje del usuario **quedó guardado**: volvé a pedir el chat en vez de reponer el texto en el composer. En `POST /agent/threads` el cuerpo trae además `thread_id`, el chat que quedó creado: mostralo. |
 | 409 | El agente todavía está respondiendo en ese chat, o la acción ya no está pendiente | Mostrar `message` y volver a pedir el chat. |
 | 422 | Texto vacío o de más de 4000 caracteres, zona inválida | Mostrar `message` junto al composer. |
 
@@ -198,4 +198,421 @@ Frontend: todo lo de las secciones 3 y 4 con typecheck, lint y tests en verde. B
 
 ## Estado
 
-(Lo completa el agente del frontend al terminar.)
+### Qué se hizo
+
+- **Cliente de API, tipos del contrato y hooks (`frontend/lib/api/agent.ts` y `frontend/lib/api/publications.ts`)**:
+  - Tipos completos para la sección 2 (`AgentStatus`, `AgentThreadSummary`, `AgentThreadsResponse`, `AgentTextItem`, `AgentToolItem`, `AgentItem`, `AgentPendingChannel`, `AgentPendingMedia`, `AgentPendingPublication`, `AgentPendingAction`, `AgentThread`, `AgentMessageInput`) y utilidades `getBrowserTimezone`, `getAgentErrorMessage` e `isAgentErrorStatus`.
+  - Los 8 hooks pedidos: `useAgentStatus`, `useAgentThreads`, `useAgentThread` (`staleTime: 30_000` para reutilizar el chat recién creado sin pedirlo de nuevo al navegar), `useCreateAgentThread`, `useSendAgentMessage`, `useConfirmAgentAction`, `useRejectAgentAction` y `useDeleteAgentThread`.
+  - Las mutaciones actualizan la caché de `useAgentThread` con `setQueryData`, invalidan `["agent-threads", accountId]`, vuelven a pedir el chat ante `502` o `409`, y al confirmar o rechazar una acción llaman a `invalidatePublications` (exportada desde `frontend/lib/api/publications.ts`) sobre `["publications", accountId]`, `["publication", accountId, id]` y `["publication-analytics", accountId]`.
+- **3.1 Menú lateral (`frontend/components/shell/nav.ts`)**:
+  - Agregado el ítem `"Agente"` (`key: "agent"`, icono `Sparkles`, `segment: "agent"`) justo después de `"Calendario"` en `NAV_ITEMS` y `NAV_GROUPS`, visible para todos los usuarios.
+- **3.2 Rutas y disposición en dos columnas**:
+  - Rutas `frontend/app/accounts/[accountId]/agent/layout.tsx`, `page.tsx` y `[threadId]/page.tsx`.
+  - `frontend/components/agent/agent-shell.tsx`: contenedor de dos columnas siguiendo `InboxShell`, manteniendo montada la columna de chats al cambiar de ruta y ocultándola en `< md` para abrirla desde el botón `"Chats"` del encabezado.
+  - `frontend/components/agent/agent-thread-list.tsx` y `agent-time.ts`: columna de chats (`md:w-64`, 16 rem) con botón primario `"Nuevo chat"` arriba, título truncado, fecha relativa corta en hora local, resaltado del chat activo (`bg-focused`, `text-lit`), indicador `"Por confirmar"` cuando `has_pending_action` es `true`, borrado al pasar el mouse con `window.confirm`, estado vacío `"Todavía no tenés chats."` y errores de borrado visibles en la columna.
+- **3.3 a 3.7 Pantalla de chat, actividad, tarjeta de confirmación, composer y avisos**:
+  - `frontend/components/agent/agent-chat-view.tsx`: encabezado con título y botón `"Chats"` en móvil; nota fija para `can_write: false`; aviso para `enabled: false` (conservando legibles los chats anteriores y deshabilitando el composer); estado vacío con saludo y las 3 sugerencias clicables (ocultando la primera si `can_write: false`); burbujas de usuario y asistente en texto plano (`whitespace-pre-wrap break-words`); filas discretas de `tool` con iconos `Check` / `X` / `Clock` / `Ban`, `detail` en `text-fg-muted` y enlace `"Ver en el calendario"` cuando hay `publication_id`; burbuja optimista del usuario + `"Pensando…"` (`animate-pulse`) durante el turno; auto-scroll al llegar nuevos ítems; manejo de errores `503`, `502` (sin reponer el texto en el composer y refetcheando el chat), `409` (incluyendo alerta visible cuando al refetchear desaparece `pending_action`) y `422`.
+  - `frontend/components/agent/pending-action-card.tsx`: tarjeta con `border-glass bg-surface-2`, título, canales con `NetworkIcon` y `networkLabel`, texto con `whitespace-pre-wrap` colapsable a ~8 líneas con `"Ver más"`, miniaturas de imagen y `<video preload="metadata">` sin controles, horario en zona local (`"Sale el lun 2 nov, 10:00"`, `"Sale en los próximos minutos"` o `"Se va a borrar esta publicación"`), botones `confirm_label` (`variant="destructive"` en `cancel_publication`) y `"Cancelar"` con `loading`, leyenda en `text-fg-muted` y error en línea.
+  - `frontend/components/agent/agent-composer.tsx`: `<textarea>` auto-ajustable hasta ~6 líneas, `Enter` envía y `Shift+Enter` inserta salto de línea, botón `ArrowUp` deshabilitado si está vacío o esperando, conteo por puntos de código (`Array.from(value).length`) mostrando `"N/4000"` desde 3500 y bloqueando `> 4000`, envío siempre con `timezone` del navegador y error junto al composer.
+- **3.8 Calendario — `?publication={id}` (`frontend/components/publications/calendar-view.tsx`)**:
+  - Abre `PublicationDetailDialog` al entrar a `/accounts/{accountId}/publications?publication={id}` reutilizando la publicación del rango cargado o pidiéndola con `usePublication`, y limpia `publication` de la URL con `router.replace` al cerrar el diálogo (o el aviso de error si no existe).
+- **4. Tests (`msw`)**:
+  - `frontend/components/shell/nav.test.tsx`: verifica la presencia, orden (justo después de `"Calendario"`) y activación de `"Agente"` en `/agent` y `/agent/{id}`.
+  - `frontend/components/publications/calendar-view.test.tsx`: verifica la apertura del detalle desde `?publication=`, el pedido a `GET /publications/{id}` fuera de rango y la limpieza del query param al cerrar.
+  - `frontend/components/agent/agent-chat.test.tsx`: 13 tests con `msw` (`onUnhandledRequest: "error"`) cubriendo lista de chats sin recarga al navegar, estado vacío de lista, borrado con confirmación, creación de chat desde sugerencia y desde composer (`timezone`, burbuja optimista, `"Pensando…"`, `setQueryData` sin segundo `GET`), filas `tool` y link `"Ver en el calendario"`, contador `N/4000` (con puntos de código Unicode y bloqueo `> 4000`), confirmar/cancelar en `PendingActionCard` (incluyendo `cancel_publication` e invalidación de publicaciones), errores `502` / `409` / `422` / `503`, `enabled: false` y `can_write: false`.
+  - `frontend/vitest.setup.ts`: configurado `asyncUtilTimeout: 4000` en Testing Library (debajo del `testTimeout` de 5000 ms de Vitest) para evitar falsos negativos por contención de CPU al correr los 84 archivos en paralelo.
+
+### Qué quedó pendiente / fuera de alcance
+
+- Ningún punto de las secciones 2 a 4 del frontend quedó pendiente, y el contrato de la sección 2 cubrió todos los datos necesarios sin inventar campos ni rutas.
+- Queda fuera del alcance de esta rama: el backend en `feat/agent-chat` (a cargo de Claude), la prueba integrada en navegador contra el backend real una vez unidas ambas ramas, y los puntos listados en **Fuera de alcance** (streaming, adjuntar o subir medios en el chat, generar imágenes/videos, selector de canales a la derecha, herramientas de bandeja/contactos, 👍/👎 y renombrar chats).
+
+### Qué se revisó a mano
+
+- Revisión visual de `docs/design-neon/postiz/03-agente.jpg` junto con `docs/design-neon/DESIGN.md`, `frontend/DESIGN-SYSTEM.md` y los componentes de referencia (`inbox-shell.tsx`, `conversation-list.tsx`, `message-bubble.tsx`, `message-composer.tsx`, `network-icon.tsx`, `calendar-view.tsx`, `publication-detail-dialog.tsx`, `publications.ts`, `profile.ts`).
+- Verificación del cumplimiento de las notas de revisiones anteriores: cero modificadores de opacidad `color/NN` sobre variables CSS del tema en todo el diff, fechas formateadas en hora local del navegador y envío de `timezone`, conteo por puntos de código (`Array.from`), permisos regidos por `can_write`, y errores del backend visibles junto al composer o la tarjeta de confirmación.
+- Revisión de `git diff 70eb722..HEAD --stat` confirmando que solo se modificaron archivos dentro de `frontend/` y `PLAN.agent-chat.md` (sin tocar backend, `.env*` ni `package.json`).
+
+### Salida completa de los comandos de verificación
+
+#### 1. `npm run typecheck`
+
+```text
+> alostudio-frontend@0.1.0 typecheck
+> tsc --noEmit
+```
+
+#### 2. `npm run lint`
+
+```text
+> alostudio-frontend@0.1.0 lint
+> next lint
+
+`next lint` is deprecated and will be removed in Next.js 16.
+For new projects, use create-next-app to choose your preferred linter.
+For existing projects, migrate to the ESLint CLI:
+npx @next/codemod@canary next-lint-to-eslint-cli .
+
+✔ No ESLint warnings or errors
+```
+
+#### 3. `npm test`
+
+```text
+
+> alostudio-frontend@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 C:/Users/Zeek/Desktop/AloStudio-agent-ui/frontend
+
+ ✓ lib/inboxes/email-blocks.test.ts (15 tests) 16ms
+ ✓ components/publications/network-rules.test.ts (3 tests) 12ms
+ ✓ components/reports/summary-table.test.tsx (3 tests) 375ms
+ ✓ components/publications/media-library-view.test.tsx (3 tests) 2574ms
+   ✓ MediaLibraryView > sube un archivo válido y muestra el 422 del backend si se intenta borrar uno en uso 2200ms
+ ✓ components/publications/analytics-view.test.tsx (3 tests) 2578ms
+   ✓ PublicationsAnalyticsView > muestra tarjetas de totales, '—' para cifras ausentes (y '0' cuando viene 0), desglose por canal y mejores publicaciones 2178ms
+ ✓ components/publications/publication-detail-dialog.test.tsx (2 tests) 2695ms
+   ✓ PublicationDetailDialog > muestra cifras, 'actualizado hace…', error del destino y link, y oculta acciones a un agente 334ms
+   ✓ PublicationDetailDialog > habilita Reintentar y Actualizar estadísticas para un administrador en partially_published y Borrar en failed 2353ms
+ ✓ components/instagram/post-reply-picker.test.tsx (11 tests) 2871ms
+   ✓ PostReplyPicker > offers to save only after something changed 505ms
+   ✓ PostReplyPicker > discards an edit without sending it 1511ms
+ ✓ components/conversations/conversation-list.test.tsx (4 tests) 2800ms
+   ✓ ConversationList > renders conversations returned by the API 2229ms
+ ✓ components/instagram/instagram-connection.test.tsx (8 tests) 2863ms
+   ✓ InstagramConnection — vuelta del OAuth > nombra la cuenta recién conectada 2039ms
+ ✓ components/settings/signatures/signatures-view.test.tsx (2 tests) 3136ms
+   ✓ SignaturesView > lista firmas, crea (cuerpo correcto y conteo de puntos de código), edita y borra 2870ms
+ ✓ components/agenda/week-view.test.tsx (3 tests) 3041ms
+   ✓ WeekView > renders Monday-to-Sunday columns and groups appointments by local day in chronological order 2260ms
+   ✓ AgendaView > loads the current week in weekly view, navigates weeks, and filters by status 645ms
+ ✓ components/contacts/contacts-view.test.tsx (4 tests) 3207ms
+   ✓ ContactsView > filters the list when a company chip is clicked 2362ms
+   ✓ ContactsView > applies an advanced filter via the builder 322ms
+ ✓ components/settings/inboxes/email-transport-panel.test.tsx (13 tests) 3452ms
+   ✓ EmailTransportPanel > sends the IMAP settings that make mail arrive 2108ms
+ ✓ components/settings/autoposts/autoposts-view.test.tsx (2 tests) 3314ms
+   ✓ AutopostsView > lista feeds con revisado hace y último error, prueba el feed (entradas y error 422), crea, edita y borra 3264ms
+stderr | components/settings/inboxes/email-template-panel.test.tsx > EmailTemplatePanel, the visual designer > saves the generated HTML together with its settings
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+
+ ✓ components/settings/sets/sets-view.test.tsx (2 tests) 3343ms
+   ✓ SetsView > lista sets con canales y fecha, crea en modo set con el editor, edita y borra 3307ms
+stderr | components/settings/inboxes/email-template-panel.test.tsx > EmailTemplatePanel, the visual designer > saves the generated HTML together with its settings
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+
+ ✓ components/settings/inboxes/email-template-panel.test.tsx (15 tests) 3608ms
+   ✓ EmailTemplatePanel > saves the authored HTML 399ms
+   ✓ EmailTemplatePanel > refuses a template that would send an empty message 2014ms
+stderr | components/settings/inboxes/email-template-panel.test.tsx
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+
+stderr | VirtualConsole.<anonymous> (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\virtual-console.js:29:45)
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at queryFn (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\email-templates.ts:27:19) undefined
+
+ ✓ components/settings/plugs/plugs-view.test.tsx (3 tests) 4013ms
+   ✓ PlugsView > sin canales compatibles muestra 'Conectá Threads para usar acciones automáticas' con link al calendario 2306ms
+   ✓ PlugsView > pide mensaje solo cuando la acción tiene message_max, cuenta UTF-8 de Threads y permite listar, crear, editar y borrar 1445ms
+ ✓ components/instagram/post-autoreply-rules.test.tsx (17 tests) 4310ms
+   ✓ PostAutoreplyRules > saves a keyword rule 359ms
+   ✓ PostAutoreplyRules > saves a catch-all rule 2122ms
+   ✓ PostAutoreplyRules > re-reads the list after saving, so the rule replaces the empty state 322ms
+ ✓ components/settings/email-templates/email-templates-view.test.tsx (15 tests) 4518ms
+   ✓ Plantillas de correo > una plantilla nueva nace con el diseño por defecto, no en blanco 2096ms
+ ✓ components/agent/agent-chat.test.tsx (13 tests) 4417ms
+   ✓ Agente — lista de chats y navegación sin recarga > muestra los chats, la etiqueta 'Por confirmar', no recarga la lista al cambiar de chat y permite borrar con confirmación 2757ms
+   ✓ Agente — enviar un mensaje, burbuja optimista, 'Pensando…' y composer > muestra la burbuja optimista y 'Pensando…' al enviar y luego los reemplaza por el Chat devuelto 350ms
+ ✓ components/publications/calendar-view.test.tsx (6 tests) 6345ms
+   ✓ CalendarView — grilla, paginación y estados > ubica cada publicación en su día y hora local, pide todas las páginas del rango y pinta el estado 2916ms
+   ✓ CalendarView — conexión de canales y avisos de query > 'Agregar canal' con una red authorize pide authorize_url sin cuerpo y navega a ella 572ms
+   ✓ CalendarView — conexión de canales y avisos de query > 'Agregar canal' con una red form abre el diálogo, envía { fields } y muestra el 422 sin cerrarlo 447ms
+   ✓ CalendarView — abrir publicación desde ?publication= > pide la publicación con usePublication si no está en el rango cargado, abre el detalle y limpia la URL al cerrarlo 2087ms
+ ✓ components/conversations/inbox-three-column.test.tsx (4 tests) 3443ms
+   ✓ Bandeja en tres columnas y pestañas > muestra lista y estado vacío juntos, y cambia entre conversaciones sin recargar la lista 1126ms
+   ✓ Bandeja en tres columnas y pestañas > muestra el resumen de reportes de la bandeja y la lista de canales conectados 1035ms
+   ✓ Bandeja en tres columnas y pestañas > a un agente le muestra los canales sin Conectar ni Desconectar 1195ms
+ ✓ components/publications/publication-editor-dialog.test.tsx (5 tests) 6922ms
+   ✓ PublicationEditorDialog — armado del cuerpo, reglas y 422 > arma el cuerpo de publicación programada con fecha ISO, media_id reordenados, post_type y content_override 3521ms
+   ✓ PublicationEditorDialog — armado del cuerpo, reglas y 422 > arma borrador (draft: true) y respeta post_type: 'reels' en Instagram 474ms
+   ✓ PublicationEditorDialog — armado del cuerpo, reglas y 422 > muestra errores de la tabla de reglas antes de enviar y muestra el 422 del backend con message y errors[] 367ms
+   ✓ PublicationEditorDialog — firmas y sets > 'Usar set' carga texto, medios y canales activos (ignorando channel: null) sin cambiar la fecha, y 'Guardar como set' envía el cuerpo esperado 2414ms
+ ✓ components/settings/inboxes/email-branding-panel.test.tsx (7 tests) 501ms
+ ✓ middleware.test.ts (7 tests) 38ms
+ ✓ components/settings/assignment-policies/assignment-policies-view.test.tsx (3 tests) 645ms
+   ✓ AssignmentPoliciesView > creates a policy, wrapping the body in assignment_policy 316ms
+ ✓ components/conversations/email-message.test.tsx (9 tests) 339ms
+ ✓ lib/inboxes/email-template-design.test.ts (12 tests) 18ms
+ ✓ components/instagram/connect-capabilities-dialog.test.tsx (6 tests) 346ms
+ ✓ components/conversations/email-composer.test.tsx (8 tests) 523ms
+ ✓ lib/api/notifications.test.tsx (3 tests) 321ms
+ ✓ components/conversations/conversation-filters.test.tsx (3 tests) 890ms
+   ✓ ConversationFilters > builds an equal_to condition from the default row 308ms
+   ✓ ConversationFilters > saves the current filter as a named view 325ms
+ ✓ components/settings/integrations/integration-app-view.test.tsx (2 tests) 2607ms
+   ✓ IntegrationAppView connect > renders an OAuth link for external-action apps 2453ms
+stderr | components/reports/reports-view.test.tsx > ReportsView > offers CSV + Excel export links for the current scope
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5) undefined
+
+ ✓ components/reports/reports-view.test.tsx (2 tests) 2946ms
+   ✓ ReportsView > renders live counters and summary metrics 2671ms
+stderr | VirtualConsole.<anonymous> (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\virtual-console.js:29:45)
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at navigateFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:77:3)
+    at exports.navigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\window\Location-impl.js:47:10)
+    at Location.set href [as href] (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\node_modules\jsdom\lib\jsdom\living\generated\Location.js:125:37)
+    at Module.apiFetch (C:\Users\Zeek\Desktop\AloStudio-agent-ui\frontend\lib\api\fetcher.ts:39:21)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5) undefined
+
+ ✓ components/settings/installation/installation-view.test.tsx (6 tests) 2817ms
+   ✓ Configuración de la instalación > distingue lo configurado de lo que falta 2445ms
+ ✓ components/reports/metric-chart.test.tsx (6 tests) 134ms
+ ✓ components/settings/inboxes/channel-form.test.tsx (4 tests) 2899ms
+   ✓ ChannelForm, creating an email inbox > draws a checkbox for a boolean field, not a text box 2508ms
+ ✓ components/settings/automation/automation-rules-view.test.tsx (3 tests) 204ms
+ ✓ components/conversations/conversation-participants.test.tsx (3 tests) 377ms
+ ✓ components/settings/profile/profile-view.test.tsx (1 test) 243ms
+ ✓ components/settings/mcp-tokens/mcp-tokens-view.test.tsx (2 tests) 464ms
+ ✓ components/instagram/autoreply-view.test.tsx (4 tests) 368ms
+ ✓ components/help-center/portal-detail-view.test.tsx (3 tests) 480ms
+ ✓ components/shell/nav.test.tsx (4 tests) 256ms
+ ✓ components/conversations/ai-handoff.test.tsx (4 tests) 392ms
+ ✓ components/settings/macros/macros-view.test.tsx (4 tests) 193ms
+ ✓ lib/api/reports-gaps.test.ts (6 tests) 8ms
+ ✓ lib/api/fetcher.test.ts (5 tests) 11ms
+ ✓ components/ui/tabs.test.tsx (3 tests) 210ms
+ ✓ components/campaigns/campaigns-view.test.tsx (1 test) 206ms
+ ✓ components/conversations/message-composer-canned.test.tsx (2 tests) 227ms
+ ✓ lib/realtime/cable.test.ts (3 tests) 8ms
+ ✓ components/settings/csat/csat-view.test.tsx (1 test) 2752ms
+   ✓ CsatView > renders metrics cards and responses 2746ms
+ ✓ components/settings/custom-attributes/custom-attributes-view.test.tsx (1 test) 187ms
+ ✓ components/instagram/comments-panel.test.tsx (2 tests) 290ms
+ ✓ lib/api/errors.test.ts (8 tests) 7ms
+ ✓ components/reports/traffic-heatmap.test.tsx (3 tests) 301ms
+ ✓ components/settings/agents/agents-view.test.tsx (1 test) 389ms
+   ✓ AgentsView > lists agents with role + pending badge + email 380ms
+ ✓ components/campaigns/campaign-analytics-panel.test.tsx (1 test) 212ms
+ ✓ components/shell/page-header.test.tsx (2 tests) 201ms
+ ✓ components/settings/canned-responses/canned-responses-view.test.tsx (2 tests) 749ms
+   ✓ CannedResponsesView > lists responses with their short codes and content 328ms
+   ✓ CannedResponsesView > sends the debounced search term to the backend 415ms
+ ✓ components/conversations/conversation-actions.test.tsx (1 test) 326ms
+   ✓ ConversationActions macros > runs the picked macro on the current conversation 318ms
+ ✓ components/help-center/articles-panel.test.tsx (2 tests) 1857ms
+   ✓ ArticlesPanel search > sends the debounced query to the articles endpoint 549ms
+   ✓ ArticlesPanel search > clears the search with the reset button 1267ms
+ ✓ components/settings/integrations/integrations-view.test.tsx (1 test) 2648ms
+   ✓ IntegrationsView > lists apps with connection status 2634ms
+ ✓ components/help-center/portals-view.test.tsx (1 test) 825ms
+   ✓ PortalsView > lists portals with archived badge and custom domain 725ms
+ ✓ components/settings/agent-bots/agent-bots-view.test.tsx (1 test) 179ms
+ ✓ lib/api/uploads.test.ts (3 tests) 59ms
+ ✓ components/settings/webhooks/webhooks-view.test.tsx (1 test) 194ms
+ ✓ components/products/products-view.test.tsx (1 test) 176ms
+ ✓ components/settings/labels/labels-view.test.tsx (1 test) 1981ms
+   ✓ LabelsView > lists labels with description and shows the new-label button 1949ms
+ ✓ components/conversations/channel-badge.test.tsx (5 tests) 2498ms
+   ✓ ChannelBadge > names the channel for anyone not reading colour 2466ms
+ ✓ components/settings/teams/teams-view.test.tsx (1 test) 2547ms
+   ✓ TeamsView > lists teams, marks membership, and flags auto-assign off 2542ms
+ ✓ components/conversations/message-composer.test.tsx (1 test) 150ms
+ ✓ app/privacidad/page.test.tsx (3 tests) 249ms
+ ✓ components/ui/button.test.tsx (3 tests) 183ms
+ ✓ lib/api/instagram.test.tsx (1 test) 127ms
+ ✓ components/help-center/portal-form.test.tsx (1 test) 239ms
+ ✓ components/settings/notifications/push-toggle.test.tsx (1 test) 160ms
+ ✓ lib/time.test.ts (4 tests) 6ms
+ ✓ lib/auth/schemas.test.ts (3 tests) 6ms
+ ✓ components/crm/crm-tabs.test.tsx (1 test) 113ms
+ ✓ components/reports/bot-metrics-cards.test.tsx (1 test) 77ms
+ ✓ app/terminos/page.test.tsx (2 tests) 151ms
+ ✓ app/eliminacion-de-datos/page.test.tsx (2 tests) 125ms
+
+ Test Files  84 passed (84)
+      Tests  344 passed (344)
+   Start at  13:48:42
+   Duration  39.31s (transform 9.19s, setup 130.86s, collect 124.38s, tests 112.49s, environment 403.34s, prepare 30.58s)
+```
+
+### Revisión de Claude (2026-10-30)
+
+- Corrí de nuevo los tres comandos sobre `5b1a02d`: typecheck y lint sin errores, 84 archivos y 344 tests en verde. Se cumplieron las notas de las revisiones anteriores (sin `color/NN`, `can_write` oculta lo que el backend niega, errores junto a lo que los provocó).
+- Probé backend y pantalla juntos en el navegador, con un OpenAI simulado en local: chat nuevo, "Consultó tus canales", una propuesta inválida (Instagram sin imagen) que vuelve al modelo sin llegar al usuario, la propuesta corregida en la tarjeta ("Sale el sáb 31 oct, 10:00": la hora sin zona del modelo se lee en la del navegador), confirmar, "Ver en el calendario" abriendo el detalle con `?publication=`, la etiqueta "Por confirmar" en la lista, la vista angosta con el botón "Chats", y un usuario agente (nota de solo lectura, sin la sugerencia de armar, sin ver los chats de otros).
+- Corregido en `9f3d7ea`: si el primer mensaje de un chat nuevo daba 502, la pantalla volvía al estado vacío aunque el chat había quedado guardado; el backend ahora devuelve `thread_id` y la pantalla lo muestra (con test). El botón de borrar un chat solo aparecía con el mouse: en pantallas angostas queda siempre visible.
+- Sin tocar: `vitest.setup.ts` sube la espera de Testing Library a 4 s para todos los tests (`876cd29`); ayuda con la CPU cargada y solo demora los fallos.

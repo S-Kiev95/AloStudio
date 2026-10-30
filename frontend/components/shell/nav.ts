@@ -10,6 +10,7 @@ import {
   type LucideIcon,
   Megaphone,
   Settings,
+  Sparkles,
   Users,
 } from "lucide-react";
 
@@ -29,6 +30,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Calendario",
     icon: CalendarDays,
     segment: "publications",
+  },
+  {
+    key: "agent",
+    label: "Agente",
+    icon: Sparkles,
+    segment: "agent",
   },
   {
     key: "analytics",
@@ -81,6 +88,7 @@ export const NAV_GROUPS: NavGroup[] = [
     keys: [
       "home",
       "calendar",
+      "agent",
       "analytics",
       "media",
       "conversations",
