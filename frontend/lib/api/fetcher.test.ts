@@ -40,6 +40,22 @@ describe("apiFetch on a 401", () => {
     expect(window.location.href).toBe("/login");
   });
 
+  it("remembers where the user was, so signing in brings them back", async () => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        href: "/oauth/authorize?client_id=alo_app_1&state=x",
+        pathname: "/oauth/authorize",
+        search: "?client_id=alo_app_1&state=x",
+      },
+    });
+    mockFetch(401, { errors: ["Invalid login credentials"] });
+    await expect(apiFetch("/api/v1/oauth/authorize")).rejects.toBeInstanceOf(ApiError);
+    expect(window.location.href).toBe(
+      "/login?next=%2Foauth%2Fauthorize%3Fclient_id%3Dalo_app_1%26state%3Dx",
+    );
+  });
+
   it("keeps an agent on the page when a panel is admin-only", async () => {
     // The API keeps Chatwoot's shape, where "not an administrator" is also
     // a 401. Redirecting on it threw an agent back to login the moment a
