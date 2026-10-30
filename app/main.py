@@ -10,6 +10,7 @@ from app.core.db import dispose_engine
 from app.core.errors import ChatwootHTTPException, chatwoot_http_exception_handler
 from app.core.logging import configure_logging, get_logger
 from app.domains.accounts.router import router as accounts_router
+from app.domains.agent.router import router as agent_router
 from app.domains.agent_bots.router import (
     inbox_set_agent_bot_router,
 )
@@ -304,6 +305,9 @@ def create_app() -> FastAPI:
     # published by its network adapter.
     app.include_router(publishing_router)
     app.include_router(publishing_oauth_callback_router)
+    # Agent chat: an AI that drafts and schedules publications through the
+    # publishing MCP tools, every write confirmed by the user.
+    app.include_router(agent_router)
     # Account media library, reused by publications.
     app.include_router(media_library_router)
     # Twilio SMS webhook (Phase 5f). ``/twilio/callback`` —

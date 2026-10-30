@@ -1,4 +1,5 @@
-"""Minimal async OpenAI client for Help-Center embedding search.
+"""Minimal async OpenAI client for Help-Center embedding search and the
+agent chat.
 
 Ports the pieces of Chatwoot's Captain LLM stack that the Help-Center
 semantic search actually uses:
@@ -7,6 +8,9 @@ semantic search actually uses:
   * ``Enterprise::Concerns::Article#generate_article_search_terms`` →
     :func:`generate_search_terms` (a ``gpt-4o`` JSON-mode completion that
     expands an article into diverse search terms)
+
+and adds :func:`chat_completion`, one step of the agent chat
+(``app.domains.agent``) with function calling.
 
 We talk to the REST API over ``httpx`` directly rather than pulling in the
 ``openai`` SDK — two endpoints, no streaming. Everything is gated on
@@ -18,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Any
 
 import httpx
 
@@ -30,6 +35,10 @@ log = logging.getLogger(__name__)
 EMBEDDING_DIM = 1536
 
 _TIMEOUT = httpx.Timeout(30.0, connect=10.0)
+# A chat step can think before calling a tool or answering.
+_CHAT_TIMEOUT = httpx.Timeout(90.0, connect=10.0)
+# Room for the model's reasoning plus a short answer.
+_CHAT_MAX_COMPLETION_TOKENS = 4096
 
 _SEARCH_TERMS_SYSTEM_PROMPT = (
     "For the provided article content, generate potential search query "
@@ -131,9 +140,60 @@ async def generate_search_terms(
     return [str(t).strip() for t in terms if str(t).strip()]
 
 
+async def chat_completion(
+    *,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None = None,
+    tool_choice: str | None = None,
+) -> dict[str, Any]:
+    """One step of the agent chat: the assistant message the model returns,
+    with ``content`` and, when it wants to run tools, ``tool_calls``.
+
+    One tool call per step (``parallel_tool_calls: false``) so a write the
+    user has to confirm never travels next to another call.
+    """
+    settings = get_settings()
+    payload: dict[str, Any] = {
+        "model": settings.openai_agent_model,
+        "messages": messages,
+        "max_completion_tokens": _CHAT_MAX_COMPLETION_TOKENS,
+    }
+    if tools:
+        payload["tools"] = tools
+        payload["parallel_tool_calls"] = False
+        if tool_choice:
+            payload["tool_choice"] = tool_choice
+    try:
+        async with httpx.AsyncClient(timeout=_CHAT_TIMEOUT) as client:
+            resp = await client.post(
+                f"{settings.openai_base_url.rstrip('/')}/v1/chat/completions",
+                headers=_auth_headers(),
+                json=payload,
+            )
+            if resp.status_code >= 400:
+                raise LlmError(
+                    f"chat completion failed: HTTP {resp.status_code} {_error_message(resp)}"
+                )
+            message = resp.json()["choices"][0]["message"]
+    except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
+        raise LlmError(f"chat completion failed: {exc}") from exc
+    if not isinstance(message, dict):
+        raise LlmError("chat completion returned no message")
+    return message
+
+
+def _error_message(resp: httpx.Response) -> str:
+    """OpenAI's own explanation of a failed request (never echoes the key)."""
+    try:
+        return str(resp.json()["error"]["message"])[:300]
+    except (ValueError, KeyError, TypeError):
+        return resp.text[:300]
+
+
 __all__ = [
     "EMBEDDING_DIM",
     "LlmError",
+    "chat_completion",
     "embed_text",
     "embedding_search_enabled",
     "generate_search_terms",
