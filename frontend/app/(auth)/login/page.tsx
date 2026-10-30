@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { messageFromBody } from "@/lib/api/errors";
+import { safeNextPath } from "@/lib/auth/next-path";
 import { type LoginInput, loginSchema } from "@/lib/auth/schemas";
 
 export default function LoginPage() {
@@ -33,7 +34,14 @@ export default function LoginPage() {
       setFormError(messageFromBody(body, "No se pudo iniciar sesión."));
       return;
     }
-    router.push(body.accountId ? `/accounts/${body.accountId}` : "/accounts");
+    // Back to where the session ran out (or the OAuth consent), if it is
+    // a page of this app.
+    const next = safeNextPath(
+      new URLSearchParams(window.location.search).get("next"),
+    );
+    router.push(
+      next ?? (body.accountId ? `/accounts/${body.accountId}` : "/accounts"),
+    );
     router.refresh();
   }
 
@@ -52,7 +60,7 @@ export default function LoginPage() {
         {formError ? (
           <p
             role="alert"
-            className="rounded-control border border-danger/40 bg-danger/10 px-3.5 py-2.5 text-sm text-danger"
+            className="rounded-control border border-danger bg-surface-2 px-3.5 py-2.5 text-sm text-danger"
           >
             {formError}
           </p>

@@ -6,7 +6,7 @@ import { ApiError, messageFromBody } from "./errors";
  * All browser requests go to the same-origin BFF proxy
  * (``NEXT_PUBLIC_API_BASE`` = ``/api/backend``) so httpOnly auth cookies
  * are sent automatically; the proxy re-attaches them as devise headers
- * server-side. On 401 we bounce to /login.
+ * server-side. On 401 we bounce to /login (with ``next`` back here).
  *
  * Signature matches orval's ``httpClient: "fetch"`` mutator contract:
  * ``(url, options) => Promise<T>``.
@@ -36,7 +36,7 @@ export async function apiFetch<T>(
   // send someone to /login; a permission denial belongs in the panel that
   // asked for it.
   if (res.status === 401 && typeof window !== "undefined" && !isDenial(body)) {
-    window.location.href = "/login";
+    window.location.href = loginUrl();
   }
 
   if (!res.ok) {
@@ -47,6 +47,14 @@ export async function apiFetch<T>(
     );
   }
   return body as T;
+}
+
+/** /login, remembering where the user was so signing in brings them back
+ *  (the OAuth consent page depends on it to keep its parameters). */
+function loginUrl(): string {
+  const { pathname = "", search = "" } = window.location;
+  if (!pathname || pathname.startsWith("/login")) return "/login";
+  return `/login?next=${encodeURIComponent(pathname + search)}`;
 }
 
 /** True when a 401 is "you are not allowed", not "you are not signed in".
