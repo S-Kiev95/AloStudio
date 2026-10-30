@@ -79,6 +79,9 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     # Chat model used to expand an article into diverse search terms.
     openai_chat_model: str = "gpt-4o"
+    # Model behind the agent chat (``app.domains.agent``): it calls the
+    # publishing MCP tools, so it has to be good at function calling.
+    openai_agent_model: str = "gpt-5.4-mini"
 
     # --- web push (VAPID)
     # Generate a keypair once with ``app.core.webpush.generate_vapid_keys()``

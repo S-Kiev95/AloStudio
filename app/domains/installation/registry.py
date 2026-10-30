@@ -40,6 +40,7 @@ BRAND_GROUP = "Marca"
 ACCESS_GROUP = "Acceso"
 PUBLISHING_GROUP = "Redes para publicar"
 MAIL_GROUP = "Correo saliente"
+AI_GROUP = "Inteligencia artificial"
 
 CONFIG_SPECS: tuple[ConfigSpec, ...] = (
     # --- Facebook Login (Messenger + the full Instagram API) -----------
@@ -239,6 +240,29 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "adjuntos y la vuelta del OAuth."
         ),
         group=BRAND_GROUP,
+    ),
+    # --- AI --------------------------------------------------------------
+    ConfigSpec(
+        name="OPENAI_API_KEY",
+        setting="openai_api_key",
+        title="Clave de OpenAI",
+        description=(
+            "La usan el agente con chat y la búsqueda del Help Center. Se "
+            "crea en platform.openai.com y cobra por uso en esa cuenta."
+        ),
+        group=AI_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="OPENAI_AGENT_MODEL",
+        setting="openai_agent_model",
+        title="Modelo del agente",
+        description=(
+            "El modelo de OpenAI que usa el agente con chat, por ejemplo "
+            "gpt-5.4-mini (rápido y barato) o gpt-5.5 (más capaz)."
+        ),
+        group=AI_GROUP,
     ),
 )
 
