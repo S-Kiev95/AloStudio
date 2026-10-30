@@ -13,10 +13,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Navigation and CRM tabs", () => {
-  it("lists main sidebar items in the expected order", () => {
+  it("lists main sidebar items in the expected order with Agente right after Calendario", () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       "Inicio",
       "Calendario",
+      "Agente",
       "Estadísticas",
       "Medios",
       "Bandeja",
@@ -27,6 +28,17 @@ describe("Navigation and CRM tabs", () => {
       "Reportes",
       "Ajustes",
     ]);
+  });
+
+  it("renders Agente link and activates it on /agent and /agent/[threadId]", () => {
+    expect(activeNavItemKey("/accounts/1/agent", "1")).toBe("agent");
+    expect(activeNavItemKey("/accounts/1/agent/7", "1")).toBe("agent");
+
+    mockPathname = "/accounts/1/agent/7";
+    render(<SidebarNav accountId="1" />);
+    const agentLink = screen.getByRole("link", { name: "Agente" });
+    expect(agentLink).toHaveAttribute("href", "/accounts/1/agent");
+    expect(agentLink).toHaveAttribute("aria-current", "page");
   });
 
   it("activates Medios and Estadísticas without marking Calendario", () => {
