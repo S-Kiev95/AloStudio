@@ -177,4 +177,10 @@ Frontend: todo lo de las secciones 3 y 4 con typecheck, lint y tests en verde. B
 
 ## Estado
 
-(Lo completa el agente del frontend al terminar.)
+Argon se quedó sin cuota al empezar (el primer intento se cortó con un reinicio de la PC; los siguientes, con `429 Individual quota reached`), así que el frontend lo hizo Claude, en `5788130`, `aaf6100` y `0cc8e9b`.
+
+- Hecho: todo lo de las secciones 3 y 4. Ajustes → Apps OAuth con las pestañas Apps (solo administradores) y Apps aprobadas; crear app confidencial o pública, secreto visible una sola vez, regenerar, editar y borrar con confirmación; la guía de conexión con las URL de `endpoints`; `/oauth/authorize` con el permiso explicado, el selector de cuenta (las que no pueden dar el acceso, deshabilitadas) y la vuelta a la app; `apiFetch` lleva al login con `next` y el login vuelve ahí si es una ruta interna.
+- Verificado: `npm run typecheck` y `npm run lint` sin errores; `npm test` con 87 archivos y 361 tests en verde (21 nuevos: Apps OAuth, consentimiento, login y `apiFetch`).
+- Probado en el navegador junto al backend (`feat/oauth-apps`): crear la app y ver el secreto una vez; entrar al consentimiento sin sesión, pasar por el login y volver con todos los parámetros; autorizar; canjear el código con PKCE; usar el token en `/mcp` (actúa como el usuario, con permiso de escritura) y verlo en Apps aprobadas con su último uso; quitarle el acceso.
+- Corregido en la prueba: mientras cargaba el perfil, un administrador veía primero la vista de agente (`0cc8e9b`).
+- Pendiente para producción: en el VPS, que `/oauth/token`, `/oauth/revoke`, `/.well-known/oauth-*` y `/mcp` vayan al backend (rutas de Tailscale Funnel); `/oauth/authorize` sigue yendo al panel.
