@@ -115,7 +115,7 @@ Base: `/api/v1/accounts/{account_id}/agent` (con `apiFetch`, igual que el resto)
 | Código | Cuándo | Qué hacer |
 |---|---|---|
 | 503 | No hay clave de OpenAI | Mostrar `message`. |
-| 502 | OpenAI falló o tardó demasiado | Mostrar `message` cerca del composer. El mensaje del usuario **quedó guardado**: volvé a pedir el chat en vez de reponer el texto en el composer. |
+| 502 | OpenAI falló o tardó demasiado | Mostrar `message` cerca del composer. El mensaje del usuario **quedó guardado**: volvé a pedir el chat en vez de reponer el texto en el composer. En `POST /agent/threads` el cuerpo trae además `thread_id`, el chat que quedó creado: mostralo. |
 | 409 | El agente todavía está respondiendo en ese chat, o la acción ya no está pendiente | Mostrar `message` y volver a pedir el chat. |
 | 422 | Texto vacío o de más de 4000 caracteres, zona inválida | Mostrar `message` junto al composer. |
 

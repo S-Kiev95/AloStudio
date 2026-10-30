@@ -116,6 +116,16 @@ export function isAgentErrorStatus(err: unknown, status: number): boolean {
   return err instanceof ApiError && err.status === status;
 }
 
+/** The chat a new conversation was saved in although its first answer
+ * failed (``thread_id`` in the 502 of ``POST /agent/threads``). */
+export function getAgentErrorThreadId(err: unknown): number | null {
+  if (!(err instanceof ApiError) || !err.body || typeof err.body !== "object") {
+    return null;
+  }
+  const id = (err.body as { thread_id?: unknown }).thread_id;
+  return typeof id === "number" && Number.isFinite(id) && id > 0 ? id : null;
+}
+
 function base(accountId: string): string {
   return `/api/v1/accounts/${accountId}/agent`;
 }

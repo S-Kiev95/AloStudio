@@ -11,6 +11,7 @@ import {
   type AgentPendingAction,
   type AgentToolItem,
   getAgentErrorMessage,
+  getAgentErrorThreadId,
   getBrowserTimezone,
   isAgentErrorStatus,
   useAgentStatus,
@@ -234,6 +235,13 @@ export function AgentChatView({
       // refetches the thread, so do not put the text back into the composer.
       if (!isAgentErrorStatus(err, 502)) {
         setDraft((curr) => (curr ? curr : rawText));
+      }
+      // A new chat whose first answer failed is saved anyway: show it, with
+      // the error, so the next message continues it.
+      const savedThreadId =
+        effectiveThreadId === null ? getAgentErrorThreadId(err) : null;
+      if (savedThreadId !== null) {
+        setCreatedThreadId(savedThreadId);
       }
     }
   }

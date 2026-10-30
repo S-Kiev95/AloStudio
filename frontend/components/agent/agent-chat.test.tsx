@@ -706,6 +706,53 @@ describe("Agente — errores del backend (503, 502, 409, 422) y sugerencias", ()
     ).toBeInTheDocument();
   });
 
+  it("ante un 502 en el primer mensaje de un chat nuevo muestra el chat que quedó guardado", async () => {
+    const saved: AgentThread = {
+      id: 12,
+      title: "Saludo",
+      created_at: "2026-10-30T16:00:00Z",
+      updated_at: "2026-10-30T16:00:00Z",
+      items: [
+        {
+          id: 120,
+          kind: "user",
+          content: "Hola",
+          created_at: "2026-10-30T16:00:00Z",
+        },
+      ],
+      pending_action: null,
+    };
+    server.use(
+      http.post("*/api/v1/accounts/1/agent/threads", () =>
+        HttpResponse.json(
+          {
+            message: "El agente no respondió. Probá de nuevo en un momento.",
+            thread_id: 12,
+          },
+          { status: 502 },
+        ),
+      ),
+      http.get("*/api/v1/accounts/1/agent/threads/12", () =>
+        HttpResponse.json(saved),
+      ),
+    );
+
+    renderAgentScreen(null);
+
+    const textarea = await screen.findByLabelText("Mensaje para el agente");
+    fireEvent.change(textarea, { target: { value: "Hola" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar mensaje" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "El agente no respondió. Probá de nuevo en un momento.",
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Saludo" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Hola")).toBeInTheDocument();
+    expect(textarea).toHaveValue("");
+  });
+
   it("ante un 409 al confirmar vuelve a pedir el chat y conserva el mensaje de error visible", async () => {
     let currentThread: AgentThread = { ...THREAD_7_PENDING };
 

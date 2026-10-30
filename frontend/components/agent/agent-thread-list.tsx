@@ -139,7 +139,7 @@ export function AgentThreadList({ accountId }: { accountId: string }) {
                     disabled={deleteThread.isPending}
                     aria-label={`Borrar chat ${thread.title}`}
                     title="Borrar chat"
-                    className="mr-2 shrink-0 rounded-md p-1.5 text-fg-muted opacity-0 transition hover:bg-hover-glass hover:text-danger focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-40"
+                    className="mr-2 shrink-0 rounded-md p-1.5 text-fg-muted transition hover:bg-hover-glass hover:text-danger disabled:opacity-40 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   </button>
