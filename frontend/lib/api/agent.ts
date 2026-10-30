@@ -154,6 +154,7 @@ export function useAgentThread(accountId: string, threadId: number | null) {
     queryFn: () =>
       apiFetch<AgentThread>(`${base(accountId)}/threads/${threadId}`),
     enabled: validId,
+    staleTime: 30_000,
   });
 }
 
