@@ -594,6 +594,20 @@ export function PublicationEditorDialog({
         });
         return;
       }
+      if (parsed && !asDraft && new Date(parsed).getTime() < Date.now() - 60_000) {
+        const when = new Date(parsed).toLocaleString("es", {
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+        setApiError({
+          message: `Elegiste el ${when}, que ya pasó. Elegí una fecha y hora futuras.`,
+          errors: [],
+        });
+        return;
+      }
       isoScheduled = parsed ?? null;
     } else {
       isoScheduled = initial ? null : undefined;
@@ -1243,6 +1257,8 @@ export function PublicationEditorDialog({
                   aria-label="Fecha y hora de publicación"
                   type="datetime-local"
                   value={scheduledFor}
+                  // The picker then offers only times from now on.
+                  min={toDatetimeLocalInput(new Date())}
                   onChange={(e) => setScheduledFor(e.target.value)}
                   className="w-auto tabular-nums"
                 />
