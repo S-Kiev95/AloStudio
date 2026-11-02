@@ -223,7 +223,8 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         description=(
             "Al verificar el prefijo de URL https://<dominio>/ en la app de TikTok "
             "(URL properties), TikTok da un archivo para descargar. Pegá acá su nombre "
-            "tal cual, por ejemplo tiktokAbC123.txt."
+            "tal cual, por ejemplo tiktokAbC123.txt. Producción y cada sandbox dan uno "
+            "distinto: separalos con comas."
         ),
         group=PUBLISHING_GROUP,
     ),
@@ -231,7 +232,10 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         name="TIKTOK_VERIFICATION_CONTENT",
         setting="tiktok_verification_content",
         title="Archivo de verificación de TikTok: contenido",
-        description="El texto que tiene adentro ese archivo (abrilo con el Bloc de notas).",
+        description=(
+            "El texto que tiene adentro ese archivo (abrilo con el Bloc de notas). Si hay "
+            "varios archivos, pegá el texto de cada uno separado por comas."
+        ),
         group=PUBLISHING_GROUP,
     ),
     # --- Webhooks ------------------------------------------------------

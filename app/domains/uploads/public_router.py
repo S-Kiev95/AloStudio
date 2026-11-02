@@ -15,6 +15,7 @@ signed (unguessable) and expiring.
 from __future__ import annotations
 
 import mimetypes
+import re
 from collections.abc import AsyncIterator
 from typing import Annotated
 
@@ -117,13 +118,23 @@ __all__ = ["PUBLIC_MEDIA_TTL_SECONDS", "public_media_url", "router"]
 verification_router = APIRouter(tags=["uploads"])
 
 
+def _listed(value: str) -> list[str]:
+    """A setting that holds one or several entries, separated by commas,
+    spaces or line breaks (production and each sandbox of the TikTok app
+    have their own file)."""
+    return [item for item in re.split(r"[\s,]+", value) if item]
+
+
 @verification_router.get("/public/tiktok{code}.txt", include_in_schema=False)
 async def serve_tiktok_verification(code: str) -> PlainTextResponse:
     settings = get_settings()
-    name = settings.tiktok_verification_file.strip()
-    content = settings.tiktok_verification_content.strip()
-    if not name or not content or name != f"tiktok{code}.txt":
+    names = _listed(settings.tiktok_verification_file)
+    contents = _listed(settings.tiktok_verification_content)
+    if f"tiktok{code}.txt" not in names or not contents:
         raise ChatwootHTTPException(
             status_code=404, detail={"error": "Resource could not be found"}
         )
-    return PlainTextResponse(content)
+    # Each file holds the code its name carries; a single content is
+    # served as is.
+    matching = [c for c in contents if c.endswith(f"={code}")]
+    return PlainTextResponse(matching[0] if matching else contents[0])

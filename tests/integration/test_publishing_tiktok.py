@@ -359,3 +359,12 @@ async def test_serves_the_url_verification_file(client, tiktok_config):
     assert r.status_code == 200
     assert r.text == "tiktok-developers-site-verification=AbC123"
     assert (await client.get("/public/tiktokOtro.txt")).status_code == 404
+
+    # Production and a sandbox, each with its own file.
+    tiktok_config.tiktok_verification_file = "tiktokAbC123.txt, tiktokXyZ789.txt"
+    tiktok_config.tiktok_verification_content = (
+        "tiktok-developers-site-verification=AbC123,tiktok-developers-site-verification=XyZ789"
+    )
+    assert (await client.get("/public/tiktokAbC123.txt")).text.endswith("=AbC123")
+    assert (await client.get("/public/tiktokXyZ789.txt")).text.endswith("=XyZ789")
+    assert (await client.get("/public/tiktokOtro.txt")).status_code == 404
