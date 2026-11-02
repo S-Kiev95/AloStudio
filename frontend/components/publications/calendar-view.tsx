@@ -735,6 +735,22 @@ function HourlyCalendarGrid({
                           onClick={onSelectPublication}
                         />
                       ))}
+                      {/* The cards cover the slot: without this, an hour that
+                          already has a post can't take another one. */}
+                      {isAdmin && slotItems.length > 0 ? (
+                        <button
+                          type="button"
+                          aria-label={`Nueva publicación el ${col.longName} ${col.dayNumber} a las ${formatHourLabel(hour)}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCreateAtSlot(col.date, hour);
+                          }}
+                          className="flex w-full items-center justify-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium text-fg-muted hover:bg-hover-glass hover:text-lit"
+                        >
+                          <Plus className="h-3 w-3" aria-hidden />
+                          Agregar
+                        </button>
+                      ) : null}
                     </div>
                   );
                 })}

@@ -284,6 +284,35 @@ describe("CalendarView — grilla, paginación y estados", () => {
     ).toBeInTheDocument();
     expect(within(friday19Slot).getByText("Falló")).toBeInTheDocument();
   });
+
+  it("deja crear otra publicación en una hora que ya tiene una", async () => {
+    server.use(
+      http.get("*/api/v1/accounts/1/publications", () =>
+        HttpResponse.json([
+          makePublication({
+            id: 1,
+            content: "Ya programada",
+            localDate: new Date(2026, 9, 26, 9, 15, 0),
+            state: "scheduled",
+          }),
+        ]),
+      ),
+    );
+
+    renderCalendar();
+
+    const slot = await screen.findByTestId("slot-2026-10-26-9");
+    await within(slot).findByText("Ya programada");
+    fireEvent.click(
+      within(slot).getByRole("button", { name: /Nueva publicación el .* 9:00/ }),
+    );
+
+    // A new post at that hour, not the one already there.
+    expect(
+      await screen.findByLabelText("Fecha y hora de publicación"),
+    ).toHaveValue("2026-10-26T09:00");
+    expect(screen.queryByText("Editar publicación")).toBeNull();
+  });
 });
 
 describe("CalendarView — conexión de canales y avisos de query", () => {
