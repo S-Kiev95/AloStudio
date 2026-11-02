@@ -64,6 +64,17 @@ const RECONNECT_CHANNEL: Channel = {
 
 const CHANNELS = [IG_CHANNEL, THREADS_CHANNEL, RECONNECT_CHANNEL];
 
+const TIKTOK_CHANNEL: Channel = {
+  id: 40,
+  network: "tiktok",
+  name: "AloStudio TikTok",
+  username: null,
+  avatar_url: null,
+  status: "active",
+  status_message: null,
+  inbox_id: null,
+};
+
 const LIBRARY_ASSETS: MediaAsset[] = [
   {
     id: 101,
@@ -190,10 +201,12 @@ function renderEditor({
   initial = null,
   defaultScheduledFor = null,
   onClose = vi.fn(),
+  channels = CHANNELS,
 }: {
   initial?: Publication | null;
   defaultScheduledFor?: Date | null;
   onClose?: () => void;
+  channels?: Channel[];
 } = {}) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -204,7 +217,7 @@ function renderEditor({
         accountId="1"
         open={true}
         onClose={onClose}
-        channels={CHANNELS}
+        channels={channels}
         isAdmin={true}
         initial={initial}
         defaultScheduledFor={defaultScheduledFor}
@@ -485,5 +498,83 @@ describe("PublicationEditorDialog — firmas y sets", () => {
         },
       ],
     });
+  });
+});
+
+// The footer CTA, not the "Cuándo" toggle with the same label.
+function publishButton() {
+  const buttons = screen.getAllByRole("button", { name: "Publicar ahora" });
+  return buttons[buttons.length - 1];
+}
+
+describe("PublicationEditorDialog — TikTok", () => {
+  it("muestra la cuenta, exige elegir la visibilidad a mano y manda las elecciones", async () => {
+    let sentBody: PublicationIn | null = null;
+    server.use(
+      http.get("*/api/v1/accounts/1/publications/channels/40/compose_info", () =>
+        HttpResponse.json({
+          can_post: true,
+          message: null,
+          nickname: "Ezequiel",
+          username: "skiev",
+          privacy_level_options: ["PUBLIC_TO_EVERYONE", "SELF_ONLY"],
+          comment_disabled: false,
+          duet_disabled: true,
+          stitch_disabled: false,
+          max_video_post_duration_sec: 600,
+        }),
+      ),
+      http.post("*/api/v1/accounts/1/publications", async ({ request }) => {
+        sentBody = (await request.json()) as PublicationIn;
+        return HttpResponse.json(stubCreatedPublication(sentBody));
+      }),
+    );
+
+    renderEditor({ channels: [TIKTOK_CHANNEL] });
+
+    expect(await screen.findByText(/Ezequiel/)).toBeTruthy();
+    expect(screen.getByText(/hasta 10 minutos/)).toBeTruthy();
+    expect(screen.getByText(/Confirmación de uso de música/)).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Elegir de la biblioteca/i }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Elegir reel-clip.mp4" }),
+    );
+
+    // Nothing comes preselected: publishing is blocked until it's chosen.
+    const privacy = screen.getByLabelText("Quién puede verlo") as HTMLSelectElement;
+    expect(privacy.value).toBe("");
+    fireEvent.click(publishButton());
+    expect(
+      await screen.findByText(/elegí quién puede ver la publicación/),
+    ).toBeTruthy();
+    expect(sentBody).toBeNull();
+
+    // The account turned duets off: the toggle can't be checked.
+    expect(
+      (screen.getByLabelText("Permitir dúos") as HTMLInputElement).disabled,
+    ).toBe(true);
+
+    fireEvent.change(privacy, { target: { value: "PUBLIC_TO_EVERYONE" } });
+    fireEvent.click(screen.getByLabelText("Permitir comentarios"));
+    fireEvent.click(publishButton());
+
+    await waitFor(() => expect(sentBody).not.toBeNull());
+    expect(sentBody!.targets).toEqual([
+      {
+        channel_id: 40,
+        settings: {
+          privacy_level: "PUBLIC_TO_EVERYONE",
+          allow_comment: true,
+          allow_duet: false,
+          allow_stitch: false,
+          disclose: false,
+          brand_organic: false,
+          brand_content: false,
+        },
+      },
+    ]);
   });
 });

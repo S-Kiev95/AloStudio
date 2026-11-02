@@ -41,6 +41,7 @@ import {
   type Publication,
   type PublicationSet,
   type TargetIn,
+  type TikTokSettings,
   useCreatePublication,
   useCreatePublicationSet,
   usePublicationSets,
@@ -59,6 +60,12 @@ import {
   validatePublicationTargets,
 } from "./network-rules";
 import { PublicationErrorAlert } from "./publication-error-alert";
+import {
+  EMPTY_TIKTOK_SETTINGS,
+  normalizeTikTokSettings,
+  TikTokConsent,
+  TikTokTargetSettings,
+} from "./tiktok-target-settings";
 
 type SelectedMediaItem = {
   media_id?: number;
@@ -69,6 +76,7 @@ type SelectedMediaItem = {
 
 type PerChannelConfig = {
   postType: InstagramPostType;
+  tiktok: TikTokSettings;
   customizeText: boolean;
   customText: string;
 };
@@ -235,6 +243,7 @@ export function PublicationEditorDialog({
           }
           cfgs[ch.id] = {
             postType: normalizePostType(t.settings?.post_type),
+            tiktok: normalizeTikTokSettings(t.settings),
             customizeText: t.content_override !== null,
             customText: t.content_override ?? "",
           };
@@ -266,6 +275,7 @@ export function PublicationEditorDialog({
         }
         cfgs[t.channel.id] = {
           postType: normalizePostType(t.settings?.post_type),
+          tiktok: normalizeTikTokSettings(t.settings),
           customizeText: t.content_override !== null,
           customText: t.content_override ?? "",
         };
@@ -332,6 +342,7 @@ export function PublicationEditorDialog({
     return (
       channelConfigs[channelId] ?? {
         postType: "feed",
+        tiktok: EMPTY_TIKTOK_SETTINGS,
         customizeText: false,
         customText: "",
       }
@@ -376,6 +387,7 @@ export function PublicationEditorDialog({
       }
       nextConfigs[ch.id] = {
         postType: normalizePostType(t.settings?.post_type),
+        tiktok: normalizeTikTokSettings(t.settings),
         customizeText: t.content_override !== null,
         customText: t.content_override ?? "",
       };
@@ -463,6 +475,7 @@ export function PublicationEditorDialog({
         return {
           channel: ch,
           postType: cfg?.postType ?? "feed",
+          tiktok: cfg?.tiktok ?? EMPTY_TIKTOK_SETTINGS,
           customContent: cfg?.customizeText ? cfg.customText : null,
         };
       }),
@@ -500,6 +513,8 @@ export function PublicationEditorDialog({
       const target: TargetIn = { channel_id: ch.id };
       if (ch.network === "instagram") {
         target.settings = { post_type: cfg.postType };
+      } else if (ch.network === "tiktok") {
+        target.settings = { ...cfg.tiktok };
       }
       if (cfg.customizeText) {
         target.content_override = cfg.customText;
@@ -1197,6 +1212,23 @@ export function PublicationEditorDialog({
                       </div>
                     </div>
 
+                    {ch.network === "tiktok" ? (
+                      <TikTokTargetSettings
+                        accountId={accountId}
+                        channel={ch}
+                        value={cfg.tiktok}
+                        photosOnly={
+                          selectedMedia.length > 0 &&
+                          selectedMedia.every((m) => m.type === "image")
+                        }
+                        onChange={(patch) =>
+                          updateConfig(ch.id, {
+                            tiktok: { ...cfg.tiktok, ...patch },
+                          })
+                        }
+                      />
+                    ) : null}
+
                     {ch.network === "instagram" && cfg.postType === "story" ? (
                       <p className="text-xs text-fg-muted">
                         En Instagram Story el texto no se muestra.
@@ -1363,6 +1395,14 @@ export function PublicationEditorDialog({
               ))}
             </ul>
           </div>
+        ) : null}
+
+        {!isSetMode ? (
+          <TikTokConsent
+            settings={selectedChannels
+              .filter((ch) => ch.network === "tiktok")
+              .map((ch) => configFor(ch.id).tiktok)}
+          />
         ) : null}
 
         {/* Actions */}

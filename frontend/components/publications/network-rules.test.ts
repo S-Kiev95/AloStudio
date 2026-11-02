@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Channel } from "@/lib/api/publications";
+import type { Channel, TikTokSettings } from "@/lib/api/publications";
 
 import {
   channelCharLimit,
@@ -83,6 +83,45 @@ describe("network-rules", () => {
         [{ channel: ig, postType: "feed", customContent: null }],
       ),
     ).toEqual([]);
+  });
+
+  it("valida las reglas de TikTok", () => {
+    const tt = ch(1, "tiktok", "TT");
+    const chosen: TikTokSettings = {
+      privacy_level: "SELF_ONLY",
+      allow_comment: false,
+      allow_duet: false,
+      allow_stitch: false,
+      disclose: false,
+      brand_organic: false,
+      brand_content: false,
+    };
+    const target = (tiktok = chosen) => [
+      { channel: tt, postType: "feed" as const, customContent: null, tiktok },
+    ];
+    const video = { type: "video" as const, url: "https://s3/a.mp4" };
+    const jpg = { type: "image" as const, url: "https://s3/a.jpg" };
+    const png = { type: "image" as const, url: "https://x/public/media?key=a%2Fb.png" };
+
+    expect(channelCharLimit("tiktok", [video])).toBe(2200);
+    expect(channelCharLimit("tiktok", [jpg])).toBe(4000);
+    expect(validatePublicationTargets("Hola", [video], target())).toEqual([]);
+    expect(validatePublicationTargets("Hola", [], target())[0]).toMatch(/video o al menos una foto/);
+    expect(validatePublicationTargets("Hola", [video, jpg], target())[0]).toMatch(/sin mezclarlos/);
+    expect(validatePublicationTargets("Hola", [png], target())[0]).toMatch(/JPG o WebP/);
+    expect(
+      validatePublicationTargets("Hola", [video], target({ ...chosen, privacy_level: null }))[0],
+    ).toMatch(/quién puede ver/);
+    expect(
+      validatePublicationTargets("Hola", [video], target({ ...chosen, disclose: true }))[0],
+    ).toMatch(/promociona/);
+    expect(
+      validatePublicationTargets(
+        "Hola",
+        [video],
+        target({ ...chosen, disclose: true, brand_content: true }),
+      )[0],
+    ).toMatch(/Solo yo/);
   });
 
   it("valida las reglas de LinkedIn", () => {

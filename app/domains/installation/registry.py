@@ -158,7 +158,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         title="URL de retorno al conectar redes",
         description=(
             "Una sola URL para todas las redes que se conectan desde el "
-            "calendario (Threads, LinkedIn y las que se sumen): adónde vuelve "
+            "calendario (Threads, LinkedIn, TikTok y las que se sumen): adónde vuelve "
             "el navegador después de autorizar. Es "
             "https://<tu dominio>/api/v1/publishing/oauth/callback y se carga "
             "igual en la app de desarrollador de cada red."
@@ -199,6 +199,40 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         group=PUBLISHING_GROUP,
         kind="password",
         secret=True,
+    ),
+    ConfigSpec(
+        name="TIKTOK_CLIENT_KEY",
+        setting="tiktok_client_key",
+        title="Client key de TikTok",
+        description="De la app en developers.tiktok.com, sección App details → Credentials.",
+        group=PUBLISHING_GROUP,
+    ),
+    ConfigSpec(
+        name="TIKTOK_CLIENT_SECRET",
+        setting="tiktok_client_secret",
+        title="Client secret de TikTok",
+        description="El Client secret de la misma sección.",
+        group=PUBLISHING_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="TIKTOK_VERIFICATION_FILE",
+        setting="tiktok_verification_file",
+        title="Archivo de verificación de TikTok: nombre",
+        description=(
+            "Al verificar el prefijo de URL https://<dominio>/public/ en la app de TikTok "
+            "(URL properties), TikTok da un archivo para descargar. Pegá acá su nombre "
+            "tal cual, por ejemplo tiktokAbC123.txt."
+        ),
+        group=PUBLISHING_GROUP,
+    ),
+    ConfigSpec(
+        name="TIKTOK_VERIFICATION_CONTENT",
+        setting="tiktok_verification_content",
+        title="Archivo de verificación de TikTok: contenido",
+        description="El texto que tiene adentro ese archivo (abrilo con el Bloc de notas).",
+        group=PUBLISHING_GROUP,
     ),
     # --- Webhooks ------------------------------------------------------
     ConfigSpec(

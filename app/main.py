@@ -105,6 +105,9 @@ from app.domains.telegram.router import router as telegram_webhook_router
 from app.domains.twilio.router import router as twilio_webhook_router
 from app.domains.uploads.email_assets_router import router as email_assets_router
 from app.domains.uploads.public_router import router as public_media_router
+from app.domains.uploads.public_router import (
+    verification_router as public_media_verification_router,
+)
 from app.domains.uploads.router import router as uploads_router
 from app.domains.users.router import router as profile_router
 from app.domains.web_widget.router import router as web_widget_router
@@ -363,6 +366,7 @@ def create_app() -> FastAPI:
     # itself at publish time, which may be days after a scheduled upload.
     app.include_router(email_assets_router)
     app.include_router(public_media_router)
+    app.include_router(public_media_verification_router)
     # ActionCable-compatible WebSocket endpoint (Phase 4b.2). Mounted
     # last so HTTP routes take precedence in any path-overlap edge.
     app.include_router(cable_router)

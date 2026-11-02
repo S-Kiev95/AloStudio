@@ -1,15 +1,37 @@
-import type { Channel, InstagramPostType } from "@/lib/api/publications";
+import type {
+  Channel,
+  InstagramPostType,
+  TikTokSettings,
+} from "@/lib/api/publications";
 
 export type MediaCandidate = {
   type: "image" | "video";
   url: string;
+  filename?: string | null;
 };
 
 export type TargetRuleInput = {
   channel: Channel;
   postType: InstagramPostType;
   customContent: string | null;
+  tiktok?: TikTokSettings;
 };
+
+/** File extension of a media item: of its name, or of the object key our
+ * signed links carry (``?key=``), or of the link's path. */
+function mediaExtension(m: MediaCandidate): string {
+  let name = m.filename ?? "";
+  if (!name) {
+    try {
+      const parsed = new URL(m.url, "https://local.invalid");
+      name = parsed.searchParams.get("key") ?? parsed.pathname;
+    } catch {
+      name = m.url;
+    }
+  }
+  const tail = name.split("/").pop() ?? "";
+  return tail.includes(".") ? (tail.split(".").pop() ?? "").toLowerCase() : "";
+}
 
 function channelDisplayLabel(channel: Channel): string {
   const base =
@@ -64,6 +86,10 @@ export function channelCharLimit(
       return 500;
     case "linkedin":
       return 3000;
+    case "tiktok":
+      return media.length > 0 && media.every((m) => m.type === "image")
+        ? 4000
+        : 2200;
     case "telegram":
       return media.length > 0 ? 1024 : 4096;
     case "discord": {
@@ -197,6 +223,49 @@ export function validatePublicationTargets(
       if (media.length > 20) {
         problems.push(
           `${label} (Threads): admite hasta 20 imágenes o videos.`,
+        );
+      }
+      continue;
+    }
+
+    if (net === "tiktok") {
+      const limit = channelCharLimit("tiktok", media) ?? 2200;
+      if (media.length === 0) {
+        problems.push(`${label} (TikTok): agregá un video o al menos una foto.`);
+      } else if (videoCount > 0 && imageCount > 0) {
+        problems.push(
+          `${label} (TikTok): se publica un video o fotos, sin mezclarlos.`,
+        );
+      } else if (videoCount > 1) {
+        problems.push(`${label} (TikTok): publica un solo video por vez.`);
+      } else if (imageCount > 35) {
+        problems.push(`${label} (TikTok): admite hasta 35 fotos.`);
+      } else if (
+        media.some(
+          (m) =>
+            m.type === "image" &&
+            !["jpg", "jpeg", "webp"].includes(mediaExtension(m)),
+        )
+      ) {
+        problems.push(`${label} (TikTok): solo acepta fotos en JPG o WebP.`);
+      }
+      if (length > limit) {
+        problems.push(
+          `${label} (TikTok): el texto supera los ${limit} caracteres (${length}/${limit}).`,
+        );
+      }
+      const chosen = t.tiktok;
+      if (!chosen?.privacy_level) {
+        problems.push(`${label} (TikTok): elegí quién puede ver la publicación.`);
+      }
+      if (chosen?.disclose && !chosen.brand_organic && !chosen.brand_content) {
+        problems.push(
+          `${label} (TikTok): indicá si el contenido promociona tu marca, a un tercero o ambos.`,
+        );
+      }
+      if (chosen?.brand_content && chosen.privacy_level === "SELF_ONLY") {
+        problems.push(
+          `${label} (TikTok): el contenido de marca no puede tener visibilidad «Solo yo».`,
         );
       }
       continue;

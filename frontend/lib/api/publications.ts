@@ -22,9 +22,43 @@ export type MediaIn =
 
 export type InstagramPostType = "feed" | "reels" | "story";
 
+export type TikTokPrivacyLevel =
+  | "PUBLIC_TO_EVERYONE"
+  | "MUTUAL_FOLLOW_FRIENDS"
+  | "FOLLOWER_OF_CREATOR"
+  | "SELF_ONLY";
+
+/** What the creator chose for a TikTok target (TikTok asks for every
+ * choice to be made by hand: nothing comes preselected). */
+export type TikTokSettings = {
+  privacy_level: TikTokPrivacyLevel | null;
+  allow_comment: boolean;
+  allow_duet: boolean;
+  allow_stitch: boolean;
+  disclose: boolean;
+  brand_organic: boolean;
+  brand_content: boolean;
+};
+
+export type TargetSettings = { post_type?: string } & Partial<TikTokSettings>;
+
+/** `GET /channels/{id}/compose_info`: empty for networks that need nothing. */
+export type ComposeInfo = {
+  can_post?: boolean;
+  message?: string | null;
+  nickname?: string | null;
+  username?: string | null;
+  avatar_url?: string | null;
+  privacy_level_options?: TikTokPrivacyLevel[];
+  comment_disabled?: boolean;
+  duet_disabled?: boolean;
+  stitch_disabled?: boolean;
+  max_video_post_duration_sec?: number | null;
+};
+
 export type TargetIn = {
   channel_id: number;
-  settings?: { post_type?: InstagramPostType };
+  settings?: TargetSettings;
   content_override?: string | null;
 };
 
@@ -68,7 +102,7 @@ export type PublicationMedia = {
 export type PublicationTarget = {
   id: number;
   channel: Channel;
-  settings: { post_type?: string };
+  settings: TargetSettings;
   content_override: string | null;
   state: TargetState;
   external_id: string | null;
@@ -168,7 +202,7 @@ export type PublicationSetMedia =
 export type PublicationSetTarget = {
   channel_id: number;
   channel: Channel | null;
-  settings: { post_type?: string };
+  settings: TargetSettings;
   content_override: string | null;
 };
 
@@ -353,6 +387,25 @@ export function usePublicationChannels(accountId: string) {
   return useQuery({
     queryKey: ["publication-channels", accountId],
     queryFn: () => apiFetch<Channel[]>(`${base(accountId)}/channels`),
+  });
+}
+
+export function useChannelComposeInfo(
+  accountId: string,
+  channelId: number,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ["publication-compose-info", accountId, channelId],
+    queryFn: () =>
+      apiFetch<ComposeInfo>(
+        `${base(accountId)}/channels/${channelId}/compose_info`,
+      ),
+    enabled,
+    // TikTok asks for the creator's current info each time the post is
+    // composed: never reuse an old answer.
+    staleTime: 0,
+    gcTime: 0,
   });
 }
 

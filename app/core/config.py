@@ -200,6 +200,11 @@ class Settings(BaseSettings):
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
     linkedin_api_version: str = "202610"
+    tiktok_client_key: str = ""
+    tiktok_client_secret: str = ""
+    # Signature file TikTok asks to serve under the media links' prefix.
+    tiktok_verification_file: str = ""
+    tiktok_verification_content: str = ""
 
 
 # Values from ``installation_configs`` that override the environment.

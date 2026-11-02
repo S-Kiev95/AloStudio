@@ -188,6 +188,15 @@ class PublishingAdapter(ABC):
     ) -> PublishResult:
         """Publish one target. Must not raise on network-side errors."""
 
+    async def compose_info(
+        self, session: AsyncSession, channel: PublishingChannel
+    ) -> dict[str, Any] | None:
+        """What the editor needs to know about the account right before
+        composing a post for it (TikTok asks to show who posts and to build
+        the privacy options from the account's own). ``None`` when the
+        network needs nothing."""
+        return None
+
     async def fetch_post_metrics(
         self, session: AsyncSession, target: PublicationTarget
     ) -> MetricsResult | None:

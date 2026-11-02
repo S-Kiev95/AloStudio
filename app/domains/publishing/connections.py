@@ -189,6 +189,18 @@ async def delete_channel(session: AsyncSession, *, channel: PublishingChannel) -
     await session.flush()
 
 
+async def compose_info(
+    session: AsyncSession, *, channel: PublishingChannel
+) -> dict[str, Any]:
+    """What the editor shows about the account before composing for it
+    (empty for networks that need nothing). Committed: reading it may have
+    renewed the channel's token."""
+    adapter = adapter_for_network(channel.network)
+    info = await adapter.compose_info(session, channel) if adapter else None
+    await session.commit()
+    return info or {}
+
+
 async def refresh_expiring_channels(
     session: AsyncSession, *, now: datetime | None = None
 ) -> int:
@@ -232,6 +244,7 @@ async def refresh_expiring_channels(
 
 __all__ = [
     "complete_connection",
+    "compose_info",
     "connect_with_fields",
     "connectable_networks",
     "connects_by_form",

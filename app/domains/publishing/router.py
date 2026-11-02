@@ -173,6 +173,20 @@ async def connect_channel(
     return {"authorize_url": connections.start_connection(ctx.account.id, network)}
 
 
+@router.get("/channels/{channel_id}/compose_info")
+async def show_channel_compose_info(
+    channel_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """What the editor shows about the account before composing for it
+    (TikTok: who posts and the privacy options it allows)."""
+    channel = await session.get(PublishingChannel, channel_id)
+    if channel is None or channel.account_id != ctx.account.id:
+        raise _not_found()
+    return await connections.compose_info(session, channel=channel)
+
+
 @router.delete("/channels/{channel_id}", status_code=status.HTTP_200_OK)
 async def delete_channel_endpoint(
     channel_id: Annotated[int, Path()],

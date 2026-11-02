@@ -6,6 +6,7 @@ import {
   Linkedin,
   type LucideIcon,
   MessageSquare,
+  Music2,
   Send,
 } from "lucide-react";
 
@@ -36,6 +37,11 @@ const KNOWN_NETWORKS: Record<
     label: "LinkedIn",
     icon: Linkedin,
     colorClass: "text-[#0A66C2]",
+  },
+  tiktok: {
+    label: "TikTok",
+    icon: Music2,
+    colorClass: "text-fg",
   },
   telegram: {
     label: "Telegram",

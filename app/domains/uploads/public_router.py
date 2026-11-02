@@ -20,7 +20,7 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Query
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import PlainTextResponse, Response, StreamingResponse
 
 from app.core.config import get_settings
 from app.core.errors import ChatwootHTTPException
@@ -107,3 +107,22 @@ async def serve_public_media(
 
 
 __all__ = ["PUBLIC_MEDIA_TTL_SECONDS", "public_media_url", "router"]
+
+
+# TikTok checks that we own the URL prefix of these links (``/public/``)
+# by fetching a signature file it hands out, served right under it. Its
+# name and content are set in Ajustes → Instalación; until then (or for any
+# other name) this answers 404 like an unknown path.
+verification_router = APIRouter(tags=["uploads"])
+
+
+@verification_router.get("/public/tiktok{code}.txt", include_in_schema=False)
+async def serve_tiktok_verification(code: str) -> PlainTextResponse:
+    settings = get_settings()
+    name = settings.tiktok_verification_file.strip()
+    content = settings.tiktok_verification_content.strip()
+    if not name or not content or name != f"tiktok{code}.txt":
+        raise ChatwootHTTPException(
+            status_code=404, detail={"error": "Resource could not be found"}
+        )
+    return PlainTextResponse(content)
