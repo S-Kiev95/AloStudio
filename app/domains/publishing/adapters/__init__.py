@@ -23,6 +23,7 @@ from app.domains.publishing.adapters.base import (
 from app.domains.publishing.adapters.discord import DiscordAdapter
 from app.domains.publishing.adapters.facebook_page import FacebookPageAdapter
 from app.domains.publishing.adapters.instagram import InstagramAdapter
+from app.domains.publishing.adapters.linkedin import LinkedInAdapter
 from app.domains.publishing.adapters.telegram import TelegramAdapter
 from app.domains.publishing.adapters.threads import ThreadsAdapter
 
@@ -30,6 +31,7 @@ _ADAPTERS: tuple[PublishingAdapter, ...] = (
     InstagramAdapter(),
     FacebookPageAdapter(),
     ThreadsAdapter(),
+    LinkedInAdapter(),
     TelegramAdapter(),
     DiscordAdapter(),
 )

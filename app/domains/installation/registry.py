@@ -183,6 +183,22 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         kind="password",
         secret=True,
     ),
+    ConfigSpec(
+        name="LINKEDIN_CLIENT_ID",
+        setting="linkedin_client_id",
+        title="Client ID de LinkedIn",
+        description="De la app en linkedin.com/developers, pestaña Auth.",
+        group=PUBLISHING_GROUP,
+    ),
+    ConfigSpec(
+        name="LINKEDIN_CLIENT_SECRET",
+        setting="linkedin_client_secret",
+        title="Client Secret de LinkedIn",
+        description="El Primary Client Secret de la misma pestaña Auth.",
+        group=PUBLISHING_GROUP,
+        kind="password",
+        secret=True,
+    ),
     # --- Webhooks ------------------------------------------------------
     ConfigSpec(
         name="ENABLE_ACCOUNT_SIGNUP",

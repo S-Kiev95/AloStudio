@@ -194,6 +194,12 @@ class Settings(BaseSettings):
     # owner authorizes an account (``/api/v1/publishing/oauth/callback``
     # on the public host). Registered as-is in each network's app.
     publishing_oauth_redirect_uri: str = ""
+    # LinkedIn — the app's Client ID and Client Secret (Developer Portal >
+    # Auth), and the Posts API version sent as ``Linkedin-Version``
+    # (YYYYMM; LinkedIn retires each one about a year later).
+    linkedin_client_id: str = ""
+    linkedin_client_secret: str = ""
+    linkedin_api_version: str = "202610"
 
 
 # Values from ``installation_configs`` that override the environment.
