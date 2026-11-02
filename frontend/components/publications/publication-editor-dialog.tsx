@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  describeScheduledFor,
   fromDatetimeLocalInput,
   toDatetimeLocalInput,
 } from "@/components/agenda/week-utils";
@@ -147,6 +148,7 @@ export function PublicationEditorDialog({
   const [selectedMedia, setSelectedMedia] = useState<SelectedMediaItem[]>([]);
   const [whenMode, setWhenMode] = useState<WhenMode>("now");
   const [scheduledFor, setScheduledFor] = useState("");
+  const scheduledHint = describeScheduledFor(scheduledFor);
 
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryKind, setLibraryKind] = useState<MediaKind | undefined>(
@@ -1264,6 +1266,16 @@ export function PublicationEditorDialog({
                 />
               ) : null}
             </div>
+            {whenMode === "schedule" && scheduledHint ? (
+              <p
+                className={cn(
+                  "text-xs",
+                  scheduledHint.past ? "text-danger" : "text-fg-muted",
+                )}
+              >
+                {scheduledHint.text}
+              </p>
+            ) : null}
           </div>
         ) : null}
 

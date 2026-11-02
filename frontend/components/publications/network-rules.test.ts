@@ -85,6 +85,20 @@ describe("network-rules", () => {
     ).toEqual([]);
   });
 
+  it("valida las reglas de LinkedIn", () => {
+    const li = ch(1, "linkedin", "LI");
+    const target = [{ channel: li, postType: "feed" as const, customContent: null }];
+    expect(channelCharLimit("linkedin", [])).toBe(3000);
+    expect(validatePublicationTargets("", [], target)[0]).toMatch(/texto o agregá/);
+    expect(validatePublicationTargets("a".repeat(3001), [], target)[0]).toMatch(/3000 caracteres/);
+    expect(
+      validatePublicationTargets("Hola", [{ type: "video", url: "https://s3/b.mp4" }], target)[0],
+    ).toMatch(/videos/);
+    const images = Array.from({ length: 21 }, (_, i) => ({ type: "image" as const, url: `https://s3/${i}.jpg` }));
+    expect(validatePublicationTargets("Hola", images, target)[0]).toMatch(/20 imágenes/);
+    expect(validatePublicationTargets("Hola", images.slice(0, 20), target)).toEqual([]);
+  });
+
   it("valida las reglas de Facebook Page, Discord con videos y Story de Instagram", () => {
     const fb = ch(1, "facebook_page", "FB");
     const dc = ch(2, "discord", "DC");

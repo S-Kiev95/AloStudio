@@ -3,6 +3,7 @@ import {
   Facebook,
   Globe,
   Instagram,
+  Linkedin,
   type LucideIcon,
   MessageSquare,
   Send,
@@ -30,6 +31,11 @@ const KNOWN_NETWORKS: Record<
     label: "Threads",
     icon: AtSign,
     colorClass: "text-fg",
+  },
+  linkedin: {
+    label: "LinkedIn",
+    icon: Linkedin,
+    colorClass: "text-[#0A66C2]",
   },
   telegram: {
     label: "Telegram",

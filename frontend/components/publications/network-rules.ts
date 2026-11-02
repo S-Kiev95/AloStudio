@@ -62,6 +62,8 @@ export function channelCharLimit(
       return 63206;
     case "threads":
       return 500;
+    case "linkedin":
+      return 3000;
     case "telegram":
       return media.length > 0 ? 1024 : 4096;
     case "discord": {
@@ -196,6 +198,27 @@ export function validatePublicationTargets(
         problems.push(
           `${label} (Threads): admite hasta 20 imágenes o videos.`,
         );
+      }
+      continue;
+    }
+
+    if (net === "linkedin") {
+      if (!hasText && media.length === 0) {
+        problems.push(
+          `${label} (LinkedIn): escribí un texto o agregá al menos una imagen.`,
+        );
+      }
+      if (length > 3000) {
+        problems.push(
+          `${label} (LinkedIn): el texto supera los 3000 caracteres (${length}/3000).`,
+        );
+      }
+      if (videoCount > 0) {
+        problems.push(
+          `${label} (LinkedIn): los videos todavía no se pueden publicar desde AloStudio.`,
+        );
+      } else if (imageCount > 20) {
+        problems.push(`${label} (LinkedIn): admite hasta 20 imágenes.`);
       }
       continue;
     }

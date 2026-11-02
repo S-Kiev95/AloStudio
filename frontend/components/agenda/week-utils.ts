@@ -171,3 +171,43 @@ export function fromDatetimeLocalInput(value: string): string | null {
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
 }
+
+function dayPeriod(hour: number): string {
+  if (hour < 6) return "de la madrugada";
+  if (hour < 12) return "de la mañana";
+  if (hour < 20) return "de la tarde";
+  return "de la noche";
+}
+
+function relativeFromNow(minutes: number): string {
+  if (minutes < 1) return "en menos de un minuto";
+  if (minutes < 60) return minutes === 1 ? "en 1 minuto" : `en ${minutes} minutos`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return hours === 1 ? "en 1 hora" : `en ${hours} horas`;
+  return `en ${Math.round(hours / 24)} días`;
+}
+
+/**
+ * Spell out a `YYYY-MM-DDTHH:mm` value, e.g. "Se publica hoy, lunes 2/11, a
+ * las 02:00 de la madrugada (en 1 hora)", so a 24h time can't be misread.
+ */
+export function describeScheduledFor(
+  value: string,
+  now: Date = new Date(),
+): { text: string; past: boolean } | null {
+  if (!value.trim()) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  const weekday = new Intl.DateTimeFormat("es-ES", { weekday: "long" }).format(d);
+  const dayDiff = Math.round(
+    (new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() -
+      new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) /
+      86_400_000,
+  );
+  const dayWord = dayDiff === 0 ? "hoy, " : dayDiff === 1 ? "mañana, " : "el ";
+  const hour = d.getHours();
+  const when = `${dayWord}${weekday} ${d.getDate()}/${d.getMonth() + 1}, ${hour === 1 ? "a la" : "a las"} ${pad2(hour)}:${pad2(d.getMinutes())} ${dayPeriod(hour)}`;
+  const minutes = Math.floor((d.getTime() - now.getTime()) / 60_000);
+  if (minutes < 0) return { text: `Esa hora ya pasó: ${when}.`, past: true };
+  return { text: `Se publica ${when} (${relativeFromNow(minutes)}).`, past: false };
+}
