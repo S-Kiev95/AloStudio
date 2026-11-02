@@ -157,10 +157,11 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         setting="publishing_oauth_redirect_uri",
         title="URL de retorno al conectar redes",
         description=(
-            "Adónde vuelve el navegador después de autorizar una red para "
-            "publicar (Threads y las que se sumen). Es "
+            "Una sola URL para todas las redes que se conectan desde el "
+            "calendario (Threads, LinkedIn y las que se sumen): adónde vuelve "
+            "el navegador después de autorizar. Es "
             "https://<tu dominio>/api/v1/publishing/oauth/callback y se carga "
-            "igual en la app de cada red."
+            "igual en la app de desarrollador de cada red."
         ),
         group=PUBLISHING_GROUP,
     ),
