@@ -221,7 +221,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         setting="tiktok_verification_file",
         title="Archivo de verificación de TikTok: nombre",
         description=(
-            "Al verificar el prefijo de URL https://<dominio>/public/ en la app de TikTok "
+            "Al verificar el prefijo de URL https://<dominio>/ en la app de TikTok "
             "(URL properties), TikTok da un archivo para descargar. Pegá acá su nombre "
             "tal cual, por ejemplo tiktokAbC123.txt."
         ),

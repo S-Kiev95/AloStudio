@@ -8,6 +8,17 @@ const nextConfig = {
   // The dashboard talks to the FastAPI backend through the same-origin
   // BFF proxy at /api/backend/* (see app/api/backend) so httpOnly auth
   // cookies are attached server-side and never exposed to the browser.
+  async rewrites() {
+    const backend = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8000";
+    return [
+      // TikTok verifies the site's URL prefix with a signature file served
+      // at its root; the backend serves it (Ajustes → Instalación).
+      {
+        source: "/:file(tiktok[A-Za-z0-9_-]+\.txt)",
+        destination: `${backend}/public/:file`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

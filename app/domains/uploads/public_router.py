@@ -109,8 +109,9 @@ async def serve_public_media(
 __all__ = ["PUBLIC_MEDIA_TTL_SECONDS", "public_media_url", "router"]
 
 
-# TikTok checks that we own the URL prefix of these links (``/public/``)
-# by fetching a signature file it hands out, served right under it. Its
+# TikTok checks that we own the site's URL prefix (the legal pages and
+# these links) by fetching a signature file it hands out. The frontend
+# forwards ``/tiktok….txt`` at the site's root here (``next.config.mjs``). Its
 # name and content are set in Ajustes → Instalación; until then (or for any
 # other name) this answers 404 like an unknown path.
 verification_router = APIRouter(tags=["uploads"])
