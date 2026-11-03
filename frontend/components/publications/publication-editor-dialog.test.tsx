@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -507,6 +508,18 @@ function publishButton() {
   return buttons[buttons.length - 1];
 }
 
+const TIKTOK_INFO = {
+  can_post: true,
+  message: null,
+  nickname: "Ezequiel",
+  username: "skiev",
+  privacy_level_options: ["PUBLIC_TO_EVERYONE", "SELF_ONLY"],
+  comment_disabled: false,
+  duet_disabled: true,
+  stitch_disabled: false,
+  max_video_post_duration_sec: 600,
+};
+
 describe("PublicationEditorDialog — TikTok", () => {
   it("muestra la cuenta, exige elegir la visibilidad a mano y manda las elecciones", async () => {
     let sentBody: PublicationIn | null = null;
@@ -576,5 +589,66 @@ describe("PublicationEditorDialog — TikTok", () => {
         },
       },
     ]);
+  });
+  it("no deja publicar un video más largo de lo que admite la cuenta", async () => {
+    server.use(
+      http.get("*/api/v1/accounts/1/publications/channels/40/compose_info", () =>
+        HttpResponse.json(TIKTOK_INFO),
+      ),
+    );
+    // jsdom loads no media: hand the video's metadata over by hand.
+    const videos: HTMLVideoElement[] = [];
+    const create = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation(
+      (tag: string, options?: ElementCreationOptions) => {
+        const el = create(tag, options);
+        if (tag === "video") videos.push(el as HTMLVideoElement);
+        return el;
+      },
+    );
+
+    renderEditor({ channels: [TIKTOK_CHANNEL] });
+    await screen.findByText(/Ezequiel/);
+    fireEvent.click(
+      screen.getByRole("button", { name: /Elegir de la biblioteca/i }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Elegir reel-clip.mp4" }),
+    );
+
+    // The probe is the detached element, not a preview in the page.
+    const probe = videos.find((v) => !v.isConnected && v.src);
+    expect(probe).toBeTruthy();
+    Object.defineProperty(probe!, "duration", { value: 725 });
+    act(() => {
+      probe!.onloadedmetadata?.(new Event("loadedmetadata"));
+    });
+
+    expect(
+      await screen.findByText(/dura 12:05 y esta cuenta admite hasta 10:00/),
+    ).toBeTruthy();
+    expect(screen.getByText(/el video dura 12:05/)).toBeTruthy();
+  });
+
+  it("desactiva Publicar mientras el contenido comercial no tiene opción", async () => {
+    server.use(
+      http.get("*/api/v1/accounts/1/publications/channels/40/compose_info", () =>
+        HttpResponse.json(TIKTOK_INFO),
+      ),
+    );
+
+    renderEditor({ channels: [TIKTOK_CHANNEL] });
+    await screen.findByText(/Ezequiel/);
+    expect((publishButton() as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(screen.getByLabelText("Divulgar contenido comercial"));
+    const button = publishButton() as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.parentElement?.getAttribute("title")).toMatch(
+      /promociona tu marca, a un tercero o ambos/,
+    );
+
+    fireEvent.click(screen.getByLabelText("Tu marca"));
+    expect((publishButton() as HTMLButtonElement).disabled).toBe(false);
   });
 });

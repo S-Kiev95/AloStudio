@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import {
   type Channel,
   type TargetSettings,
@@ -31,6 +33,13 @@ const MUSIC_POLICY_URL =
   "https://www.tiktok.com/legal/page/global/music-usage-confirmation/en";
 const BRANDED_POLICY_URL =
   "https://www.tiktok.com/legal/page/global/bc-policy/en";
+
+function channelLabel(channel: Channel): string {
+  return (
+    channel.name?.trim() ||
+    (channel.username ? `@${channel.username}` : "TikTok")
+  );
+}
 
 export function normalizeTikTokSettings(
   raw?: TargetSettings | null,
@@ -82,6 +91,36 @@ function Toggle({
   );
 }
 
+/** Length in seconds of the video at ``url``, read from its metadata in
+ * the browser (``null`` until known, or when there's no video). */
+function useVideoDuration(url: string | null): number | null {
+  const [duration, setDuration] = useState<{
+    url: string;
+    seconds: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!url) return;
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      if (Number.isFinite(video.duration)) {
+        setDuration({ url, seconds: video.duration });
+      }
+    };
+    video.src = url;
+    return () => {
+      video.onloadedmetadata = null;
+      video.removeAttribute("src");
+    };
+  }, [url]);
+  return url && duration?.url === url ? duration.seconds : null;
+}
+
+function formatMinutes(seconds: number): string {
+  const whole = Math.round(seconds);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+}
+
 /** The options TikTok requires on its own post page: who posts, who can
  * see it, interactions and the commercial content disclosure. */
 export function TikTokTargetSettings({
@@ -89,17 +128,36 @@ export function TikTokTargetSettings({
   channel,
   value,
   photosOnly,
+  videoUrl,
   onChange,
+  onProblemChange,
 }: {
   accountId: string;
   channel: Channel;
   value: TikTokSettings;
   photosOnly: boolean;
+  videoUrl: string | null;
   onChange: (patch: Partial<TikTokSettings>) => void;
+  /** What keeps this target from being published that only this panel
+   * knows (the video is longer than the account allows), or ``null``. */
+  onProblemChange: (problem: string | null) => void;
 }) {
   const info = useChannelComposeInfo(accountId, channel.id);
   const data = info.data;
   const privacyId = `tiktok-privacy-${channel.id}`;
+
+  const duration = useVideoDuration(videoUrl);
+  const maxSeconds = data?.max_video_post_duration_sec ?? null;
+  const tooLong =
+    duration !== null && maxSeconds !== null && duration > maxSeconds + 0.5
+      ? `${channelLabel(channel)} (TikTok): el video dura ${formatMinutes(duration)} y la cuenta admite hasta ${formatMinutes(maxSeconds)}.`
+      : null;
+  const reportProblem = useRef(onProblemChange);
+  reportProblem.current = onProblemChange;
+  useEffect(() => {
+    reportProblem.current(tooLong);
+  }, [tooLong]);
+  useEffect(() => () => reportProblem.current(null), []);
 
   if (info.isLoading) {
     return (
@@ -131,6 +189,12 @@ export function TikTokTargetSettings({
           ? ` Admite videos de hasta ${maxMinutes} minutos.`
           : ""}
       </p>
+      {tooLong && duration !== null && maxSeconds !== null ? (
+        <p role="alert" className="text-xs text-danger">
+          El video dura {formatMinutes(duration)} y esta cuenta admite hasta{" "}
+          {formatMinutes(maxSeconds)}: recortalo o elegí otro.
+        </p>
+      ) : null}
 
       <div className="space-y-1">
         <label htmlFor={privacyId} className="text-xs text-fg-muted">

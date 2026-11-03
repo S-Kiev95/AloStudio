@@ -496,10 +496,42 @@ export function PublicationEditorDialog({
     if (apiError) errorRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [apiError]);
 
-  const ruleProblems = useMemo(
-    () => validatePublicationTargets(content, selectedMedia, ruleTargets),
-    [content, selectedMedia, ruleTargets],
+  // Problems only a network's own panel can tell (a TikTok video longer
+  // than the account allows), by channel.
+  const [panelProblems, setPanelProblems] = useState<Record<number, string>>(
+    {},
   );
+  function reportPanelProblem(channelId: number, problem: string | null) {
+    setPanelProblems((prev) => {
+      if ((prev[channelId] ?? null) === problem) return prev;
+      const next = { ...prev };
+      if (problem) next[channelId] = problem;
+      else delete next[channelId];
+      return next;
+    });
+  }
+
+  const ruleProblems = useMemo(
+    () => [
+      ...validatePublicationTargets(content, selectedMedia, ruleTargets),
+      ...selectedChannels.flatMap((ch) =>
+        panelProblems[ch.id] ? [panelProblems[ch.id]] : [],
+      ),
+    ],
+    [content, selectedMedia, ruleTargets, selectedChannels, panelProblems],
+  );
+
+  // TikTok asks for the publish button itself to be disabled, with the
+  // reason on hover, while a commercial disclosure has no option chosen.
+  const disclosureBlock = selectedChannels.some((ch) => {
+    const t = channelConfigs[ch.id]?.tiktok;
+    return (
+      ch.network === "tiktok" &&
+      Boolean(t?.disclose && !t.brand_organic && !t.brand_content)
+    );
+  })
+    ? "Indicá si el contenido de TikTok promociona tu marca, a un tercero o ambos."
+    : null;
 
   function buildTargetsPayload(): TargetIn[] {
     const initialOverrideIds = new Set(
@@ -1221,10 +1253,17 @@ export function PublicationEditorDialog({
                           selectedMedia.length > 0 &&
                           selectedMedia.every((m) => m.type === "image")
                         }
+                        videoUrl={
+                          selectedMedia.find((m) => m.type === "video")?.url ??
+                          null
+                        }
                         onChange={(patch) =>
                           updateConfig(ch.id, {
                             tiktok: { ...cfg.tiktok, ...patch },
                           })
+                        }
+                        onProblemChange={(problem) =>
+                          reportPanelProblem(ch.id, problem)
                         }
                       />
                     ) : null}
@@ -1433,13 +1472,18 @@ export function PublicationEditorDialog({
               >
                 Guardar borrador
               </Button>
-              <Button
-                type="button"
-                loading={isSubmitting}
-                onClick={() => void submitPublication(false)}
-              >
-                {whenMode === "schedule" ? "Programar" : "Publicar ahora"}
-              </Button>
+              {/* A disabled button gets no hover events: the wrapper carries
+                  the reason. */}
+              <span title={disclosureBlock ?? undefined}>
+                <Button
+                  type="button"
+                  loading={isSubmitting}
+                  disabled={disclosureBlock !== null}
+                  onClick={() => void submitPublication(false)}
+                >
+                  {whenMode === "schedule" ? "Programar" : "Publicar ahora"}
+                </Button>
+              </span>
             </>
           )}
         </div>
