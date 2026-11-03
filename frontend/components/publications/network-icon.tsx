@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Music2,
   Send,
+  Slack,
 } from "lucide-react";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -52,6 +53,11 @@ const KNOWN_NETWORKS: Record<
     label: "Discord",
     icon: MessageSquare,
     colorClass: "text-[#5865F2]",
+  },
+  slack: {
+    label: "Slack",
+    icon: Slack,
+    colorClass: "text-[#E01E5A]",
   },
 };
 

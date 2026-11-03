@@ -24,6 +24,7 @@ from app.domains.publishing.adapters.discord import DiscordAdapter
 from app.domains.publishing.adapters.facebook_page import FacebookPageAdapter
 from app.domains.publishing.adapters.instagram import InstagramAdapter
 from app.domains.publishing.adapters.linkedin import LinkedInAdapter
+from app.domains.publishing.adapters.slack import SlackAdapter
 from app.domains.publishing.adapters.telegram import TelegramAdapter
 from app.domains.publishing.adapters.threads import ThreadsAdapter
 from app.domains.publishing.adapters.tiktok import TikTokAdapter
@@ -36,6 +37,7 @@ _ADAPTERS: tuple[PublishingAdapter, ...] = (
     TikTokAdapter(),
     TelegramAdapter(),
     DiscordAdapter(),
+    SlackAdapter(),
 )
 
 

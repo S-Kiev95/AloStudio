@@ -138,6 +138,16 @@ describe("network-rules", () => {
     expect(validatePublicationTargets("Hola", images.slice(0, 20), target)).toEqual([]);
   });
 
+  it("valida las reglas de Slack", () => {
+    const target = [{ channel: ch(1, "slack", "#novedades"), postType: "feed" as const, customContent: null }];
+    expect(channelCharLimit("slack", [])).toBe(3000);
+    expect(validatePublicationTargets("", [], target)[0]).toMatch(/\(Slack\): escribí un texto/);
+    expect(validatePublicationTargets("a".repeat(3001), [], target)[0]).toMatch(/3000 caracteres/);
+    expect(validatePublicationTargets("a".repeat(3000), [], target)).toEqual([]);
+    const images = Array.from({ length: 11 }, (_, i) => ({ type: "image" as const, url: `https://s3/${i}.jpg` }));
+    expect(validatePublicationTargets("Hola", images, target)[0]).toMatch(/10 imágenes/);
+  });
+
   it("valida las reglas de Facebook Page, Discord con videos y Story de Instagram", () => {
     const fb = ch(1, "facebook_page", "FB");
     const dc = ch(2, "discord", "DC");

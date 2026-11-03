@@ -69,6 +69,10 @@ export function textLength(network: string, text: string): number {
   return total;
 }
 
+/** Text limit of the networks that publish through a webhook (Slack: a
+ *  section block's text). */
+const WEBHOOK_TEXT_MAX: Record<string, number> = { discord: 2000, slack: 3000 };
+
 /**
  * Character limit for ``network`` given current media selection, or ``null``
  * when the network has no known client-side limit.
@@ -92,11 +96,12 @@ export function channelCharLimit(
         : 2200;
     case "telegram":
       return media.length > 0 ? 1024 : 4096;
-    case "discord": {
+    case "discord":
+    case "slack": {
       const videoLinkChars = media
         .filter((m) => m.type === "video")
         .reduce((sum, v) => sum + (v.url ? v.url.length + 1 : 0), 0);
-      return Math.max(0, 2000 - videoLinkChars);
+      return Math.max(0, WEBHOOK_TEXT_MAX[network] - videoLinkChars);
     }
     default:
       return null;
@@ -312,23 +317,26 @@ export function validatePublicationTargets(
       continue;
     }
 
-    if (net === "discord") {
+    // Discord and Slack: webhooks, with videos sent as links in the text.
+    if (net === "discord" || net === "slack") {
+      const name = net === "discord" ? "Discord" : "Slack";
+      const max = WEBHOOK_TEXT_MAX[net];
       if (!hasText && media.length === 0) {
         problems.push(
-          `${label} (Discord): escribí un texto o agregá al menos un medio.`,
+          `${label} (${name}): escribí un texto o agregá al menos un medio.`,
         );
       }
       const videoLinkChars = media
         .filter((m) => m.type === "video")
         .reduce((sum, v) => sum + (v.url ? v.url.length + 1 : 0), 0);
       const effectiveLen = length + videoLinkChars;
-      if (effectiveLen > 2000) {
+      if (effectiveLen > max) {
         problems.push(
-          `${label} (Discord): el texto${videoCount > 0 ? " más los links de video" : ""} supera los 2000 caracteres.`,
+          `${label} (${name}): el texto${videoCount > 0 ? " más los links de video" : ""} supera los ${max} caracteres.`,
         );
       }
       if (imageCount > 10) {
-        problems.push(`${label} (Discord): admite hasta 10 imágenes.`);
+        problems.push(`${label} (${name}): admite hasta 10 imágenes.`);
       }
     }
   }
