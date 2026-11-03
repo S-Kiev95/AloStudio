@@ -123,3 +123,19 @@ async def test_slack_revoked_webhook_flags_reconnect(db_session):
     publication.content = "Hola"
     publication.media = [IMAGE] * 11
     assert "10 imágenes" in SlackAdapter().validate(publication, target)[0]
+
+
+@respx.mock
+async def test_slack_webhook_to_a_direct_message_is_not_retried(db_session):
+    owner, _h = await _seed(db_session, "-sldm")
+    channel = await _slack(db_session, owner.account)
+    # Slack answers this setup error with a 500.
+    respx.post(HOOK).mock(return_value=httpx.Response(500, text="messages_tab_disabled"))
+    publication, target = await _target(db_session, owner.account, channel)
+
+    result = await SlackAdapter().publish(db_session, publication, target)
+
+    assert not result.ok and not result.retryable
+    assert "mensaje directo" in result.error_message
+    await db_session.refresh(channel)
+    assert channel.status == "reconnect"

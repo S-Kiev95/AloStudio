@@ -53,6 +53,19 @@ _RECONNECT_MESSAGE = (
     "El webhook de Slack ya no funciona (se revocó, o el canal se archivó o borró). "
     "Creá uno nuevo y volvé a conectar el canal."
 )
+# Errors of how the webhook was set up, which retrying won't fix. Slack may
+# answer them with a 500, so they are told apart by the body.
+_SETUP_ERRORS = {
+    "messages_tab_disabled": (
+        "El webhook de Slack apunta a un mensaje directo con la app, no a un canal. "
+        "Creá un webhook nuevo eligiendo un canal (por ejemplo #general) y volvé a "
+        "conectar el canal."
+    ),
+    "posting_to_general_channel_denied": (
+        "En ese workspace solo los administradores publican en #general. Elegí otro "
+        "canal para el webhook y volvé a conectar."
+    ),
+}
 
 
 def _content(text: str, media: list[dict[str, Any]]) -> str:
@@ -183,10 +196,12 @@ class SlackAdapter(PublishingAdapter):
                 error_message="No se pudo conectar con Slack; se reintenta más tarde.",
                 retryable=True,
             )
-        if resp.status_code in (403, 404, 410):
-            await mark_reconnect(session, channel.id, _RECONNECT_MESSAGE)  # type: ignore[arg-type]
+        answer = resp.text.strip()
+        if answer in _SETUP_ERRORS or resp.status_code in (403, 404, 410):
+            message = _SETUP_ERRORS.get(answer, _RECONNECT_MESSAGE)
+            await mark_reconnect(session, channel.id, message)  # type: ignore[arg-type]
             return PublishResult(
-                ok=False, error_code=str(resp.status_code), error_message=_RECONNECT_MESSAGE
+                ok=False, error_code=answer or str(resp.status_code), error_message=message
             )
         if resp.status_code == 429 or resp.status_code >= 500:
             return PublishResult(
@@ -200,7 +215,7 @@ class SlackAdapter(PublishingAdapter):
             return PublishResult(
                 ok=False,
                 error_code=str(resp.status_code),
-                error_message=f"Slack rechazó el mensaje: {resp.text.strip()[:200] or resp.status_code}",
+                error_message=f"Slack rechazó el mensaje: {answer[:200] or resp.status_code}",
             )
         return PublishResult(ok=True)
 
