@@ -115,6 +115,8 @@ export type ConversationFilters = {
   status?: string;
   assigneeType?: string;
   inboxId?: number;
+  /** Comma-separated `Channel::*` names, e.g. every WhatsApp inbox. */
+  channelType?: string;
   page?: number;
 };
 
@@ -130,7 +132,13 @@ export function useConversations(
   filters: ConversationFilters,
   options?: { refetchOnMount?: boolean },
 ) {
-  const { status = "open", assigneeType, inboxId, page = 1 } = filters;
+  const {
+    status = "open",
+    assigneeType,
+    inboxId,
+    channelType,
+    page = 1,
+  } = filters;
   return useQuery({
     queryKey: [
       "conversations",
@@ -138,6 +146,7 @@ export function useConversations(
       status,
       assigneeType ?? null,
       inboxId ?? null,
+      channelType ?? null,
       page,
     ],
     queryFn: () => {
@@ -147,6 +156,7 @@ export function useConversations(
       if (inboxId != null && Number.isFinite(inboxId)) {
         sp.set("inbox_id", String(inboxId));
       }
+      if (channelType) sp.set("channel_type", channelType);
       sp.set("page", String(page));
       return apiFetch<ConversationsIndex>(`${base(accountId)}?${sp}`);
     },

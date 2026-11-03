@@ -71,6 +71,35 @@ function renderWithQuery(ui: React.ReactElement) {
 }
 
 describe("ConversationList", () => {
+  it("offers one channel option per channel the account has", async () => {
+    server.use(
+      http.get("*/inboxes", () =>
+        HttpResponse.json({
+          payload: [
+            { id: 1, name: "Ventas", channel_type: "Channel::Whatsapp" },
+            { id: 2, name: "Soporte", channel_type: "Channel::Whatsapp" },
+            { id: 3, name: "SMS propio", channel_type: "Channel::Sms" },
+            { id: 4, name: "Twilio", channel_type: "Channel::TwilioSms" },
+          ],
+        }),
+      ),
+    );
+    renderWithQuery(<ConversationList accountId="1" />);
+    const select = screen.getByRole("combobox", { name: "Canal" });
+    await waitFor(() =>
+      expect(
+        Array.from(select.querySelectorAll("option")).map((o) => [
+          o.textContent,
+          o.value,
+        ]),
+      ).toEqual([
+        ["Todos los canales", ""],
+        ["SMS", "Channel::Sms,Channel::TwilioSms"],
+        ["WhatsApp", "Channel::Whatsapp"],
+      ]),
+    );
+  });
+
   it("renders conversations returned by the API", async () => {
     renderWithQuery(<ConversationList accountId="1" />);
     expect(await screen.findByText("Diana")).toBeInTheDocument();

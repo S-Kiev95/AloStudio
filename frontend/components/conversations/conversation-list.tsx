@@ -3,7 +3,7 @@
 import { Megaphone, Search, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { selectClassName } from "@/components/ui/select";
@@ -26,7 +26,7 @@ import { useInboxes } from "@/lib/api/inboxes";
 import { shortDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { ChannelBadge } from "./channel-badge";
+import { ChannelBadge, channelLabel } from "./channel-badge";
 import { ConversationFilters } from "./conversation-filters";
 
 const STATUS_PILLS = [
@@ -60,6 +60,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
     inboxParam && Number.isFinite(Number(inboxParam))
       ? Number(inboxParam)
       : undefined;
+  const channelType = searchParams.get("channel") ?? undefined;
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const q = searchParams.get("q") ?? "";
 
@@ -99,6 +100,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
     status,
     assigneeType,
     inboxId,
+    channelType,
     page,
   });
   const searchQ = useSearchConversations(accountId, trimmed, page);
@@ -128,6 +130,25 @@ export function ConversationList({ accountId }: { accountId: string }) {
   const agents = useAgents(accountId);
   const labels = useLabels(accountId);
   const inboxes = useInboxes(accountId);
+
+  // One option per channel the account has, by its label: SMS and Twilio
+  // SMS read the same, so they share an option (and filter together).
+  const channelOptions = useMemo(() => {
+    const byLabel = new Map<string, string[]>();
+    for (const inbox of inboxes.data ?? []) {
+      const label = channelLabel(inbox.channel_type) ?? inbox.channel_type;
+      const types = byLabel.get(label) ?? [];
+      if (!types.includes(inbox.channel_type)) types.push(inbox.channel_type);
+      byLabel.set(label, types);
+    }
+    return [...byLabel]
+      .map(([label, types]) => ({ label, value: types.join(",") }))
+      .sort((x, y) => x.label.localeCompare(y.label));
+  }, [inboxes.data]);
+  const channelInboxes = (inboxes.data ?? []).filter(
+    (inbox) =>
+      !channelType || channelType.split(",").includes(inbox.channel_type),
+  );
 
   function clearSelected() {
     setSelected(new Set());
@@ -311,24 +332,44 @@ export function ConversationList({ accountId }: { accountId: string }) {
           })}
         </div>
 
-        {/* Inbox selector */}
-        <select
-          aria-label="Bandeja de entrada"
-          value={inboxId != null ? String(inboxId) : ""}
-          onChange={(e) => {
-            const v = e.target.value;
-            setParams({ inbox_id: v || null, page: null }, true);
-            clearSelected();
-          }}
-          className={cn(selectClassName("sm"), "w-full")}
-        >
-          <option value="">Todas las bandejas</option>
-          {(inboxes.data ?? []).map((inbox) => (
-            <option key={inbox.id} value={String(inbox.id)}>
-              {inbox.name}
-            </option>
-          ))}
-        </select>
+        {/* Channel and inbox selectors: picking a channel narrows the
+            inboxes to that channel's and starts over from all of them. */}
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            aria-label="Canal"
+            value={channelType ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              setParams({ channel: v || null, inbox_id: null, page: null }, true);
+              clearSelected();
+            }}
+            className={cn(selectClassName("sm"), "w-full min-w-0")}
+          >
+            <option value="">Todos los canales</option>
+            {channelOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Bandeja de entrada"
+            value={inboxId != null ? String(inboxId) : ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              setParams({ inbox_id: v || null, page: null }, true);
+              clearSelected();
+            }}
+            className={cn(selectClassName("sm"), "w-full min-w-0")}
+          >
+            <option value="">Todas las bandejas</option>
+            {channelInboxes.map((inbox) => (
+              <option key={inbox.id} value={String(inbox.id)}>
+                {inbox.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {!searching &&
         !showFilters &&

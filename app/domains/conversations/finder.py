@@ -13,6 +13,8 @@ Phase 4b subset:
   * ``inbox_id`` (single id, scoped to inboxes the user has access to —
     Phase 4c will gate this behind the proper inbox-membership check;
     for now we use the simpler "in this account" guard).
+  * ``channel_type`` (comma-separated ``Channel::*`` names — the
+    conversations of every inbox of those channels, e.g. all WhatsApp).
   * ``team_id`` (single id, scoped to the account).
   * ``labels`` (list of strings — OR semantics, mirrors Rails
     ``tagged_with(labels, any: true)``).
@@ -52,6 +54,7 @@ from app.domains.conversations.models import (
     conversation_status_from_str,
 )
 from app.domains.conversations.permission import apply_permission_scope
+from app.domains.inboxes.models import Inbox
 from app.domains.labels.models import Label
 
 DEFAULT_STATUS = "open"
@@ -86,6 +89,16 @@ def _apply_inbox(stmt: Select, *, inbox_id: int | None) -> Select:
     if inbox_id is None:
         return stmt
     return stmt.where(Conversation.inbox_id == inbox_id)
+
+
+def _apply_channel_type(stmt: Select, *, channel_types: list[str] | None) -> Select:
+    if not channel_types:
+        return stmt
+    return stmt.where(
+        Conversation.inbox_id.in_(  # type: ignore[union-attr]
+            select(Inbox.id).where(Inbox.channel_type.in_(channel_types))  # type: ignore[attr-defined]
+        )
+    )
 
 
 def _apply_team(stmt: Select, *, team_id: int | None) -> Select:
@@ -159,6 +172,11 @@ async def conversation_finder(
     team_id = params.get("team_id")
     labels = params.get("labels")
     q = params.get("q")
+    channel_types = [
+        part.strip()
+        for part in str(params.get("channel_type") or "").split(",")
+        if part.strip()
+    ]
 
     if isinstance(inbox_id, str):
         inbox_id = int(inbox_id) if inbox_id.isdigit() else None
@@ -181,6 +199,7 @@ async def conversation_finder(
     if not q:
         base = _apply_status(base, status=status)
     base = _apply_inbox(base, inbox_id=inbox_id)
+    base = _apply_channel_type(base, channel_types=channel_types)
     base = _apply_team(base, team_id=team_id)
     base = _apply_labels(base, labels=labels)
     base = _apply_query(base, q=q)
@@ -202,6 +221,7 @@ async def conversation_finder(
     if not q:
         count_select = _apply_status(count_select, status=status)
     count_select = _apply_inbox(count_select, inbox_id=inbox_id)
+    count_select = _apply_channel_type(count_select, channel_types=channel_types)
     count_select = _apply_team(count_select, team_id=team_id)
     count_select = _apply_labels(count_select, labels=labels)
     count_select = _apply_query(count_select, q=q)

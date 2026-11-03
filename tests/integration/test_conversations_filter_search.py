@@ -564,3 +564,26 @@ async def test_filter_channel_rejects_presence_operators(client, two_channels):
     owner, admin_h, _from_api, _from_ig = two_channels
     resp = await _by_channel(client, owner, admin_h, "instagram", "is_present")
     assert resp.status_code == 400
+
+
+async def test_index_filters_by_channel_type(client, two_channels):
+    owner, admin_h, from_api, from_ig = two_channels
+    url = f"/api/v1/accounts/{owner.account.id}/conversations"
+
+    resp = await client.get(url, params={"channel_type": "Channel::Instagram"}, headers=admin_h)
+    assert resp.status_code == 200, resp.text
+    body = resp.json()["data"]
+    assert [c["id"] for c in body["payload"]] == [from_ig.display_id]
+    assert body["meta"]["all_count"] == 1
+
+    # Several channels at once (the selector groups SMS and Twilio SMS).
+    resp = await client.get(
+        url, params={"channel_type": "Channel::Instagram,Channel::Api"}, headers=admin_h
+    )
+    assert {c["id"] for c in resp.json()["data"]["payload"]} == {
+        from_api.display_id,
+        from_ig.display_id,
+    }
+
+    resp = await client.get(url, params={"channel_type": "Channel::Whatsapp"}, headers=admin_h)
+    assert resp.json()["data"]["payload"] == []
