@@ -7,6 +7,7 @@ import {
   minSharedCharLimit,
   textLength,
   validatePublicationTargets,
+  xChannelsWithLink,
 } from "./network-rules";
 
 function ch(id: number, network: string, name = network): Channel {
@@ -136,6 +137,27 @@ describe("network-rules", () => {
     const images = Array.from({ length: 21 }, (_, i) => ({ type: "image" as const, url: `https://s3/${i}.jpg` }));
     expect(validatePublicationTargets("Hola", images, target)[0]).toMatch(/20 imágenes/);
     expect(validatePublicationTargets("Hola", images.slice(0, 20), target)).toEqual([]);
+  });
+
+  it("valida las reglas de X y avisa de los links", () => {
+    const target = [{ channel: ch(1, "x", "Zeek"), postType: "feed" as const, customContent: null }];
+    expect(channelCharLimit("x", [])).toBe(280);
+    expect(textLength("x", "Mira https://ejemplo.com/una/ruta/muy/larga/de/verdad/y/mas")).toBe(5 + 23);
+    expect(textLength("x", "🚀")).toBe(2);
+    expect(validatePublicationTargets("", [], target)[0]).toMatch(/\(X\): escribí un texto/);
+    expect(validatePublicationTargets("a".repeat(281), [], target)[0]).toMatch(/280 caracteres/);
+    expect(
+      validatePublicationTargets(
+        "Hola",
+        [
+          { type: "image", url: "https://s3/a.jpg" },
+          { type: "video", url: "https://s3/b.mp4" },
+        ],
+        target,
+      )[0],
+    ).toMatch(/1 video solo/);
+    expect(xChannelsWithLink("Sin link", target)).toEqual([]);
+    expect(xChannelsWithLink("Mira https://ejemplo.com", target)).toHaveLength(1);
   });
 
   it("valida las reglas de Slack", () => {

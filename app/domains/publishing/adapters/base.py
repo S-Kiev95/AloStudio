@@ -141,6 +141,13 @@ class PublishingAdapter(ABC):
         credentials. Raises :class:`ChannelConnectionError`."""
         raise NotImplementedError
 
+    async def complete_authorization_for_state(
+        self, *, code: str, redirect_uri: str, state: str
+    ) -> ConnectedAccount:
+        """``complete_authorization`` for a network that ties the code to the
+        flow that asked for it (PKCE): ``state`` is the flow's signed state."""
+        return await self.complete_authorization(code=code, redirect_uri=redirect_uri)
+
     async def connect_with_fields(self, values: dict[str, str]) -> ConnectedAccount:
         """Check the pasted ``connection_fields`` with the network and return
         the account they reach. Raises :class:`ChannelConnectionError`."""

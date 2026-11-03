@@ -54,6 +54,38 @@ function isThreadsEmoji(char: string): boolean {
   );
 }
 
+const X_LINK = /(?:https?:\/\/|www\.)\S+/gi;
+const X_LINK_LENGTH = 23;
+
+/** The X adapter's ``x_length``: each link is 23 characters, and characters
+ * outside X's light ranges (emoji, CJK…) count double. */
+function xLength(text: string): number {
+  const links = text.match(X_LINK) ?? [];
+  let total = links.length * X_LINK_LENGTH;
+  for (const char of text.replace(X_LINK, "")) {
+    const code = char.codePointAt(0) ?? 0;
+    const light =
+      code <= 4351 ||
+      (code >= 8192 && code <= 8205) ||
+      (code >= 8208 && code <= 8223) ||
+      (code >= 8242 && code <= 8247);
+    total += light ? 1 : 2;
+  }
+  return total;
+}
+
+/** The chosen X channels whose text has a link: X charges much more for
+ * those posts. Worth a notice, not a problem: the post can still go out. */
+export function xChannelsWithLink(
+  sharedContent: string,
+  targets: TargetRuleInput[],
+): string[] {
+  return targets
+    .filter((t) => t.channel.network === "x")
+    .filter((t) => (t.customContent ?? sharedContent).match(X_LINK))
+    .map((t) => channelDisplayLabel(t.channel));
+}
+
 /**
  * Length of ``text`` as the backend counts it for ``network``: code points
  * (Python's ``len``), and on Threads each emoji by its UTF-8 bytes
@@ -61,6 +93,7 @@ function isThreadsEmoji(char: string): boolean {
  * emoji 2 everywhere: too long for most networks, too short for Threads.
  */
 export function textLength(network: string, text: string): number {
+  if (network === "x") return xLength(text);
   if (network !== "threads") return Array.from(text).length;
   let total = 0;
   for (const char of text) {
@@ -88,6 +121,8 @@ export function channelCharLimit(
       return 63206;
     case "threads":
       return 500;
+    case "x":
+      return 280;
     case "linkedin":
       return 3000;
     case "tiktok":
@@ -210,6 +245,27 @@ export function validatePublicationTargets(
             `${label} (Facebook): admite hasta 10 imágenes o 1 video solo (sin mezclar).`,
           );
         }
+      }
+      continue;
+    }
+
+    if (net === "x") {
+      if (!hasText && media.length === 0) {
+        problems.push(
+          `${label} (X): escribí un texto o agregá al menos un medio.`,
+        );
+      }
+      if (length > 280) {
+        problems.push(
+          `${label} (X): el texto supera los 280 caracteres, contando cada link como 23 y cada emoji como 2 (${length}/280).`,
+        );
+      }
+      if (videoCount > 0 && media.length > 1) {
+        problems.push(
+          `${label} (X): admite 1 video solo, sin otras imágenes o videos.`,
+        );
+      } else if (media.length > 4) {
+        problems.push(`${label} (X): admite hasta 4 imágenes.`);
       }
       continue;
     }

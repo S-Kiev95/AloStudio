@@ -210,6 +210,9 @@ class Settings(BaseSettings):
     # Signature file TikTok asks to serve under the media links' prefix.
     tiktok_verification_file: str = ""
     tiktok_verification_content: str = ""
+    # X: the OAuth 2.0 Client ID and Client Secret of the app (console.x.com).
+    x_client_id: str = ""
+    x_client_secret: str = ""
 
 
 # Values from ``installation_configs`` that override the environment.

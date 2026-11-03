@@ -58,6 +58,7 @@ import {
   type TargetRuleInput,
   textLength,
   validatePublicationTargets,
+  xChannelsWithLink,
 } from "./network-rules";
 import { PublicationErrorAlert } from "./publication-error-alert";
 import {
@@ -520,6 +521,8 @@ export function PublicationEditorDialog({
     ],
     [content, selectedMedia, ruleTargets, selectedChannels, panelProblems],
   );
+
+  const xLinkChannels = xChannelsWithLink(content, ruleTargets);
 
   // TikTok asks for the publish button itself to be disabled, with the
   // reason on hover, while a commercial disclosure has no option chosen.
@@ -1434,6 +1437,17 @@ export function PublicationEditorDialog({
               ))}
             </ul>
           </div>
+        ) : null}
+
+        {!isSetMode && xLinkChannels.length > 0 ? (
+          <p
+            role="status"
+            className="rounded-md border border-glass bg-surface-2 px-3 py-2 text-xs text-fg-muted"
+          >
+            {xLinkChannels.join(", ")} (X): esta publicación lleva un link. X
+            cobra bastante más por publicar con link (unos 0,20 USD contra
+            0,015 USD sin link).
+          </p>
         ) : null}
 
         {!isSetMode ? (

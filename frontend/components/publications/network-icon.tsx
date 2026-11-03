@@ -9,6 +9,7 @@ import {
   Music2,
   Send,
   Slack,
+  X as XLogo,
 } from "lucide-react";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -42,6 +43,11 @@ const KNOWN_NETWORKS: Record<
   tiktok: {
     label: "TikTok",
     icon: Music2,
+    colorClass: "text-fg",
+  },
+  x: {
+    label: "X",
+    icon: XLogo,
     colorClass: "text-fg",
   },
   telegram: {

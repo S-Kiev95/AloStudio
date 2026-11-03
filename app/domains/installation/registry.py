@@ -161,7 +161,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         title="URL de retorno al conectar redes",
         description=(
             "Una sola URL para todas las redes que se conectan desde el "
-            "calendario (Threads, LinkedIn, TikTok y las que se sumen): adónde vuelve "
+            "calendario (Threads, LinkedIn, TikTok, X y las que se sumen): adónde vuelve "
             "el navegador después de autorizar. Es "
             "https://<tu dominio>/api/v1/publishing/oauth/callback y se carga "
             "igual en la app de desarrollador de cada red."
@@ -248,6 +248,27 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         ),
         group=PUBLISHING_GROUP,
         network="tiktok",
+    ),
+    ConfigSpec(
+        name="X_CLIENT_ID",
+        setting="x_client_id",
+        title="Client ID de X",
+        description=(
+            "De la app en console.x.com, sección Keys and tokens → OAuth 2.0. "
+            "La app tiene que ser de tipo Web App, con permiso de lectura y escritura."
+        ),
+        group=PUBLISHING_GROUP,
+        network="x",
+    ),
+    ConfigSpec(
+        name="X_CLIENT_SECRET",
+        setting="x_client_secret",
+        title="Client Secret de X",
+        description="El OAuth 2.0 Client Secret de la misma sección.",
+        group=PUBLISHING_GROUP,
+        network="x",
+        kind="password",
+        secret=True,
     ),
     # --- Webhooks ------------------------------------------------------
     ConfigSpec(

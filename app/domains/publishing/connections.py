@@ -102,15 +102,17 @@ def network_of_state(payload: dict[str, Any]) -> str | None:
 
 
 async def complete_connection(
-    session: AsyncSession, *, account_id: int, network: str, code: str
+    session: AsyncSession, *, account_id: int, network: str, code: str, state: str = ""
 ) -> PublishingChannel:
     """Trade the code for the account and store it as a channel of the
     account (updating the existing one when it was connected before). 422
     with the network's reason when it fails."""
     adapter = _connectable(network)
     try:
-        connected = await adapter.complete_authorization(
-            code=code, redirect_uri=get_settings().publishing_oauth_redirect_uri
+        connected = await adapter.complete_authorization_for_state(
+            code=code,
+            redirect_uri=get_settings().publishing_oauth_redirect_uri,
+            state=state,
         )
     except ChannelConnectionError as exc:
         raise _unprocessable(str(exc)) from exc

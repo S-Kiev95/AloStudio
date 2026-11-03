@@ -665,7 +665,7 @@ async def publishing_oauth_callback(
         )
     try:
         channel = await connections.complete_connection(
-            session, account_id=account_id, network=network, code=code
+            session, account_id=account_id, network=network, code=code, state=state or ""
         )
     except ChatwootHTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, dict) else {}
