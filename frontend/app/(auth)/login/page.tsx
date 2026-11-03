@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,20 @@ import { type LoginInput, loginSchema } from "@/lib/auth/schemas";
 export default function LoginPage() {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/google")
+      .then((res) => res.json())
+      .then((body) => {
+        if (!cancelled) setGoogleEnabled(Boolean(body?.enabled));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const {
     register,
     handleSubmit,
@@ -55,6 +69,26 @@ export default function LoginPage() {
           Accedé a tu cuenta de AloStudio.
         </p>
       </div>
+
+      {googleEnabled ? (
+        <div className="space-y-4">
+          {/* A plain link: the route sends the browser on to Google. */}
+          <a
+            href="/api/auth/google/start"
+            className="flex h-11 w-full items-center justify-center gap-2.5 rounded-control border border-glass bg-field text-sm font-medium text-fg transition-colors hover:bg-hover-glass"
+          >
+            <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4">
+              <path fill="#EA4335" d="M12 10.2v3.9h5.4c-.24 1.4-1.66 4.1-5.4 4.1-3.25 0-5.9-2.69-5.9-6s2.65-6 5.9-6c1.85 0 3.09.79 3.8 1.47l2.59-2.5C16.73 3.6 14.6 2.6 12 2.6 6.82 2.6 2.6 6.82 2.6 12s4.22 9.4 9.4 9.4c5.43 0 9.03-3.81 9.03-9.19 0-.62-.07-1.09-.15-1.56H12z" />
+            </svg>
+            Entrar con Google
+          </a>
+          <div className="flex items-center gap-3 text-xs text-fg-muted">
+            <span className="h-px flex-1 bg-glass" />
+            o con tu correo
+            <span className="h-px flex-1 bg-glass" />
+          </div>
+        </div>
+      ) : null}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {formError ? (

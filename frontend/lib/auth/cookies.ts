@@ -14,6 +14,11 @@ export const AUTH_COOKIES = {
   expiry: "alo_expiry",
 } as const;
 
+/** httpOnly cookie that ties Google's callback to the browser that went
+ * there (its value travels in the signed state; see the backend's
+ * `app/domains/auth/google.py`). */
+export const GOOGLE_NONCE_COOKIE = "alo_google_nonce";
+
 /** Header names the backend (devise-token-auth) expects. */
 export const AUTH_HEADERS = {
   accessToken: "access-token",

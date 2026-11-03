@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     # answers 404 (feature off, fail closed). MUST match the secret Postiz
     # signs with.
     sso_shared_secret: str = ""
+    # Sign in with Google (only for invited users): a Google Cloud OAuth
+    # client; the optional domain limits it to one Google Workspace.
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_allowed_domain: str = ""
 
     # --- mail
     smtp_host: str = "localhost"

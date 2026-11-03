@@ -30,6 +30,7 @@ surface.
 from __future__ import annotations
 
 import secrets
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -264,6 +265,31 @@ async def sso_sign_in(
         session, user=user, org_id=org_id, org_name=org_name
     )
 
+    return await issue_session(
+        session,
+        response,
+        user=user,
+        active_account_id=account_id,
+        mark=lambda tokens, client: _with_super_admin_mark(
+            tokens, client=client, claims=claims
+        ),
+    )
+
+
+async def issue_session(
+    session: AsyncSession,
+    response: Response,
+    *,
+    user: User,
+    active_account_id: int | None,
+    mark: Callable[[dict[str, Any], str], dict[str, Any]] | None = None,
+) -> dict:
+    """Sign ``user`` in from an identity checked elsewhere (a Postiz SSO
+    token, a Google account): a new devise session, answered exactly like
+    ``POST /auth/sign_in`` (headers + ``{ "data": { ...user } }``).
+
+    ``mark`` may rewrite the user's sessions given the new one's client
+    (the SSO super-admin flag)."""
     # Devise `trackable` hook, mirroring sign_in.
     now = datetime.now(UTC).replace(tzinfo=None)
     user.sign_in_count = (user.sign_in_count or 0) + 1
@@ -271,9 +297,7 @@ async def sso_sign_in(
     user.current_sign_in_at = now
 
     headers, new_tokens = create_new_auth_token(user_tokens=user.tokens, uid=user.uid)
-    user.tokens = _with_super_admin_mark(
-        new_tokens, client=headers.client, claims=claims
-    )
+    user.tokens = mark(new_tokens, headers.client) if mark else new_tokens
     session.add(user)
     await session.flush()
 
@@ -310,5 +334,5 @@ async def sso_sign_in(
         user=user,
         access_token=access_token,
         account_users=list(memberships),
-        active_account_id=account_id,
+        active_account_id=active_account_id,
     )

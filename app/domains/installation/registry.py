@@ -253,6 +253,38 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         kind="boolean",
     ),
     ConfigSpec(
+        name="GOOGLE_CLIENT_ID",
+        setting="google_client_id",
+        title="Ingreso con Google: Client ID",
+        description=(
+            "Del ID de cliente OAuth (aplicación web) en console.cloud.google.com. "
+            "Con este dato y el secret, la pantalla de ingreso muestra «Entrar con "
+            "Google». Solo entran usuarios ya invitados. URL de redirección "
+            "autorizada: https://<dominio>/auth/google/callback."
+        ),
+        group=ACCESS_GROUP,
+    ),
+    ConfigSpec(
+        name="GOOGLE_CLIENT_SECRET",
+        setting="google_client_secret",
+        title="Ingreso con Google: Client secret",
+        description="El secret del mismo ID de cliente OAuth.",
+        group=ACCESS_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="GOOGLE_ALLOWED_DOMAIN",
+        setting="google_allowed_domain",
+        title="Ingreso con Google: dominio permitido",
+        description=(
+            "Opcional. Un dominio de Google Workspace (por ejemplo, miescuela.edu.uy): "
+            "solo se aceptan cuentas de ese dominio. Vacío, cualquier cuenta de Google "
+            "con el correo de un usuario invitado."
+        ),
+        group=ACCESS_GROUP,
+    ),
+    ConfigSpec(
         name="META_VERIFY_WEBHOOK_SIGNATURE",
         setting="meta_verify_webhook_signature",
         title="Verificar la firma de los webhooks",

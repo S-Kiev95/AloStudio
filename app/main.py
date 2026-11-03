@@ -26,6 +26,7 @@ from app.domains.assignment_policies.router import (
 from app.domains.assignment_policies.router import (
     router as assignment_policies_router,
 )
+from app.domains.auth.google import router as auth_google_router
 from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
 from app.domains.auth.sso import router as auth_sso_router
@@ -194,6 +195,7 @@ def create_app() -> FastAPI:
     # ``POST /auth/sso`` exchanges a Postiz-minted HS256 JWT for a devise
     # session; disabled (404) unless SSO_SHARED_SECRET is set.
     app.include_router(auth_sso_router)
+    app.include_router(auth_google_router)
     app.include_router(resend_confirmation_router)
     app.include_router(profile_router)
     app.include_router(inboxes_router)
