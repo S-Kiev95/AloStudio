@@ -377,6 +377,21 @@
     box-shadow: 0 0 0 3px var(--neon-halo-far);
     outline: none;
   }
+
+  /* A select's own arrow, away from the border: the native one sits flush
+     against it. Drawn with two gradients so it takes the muted text colour
+     in both themes. */
+  .select-chevron {
+    appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%),
+      linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
+    background-position:
+      calc(100% - 17px) 50%,
+      calc(100% - 12px) 50%;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+  }
 }
 
 @keyframes lit-ignite {

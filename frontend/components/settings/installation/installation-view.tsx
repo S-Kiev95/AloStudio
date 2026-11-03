@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Minus } from "lucide-react";
+import { Check, ChevronDown, Minus } from "lucide-react";
 import { useState } from "react";
 
 import { NetworkIcon, networkLabel } from "@/components/publications/network-icon";
@@ -17,6 +17,7 @@ import {
   useInstallationConfigs,
   useSetInstallationConfig,
 } from "@/lib/api/installation";
+import { cn } from "@/lib/utils";
 
 export function InstallationView() {
   const configs = useInstallationConfigs();
@@ -50,21 +51,55 @@ export function InstallationView() {
       </div>
 
       {groups.map((group) => (
-        <Card key={group.group}>
-          <CardHeader>
-            <CardTitle>{group.group}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {group.items
-              .filter((config) => !config.network)
-              .map((config) => (
-                <ConfigRow key={config.name} config={config} />
-              ))}
-            <NetworkConfigs items={group.items.filter((c) => c.network)} />
-          </CardContent>
-        </Card>
+        <ConfigGroup key={group.group} group={group.group} items={group.items} />
       ))}
     </div>
+  );
+}
+
+/** One section, folded away with a click once it's filled in. */
+function ConfigGroup({
+  group,
+  items,
+}: {
+  group: string;
+  items: InstallationConfig[];
+}) {
+  const [open, setOpen] = useState(true);
+  const done = items.filter((c) => c.configured).length;
+  const contentId = `config-group-${group.replace(/\W+/g, "-")}`;
+
+  return (
+    <Card>
+      <CardHeader className={open ? undefined : "pb-5"}>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={contentId}
+          onClick={() => setOpen((o) => !o)}
+          className="flex w-full items-center justify-between gap-3 rounded-control text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
+        >
+          <CardTitle>{group}</CardTitle>
+          <span className="flex shrink-0 items-center gap-2 text-xs text-fg-muted">
+            {done}/{items.length} configurados
+            <ChevronDown
+              className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
+              aria-hidden
+            />
+          </span>
+        </button>
+      </CardHeader>
+      {open ? (
+        <CardContent id={contentId} className="space-y-6">
+          {items
+            .filter((config) => !config.network)
+            .map((config) => (
+              <ConfigRow key={config.name} config={config} />
+            ))}
+          <NetworkConfigs items={items.filter((c) => c.network)} />
+        </CardContent>
+      ) : null}
+    </Card>
   );
 }
 

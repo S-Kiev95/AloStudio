@@ -121,3 +121,22 @@ describe("Configuración de la instalación", () => {
     );
   });
 });
+
+describe("Secciones colapsables", () => {
+  it("pliega y despliega una sección, con cuántos ajustes tiene listos", async () => {
+    renderView();
+    const header = await screen.findByRole("button", {
+      name: /Meta \(Facebook e Instagram\)/,
+    });
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    expect(header).toHaveTextContent("1/2 configurados");
+
+    fireEvent.click(header);
+
+    expect(header).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("App ID de Facebook")).not.toBeInTheDocument();
+
+    fireEvent.click(header);
+    expect(screen.getByText("App ID de Facebook")).toBeInTheDocument();
+  });
+});
