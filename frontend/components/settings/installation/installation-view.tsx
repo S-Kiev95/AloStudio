@@ -3,10 +3,12 @@
 import { Check, Minus } from "lucide-react";
 import { useState } from "react";
 
+import { NetworkIcon, networkLabel } from "@/components/publications/network-icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api/errors";
 import {
   type InstallationConfig,
@@ -53,12 +55,56 @@ export function InstallationView() {
             <CardTitle>{group.group}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {group.items.map((config) => (
-              <ConfigRow key={config.name} config={config} />
-            ))}
+            {group.items
+              .filter((config) => !config.network)
+              .map((config) => (
+                <ConfigRow key={config.name} config={config} />
+              ))}
+            <NetworkConfigs items={group.items.filter((c) => c.network)} />
           </CardContent>
         </Card>
       ))}
+    </div>
+  );
+}
+
+/** The settings of one network at a time, picked from a list: each network
+ *  brings several, and all of them at once is a wall of inputs. */
+function NetworkConfigs({ items }: { items: InstallationConfig[] }) {
+  const networks = [...new Set(items.map((c) => c.network as string))];
+  const [picked, setPicked] = useState<string | null>(null);
+  if (networks.length === 0) return null;
+  const network = picked && networks.includes(picked) ? picked : networks[0];
+  const ready = (net: string) =>
+    items.filter((c) => c.network === net).every((c) => c.configured);
+
+  return (
+    <div className="space-y-6 border-t border-glass pt-6">
+      <div className="space-y-1.5">
+        <Label htmlFor="config-network">Red</Label>
+        <div className="flex items-center gap-2">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control border border-glass bg-field">
+            <NetworkIcon network={network} />
+          </span>
+          <Select
+            id="config-network"
+            value={network}
+            onChange={(e) => setPicked(e.target.value)}
+          >
+            {networks.map((net) => (
+              <option key={net} value={net}>
+                {networkLabel(net)}
+                {ready(net) ? " · configurada" : " · sin configurar"}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </div>
+      {items
+        .filter((c) => c.network === network)
+        .map((config) => (
+          <ConfigRow key={config.name} config={config} />
+        ))}
     </div>
   );
 }

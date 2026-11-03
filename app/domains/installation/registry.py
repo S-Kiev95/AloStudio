@@ -32,6 +32,9 @@ class ConfigSpec:
     kind: Literal["text", "password", "boolean"] = "text"
     secret: bool = False
     """Never echoed back in full — the API returns a masked preview."""
+    network: str | None = None
+    """The publishing network it belongs to (``tiktok``…): the dashboard
+    shows one network's settings at a time."""
 
 
 META_GROUP = "Meta (Facebook e Instagram)"
@@ -174,6 +177,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "distinto del App ID de Facebook y del de Instagram."
         ),
         group=PUBLISHING_GROUP,
+        network="threads",
     ),
     ConfigSpec(
         name="THREADS_APP_SECRET",
@@ -181,6 +185,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         title="App Secret de Threads",
         description="La clave secreta de Threads de la misma app.",
         group=PUBLISHING_GROUP,
+        network="threads",
         kind="password",
         secret=True,
     ),
@@ -190,6 +195,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         title="Client ID de LinkedIn",
         description="De la app en linkedin.com/developers, pestaña Auth.",
         group=PUBLISHING_GROUP,
+        network="linkedin",
     ),
     ConfigSpec(
         name="LINKEDIN_CLIENT_SECRET",
@@ -197,6 +203,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         title="Client Secret de LinkedIn",
         description="El Primary Client Secret de la misma pestaña Auth.",
         group=PUBLISHING_GROUP,
+        network="linkedin",
         kind="password",
         secret=True,
     ),
@@ -206,6 +213,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         title="Client key de TikTok",
         description="De la app en developers.tiktok.com, sección App details → Credentials.",
         group=PUBLISHING_GROUP,
+        network="tiktok",
     ),
     ConfigSpec(
         name="TIKTOK_CLIENT_SECRET",
@@ -213,6 +221,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         title="Client secret de TikTok",
         description="El Client secret de la misma sección.",
         group=PUBLISHING_GROUP,
+        network="tiktok",
         kind="password",
         secret=True,
     ),
@@ -227,6 +236,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "distinto: separalos con comas."
         ),
         group=PUBLISHING_GROUP,
+        network="tiktok",
     ),
     ConfigSpec(
         name="TIKTOK_VERIFICATION_CONTENT",
@@ -237,6 +247,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "varios archivos, pegá el texto de cada uno separado por comas."
         ),
         group=PUBLISHING_GROUP,
+        network="tiktok",
     ),
     # --- Webhooks ------------------------------------------------------
     ConfigSpec(

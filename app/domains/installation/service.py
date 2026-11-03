@@ -186,6 +186,7 @@ def describe(spec: ConfigSpec, row: InstallationConfig | None) -> dict[str, Any]
         "group": spec.group,
         "kind": spec.kind,
         "secret": spec.secret,
+        "network": spec.network,
         "value": shown,
         "configured": configured,
         # Where the effective value came from, so "I set that and it

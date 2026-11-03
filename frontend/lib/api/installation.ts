@@ -11,6 +11,8 @@ export type InstallationConfig = {
   group: string;
   kind: ConfigKind;
   secret: boolean;
+  /** The publishing network it belongs to (`tiktok`…), if any. */
+  network?: string | null;
   /** Masked for secrets — never the value in the clear. */
   value: string | boolean;
   configured: boolean;
