@@ -335,7 +335,7 @@ export function validatePublicationTargets(
     if (net === "linkedin") {
       if (!hasText && media.length === 0) {
         problems.push(
-          `${label} (LinkedIn): escribí un texto o agregá al menos una imagen.`,
+          `${label} (LinkedIn): escribí un texto o agregá al menos una imagen o video.`,
         );
       }
       if (length > 3000) {
@@ -343,9 +343,9 @@ export function validatePublicationTargets(
           `${label} (LinkedIn): el texto supera los 3000 caracteres (${length}/3000).`,
         );
       }
-      if (videoCount > 0) {
+      if (videoCount > 0 && media.length > 1) {
         problems.push(
-          `${label} (LinkedIn): los videos todavía no se pueden publicar desde AloStudio.`,
+          `${label} (LinkedIn): admite 1 video solo, sin otras imágenes o videos.`,
         );
       } else if (imageCount > 20) {
         problems.push(`${label} (LinkedIn): admite hasta 20 imágenes.`);

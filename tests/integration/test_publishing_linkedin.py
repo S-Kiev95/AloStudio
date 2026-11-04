@@ -217,7 +217,123 @@ async def test_publishes_one_or_several_images(db_session):
 
 
 @respx.mock
-async def test_expired_token_flags_reconnect_and_videos_are_refused(db_session):
+async def test_publishes_a_video_by_parts_once_processed(db_session, monkeypatch):
+    monkeypatch.setattr("app.domains.publishing.adapters.linkedin.VIDEO_POLL_SECONDS", 0)
+    owner = await _seed(db_session, "-vid")
+    channel = await _channel(db_session, owner.account)
+    video_url = "https://cdn.example.com/a.mp4"
+    content = b"a" * 6 + b"b" * 4
+    respx.get(video_url).mock(
+        return_value=httpx.Response(
+            200, content=content, headers={"content-length": str(len(content))}
+        )
+    )
+    urn = "urn:li:video:V1"
+
+    def videos(request: httpx.Request) -> httpx.Response:
+        if request.url.params["action"] == "initializeUpload":
+            return httpx.Response(
+                200,
+                json={
+                    "value": {
+                        "video": urn,
+                        "uploadToken": "TOK",
+                        "uploadInstructions": [
+                            {"uploadUrl": "https://up.example.com/1", "firstByte": 0, "lastByte": 5},
+                            {"uploadUrl": "https://up.example.com/2", "firstByte": 6, "lastByte": 9},
+                        ],
+                    }
+                },
+            )
+        return httpx.Response(200)
+
+    action = respx.post(f"{REST}/videos").mock(side_effect=videos)
+    part1 = respx.put("https://up.example.com/1").mock(
+        return_value=httpx.Response(200, headers={"etag": '"E1"'})
+    )
+    part2 = respx.put("https://up.example.com/2").mock(
+        return_value=httpx.Response(200, headers={"etag": "E2"})
+    )
+    status = respx.get(f"{REST}/videos/urn%3Ali%3Avideo%3AV1").mock(
+        side_effect=[
+            httpx.Response(200, json={"status": "PROCESSING"}),
+            httpx.Response(200, json={"status": "AVAILABLE"}),
+        ]
+    )
+    post = respx.post(f"{REST}/posts").mock(
+        return_value=httpx.Response(201, headers={"x-restli-id": "urn:li:share:9"})
+    )
+    publication, target = await _target(
+        db_session,
+        owner.account,
+        channel,
+        content="Mi video\ncon detalle",
+        media=[{"type": "video", "url": video_url}],
+    )
+    assert LinkedInAdapter().validate(publication, target) == []
+
+    result = await LinkedInAdapter().publish(db_session, publication, target)
+
+    assert result.ok, result.error_message
+    assert part1.calls[0].request.content == b"a" * 6
+    assert part2.calls[0].request.content == b"b" * 4
+    assert json.loads(action.calls[0].request.content)["initializeUploadRequest"]["fileSizeBytes"] == 10
+    assert json.loads(action.calls[1].request.content)["finalizeUploadRequest"] == {
+        "video": urn,
+        "uploadToken": "TOK",
+        "uploadedPartIds": ["E1", "E2"],
+    }
+    assert status.call_count == 2
+    assert json.loads(post.calls[0].request.content)["content"] == {
+        "media": {"title": "Mi video", "id": urn}
+    }
+
+
+@respx.mock
+async def test_a_video_linkedin_cannot_process_is_not_posted(db_session):
+    owner = await _seed(db_session, "-vidf")
+    channel = await _channel(db_session, owner.account)
+    video_url = "https://cdn.example.com/a.mp4"
+    respx.get(video_url).mock(
+        return_value=httpx.Response(200, content=b"abc", headers={"content-length": "3"})
+    )
+    respx.post(f"{REST}/videos").mock(
+        side_effect=[
+            httpx.Response(
+                200,
+                json={
+                    "value": {
+                        "video": "urn:li:video:V2",
+                        "uploadInstructions": [
+                            {"uploadUrl": "https://up.example.com/1", "firstByte": 0, "lastByte": 2}
+                        ],
+                    }
+                },
+            ),
+            httpx.Response(200),
+        ]
+    )
+    respx.put("https://up.example.com/1").mock(
+        return_value=httpx.Response(200, headers={"etag": "E1"})
+    )
+    respx.get(f"{REST}/videos/urn%3Ali%3Avideo%3AV2").mock(
+        return_value=httpx.Response(
+            200, json={"status": "PROCESSING_FAILED", "processingFailureReason": "formato"}
+        )
+    )
+    post = respx.post(f"{REST}/posts")
+    publication, target = await _target(
+        db_session, owner.account, channel, media=[{"type": "video", "url": video_url}]
+    )
+
+    result = await LinkedInAdapter().publish(db_session, publication, target)
+
+    assert not result.ok and "formato" in result.error_message
+    assert post.call_count == 0
+
+
+@respx.mock
+async def test_expired_token_flags_reconnect_and_a_video_goes_alone(db_session):
     owner = await _seed(db_session, "-exp")
     channel = await _channel(db_session, owner.account)
     publication, target = await _target(db_session, owner.account, channel)
@@ -229,8 +345,8 @@ async def test_expired_token_flags_reconnect_and_videos_are_refused(db_session):
     await db_session.refresh(channel)
     assert channel.status == "reconnect"
 
-    publication.media = [{"type": "video", "url": "https://cdn.example.com/a.mp4"}]
-    assert "videos" in LinkedInAdapter().validate(publication, target)[0]
+    publication.media = [{"type": "video", "url": "https://cdn.example.com/a.mp4"}, IMAGE]
+    assert "1 video" in LinkedInAdapter().validate(publication, target)[0]
     publication.media = []
     publication.content = "x" * 3001
     assert "3000" in LinkedInAdapter().validate(publication, target)[0]

@@ -12,17 +12,20 @@ Written from LinkedIn's documentation (Microsoft Learn):
     author ``urn:li:person:{sub}``; the new post's URN comes back in the
     ``x-restli-id`` header. Images are uploaded first with the Images API
     (``initializeUpload`` → PUT of the bytes to ``uploadUrl``): one goes as
-    ``content.media``, 2–20 as ``content.multiImage``.
+    ``content.media``, 2–20 as ``content.multiImage``. A video (one, on its
+    own) goes through the Videos API: ``initializeUpload`` says which byte
+    range goes to each URL, the ETag of each PUT goes to ``finalizeUpload``,
+    and LinkedIn processes it before it can be posted as ``content.media``.
   * ``commentary`` is in LinkedIn's "little" text format: its reserved
     characters are escaped so the text goes out as written, except a ``#``
     that starts a word, which LinkedIn turns into a hashtag.
 
-Videos (a separate multi-part upload API) and figures (``r_member_social``
-is restricted) are not covered yet.
+Figures (``r_member_social`` is restricted) are not covered yet.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -57,6 +60,9 @@ SCOPES: tuple[str, ...] = ("openid", "profile", "w_member_social")
 
 TEXT_MAX = 3000
 IMAGES_MAX = 20
+VIDEO_TITLE_MAX = 100
+VIDEO_POLL_SECONDS = 5
+VIDEO_POLL_MAX_SECONDS = 300
 
 _RESERVED = set("|{}@[]()<>\\*_~")
 _RECONNECT_MESSAGE = "El acceso a LinkedIn venció o se revocó. Volvé a conectar el perfil."
@@ -138,6 +144,65 @@ def _expires_at(payload: dict[str, Any]) -> datetime | None:
     if isinstance(seconds, int):
         return datetime.now(UTC) + timedelta(seconds=seconds)
     return None
+
+
+def _video_title(text: str) -> str:
+    lines = text.strip().splitlines()
+    return lines[0][:VIDEO_TITLE_MAX] if lines else "Video"
+
+
+async def _upload_parts(
+    client: httpx.AsyncClient, source: httpx.Response, parts: list[dict[str, Any]]
+) -> list[str]:
+    """PUT each part's byte range as the file comes in; the ETags, in order,
+    are what ``finalizeUpload`` asks for."""
+    stream = source.aiter_bytes()
+    buffer = bytearray()
+    part_ids: list[str] = []
+    for part in parts:
+        size = int(part["lastByte"]) - int(part["firstByte"]) + 1
+        async for chunk in stream:
+            buffer += chunk
+            if len(buffer) >= size:
+                break
+        upload = await client.put(
+            part["uploadUrl"],
+            content=bytes(buffer[:size]),
+            headers={"Content-Type": "application/octet-stream"},
+        )
+        if upload.status_code >= 400:
+            raise _error_of(upload, doing="subir el video")
+        etag = upload.headers.get("etag")
+        if not etag:
+            raise _LinkedInError("LinkedIn no confirmó una parte del video.")
+        part_ids.append(etag.strip('"'))
+        del buffer[:size]
+    return part_ids
+
+
+async def _wait_until_available(client: httpx.AsyncClient, token: str, video: str) -> None:
+    waited = 0
+    while True:
+        resp = await client.get(
+            f"{REST_BASE}/videos/{quote(video, safe='')}", headers=_headers(token)
+        )
+        if resp.status_code >= 400:
+            raise _error_of(resp, doing="revisar el video")
+        payload = resp.json() or {}
+        status = payload.get("status")
+        if status == "AVAILABLE":
+            return
+        if status == "PROCESSING_FAILED":
+            reason = payload.get("processingFailureReason") or "error desconocido"
+            raise _LinkedInError(f"LinkedIn no pudo procesar el video: {reason}")
+        waited += VIDEO_POLL_SECONDS
+        if waited > VIDEO_POLL_MAX_SECONDS:
+            raise _LinkedInError(
+                "LinkedIn tardó demasiado en procesar el video; se reintenta más tarde.",
+                code="processing_timeout",
+                retryable=True,
+            )
+        await asyncio.sleep(VIDEO_POLL_SECONDS)
 
 
 class LinkedInAdapter(PublishingAdapter):
@@ -267,11 +332,11 @@ class LinkedInAdapter(PublishingAdapter):
         text = target_text(publication, target)
         media = publication.media or []
         if not text.strip() and not media:
-            errors.append("LinkedIn necesita texto o al menos una imagen.")
+            errors.append("LinkedIn necesita texto o al menos una imagen o video.")
         if len(escape_little(text)) > TEXT_MAX:
             errors.append(f"El texto para LinkedIn supera los {TEXT_MAX} caracteres.")
-        if any(m.get("type") == "video" for m in media):
-            errors.append("Los videos en LinkedIn todavía no se pueden publicar desde AloStudio.")
+        if any(m.get("type") == "video" for m in media) and len(media) > 1:
+            errors.append("LinkedIn admite 1 video solo, sin otras imágenes o videos.")
         elif len(media) > IMAGES_MAX:
             errors.append(f"LinkedIn admite hasta {IMAGES_MAX} imágenes por publicación.")
         return errors
@@ -289,9 +354,10 @@ class LinkedInAdapter(PublishingAdapter):
                 ok=False, error_code="missing_channel", error_message=_MISSING_CHANNEL
             )
         author = f"urn:li:person:{channel.external_id}"
+        text = target_text(publication, target)
         body: dict[str, Any] = {
             "author": author,
-            "commentary": escape_little(target_text(publication, target)),
+            "commentary": escape_little(text),
             "visibility": "PUBLIC",
             "distribution": {
                 "feedDistribution": "MAIN_FEED",
@@ -303,10 +369,19 @@ class LinkedInAdapter(PublishingAdapter):
         }
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
+                media = publication.media or []
                 images = [
                     await self._upload_image(client, token, author, m["url"])
-                    for m in publication.media or []
+                    for m in media
+                    if m.get("type") != "video"
                 ]
+                for video in (m for m in media if m.get("type") == "video"):
+                    body["content"] = {
+                        "media": {
+                            "title": _video_title(text),
+                            "id": await self._upload_video(client, token, author, video["url"]),
+                        }
+                    }
                 if len(images) == 1:
                     body["content"] = {"media": {"id": images[0]}}
                 elif images:
@@ -380,6 +455,54 @@ class LinkedInAdapter(PublishingAdapter):
         if upload.status_code >= 400:
             raise _error_of(upload, doing="subir la imagen")
         return str(image)
+
+    @staticmethod
+    async def _upload_video(
+        client: httpx.AsyncClient, token: str, owner: str, url: str
+    ) -> str:
+        """Upload a video (read from its public link, without holding it all
+        in memory) by the parts LinkedIn asks for, and return its
+        ``urn:li:video`` once LinkedIn has finished processing it."""
+        async with client.stream("GET", url, follow_redirects=True) as source:
+            total = source.headers.get("content-length")
+            if source.status_code >= 400 or not total:
+                raise _LinkedInError("No se pudo leer el video para subirlo a LinkedIn.")
+            resp = await client.post(
+                f"{REST_BASE}/videos",
+                params={"action": "initializeUpload"},
+                headers=_headers(token),
+                json={
+                    "initializeUploadRequest": {
+                        "owner": owner,
+                        "fileSizeBytes": int(total),
+                        "uploadCaptions": False,
+                        "uploadThumbnail": False,
+                    }
+                },
+            )
+            if resp.status_code >= 400:
+                raise _error_of(resp, doing="subir el video")
+            value = (resp.json() or {}).get("value") or {}
+            video, parts = value.get("video"), value.get("uploadInstructions")
+            if not video or not parts:
+                raise _LinkedInError("LinkedIn no devolvió dónde subir el video.")
+            part_ids = await _upload_parts(client, source, parts)
+        resp = await client.post(
+            f"{REST_BASE}/videos",
+            params={"action": "finalizeUpload"},
+            headers=_headers(token),
+            json={
+                "finalizeUploadRequest": {
+                    "video": video,
+                    "uploadToken": value.get("uploadToken") or "",
+                    "uploadedPartIds": part_ids,
+                }
+            },
+        )
+        if resp.status_code >= 400:
+            raise _error_of(resp, doing="subir el video")
+        await _wait_until_available(client, token, str(video))
+        return str(video)
 
 
 __all__ = ["LinkedInAdapter", "escape_little"]
