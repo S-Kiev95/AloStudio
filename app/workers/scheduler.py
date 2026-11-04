@@ -305,6 +305,18 @@ class WorkerSettings:
 
     @staticmethod
     async def on_startup(ctx: dict[str, Any]) -> None:
+        # Settings stored in the database override the environment, here as
+        # in the web app. As there, a database that isn't up yet must not stop
+        # the process.
+        try:
+            from app.core.db import get_session_factory
+            from app.domains.installation import service as installation
+
+            async with get_session_factory()() as session:
+                overlay = await installation.apply_overlay(session)
+            log.info("installation_config.loaded count=%s", len(overlay))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("installation_config.load_failed err=%s", type(exc).__name__)
         ctx["engine"] = create_async_engine(
             get_settings().database_url,
             pool_pre_ping=True,
