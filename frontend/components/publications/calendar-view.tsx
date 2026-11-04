@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
@@ -639,6 +639,25 @@ function HourlyCalendarGrid({
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const nowPct = (nowMinutes / 1440) * 100;
 
+  // Open with the "ahora" line in the middle: what passed above, what's
+  // coming below. Rows grow as publications load, so it re-centers until the
+  // user moves the grid themselves; after that it stays where they left it.
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const userMovedRef = useRef(false);
+  const [openedAtPct] = useState(nowPct);
+  const firstDayKey = columns[0]?.key;
+  useEffect(() => {
+    userMovedRef.current = false;
+  }, [firstDayKey]);
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || !showNowLine || userMovedRef.current) return;
+    el.scrollTop = (openedAtPct / 100) * el.scrollHeight - el.clientHeight / 2;
+  }, [columns, showNowLine, openedAtPct]);
+  const markMoved = () => {
+    userMovedRef.current = true;
+  };
+
   return (
     <div
       data-testid="calendar-hourly-grid"
@@ -683,7 +702,15 @@ function HourlyCalendarGrid({
         </div>
 
         {/* 24 hourly rows + "ahora" line */}
-        <div className="relative max-h-[640px] overflow-y-auto">
+        <div
+          ref={scrollerRef}
+          data-testid="calendar-hourly-scroller"
+          onWheel={markMoved}
+          onTouchStart={markMoved}
+          onPointerDown={markMoved}
+          onKeyDown={markMoved}
+          className="relative max-h-[640px] overflow-y-auto"
+        >
           <div className="relative">
             {showNowLine ? (
               <div

@@ -285,6 +285,25 @@ describe("CalendarView — grilla, paginación y estados", () => {
     expect(within(friday19Slot).getByText("Falló")).toBeInTheDocument();
   });
 
+  it("abre con la línea de ahora en el medio y respeta si el usuario se movió", async () => {
+    const height = vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(2400);
+    const client = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(640);
+    try {
+      renderCalendar();
+      const scroller = await screen.findByTestId("calendar-hourly-scroller");
+      // 14:30 is 870/1440 of the day: 1450 px down, minus half the visible 640.
+      await waitFor(() => expect(scroller.scrollTop).toBeCloseTo(1130));
+
+      fireEvent.wheel(scroller);
+      scroller.scrollTop = 10;
+      fireEvent.click(screen.getByRole("button", { name: /hoy/i }));
+      expect(scroller.scrollTop).toBe(10);
+    } finally {
+      height.mockRestore();
+      client.mockRestore();
+    }
+  });
+
   it("deja crear otra publicación en una hora que ya tiene una", async () => {
     server.use(
       http.get("*/api/v1/accounts/1/publications", () =>
