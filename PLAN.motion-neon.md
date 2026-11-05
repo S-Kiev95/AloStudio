@@ -2,7 +2,7 @@
 
 Pedido del dueño (2026-10-30): más vida en el frontend. La marca "AloStudio" brilla como un cartel de neón de verdad (letras que se encienden, alguna que titila, variaciones de brillo) y las páginas entran con una transición en vez de aparecer de golpe.
 
-Rama `feat/motion-neon`, worktree `C:\Users\Zeek\Desktop\AloStudio-motion`, sale de `main` (`e70dc79`). **Solo frontend.** Lo hace un agente (Argon) y lo revisa Claude contra este documento.
+Rama `feat/motion-neon`, worktree `C:\Users\Zeek\Desktop\AloStudio-motion`, sale de `main` (`9f41162`). **Solo frontend.** Lo hace un agente (Argon) y lo revisa Claude contra este documento.
 
 ## Insumos
 
@@ -52,7 +52,7 @@ Pedido del dueño (2026-10-30): el Inicio (`components/overview/account-overview
 - Arriba, en dos columnas desde `md`: a la izquierda el saludo que ya existe, la línea "Todos tus canales, conversaciones y turnos en un solo lugar. Así están las cosas ahora y en los últimos 7 días." y dos botones: **Abrir bandeja** (primario, a `/accounts/{accountId}/conversations`) e **Ir al calendario** (secundario, a `/accounts/{accountId}/publications`). A la derecha, la órbita. El resto de la página queda como está.
 - La órbita, en `components/overview/network-orbit.tsx`: en el centro el monograma de la marca (`public/brand/alostudio-icon-512.png`) dentro de un círculo con borde y halo de neón (`--neon-core`, `--neon-halo`); alrededor, dos elipses finas (borde `--neon-glass`) y sobre ellas los íconos de las redes, cada uno en una burbuja redonda con su color de marca: WhatsApp, Instagram, Messenger, Facebook, Threads, TikTok, YouTube, X, Telegram y Gmail.
 - Los íconos giran lento por las elipses (una vuelta cada 40–60 s, las dos órbitas a distinta velocidad o en sentidos opuestos), solo con CSS: `@keyframes` con `offset-path`, o un contenedor que rota y cada burbuja contra-rotada para que el ícono quede derecho.
-- Íconos: SVG en línea, nada de librerías. Para las marcas que no tiene `lucide-react`, usá los trazados de Simple Icons (licencia CC0), en un solo archivo con un mapa por red.
+- Íconos: usá `components/ui/brand-icons.tsx`, que ya tiene los logos reales (WhatsApp, Instagram, Messenger, Facebook, Threads, TikTok, X, Telegram y más). Si falta alguno, como YouTube o Gmail, sumá su trazado de Simple Icons (CC0) en ese mismo archivo, sin librerías ni archivos nuevos de íconos.
 - Es decorativa: `aria-hidden` y sin foco. Con `prefers-reduced-motion` queda quieta. En pantallas angostas (< `md`) va debajo del texto y más chica, o se oculta si no entra sin romper el layout. En tema claro, la misma composición sin halo (como `.neon-wordmark` de día).
 
 ## Fuera de alcance
