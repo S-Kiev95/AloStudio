@@ -83,7 +83,7 @@ export default function SsoPage() {
       <div className="fixed right-3 top-3 z-20">
         <ThemeToggle />
       </div>
-      <div className="glass-panel w-full max-w-[420px] rounded-panel bg-surface p-7 sm:p-9">
+      <div className="page-enter glass-panel w-full max-w-[420px] rounded-panel bg-surface p-7 sm:p-9">
         <div className="mb-7">
           <NeonWordmark className="text-[38px]" />
         </div>
