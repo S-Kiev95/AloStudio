@@ -334,7 +334,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
 
         {/* Channel and inbox selectors: picking a channel narrows the
             inboxes to that channel's and starts over from all of them. */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-2">
           <select
             aria-label="Canal"
             value={channelType ?? ""}
