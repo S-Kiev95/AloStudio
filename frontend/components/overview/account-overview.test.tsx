@@ -61,7 +61,7 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /^Buen(os días|as tardes|as noches)$/,
+        name: "Bienvenido",
       }),
     ).toBeInTheDocument();
 

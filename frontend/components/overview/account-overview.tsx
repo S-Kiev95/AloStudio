@@ -1,23 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import {
-  AlarmClock,
-  ArrowRight,
-  BarChart3,
-  Hourglass,
-  Inbox,
-  Instagram,
-  type LucideIcon,
-  Megaphone,
-  MessagesSquare,
-  UserX,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useContext, useEffect, useMemo } from "react";
 
 import { MetricChart } from "@/components/reports/metric-chart";
 import { SummaryCards } from "@/components/reports/summary-cards";
+import {
+  BarsIcon,
+  ClockIcon,
+  HourglassIcon,
+  InboxIcon,
+  InstagramNavIcon,
+  MegaphoneIcon,
+  MessagesIcon,
+  UnassignedIcon,
+} from "@/components/shell/app-icons";
 import { PageSignContext } from "@/components/shell/page-header";
+import type { IconComponent } from "@/components/ui/brand-icons";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -30,14 +30,6 @@ import {
 import { cn } from "@/lib/utils";
 
 import { NetworkOrbit } from "./network-orbit";
-
-/** Time-aware Spanish greeting so Inicio opens with a human note. */
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h < 6 || h >= 20) return "Buenas noches";
-  if (h < 13) return "Buenos días";
-  return "Buenas tardes";
-}
 
 type Tone = "info" | "warning" | "danger" | "muted";
 
@@ -53,43 +45,43 @@ const TONE: Record<Tone, string> = {
 const LIVE: {
   key: keyof LiveMetrics;
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   tone: Tone;
 }[] = [
-  { key: "open", label: "Abiertas", icon: Inbox, tone: "info" },
-  { key: "unattended", label: "Sin atender", icon: AlarmClock, tone: "warning" },
-  { key: "unassigned", label: "Sin asignar", icon: UserX, tone: "danger" },
-  { key: "pending", label: "Pendientes", icon: Hourglass, tone: "muted" },
+  { key: "open", label: "Abiertas", icon: InboxIcon, tone: "info" },
+  { key: "unattended", label: "Sin atender", icon: ClockIcon, tone: "warning" },
+  { key: "unassigned", label: "Sin asignar", icon: UnassignedIcon, tone: "danger" },
+  { key: "pending", label: "Pendientes", icon: HourglassIcon, tone: "muted" },
 ];
 
 const ACTIONS: {
   label: string;
   desc: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   segment: string;
 }[] = [
   {
     label: "Conversaciones",
     desc: "Bandeja de entrada",
-    icon: MessagesSquare,
+    icon: MessagesIcon,
     segment: "conversations",
   },
   {
     label: "Instagram",
     desc: "DMs, posts y comentarios",
-    icon: Instagram,
+    icon: InstagramNavIcon,
     segment: "instagram",
   },
   {
     label: "Campañas",
     desc: "Envíos y plantillas",
-    icon: Megaphone,
+    icon: MegaphoneIcon,
     segment: "campaigns",
   },
   {
     label: "Reportes",
     desc: "Métricas y exportes",
-    icon: BarChart3,
+    icon: BarsIcon,
     segment: "reports",
   },
 ];
@@ -183,8 +175,8 @@ export function AccountOverview({ accountId }: { accountId: string }) {
     <div className="mx-auto max-w-6xl space-y-8">
       <section className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_auto] lg:gap-8">
         <div className="min-w-0">
-          <h2 className="text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
-            {greeting()}
+          <h2 className="neon-sign text-[34px] leading-[1.2] sm:text-[42px]">
+            Bienvenido
           </h2>
           <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-fg-muted">
             Todos tus canales, conversaciones y turnos en un solo lugar. Así
