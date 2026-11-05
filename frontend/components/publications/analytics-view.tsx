@@ -5,8 +5,6 @@ import {
   ArrowUp,
   Clock,
   ExternalLink,
-  Facebook,
-  Instagram,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -18,6 +16,7 @@ import {
 } from "@/components/agenda/week-utils";
 import { MetricChart } from "@/components/reports/metric-chart";
 import { PageHeader } from "@/components/shell/page-header";
+import { Facebook, Instagram } from "@/components/ui/brand-icons";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

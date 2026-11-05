@@ -1,9 +1,9 @@
 "use client";
 
-import { Facebook } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
+import { Facebook } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api/errors";
 import {
@@ -77,7 +77,7 @@ function FacebookPageConnectInner({ accountId }: { accountId: string }) {
               disabled={connect.isPending}
               onClick={() => void choose(page.id)}
             >
-              <Facebook className="h-4 w-4 text-[#1877F2]" aria-hidden />
+              <Facebook className="h-4 w-4" aria-hidden />
               {page.name ?? page.id}
             </Button>
           ))}
@@ -89,7 +89,7 @@ function FacebookPageConnectInner({ accountId }: { accountId: string }) {
             sola, con su nombre.
           </p>
           <Button type="button" loading={starting} onClick={() => void start()}>
-            <Facebook className="h-4 w-4" aria-hidden />
+            <Facebook mono className="h-4 w-4" aria-hidden />
             Conectar con Facebook
           </Button>
         </div>

@@ -1,9 +1,9 @@
 "use client";
 
-import { Facebook, Instagram } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Facebook, Instagram } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { startOAuth, useInstagramInboxes } from "@/lib/api/instagram";
@@ -135,14 +135,14 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
           ) : null}
           <div className="flex flex-wrap gap-3">
             <Button onClick={() => setPendingFlow("facebook")}>
-              <Facebook className="h-4 w-4" aria-hidden />
+              <Facebook mono className="h-4 w-4" aria-hidden />
               Facebook Login
             </Button>
             <Button
               variant="secondary"
               onClick={() => setPendingFlow("instagram")}
             >
-              <Instagram className="h-4 w-4" aria-hidden />
+              <Instagram mono className="h-4 w-4" aria-hidden />
               Instagram Login
             </Button>
           </div>

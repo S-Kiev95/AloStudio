@@ -1,7 +1,8 @@
 "use client";
 
-import { Instagram, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
+import { Instagram } from "@/components/ui/brand-icons";
 import { type Inbox, useChannelSettings } from "@/lib/api/instagram";
 import { cn } from "@/lib/utils";
 

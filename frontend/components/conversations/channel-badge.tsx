@@ -1,21 +1,23 @@
 import {
   AtSign,
-  Facebook,
   Globe,
-  Instagram,
-  type LucideIcon,
-  MessageCircle,
   MessageSquare,
   Plug,
-  Send,
 } from "lucide-react";
 
+import {
+  type IconComponent,
+  Instagram,
+  Messenger,
+  Telegram,
+  WhatsApp,
+} from "@/components/ui/brand-icons";
 import { cn } from "@/lib/utils";
 
 /** The channel discriminator the API returns, e.g. `Channel::Instagram`. */
 type ChannelType = string | null | undefined;
 
-const CHANNELS: Record<string, { label: string; icon: LucideIcon; cls: string }> =
+const CHANNELS: Record<string, { label: string; icon: IconComponent; cls: string }> =
   {
     "Channel::Instagram": {
       label: "Instagram",
@@ -24,15 +26,15 @@ const CHANNELS: Record<string, { label: string; icon: LucideIcon; cls: string }>
     },
     "Channel::Whatsapp": {
       label: "WhatsApp",
-      icon: MessageCircle,
+      icon: WhatsApp,
       cls: "text-[#25D366]",
     },
     "Channel::FacebookPage": {
       label: "Facebook",
-      icon: Facebook,
+      icon: Messenger,
       cls: "text-[#1877F2]",
     },
-    "Channel::Telegram": { label: "Telegram", icon: Send, cls: "text-[#29A9EB]" },
+    "Channel::Telegram": { label: "Telegram", icon: Telegram, cls: "text-[#29A9EB]" },
     "Channel::Email": { label: "Email", icon: AtSign, cls: "text-fg-muted" },
     "Channel::Sms": { label: "SMS", icon: MessageSquare, cls: "text-fg-muted" },
     "Channel::TwilioSms": {

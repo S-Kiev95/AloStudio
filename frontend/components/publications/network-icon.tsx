@@ -1,24 +1,24 @@
-import {
-  AtSign,
-  Facebook,
-  Globe,
-  Instagram,
-  Linkedin,
-  type LucideIcon,
-  MessageSquare,
-  Music2,
-  Send,
-  Slack,
-  X as XLogo,
-} from "lucide-react";
+import { Globe } from "lucide-react";
 
 import { Avatar } from "@/components/ui/avatar";
+import {
+  Discord,
+  Facebook,
+  type IconComponent,
+  Instagram,
+  LinkedIn,
+  Slack,
+  Telegram,
+  Threads,
+  TikTok,
+  XLogo,
+} from "@/components/ui/brand-icons";
 import type { Channel } from "@/lib/api/publications";
 import { cn } from "@/lib/utils";
 
 const KNOWN_NETWORKS: Record<
   string,
-  { label: string; icon: LucideIcon; colorClass: string }
+  { label: string; icon: IconComponent; colorClass: string }
 > = {
   instagram: {
     label: "Instagram",
@@ -32,17 +32,17 @@ const KNOWN_NETWORKS: Record<
   },
   threads: {
     label: "Threads",
-    icon: AtSign,
+    icon: Threads,
     colorClass: "text-fg",
   },
   linkedin: {
     label: "LinkedIn",
-    icon: Linkedin,
+    icon: LinkedIn,
     colorClass: "text-[#0A66C2]",
   },
   tiktok: {
     label: "TikTok",
-    icon: Music2,
+    icon: TikTok,
     colorClass: "text-fg",
   },
   x: {
@@ -52,12 +52,12 @@ const KNOWN_NETWORKS: Record<
   },
   telegram: {
     label: "Telegram",
-    icon: Send,
+    icon: Telegram,
     colorClass: "text-[#29A9EB]",
   },
   discord: {
     label: "Discord",
-    icon: MessageSquare,
+    icon: Discord,
     colorClass: "text-[#5865F2]",
   },
   slack: {

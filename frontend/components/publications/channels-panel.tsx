@@ -4,8 +4,6 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
-  Facebook,
-  Instagram,
   Plus,
   RefreshCw,
   Trash2,
@@ -14,6 +12,7 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { Facebook, Instagram } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

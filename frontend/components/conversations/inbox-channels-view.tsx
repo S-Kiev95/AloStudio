@@ -2,19 +2,22 @@
 
 import {
   Globe,
-  Instagram,
-  type LucideIcon,
   Mail,
-  MessageCircle,
   MessageSquare,
   Phone,
   Plus,
-  Send,
   Webhook,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import {
+  type IconComponent,
+  Instagram,
+  Messenger,
+  Telegram,
+  WhatsApp,
+} from "@/components/ui/brand-icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   channelLabel,
@@ -25,16 +28,16 @@ import {
 import { useIsAccountAdmin } from "@/lib/api/profile";
 import { cn } from "@/lib/utils";
 
-const CHANNEL_ICON: Record<string, LucideIcon> = {
-  "Channel::Telegram": Send,
-  "Channel::Whatsapp": MessageCircle,
+const CHANNEL_ICON: Record<string, IconComponent> = {
+  "Channel::Telegram": Telegram,
+  "Channel::Whatsapp": WhatsApp,
   "Channel::Sms": MessageSquare,
   "Channel::TwilioSms": Phone,
   "Channel::Email": Mail,
   "Channel::WebWidget": Globe,
   "Channel::Api": Webhook,
   "Channel::Instagram": Instagram,
-  "Channel::FacebookPage": MessageCircle,
+  "Channel::FacebookPage": Messenger,
 };
 
 export function InboxChannelsView({ accountId }: { accountId: string }) {

@@ -2,30 +2,32 @@
 
 import {
   ArrowLeft,
-  Facebook,
   Globe,
-  Instagram,
-  type LucideIcon,
   Mail,
-  MessageCircle,
   MessageSquare,
   Phone,
-  Send,
   Webhook,
 } from "lucide-react";
 import Link from "next/link";
 
+import {
+  type IconComponent,
+  Instagram,
+  Messenger,
+  Telegram,
+  WhatsApp,
+} from "@/components/ui/brand-icons";
 import { CHANNEL_CATALOG } from "@/lib/inboxes/channel-catalog";
 
-const ICON: Record<string, LucideIcon> = {
-  telegram: Send,
-  whatsapp: MessageCircle,
+const ICON: Record<string, IconComponent> = {
+  telegram: Telegram,
+  whatsapp: WhatsApp,
   sms: MessageSquare,
   twilio_sms: Phone,
   email: Mail,
   web_widget: Globe,
   api: Webhook,
-  facebook: Facebook,
+  facebook: Messenger,
   instagram: Instagram,
 };
 
