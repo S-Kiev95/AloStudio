@@ -432,6 +432,69 @@
   .page-enter {
     animation: page-enter 220ms cubic-bezier(0.16, 1, 0.3, 1);
   }
+
+  /* Inicio network orbit: cobalt monogram medallion + network bubbles on two
+     elliptical glass paths. Halos light up in night mode and drop in daylight. */
+  .orbit-core {
+    border: 1px solid var(--neon-core);
+    background-color: #060912;
+    box-shadow: none;
+  }
+  .dark .orbit-core {
+    box-shadow:
+      0 0 0 1px var(--neon-halo-far),
+      0 0 26px -2px var(--neon-halo),
+      inset 0 0 14px -2px var(--neon-halo);
+  }
+
+  .orbit-bubble {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    display: grid;
+    place-items: center;
+    background-color: var(--surface);
+    border: 1px solid var(--neon-glass);
+    box-shadow: none;
+    offset-path: var(--orbit-path);
+    offset-distance: var(--orbit-start, 0%);
+    offset-rotate: 0deg;
+  }
+  .dark .orbit-bubble {
+    background-color: var(--surface-2);
+    border-color: var(--bubble-ring, var(--neon-glass));
+    box-shadow: 0 0 16px -2px var(--bubble-glow, transparent);
+  }
+
+  .orbit-bubble-cw {
+    animation: orbit-cw var(--orbit-duration, 46s) linear
+      var(--orbit-delay, 0s) infinite;
+  }
+  .orbit-bubble-ccw {
+    animation: orbit-ccw var(--orbit-duration, 58s) linear
+      var(--orbit-delay, 0s) infinite;
+  }
+}
+
+@keyframes orbit-cw {
+  0% {
+    offset-distance: 0%;
+  }
+  100% {
+    offset-distance: 100%;
+  }
+}
+
+@keyframes orbit-ccw {
+  0% {
+    offset-distance: 100%;
+  }
+  100% {
+    offset-distance: 0%;
+  }
 }
 
 @keyframes page-enter {
@@ -576,6 +639,9 @@
   .dark .neon-wordmark-ignite .neon-wordmark-letter,
   .dark .neon-wordmark-letter[data-buzz],
   .page-enter,
+  .orbit-bubble,
+  .orbit-bubble-cw,
+  .orbit-bubble-ccw,
   .glass-field {
     animation: none !important;
     transition: none !important;
