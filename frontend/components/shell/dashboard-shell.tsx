@@ -1,10 +1,10 @@
 "use client";
 
 import { Menu, X } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 
+import { NeonWordmark } from "@/components/brand/neon-wordmark";
 import type { Profile } from "@/lib/auth/profile";
 import { useCable } from "@/lib/realtime/use-cable";
 
@@ -24,13 +24,11 @@ function Brand({
   onClick?: () => void;
 }) {
   return (
-    <Link
+    <NeonWordmark
       href={href}
       onClick={onClick}
-      className="neon-wordmark inline-block select-none rounded-sm text-[36px] leading-none"
-    >
-      AloStudio
-    </Link>
+      className="rounded-sm text-[36px]"
+    />
   );
 }
 
