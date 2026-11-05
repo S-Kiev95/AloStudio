@@ -22,6 +22,7 @@ from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import AccountContext, require_admin
 from app.core.errors import ChatwootHTTPException
+from app.domains.facebook import connect_service as facebook_connect
 from app.domains.instagram import connect_service
 from app.domains.instagram.schemas import InstagramManualConnect
 
@@ -104,6 +105,38 @@ def _error_text(exc: ChatwootHTTPException) -> str:
     return str(detail)
 
 
+def _back_to_facebook(account_id: int, inbox_id: int | None = None, **params: str) -> RedirectResponse:
+    """Back from connecting a Page: its inbox, or the form with the choice
+    of Page or the error."""
+    base = f"{get_settings().app_base_url.rstrip('/')}/accounts/{account_id}/settings/inboxes"
+    if inbox_id is not None:
+        return RedirectResponse(f"{base}/{inbox_id}", status_code=303)
+    return RedirectResponse(f"{base}/new/facebook?{urlencode(params)}", status_code=303)
+
+
+async def _facebook_page_callback(
+    session: AsyncSession,
+    *,
+    account_id: int,
+    code: str | None,
+    state: str,
+    error: str | None,
+) -> Response:
+    if error or not code:
+        return _back_to_facebook(
+            account_id, fb_error="La conexión se canceló antes de autorizar la Página."
+        )
+    try:
+        result = await facebook_connect.complete_page_oauth(session, code=code, state=state)
+    except ChatwootHTTPException as exc:
+        return _back_to_facebook(
+            account_id, fb_error=f"No se pudo completar la conexión: {_error_text(exc)}"
+        )
+    if result.get("pick"):
+        return _back_to_facebook(account_id, fb_pick=result["pick"])
+    return _back_to_facebook(account_id, inbox_id=result["inbox_id"])
+
+
 @callback_router.get("/api/v1/instagram/oauth/callback")
 async def oauth_callback(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -120,9 +153,12 @@ async def oauth_callback(
     JSON 4xx (nobody legitimate lands there).
     """
     account_id: int | None = None
+    flow: str | None = None
     if state:
         try:
-            account_id = int(connect_service.verify_oauth_state(state)["account_id"])
+            payload = connect_service.verify_oauth_state(state)
+            account_id = int(payload["account_id"])
+            flow = payload.get("flow")
         except ChatwootHTTPException:
             account_id = None
 
@@ -131,6 +167,10 @@ async def oauth_callback(
         raise ChatwootHTTPException(
             status_code=400,
             detail={"error": "missing or invalid oauth state"},
+        )
+    if flow == facebook_connect.FLOW:
+        return await _facebook_page_callback(
+            session, account_id=account_id, code=code, state=state, error=error
         )
     if error:
         return _back_to_dashboard(

@@ -124,6 +124,41 @@ export function useInbox(accountId: string, id: number) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Connecting a Facebook Page
+// ---------------------------------------------------------------------------
+/** Fetch the Facebook dialog URL and send the browser there. */
+export async function startFacebookPageOAuth(accountId: string): Promise<void> {
+  const { authorize_url } = await apiFetch<{ authorize_url: string }>(
+    `/api/v1/accounts/${accountId}/facebook_pages/connect/start`,
+  );
+  window.location.href = authorize_url;
+}
+
+export function usePendingFacebookPages(accountId: string, nonce: string | null) {
+  return useQuery({
+    queryKey: ["facebook-pending-pages", accountId, nonce],
+    enabled: Boolean(nonce),
+    retry: false,
+    queryFn: () =>
+      apiFetch<{ id: string; name: string | null }[]>(
+        `/api/v1/accounts/${accountId}/facebook_pages/pending/${nonce}`,
+      ),
+  });
+}
+
+export function useConnectPendingPage(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ nonce, pageId }: { nonce: string; pageId: string }) =>
+      apiFetch<{ inbox_id: number }>(
+        `/api/v1/accounts/${accountId}/facebook_pages/pending/${nonce}/${pageId}`,
+        { method: "POST" },
+      ),
+    onSuccess: () => invalidate(qc, accountId),
+  });
+}
+
 export function useCreateInbox(accountId: string) {
   const qc = useQueryClient();
   return useMutation({

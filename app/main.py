@@ -52,6 +52,7 @@ from app.domains.csat.router import router as csat_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
 from app.domains.custom_views.router import router as custom_views_router
 from app.domains.email.templates_router import router as email_templates_router
+from app.domains.facebook.connect_router import router as facebook_connect_router
 from app.domains.facebook.router import router as facebook_webhook_router
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
@@ -301,6 +302,7 @@ def create_app() -> FastAPI:
     # (env var FB_VERIFY_TOKEN), single endpoint shared across every
     # FB page.
     app.include_router(facebook_webhook_router)
+    app.include_router(facebook_connect_router)
     # Instagram DM webhook (Phase 5e). ``/webhooks/instagram`` —
     # installation-wide verify token via ``settings.ig_verify_token``
     # (env IG_VERIFY_TOKEN). Body must carry ``object: instagram``.

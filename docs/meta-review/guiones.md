@@ -46,17 +46,36 @@ Subtítulos:
 - "Comments on the post appear in AloStudio, and the team can reply to them."
 - "The business sees the performance of its own posts and account in AloStudio's analytics."
 
-## Video 3: mensajes de Facebook (PENDIENTE: requiere desarrollo)
+## Video 3: mensajes de Facebook
 
 Permisos: `pages_show_list`, `pages_manage_metadata`, `pages_messaging`, `business_management`
 
-No se puede grabar todavía. AloStudio conecta Messenger con un token manual: falta una conexión de Páginas de Facebook con OAuth que muestre la pantalla de permisos y deje elegir la Página.
+1. Abrir Ajustes → Bandejas de entrada → nueva → Facebook Messenger.
+2. Tocar "Conectar con Facebook", mostrar la pantalla de permisos y elegir una Página.
+3. Si hay varias Páginas autorizadas, elegirla en AloStudio y mostrar la bandeja creada.
+4. Con otra cuenta, mandarle un mensaje a la Página.
+5. Abrir Bandeja, mostrar el mensaje y responder.
+6. Mostrar en Messenger que llegó la respuesta.
 
-## Video 4: publicar en Facebook (PENDIENTE: requiere desarrollo)
+Subtítulos:
+- "A business connects its own Facebook Page to AloStudio and chooses which Page to use."
+- "A customer sends a message to the Page. It appears in the team's shared inbox."
+- "An agent replies from AloStudio, and the customer receives it on Messenger."
 
-Permisos: `pages_manage_posts`, `pages_read_engagement`
+## Video 4: publicar en Facebook
 
-Depende de la misma conexión del video 3. Además, las estadísticas de vistas necesitan `read_insights`, que hoy no se pide.
+Permisos: `pages_manage_posts`, `pages_read_engagement`, `read_insights`
+
+Si la Página ya está conectada, igual mostrá la conexión con la pantalla de permisos.
+
+1. Abrir Publicaciones, crear una publicación con imagen para la Página y publicarla.
+2. Abrir el post en Facebook para mostrar que salió.
+3. Con otra cuenta, reaccionar y comentar.
+4. Abrir Estadísticas y mostrar reacciones, comentarios y vistas del post. Hacelo con un post que ya tenga algunos días, porque los datos pueden tardar.
+
+Subtítulos:
+- "The business schedules a post from AloStudio and it is published on its own Facebook Page."
+- "The business sees the performance of its own posts in AloStudio's analytics."
 
 ## Video 5: Threads (para el final)
 
@@ -98,6 +117,34 @@ Descripción general:
 `instagram_business_manage_insights`:
 
 > Used to show the business the metrics of its own posts and account in AloStudio's analytics.
+
+`pages_show_list`:
+
+> Used to list the Pages the person manages so they can choose which one to connect.
+
+`pages_manage_metadata`:
+
+> Used to subscribe the connected Page to webhooks, so its new messages reach AloStudio.
+
+`pages_messaging`:
+
+> Used to receive messages sent to the business's Page and let its agents reply from AloStudio's shared inbox.
+
+`business_management`:
+
+> Used to reach Pages that belong to the business's portfolio when the business connects them.
+
+`pages_manage_posts`:
+
+> Used to publish and schedule posts that the business creates in AloStudio on its own Page.
+
+`pages_read_engagement`:
+
+> Used to show the reactions and comments on the business's own posts in AloStudio's analytics.
+
+`read_insights`:
+
+> Used to show the views and reach of the business's own Page posts in AloStudio's analytics.
 
 `threads_basic`:
 

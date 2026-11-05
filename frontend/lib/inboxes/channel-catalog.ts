@@ -281,7 +281,7 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
   {
     type: "facebook",
     label: "Facebook Messenger",
-    blurb: "Página de Facebook (token manual; el flujo OAuth llega después).",
+    blurb: "Mensajes y publicaciones de tu Página de Facebook.",
     fields: [
       {
         name: "page_id",

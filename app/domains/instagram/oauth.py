@@ -62,8 +62,18 @@ FACEBOOK_LOGIN_SCOPES: tuple[str, ...] = (
     "pages_read_engagement",
     "pages_manage_metadata",
     "pages_messaging",
-    # The Facebook Page publishing adapter posts with this one.
+    "business_management",
+)
+
+# Connecting a Facebook Page itself (``facebook.connect_service``): Messenger,
+# publishing on the Page and its figures. Same rule as above.
+FACEBOOK_PAGE_SCOPES: tuple[str, ...] = (
+    "pages_show_list",
+    "pages_manage_metadata",
+    "pages_messaging",
     "pages_manage_posts",
+    "pages_read_engagement",
+    "read_insights",
     "business_management",
 )
 
@@ -195,7 +205,12 @@ def _extract_error(resp: httpx.Response) -> tuple[str | None, str | None]:
 # ---------------------------------------------------------------------------
 # Step 1 — login dialog URL
 # ---------------------------------------------------------------------------
-def build_facebook_login_url(*, redirect_uri: str, state: str) -> str:
+def build_facebook_login_url(
+    *,
+    redirect_uri: str,
+    state: str,
+    scopes: tuple[str, ...] = FACEBOOK_LOGIN_SCOPES,
+) -> str:
     """The Facebook Login dialog URL the admin's browser is sent to."""
     settings = get_settings()
     query = urlencode(
@@ -204,7 +219,7 @@ def build_facebook_login_url(*, redirect_uri: str, state: str) -> str:
             "redirect_uri": redirect_uri,
             "state": state,
             "response_type": "code",
-            "scope": ",".join(FACEBOOK_LOGIN_SCOPES),
+            "scope": ",".join(scopes),
         }
     )
     return f"{_dialog_base()}/dialog/oauth?{query}"
@@ -611,6 +626,7 @@ async def subscribe_instagram_messages(
 
 __all__ = [
     "FACEBOOK_LOGIN_SCOPES",
+    "FACEBOOK_PAGE_SCOPES",
     "INSTAGRAM_LOGIN_SCOPES",
     "InstagramTokenResult",
     "OAuthTokenResult",

@@ -237,7 +237,7 @@ class FacebookPageAdapter(PublishingAdapter):
         self, session: AsyncSession, channel: PublishingChannel, *, days: list[date]
     ) -> MetricsResult | None:
         # Only the follower count: the Page's daily reach lives in its
-        # insights, which need ``read_insights`` (not requested yet).
+        # insights, not read yet.
         page, api = await self._page_api(session, channel.id)  # type: ignore[arg-type]
         if page is None or api is None:
             return MetricsResult(ok=False, error_message=_MISSING_PAGE)

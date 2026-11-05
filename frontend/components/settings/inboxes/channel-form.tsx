@@ -12,6 +12,8 @@ import { ApiError } from "@/lib/api/errors";
 import { type ChannelPayload, useCreateInbox } from "@/lib/api/inboxes";
 import { channelDef, type ChannelDef } from "@/lib/inboxes/channel-catalog";
 
+import { FacebookPageConnect } from "./facebook-page-connect";
+
 export function ChannelForm({
   accountId,
   channel,
@@ -84,6 +86,8 @@ export function ChannelForm({
         <h2 className="mt-2 text-xl font-medium text-fg">{def.label}</h2>
         <p className="text-sm text-fg-muted">{def.blurb}</p>
       </div>
+
+      {channel === "facebook" ? <FacebookPageConnect accountId={accountId} /> : null}
 
       <form
         onSubmit={submit}
