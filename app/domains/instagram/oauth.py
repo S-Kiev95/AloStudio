@@ -62,6 +62,8 @@ FACEBOOK_LOGIN_SCOPES: tuple[str, ...] = (
     "pages_read_engagement",
     "pages_manage_metadata",
     "pages_messaging",
+    # The Facebook Page publishing adapter posts with this one.
+    "pages_manage_posts",
     "business_management",
 )
 

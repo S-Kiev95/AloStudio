@@ -176,6 +176,7 @@ def test_facebook_login_asks_for_every_capability_it_offers():
         ("instagram_manage_contents", "borrar publicaciones"),
         ("instagram_content_publish", "publicar"),
         ("instagram_manage_comments", "moderar comentarios"),
+        ("pages_manage_posts", "publicar en la Página"),
     ):
         assert scope in FACEBOOK_LOGIN_SCOPES, capability
 
