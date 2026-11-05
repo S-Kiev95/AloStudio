@@ -13,11 +13,11 @@ import {
   MessagesSquare,
   UserX,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useContext, useEffect, useMemo } from "react";
 
 import { MetricChart } from "@/components/reports/metric-chart";
 import { SummaryCards } from "@/components/reports/summary-cards";
-import { PageHeader } from "@/components/shell/page-header";
+import { PageSignContext } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -28,6 +28,8 @@ import {
   useReportTimeseries,
 } from "@/lib/api/reports";
 import { cn } from "@/lib/utils";
+
+import { NetworkOrbit } from "./network-orbit";
 
 /** Time-aware Spanish greeting so Inicio opens with a human note. */
 function greeting(): string {
@@ -164,6 +166,13 @@ function ActionRow({
  * client-side because the metrics are live queries.
  */
 export function AccountOverview({ accountId }: { accountId: string }) {
+  const shell = useContext(PageSignContext);
+  useEffect(() => {
+    if (!shell) return;
+    shell.setSignTitle("Inicio");
+    return () => shell.setSignTitle(null);
+  }, [shell]);
+
   // Memoized so the window doesn't drift every render and thrash the queries.
   const range = useMemo(() => rangeForDays(7), []);
   const live = useLiveMetrics(accountId);
@@ -172,20 +181,33 @@ export function AccountOverview({ accountId }: { accountId: string }) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
-      <PageHeader
-        signTitle="Inicio"
-        title={greeting()}
-        description="Un vistazo a tu cuenta — estado actual y últimos 7 días."
-        actions={
-          <Link
-            href={`/accounts/${accountId}/reports`}
-            className={buttonVariants({ variant: "secondary", size: "sm" })}
-          >
-            Ver reportes
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-        }
-      />
+      <section className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_auto] lg:gap-8">
+        <div className="min-w-0">
+          <h2 className="text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
+            {greeting()}
+          </h2>
+          <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-fg-muted">
+            Todos tus canales, conversaciones y turnos en un solo lugar. Así
+            están las cosas ahora y en los últimos 7 días.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Link
+              href={`/accounts/${accountId}/conversations`}
+              className={buttonVariants({ variant: "primary" })}
+            >
+              Abrir bandeja
+            </Link>
+            <Link
+              href={`/accounts/${accountId}/publications`}
+              className={buttonVariants({ variant: "secondary" })}
+            >
+              Ir al calendario
+            </Link>
+          </div>
+        </div>
+
+        <NetworkOrbit className="mx-auto md:mx-0" />
+      </section>
 
       <section className="space-y-3">
         <SectionLabel>Ahora mismo</SectionLabel>
