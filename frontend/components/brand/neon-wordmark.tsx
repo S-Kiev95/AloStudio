@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 const WORD = "AloStudio";
 const LETTERS = Array.from(WORD);
+const LAST_LETTER_INDEX = LETTERS.length - 1;
 const IGNITE_FLICKERS: readonly ("1" | "2")[] = [
   "2",
   "1",
@@ -19,19 +20,34 @@ const IGNITE_FLICKERS: readonly ("1" | "2")[] = [
   "2",
 ];
 const LETTER_STAGGER_MS = 65;
-const IGNITE_CLEAR_MS = 920;
-const BUZZ_MIN_INTERVAL_MS = 15_000;
-const BUZZ_MAX_INTERVAL_MS = 45_000;
-const BUZZ_MIN_DURATION_MS = 150;
-const BUZZ_MAX_DURATION_MS = 400;
+export const IGNITE_CLEAR_MS = 920;
 
-type BuzzKind = "single" | "double";
+export const SCENE_ORDER = [
+  "breathe",
+  "sequential",
+  "last-o",
+  "random-beat",
+  "normal",
+] as const;
+export type NeonScene = (typeof SCENE_ORDER)[number];
 
-interface LetterBuzz {
-  kind: BuzzKind;
-  durationMs: number;
-  delayMs: number;
-}
+export const BREATHE_DURATION_MS = 8_000;
+export const NORMAL_DURATION_MS = 8_000;
+
+export const SEQUENTIAL_DIM_MS = 300;
+export const SEQUENTIAL_STEP_MS = 200;
+export const SEQUENTIAL_PEAK_MS = 600;
+export const SEQUENTIAL_DURATION_MS =
+  SEQUENTIAL_DIM_MS + LETTERS.length * SEQUENTIAL_STEP_MS + SEQUENTIAL_PEAK_MS;
+
+export const LAST_O_DURATION_MS = 5_000;
+
+export const RANDOM_BEAT_DIM_MS = 300;
+export const RANDOM_BEAT_PULSE_MS = 400;
+export const RANDOM_BEAT_DOUBLE_CHANCE = 0.25;
+export const RANDOM_BEAT_PEAK_MS = 400;
+
+type TubeState = "off" | "lit" | "peak" | "last-o";
 
 export interface NeonWordmarkProps {
   className?: string;
@@ -44,8 +60,9 @@ export interface NeonWordmarkProps {
  * Brand neon sign ("AloStudio").
  * Exposes the full word once to assistive technology via `aria-label="AloStudio"`
  * while rendering each glyph in an `aria-hidden` span so individual tubes can
- * ignite left-to-right (~900ms) and occasionally hum/flicker in dark mode
- * without shifting layout or exceeding WCAG 2.3.1 (<= 3 flashes/s).
+ * ignite left-to-right (~900ms) and then loop through the five dark-mode brand
+ * scenes (`breathe`, `sequential`, `last-o`, `random-beat`, `normal`) without
+ * shifting layout or exceeding WCAG 2.3.1 (<= 3 flashes/s).
  */
 export function NeonWordmark({
   className,
@@ -54,12 +71,14 @@ export function NeonWordmark({
   as = "span",
 }: NeonWordmarkProps) {
   const [igniting, setIgniting] = useState(true);
-  const [activeBuzz, setActiveBuzz] = useState<ReadonlyMap<number, LetterBuzz>>(
+  const [activeScene, setActiveScene] = useState<NeonScene | null>(null);
+  const [tubeStates, setTubeStates] = useState<ReadonlyMap<number, TubeState>>(
     () => new Map(),
   );
 
   useEffect(() => {
     const timers = new Set<ReturnType<typeof setTimeout>>();
+    let nextSceneIndex = 0;
 
     const schedule = (fn: () => void, ms: number) => {
       const id = setTimeout(() => {
@@ -82,77 +101,140 @@ export function NeonWordmark({
         ? window.matchMedia("(prefers-reduced-motion: reduce)")
         : null;
 
-    const isReduced = () => Boolean(mql?.matches);
-    const isLight = () =>
+    let seenDark =
       typeof document !== "undefined" &&
-      document.documentElement.classList.contains("light") &&
-      !document.documentElement.classList.contains("dark");
+      document.documentElement.classList.contains("dark");
+
+    const isReduced = () => Boolean(mql?.matches);
+    const isLight = () => {
+      if (typeof document === "undefined") return false;
+      const cl = document.documentElement.classList;
+      if (cl.contains("dark")) {
+        seenDark = true;
+        return false;
+      }
+      return cl.contains("light") || seenDark;
+    };
     const isHidden = () =>
       typeof document !== "undefined" && document.hidden === true;
 
     let wasLight = isLight();
 
-    if (isReduced() || wasLight) {
+    if (isReduced() || wasLight || isHidden()) {
       setIgniting(false);
     } else {
       schedule(() => {
         setIgniting(false);
+        startNextScene();
       }, IGNITE_CLEAR_MS);
     }
 
-    const scheduleNextBuzz = () => {
-      if (isReduced() || isLight() || isHidden()) return;
-      const waitMs = Math.round(
-        BUZZ_MIN_INTERVAL_MS +
-          Math.random() * (BUZZ_MAX_INTERVAL_MS - BUZZ_MIN_INTERVAL_MS),
-      );
-      schedule(() => {
-        if (isReduced() || isLight() || isHidden()) return;
-
-        const twoLetters = Math.random() < 0.25;
-        const nextBuzz = new Map<number, LetterBuzz>();
-
-        if (twoLetters) {
-          const first = Math.floor(Math.random() * (LETTERS.length - 1));
-          const durationMs = Math.round(180 + Math.random() * 170);
-          const secondDelay = 45;
-          nextBuzz.set(first, { kind: "single", durationMs, delayMs: 0 });
-          nextBuzz.set(first + 1, {
-            kind: "single",
-            durationMs,
-            delayMs: secondDelay,
-          });
-          setActiveBuzz(nextBuzz);
-          schedule(() => {
-            setActiveBuzz(new Map());
-            scheduleNextBuzz();
-          }, durationMs + secondDelay + 20);
-        } else {
-          const index = Math.floor(Math.random() * LETTERS.length);
-          const kind: BuzzKind = Math.random() < 0.35 ? "double" : "single";
-          const minDur = kind === "double" ? 260 : BUZZ_MIN_DURATION_MS;
-          const durationMs = Math.round(
-            minDur + Math.random() * (BUZZ_MAX_DURATION_MS - minDur),
-          );
-          nextBuzz.set(index, { kind, durationMs, delayMs: 0 });
-          setActiveBuzz(nextBuzz);
-          schedule(() => {
-            setActiveBuzz(new Map());
-            scheduleNextBuzz();
-          }, durationMs + 20);
-        }
-      }, waitMs);
+    const resetStates = () => {
+      setActiveScene((prev) => (prev === null ? prev : null));
+      setTubeStates((prev) => (prev.size === 0 ? prev : new Map()));
+      setIgniting((prev) => (prev ? false : prev));
     };
 
-    scheduleNextBuzz();
+    const finishScene = () => {
+      resetStates();
+      startNextScene();
+    };
+
+    const runScene = (scene: NeonScene) => {
+      setActiveScene(scene);
+
+      if (scene === "breathe") {
+        setTubeStates(new Map());
+        schedule(finishScene, BREATHE_DURATION_MS);
+        return;
+      }
+
+      if (scene === "normal") {
+        setTubeStates(new Map());
+        schedule(finishScene, NORMAL_DURATION_MS);
+        return;
+      }
+
+      if (scene === "sequential") {
+        setTubeStates(new Map(LETTERS.map((_, i) => [i, "off"])));
+        for (let i = 0; i < LETTERS.length; i += 1) {
+          schedule(
+            () => {
+              setTubeStates((prev) => {
+                const next = new Map(prev);
+                next.set(i, "lit");
+                return next;
+              });
+            },
+            SEQUENTIAL_DIM_MS + i * SEQUENTIAL_STEP_MS,
+          );
+        }
+        schedule(
+          () => {
+            setTubeStates(new Map(LETTERS.map((_, i) => [i, "peak"])));
+          },
+          SEQUENTIAL_DIM_MS + LETTERS.length * SEQUENTIAL_STEP_MS,
+        );
+        schedule(finishScene, SEQUENTIAL_DURATION_MS);
+        return;
+      }
+
+      if (scene === "last-o") {
+        setTubeStates(new Map([[LAST_LETTER_INDEX, "last-o"]]));
+        schedule(finishScene, LAST_O_DURATION_MS);
+        return;
+      }
+
+      // scene === "random-beat"
+      setTubeStates(new Map(LETTERS.map((_, i) => [i, "off"])));
+      const remaining = LETTERS.map((_, i) => i);
+
+      const stepPulse = () => {
+        if (isReduced() || isLight() || isHidden()) return;
+        const count =
+          remaining.length >= 2 && Math.random() < RANDOM_BEAT_DOUBLE_CHANCE
+            ? 2
+            : 1;
+        const picked: number[] = [];
+        for (let step = 0; step < count && remaining.length > 0; step += 1) {
+          const randomIdx = Math.floor(Math.random() * remaining.length);
+          const [letterIdx] = remaining.splice(randomIdx, 1);
+          if (letterIdx !== undefined) {
+            picked.push(letterIdx);
+          }
+        }
+        setTubeStates((prev) => {
+          const next = new Map(prev);
+          for (const idx of picked) {
+            next.set(idx, "lit");
+          }
+          return next;
+        });
+
+        if (remaining.length > 0) {
+          schedule(stepPulse, RANDOM_BEAT_PULSE_MS);
+        } else {
+          schedule(() => {
+            setTubeStates(new Map(LETTERS.map((_, i) => [i, "peak"])));
+            schedule(finishScene, RANDOM_BEAT_PEAK_MS);
+          }, RANDOM_BEAT_PULSE_MS);
+        }
+      };
+
+      schedule(stepPulse, RANDOM_BEAT_DIM_MS);
+    };
+
+    function startNextScene() {
+      if (isReduced() || isLight() || isHidden()) return;
+      const scene = SCENE_ORDER[nextSceneIndex];
+      nextSceneIndex = (nextSceneIndex + 1) % SCENE_ORDER.length;
+      runScene(scene);
+    }
 
     const resetAndReschedule = () => {
       clearAll();
-      setActiveBuzz(new Map());
-      setIgniting(false);
-      if (!isReduced() && !isLight() && !isHidden()) {
-        scheduleNextBuzz();
-      }
+      resetStates();
+      startNextScene();
     };
 
     const handleClassMutation = () => {
@@ -188,16 +270,27 @@ export function NeonWordmark({
     className,
   );
 
+  const rootStyle = activeScene
+    ? ({
+        "--scene-duration": `${
+          activeScene === "breathe"
+            ? BREATHE_DURATION_MS
+            : activeScene === "last-o"
+              ? LAST_O_DURATION_MS
+              : SEQUENTIAL_DURATION_MS
+        }ms`,
+        "--peak-duration": `${
+          activeScene === "random-beat"
+            ? RANDOM_BEAT_PEAK_MS
+            : SEQUENTIAL_PEAK_MS
+        }ms`,
+      } as CSSProperties)
+    : undefined;
+
   const letters = LETTERS.map((char, index) => {
-    const buzz = activeBuzz.get(index);
+    const tubeState = tubeStates.get(index);
     const style = {
       "--letter-delay": `${index * LETTER_STAGGER_MS}ms`,
-      ...(buzz
-        ? {
-            "--buzz-duration": `${buzz.durationMs}ms`,
-            "--buzz-delay": `${buzz.delayMs}ms`,
-          }
-        : null),
     } as CSSProperties;
 
     return (
@@ -205,7 +298,7 @@ export function NeonWordmark({
         key={index}
         aria-hidden="true"
         data-ignite={IGNITE_FLICKERS[index]}
-        data-buzz={buzz?.kind}
+        data-tube={tubeState}
         style={style}
         className="neon-wordmark-letter"
       >
@@ -220,6 +313,8 @@ export function NeonWordmark({
         href={href}
         onClick={onClick}
         aria-label={WORD}
+        data-scene={activeScene ?? undefined}
+        style={rootStyle}
         className={mergedClassName}
       >
         {letters}
@@ -233,6 +328,8 @@ export function NeonWordmark({
       role="img"
       aria-label={WORD}
       onClick={onClick}
+      data-scene={activeScene ?? undefined}
+      style={rootStyle}
       className={mergedClassName}
     >
       {letters}

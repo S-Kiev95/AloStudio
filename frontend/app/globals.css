@@ -337,7 +337,8 @@
 
   /* Per-letter neon tubes (Excepción: el cartel de la marca, DESIGN.md).
      In daylight, letters inherit flat cobalt and never animate. In night,
-     each letter owns its glow so single-tube flickers dim that letter alone. */
+     each letter owns its glow so single-tube flickers and scenes can dim or
+     brighten individual letters without moving layout. */
   .neon-wordmark-letter {
     color: inherit;
     text-shadow: none;
@@ -352,6 +353,9 @@
       0 0 6px var(--neon-core),
       0 0 18px var(--neon-core),
       0 0 40px var(--neon-halo);
+    transition:
+      opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      text-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
   }
   .dark .neon-wordmark-ignite .neon-wordmark-letter[data-ignite="1"] {
     animation: neon-letter-ignite-1 360ms cubic-bezier(0.16, 1, 0.3, 1)
@@ -361,13 +365,21 @@
     animation: neon-letter-ignite-2 380ms cubic-bezier(0.16, 1, 0.3, 1)
       var(--letter-delay, 0ms) backwards;
   }
-  .dark .neon-wordmark-letter[data-buzz="single"] {
-    animation: neon-letter-buzz-single var(--buzz-duration, 240ms) ease-in-out
-      var(--buzz-delay, 0ms) 1;
+  .dark .neon-wordmark[data-scene="breathe"] .neon-wordmark-letter {
+    animation: neon-scene-breathe var(--scene-duration, 8000ms) ease-in-out 1;
   }
-  .dark .neon-wordmark-letter[data-buzz="double"] {
-    animation: neon-letter-buzz-double var(--buzz-duration, 340ms) ease-in-out
-      var(--buzz-delay, 0ms) 1;
+  .dark .neon-wordmark-letter[data-tube="off"] {
+    opacity: 0.2;
+    text-shadow: none;
+    transition:
+      opacity 300ms ease-out,
+      text-shadow 300ms ease-out;
+  }
+  .dark .neon-wordmark-letter[data-tube="peak"] {
+    animation: neon-letter-peak var(--peak-duration, 600ms) ease-in-out 1;
+  }
+  .dark .neon-wordmark[data-scene="last-o"] .neon-wordmark-letter[data-tube="last-o"] {
+    animation: neon-letter-last-o var(--scene-duration, 5000ms) ease-in-out 1;
   }
 
   /* Shell panel: unlit glass hairline + 1px top highlight, no drop shadow. */
@@ -580,7 +592,7 @@
   }
 }
 
-@keyframes neon-letter-buzz-single {
+@keyframes neon-scene-breathe {
   0%,
   100% {
     opacity: 1;
@@ -590,42 +602,150 @@
       0 0 18px var(--neon-core),
       0 0 40px var(--neon-halo);
   }
-  42% {
-    opacity: 0.42;
+  15% {
+    opacity: 0.68;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 5px var(--neon-core),
+      0 0 12px var(--neon-halo),
+      0 0 24px var(--neon-halo-far);
+  }
+  32% {
+    opacity: 0.96;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 6px var(--neon-core),
+      0 0 16px var(--neon-core),
+      0 0 36px var(--neon-halo);
+  }
+  55% {
+    opacity: 0.65;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 4px var(--neon-core),
+      0 0 10px var(--neon-halo),
+      0 0 20px var(--neon-halo-far);
+  }
+  76% {
+    opacity: 1;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 6px var(--neon-core),
+      0 0 18px var(--neon-core),
+      0 0 40px var(--neon-halo);
+  }
+  88% {
+    opacity: 0.72;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 5px var(--neon-core),
+      0 0 14px var(--neon-halo),
+      0 0 28px var(--neon-halo-far);
+  }
+}
+
+@keyframes neon-letter-peak {
+  0%,
+  100% {
+    opacity: 1;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 6px var(--neon-core),
+      0 0 18px var(--neon-core),
+      0 0 40px var(--neon-halo);
+  }
+  45% {
+    opacity: 1;
+    text-shadow:
+      0 0 4px var(--neon-lit-text),
+      0 0 12px var(--neon-lit-text),
+      0 0 28px var(--neon-core),
+      0 0 56px var(--neon-core),
+      0 0 84px var(--neon-halo);
+  }
+}
+
+@keyframes neon-letter-last-o {
+  0%,
+  100% {
+    opacity: 1;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 6px var(--neon-core),
+      0 0 18px var(--neon-core),
+      0 0 40px var(--neon-halo);
+  }
+  10% {
+    opacity: 0.78;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 5px var(--neon-core),
+      0 0 14px var(--neon-halo);
+  }
+  16% {
+    opacity: 0.45;
     text-shadow:
       0 0 2px var(--neon-hum),
       0 0 8px var(--neon-hum-far);
   }
-}
-
-@keyframes neon-letter-buzz-double {
-  0%,
-  100% {
-    opacity: 1;
+  23% {
+    opacity: 0.88;
     text-shadow:
       0 0 2px var(--neon-lit-text),
       0 0 6px var(--neon-core),
-      0 0 18px var(--neon-core),
-      0 0 40px var(--neon-halo);
+      0 0 16px var(--neon-core),
+      0 0 32px var(--neon-halo);
   }
-  24% {
-    opacity: 0.40;
+  34% {
+    opacity: 0.58;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 4px var(--neon-core),
+      0 0 10px var(--neon-halo);
+  }
+  44% {
+    opacity: 0.34;
     text-shadow:
       0 0 2px var(--neon-hum),
       0 0 6px var(--neon-hum-far);
   }
   50% {
-    opacity: 0.94;
+    opacity: 0.76;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 5px var(--neon-core),
+      0 0 14px var(--neon-halo);
+  }
+  62% {
+    opacity: 0.28;
+    text-shadow: 0 0 2px var(--neon-hum);
+  }
+  69% {
+    opacity: 0.62;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 5px var(--neon-core),
+      0 0 12px var(--neon-halo);
+  }
+  78%,
+  86% {
+    opacity: 0.2;
+    text-shadow: none;
+  }
+  92% {
+    opacity: 0.92;
     text-shadow:
       0 0 2px var(--neon-lit-text),
       0 0 6px var(--neon-core),
-      0 0 16px var(--neon-halo);
+      0 0 18px var(--neon-core),
+      0 0 36px var(--neon-halo);
   }
-  74% {
-    opacity: 0.48;
+  96% {
+    opacity: 0.74;
     text-shadow:
-      0 0 2px var(--neon-hum),
-      0 0 8px var(--neon-hum-far);
+      0 0 2px var(--neon-lit-text),
+      0 0 5px var(--neon-core),
+      0 0 14px var(--neon-halo);
   }
 }
 
@@ -635,9 +755,12 @@
   .lit-tube-ignite,
   .neon-nav,
   .neon-nav svg,
+  .neon-wordmark,
+  .neon-wordmark[data-scene],
   .neon-wordmark-letter,
   .dark .neon-wordmark-ignite .neon-wordmark-letter,
-  .dark .neon-wordmark-letter[data-buzz],
+  .dark .neon-wordmark[data-scene] .neon-wordmark-letter,
+  .dark .neon-wordmark-letter[data-tube],
   .page-enter,
   .orbit-bubble,
   .orbit-bubble-cw,
@@ -645,6 +768,14 @@
   .glass-field {
     animation: none !important;
     transition: none !important;
+  }
+  .dark .neon-wordmark-letter[data-tube] {
+    opacity: 1 !important;
+    text-shadow:
+      0 0 2px var(--neon-lit-text),
+      0 0 6px var(--neon-core),
+      0 0 18px var(--neon-core),
+      0 0 40px var(--neon-halo) !important;
   }
   *,
   *::before,
