@@ -1,5 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import { setupServer } from "msw/node";
 import { describe, expect, it, vi } from "vitest";
 
 import { MessageComposer } from "./message-composer";
@@ -19,6 +21,31 @@ function wrap(ui: React.ReactElement) {
 }
 
 describe("MessageComposer attachments", () => {
+  it("Enter envía y Shift+Enter deja escribir otra línea", async () => {
+    const sent: unknown[] = [];
+    const server = setupServer(
+      http.get("*/canned_responses", () => HttpResponse.json([])),
+      http.post("*/conversations/1/messages", async ({ request }) => {
+        sent.push(await request.json());
+        return HttpResponse.json({ id: 1 });
+      }),
+    );
+    server.listen({ onUnhandledRequest: "bypass" });
+    try {
+      wrap(<MessageComposer accountId="1" displayId={1} />);
+      const box = screen.getByLabelText("Respuesta");
+      fireEvent.change(box, { target: { value: "Hola" } });
+
+      fireEvent.keyDown(box, { key: "Enter", shiftKey: true });
+      expect(sent).toEqual([]);
+
+      fireEvent.keyDown(box, { key: "Enter" });
+      await waitFor(() => expect(sent).toHaveLength(1));
+    } finally {
+      server.close();
+    }
+  });
+
   it("uploads several picked files and shows one chip per file", async () => {
     const { container } = wrap(
       <MessageComposer accountId="1" displayId={1} />,

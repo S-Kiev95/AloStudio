@@ -308,6 +308,52 @@ async def test_standby_shows_the_thread_the_ai_owns_without_answering(db_session
     assert graph.call_count == 0
 
 
+async def test_standby_on_a_conversation_we_held_gives_it_back_to_the_ai(db_session):
+    _, channel, inbox = await _seed(db_session)
+    await process_cloud_webhook(
+        db_session, channel=channel, inbox=inbox, payload=_message_payload("wamid.a")
+    )
+    conversation = await _only_conversation(db_session, inbox)
+    await ba._set_owner(
+        db_session, conversation=conversation, owner=ba.OWNER_APP, activity=None
+    )
+    await process_cloud_webhook(
+        db_session,
+        channel=channel,
+        inbox=inbox,
+        payload=_standby_payload(
+            {
+                "contacts": [{"profile": {"name": "Lucía"}, "wa_id": _CUSTOMER}],
+                "messages": [
+                    {
+                        "from": _CUSTOMER,
+                        "id": "wamid.b",
+                        "timestamp": "1700000000",
+                        "type": "text",
+                        "text": {"body": "Hola otra vez"},
+                    }
+                ],
+            }
+        ),
+    )
+    await db_session.refresh(conversation)
+    assert ba.thread_owner(conversation) == ba.OWNER_AI_AGENT
+
+
+@respx.mock
+async def test_thread_control_retries_when_meta_fails_for_a_moment(db_session, monkeypatch):
+    monkeypatch.setattr(ba, "_THREAD_CONTROL_RETRY_SECONDS", (0, 0))
+    _, channel, _inbox = await _seed(db_session)
+    route = respx.post(url__regex=r".*/thread_control").mock(
+        side_effect=[
+            httpx.Response(500, json={"error": {"message": "An unknown error has occurred."}}),
+            httpx.Response(200, json={"messaging_product": "whatsapp"}),
+        ]
+    )
+    assert await ba.request_thread_control(channel, to_phone=_CUSTOMER, action="release") is None
+    assert route.call_count == 2
+
+
 async def test_inbound_message_without_business_agent_has_no_owner(db_session):
     _, channel, inbox = await _seed(db_session, business_agent=False)
     await process_cloud_webhook(

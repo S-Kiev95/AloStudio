@@ -242,9 +242,15 @@ export function MessageComposer({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+          // Enter sends, or takes the first quick reply while they are
+          // listed; Shift+Enter is a new line.
+          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault();
-            submit();
+            if (showListbox && visibleCanned[0]) {
+              insertCanned(visibleCanned[0].content);
+            } else {
+              submit();
+            }
           }
         }}
         rows={3}
