@@ -83,6 +83,7 @@ from app.domains.inboxes.models import (
     FacebookPage,
     Inbox,
 )
+from app.domains.instagram.graph import fetch_contact_name
 
 log = logging.getLogger(__name__)
 
@@ -123,6 +124,26 @@ async def _resolve_page(
 # ---------------------------------------------------------------------------
 # Contact / conversation resolution
 # ---------------------------------------------------------------------------
+def _placeholder_name(psid: str) -> str:
+    return f"facebook-{psid[-6:]}" if len(psid) >= 6 else f"facebook-{psid}"
+
+
+async def _name_contact(
+    session: AsyncSession, *, contact: Contact, channel: FacebookPage, psid: str
+) -> None:
+    """Replace the placeholder with the person's name, once Meta gives it.
+    A name someone already set stays."""
+    if contact.name != _placeholder_name(psid):
+        return
+    name = await fetch_contact_name(
+        user_id=psid, access_token=channel.page_access_token, fields="name"
+    )
+    if name:
+        contact.name = name
+        session.add(contact)
+        await session.flush()
+
+
 async def _find_or_create_contact(
     session: AsyncSession,
     *,
@@ -149,10 +170,7 @@ async def _find_or_create_contact(
     if existing is not None:
         return existing
 
-    placeholder = (
-        f"facebook-{psid[-6:]}" if len(psid) >= 6 else f"facebook-{psid}"
-    )
-    contact = Contact(account_id=account_id, name=placeholder)
+    contact = Contact(account_id=account_id, name=_placeholder_name(psid))
     session.add(contact)
     await session.flush()
     await session.refresh(contact)
@@ -352,6 +370,7 @@ async def _process_message_event(
     contact = await _find_or_create_contact(
         session, account_id=channel.account_id, psid=psid
     )
+    await _name_contact(session, contact=contact, channel=channel, psid=psid)
     contact_inbox = await ContactInboxBuilder(
         session=session,
         contact=contact,

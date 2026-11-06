@@ -92,6 +92,7 @@ from app.domains.inboxes.models import (
     Inbox,
     InstagramChannel,
 )
+from app.domains.instagram.graph import fetch_contact_name, graph_host
 from app.domains.instagram.media import download_and_store_ig_media
 
 log = logging.getLogger(__name__)
@@ -270,6 +271,33 @@ async def _resolve_channel(
 # ---------------------------------------------------------------------------
 # Contact / conversation resolution
 # ---------------------------------------------------------------------------
+def _placeholder_name(igsid: str) -> str:
+    return f"instagram-{igsid[-6:]}" if len(igsid) >= 6 else f"instagram-{igsid}"
+
+
+async def _name_contact(
+    session: AsyncSession,
+    *,
+    contact: Contact,
+    channel: InstagramChannel,
+    igsid: str,
+) -> None:
+    """Replace the placeholder with the person's name, once Meta gives it.
+    A name someone already set stays."""
+    if contact.name != _placeholder_name(igsid):
+        return
+    from app.domains.instagram.publishing_service import _graph_host_for_channel
+
+    with graph_host(await _graph_host_for_channel(session, channel)):
+        name = await fetch_contact_name(
+            user_id=igsid, access_token=channel.access_token, fields="name,username"
+        )
+    if name:
+        contact.name = name
+        session.add(contact)
+        await session.flush()
+
+
 async def find_or_create_ig_contact(
     session: AsyncSession,
     *,
@@ -295,12 +323,7 @@ async def find_or_create_ig_contact(
     if existing is not None:
         return existing
 
-    placeholder = (
-        f"instagram-{igsid[-6:]}"
-        if len(igsid) >= 6
-        else f"instagram-{igsid}"
-    )
-    contact = Contact(account_id=account_id, name=placeholder)
+    contact = Contact(account_id=account_id, name=_placeholder_name(igsid))
     session.add(contact)
     await session.flush()
     await session.refresh(contact)
@@ -499,6 +522,7 @@ async def _process_message_event(
     contact = await find_or_create_ig_contact(
         session, account_id=channel.account_id, igsid=igsid
     )
+    await _name_contact(session, contact=contact, channel=channel, igsid=igsid)
     contact_inbox = await ContactInboxBuilder(
         session=session,
         contact=contact,

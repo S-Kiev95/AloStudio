@@ -38,6 +38,7 @@ from app.domains.inboxes.models import (
     Inbox,
 )
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+from app.domains.instagram import graph
 
 # Resolve mappers (Conversation.team forward-ref).
 from app.domains.teams import models as _teams  # noqa: F401
@@ -208,6 +209,60 @@ async def test_two_messages_share_conversation(db_session):
     )
     convs = list((await db_session.exec(select(Conversation))).all())
     assert len(convs) == 1
+
+
+async def test_a_new_contact_gets_the_name_meta_gives(db_session, monkeypatch):
+    await _seed(db_session, page_id="PN", suffix="-name")
+
+    async def named(**_kwargs):
+        return "Lucía Pérez"
+
+    monkeypatch.setattr(incoming_module, "fetch_contact_name", named)
+    await process_facebook_webhook(
+        db_session,
+        payload=_msg_payload(page_id="PN", psid="U-name-1", mid="n-1", text="hola"),
+    )
+    contact = (
+        await db_session.exec(select(Contact).where(Contact.name == "Lucía Pérez"))
+    ).first()
+    assert contact is not None
+
+
+async def test_a_name_someone_set_is_kept(db_session, monkeypatch):
+    await _seed(db_session, page_id="PK", suffix="-keep")
+    await process_facebook_webhook(
+        db_session,
+        payload=_msg_payload(page_id="PK", psid="U-keep-1", mid="k-1", text="hola"),
+    )
+    contact = (
+        await db_session.exec(select(Contact).where(Contact.name == "facebook-keep-1"))
+    ).first()
+    assert contact is not None
+    contact.name = "Lucía del CRM"
+    db_session.add(contact)
+    await db_session.flush()
+
+    async def named(**_kwargs):
+        return "Otro nombre"
+
+    monkeypatch.setattr(incoming_module, "fetch_contact_name", named)
+    await process_facebook_webhook(
+        db_session,
+        payload=_msg_payload(page_id="PK", psid="U-keep-1", mid="k-2", text="hola"),
+    )
+    await db_session.refresh(contact)
+    assert contact.name == "Lucía del CRM"
+
+
+@respx.mock
+async def test_a_refused_name_lookup_keeps_the_placeholder():
+    respx.get(url__regex=r".*/U-role\?.*").mock(
+        return_value=httpx.Response(400, json={"error": {"code": 100}})
+    )
+    assert (
+        await graph.fetch_contact_name(user_id="U-role", access_token="t", fields="name")
+        is None
+    )
 
 
 async def test_echo_lands_as_outgoing_with_no_sender(db_session):

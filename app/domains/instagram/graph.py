@@ -51,6 +51,26 @@ def meta_error_text(resp: httpx.Response) -> str:
     )
 
 
+async def fetch_contact_name(
+    *, user_id: str, access_token: str, fields: str
+) -> str | None:
+    """The name Meta shows for someone who wrote to a Page or an account.
+
+    ``None`` when Meta won't say: before App Review it answers only for
+    people with a role on the app. The caller keeps its placeholder.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                f"{graph_base()}/{user_id}",
+                params={"fields": fields, "access_token": access_token},
+            )
+        data = resp.json() if resp.status_code < 400 else {}
+    except (httpx.HTTPError, ValueError):
+        return None
+    return data.get("name") or data.get("username") or None
+
+
 def graph_base() -> str:
     """The Graph API base URL for the current task's host."""
     host = _host_var.get() or _DEFAULT_HOST
