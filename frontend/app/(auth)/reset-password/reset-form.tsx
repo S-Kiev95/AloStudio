@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -13,6 +14,7 @@ import { type ResetInput, resetSchema } from "@/lib/auth/schemas";
 export function ResetForm({ token }: { token: string }) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
+  const [linkExpired, setLinkExpired] = useState(false);
   const {
     register,
     handleSubmit,
@@ -21,6 +23,7 @@ export function ResetForm({ token }: { token: string }) {
 
   async function onSubmit(values: ResetInput) {
     setFormError(null);
+    setLinkExpired(false);
     const res = await fetch("/api/auth/reset-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -32,6 +35,12 @@ export function ResetForm({ token }: { token: string }) {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
+      // The backend says only this, whether the link expired or was used.
+      if (body?.message === "Invalid token") {
+        setLinkExpired(true);
+        setFormError("Este enlace venció o ya se usó.");
+        return;
+      }
       setFormError(
         body?.message ?? body?.errors?.[0] ?? "No se pudo restablecer.",
       );
@@ -49,6 +58,14 @@ export function ResetForm({ token }: { token: string }) {
           className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
         >
           {formError}
+          {linkExpired ? (
+            <>
+              {" "}
+              <Link href="/forgot-password" className="font-medium underline">
+                Pedir un nuevo enlace
+              </Link>
+            </>
+          ) : null}
         </p>
       ) : null}
       <div className="space-y-1.5">

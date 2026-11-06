@@ -213,7 +213,7 @@ Para terminar de configurar tu cuenta y elegir una contraseña, hacé clic acá:
 
     {reset_url}
 
-Si no esperabas esta invitación podés ignorar este email.
+El enlace vence en 7 días. Si no esperabas esta invitación podés ignorar este email.
 
 — AloStudio
 """,
