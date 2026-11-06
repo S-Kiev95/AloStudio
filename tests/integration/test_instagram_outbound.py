@@ -184,6 +184,7 @@ async def test_send_text_4xx_returns_false_no_stamp(db_session):
     assert ok is False
     await db_session.refresh(msg)
     assert msg.source_id == pre
+    assert msg.content_attributes["external_error"] == "User cannot be messaged"
 
 
 @respx.mock

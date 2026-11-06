@@ -420,6 +420,14 @@ export function MessageBubble({
             {caption}
           </span>
         ) : null)}
+      {message.status === "failed" ? (
+        <span role="alert" className="mt-1 max-w-[80%] text-right text-[11px] text-danger">
+          No se pudo enviar
+          {typeof message.content_attributes?.external_error === "string"
+            ? `: ${message.content_attributes.external_error}`
+            : "."}
+        </span>
+      ) : null}
     </div>
   );
 }

@@ -33,8 +33,9 @@ import httpx
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.conversations.models import Attachment, Message
+from app.domains.conversations.service import update_message_status
 from app.domains.inboxes.models import InstagramChannel
-from app.domains.instagram.graph import graph_base
+from app.domains.instagram.graph import graph_base, meta_error_text
 
 log = logging.getLogger(__name__)
 
@@ -90,6 +91,12 @@ async def _post_send(
             channel.id,
             type(exc).__name__,
         )
+        await update_message_status(
+            session,
+            message=message,
+            status="failed",
+            external_error="No se pudo contactar a Meta.",
+        )
         return False
     if resp.status_code >= 400:
         log.warning(
@@ -97,6 +104,12 @@ async def _post_send(
             channel.id,
             resp.status_code,
             resp.text[:500],
+        )
+        await update_message_status(
+            session,
+            message=message,
+            status="failed",
+            external_error=meta_error_text(resp),
         )
         return False
     try:
