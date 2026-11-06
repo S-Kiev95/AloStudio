@@ -1164,7 +1164,12 @@ async def _apply_message_post_create(
     # batches replies via a Sidekiq job; we send synchronously inline
     # for simplicity. ARQ-backed retries land alongside the IMAP fetch
     # job in 5b.4.
-    if message.message_type == MESSAGE_TYPE_OUTGOING and not message.private:
+    # ``external_echo``: another responder on the number already sent it.
+    if (
+        message.message_type == MESSAGE_TYPE_OUTGOING
+        and not message.private
+        and not (message.content_attributes or {}).get("external_echo")
+    ):
         await _maybe_send_outbound_email(
             session, message=message, conversation=conversation
         )
