@@ -66,4 +66,61 @@ Las cuatro escenas se suceden en tema oscuro sin mover el layout, con typecheck,
 
 ## Estado
 
-(Lo completa el agente al terminar.)
+Completado (2026-11-06) en `feat/neon-animations`:
+
+- **Documentación (`docs/design-neon/DESIGN.md`, `frontend/DESIGN-SYSTEM.md`):** actualizado el párrafo *Excepción: el cartel de la marca* y la referencia en *The Ignition Rule* para documentar la decisión del dueño (2026-11-06) que reemplaza el zumbido esporádico por las cuatro escenas secuenciales (`breathe`, `sequential`, `last-o` y `random-beat`) cada 20–30 s en tema oscuro.
+- **Estilos (`frontend/app/globals.css`):** eliminados los selectores y `@keyframes` de zumbido (`data-buzz`, `neon-letter-buzz-single`, `neon-letter-buzz-double`) y añadidos los estados por tubo (`data-tube="off" | "lit" | "peak" | "last-o"`) y las animaciones `@keyframes neon-scene-breathe`, `@keyframes neon-letter-peak` y `@keyframes neon-letter-last-o` usando únicamente tokens del sistema (`--neon-lit-text`, `--neon-core`, `--neon-halo`, `--neon-halo-far`, `--neon-hum`, `--neon-hum-far`) y el bloque `@media (prefers-reduced-motion: reduce)`.
+- **Componente (`frontend/components/brand/neon-wordmark.tsx`):** mantenida la ignición inicial (~900 ms) y programadas las cuatro escenas en orden `breathe` → `sequential` → `last-o` → `random-beat` → `breathe` con pausa aleatoria de 20–30 s, constantes configurables al inicio del archivo, atributo `data-scene` en la raíz cuando corre una escena, limpieza de temporizadores al desmontar y reseteo a encendido fijo con `document.hidden`, tema claro o `prefers-reduced-motion: reduce`.
+- **Tests (`frontend/components/brand/neon-wordmark.test.tsx`):** 6 tests con `vi.useFakeTimers()` cubriendo accesibilidad (`aria-label="AloStudio"` único y 9 spans `aria-hidden`), enlace con `href`, orden cíclico 1 → 2 → 3 → 4 → 1 con `data-scene`, aislamiento de `last-o` sobre la última letra (`o`, índice 8), encendido único por letra sobre pulso fijo de 400 ms en `random-beat` con `Math.random` simulado, y desactivación/limpieza con `prefers-reduced-motion: reduce`, `document.hidden`, tema claro y desmontaje.
+
+### Salida real de verificaciones en `frontend/`
+
+#### `npm run typecheck`
+
+```text
+> alostudio-frontend@0.1.0 typecheck
+> tsc --noEmit
+```
+
+#### `npm run lint`
+
+```text
+> alostudio-frontend@0.1.0 lint
+> next lint
+
+`next lint` is deprecated and will be removed in Next.js 16.
+For new projects, use create-next-app to choose your preferred linter.
+For existing projects, migrate to the ESLint CLI:
+npx @next/codemod@canary next-lint-to-eslint-cli .
+
+✔ No ESLint warnings or errors
+```
+
+#### `npx vitest run components/brand/neon-wordmark.test.tsx`
+
+```text
+ RUN  v2.1.9 C:/Users/Zeek/Desktop/AloStudio-motion/frontend
+
+ ✓ components/brand/neon-wordmark.test.tsx (6 tests) 121ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  19:45:16
+   Duration  1.74s (transform 77ms, setup 254ms, collect 117ms, tests 121ms, environment 862ms, prepare 147ms)
+```
+
+#### `npm test` (resumen final de la suite completa)
+
+```text
+> alostudio-frontend@0.1.0 test
+> vitest run
+
+ ✓ components/brand/neon-wordmark.test.tsx (6 tests) 275ms
+ ...
+ Test Files  1 failed | 91 passed (92)
+      Tests  1 failed | 390 passed (391)
+   Start at  19:47:22
+   Duration  37.08s (transform 12.69s, setup 129.88s, collect 136.58s, tests 71.40s, environment 414.84s, prepare 27.13s)
+```
+
+*(Nota: el único fallo en la corrida global corresponde a `components/conversations/message-composer.test.tsx`, preexistente en `develop` por doble `role="alert"` en `MessageBubble` y ajeno al cartel de la marca).*
