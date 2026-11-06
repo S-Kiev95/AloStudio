@@ -53,7 +53,10 @@ export function LegalDocument({
       <footer className="space-y-2 border-t border-border pt-8 text-sm text-fg-muted">
         <p>
           Responsable: <strong>{OPERATOR.legalName}</strong> (
-          {OPERATOR.country})
+          {OPERATOR.address
+            ? `${OPERATOR.address}, ${OPERATOR.country}`
+            : OPERATOR.country}
+          )
         </p>
         <p>
           Consultas y ejercicio de derechos:{" "}
