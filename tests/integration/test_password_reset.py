@@ -201,6 +201,7 @@ async def test_apply_reset_rejects_expired_token(client, db_session, seeded_user
     """reset_password_sent_at older than 6h -> 422 even with a known token."""
     issued = await request_password_reset(db_session, "forgetful@rocket.example.com")
     assert issued is not None
+    seeded_user.sign_in_count = 1
     # Back-date the timestamp just past the window (Devise default 6h).
     seeded_user.reset_password_sent_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=6, minutes=1)
     db_session.add(seeded_user)
@@ -212,6 +213,43 @@ async def test_apply_reset_rejects_expired_token(client, db_session, seeded_user
             "reset_password_token": issued.raw_token,
             "password": "BrandNewPass2@",
         },
+    )
+    assert resp.status_code == 422
+
+
+async def test_an_invitation_link_still_works_the_next_day(
+    client, db_session, seeded_user
+):
+    """Someone who never signed in has days to answer the invitation."""
+    issued = await request_password_reset(db_session, "forgetful@rocket.example.com")
+    assert issued is not None
+    seeded_user.sign_in_count = 0
+    seeded_user.reset_password_sent_at = datetime.now(UTC).replace(
+        tzinfo=None
+    ) - timedelta(hours=20)
+    db_session.add(seeded_user)
+    await db_session.flush()
+
+    resp = await client.put(
+        "/auth/password",
+        json={"reset_password_token": issued.raw_token, "password": "BrandNewPass2@"},
+    )
+    assert resp.status_code == 200
+
+
+async def test_an_invitation_link_expires_after_a_week(client, db_session, seeded_user):
+    issued = await request_password_reset(db_session, "forgetful@rocket.example.com")
+    assert issued is not None
+    seeded_user.sign_in_count = 0
+    seeded_user.reset_password_sent_at = datetime.now(UTC).replace(
+        tzinfo=None
+    ) - timedelta(days=8)
+    db_session.add(seeded_user)
+    await db_session.flush()
+
+    resp = await client.put(
+        "/auth/password",
+        json={"reset_password_token": issued.raw_token, "password": "BrandNewPass2@"},
     )
     assert resp.status_code == 422
 

@@ -56,6 +56,9 @@ from app.domains.users.models import User
 
 # Devise ``config.reset_password_within = 6.hours``.
 RESET_PASSWORD_WITHIN = timedelta(hours=6)
+# Someone who never signed in is answering an invitation: they may open that
+# email days later, and until then the link is their only way in.
+INVITATION_WITHIN = timedelta(days=7)
 
 # Column name threaded into the HMAC key — matches
 # ``Devise.token_generator.key_for(:reset_password_token)`` so the digest
@@ -198,7 +201,7 @@ async def consume_password_reset(
         return None
     if (
         datetime.now(UTC).replace(tzinfo=None) - user.reset_password_sent_at
-    ) > RESET_PASSWORD_WITHIN:
+    ) > (RESET_PASSWORD_WITHIN if user.sign_in_count else INVITATION_WITHIN):
         return None
 
     # Devise Recoverable quirk: a successful password reset also confirms
