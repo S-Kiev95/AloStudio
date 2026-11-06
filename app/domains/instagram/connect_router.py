@@ -195,7 +195,8 @@ async def oauth_callback(
         account_id,
         ig="reconnected" if result.get("reconnected") else "connected",
         ig_login=str(result.get("login_type") or ""),
-        ig_user=str(result.get("username") or ""),
+        ig_user=", @".join(result.get("usernames") or [])
+        or str(result.get("username") or ""),
     )
 
 

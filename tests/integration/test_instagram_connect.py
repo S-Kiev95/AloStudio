@@ -449,6 +449,66 @@ async def test_complete_facebook_oauth_happy_path(db_session, meta_oauth_config)
 
 
 @respx.mock
+async def test_complete_facebook_oauth_connects_every_granted_page(
+    db_session, meta_oauth_config
+):
+    owner, _ = await _seed(db_session, "-pages")
+    respx.get(f"{GRAPH}/oauth/access_token").mock(
+        side_effect=[
+            httpx.Response(200, json={"access_token": "S"}),
+            httpx.Response(200, json={"access_token": "L"}),
+        ]
+    )
+    respx.get(f"{GRAPH}/me/accounts").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": "P1",
+                        "name": "Alianza",
+                        "access_token": "T1",
+                        "instagram_business_account": {"id": "178001"},
+                    },
+                    {"id": "P2", "name": "Sin Instagram", "access_token": "T2"},
+                    {
+                        "id": "P3",
+                        "name": "Instituto",
+                        "access_token": "T3",
+                        "instagram_business_account": {"id": "178003"},
+                    },
+                ]
+            },
+        )
+    )
+    respx.get(f"{GRAPH}/178001").mock(
+        return_value=httpx.Response(200, json={"username": "alianza"})
+    )
+    respx.get(f"{GRAPH}/178003").mock(
+        return_value=httpx.Response(200, json={"username": "instituto"})
+    )
+    respx.post(f"{GRAPH}/P1/subscribed_apps").mock(
+        return_value=httpx.Response(200, json={"success": True})
+    )
+    instituto_sub = respx.post(f"{GRAPH}/P3/subscribed_apps").mock(
+        return_value=httpx.Response(200, json={"success": True})
+    )
+    state = csvc.sign_oauth_state(owner.account.id, flow="facebook")
+    result = await csvc.complete_facebook_oauth(
+        db_session, code="CODE", state=state
+    )
+    assert result["usernames"] == ["alianza", "instituto"]
+    assert result["reconnected"] is False
+    assert instituto_sub.called
+    inboxes = (
+        await db_session.exec(
+            select(Inbox).where(Inbox.account_id == owner.account.id)
+        )
+    ).all()
+    assert sorted(i.name for i in inboxes) == ["alianza", "instituto"]
+
+
+@respx.mock
 async def test_complete_facebook_oauth_no_ig_page_422(db_session, meta_oauth_config):
     owner, _ = await _seed(db_session, "-fbnoig")
     respx.get(f"{GRAPH}/oauth/access_token").mock(
