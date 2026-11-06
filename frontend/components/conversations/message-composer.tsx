@@ -126,33 +126,26 @@ export function MessageComposer({
 
   function submit() {
     const text = content.trim();
-    if ((!text && attachments.length === 0) || send.isPending || uploading) {
-      return;
-    }
-    send.mutate(
-      {
-        content: text || undefined,
-        isPrivate,
-        attachments: attachments.length
-          ? attachments.map((a) => ({
-              external_url: a.external_url,
-              file_type: a.file_type,
-            }))
-          : undefined,
-      },
-      {
-        onSuccess: () => {
-          setContent("");
-          setPickerOpen(false);
-          setAttachments((prev) => {
-            prev.forEach(
-              (a) => a.previewUrl && URL.revokeObjectURL(a.previewUrl),
-            );
-            return [];
-          });
-        },
-      },
+    if ((!text && attachments.length === 0) || uploading) return;
+    // The thread shows it right away (and keeps it if it fails), so the box
+    // is free for the next message.
+    send.mutate({
+      content: text || undefined,
+      isPrivate,
+      attachments: attachments.length
+        ? attachments.map((a) => ({
+            external_url: a.external_url,
+            file_type: a.file_type,
+          }))
+        : undefined,
+    });
+    setContent("");
+    setPickerOpen(false);
+    attachments.forEach(
+      (a) => a.previewUrl && URL.revokeObjectURL(a.previewUrl),
     );
+    setAttachments([]);
+    textareaRef.current?.focus();
   }
 
   return (
@@ -311,9 +304,7 @@ export function MessageComposer({
           size="sm"
           onClick={() => fileRef.current?.click()}
           loading={uploading}
-          disabled={
-            uploading || send.isPending || attachments.length >= MAX_ATTACHMENTS
-          }
+          disabled={uploading || attachments.length >= MAX_ATTACHMENTS}
           aria-label="Adjuntar archivos"
         >
           <Paperclip className="h-3.5 w-3.5" aria-hidden />
@@ -321,7 +312,6 @@ export function MessageComposer({
 
         <Button
           onClick={submit}
-          loading={send.isPending}
           disabled={uploading || (!content.trim() && attachments.length === 0)}
           size="sm"
           className="ml-auto"
@@ -334,11 +324,6 @@ export function MessageComposer({
       {uploadError ? (
         <p role="alert" className="mt-1 text-xs text-danger">
           No se pudieron subir algunos archivos. Reintentá.
-        </p>
-      ) : null}
-      {send.isError ? (
-        <p role="alert" className="mt-1 text-xs text-danger">
-          No se pudo enviar. Reintentá.
         </p>
       ) : null}
     </div>

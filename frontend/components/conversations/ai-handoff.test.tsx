@@ -66,6 +66,26 @@ describe("AiHandoff", () => {
     await waitFor(() => expect(postBody).toEqual({ action: "release" }));
   });
 
+  it("shows who has the conversation on the button", () => {
+    const { rerender } = wrap(
+      <AiHandoff accountId="1" displayId={7} control={{ owner: "ai_agent" }} />,
+    );
+    const meta = screen
+      .getByRole("button", { name: "Tomar conversación" })
+      .querySelector("svg");
+    expect(meta).toHaveAttribute("fill", "#0467DF");
+
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <AiHandoff accountId="1" displayId={7} control={{ owner: "app" }} />
+      </QueryClientProvider>,
+    );
+    const secretary = screen
+      .getByRole("button", { name: "Devolver a la IA" })
+      .querySelector("svg");
+    expect(secretary).toHaveAttribute("stroke", "currentColor");
+  });
+
   it("shows Meta's reason when it refuses", async () => {
     server.use(
       http.post("*/conversations/7/thread_control", () =>

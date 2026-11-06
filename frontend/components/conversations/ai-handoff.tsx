@@ -1,10 +1,34 @@
 "use client";
 
-import { Bot, Users } from "lucide-react";
-
+import { Meta } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { type ThreadControl, useThreadControl } from "@/lib/api/conversations";
-import { cn } from "@/lib/utils";
+
+/** A person at the desk: headset and collar, a rounded line over a soft fill. */
+function SecretaryIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <g fill="currentColor" fillOpacity={0.2} stroke="none">
+        <circle cx="12" cy="9" r="3.5" />
+        <path d="M4.5 21a7.5 7.5 0 0 1 15 0z" />
+      </g>
+      <circle cx="12" cy="9" r="3.5" />
+      <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+      <path d="M9.5 14.2 12 17l2.5-2.8" />
+      <path d="M6.5 10V8.5a5.5 5.5 0 0 1 11 0V10" />
+      <path d="M17.5 10a2.5 2.5 0 0 1-2.5 2.5" />
+    </svg>
+  );
+}
 
 /** Who is answering a WhatsApp chat on a number run by Meta Business Agent.
  *
@@ -12,7 +36,8 @@ import { cn } from "@/lib/utils";
  *  without Meta's AI never see it. While the AI answers, the team can
  *  read along and take over; once the team owns it, they can hand it back
  *  (resolving usually does that too). Replying while the AI owns the
- *  chat also takes it over, which the hint says before anyone types. */
+ *  chat also takes it over, which the hint says before anyone types.
+ *  The button shows who has it now: the Meta logo or the person at the desk. */
 export function AiHandoff({
   accountId,
   displayId,
@@ -28,17 +53,6 @@ export function AiHandoff({
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-glass px-4 py-2">
-      <span
-        className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-surface-2",
-          aiAnswering
-            ? "border-electrode text-electrode"
-            : "border-success text-success",
-        )}
-        aria-hidden
-      >
-        {aiAnswering ? <Bot className="h-4 w-4" /> : <Users className="h-4 w-4" />}
-      </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-fg">
           {aiAnswering ? "Responde la IA de Meta" : "Atiende el equipo"}
@@ -57,12 +71,18 @@ export function AiHandoff({
         ) : null}
       </div>
       <Button
-        variant={aiAnswering ? "primary" : "ai"}
-        size="sm"
+        variant="secondary"
+        size="icon"
         loading={mutation.isPending}
+        aria-label={aiAnswering ? "Tomar conversación" : "Devolver a la IA"}
+        title={aiAnswering ? "Tomar conversación" : "Devolver a la IA"}
         onClick={() => mutation.mutate(aiAnswering ? "take" : "release")}
       >
-        {aiAnswering ? "Tomar conversación" : "Devolver a la IA"}
+        {mutation.isPending ? null : aiAnswering ? (
+          <Meta className="h-5 w-5" aria-hidden />
+        ) : (
+          <SecretaryIcon className="h-5 w-5" />
+        )}
       </Button>
     </div>
   );

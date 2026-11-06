@@ -1,9 +1,15 @@
 "use client";
 
 import { Lock, MapPin, Paperclip, Pause, Play, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
-import { MESSAGE_TYPE, type Message } from "@/lib/api/conversations";
+import {
+  MESSAGE_TYPE,
+  type Message,
+  type PendingMessage,
+  useForgetPendingMessage,
+  useSendMessage,
+} from "@/lib/api/conversations";
 import { clockTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -321,10 +327,13 @@ export function MessageBubble({
   message,
   contactName,
   onDelete,
+  footer,
 }: {
   message: Message;
   contactName?: string;
   onDelete?: (id: number) => void;
+  /** Replaces the author and time under the bubble. */
+  footer?: ReactNode;
 }) {
   if (message.message_type === MESSAGE_TYPE.activity) {
     return (
@@ -400,17 +409,77 @@ export function MessageBubble({
           <DeleteButton onClick={() => onDelete?.(message.id)} />
         ) : null}
       </div>
-      {caption ? (
-        <span
-          className={cn(
-            "mt-1 font-numeric text-[11px] tabular-nums text-fg-muted",
-            outgoing ? "text-right" : "text-left",
-          )}
-        >
-          {caption}
-        </span>
-      ) : null}
+      {footer ??
+        (caption ? (
+          <span
+            className={cn(
+              "mt-1 font-numeric text-[11px] tabular-nums text-fg-muted",
+              outgoing ? "text-right" : "text-left",
+            )}
+          >
+            {caption}
+          </span>
+        ) : null)}
     </div>
+  );
+}
+
+/** A message just written: in the thread at once, while it goes out. */
+export function PendingMessageBubble({
+  accountId,
+  displayId,
+  pending,
+}: {
+  accountId: string;
+  displayId: number;
+  pending: PendingMessage;
+}) {
+  const send = useSendMessage(accountId, displayId);
+  const forget = useForgetPendingMessage();
+  const { input } = pending;
+  const files = input.attachments?.length ?? 0;
+  const filesLabel = files === 1 ? "1 adjunto" : `${files} adjuntos`;
+
+  return (
+    <MessageBubble
+      message={{
+        id: -pending.mutationId,
+        content: input.content || `📎 ${filesLabel}`,
+        message_type: MESSAGE_TYPE.outgoing,
+        content_type: "text",
+        status: pending.failed ? "failed" : "sending",
+        created_at: pending.submittedAt / 1000,
+        private: Boolean(input.isPrivate),
+      }}
+      footer={
+        pending.failed ? (
+          <span role="alert" className="mt-1 text-right text-[11px] text-danger">
+            {pending.error || "No se pudo enviar."}{" "}
+            <button
+              type="button"
+              className="font-medium underline"
+              onClick={() => {
+                forget(pending.mutationId);
+                send.mutate(input);
+              }}
+            >
+              Reintentar
+            </button>{" "}
+            <button
+              type="button"
+              className="font-medium underline"
+              onClick={() => forget(pending.mutationId)}
+            >
+              Descartar
+            </button>
+          </span>
+        ) : (
+          <span className="mt-1 text-right text-[11px] text-fg-muted">
+            {files && input.content ? `Enviando con ${filesLabel}…` : "Enviando…"}
+          </span>
+        )
+      }
+    />
   );
 }
 

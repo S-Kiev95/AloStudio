@@ -1170,7 +1170,11 @@ async def create_message_endpoint(
         params=msg_params,
         user_id=ctx.user.id,
     )
-    return present_message_create(msg, echo_id=payload.echo_id)
+    body = present_message_create(msg, echo_id=payload.echo_id)
+    # The client refetches as soon as it has this answer, so what the send
+    # changed (the message, who owns the thread) must be readable by then.
+    await session.commit()
+    return body
 
 
 @messages_router.delete("/{message_id}")
