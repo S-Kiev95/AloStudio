@@ -57,6 +57,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.contacts.service import ContactInboxBuilder, dispatch_contact_created
 from app.domains.conversations.ad_referral import (
@@ -315,6 +316,12 @@ async def _process_message_event(
         return None
 
     is_echo = bool(message_block.get("is_echo"))
+    # Our own send coming back: the send records it. Storing it here too
+    # would race that send for the same ``source_id``.
+    if is_echo and str(message_block.get("app_id") or "") == str(
+        get_settings().meta_app_id or "-"
+    ):
+        return None
     sender_block = event.get("sender") or {}
     recipient_block = event.get("recipient") or {}
 
@@ -375,6 +382,8 @@ async def _process_message_event(
                     content=body,
                     message_type=message_type,
                     source_id=str(mid),
+                    # Someone else on the Page already sent it; don't send it again.
+                    content_attributes={"external_echo": True} if is_echo else None,
                 ),
                 user_id=None,
             )

@@ -13,9 +13,12 @@ Anchors:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 
+import httpx
 import pytest
+import respx
 from sqlmodel import select
 
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
@@ -28,6 +31,7 @@ from app.domains.conversations.models import (
     Conversation,
     Message,
 )
+from app.domains.facebook import incoming as incoming_module
 from app.domains.facebook.incoming import process_facebook_webhook
 from app.domains.inboxes.models import (
     FacebookPage,
@@ -224,6 +228,34 @@ async def test_echo_lands_as_outgoing_with_no_sender(db_session):
     assert msg.message_type == MESSAGE_TYPE_OUTGOING
     assert msg.sender_id is None
     assert msg.source_id == "echo-1"
+    assert msg.content_attributes["external_echo"] is True
+
+
+@respx.mock
+async def test_an_echo_is_not_sent_to_the_customer_again(db_session):
+    """Another responder on the Page answered: we show it, and never send it."""
+    await _seed(db_session, page_id="P4b", suffix="-echo2")
+    send = respx.post(url__regex=r".*/me/messages.*|.*/messages.*").mock(
+        return_value=httpx.Response(200, json={"message_id": "x"})
+    )
+    await process_facebook_webhook(
+        db_session,
+        payload=_msg_payload(
+            page_id="P4b", psid="U4b", mid="echo-2", text="auto", is_echo=True
+        ),
+    )
+    assert not send.called
+
+
+async def test_our_own_echo_is_skipped(db_session, monkeypatch):
+    """Our send records its own message; its echo adds nothing."""
+    await _seed(db_session, page_id="P4c", suffix="-echo3")
+    monkeypatch.setattr(incoming_module, "get_settings", lambda: SimpleNamespace(meta_app_id="APP"))
+    payload = _msg_payload(
+        page_id="P4c", psid="U4c", mid="echo-3", text="mine", is_echo=True
+    )
+    payload["entry"][0]["messaging"][0]["message"]["app_id"] = "APP"
+    assert await process_facebook_webhook(db_session, payload=payload) == []
 
 
 # ---------------------------------------------------------------------------
