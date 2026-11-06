@@ -3,12 +3,15 @@
  *
  * Meta shows these pages to App Review and to every person who connects
  * an account, so the name and mailbox here must be real and answered.
+ * Each installation sets its own at build time, in frontend/.env.local.
  */
 export const OPERATOR = {
   /** Responsable del tratamiento y titular del servicio. */
-  legalName: "Ezequiel Viera",
+  legalName: process.env.NEXT_PUBLIC_LEGAL_NAME || "Ezequiel Viera",
   /** Casilla que atiende consultas, derechos y solicitudes de borrado. */
-  contactEmail: "vezequiel58@gmail.com",
+  contactEmail: process.env.NEXT_PUBLIC_LEGAL_EMAIL || "vezequiel58@gmail.com",
+  /** Domicilio del responsable, si la instalación lo publica. */
+  address: process.env.NEXT_PUBLIC_LEGAL_ADDRESS || "",
   /** Jurisdicción cuya ley rige el servicio. */
   country: "Uruguay",
 } as const;
