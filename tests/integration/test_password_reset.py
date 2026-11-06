@@ -19,13 +19,14 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
+import aiosmtplib
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.config import get_settings
 from app.core.db import get_session
-from app.core.mail import wait_for_pending_mail
+from app.core.mail import send_mail, system_message, wait_for_pending_mail
 from app.core.security import verify_password
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.auth.password_reset import (
@@ -36,6 +37,10 @@ from app.domains.auth.password_reset import (
 from app.main import app
 
 pytestmark = pytest.mark.integration
+
+
+def _mail():
+    return system_message(to="a@example.com", subject="Hola", body="Prueba")
 
 
 @pytest.fixture(autouse=True)
@@ -254,6 +259,32 @@ async def test_an_invitation_link_expires_after_a_week(client, db_session, seede
     assert resp.status_code == 422
 
 
+async def test_a_mail_is_sent_again_when_the_server_fails_for_a_moment(
+    seeded_user, sent_mail, monkeypatch
+):
+    monkeypatch.setattr("app.core.mail._RETRY_SECONDS", (0, 0))
+    sent_mail.side_effect = [
+        aiosmtplib.SMTPConnectTimeoutError("Timed out connecting"),
+        None,
+    ]
+    assert await send_mail(_mail(), context="test") is True
+    assert sent_mail.await_count == 2
+
+
+async def test_it_gives_up_after_the_retries(seeded_user, sent_mail, monkeypatch):
+    monkeypatch.setattr("app.core.mail._RETRY_SECONDS", (0, 0))
+    sent_mail.side_effect = OSError("connection refused")
+    assert await send_mail(_mail(), context="test") is False
+    assert sent_mail.await_count == 3
+
+
+async def test_a_rejected_login_is_not_retried(seeded_user, sent_mail, monkeypatch):
+    monkeypatch.setattr("app.core.mail._RETRY_SECONDS", (0, 0))
+    sent_mail.side_effect = aiosmtplib.SMTPAuthenticationError(535, "bad credentials")
+    assert await send_mail(_mail(), context="test") is False
+    assert sent_mail.await_count == 1
+
+
 async def test_apply_reset_confirms_unconfirmed_user(client, db_session):
     """Recoverable side effect: resetting an unconfirmed user's password
     also stamps ``confirmed_at``."""
@@ -316,7 +347,10 @@ async def test_reset_request_emails_the_link(client, seeded_user, sent_mail):
     assert sent_mail.await_count == 1
 
 
-async def test_a_mail_server_failure_does_not_fail_the_request(client, seeded_user, sent_mail):
+async def test_a_mail_server_failure_does_not_fail_the_request(
+    client, seeded_user, sent_mail, monkeypatch
+):
+    monkeypatch.setattr("app.core.mail._RETRY_SECONDS", (0, 0))
     sent_mail.side_effect = OSError("connection refused")
 
     r = await client.post("/auth/password", json={"email": "forgetful@rocket.example.com"})
