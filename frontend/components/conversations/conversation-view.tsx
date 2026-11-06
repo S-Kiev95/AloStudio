@@ -2,6 +2,7 @@
 
 import { ArrowLeft, CheckCircle2, Megaphone, RotateCcw } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import {
   useConversation,
   useDeleteMessage,
   useMessages,
+  usePendingMessages,
   useToggleStatus,
 } from "@/lib/api/conversations";
 import { cn } from "@/lib/utils";
@@ -20,7 +22,7 @@ import { ConversationActions } from "./conversation-actions";
 import { ConversationParticipants } from "./conversation-participants";
 import { EmailComposer } from "./email-composer";
 import { EmailMessage } from "./email-message";
-import { MessageBubble } from "./message-bubble";
+import { MessageBubble, PendingMessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
 
 const STATUS_CHIP: Record<string, { label: string; className: string }> = {
@@ -91,6 +93,7 @@ export function ConversationView({
 }) {
   const conv = useConversation(accountId, displayId);
   const messages = useMessages(accountId, displayId);
+  const pending = usePendingMessages(accountId, displayId);
   const toggle = useToggleStatus(accountId, displayId);
   const del = useDeleteMessage(accountId, displayId);
 
@@ -114,6 +117,36 @@ export function ConversationView({
   // thread you scan rather than scroll.
   const isEmail = conv.data?.meta?.channel === "Channel::Email";
   const subject = conv.data?.additional_attributes?.mail_subject ?? null;
+
+  // The chat follows the newest message, unless the agent scrolled up to
+  // read; sending brings them back down.
+  const threadRef = useRef<HTMLDivElement>(null);
+  const followNewest = useRef(true);
+  const lastScrollTop = useRef(0);
+  const sentCount = useRef(0);
+  const newestId = messages.data?.payload.at(-1)?.id;
+  useEffect(() => {
+    followNewest.current = true;
+  }, [displayId]);
+  useEffect(() => {
+    if (pending.length > sentCount.current) followNewest.current = true;
+    sentCount.current = pending.length;
+    const thread = threadRef.current;
+    if (thread && !isEmail && followNewest.current) {
+      thread.scrollTop = thread.scrollHeight;
+    }
+  }, [displayId, isEmail, newestId, pending.length]);
+  // The bars above the thread load after it and shrink it.
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (!thread || isEmail || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (followNewest.current) thread.scrollTop = thread.scrollHeight;
+    });
+    observer.observe(thread);
+    return () => observer.disconnect();
+  }, [isEmail]);
+
   // Who the reply goes to. The newest message's sender is the person who
   // last wrote, which is who "reply" means on a thread.
   const replyTo =
@@ -193,14 +226,29 @@ export function ConversationView({
         ) : null}
 
         {/* Thread */}
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+        <div
+          ref={threadRef}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            // Only moving up stops following: the thread shrinking while the
+            // bars above it load also leaves it away from the bottom.
+            if (el.scrollHeight - el.scrollTop - el.clientHeight < 120) {
+              followNewest.current = true;
+            } else if (el.scrollTop < lastScrollTop.current) {
+              followNewest.current = false;
+            }
+            lastScrollTop.current = el.scrollTop;
+          }}
+          className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
+        >
           {messages.isLoading ? (
             <p className="text-center text-sm text-fg-muted">Cargando…</p>
           ) : messages.isError ? (
             <p role="alert" className="text-center text-sm text-danger">
               No se pudieron cargar los mensajes.
             </p>
-          ) : (messages.data?.payload.length ?? 0) === 0 ? (
+          ) : (messages.data?.payload.length ?? 0) === 0 &&
+            (isEmail || pending.length === 0) ? (
             <p className="text-center text-sm text-fg-muted">Sin mensajes.</p>
           ) : (
             messages.data?.payload.map((m, i, all) =>
@@ -223,6 +271,16 @@ export function ConversationView({
               ),
             )
           )}
+          {isEmail
+            ? null
+            : pending.map((p) => (
+                <PendingMessageBubble
+                  key={p.mutationId}
+                  accountId={accountId}
+                  displayId={displayId}
+                  pending={p}
+                />
+              ))}
         </div>
 
         {isEmail ? (

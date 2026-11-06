@@ -1,5 +1,6 @@
 import {
   useMutation,
+  useMutationState,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -240,6 +241,9 @@ export function useConversation(accountId: string, displayId: number) {
     queryKey: ["conversation", accountId, displayId],
     queryFn: () =>
       apiFetch<Conversation>(`${base(accountId)}/${displayId}`),
+    // Another agent's reply can change who owns the thread, and the live
+    // event for it goes out before that is saved.
+    refetchInterval: 15_000,
   });
 }
 
@@ -257,18 +261,38 @@ export function useMessages(accountId: string, displayId: number) {
 // ---------------------------------------------------------------------------
 export type OutgoingAttachment = { external_url: string; file_type: string };
 
+export type SendMessageInput = {
+  content?: string;
+  isPrivate?: boolean;
+  attachments?: OutgoingAttachment[];
+  /** Email only. Omitted on every other channel, which has no
+   *  concept of copying a third party on a reply. */
+  ccEmails?: string;
+  bccEmails?: string;
+};
+
+export type PendingMessage = {
+  mutationId: number;
+  input: SendMessageInput;
+  failed: boolean;
+  error: string | null;
+  submittedAt: number;
+};
+
+function sendMessageKey(accountId: string, displayId: number) {
+  return ["send-message", accountId, displayId];
+}
+
 export function useSendMessage(accountId: string, displayId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: {
-      content?: string;
-      isPrivate?: boolean;
-      attachments?: OutgoingAttachment[];
-      /** Email only. Omitted on every other channel, which has no
-       *  concept of copying a third party on a reply. */
-      ccEmails?: string;
-      bccEmails?: string;
-    }) =>
+    mutationKey: sendMessageKey(accountId, displayId),
+    // One at a time, so the customer reads them in the order they were
+    // written even when a send takes seconds.
+    scope: { id: `send-message-${accountId}-${displayId}` },
+    // A failed message stays on screen until it is retried or discarded.
+    gcTime: Infinity,
+    mutationFn: (input: SendMessageInput) =>
       apiFetch<Message>(`${base(accountId)}/${displayId}/messages`, {
         method: "POST",
         body: JSON.stringify({
@@ -280,11 +304,53 @@ export function useSendMessage(accountId: string, displayId: number) {
           bcc_emails: input.bccEmails || undefined,
         }),
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["messages", accountId, displayId] });
+    onSuccess: async (message) => {
+      const messagesKey = ["messages", accountId, displayId];
+      // In the cache before it stops being pending, so it never blinks; a
+      // refetch started earlier would bring the list without it.
+      await qc.cancelQueries({ queryKey: messagesKey });
+      qc.setQueryData<MessagesIndex>(messagesKey, (old) =>
+        old && !old.payload.some((m) => m.id === message.id)
+          ? { ...old, payload: [...old.payload, message] }
+          : old,
+      );
+      qc.invalidateQueries({ queryKey: messagesKey });
       qc.invalidateQueries({ queryKey: ["conversations", accountId] });
+      // Replying can take the thread from the AI.
+      qc.invalidateQueries({ queryKey: ["conversation", accountId, displayId] });
     },
   });
+}
+
+/** Messages still going out or that failed, oldest first. They live in the
+ *  mutation cache, so refetching the thread doesn't touch them. */
+export function usePendingMessages(accountId: string, displayId: number) {
+  return useMutationState({
+    filters: {
+      mutationKey: sendMessageKey(accountId, displayId),
+      predicate: (m) =>
+        m.state.status === "pending" || m.state.status === "error",
+    },
+    select: (m): PendingMessage => ({
+      mutationId: m.mutationId,
+      input: m.state.variables as SendMessageInput,
+      failed: m.state.status === "error",
+      error: m.state.error?.message ?? null,
+      submittedAt: m.state.submittedAt,
+    }),
+  });
+}
+
+/** Forgets a failed message: discarded, or about to be sent again. */
+export function useForgetPendingMessage() {
+  const qc = useQueryClient();
+  return (mutationId: number) => {
+    const cache = qc.getMutationCache();
+    const mutation = cache.find({
+      predicate: (m) => m.mutationId === mutationId,
+    });
+    if (mutation) cache.remove(mutation);
+  };
 }
 
 /** Soft-delete a message — the backend replaces it with a "deleted" marker
