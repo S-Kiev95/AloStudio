@@ -43,6 +43,21 @@ os.environ.setdefault(
 )
 
 
+@pytest.fixture(autouse=True)
+def _no_contact_name_lookup(monkeypatch):
+    """Inbound webhooks ask Meta for the sender's name; tests stay offline."""
+
+    async def unknown(**_kwargs):
+        return None
+
+    monkeypatch.setattr(
+        "app.domains.facebook.incoming.fetch_contact_name", unknown
+    )
+    monkeypatch.setattr(
+        "app.domains.instagram.incoming.fetch_contact_name", unknown
+    )
+
+
 @pytest.fixture
 async def alo_app():
     """In-process FastAPI app with lifespan management."""
