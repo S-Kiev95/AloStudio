@@ -307,6 +307,75 @@ def start_facebook_oauth(account_id: int) -> str:
     )
 
 
+async def _connect_facebook_page(
+    session: AsyncSession, *, account: Any, page: Any
+) -> dict[str, Any]:
+    """Create or refresh the inbox of one granted Page's Instagram account."""
+    from app.domains.instagram import oauth
+
+    ig_id = page.instagram_business_account_id
+    if not ig_id:
+        ig_id = await oauth.get_page_ig_account(
+            page_id=page.id, page_token=page.access_token
+        )
+    if not ig_id:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": "selected Page has no linked Instagram account"
+            },
+        )
+
+    # The @handle beats the Page name: it's what the admin sees in the
+    # Instagram app, and it's what tells two connected accounts apart.
+    _canonical, username = await oauth.fetch_profile(
+        instagram_id=ig_id,
+        access_token=page.access_token,
+        login_type="facebook",
+    )
+    inbox, channel, reconnected = await _reconnect_or_build(
+        session,
+        account=account,
+        name=username or page.name or "Instagram",
+        instagram_id=ig_id,
+        access_token=page.access_token,
+    )
+    await record_connection(
+        session,
+        channel_instagram_id=channel.id,
+        login_type="facebook",
+        connect_method="oauth",
+        page_id=page.id,
+    )
+    # Meta delivers this Page's Instagram events only to apps installed on
+    # it. Best-effort: a failure leaves a connection that publishes but
+    # receives nothing, which is worth surfacing rather than rolling back.
+    subscribed, sub_err = await oauth.subscribe_page_webhooks(
+        page_id=page.id, page_token=page.access_token
+    )
+    if not subscribed:
+        logging.getLogger(__name__).warning(
+            "instagram.subscribe_page_failed page_id=%s err=%s",
+            page.id,
+            sub_err,
+        )
+    return {
+        "inbox_id": inbox.id if inbox else None,
+        "channel_instagram_id": channel.id,
+        "instagram_id": ig_id,
+        "login_type": "facebook",
+        "page_id": page.id,
+        "reconnected": reconnected,
+        "username": username,
+        "subscribed": subscribed,
+    }
+
+
+# ---------------------------------------------------------------------------
+# OAuth — Instagram Login flow (no Facebook Page; host graph.instagram.com)
+# ---------------------------------------------------------------------------
+
+
 async def complete_facebook_oauth(
     session: AsyncSession,
     *,
@@ -318,8 +387,10 @@ async def complete_facebook_oauth(
     code for a (non-expiring) page token + IG id, create the inbox +
     channel, and record the connection.
 
-    ``page_id`` optionally selects which Page when the user manages
-    several; otherwise the first Page with a linked IG account wins.
+    ``page_id`` optionally selects one Page; otherwise every Page the user
+    granted that has a linked IG account is connected, since they already
+    chose those in Meta's dialog. The result describes the first one, plus
+    the handles of all of them in ``usernames``.
     """
     from app.domains.accounts.models import Account
     from app.domains.instagram import oauth
@@ -371,15 +442,13 @@ async def complete_facebook_oauth(
             },
         )
 
-    chosen = None
     if page_id:
-        chosen = next((p for p in pages.pages if p.id == page_id), None)
-    if chosen is None:
-        chosen = next(
-            (p for p in pages.pages if p.instagram_business_account_id),
-            None,
-        )
-    if chosen is None:
+        chosen = [p for p in pages.pages if p.id == page_id]
+    else:
+        chosen = [p for p in pages.pages if p.instagram_business_account_id]
+    if not chosen:
+        chosen = [p for p in pages.pages if p.instagram_business_account_id][:1]
+    if not chosen:
         raise ChatwootHTTPException(
             status_code=422,
             detail={
@@ -390,67 +459,17 @@ async def complete_facebook_oauth(
             },
         )
 
-    ig_id = chosen.instagram_business_account_id
-    if not ig_id:
-        ig_id = await oauth.get_page_ig_account(
-            page_id=chosen.id, page_token=chosen.access_token
-        )
-    if not ig_id:
-        raise ChatwootHTTPException(
-            status_code=422,
-            detail={
-                "message": "selected Page has no linked Instagram account"
-            },
-        )
-
-    # The @handle beats the Page name: it's what the admin sees in the
-    # Instagram app, and it's what tells two connected accounts apart.
-    _canonical, username = await oauth.fetch_profile(
-        instagram_id=ig_id,
-        access_token=chosen.access_token,
-        login_type="facebook",
-    )
-    inbox, channel, reconnected = await _reconnect_or_build(
-        session,
-        account=account,
-        name=username or chosen.name or "Instagram",
-        instagram_id=ig_id,
-        access_token=chosen.access_token,
-    )
-    await record_connection(
-        session,
-        channel_instagram_id=channel.id,
-        login_type="facebook",
-        connect_method="oauth",
-        page_id=chosen.id,
-    )
-    # Meta delivers this Page's Instagram events only to apps installed on
-    # it. Best-effort: a failure leaves a connection that publishes but
-    # receives nothing, which is worth surfacing rather than rolling back.
-    subscribed, sub_err = await oauth.subscribe_page_webhooks(
-        page_id=chosen.id, page_token=chosen.access_token
-    )
-    if not subscribed:
-        logging.getLogger(__name__).warning(
-            "instagram.subscribe_page_failed page_id=%s err=%s",
-            chosen.id,
-            sub_err,
-        )
+    results = [
+        await _connect_facebook_page(session, account=account, page=page)
+        for page in chosen
+    ]
     return {
-        "inbox_id": inbox.id if inbox else None,
-        "channel_instagram_id": channel.id,
-        "instagram_id": ig_id,
-        "login_type": "facebook",
-        "page_id": chosen.id,
-        "reconnected": reconnected,
-        "username": username,
-        "subscribed": subscribed,
+        **results[0],
+        "reconnected": all(r["reconnected"] for r in results),
+        "usernames": [r["username"] for r in results if r["username"]],
     }
 
 
-# ---------------------------------------------------------------------------
-# OAuth — Instagram Login flow (no Facebook Page; host graph.instagram.com)
-# ---------------------------------------------------------------------------
 def start_instagram_oauth(account_id: int) -> str:
     """Build the Instagram Login authorization URL (signed state).
     422 if the Instagram app isn't configured."""
