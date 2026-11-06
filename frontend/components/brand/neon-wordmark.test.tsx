@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   BREATHE_DURATION_MS,
+  IGNITE_CLEAR_MS,
   LAST_O_DURATION_MS,
   NeonWordmark,
+  NORMAL_DURATION_MS,
   RANDOM_BEAT_DIM_MS,
   RANDOM_BEAT_PEAK_MS,
   RANDOM_BEAT_PULSE_MS,
@@ -77,12 +79,11 @@ describe("NeonWordmark", () => {
     expect(link.querySelectorAll("span")).toHaveLength(9);
   });
 
-  it("ejecuta las cuatro escenas en orden 1 -> 2 -> 3 -> 4 -> 1 tras la pausa, una sola por vez", () => {
+  it("repite las cinco escenas en bucle y sin pausas, una sola por vez", () => {
     vi.useFakeTimers();
     mockReducedMotion(false);
     document.documentElement.classList.add("dark");
-    // Con Math.random() = 0.5 la pausa entre escenas es de 25_000 ms
-    // y en random-beat cada pulso enciende 1 letra (0.5 >= 0.25).
+    // Con Math.random() = 0.5 cada pulso de random-beat enciende 1 letra (0.5 >= 0.25).
     vi.spyOn(Math, "random").mockReturnValue(0.5);
 
     render(<NeonWordmark />);
@@ -91,20 +92,15 @@ describe("NeonWordmark", () => {
 
     expect(wordmark).not.toHaveAttribute("data-scene");
 
-    // Escena 1: breathe
+    // Escena 1: breathe, apenas termina el encendido inicial
     act(() => {
-      vi.advanceTimersByTime(25_000);
+      vi.advanceTimersByTime(IGNITE_CLEAR_MS);
     });
     expect(wordmark).toHaveAttribute("data-scene", "breathe");
 
-    act(() => {
-      vi.advanceTimersByTime(BREATHE_DURATION_MS);
-    });
-    expect(wordmark).not.toHaveAttribute("data-scene");
-
     // Escena 2: sequential
     act(() => {
-      vi.advanceTimersByTime(25_000);
+      vi.advanceTimersByTime(BREATHE_DURATION_MS);
     });
     expect(wordmark).toHaveAttribute("data-scene", "sequential");
     for (const span of letters) {
@@ -126,40 +122,34 @@ describe("NeonWordmark", () => {
       expect(span).toHaveAttribute("data-tube", "peak");
     }
 
+    // Escena 3: last-o
     act(() => {
       vi.advanceTimersByTime(
         SEQUENTIAL_DURATION_MS - SEQUENTIAL_DIM_MS - 9 * SEQUENTIAL_STEP_MS,
       );
     });
-    expect(wordmark).not.toHaveAttribute("data-scene");
-
-    // Escena 3: last-o
-    act(() => {
-      vi.advanceTimersByTime(25_000);
-    });
     expect(wordmark).toHaveAttribute("data-scene", "last-o");
-
-    act(() => {
-      vi.advanceTimersByTime(LAST_O_DURATION_MS);
-    });
-    expect(wordmark).not.toHaveAttribute("data-scene");
 
     // Escena 4: random-beat
     act(() => {
-      vi.advanceTimersByTime(25_000);
+      vi.advanceTimersByTime(LAST_O_DURATION_MS);
     });
     expect(wordmark).toHaveAttribute("data-scene", "random-beat");
 
+    // Escena 5: normal, con el cartel encendido entero
     const randomBeatTotalMs =
       RANDOM_BEAT_DIM_MS + 9 * RANDOM_BEAT_PULSE_MS + RANDOM_BEAT_PEAK_MS;
     act(() => {
       vi.advanceTimersByTime(randomBeatTotalMs);
     });
-    expect(wordmark).not.toHaveAttribute("data-scene");
+    expect(wordmark).toHaveAttribute("data-scene", "normal");
+    for (const span of letters) {
+      expect(span).not.toHaveAttribute("data-tube");
+    }
 
-    // Vuelve a la escena 1: breathe
+    // Y vuelve a empezar: breathe
     act(() => {
-      vi.advanceTimersByTime(25_000);
+      vi.advanceTimersByTime(NORMAL_DURATION_MS);
     });
     expect(wordmark).toHaveAttribute("data-scene", "breathe");
   });
@@ -168,7 +158,6 @@ describe("NeonWordmark", () => {
     vi.useFakeTimers();
     mockReducedMotion(false);
     document.documentElement.classList.add("dark");
-    vi.spyOn(Math, "random").mockReturnValue(0);
 
     render(<NeonWordmark />);
     const wordmark = screen.getByLabelText("AloStudio");
@@ -176,13 +165,10 @@ describe("NeonWordmark", () => {
 
     // Avanzar por escena 1 (breathe) y escena 2 (sequential) hasta llegar a escena 3 (last-o)
     act(() => {
-      vi.advanceTimersByTime(20_000 + BREATHE_DURATION_MS);
+      vi.advanceTimersByTime(IGNITE_CLEAR_MS + BREATHE_DURATION_MS);
     });
     act(() => {
-      vi.advanceTimersByTime(20_000 + SEQUENTIAL_DURATION_MS);
-    });
-    act(() => {
-      vi.advanceTimersByTime(20_000);
+      vi.advanceTimersByTime(SEQUENTIAL_DURATION_MS);
     });
 
     expect(wordmark).toHaveAttribute("data-scene", "last-o");
@@ -195,8 +181,7 @@ describe("NeonWordmark", () => {
     act(() => {
       vi.advanceTimersByTime(LAST_O_DURATION_MS);
     });
-    expect(wordmark).not.toHaveAttribute("data-scene");
-    expect(letters[8]).not.toHaveAttribute("data-tube");
+    expect(wordmark).toHaveAttribute("data-scene", "random-beat");
   });
 
   it("en random-beat enciende cada letra una sola vez sobre un pulso fijo y al final están las nueve", () => {
@@ -205,10 +190,6 @@ describe("NeonWordmark", () => {
     document.documentElement.classList.add("dark");
 
     const randomValues = [
-      0, // pausa escena 1 (20s)
-      0, // pausa escena 2 (20s)
-      0, // pausa escena 3 (20s)
-      0, // pausa escena 4 (20s)
       // Pulsos de random-beat (alternando pulsos de 2 letras y de 1 letra en orden aleatorio):
       0.1, // pulso 1: 2 letras (< 0.25)
       0.7, // elige índice de remaining
@@ -239,10 +220,9 @@ describe("NeonWordmark", () => {
 
     // Avanzar hasta el inicio de la 4ª escena (random-beat)
     act(() => {
-      vi.advanceTimersByTime(20_000 + BREATHE_DURATION_MS);
-      vi.advanceTimersByTime(20_000 + SEQUENTIAL_DURATION_MS);
-      vi.advanceTimersByTime(20_000 + LAST_O_DURATION_MS);
-      vi.advanceTimersByTime(20_000);
+      vi.advanceTimersByTime(IGNITE_CLEAR_MS + BREATHE_DURATION_MS);
+      vi.advanceTimersByTime(SEQUENTIAL_DURATION_MS);
+      vi.advanceTimersByTime(LAST_O_DURATION_MS);
     });
 
     expect(wordmark).toHaveAttribute("data-scene", "random-beat");
@@ -309,7 +289,7 @@ describe("NeonWordmark", () => {
     act(() => {
       vi.advanceTimersByTime(RANDOM_BEAT_PEAK_MS);
     });
-    expect(wordmark).not.toHaveAttribute("data-scene");
+    expect(wordmark).toHaveAttribute("data-scene", "normal");
     for (const span of letters) {
       expect(span).not.toHaveAttribute("data-tube");
     }
@@ -343,23 +323,17 @@ describe("NeonWordmark", () => {
 
     // 3. En modo oscuro: respeta document.hidden en medio de una escena, cambio a tema claro y desmontaje
     document.documentElement.className = "dark";
-    vi.spyOn(Math, "random").mockReturnValue(0);
     const { unmount } = render(<NeonWordmark />);
     const wordmark = screen.getByLabelText("AloStudio");
     expect(wordmark.className).toContain("neon-wordmark-ignite");
 
-    // Termina el encendido inicial (~920 ms) y queda el temporizador de la próxima escena
+    // Termina el encendido inicial y arranca la escena 1 (breathe)
     act(() => {
-      vi.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(IGNITE_CLEAR_MS);
     });
     expect(wordmark.className).not.toContain("neon-wordmark-ignite");
-    expect(vi.getTimerCount()).toBe(1);
-
-    // Avanza hasta que arranca la escena 1 (breathe)
-    act(() => {
-      vi.advanceTimersByTime(19_000);
-    });
     expect(wordmark).toHaveAttribute("data-scene", "breathe");
+    expect(vi.getTimerCount()).toBe(1);
 
     // Si la pestaña se oculta en medio de una escena, vuelve a encendido entero y quedan 0 temporizadores
     Object.defineProperty(document, "hidden", {
@@ -372,7 +346,7 @@ describe("NeonWordmark", () => {
     expect(wordmark).not.toHaveAttribute("data-scene");
     expect(vi.getTimerCount()).toBe(0);
 
-    // Al volver a hacerse visible la pestaña, programa la siguiente escena
+    // Al volver a hacerse visible la pestaña, sigue con la escena 2 (sequential, con letras apagadas)
     Object.defineProperty(document, "hidden", {
       configurable: true,
       value: false,
@@ -380,14 +354,9 @@ describe("NeonWordmark", () => {
     act(() => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
-    expect(vi.getTimerCount()).toBe(1);
-
-    // Arranca la escena 2 (sequential, con letras apagadas) y se pasa a tema claro
-    act(() => {
-      vi.advanceTimersByTime(20_000);
-    });
     expect(wordmark).toHaveAttribute("data-scene", "sequential");
 
+    // Al pasar a tema claro se detiene con el cartel entero
     await act(async () => {
       document.documentElement.className = "light";
       await Promise.resolve();
@@ -398,11 +367,12 @@ describe("NeonWordmark", () => {
     }
     expect(vi.getTimerCount()).toBe(0);
 
-    // Volver a oscuro reprograma y al desmontar queda en cero
+    // Volver a oscuro retoma el bucle y al desmontar queda en cero
     await act(async () => {
       document.documentElement.className = "dark";
       await Promise.resolve();
     });
+    expect(wordmark).toHaveAttribute("data-scene", "last-o");
     expect(vi.getTimerCount()).toBe(1);
 
     unmount();

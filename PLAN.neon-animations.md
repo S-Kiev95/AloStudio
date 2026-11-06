@@ -29,9 +29,10 @@ Palabras del dueño entre comillas. "Apagado" es el tubo sin encender: la letra 
 ## Cómo se suceden
 
 - Al montar queda el encendido de hoy (~900 ms), sin cambios.
-- Después, cada 20–30 s (al azar), corre **una** escena, en orden 1 → 2 → 3 → 4 → 1… Nunca dos a la vez. Dejá las duraciones y la pausa en constantes arriba del archivo, para poder ajustarlas sin tocar la lógica.
+- Después corren **en bucle y sin pausas**, de a una, en orden 1 → 2 → 3 → 4 → 5 → 1… Nunca dos a la vez. Las duraciones están en constantes arriba del archivo, para poder ajustarlas sin tocar la lógica.
+- Revisión del dueño (2026-11-06): pidió el bucle continuo en lugar de las pausas de 20–30 s y una quinta escena, **`normal`**: el cartel encendido y fijo durante 8 s. Lo hizo Claude sobre la rama.
 - Estas cuatro escenas **reemplazan al zumbido de hoy**: sacá su lógica y sus `@keyframes` si dejan de usarse.
-- Exponé la escena activa en el elemento raíz con `data-scene` (sin atributo cuando no corre ninguna), para los tests y para revisarlo en el navegador.
+- Exponé la escena activa en el elemento raíz con `data-scene` (sin atributo durante el encendido inicial o si el bucle está detenido), para los tests y para revisarlo en el navegador.
 
 ## Lo que no cambia
 

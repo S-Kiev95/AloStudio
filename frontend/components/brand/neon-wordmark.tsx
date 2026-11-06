@@ -20,20 +20,19 @@ const IGNITE_FLICKERS: readonly ("1" | "2")[] = [
   "2",
 ];
 const LETTER_STAGGER_MS = 65;
-const IGNITE_CLEAR_MS = 920;
+export const IGNITE_CLEAR_MS = 920;
 
 export const SCENE_ORDER = [
   "breathe",
   "sequential",
   "last-o",
   "random-beat",
+  "normal",
 ] as const;
 export type NeonScene = (typeof SCENE_ORDER)[number];
 
-export const SCENE_MIN_PAUSE_MS = 20_000;
-export const SCENE_MAX_PAUSE_MS = 30_000;
-
 export const BREATHE_DURATION_MS = 8_000;
+export const NORMAL_DURATION_MS = 8_000;
 
 export const SEQUENTIAL_DIM_MS = 300;
 export const SEQUENTIAL_STEP_MS = 200;
@@ -61,9 +60,9 @@ export interface NeonWordmarkProps {
  * Brand neon sign ("AloStudio").
  * Exposes the full word once to assistive technology via `aria-label="AloStudio"`
  * while rendering each glyph in an `aria-hidden` span so individual tubes can
- * ignite left-to-right (~900ms) and cycle through the four dark-mode brand
- * scenes (`breathe`, `sequential`, `last-o`, `random-beat`) every 20-30s
- * without shifting layout or exceeding WCAG 2.3.1 (<= 3 flashes/s).
+ * ignite left-to-right (~900ms) and then loop through the five dark-mode brand
+ * scenes (`breathe`, `sequential`, `last-o`, `random-beat`, `normal`) without
+ * shifting layout or exceeding WCAG 2.3.1 (<= 3 flashes/s).
  */
 export function NeonWordmark({
   className,
@@ -126,6 +125,7 @@ export function NeonWordmark({
     } else {
       schedule(() => {
         setIgniting(false);
+        startNextScene();
       }, IGNITE_CLEAR_MS);
     }
 
@@ -137,16 +137,21 @@ export function NeonWordmark({
 
     const finishScene = () => {
       resetStates();
-      scheduleNextScene();
+      startNextScene();
     };
 
     const runScene = (scene: NeonScene) => {
-      if (isReduced() || isLight() || isHidden()) return;
       setActiveScene(scene);
 
       if (scene === "breathe") {
         setTubeStates(new Map());
         schedule(finishScene, BREATHE_DURATION_MS);
+        return;
+      }
+
+      if (scene === "normal") {
+        setTubeStates(new Map());
+        schedule(finishScene, NORMAL_DURATION_MS);
         return;
       }
 
@@ -219,28 +224,17 @@ export function NeonWordmark({
       schedule(stepPulse, RANDOM_BEAT_DIM_MS);
     };
 
-    function scheduleNextScene() {
+    function startNextScene() {
       if (isReduced() || isLight() || isHidden()) return;
-      const waitMs = Math.round(
-        SCENE_MIN_PAUSE_MS +
-          Math.random() * (SCENE_MAX_PAUSE_MS - SCENE_MIN_PAUSE_MS),
-      );
-      schedule(() => {
-        if (isReduced() || isLight() || isHidden()) return;
-        const scene = SCENE_ORDER[nextSceneIndex % SCENE_ORDER.length];
-        nextSceneIndex = (nextSceneIndex + 1) % SCENE_ORDER.length;
-        runScene(scene);
-      }, waitMs);
+      const scene = SCENE_ORDER[nextSceneIndex];
+      nextSceneIndex = (nextSceneIndex + 1) % SCENE_ORDER.length;
+      runScene(scene);
     }
-
-    scheduleNextScene();
 
     const resetAndReschedule = () => {
       clearAll();
       resetStates();
-      if (!isReduced() && !isLight() && !isHidden()) {
-        scheduleNextScene();
-      }
+      startNextScene();
     };
 
     const handleClassMutation = () => {
