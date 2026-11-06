@@ -36,6 +36,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import get_settings
 from app.core.mail import send_mail
 from app.core.security import hash_password
+from app.core.tokens import base58_token
 from app.domains.accounts.models import Account
 from app.domains.auth.password_reset import (
     _digest_token,
@@ -43,6 +44,7 @@ from app.domains.auth.password_reset import (
 )
 from app.domains.users.models import (
     _ROLE_STR_TO_INT,
+    AccessToken,
     AccountUser,
     User,
 )
@@ -110,9 +112,14 @@ async def invite_agent(
             display_name=name,
             encrypted_password=hash_password(random_password),
             confirmed_at=datetime.now(UTC).replace(tzinfo=None),
+            pubsub_token=base58_token(24),
         )
         session.add(user)
         await session.flush()
+        # Signing in with a password needs it, as with AccountBuilder's users.
+        session.add(
+            AccessToken(owner_type="User", owner_id=user.id, token=base58_token(24))
+        )
 
     # 2. Mint a reset-password token (Devise-compatible digest).
     raw_token = _new_raw_token()
