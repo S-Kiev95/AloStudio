@@ -23,6 +23,7 @@ from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
+    MESSAGE_STATUS_FAILED,
     MESSAGE_TYPE_OUTGOING,
     Conversation,
     Message,
@@ -146,8 +147,7 @@ async def test_send_text_posts_canonical_body(db_session):
     assert body == {
         "recipient": {"id": "USER_PSID_42"},
         "message": {"text": "hi from Chatwoot"},
-        "messaging_type": "MESSAGE_TAG",
-        "tag": "ACCOUNT_UPDATE",
+        "messaging_type": "RESPONSE",
     }
     await db_session.refresh(msg)
     assert msg.source_id == "mid.out-1"
@@ -192,6 +192,8 @@ async def test_send_text_4xx_returns_false_no_stamp(db_session):
     assert ok is False
     await db_session.refresh(msg)
     assert msg.source_id == pre
+    assert msg.status == MESSAGE_STATUS_FAILED
+    assert msg.content_attributes["external_error"] == "Invalid OAuth access token."
 
 
 @respx.mock

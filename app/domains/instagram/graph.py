@@ -20,6 +20,8 @@ import contextlib
 from collections.abc import Iterator
 from contextvars import ContextVar
 
+import httpx
+
 from app.core.config import get_settings
 
 _DEFAULT_HOST = "graph.facebook.com"
@@ -34,6 +36,19 @@ def host_for_login_type(login_type: str | None) -> str:
     """``graph.instagram.com`` for Instagram Login, else the default
     Facebook host (covers ``facebook`` + legacy/None channels)."""
     return _INSTAGRAM_HOST if login_type == "instagram" else _DEFAULT_HOST
+
+
+def meta_error_text(resp: httpx.Response) -> str:
+    """What Meta said about a refused call, for the person who sent it."""
+    try:
+        error = resp.json().get("error") or {}
+    except (ValueError, AttributeError):
+        error = {}
+    return str(
+        error.get("error_user_msg")
+        or error.get("message")
+        or f"Meta respondió {resp.status_code}"
+    )
 
 
 def graph_base() -> str:

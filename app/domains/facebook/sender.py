@@ -10,12 +10,9 @@ the query-param form rather than a Bearer header for this endpoint).
 
 5d.4 scope:
   * Plain text messages.
-  * ``messaging_type: MESSAGE_TAG`` + ``tag: ACCOUNT_UPDATE`` —
-    Chatwoot's default. Lets the agent reply outside the 24-hour
-    customer-service window for the conversation. The tag toggles to
-    ``HUMAN_AGENT`` when the installation flag
-    ``ENABLE_MESSENGER_CHANNEL_HUMAN_AGENT`` is set; we keep
-    ACCOUNT_UPDATE always for 5d.4.
+  * ``messaging_type: RESPONSE`` — a reply inside the 24-hour window.
+    Chatwoot's ``ACCOUNT_UPDATE`` tag is retired: Meta refuses it with
+    subcode 1893061. A refused send is marked failed, with Meta's reason.
   * Stamps Meta's returned ``message_id`` on ``messages.source_id``
     so 5d.3's delivery / read events can match against it.
 
@@ -23,7 +20,8 @@ Deferred to later phases:
   * Attachments (image / file / video / sticker) — needs Phase 10
     storage.
   * ``input_select`` (quick_replies) — interactive UI.
-  * ``HUMAN_AGENT`` toggle — installation config in Phase 9.
+  * ``HUMAN_AGENT`` tag, to reply past the 24-hour window. Needs Meta's
+    Human Agent feature.
 """
 
 from __future__ import annotations
@@ -36,7 +34,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
 from app.domains.conversations.models import Message
+from app.domains.conversations.service import update_message_status
 from app.domains.inboxes.models import FacebookPage
+from app.domains.instagram.graph import meta_error_text
 
 log = logging.getLogger(__name__)
 
@@ -82,8 +82,7 @@ async def send_text_message_facebook(
     body: dict[str, Any] = {
         "recipient": {"id": to_psid},
         "message": {"text": message.content or ""},
-        "messaging_type": "MESSAGE_TAG",
-        "tag": "ACCOUNT_UPDATE",
+        "messaging_type": "RESPONSE",
     }
     url = _api_url(channel)
     try:
@@ -93,7 +92,13 @@ async def send_text_message_facebook(
         log.warning(
             "facebook.send.transport_error channel_id=%s err=%s",
             channel.id,
-            exc,
+            type(exc).__name__,
+        )
+        await update_message_status(
+            session,
+            message=message,
+            status="failed",
+            external_error="No se pudo contactar a Meta.",
         )
         return False
     if resp.status_code >= 400:
@@ -102,6 +107,12 @@ async def send_text_message_facebook(
             channel.id,
             resp.status_code,
             resp.text[:500],
+        )
+        await update_message_status(
+            session,
+            message=message,
+            status="failed",
+            external_error=meta_error_text(resp),
         )
         return False
     try:
