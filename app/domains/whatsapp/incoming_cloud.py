@@ -450,6 +450,13 @@ async def _process_standby(
             stored = await _store_echo(session, channel=channel, inbox=inbox, echo=echo)
             if stored is not None:
                 out.append(stored)
+    if standby.get("messages") or standby.get("message_echoes"):
+        from app.domains.whatsapp.business_agent import note_standby_means_ai_owner
+
+        for conversation_id in {m.conversation_id for m in out}:
+            conversation = await session.get(Conversation, conversation_id)
+            if conversation is not None:
+                await note_standby_means_ai_owner(session, conversation=conversation)
     return out
 
 

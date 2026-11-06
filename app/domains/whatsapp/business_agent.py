@@ -44,6 +44,7 @@ Anchors:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -91,6 +92,8 @@ _HANDOVER_KEYS = (
 # Thread Control lives on api.facebook.com, not graph.facebook.com, and
 # is versioned by header. Overridable for tests and for a proxy.
 _THREAD_CONTROL_API_VERSION = "1.0.0"
+# Meta sometimes answers 500 and takes the same request seconds later.
+_THREAD_CONTROL_RETRY_SECONDS = (1.0, 3.0)
 
 
 def _api_base() -> str:
@@ -173,6 +176,20 @@ def mark_ai_owner_if_unknown(
     return True
 
 
+async def note_standby_means_ai_owner(
+    session: AsyncSession, *, conversation: Conversation
+) -> None:
+    """Meta sends ``standby`` only for threads we don't hold, so a conversation
+    we believed ours is back with the agent, even if its handover never came."""
+    if thread_owner(conversation) == OWNER_APP:
+        await _set_owner(
+            session,
+            conversation=conversation,
+            owner=OWNER_AI_AGENT,
+            activity="La conversación volvió a Meta Business Agent",
+        )
+
+
 # ---------------------------------------------------------------------------
 # Thread Control (Cloud API)
 # ---------------------------------------------------------------------------
@@ -191,7 +208,7 @@ async def request_thread_control(
         cfg.get("phone_number_id") if isinstance(cfg, dict) else None
     )
     if not api_key or not phone_number_id:
-        return "the WhatsApp channel has no access token or phone number id"
+        return "el canal de WhatsApp no tiene token de acceso o identificador del número"
 
     body: dict[str, Any] = {
         "messaging_product": "whatsapp",
@@ -206,15 +223,19 @@ async def request_thread_control(
     )
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                url,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                    "X-API-Version": _THREAD_CONTROL_API_VERSION,
-                },
-                json=body,
-            )
+            for wait in (*_THREAD_CONTROL_RETRY_SECONDS, None):
+                resp = await client.post(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                        "X-API-Version": _THREAD_CONTROL_API_VERSION,
+                    },
+                    json=body,
+                )
+                if resp.status_code < 500 or wait is None:
+                    break
+                await asyncio.sleep(wait)
     except (httpx.RequestError, httpx.TimeoutException) as exc:
         log.warning(
             "whatsapp.thread_control.transport_error channel_id=%s action=%s err=%s",
@@ -222,7 +243,7 @@ async def request_thread_control(
             action,
             exc,
         )
-        return "Meta could not be reached"
+        return "no se pudo contactar a Meta"
 
     if resp.status_code >= 400:
         log.warning(
@@ -237,7 +258,7 @@ async def request_thread_control(
             message = error.get("error_user_msg") or error.get("message")
         except (ValueError, AttributeError):
             message = None
-        return str(message or f"Meta answered {resp.status_code}")
+        return str(message or f"Meta respondió {resp.status_code}")
     return None
 
 
@@ -302,7 +323,7 @@ async def take_over(
     if error:
         raise ChatwootHTTPException(
             status_code=502,
-            detail={"message": f"Meta did not hand over the conversation: {error}"},
+            detail={"message": f"Meta no pasó la conversación: {error}"},
         )
     _enable_on_channel(session, channel)
     await _set_owner(
@@ -328,7 +349,7 @@ async def return_to_ai(
     if error:
         raise ChatwootHTTPException(
             status_code=502,
-            detail={"message": f"Meta did not take the conversation back: {error}"},
+            detail={"message": f"Meta no recibió la conversación de vuelta: {error}. Probá de nuevo."},
         )
     _enable_on_channel(session, channel)
     await _set_owner(

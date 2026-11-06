@@ -20,6 +20,7 @@ from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.users.models import (
     ACCOUNT_USER_ROLE_ADMINISTRATOR,
     ACCOUNT_USER_ROLE_AGENT,
+    AccessToken,
     AccountUser,
     User,
 )
@@ -159,6 +160,30 @@ async def test_invite_creates_user_account_user_and_token(
 
     # Email send was attempted exactly once.
     assert stub_invitation_mail.await_count == 1
+
+
+async def test_an_invited_user_can_sign_in_and_get_live_updates(
+    client, db_session, stub_invitation_mail
+):
+    owner, headers = await _seed_admin(db_session, "-tok")
+    r = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/agents",
+        headers=headers,
+        json={"agent": {"email": "nueva@example.com", "name": "Nueva", "role": "agent"}},
+    )
+    assert r.status_code == 200, r.text
+    user = (
+        await db_session.exec(select(User).where(User.email == "nueva@example.com"))
+    ).one()
+    assert user.pubsub_token
+    token = (
+        await db_session.exec(
+            select(AccessToken).where(
+                AccessToken.owner_type == "User", AccessToken.owner_id == user.id
+            )
+        )
+    ).first()
+    assert token is not None and token.token
 
 
 async def test_invite_administrator_role(client, db_session, stub_invitation_mail):
