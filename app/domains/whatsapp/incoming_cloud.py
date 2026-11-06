@@ -125,9 +125,9 @@ def _changes(payload: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
 
     Meta can batch several entries and changes in one POST; each change
     names its ``field`` (``messages`` carries messages and statuses,
-    ``messaging_handovers`` the Business Agent handoffs). A change with
-    no field is treated as ``messages``; other fields are skipped by the
-    caller.
+    ``messaging_handovers`` the Business Agent handoffs, ``standby`` what
+    happens in a thread Meta Business Agent owns). A change with no field is
+    treated as ``messages``; other fields are skipped by the caller.
     """
     out: list[tuple[str, dict[str, Any]]] = []
     for entry in (payload or {}).get("entry") or []:
@@ -371,7 +371,7 @@ async def process_cloud_webhook(
     out: list[Message] = []
     changes = _changes(payload)
     for field, value in changes:
-        if field not in ("messages", "messaging_handovers"):
+        if field not in ("messages", "messaging_handovers", "standby"):
             continue
         if not _for_channel(value, channel):
             log.info(
@@ -425,7 +425,103 @@ async def _process_change(
             session, channel=channel, inbox=inbox, value=value
         )
         return []
+    if field == "standby":
+        return await _process_standby(session, channel=channel, inbox=inbox, value=value)
     return await _process_value(session, channel=channel, inbox=inbox, value=value)
+
+
+async def _process_standby(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    inbox: Inbox,
+    value: dict[str, Any],
+) -> list[Message]:
+    """A thread Meta Business Agent owns, so the team can read along. The
+    customer's messages and the receipts have the usual shape, one level down;
+    the agent's replies come as ``message_echoes``."""
+    standby = value.get("standby")
+    if not isinstance(standby, dict):
+        return []
+    out = await _process_value(session, channel=channel, inbox=inbox, value=standby)
+    echoes = standby.get("message_echoes")
+    for echo in echoes if isinstance(echoes, list) else []:
+        if isinstance(echo, dict):
+            stored = await _store_echo(session, channel=channel, inbox=inbox, echo=echo)
+            if stored is not None:
+                out.append(stored)
+    return out
+
+
+def _echo_text(message: dict[str, Any]) -> str:
+    """An echo is the request as it was sent, not the rendered message."""
+    msg_type = str(message.get("type") or "")
+    content = message.get(msg_type)
+    if isinstance(content, dict):
+        for found in (
+            content.get("body"),
+            content.get("caption"),
+            (content.get("body") or {}).get("text")
+            if isinstance(content.get("body"), dict)
+            else None,
+        ):
+            if isinstance(found, str) and found:
+                return found
+    return f"[{msg_type or 'mensaje'}]"
+
+
+async def _store_echo(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    inbox: Inbox,
+    echo: dict[str, Any],
+) -> Message | None:
+    """Keep the agent's reply in the conversation. ``external_echo`` tells
+    the message cascade it already went out: sending it would answer twice."""
+    wamid = echo.get("id")
+    message = echo.get("message")
+    if not wamid or not isinstance(message, dict) or not message.get("to"):
+        return None
+    already = (
+        await session.exec(
+            select(Message.id).where(
+                Message.account_id == channel.account_id,
+                Message.source_id == wamid,
+            )
+        )
+    ).first()
+    if already is not None:
+        return None
+    to = str(message["to"])
+    phone = to if to.startswith("+") else f"+{to}"
+    contact = await _find_or_create_contact(
+        session, account_id=channel.account_id, phone_number=phone, name=phone
+    )
+    contact_inbox = await ContactInboxBuilder(
+        session=session, contact=contact, inbox=inbox, source_id=phone
+    ).perform()
+    conversation = await _find_or_create_conversation(session, contact_inbox=contact_inbox)
+    from app.domains.whatsapp.business_agent import mark_ai_owner_if_unknown
+
+    if mark_ai_owner_if_unknown(conversation, channel):
+        session.add(conversation)
+    try:
+        async with session.begin_nested():
+            return await create_message(
+                session,
+                conversation=conversation,
+                params=_MessageBuilderParams(
+                    content=_echo_text(message),
+                    message_type="outgoing",
+                    source_id=str(wamid),
+                    content_attributes={"external_echo": True},
+                ),
+                user_id=None,
+            )
+    except IntegrityError:
+        log.info("whatsapp.inbound.skip reason=duplicate_race wamid=%s", wamid)
+        return None
 
 
 def _for_channel(value: dict[str, Any], channel: WhatsappChannel) -> bool:

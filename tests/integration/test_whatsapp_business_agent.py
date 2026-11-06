@@ -26,6 +26,7 @@ from app.domains.conversations.models import (
     CONVERSATION_STATUS_OPEN,
     CONVERSATION_STATUS_RESOLVED,
     MESSAGE_TYPE_ACTIVITY,
+    MESSAGE_TYPE_OUTGOING,
     Conversation,
     Message,
 )
@@ -228,6 +229,83 @@ async def test_inbound_message_on_business_agent_number_is_owned_by_the_ai(
     assert ba.thread_owner(conversation) == ba.OWNER_AI_AGENT
     # Nothing changed hands: no activity row.
     assert await _activities(db_session, conversation) == []
+
+
+def _standby_payload(standby: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "b1",
+                "changes": [
+                    {
+                        "field": "standby",
+                        "value": {"messaging_product": "whatsapp", "standby": standby},
+                    }
+                ],
+            }
+        ],
+    }
+
+
+async def test_standby_shows_the_thread_the_ai_owns_without_answering(db_session):
+    _, channel, inbox = await _seed(db_session)
+    customer = _standby_payload(
+        {
+            "contacts": [{"profile": {"name": "Lucía"}, "wa_id": _CUSTOMER}],
+            "messages": [
+                {
+                    "from": _CUSTOMER,
+                    "id": "wamid.in",
+                    "timestamp": "1700000000",
+                    "type": "text",
+                    "text": {"body": "Hola, quiero inscribirme"},
+                }
+            ],
+        }
+    )
+    echo = _standby_payload(
+        {
+            "message_echoes": [
+                {
+                    "id": "wamid.out",
+                    "timestamp": "1700000001",
+                    "message": {
+                        "messaging_product": "whatsapp",
+                        "to": _CUSTOMER,
+                        "type": "text",
+                        "text": {"body": "¡Hola! ¿Qué curso te interesa?"},
+                    },
+                }
+            ]
+        }
+    )
+    with respx.mock(assert_all_called=False) as mock:
+        graph = mock.route(host="graph.facebook.com")
+        for payload in (customer, echo, echo):  # Meta can deliver twice.
+            await process_cloud_webhook(
+                db_session, channel=channel, inbox=inbox, payload=payload
+            )
+
+    conversation = await _only_conversation(db_session, inbox)
+    assert ba.thread_owner(conversation) == ba.OWNER_AI_AGENT
+    rows = (
+        await db_session.exec(
+            select(Message)
+            .where(
+                Message.conversation_id == conversation.id,
+                Message.source_id.is_not(None),
+            )
+            .order_by(Message.id)
+        )
+    ).all()
+    assert [(m.source_id, m.content) for m in rows] == [
+        ("wamid.in", "Hola, quiero inscribirme"),
+        ("wamid.out", "¡Hola! ¿Qué curso te interesa?"),
+    ]
+    assert rows[1].message_type == MESSAGE_TYPE_OUTGOING
+    # The bot already answered: nothing goes out to Meta.
+    assert graph.call_count == 0
 
 
 async def test_inbound_message_without_business_agent_has_no_owner(db_session):
