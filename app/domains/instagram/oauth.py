@@ -89,11 +89,13 @@ FACEBOOK_PAGE_SCOPES: tuple[str, ...] = (
 # if one of them appears here.
 #
 # Kept to what the receiver actually processes: inbound DMs
-# (``incoming.py``) and read receipts (``_process_read_event``). Comments
+# (``incoming.py``), what others send from the Page (``message_echoes``)
+# and read receipts (``_process_read_event``). Comments
 # and mentions arrive through the app-level Instagram subscription, not
 # through this one.
 PAGE_WEBHOOK_FIELDS: tuple[str, ...] = (
     "messages",
+    "message_echoes",
     "message_reads",
 )
 
