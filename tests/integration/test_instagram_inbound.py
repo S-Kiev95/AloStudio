@@ -18,12 +18,14 @@ from typing import Any
 import pytest
 from sqlmodel import select
 
+from app.core.storage import object_url
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.conversations.models import (
     MESSAGE_STATUS_READ,
     MESSAGE_TYPE_INCOMING,
     MESSAGE_TYPE_OUTGOING,
+    Attachment,
     Conversation,
 )
 from app.domains.inboxes.models import (
@@ -31,7 +33,10 @@ from app.domains.inboxes.models import (
     InstagramChannel,
 )
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
-from app.domains.instagram.incoming import process_instagram_webhook
+from app.domains.instagram.incoming import (
+    UNSENT_CONTENT,
+    process_instagram_webhook,
+)
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
 
 pytestmark = pytest.mark.integration
@@ -258,6 +263,84 @@ async def test_read_event_for_unknown_mid_is_noop(db_session):
 # ---------------------------------------------------------------------------
 # Malformed payloads
 # ---------------------------------------------------------------------------
+def _unsent_payload(*, instagram_id: str, igsid: str, mid: str) -> dict[str, Any]:
+    payload = _msg_payload(instagram_id=instagram_id, igsid=igsid, mid=mid, text="")
+    payload["entry"][0]["messaging"][0]["message"] = {"mid": mid, "is_deleted": True}
+    return payload
+
+
+async def test_unsent_message_loses_its_text(db_session):
+    await _seed(db_session, instagram_id="IG-U1", suffix="-unsent1")
+    created = await process_instagram_webhook(
+        db_session,
+        payload=_msg_payload(
+            instagram_id="IG-U1", igsid="IGSID-U1", mid="ig.u1", text="Mi telefono"
+        ),
+    )
+
+    out = await process_instagram_webhook(
+        db_session,
+        payload=_unsent_payload(instagram_id="IG-U1", igsid="IGSID-U1", mid="ig.u1"),
+    )
+
+    assert [m.id for m in out] == [created[0].id]
+    assert out[0].content == UNSENT_CONTENT
+    assert out[0].content_attributes["deleted"] is True
+
+
+async def test_unsent_message_removes_its_files(db_session, monkeypatch):
+    removed: list[str] = []
+
+    async def _record(key: str) -> None:
+        removed.append(key)
+
+    monkeypatch.setattr("app.domains.instagram.media.delete_object", _record)
+    await _seed(db_session, instagram_id="IG-U2", suffix="-unsent2")
+    created = await process_instagram_webhook(
+        db_session,
+        payload=_msg_payload(
+            instagram_id="IG-U2", igsid="IGSID-U2", mid="ig.u2", text="Foto"
+        ),
+    )
+    msg = created[0]
+    for url in (object_url("accounts/1/instagram/abc.jpg"), "https://example.com/a"):
+        db_session.add(
+            Attachment(
+                account_id=msg.account_id,
+                message_id=msg.id,
+                file_type=0,
+                external_url=url,
+            )
+        )
+    await db_session.flush()
+
+    await process_instagram_webhook(
+        db_session,
+        payload=_unsent_payload(instagram_id="IG-U2", igsid="IGSID-U2", mid="ig.u2"),
+    )
+
+    left = await db_session.exec(
+        select(Attachment).where(Attachment.message_id == msg.id)
+    )
+    assert left.all() == []
+    assert removed == ["accounts/1/instagram/abc.jpg"]
+
+
+async def test_unsent_unknown_message_creates_nothing(db_session):
+    await _seed(db_session, instagram_id="IG-U3", suffix="-unsent3")
+
+    out = await process_instagram_webhook(
+        db_session,
+        payload=_unsent_payload(instagram_id="IG-U3", igsid="IGSID-U3", mid="ig.u3"),
+    )
+
+    assert out == []
+    contacts = await db_session.exec(
+        select(ContactInbox).where(ContactInbox.source_id == "IGSID-U3")
+    )
+    assert contacts.all() == []
+
+
 async def test_non_instagram_object_returns_empty(db_session):
     out = await process_instagram_webhook(
         db_session,
