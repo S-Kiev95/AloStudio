@@ -39,6 +39,7 @@ Scope:
     :class:`Attachment` rows. Reels keep the permalink instead (Meta sends
     a webpage, not a video).
   * ``message.is_echo`` — agent replied via the IG mobile app.
+  * ``message.is_deleted`` — the sender unsent the message.
     Stamped as outgoing with ``sender_id=None``, mirroring 5d.3.
   * Idempotent on Meta's ``mid`` via ``messages.source_id``.
   * Read events (``messaging.read.mid``) update the Message status.
@@ -75,6 +76,7 @@ from app.domains.conversations.ad_referral import (
 )
 from app.domains.conversations.models import (
     MESSAGE_STATUS_READ,
+    Attachment,
     Conversation,
     Message,
 )
@@ -83,6 +85,7 @@ from app.domains.conversations.service import (
     _AttachmentSpec,
     create_conversation,
     create_message,
+    soft_delete_message,
 )
 from app.domains.conversations.service import (
     MessageBuilderParams as _MessageBuilderParams,
@@ -93,9 +96,15 @@ from app.domains.inboxes.models import (
     InstagramChannel,
 )
 from app.domains.instagram.graph import fetch_contact_name, graph_host
-from app.domains.instagram.media import download_and_store_ig_media
+from app.domains.instagram.media import (
+    delete_stored_ig_media,
+    download_and_store_ig_media,
+)
 
 log = logging.getLogger(__name__)
+
+# What a message says from the moment its sender unsends it.
+UNSENT_CONTENT = "El remitente anuló este mensaje."
 
 
 # ---------------------------------------------------------------------------
@@ -393,6 +402,33 @@ async def _process_read_event(
     return [msg]
 
 
+async def _process_unsent_event(
+    session: AsyncSession, *, account_id: int, mid: str
+) -> Message | None:
+    """The sender took a message back (``message.is_deleted``). Its text and
+    files stop being kept; the row stays so the thread keeps its order."""
+    msg = (
+        await session.exec(
+            select(Message).where(
+                Message.account_id == account_id,
+                Message.source_id == mid,
+            )
+        )
+    ).first()
+    if msg is None:
+        return None
+    attachments = await session.exec(
+        select(Attachment).where(Attachment.message_id == msg.id)
+    )
+    for attachment in attachments.all():
+        if attachment.external_url:
+            await delete_stored_ig_media(attachment.external_url)
+        await session.delete(attachment)
+    return await soft_delete_message(
+        session, message=msg, deleted_content=UNSENT_CONTENT
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
@@ -466,6 +502,11 @@ async def _process_message_event(
     mid = message_block.get("mid")
     if not mid:
         return None
+
+    if message_block.get("is_deleted"):
+        return await _process_unsent_event(
+            session, account_id=channel.account_id, mid=str(mid)
+        )
 
     is_echo = bool(message_block.get("is_echo"))
     # Our own send coming back: the send records it. Storing it here too

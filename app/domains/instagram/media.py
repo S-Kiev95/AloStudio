@@ -23,6 +23,7 @@ import httpx
 
 from app.core.outbound import guarded_client
 from app.core.storage import object_url, presigned_put_url
+from app.domains.media_library.service import delete_object
 
 log = logging.getLogger(__name__)
 
@@ -76,4 +77,12 @@ async def download_and_store_ig_media(
     }
 
 
-__all__ = ["download_and_store_ig_media"]
+async def delete_stored_ig_media(stored_url: str) -> None:
+    """Remove a file ``download_and_store_ig_media`` kept. Attachments can also
+    point elsewhere, such as a shared link, and those are left alone."""
+    prefix = object_url("").rstrip("/") + "/"
+    if stored_url.startswith(prefix):
+        await delete_object(stored_url.removeprefix(prefix))
+
+
+__all__ = ["delete_stored_ig_media", "download_and_store_ig_media"]
