@@ -31,15 +31,15 @@ dashboard). The channel opts in through ``provider_config``:
   * ``meta_business_agent_return_on_resolve`` — hand the conversation
     back on resolve (default ``True``).
 
-Meta documents the Thread Control request, but not yet the WhatsApp
-shape of ``messaging_handovers``. The parser therefore reads the
-Messenger handover keys plus the obvious WhatsApp variants, and logs the
-key set of anything it cannot read so the shape can be pinned down from
-the first real events.
+The WhatsApp shape of ``messaging_handovers`` is ``type`` plus a
+``control_passed`` / ``control_taken`` object with ``new_owner_role``.
+The parser also reads the Messenger handover keys, and logs the key set
+of anything it cannot read.
 
 Anchors:
   https://developers.facebook.com/documentation/meta-business-agent/reference/operate/thread-control-cloud-api
   https://developers.facebook.com/documentation/business-messaging/messenger-platform/webhooks/webhook-events/messaging_handovers
+  https://developers.facebook.com/documentation/business-messaging/whatsapp/conversation-routing/thread-control
 """
 
 from __future__ import annotations
@@ -493,8 +493,29 @@ def _consumer_phone(
     return None
 
 
+def _context_summary(control: dict[str, Any]) -> str | None:
+    """The AI's summary of the chat that a handoff may carry."""
+    context = control.get("conversation_context")
+    summary = context.get("summary") if isinstance(context, dict) else None
+    text = summary.get("text") if isinstance(summary, dict) else None
+    return str(text) if text else None
+
+
 def _new_owner(item: dict[str, Any]) -> tuple[str | None, str | None]:
     """``(owner, metadata)`` from one handover item."""
+    # The documented WhatsApp shape: ``type`` names the event and a key of
+    # the same name holds ``new_owner_role``. ``control_passed`` reaches the
+    # new owner; ``control_taken`` reaches the side that lost the thread.
+    for event in ("control_passed", "control_taken"):
+        control = item.get(event)
+        if not isinstance(control, dict):
+            continue
+        meta = control.get("metadata")
+        metadata = str(meta) if meta else _context_summary(control)
+        if event == "control_passed" and control.get("new_owner_role") != "ai_agent":
+            return OWNER_APP, metadata
+        return OWNER_AI_AGENT, metadata
+
     control: dict[str, Any] | None = None
     action: str | None = None
     for key in _HANDOVER_KEYS:

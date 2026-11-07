@@ -92,6 +92,18 @@ def test_without_meta_app_id_the_action_decides(monkeypatch: pytest.MonkeyPatch)
     )
 
 
+def test_documented_whatsapp_shape():
+    passed = {
+        "type": "control_passed",
+        "control_passed": {"previous_owner_role": "ai_agent", "new_owner_role": "escalation"},
+    }
+    assert ba._new_owner(passed) == (ba.OWNER_APP, None)
+    back = {"type": "control_passed", "control_passed": {"new_owner_role": "ai_agent"}}
+    assert ba._new_owner(back)[0] == ba.OWNER_AI_AGENT
+    taken = {"type": "control_taken", "control_taken": {"new_owner_role": "escalation", "metadata": "x"}}
+    assert ba._new_owner(taken) == (ba.OWNER_AI_AGENT, "x")
+
+
 def test_unknown_shape_has_no_owner():
     assert ba._new_owner({"something": "else"})[0] is None
 

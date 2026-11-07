@@ -393,6 +393,77 @@ async def test_handoff_to_our_app_moves_the_conversation_to_the_team(db_session)
     assert ba.business_agent_enabled(channel)
 
 
+def _role_handover_payload(event: str, new_owner_role: str) -> dict[str, Any]:
+    """The documented WhatsApp shape of ``messaging_handovers``."""
+    return {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "b1",
+                "changes": [
+                    {
+                        "field": "messaging_handovers",
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "sender": {"phone_number": _CUSTOMER},
+                            "recipient": {
+                                "phone_number_id": "p1",
+                                "display_phone_number": "59811111111",
+                            },
+                            "type": event,
+                            "timestamp": "1794000000",
+                            event: {
+                                "previous_owner_role": "ai_agent",
+                                "new_owner_role": new_owner_role,
+                                "conversation_context": {
+                                    "type": "summary",
+                                    "summary": {"text": "Quiere hablar con una persona"},
+                                },
+                            },
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+
+
+async def test_documented_handoff_shape_moves_the_conversation_to_the_team(db_session):
+    _, channel, inbox = await _seed(db_session)
+    await process_cloud_webhook(
+        db_session,
+        channel=channel,
+        inbox=inbox,
+        payload=_role_handover_payload("control_passed", "escalation"),
+    )
+    conversation = await _only_conversation(db_session, inbox)
+    assert ba.thread_owner(conversation) == ba.OWNER_APP
+    assert any(
+        "handed the conversation off to the team: Quiere hablar con una persona" in a
+        for a in await _activities(db_session, conversation)
+    )
+
+    await process_cloud_webhook(
+        db_session,
+        channel=channel,
+        inbox=inbox,
+        payload=_role_handover_payload("control_passed", "ai_agent"),
+    )
+    await db_session.refresh(conversation)
+    assert ba.thread_owner(conversation) == ba.OWNER_AI_AGENT
+
+
+async def test_documented_handoff_for_another_number_is_skipped(db_session):
+    _, channel, inbox = await _seed(db_session)
+    payload = _role_handover_payload("control_passed", "escalation")
+    payload["entry"][0]["changes"][0]["value"]["recipient"]["phone_number_id"] = "other"
+    await process_cloud_webhook(db_session, channel=channel, inbox=inbox, payload=payload)
+    rows = (
+        await db_session.exec(select(Conversation).where(Conversation.inbox_id == inbox.id))
+    ).all()
+    assert rows == []
+
+
 async def test_handoff_back_to_the_ai(db_session):
     _, channel, inbox = await _seed(db_session)
     await process_cloud_webhook(
