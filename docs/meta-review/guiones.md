@@ -64,7 +64,7 @@ Subtítulos:
 
 ## Video 4: publicar en Facebook
 
-Permisos: `pages_manage_posts`, `pages_read_engagement`, `read_insights`
+Permisos: `pages_manage_posts`, `pages_read_engagement`, `pages_read_user_content`, `read_insights`
 
 Si la Página ya está conectada, igual mostrá la conexión con la pantalla de permisos.
 
@@ -141,6 +141,10 @@ Descripción general:
 `pages_read_engagement`:
 
 > Used to show the reactions and comments on the business's own posts in AloStudio's analytics.
+
+`pages_read_user_content`:
+
+> Used to read the number of reactions and comments that people leave on the business's own Page posts, to show them in AloStudio's analytics.
 
 `read_insights`:
 
