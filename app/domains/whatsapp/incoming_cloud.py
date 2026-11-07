@@ -534,8 +534,13 @@ async def _store_echo(
 def _for_channel(value: dict[str, Any], channel: WhatsappChannel) -> bool:
     """Several numbers can share one callback URL, and Meta batches their
     changes; a change naming another ``phone_number_id`` isn't ours."""
-    metadata = value.get("metadata")
-    named = metadata.get("phone_number_id") if isinstance(metadata, dict) else None
+    # Messages name the number in ``metadata``; handovers in ``recipient``.
+    named = None
+    for key in ("metadata", "recipient"):
+        node = value.get(key)
+        if isinstance(node, dict) and node.get("phone_number_id"):
+            named = node.get("phone_number_id")
+            break
     cfg = channel.provider_config or {}
     ours = cfg.get("phone_number_id") if isinstance(cfg, dict) else None
     return not named or not ours or str(named) == str(ours)
