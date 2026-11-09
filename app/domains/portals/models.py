@@ -34,6 +34,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
 from app.core.base_model import TimestampMixin
+from app.core.embeddings import GEMMA_DIM
 
 # Embedding dimensionality — matches ``settings.openai_embedding_model``
 # (text-embedding-3-small) and the ``vector(1536)`` column.
@@ -330,6 +331,19 @@ class ArticleEmbedding(TimestampMixin, table=True):
     embedding: list[float] | None = Field(
         default=None,
         sa_column=Column(Vector(ARTICLE_EMBEDDING_DIM), nullable=True),
+    )
+    # Which provider wrote this row. OpenAI rows are generated search terms
+    # with ``embedding`` set; a ``gemma`` row is the whole article (``term``
+    # holds the title) with ``embedding_gemma`` set — measured, the local
+    # model finds articles better from their full text than from terms, and
+    # it needs no gpt-4o call to index.
+    model: str = Field(
+        default="openai",
+        sa_column=Column(String, nullable=False, server_default="openai"),
+    )
+    embedding_gemma: list[float] | None = Field(
+        default=None,
+        sa_column=Column(Vector(GEMMA_DIM), nullable=True),
     )
 
 

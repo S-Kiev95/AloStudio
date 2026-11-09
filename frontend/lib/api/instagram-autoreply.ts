@@ -21,7 +21,15 @@ export type PostRule = {
   max_distance: number | null;
   /** What the rule actually matches at, default resolved server-side. */
   effective_max_distance: number;
+  /** The same on the local model's scale (EmbeddingGemma), its own column:
+   *  the two scales are not comparable. Null follows the default. */
+  max_distance_gemma: number | null;
+  effective_max_distance_gemma: number;
 };
+
+/** Which embedding model the account answers with; decides which
+ *  strictness scale the form shows and which field it sends. */
+export type EmbeddingModel = "openai" | "gemma";
 
 export type PostRuleInput = {
   match_type: MatchType;
@@ -30,6 +38,7 @@ export type PostRuleInput = {
   delivery: Delivery;
   enabled: boolean;
   max_distance?: number | null;
+  max_distance_gemma?: number | null;
 };
 
 export type CommentReply = {
@@ -123,7 +132,10 @@ export function useAutoreplyStatus(accountId: string) {
   return useQuery({
     queryKey: ["ig-autoreply-status", accountId],
     queryFn: () =>
-      apiFetch<{ semantic_available: boolean }>(
+      apiFetch<{
+        semantic_available: boolean;
+        embedding_model?: EmbeddingModel;
+      }>(
         `${base(accountId)}/instagram_autoreply_status`,
       ),
     staleTime: 5 * 60 * 1000,

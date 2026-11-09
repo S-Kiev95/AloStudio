@@ -338,3 +338,77 @@ describe("how close a similarity rule has to match", () => {
     expect(await screen.findByText(/Amplia/)).toBeInTheDocument();
   });
 });
+
+describe("an account that answers with the local model (EmbeddingGemma)", () => {
+  const GEMMA_RULE = {
+    ...KEYWORD_RULE,
+    match_type: "semantic",
+    keywords: null,
+    reply_text: null,
+    // Tuned for OpenAI before the switch: must survive an edit untouched.
+    max_distance: 0.55,
+    effective_max_distance: 0.55,
+    max_distance_gemma: null,
+    effective_max_distance_gemma: 0.15,
+  };
+
+  function useGemma() {
+    server.use(
+      http.get("*/instagram_autoreply_status", () =>
+        HttpResponse.json({
+          semantic_available: true,
+          embedding_model: "gemma",
+        }),
+      ),
+    );
+  }
+
+  it("sends the local model's balanced level and leaves OpenAI's alone", async () => {
+    useGemma();
+    renderRules();
+    await openForm();
+    // The scale comes with the status; give its request time to land.
+    await new Promise((r) => setTimeout(r, 50));
+    fireEvent.click(screen.getByRole("button", { name: /Por similitud/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Guardar regla/ }));
+
+    await waitFor(() => expect(posted).not.toBeNull());
+    expect(posted!.max_distance_gemma).toBe(0.15);
+    expect(posted).not.toHaveProperty("max_distance");
+  });
+
+  it("edits the local model's level without sending OpenAI's", async () => {
+    useGemma();
+    server.use(
+      http.get("*/autoreply_rules", () => HttpResponse.json([GEMMA_RULE])),
+    );
+    renderRules();
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Editar regla/ }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Equilibrada/ }),
+      ).toHaveAttribute("aria-pressed", "true"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Exigente/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Guardar/ }));
+
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(patched!.max_distance_gemma).toBe(0.13);
+    expect(patched).not.toHaveProperty("max_distance");
+  });
+
+  it("names the saved rule's level on the local scale", async () => {
+    useGemma();
+    server.use(
+      http.get("*/autoreply_rules", () =>
+        HttpResponse.json([
+          { ...GEMMA_RULE, effective_max_distance_gemma: 0.18 },
+        ]),
+      ),
+    );
+    renderRules();
+    expect(await screen.findByText(/Amplia/)).toBeInTheDocument();
+  });
+});

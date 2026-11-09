@@ -75,6 +75,18 @@ const STRICTNESS: {
 
 const DEFAULT_STRICTNESS = 0.55;
 
+/** The same three levels for an account that answers with the local model
+ *  (EmbeddingGemma). Its distances sit on a much tighter scale, so the
+ *  values differ while what each level means does not. Measured on a
+ *  labelled set of Spanish comments: 0.13 made no mistake, 0.15 is the
+ *  balance, 0.18 starts answering the wrong question. */
+const STRICTNESS_GEMMA: typeof STRICTNESS = STRICTNESS.map((s, i) => ({
+  ...s,
+  value: [0.13, 0.15, 0.18][i],
+}));
+
+const DEFAULT_STRICTNESS_GEMMA = 0.15;
+
 /** Rules on one publication. Order shown matches the order they fire in:
  *  keyword, then semantic, then catch-all — a catch-all listed first would
  *  read as if it swallowed everything, which is precisely what the backend
@@ -92,6 +104,15 @@ export function PostAutoreplyRules({
   const update = useUpdatePostRule(accountId);
   const del = useDeletePostRule(accountId);
   const semanticAvailable = status.data?.semantic_available !== false;
+  // Each model keeps its own threshold; the form edits the one in use and
+  // leaves the other untouched.
+  const gemma = status.data?.embedding_model === "gemma";
+  const levels = gemma ? STRICTNESS_GEMMA : STRICTNESS;
+  const defaultStrictness = gemma
+    ? DEFAULT_STRICTNESS_GEMMA
+    : DEFAULT_STRICTNESS;
+  const effectiveOf = (r: PostRule) =>
+    gemma ? r.effective_max_distance_gemma : r.effective_max_distance;
   const hasSemanticRule = (rules.data ?? []).some(
     (r) => r.match_type === "semantic",
   );
@@ -104,7 +125,10 @@ export function PostAutoreplyRules({
   // The mechanic this exists for sends the link privately, so that is the
   // default for keyword rules.
   const [delivery, setDelivery] = useState<Delivery>("dm");
-  const [strictness, setStrictness] = useState<number>(DEFAULT_STRICTNESS);
+  // Null until the admin picks a level: the shown level is then the rule's
+  // own (editing) or the default, on whichever scale the account uses — so
+  // it is right even if the status arrives after the form was opened.
+  const [strictness, setStrictness] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function reset() {
@@ -114,7 +138,7 @@ export function PostAutoreplyRules({
     setKeywords("");
     setReplyText("");
     setDelivery("dm");
-    setStrictness(DEFAULT_STRICTNESS);
+    setStrictness(null);
     setError(null);
   }
 
@@ -124,10 +148,13 @@ export function PostAutoreplyRules({
     setKeywords(rule.keywords ?? "");
     setReplyText(rule.reply_text ?? "");
     setDelivery(rule.delivery);
-    setStrictness(rule.effective_max_distance);
+    setStrictness(null);
     setError(null);
     setOpen(true);
   }
+
+  const selectedStrictness =
+    strictness ?? (editing ? effectiveOf(editing) : defaultStrictness);
 
   async function submit() {
     setError(null);
@@ -138,7 +165,12 @@ export function PostAutoreplyRules({
       delivery,
       // Editing must not silently re-enable a rule that was turned off.
       enabled: editing ? editing.enabled : true,
-      max_distance: matchType === "semantic" ? strictness : null,
+      ...(gemma
+        ? {
+            max_distance_gemma:
+              matchType === "semantic" ? selectedStrictness : null,
+          }
+        : { max_distance: matchType === "semantic" ? selectedStrictness : null }),
     };
     try {
       if (editing) await update.mutateAsync({ id: editing.id, input });
@@ -253,16 +285,16 @@ export function PostAutoreplyRules({
               <div className="space-y-1.5">
                 <Label>Cuánto se tiene que parecer</Label>
                 <div className="grid gap-2 sm:grid-cols-3">
-                  {STRICTNESS.map((s) => (
+                  {levels.map((s) => (
                     <button
                       key={s.value}
                       type="button"
-                      aria-pressed={strictness === s.value}
+                      aria-pressed={selectedStrictness === s.value}
                       onClick={() => setStrictness(s.value)}
                       className={cn(
                         "rounded-md border p-2.5 text-left transition-colors",
                         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
-                        strictness === s.value
+                        selectedStrictness === s.value
                           ? "border-neon bg-focused"
                           : "border-glass bg-field hover:bg-hover-glass",
                       )}
@@ -270,7 +302,9 @@ export function PostAutoreplyRules({
                       <span
                         className={cn(
                           "block text-sm font-medium",
-                          strictness === s.value ? "text-lit" : "text-fg",
+                          selectedStrictness === s.value
+                            ? "text-lit"
+                            : "text-fg",
                         )}
                       >
                         {s.label}
@@ -387,9 +421,8 @@ export function PostAutoreplyRules({
                   {r.match_type === "semantic" ? (
                     <span className="text-fg-muted">
                       ·{" "}
-                      {STRICTNESS.find(
-                        (s) => s.value === r.effective_max_distance,
-                      )?.label ?? `exigencia ${r.effective_max_distance}`}
+                      {levels.find((s) => s.value === effectiveOf(r))
+                        ?.label ?? `exigencia ${effectiveOf(r)}`}
                     </span>
                   ) : null}
                 </p>

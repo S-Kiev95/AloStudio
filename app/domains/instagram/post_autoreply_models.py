@@ -70,6 +70,18 @@ DEFAULT_STRICTNESS = "balanced"
 MIN_MATCH_DISTANCE = 0.05
 MAX_MATCH_DISTANCE = 1.0
 
+# The same levels for the local model (EmbeddingGemma 2), whose distances
+# sit on a much tighter scale. From the labelled measurement in
+# docs/experimentos/embeddinggemma.md: 0.13 made no mistake, 0.15 is the
+# recommended balance, 0.18 starts answering the wrong question.
+STRICTNESS_LEVELS_GEMMA: dict[str, float] = {
+    "strict": 0.13,
+    "balanced": 0.15,
+    "loose": 0.18,
+}
+MIN_MATCH_DISTANCE_GEMMA = 0.02
+MAX_MATCH_DISTANCE_GEMMA = 0.4
+
 
 class InstagramPostAutoreply(TimestampMixin, table=True):
     """One auto-reply rule on one publication."""
@@ -127,6 +139,13 @@ class InstagramPostAutoreply(TimestampMixin, table=True):
     max_distance: float | None = Field(
         default=None, sa_column=Column(Float, nullable=True)
     )
+    # The same setting for the local model, on its own scale. A separate
+    # column on purpose: a value tuned for OpenAI means "answer everything"
+    # to EmbeddingGemma, so existing values are never converted — each rule
+    # is reviewed before its account switches. Null → the model's default.
+    max_distance_gemma: float | None = Field(
+        default=None, sa_column=Column(Float, nullable=True)
+    )
     enabled: bool = Field(
         default=True,
         sa_column=Column(Boolean, nullable=False, server_default="true"),
@@ -144,7 +163,10 @@ __all__ = [
     "MATCH_SEMANTIC",
     "MATCH_TYPES",
     "MAX_MATCH_DISTANCE",
+    "MAX_MATCH_DISTANCE_GEMMA",
     "MIN_MATCH_DISTANCE",
+    "MIN_MATCH_DISTANCE_GEMMA",
     "STRICTNESS_LEVELS",
+    "STRICTNESS_LEVELS_GEMMA",
     "InstagramPostAutoreply",
 ]

@@ -1,0 +1,24 @@
+# Servicio local de embeddings (EmbeddingGemma 2, F9). Unidad de usuario:
+#   ~/.config/systemd/user/alostudio-embeddings.service
+# La instala ops/embeddings/instalar.sh. Escucha solo en 127.0.0.1.
+[Unit]
+Description=AloStudio embeddings (EmbeddingGemma 2 on 127.0.0.1:8100)
+StartLimitIntervalSec=0
+
+[Service]
+WorkingDirectory=%h/AloStudio
+Environment=EMBEDDINGS_THREADS=2
+Environment=HF_HUB_DISABLE_PROGRESS_BARS=1
+Environment=TRANSFORMERS_VERBOSITY=error
+ExecStart=%h/AloStudio/.venv-embeddings/bin/python -m uvicorn app.embeddings_service.main:app --host 127.0.0.1 --port 8100
+# Medido: ~1.8 GB con el modelo cargado y pico de ~2.0 GB.
+MemoryMax=2560M
+CPUWeight=20
+Nice=10
+Restart=always
+RestartSec=10
+StandardOutput=append:%h/logs/embeddings.log
+StandardError=append:%h/logs/embeddings.log
+
+[Install]
+WantedBy=default.target
