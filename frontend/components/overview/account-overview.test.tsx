@@ -108,4 +108,22 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
       orbit?.querySelectorAll("a, button, input, [tabindex]"),
     ).toHaveLength(0);
   });
+
+  it("renderiza las cuatro tarjetas de Ahora mismo con iconos del mismo estilo que la sidebar y sin fondos ni colores sueltos", () => {
+    const { container } = renderOverview("42");
+
+    const liveIcons = container.querySelectorAll("[data-live-icon]");
+    expect(liveIcons).toHaveLength(4);
+    expect(
+      Array.from(liveIcons).map((el) => el.getAttribute("data-live-icon")),
+    ).toEqual(["open", "unattended", "unassigned", "pending"]);
+
+    for (const iconWrapper of liveIcons) {
+      expect(iconWrapper).toHaveClass("neon-nav");
+      expect(iconWrapper.className).not.toMatch(
+        /text-warning|text-danger|text-info|bg-surface-2/,
+      );
+      expect(iconWrapper.querySelector("svg")).not.toBeNull();
+    }
+  });
 });

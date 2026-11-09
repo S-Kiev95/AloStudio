@@ -27,31 +27,18 @@ import {
   useReportSummary,
   useReportTimeseries,
 } from "@/lib/api/reports";
-import { cn } from "@/lib/utils";
 
 import { NetworkOrbit } from "./network-orbit";
-
-type Tone = "info" | "warning" | "danger" | "muted";
-
-/** The disciplined tint pattern (see instagram/state-badge) — a wash of the
- *  status colour behind its own icon, the one place Inicio spends colour. */
-const TONE: Record<Tone, string> = {
-  info: "bg-info/10 text-info",
-  warning: "bg-warning/10 text-warning",
-  danger: "bg-danger/10 text-danger",
-  muted: "bg-surface-2 text-fg-muted",
-};
 
 const LIVE: {
   key: keyof LiveMetrics;
   label: string;
   icon: IconComponent;
-  tone: Tone;
 }[] = [
-  { key: "open", label: "Abiertas", icon: InboxIcon, tone: "info" },
-  { key: "unattended", label: "Sin atender", icon: ClockIcon, tone: "warning" },
-  { key: "unassigned", label: "Sin asignar", icon: UnassignedIcon, tone: "danger" },
-  { key: "pending", label: "Pendientes", icon: HourglassIcon, tone: "muted" },
+  { key: "open", label: "Abiertas", icon: InboxIcon },
+  { key: "unattended", label: "Sin atender", icon: ClockIcon },
+  { key: "unassigned", label: "Sin asignar", icon: UnassignedIcon },
+  { key: "pending", label: "Pendientes", icon: HourglassIcon },
 ];
 
 const ACTIONS: {
@@ -107,10 +94,8 @@ function LiveCard({
   return (
     <Card className="flex items-center gap-3 p-4">
       <span
-        className={cn(
-          "grid h-11 w-11 shrink-0 place-items-center rounded-md",
-          TONE[def.tone],
-        )}
+        data-live-icon={def.key}
+        className="neon-nav inline-flex shrink-0 items-center justify-center"
       >
         <Icon className="h-5 w-5" aria-hidden />
       </span>
@@ -137,8 +122,8 @@ function ActionRow({
       href={`/accounts/${accountId}/${action.segment}`}
       className="group flex items-center gap-3 rounded-md border border-transparent px-2 py-2 transition-colors hover:border-glass hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
     >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-surface-2 text-fg-muted transition-colors group-hover:bg-focused group-hover:text-lit">
-        <Icon className="h-4 w-4" aria-hidden />
+      <span className="neon-nav inline-flex shrink-0 items-center justify-center transition-colors group-hover:text-lit">
+        <Icon className="h-5 w-5" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-fg">{action.label}</p>
