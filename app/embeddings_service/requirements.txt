@@ -1,0 +1,14 @@
+# Separate virtualenv for the embeddings service (see ops/embeddings/).
+# Install with the CPU wheels of torch:
+#   uv pip install -p .venv-embeddings/bin/python -r app/embeddings_service/requirements.txt \
+#     --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple \
+#     --index-strategy unsafe-best-match
+# Versions measured on 2026-11-09 (docs/experimentos/embeddinggemma.md).
+fastapi>=0.115
+uvicorn>=0.32
+pydantic>=2.9
+torch>=2.15
+torchvision>=0.29
+pillow>=11.0
+transformers>=5.22
+sentence-transformers>=6.1

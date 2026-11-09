@@ -25,10 +25,18 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import AccountContext, require_admin
+from app.core.embeddings import (
+    MODEL_GEMMA,
+    TASK_CLASSIFICATION,
+    embed_gemma_one,
+    gemma_enabled,
+    read_model_from,
+)
 from app.core.errors import ChatwootHTTPException
 from app.core.llm import embed_text, embedding_search_enabled
 from app.domains.instagram.autoreply_models import (
     DEFAULT_MATCH_MAX_DISTANCE,
+    DEFAULT_MATCH_MAX_DISTANCE_GEMMA,
     InstagramCommentReply,
     InstagramPostReplyPick,
 )
@@ -39,7 +47,9 @@ from app.domains.instagram.post_autoreply_models import (
     MATCH_PRIORITY,
     MATCH_TYPES,
     MAX_MATCH_DISTANCE,
+    MAX_MATCH_DISTANCE_GEMMA,
     MIN_MATCH_DISTANCE,
+    MIN_MATCH_DISTANCE_GEMMA,
     InstagramPostAutoreply,
 )
 
@@ -60,6 +70,10 @@ class PostRuleIn(BaseModel):
     # Null follows the installation default. Only meaningful for
     # ``semantic``; the other modes do not match by distance.
     max_distance: float | None = None
+    # The same for the local model, on its own scale. On an edit, a field
+    # left out of the payload keeps its stored value: a form showing one
+    # model's setting must not wipe the other's.
+    max_distance_gemma: float | None = None
 
 
 class CommentReplyIn(BaseModel):
@@ -75,15 +89,20 @@ class ReplyPicksIn(BaseModel):
 
 
 def _present_reply(
-    row: InstagramCommentReply, *, picked: set[int] | None = None
+    row: InstagramCommentReply,
+    *,
+    model: str,
+    picked: set[int] | None = None,
 ) -> dict[str, Any]:
+    vector = row.embedding_gemma if model == MODEL_GEMMA else row.embedding
     out: dict[str, Any] = {
         "id": row.id,
         "trigger": row.trigger,
         "reply": row.reply,
         "enabled": row.enabled,
-        # Surfaced so the UI can flag an answer that will never match.
-        "indexed": row.embedding is not None,
+        # Surfaced so the UI can flag an answer that will never match —
+        # with the model this account reads with.
+        "indexed": vector is not None,
     }
     if picked is not None:
         out["selected"] = row.id in picked
@@ -98,6 +117,31 @@ async def _embed_or_none(text: str) -> list[float] | None:
     except Exception:
         log.exception("instagram.autoreply.embed_on_save_failed")
         return None
+
+
+async def _embed_gemma_or_none(text: str) -> list[float] | None:
+    """The trigger embedded by the local model, or None.
+
+    Written on every save while the service is configured, whichever model
+    the account reads with: that is what lets an account switch (and switch
+    back) without re-saving its library."""
+    if not gemma_enabled():
+        return None
+    try:
+        return await embed_gemma_one(text, task=TASK_CLASSIFICATION) or None
+    except Exception:
+        log.exception("instagram.autoreply.embed_gemma_on_save_failed")
+        return None
+
+
+def _read_model(ctx: AccountContext) -> str:
+    return read_model_from(ctx.account.internal_attributes)
+
+
+def _semantic_available(model: str) -> bool:
+    if model == MODEL_GEMMA:
+        return gemma_enabled()
+    return embedding_search_enabled()
 
 
 async def _owned_post(
@@ -128,7 +172,7 @@ async def _picked_ids(session: AsyncSession, *, post_id: int) -> set[int]:
 # ---------------------------------------------------------------------------
 @router.get("/instagram_autoreply_status")
 async def autoreply_status(
-    _ctx: Annotated[AccountContext, Depends(require_admin)],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
 ) -> dict[str, Any]:
     """Whether similarity matching can run on this installation at all.
 
@@ -136,7 +180,12 @@ async def autoreply_status(
     every answer saves unindexed. The UI needs to say that plainly instead
     of telling the admin to save again, which cannot help.
     """
-    return {"semantic_available": embedding_search_enabled()}
+    model = _read_model(ctx)
+    # ``embedding_model`` tells the form which strictness scale to show.
+    return {
+        "semantic_available": _semantic_available(model),
+        "embedding_model": model,
+    }
 
 
 @router.get("/instagram_comment_replies")
@@ -158,11 +207,12 @@ async def list_replies(
             .order_by(InstagramCommentReply.id.desc())
         )
     ).all()
+    model = _read_model(ctx)
     if post_id is None:
-        return [_present_reply(r) for r in rows]
+        return [_present_reply(r, model=model) for r in rows]
     await _owned_post(session, post_id=post_id, account_id=ctx.account.id)
     picked = await _picked_ids(session, post_id=post_id)
-    return [_present_reply(r, picked=picked) for r in rows]
+    return [_present_reply(r, model=model, picked=picked) for r in rows]
 
 
 @router.post("/instagram_comment_replies", status_code=status.HTTP_200_OK)
@@ -178,11 +228,12 @@ async def create_reply_entry(
         reply=payload.reply.strip(),
         enabled=payload.enabled,
         embedding=await _embed_or_none(payload.trigger),
+        embedding_gemma=await _embed_gemma_or_none(payload.trigger),
     )
     session.add(row)
     await session.commit()
     await session.refresh(row)
-    return _present_reply(row)
+    return _present_reply(row, model=_read_model(ctx))
 
 
 @router.patch("/instagram_comment_replies/{reply_id}")
@@ -203,13 +254,15 @@ async def update_reply_entry(
     # has to actually retry.
     if trigger != row.trigger or row.embedding is None:
         row.embedding = await _embed_or_none(trigger)
+    if trigger != row.trigger or row.embedding_gemma is None:
+        row.embedding_gemma = await _embed_gemma_or_none(trigger)
     row.trigger = trigger
     row.reply = payload.reply.strip()
     row.enabled = payload.enabled
     session.add(row)
     await session.commit()
     await session.refresh(row)
-    return _present_reply(row)
+    return _present_reply(row, model=_read_model(ctx))
 
 
 @router.delete(
@@ -294,15 +347,31 @@ def _present_rule(row: InstagramPostAutoreply) -> dict[str, Any]:
         # What the rule is actually matching at, so the UI never has to
         # hardcode the default to show it.
         "effective_max_distance": row.max_distance or DEFAULT_MATCH_MAX_DISTANCE,
+        "max_distance_gemma": row.max_distance_gemma,
+        "effective_max_distance_gemma": (
+            row.max_distance_gemma or DEFAULT_MATCH_MAX_DISTANCE_GEMMA
+        ),
     }
 
 
-def _distance_for(payload: PostRuleIn) -> float | None:
-    """Only a ``semantic`` rule matches by distance.
+def _apply_distances(row: InstagramPostAutoreply, payload: PostRuleIn) -> None:
+    """Write each model's threshold — on an edit, only the ones sent.
 
-    Storing one on a keyword or catch-all rule would show a setting in the
-    UI that changes nothing about how that rule behaves."""
-    return payload.max_distance if payload.match_type == "semantic" else None
+    Only a ``semantic`` rule matches by distance; storing one on a keyword
+    or catch-all rule would show a setting that changes nothing, so
+    switching away from ``semantic`` clears both. The form shows the scale
+    of the model the account reads with and sends only that field: the
+    other model's value (an OpenAI threshold tuned before the switch, say)
+    must survive the edit untouched."""
+    if payload.match_type != "semantic":
+        row.max_distance = None
+        row.max_distance_gemma = None
+        return
+    sent = payload.model_fields_set
+    if row.id is None or "max_distance" in sent:
+        row.max_distance = payload.max_distance
+    if row.id is None or "max_distance_gemma" in sent:
+        row.max_distance_gemma = payload.max_distance_gemma
 
 
 def _match_order():
@@ -353,6 +422,18 @@ def _validate_rule(payload: PostRuleIn) -> None:
                 )
             },
         )
+    if payload.max_distance_gemma is not None and not (
+        MIN_MATCH_DISTANCE_GEMMA <= payload.max_distance_gemma <= MAX_MATCH_DISTANCE_GEMMA
+    ):
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    f"La exigencia debe estar entre {MIN_MATCH_DISTANCE_GEMMA} "
+                    f"y {MAX_MATCH_DISTANCE_GEMMA}"
+                )
+            },
+        )
 
 
 @router.get("/instagram_posts/{post_id}/autoreply_rules")
@@ -397,8 +478,8 @@ async def create_rule(
         reply_text=(payload.reply_text or "").strip() or None,
         delivery=payload.delivery,
         enabled=payload.enabled,
-        max_distance=_distance_for(payload),
     )
+    _apply_distances(row, payload)
     session.add(row)
     await session.commit()
     await session.refresh(row)
@@ -423,7 +504,7 @@ async def update_rule(
     row.reply_text = (payload.reply_text or "").strip() or None
     row.delivery = payload.delivery
     row.enabled = payload.enabled
-    row.max_distance = _distance_for(payload)
+    _apply_distances(row, payload)
     session.add(row)
     await session.commit()
     await session.refresh(row)

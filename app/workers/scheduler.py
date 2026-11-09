@@ -344,6 +344,7 @@ class WorkerSettings:
         )
         from app.workers.deliver_webhook import deliver_webhook_task
         from app.workers.email_poll import fetch_imap_inboxes_task
+        from app.workers.embeddings_backfill import backfill_gemma_embeddings_task
         from app.workers.instagram import publish_instagram_post_task
         from app.workers.instagram_autoreply import (
             send_comment_autoreply_task,
@@ -373,6 +374,10 @@ class WorkerSettings:
             # Enqueued on-demand when a Help-Center article is created/edited
             # and OpenAI embedding search is enabled.
             reindex_article_task,
+            # Enqueued by scripts/embeddings_gemma.py during the F9
+            # migration; fills in local-model vectors in batches. Long
+            # timeout: a large library takes minutes at ~12 texts/s.
+            func(backfill_gemma_embeddings_task, timeout=3600, max_tries=1),
             # Pin ARQ's ``max_tries`` to the webhook delivery's own cap so
             # the final attempt (which writes the dead-letter row) is never
             # preempted by ARQ's default give-up. Keeps the quarantine

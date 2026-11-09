@@ -88,6 +88,22 @@ class Settings(BaseSettings):
     # publishing MCP tools, so it has to be good at function calling.
     openai_agent_model: str = "gpt-5.4-mini"
 
+    # --- local embeddings (EmbeddingGemma 2, F9)
+    # Base URL of the embeddings service (``app.embeddings_service``), a
+    # separate process that holds the model so neither the API nor the
+    # worker pays its ~2 GB. Empty → the local model is off and only OpenAI
+    # (if configured) is used. Measurements: docs/experimentos/embeddinggemma.md.
+    embeddings_service_url: str = ""
+    embeddings_service_timeout: float = 15.0
+    # Which model answers when an account has no override in
+    # ``accounts.internal_attributes["embedding_read_model"]``. While both
+    # providers are configured, every save writes both vectors, so flipping
+    # this (or the per-account override) back is the rollback.
+    embedding_read_model: Literal["openai", "gemma"] = "openai"
+    # Shadow mode: also run the model that is *not* answering and log where
+    # the two disagree. Never changes what is published.
+    embedding_shadow: bool = False
+
     # --- web push (VAPID)
     # Generate a keypair once with ``app.core.webpush.generate_vapid_keys()``
     # and set these via env. Empty ``vapid_private_key`` disables web-push

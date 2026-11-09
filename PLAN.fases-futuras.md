@@ -191,6 +191,22 @@ devuelve **conversaciones**, no lleva al mensaje.
 si la medición lo confirma. La medición de recursos y umbrales corre en la
 rama `exp/embeddinggemma`; informe en `docs/experimentos/embeddinggemma.md`.
 
+**Estado (2026-11-09):** medición hecha y migración aprobada ("la medición
+salió superior a OpenAI"). Implementada la parte de texto:
+
+- servicio local;
+- columnas `embedding_gemma` junto a las de OpenAI, con escritura doble;
+- backfill;
+- modo sombra;
+- modelo elegido por cuenta;
+- umbral de Gemma en una columna aparte, sin convertir los de OpenAI.
+
+Operación en `docs/operacion/embeddings.md`. Falta:
+
+- el período de sombra en develop y el cambio de cada cuenta;
+- revisar con el dueño las reglas con umbral propio;
+- la búsqueda multimedia, que va aparte.
+
 Hoy los embeddings son de OpenAI (`text-embedding-3-small`, `vector(1536)`,
 pagos) y se usan en dos lugares: el centro de ayuda
 (`app/domains/portals/embeddings.py`) y las respuestas automáticas de

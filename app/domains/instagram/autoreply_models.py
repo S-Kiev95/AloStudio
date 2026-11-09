@@ -38,6 +38,7 @@ from sqlalchemy import (
 from sqlmodel import Field
 
 from app.core.base_model import TimestampMixin
+from app.core.embeddings import GEMMA_DIM
 
 # Same dimensionality as the Help-Center index — one model, one column type.
 COMMENT_REPLY_EMBEDDING_DIM = 1536
@@ -63,6 +64,15 @@ COMMENT_REPLY_EMBEDDING_DIM = 1536
 # cost of silence is a person answering a minute later while the cost of a
 # confident wrong answer is paid in front of the audience.
 DEFAULT_MATCH_MAX_DISTANCE = 0.55
+
+# EmbeddingGemma 2 (the local model, ``embedding_gemma``) packs distances
+# much tighter: on the same comments a paraphrase sits at 0.03-0.27 and a
+# different question at 0.17+, so 0.55 would answer everything. 0.15 with
+# the ``classification`` prefix gave 97% precision and 46% coverage on the
+# labelled set (0.13 made no mistake at all); see
+# docs/experimentos/embeddinggemma.md. Measured on few real comments — to be
+# confirmed against the shadow-mode logs before an account switches.
+DEFAULT_MATCH_MAX_DISTANCE_GEMMA = 0.15
 
 AUTOREPLY_OFF = "off"
 AUTOREPLY_FIXED = "fixed"
@@ -111,6 +121,13 @@ class InstagramCommentReply(TimestampMixin, table=True):
     embedding: list[float] | None = Field(
         default=None,
         sa_column=Column(Vector(COMMENT_REPLY_EMBEDDING_DIM), nullable=True),
+    )
+    # The same trigger embedded by the local model. Written next to
+    # ``embedding`` while both providers are configured; which one is read
+    # depends on the account (``app.core.embeddings``).
+    embedding_gemma: list[float] | None = Field(
+        default=None,
+        sa_column=Column(Vector(GEMMA_DIM), nullable=True),
     )
 
 
@@ -163,6 +180,7 @@ __all__ = [
     "AUTOREPLY_SEMANTIC",
     "COMMENT_REPLY_EMBEDDING_DIM",
     "DEFAULT_MATCH_MAX_DISTANCE",
+    "DEFAULT_MATCH_MAX_DISTANCE_GEMMA",
     "InstagramCommentReply",
     "InstagramPostReplyPick",
 ]
