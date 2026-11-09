@@ -52,12 +52,15 @@ export function MessageComposer({
       el.style.overflowY = "";
       return;
     }
+    el.style.overflowY = "hidden";
     el.style.height = "auto";
     if (el.scrollHeight > 0) {
-      el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT_PX)}px`;
+      const border = el.offsetHeight - el.clientHeight;
+      const fullHeight = el.scrollHeight + border;
+      el.style.height = `${Math.min(fullHeight, MAX_TEXTAREA_HEIGHT_PX)}px`;
       // Scroll only once the text is taller than the box can grow.
       el.style.overflowY =
-        el.scrollHeight > MAX_TEXTAREA_HEIGHT_PX ? "auto" : "";
+        fullHeight > MAX_TEXTAREA_HEIGHT_PX ? "auto" : "hidden";
     }
   }, [content]);
 
@@ -249,58 +252,35 @@ export function MessageComposer({
         </div>
       ) : null}
 
-      <div className="relative">
-        <Textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onKeyDown={(e) => {
-            // Enter sends, or takes the first quick reply while they are
-            // listed; Shift+Enter is a new line.
-            if (
-              e.key === "Enter" &&
-              !e.shiftKey &&
-              !e.nativeEvent.isComposing
-            ) {
-              e.preventDefault();
-              if (showListbox && visibleCanned[0]) {
-                insertCanned(visibleCanned[0].content);
-              } else {
-                submit();
-              }
+      <Textarea
+        ref={textareaRef}
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        onKeyDown={(e) => {
+          // Enter sends, or takes the first quick reply while they are
+          // listed; Shift+Enter is a new line.
+          if (
+            e.key === "Enter" &&
+            !e.shiftKey &&
+            !e.nativeEvent.isComposing
+          ) {
+            e.preventDefault();
+            if (showListbox && visibleCanned[0]) {
+              insertCanned(visibleCanned[0].content);
+            } else {
+              submit();
             }
-          }}
-          rows={1}
-          placeholder={
-            isPrivate
-              ? "Nota interna (no la ve el cliente)…"
-              : "Escribí una respuesta… escribí / para respuestas rápidas"
           }
-          aria-label={isPrivate ? "Nota privada" : "Respuesta"}
-          // 13px padding + 20px line + borders = 48px: the 32px send button
-          // sits 8px from the top, bottom and right edges.
-          className={cn(
-            "overflow-y-hidden py-[13px] pr-12",
-            isPrivate && "border-warning",
-          )}
-        />
-        <Button
-          type="button"
-          variant={isPrivate ? "ghost" : "primary"}
-          size="icon"
-          onClick={submit}
-          disabled={uploading || (!content.trim() && attachments.length === 0)}
-          aria-label="Enviar"
-          title="Enviar"
-          className={cn(
-            "absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full p-0",
-            isPrivate &&
-              "border border-warning bg-warning text-white hover:bg-warning hover:opacity-90 dark:text-bg",
-          )}
-        >
-          <Send className="h-4 w-4" aria-hidden />
-        </Button>
-      </div>
+        }}
+        rows={1}
+        placeholder={
+          isPrivate
+            ? "Nota interna (no la ve el cliente)…"
+            : "Escribí una respuesta… escribí / para respuestas rápidas"
+        }
+        aria-label={isPrivate ? "Nota privada" : "Respuesta"}
+        className={cn("overflow-y-hidden", isPrivate && "border-warning")}
+      />
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
@@ -354,6 +334,23 @@ export function MessageComposer({
           aria-label="Adjuntar archivos"
         >
           <Paperclip className="h-3.5 w-3.5" aria-hidden />
+        </Button>
+
+        <Button
+          type="button"
+          variant={isPrivate ? "ghost" : "primary"}
+          size="icon"
+          onClick={submit}
+          disabled={uploading || (!content.trim() && attachments.length === 0)}
+          aria-label="Enviar"
+          title="Enviar"
+          className={cn(
+            "ml-auto h-8 w-8 rounded-full p-0",
+            isPrivate &&
+              "border border-warning bg-warning text-white hover:bg-warning hover:opacity-90 dark:text-bg",
+          )}
+        >
+          <Send className="h-4 w-4" aria-hidden />
         </Button>
       </div>
 
