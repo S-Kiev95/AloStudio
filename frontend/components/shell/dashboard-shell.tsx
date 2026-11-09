@@ -136,7 +136,7 @@ export function DashboardShell({
         <aside
           data-collapsed={sidebarCollapsed ? "true" : "false"}
           className={cn(
-            "glass-panel hidden overflow-hidden rounded-panel bg-surface lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-24px)] lg:shrink-0 lg:flex-col",
+            "vt-sidebar glass-panel hidden overflow-hidden rounded-panel bg-surface lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-24px)] lg:shrink-0 lg:flex-col",
             sidebarCollapsed ? "lg:w-[68px]" : "lg:w-[236px]",
             animateSidebar &&
               "lg:transition-[width] lg:duration-200 lg:ease-out motion-reduce:transition-none",
@@ -207,7 +207,7 @@ export function DashboardShell({
 
         {/* Work glass panel */}
         <div className="glass-panel flex min-w-0 flex-1 flex-col rounded-panel bg-surface">
-          <header className="flex h-16 shrink-0 items-center gap-3 border-b border-glass px-4 lg:h-20 lg:px-6">
+          <header className="vt-topbar flex h-16 shrink-0 items-center gap-3 border-b border-glass px-4 lg:h-20 lg:px-6">
             <button
               type="button"
               aria-label="Abrir menú"

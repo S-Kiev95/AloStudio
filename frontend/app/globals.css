@@ -445,6 +445,23 @@
     animation: page-enter 220ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
+  /* View Transitions API regions: sidebar and topbar stay fixed while only
+     the main account page content crossfades (180ms). */
+  .vt-sidebar {
+    view-transition-name: dashboard-sidebar;
+  }
+  .vt-topbar {
+    view-transition-name: dashboard-topbar;
+  }
+  .vt-page {
+    view-transition-name: account-page;
+  }
+  @supports (view-transition-name: none) {
+    .vt-page.page-enter {
+      animation: none;
+    }
+  }
+
   /* Inicio network orbit: cobalt monogram medallion + network bubbles on two
      elliptical glass paths. Halos light up in night mode and drop in daylight. */
   .orbit-core {
@@ -514,6 +531,41 @@
     opacity: 0;
     transform: translateY(6px);
   }
+}
+
+@keyframes vt-page-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vt-page-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-old(dashboard-sidebar),
+::view-transition-new(dashboard-sidebar),
+::view-transition-old(dashboard-topbar),
+::view-transition-new(dashboard-topbar) {
+  animation: none;
+}
+
+::view-transition-old(account-page) {
+  animation: vt-page-fade-out 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+::view-transition-new(account-page) {
+  animation: vt-page-fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes lit-ignite {
@@ -784,5 +836,10 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
