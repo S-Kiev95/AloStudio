@@ -92,12 +92,12 @@ function LiveCard({
 }) {
   const Icon = def.icon;
   return (
-    <Card className="flex items-center gap-3 p-4">
+    <Card className="flex items-center gap-3.5 p-4">
       <span
         data-live-icon={def.key}
         className="neon-nav inline-flex shrink-0 items-center justify-center"
       >
-        <Icon className="h-5 w-5" aria-hidden />
+        <Icon className="h-8 w-8" aria-hidden />
       </span>
       <div className="min-w-0">
         <p className="font-numeric text-2xl font-semibold leading-none tabular-nums text-fg">
