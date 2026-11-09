@@ -378,4 +378,27 @@ describe("NeonWordmark", () => {
     unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it("en modo colapsado muestra solo la 'A' fija sin encendido ni escenas animadas", () => {
+    vi.useFakeTimers();
+    mockReducedMotion(false);
+    document.documentElement.className = "dark";
+
+    const { rerender } = render(<NeonWordmark collapsed />);
+    const wordmark = screen.getByRole("img", { name: "AloStudio" });
+    expect(wordmark.className).not.toContain("neon-wordmark-ignite");
+    expect(wordmark).not.toHaveAttribute("data-scene");
+    expect(vi.getTimerCount()).toBe(0);
+
+    const spans = wordmark.querySelectorAll("span");
+    expect(spans).toHaveLength(1);
+    expect(spans[0]).toHaveTextContent("A");
+    expect(spans[0]).toHaveAttribute("aria-hidden", "true");
+    expect(spans[0]).not.toHaveAttribute("data-tube");
+
+    rerender(<NeonWordmark href="/accounts/1" collapsed />);
+    const link = screen.getByRole("link", { name: "AloStudio" });
+    expect(link.querySelectorAll("span")).toHaveLength(1);
+    expect(link).toHaveTextContent("A");
+  });
 });

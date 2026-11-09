@@ -332,6 +332,42 @@ describe("CalendarView — grilla, paginación y estados", () => {
     ).toHaveValue("2026-10-26T09:00");
     expect(screen.queryByText("Editar publicación")).toBeNull();
   });
+
+  it("alinea la cabecera con las columnas de la grilla en vistas Semana, Día y Mes usando el mismo contenedor y plantilla de columnas", async () => {
+    renderCalendar();
+
+    // Vista Semana (7 columnas)
+    const scroller = await screen.findByTestId("calendar-hourly-scroller");
+    expect(scroller.style.scrollbarGutter).toBe("stable");
+
+    const dayHeaders = within(scroller).getByTestId("calendar-day-headers");
+    const firstHourRow = within(scroller).getByTestId("calendar-hour-row-0");
+    expect(dayHeaders.style.gridTemplateColumns).toBe(
+      "64px repeat(7, minmax(0, 1fr))",
+    );
+    expect(firstHourRow.style.gridTemplateColumns).toBe(
+      dayHeaders.style.gridTemplateColumns,
+    );
+
+    // Vista Día (1 columna)
+    fireEvent.click(screen.getByRole("button", { name: "Día" }));
+    const dayViewHeaders = await screen.findByTestId("calendar-day-headers");
+    const dayViewHourRow = screen.getByTestId("calendar-hour-row-0");
+    expect(dayViewHeaders.style.gridTemplateColumns).toBe(
+      "64px repeat(1, minmax(0, 1fr))",
+    );
+    expect(dayViewHourRow.style.gridTemplateColumns).toBe(
+      dayViewHeaders.style.gridTemplateColumns,
+    );
+
+    // Vista Mes (7 columnas)
+    fireEvent.click(screen.getByRole("button", { name: "Mes" }));
+    const monthHeaders = await screen.findByTestId("calendar-month-headers");
+    const monthCells = screen.getByTestId("calendar-month-cells");
+    expect(monthHeaders).toHaveClass("grid", "grid-cols-7");
+    expect(monthCells).toHaveClass("grid", "grid-cols-7");
+    expect(monthHeaders.parentElement).toBe(monthCells.parentElement);
+  });
 });
 
 describe("CalendarView — conexión de canales y avisos de query", () => {

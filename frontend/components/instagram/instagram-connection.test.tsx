@@ -156,4 +156,19 @@ describe("InstagramConnection — antes de ir a Meta", () => {
     // La limitación que costó descubrirla conectando.
     expect(screen.getByText(/no manda el texto/)).toBeInTheDocument();
   });
+
+  it("aplica el degradado de marca de Instagram y el mismo tamaño/forma que Facebook Login", () => {
+    renderConnection();
+    const fbBtn = screen.getByRole("button", { name: /Facebook Login/ });
+    const igBtn = screen.getByRole("button", { name: /Instagram Login/ });
+
+    expect(fbBtn).toHaveClass("lit-tube-solid", "h-10", "px-6", "rounded-control");
+    expect(igBtn).toHaveClass(
+      "btn-instagram-brand",
+      "text-white",
+      "h-10",
+      "px-6",
+      "rounded-control",
+    );
+  });
 });

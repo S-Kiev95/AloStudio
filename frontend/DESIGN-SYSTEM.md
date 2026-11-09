@@ -85,6 +85,7 @@ Definidos en [`app/globals.css`](app/globals.css) (`:root` día y `.dark` noche)
 - `.neon-nav` / `.neon-nav-lit`: filas apagadas con zumbido y fila activa encendida en la barra lateral principal.
 - `.lit-tube` / `.lit-tube-ignite`: contorno de tubo cobalto encendido + animación única de `360ms`.
 - `.lit-tube-solid`: cuerpo sólido de tubo encendido para `<Button variant="primary">`.
+- `.btn-instagram-brand`: **excepción de marca** para el botón "Instagram Login" en [`InstagramConnection`](components/instagram/instagram-connection.tsx) — degradado oficial de Instagram (`#F58529 → #DD2A7B → #8134AF → #515BD4`), texto e ícono en blanco con contraste WCAG AA y el mismo tamaño (`40px`), radio (`rounded-control`, `10px`) y estados (`hover`, `focus-visible`, `disabled`) que el botón primario de "Facebook Login".
 - `.neon-tab` / `.neon-tab-active`: pestaña sobre riel con barra luminosa de `2px` e inset horizontal de `14px`.
 - `.glass-field`: pozo `--neon-field` con borde `--neon-glass` que al recibir foco conmuta a `--neon-core` y anillo `3px` `--neon-halo-far` en `180ms`.
 

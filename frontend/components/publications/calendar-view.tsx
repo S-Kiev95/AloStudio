@@ -657,6 +657,7 @@ function HourlyCalendarGrid({
   const markMoved = () => {
     userMovedRef.current = true;
   };
+  const gridTemplateColumns = `64px repeat(${columns.length}, minmax(0, 1fr))`;
 
   return (
     <div
@@ -664,44 +665,8 @@ function HourlyCalendarGrid({
       className="overflow-x-auto rounded-md border border-glass bg-surface"
     >
       <div className="min-w-[680px]">
-        {/* Day headers */}
-        <div
-          className="grid border-b border-glass bg-surface-2"
-          style={{
-            gridTemplateColumns: `64px repeat(${columns.length}, minmax(0, 1fr))`,
-          }}
-        >
-          <div className="p-2" />
-          {columns.map((col) => {
-            const isToday = col.key === todayKey;
-            return (
-              <div
-                key={col.key}
-                className="flex flex-col items-center justify-center border-l border-glass px-2 py-2.5 text-center"
-              >
-                <span className="text-xs font-medium text-fg-muted">
-                  {col.longName}
-                </span>
-                <span
-                  className={cn(
-                    "mt-0.5 inline-flex items-center gap-1 font-numeric text-xs font-semibold tabular-nums",
-                    isToday ? "text-lit" : "text-fg",
-                  )}
-                >
-                  {isToday ? (
-                    <span
-                      className="h-1.5 w-1.5 rounded-full bg-neon"
-                      aria-hidden
-                    />
-                  ) : null}
-                  {col.dateShort}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 24 hourly rows + "ahora" line */}
+        {/* Scroll container holds both sticky day headers and the 24 hourly rows
+            so they share the exact same clientWidth and scrollbar gutter. */}
         <div
           ref={scrollerRef}
           data-testid="calendar-hourly-scroller"
@@ -709,8 +674,46 @@ function HourlyCalendarGrid({
           onTouchStart={markMoved}
           onPointerDown={markMoved}
           onKeyDown={markMoved}
+          style={{ scrollbarGutter: "stable" }}
           className="relative max-h-[640px] overflow-y-auto"
         >
+          {/* Day headers */}
+          <div
+            data-testid="calendar-day-headers"
+            className="sticky top-0 z-30 grid border-b border-glass bg-surface-2"
+            style={{ gridTemplateColumns }}
+          >
+            <div className="p-2" />
+            {columns.map((col) => {
+              const isToday = col.key === todayKey;
+              return (
+                <div
+                  key={col.key}
+                  className="flex flex-col items-center justify-center border-l border-glass px-2 py-2.5 text-center"
+                >
+                  <span className="text-xs font-medium text-fg-muted">
+                    {col.longName}
+                  </span>
+                  <span
+                    className={cn(
+                      "mt-0.5 inline-flex items-center gap-1 font-numeric text-xs font-semibold tabular-nums",
+                      isToday ? "text-lit" : "text-fg",
+                    )}
+                  >
+                    {isToday ? (
+                      <span
+                        className="h-1.5 w-1.5 rounded-full bg-neon"
+                        aria-hidden
+                      />
+                    ) : null}
+                    {col.dateShort}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 24 hourly rows + "ahora" line */}
           <div className="relative">
             {showNowLine ? (
               <div
@@ -728,10 +731,9 @@ function HourlyCalendarGrid({
             {HOURS.map((hour) => (
               <div
                 key={hour}
+                data-testid={`calendar-hour-row-${hour}`}
                 className="grid border-b border-glass last:border-b-0"
-                style={{
-                  gridTemplateColumns: `64px repeat(${columns.length}, minmax(0, 1fr))`,
-                }}
+                style={{ gridTemplateColumns }}
               >
                 <div className="flex items-start justify-center px-2 py-3 font-numeric text-xs tabular-nums text-fg-muted">
                   {formatHourLabel(hour)}
@@ -751,7 +753,7 @@ function HourlyCalendarGrid({
                       }}
                       className={cn(
                         "min-h-14 space-y-1.5 border-l border-glass p-1.5 transition-colors",
-                        isAdmin && "cursor-pointer hover:bg-hover-glass/60",
+                        isAdmin && "cursor-pointer hover:bg-hover-glass",
                       )}
                     >
                       {slotItems.map((pub) => (
@@ -819,7 +821,10 @@ function MonthGrid({
       className="overflow-x-auto rounded-md border border-glass bg-surface"
     >
       <div className="min-w-[680px]">
-        <div className="grid grid-cols-7 border-b border-glass bg-surface-2">
+        <div
+          data-testid="calendar-month-headers"
+          className="grid grid-cols-7 border-b border-glass bg-surface-2"
+        >
           {SHORT_WEEKDAYS.map((wd) => (
             <div
               key={wd}
@@ -830,7 +835,7 @@ function MonthGrid({
           ))}
         </div>
 
-        <div className="grid grid-cols-7">
+        <div data-testid="calendar-month-cells" className="grid grid-cols-7">
           {cells.map((cell, idx) => {
             const isToday = cell.key === todayKey;
             const expanded = expandedDays.has(cell.key);
@@ -850,8 +855,8 @@ function MonthGrid({
                 className={cn(
                   "min-h-28 space-y-1.5 border-b border-l border-glass p-2 transition-colors",
                   idx % 7 === 0 && "border-l-0",
-                  !cell.inCurrentMonth && "bg-field/40 opacity-65",
-                  isAdmin && "cursor-pointer hover:bg-hover-glass/50",
+                  !cell.inCurrentMonth && "bg-field opacity-65",
+                  isAdmin && "cursor-pointer hover:bg-hover-glass",
                 )}
               >
                 <div className="flex items-center justify-between">
