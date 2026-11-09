@@ -49,11 +49,15 @@ export function MessageComposer({
     if (!el) return;
     if (!content) {
       el.style.height = "";
+      el.style.overflowY = "";
       return;
     }
     el.style.height = "auto";
     if (el.scrollHeight > 0) {
       el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT_PX)}px`;
+      // Scroll only once the text is taller than the box can grow.
+      el.style.overflowY =
+        el.scrollHeight > MAX_TEXTAREA_HEIGHT_PX ? "auto" : "";
     }
   }, [content]);
 
@@ -276,7 +280,7 @@ export function MessageComposer({
           // 13px padding + 20px line + borders = 48px: the 32px send button
           // sits 8px from the top, bottom and right edges.
           className={cn(
-            "overflow-y-auto py-[13px] pr-12",
+            "overflow-y-hidden py-[13px] pr-12",
             isPrivate && "border-warning",
           )}
         />
