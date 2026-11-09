@@ -185,6 +185,10 @@ devuelve **conversaciones**, no lleva al mensaje.
 
 ## F9. Embeddings gratis y búsqueda multimedia (experimental)
 
+**Aprobado por el dueño el 2026-11-09:** EmbeddingGemma 2 reemplaza a OpenAI
+si la medición lo confirma. La medición de recursos y umbrales corre en la
+rama `exp/embeddinggemma`; informe en `docs/experimentos/embeddinggemma.md`.
+
 Hoy los embeddings son de OpenAI (`text-embedding-3-small`, `vector(1536)`,
 pagos) y se usan en dos lugares: el centro de ayuda
 (`app/domains/portals/embeddings.py`) y las respuestas automáticas de
@@ -268,10 +272,16 @@ fork). Para completarlo, tomar como referencia un CRM open source como
 Odoo.
 
 - **Licencias:** Odoo Community es LGPL-3 (Enterprise es propietaria);
-  Twenty, EspoCRM y SuiteCRM son AGPL. Traducir su código arrastra su
-  licencia, igual que con Postiz. Se toma el **modelo funcional** de su
-  documentación pública (qué entidades, campos y flujos tiene), no el
-  código. Chatwoot fue distinto porque es MIT.
+  Twenty, EspoCRM y SuiteCRM son AGPL. Traducir código de Odoo a AloStudio
+  es una obra derivada: esa parte queda bajo LGPL-3. La LGPL no tiene la
+  cláusula de red de la AGPL, así que en el SaaS no obliga a publicar nada;
+  pero el plan Enterprise instala AloStudio en el servidor del cliente, eso
+  es distribuir, y obliga a entregar el código de la parte LGPL (con sus
+  cambios) y a permitir reemplazarla. Además, mezclarlo dentro de los
+  dominios propios hace difícil separar qué es LGPL. Por eso se toma el
+  **modelo funcional** de su documentación pública (qué entidades, campos y
+  flujos tiene), no el código. Chatwoot fue distinto porque es MIT.
+  Validarlo con un abogado si alguna vez se quiere portar código.
 - **Qué sumar, a decidir con el dueño:** empresas además de personas;
   oportunidades con etapas (embudo de ventas), valor y probabilidad;
   actividades y tareas con vencimiento; presupuestos con productos; origen
@@ -286,21 +296,37 @@ Odoo.
 
 ## F12. Grafos
 
-Dos grafos, porque responden preguntas distintas:
+Dos grafos, confirmados por el dueño el 2026-11-09, porque responden
+preguntas distintas:
 
 1. **Grafo de los datos de la app:** contactos, conversaciones, productos,
    campañas, publicaciones y agentes como nodos y relaciones ("qué contactos
-   preguntaron por este curso y vinieron de esta campaña"). PostgreSQL 19
-   suma SQL/PGQ (`CREATE PROPERTY GRAPH` y `GRAPH_TABLE`) como una vista
-   sobre las tablas que ya existen, sin copiar datos. Hoy usamos Postgres 16
-   (`pgvector/pgvector:pg16`): requiere actualizar a 19 cuando esté estable
-   y haya imagen con pgvector. La primera versión no trae caminos de largo
-   variable ni camino más corto; para eso, CTE recursivas o la extensión
-   Apache AGE.
+   preguntaron por este curso y vinieron de esta campaña").
 2. **Grafo de conocimiento:** conceptos del negocio y del manual (cursos,
    requisitos, precios, preguntas frecuentes) y cómo se relacionan, para que
    el agente responda con más precisión que solo con vectores (combinado
    con F9).
+
+**Cómo, sin esperar a Postgres 19.** Hoy usamos Postgres 16
+(`pgvector/pgvector:pg16`). PostgreSQL 19 suma SQL/PGQ (`CREATE PROPERTY
+GRAPH` y `GRAPH_TABLE`), pero es nuevo, su primera versión no trae caminos de
+largo variable ni camino más corto, y hace falta una imagen con pgvector.
+Lo más conveniente, sin infraestructura nueva:
+
+- **Grafo de datos:** las relaciones ya existen como claves foráneas. Se
+  consulta con SQL normal y CTE recursivas (`WITH RECURSIVE`) en funciones
+  del backend, más vistas para las relaciones que se usan seguido. Nada que
+  instalar ni migrar.
+- **Grafo de conocimiento:** dos tablas propias en Postgres, nodos (con su
+  vector de F9) y aristas (origen, destino, tipo, peso), siempre con
+  `account_id`. Búsqueda: vectores para encontrar los nodos de entrada y CTE
+  recursiva para recorrer sus vecinos (el patrón de GraphRAG).
+- **Descartado por ahora:** Apache AGE (Cypher dentro de Postgres) obliga a
+  armar una imagen propia con AGE y pgvector y a seguir sus versiones;
+  Neo4j suma otra base que operar y respaldar en cada servidor.
+- **Cuando se actualice a Postgres 19** (y tenga camino más corto), definir
+  los grafos con `CREATE PROPERTY GRAPH` sobre las mismas tablas, sin mover
+  datos; las consultas viejas siguen funcionando.
 
 Empezar por el primero, que no necesita IA; el segundo después de F9.
 
