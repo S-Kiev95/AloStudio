@@ -114,7 +114,7 @@ export function EmailComposer({
           aria-label="Enviar"
           title="Enviar"
           disabled={!content.trim() || send.isPending}
-          className="absolute bottom-2 right-2 h-8 w-8 rounded-control p-0"
+          className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full p-0"
         >
           {send.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
