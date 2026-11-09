@@ -123,7 +123,9 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
       expect(iconWrapper.className).not.toMatch(
         /text-warning|text-danger|text-info|bg-surface-2/,
       );
-      expect(iconWrapper.querySelector("svg")).not.toBeNull();
+      const svg = iconWrapper.querySelector("svg");
+      expect(svg).not.toBeNull();
+      expect(svg).toHaveClass("h-8", "w-8");
     }
   });
 });
