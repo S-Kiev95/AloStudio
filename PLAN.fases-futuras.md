@@ -268,21 +268,26 @@ una persona; bloquear solo por abuso claro y con confirmación humana.
 ## F11. CRM más completo y minería de datos
 
 AloStudio ya tiene contactos, productos y citas (de Chatwoot y del CRM del
-fork). Para completarlo, tomar como referencia un CRM open source como
-Odoo.
+fork). Para completarlo se porta un CRM open source con licencia permisiva,
+como se hizo con Chatwoot.
 
-- **Licencias:** Odoo Community es LGPL-3 (Enterprise es propietaria);
-  Twenty, EspoCRM y SuiteCRM son AGPL. Traducir código de Odoo a AloStudio
-  es una obra derivada: esa parte queda bajo LGPL-3. La LGPL no tiene la
-  cláusula de red de la AGPL, así que en el SaaS no obliga a publicar nada;
-  pero el plan Enterprise instala AloStudio en el servidor del cliente, eso
-  es distribuir, y obliga a entregar el código de la parte LGPL (con sus
-  cambios) y a permitir reemplazarla. Además, mezclarlo dentro de los
-  dominios propios hace difícil separar qué es LGPL. Por eso se toma el
-  **modelo funcional** de su documentación pública (qué entidades, campos y
-  flujos tiene), no el código. Chatwoot fue distinto porque es MIT.
-  Validarlo con un abogado si alguna vez se quiere portar código.
-- **Qué sumar, a decidir con el dueño:** empresas además de personas;
+- **Elegido (2026-11-09): [Krayin](https://github.com/krayin/laravel-crm),
+  MIT.** Muy activo (24 mil estrellas, cambios diarios), CRM completo:
+  leads con embudo por etapas, personas y organizaciones, productos,
+  presupuestos, actividades, correo y formularios web. Está en Laravel y
+  Vue: se porta reescribiendo a FastAPI y al frontend propio, igual que
+  Chatwoot. La MIT permite cerrar el código; pide conservar su aviso de
+  copyright en los archivos portados (y en un `NOTICE`). Antes de portar,
+  revisar la licencia de cada paquete del repo, no solo la raíz.
+- **Referencia secundaria:** [Atomic CRM](https://github.com/marmelab/atomic-crm),
+  MIT, en React. Más chico (contactos, empresas, oportunidades en tablero
+  Kanban, notas, tareas); sirve para ideas de interfaz.
+- **Descartados por licencia** (verificado el 2026-11-09): Odoo Community
+  (LGPL-3: lo portado queda LGPL y el plan Enterprise, que instala en el
+  servidor del cliente, obliga a entregar ese código), Twenty, EspoCRM,
+  SuiteCRM y Frappe CRM (AGPL). Corteza es Apache 2.0 pero es una
+  plataforma low-code para armar un CRM, no un CRM hecho.
+- **Qué sumar desde Krayin, a decidir con el dueño:** empresas además de personas;
   oportunidades con etapas (embudo de ventas), valor y probabilidad;
   actividades y tareas con vencimiento; presupuestos con productos; origen
   del contacto (qué canal, campaña o publicación lo trajo); historial

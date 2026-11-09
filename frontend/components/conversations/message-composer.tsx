@@ -21,6 +21,7 @@ type PendingAttachment = {
 
 // Matches the backend's NUMBER_OF_PERMITTED_ATTACHMENTS cap.
 const MAX_ATTACHMENTS = 15;
+const MAX_TEXTAREA_HEIGHT_PX = 144; // ~6 lines
 
 export function MessageComposer({
   accountId,
@@ -41,6 +42,20 @@ export function MessageComposer({
   const keyRef = useRef(0);
   const send = useSendMessage(accountId, displayId);
   const canned = useCannedResponses(accountId);
+
+  // One line that grows with the text, like the agent composer.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    if (!content) {
+      el.style.height = "";
+      return;
+    }
+    el.style.height = "auto";
+    if (el.scrollHeight > 0) {
+      el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT_PX)}px`;
+    }
+  }, [content]);
 
   useEffect(() => {
     if (!pickerOpen) return;
@@ -251,14 +266,19 @@ export function MessageComposer({
               }
             }
           }}
-          rows={3}
+          rows={1}
           placeholder={
             isPrivate
               ? "Nota interna (no la ve el cliente)…"
               : "Escribí una respuesta… escribí / para respuestas rápidas"
           }
           aria-label={isPrivate ? "Nota privada" : "Respuesta"}
-          className={cn("pr-12", isPrivate && "border-warning")}
+          // 13px padding + 20px line + borders = 48px: the 32px send button
+          // sits 8px from the top, bottom and right edges.
+          className={cn(
+            "overflow-y-auto py-[13px] pr-12",
+            isPrivate && "border-warning",
+          )}
         />
         <Button
           type="button"
