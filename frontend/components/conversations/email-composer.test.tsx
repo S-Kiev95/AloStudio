@@ -33,7 +33,7 @@ function renderComposer(replyTo: string | null = "alice@externo.com") {
 }
 
 const body = () => screen.getByLabelText("Tu respuesta");
-const sendBtn = () => screen.getByRole("button", { name: /Enviar/ });
+const sendBtn = () => screen.getByRole("button", { name: "Enviar" });
 
 describe("EmailComposer", () => {
   it("says who the reply goes to", () => {

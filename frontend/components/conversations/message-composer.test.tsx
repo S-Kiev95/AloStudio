@@ -151,4 +151,36 @@ describe("MessageComposer attachments", () => {
     expect(screen.queryByText("uno.txt")).not.toBeInTheDocument();
     expect(screen.getByText("dos.pdf")).toBeInTheDocument();
   });
+
+  it("encuentra el botón Enviar por su nombre accesible dentro del cuadro de texto, está deshabilitado sin texto y envía con texto", async () => {
+    const sent: unknown[] = [];
+    const server = setupServer(
+      http.get("*/canned_responses", () => HttpResponse.json([])),
+      http.post("*/conversations/1/messages", async ({ request }) => {
+        sent.push(await request.json());
+        return HttpResponse.json({ id: 1 });
+      }),
+    );
+    server.listen({ onUnhandledRequest: "bypass" });
+    try {
+      wrap(<MessageComposer accountId="1" displayId={1} />);
+      const box = screen.getByLabelText("Respuesta");
+      const sendBtn = screen.getByRole("button", { name: "Enviar" });
+
+      expect(sendBtn).toBeDisabled();
+      expect(sendBtn).toHaveAttribute("title", "Enviar");
+      expect(sendBtn).toHaveTextContent("");
+      expect(box.parentElement).toContainElement(sendBtn);
+
+      fireEvent.change(box, { target: { value: "Respuesta desde el botón" } });
+      expect(sendBtn).not.toBeDisabled();
+
+      fireEvent.click(sendBtn);
+      await waitFor(() => expect(sent).toHaveLength(1));
+      expect(box).toHaveValue("");
+      expect(sendBtn).toBeDisabled();
+    } finally {
+      server.close();
+    }
+  });
 });
