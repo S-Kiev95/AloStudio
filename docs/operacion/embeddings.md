@@ -74,8 +74,8 @@ no entra al `.venv` de la app. Escucha solo en localhost y no guarda datos.
 5. Completar los vectores que faltan y revisar el estado:
 
    ```bash
-   .venv/bin/python scripts/embeddings_gemma.py backfill
-   .venv/bin/python scripts/embeddings_gemma.py estado
+   PYTHONPATH=. .venv/bin/python scripts/embeddings_gemma.py backfill
+   PYTHONPATH=. .venv/bin/python scripts/embeddings_gemma.py estado
    ```
 
 **Memoria:** el servicio usa unos 2 GB. Antes de instalarlo en un servidor
@@ -118,7 +118,7 @@ de pasar la cuenta.
 2. Cambiar la cuenta:
 
    ```bash
-   .venv/bin/python scripts/embeddings_gemma.py modelo <ID> gemma
+   PYTHONPATH=. .venv/bin/python scripts/embeddings_gemma.py modelo <ID> gemma
    ```
 
    El formulario de reglas pasa a mostrar la escala del modelo local.
@@ -126,7 +126,7 @@ de pasar la cuenta.
 3. **Volver atrás:**
 
    ```bash
-   .venv/bin/python scripts/embeddings_gemma.py modelo <ID> openai
+   PYTHONPATH=. .venv/bin/python scripts/embeddings_gemma.py modelo <ID> openai
    ```
 
 **Orden:** develop, después la cuenta de pruebas de CTC y por último CTC.

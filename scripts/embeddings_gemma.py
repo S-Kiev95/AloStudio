@@ -1,8 +1,8 @@
 """Operación de la migración a EmbeddingGemma 2 (F9).
 
-    python scripts/embeddings_gemma.py estado
-    python scripts/embeddings_gemma.py backfill [--cuenta ID]
-    python scripts/embeddings_gemma.py modelo ID openai|gemma
+    PYTHONPATH=. python scripts/embeddings_gemma.py estado
+    PYTHONPATH=. python scripts/embeddings_gemma.py backfill [--cuenta ID]
+    PYTHONPATH=. python scripts/embeddings_gemma.py modelo ID openai|gemma
 
 * ``estado``: por cuenta, con qué modelo lee, cuántos vectores locales
   faltan y qué reglas por similitud tienen un umbral propio de OpenAI
@@ -15,7 +15,7 @@
   otra vez con ``openai``: mientras estén configurados los dos, cada
   guardado escribe ambos vectores.
 
-Correr desde la raíz del repo, con el ``.venv`` de la app.
+Correr desde la raíz del repo, con el ``.venv`` de la app y ``PYTHONPATH=.``.
 """
 
 from __future__ import annotations
