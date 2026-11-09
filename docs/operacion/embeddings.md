@@ -85,7 +85,7 @@ de cliente, confirmar que tiene ese margen libre.
 
 Con las cuentas todavía en `openai` y `EMBEDDING_SHADOW=true`, cada
 comentario que llega a una regla por similitud deja una línea en el log del
-worker:
+backend (la decisión se toma al recibir el webhook):
 
 ```
 instagram.autoreply.shadow account_id=… comment=… reading=openai openai=(answer=12 semantic_match 0.4123) gemma=(answer=12 semantic_match 0.1102) same_decision=True
@@ -101,8 +101,8 @@ portals.search.shadow portal_id=… reading=openai openai=[3, 7] gemma=[3, 9] sa
 Para contarlas:
 
 ```bash
-grep -c "autoreply.shadow" ~/logs/worker.log
-grep "autoreply.shadow" ~/logs/worker.log | grep -c "same_decision=False"
+grep -c "autoreply.shadow" ~/logs/backend.log
+grep "autoreply.shadow" ~/logs/backend.log | grep -c "same_decision=False"
 ```
 
 En los casos con `same_decision=False`, mirar el comentario en AloStudio
