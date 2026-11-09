@@ -62,6 +62,10 @@ log = logging.getLogger(__name__)
 # a single article's terms can't crowd out the result set.
 _NEIGHBOUR_SCAN = 50
 
+# Under the embeddings service's per-input limits (20 000 / 500 chars).
+_GEMMA_MAX_CHARS = 16_000
+_GEMMA_MAX_TITLE = 500
+
 
 async def reindex_article(session: AsyncSession, *, article_id: int) -> int:
     """Re-embed an article with every configured provider. Returns the
@@ -115,7 +119,13 @@ async def reindex_article_gemma(session: AsyncSession, *, article_id: int) -> in
         if part and part.strip()
     )
     try:
-        vector = await embed_gemma_one(body or title, task=TASK_DOCUMENT, title=title)
+        # The model reads ~8k tokens and the service refuses more than 20k
+        # characters; the start of an article is what describes it.
+        vector = await embed_gemma_one(
+            (body or title)[:_GEMMA_MAX_CHARS],
+            task=TASK_DOCUMENT,
+            title=title[:_GEMMA_MAX_TITLE],
+        )
     except LlmError as exc:
         log.warning(
             "portals.embeddings.gemma_failed article_id=%s err=%s", article_id, exc
