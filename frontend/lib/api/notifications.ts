@@ -13,7 +13,8 @@ export type NotificationType =
   | "participating_conversation_new_message"
   | "sla_missed_first_response"
   | "sla_missed_next_response"
-  | "sla_missed_resolution";
+  | "sla_missed_resolution"
+  | "conversation_bot_handoff";
 
 export type NotificationActor = {
   id: number;
@@ -55,6 +56,9 @@ export type NotificationSettings = {
   user_id: number;
   selected_email_flags: NotificationType[];
   selected_push_flags: NotificationType[];
+  selected_whatsapp_flags: NotificationType[];
+  /** Digits only, with country code (e.g. 59899123456). */
+  whatsapp_number: string | null;
 };
 
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
@@ -67,10 +71,12 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   sla_missed_first_response: "SLA: primera respuesta vencida",
   sla_missed_next_response: "SLA: siguiente respuesta vencida",
   sla_missed_resolution: "SLA: resolución vencida",
+  conversation_bot_handoff: "El bot derivó una conversación al equipo",
 };
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
   "conversation_creation",
+  "conversation_bot_handoff",
   "conversation_assignment",
   "assigned_conversation_new_message",
   "conversation_mention",
@@ -178,6 +184,8 @@ export function useUpdateNotificationSettings(accountId: string) {
     mutationFn: (patch: {
       selected_email_flags?: NotificationType[];
       selected_push_flags?: NotificationType[];
+      selected_whatsapp_flags?: NotificationType[];
+      whatsapp_number?: string;
     }) =>
       apiFetch<NotificationSettings>(settingsBase(accountId), {
         method: "PATCH",

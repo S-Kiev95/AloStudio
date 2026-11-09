@@ -5,6 +5,7 @@ __pycache__/
 *.so
 .Python
 .venv/
+.venv-embeddings/
 venv/
 .pytest_cache/
 .ruff_cache/

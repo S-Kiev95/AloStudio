@@ -23,9 +23,19 @@ from dataclasses import dataclass
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
+from app.core.embeddings import (
+    MODEL_GEMMA,
+    MODEL_OPENAI,
+    TASK_CLASSIFICATION,
+    account_read_model,
+    embed_gemma_one,
+    gemma_enabled,
+)
 from app.core.llm import embed_text, embedding_search_enabled
 from app.domains.instagram.autoreply_models import (
     DEFAULT_MATCH_MAX_DISTANCE,
+    DEFAULT_MATCH_MAX_DISTANCE_GEMMA,
     InstagramCommentReply,
     InstagramPostReplyPick,
 )
@@ -77,6 +87,36 @@ def _keyword_hit(rule: InstagramPostAutoreply, comment_text: str) -> bool:
     return False
 
 
+def _model_enabled(model: str) -> bool:
+    if model == MODEL_GEMMA:
+        return gemma_enabled()
+    return embedding_search_enabled()
+
+
+async def _embed_comment(model: str, text: str) -> list[float]:
+    if model == MODEL_GEMMA:
+        # Same prefix the triggers were embedded with: comparing a comment
+        # to an example question is a symmetric task.
+        return await embed_gemma_one(text, task=TASK_CLASSIFICATION)
+    return await embed_text(text)
+
+
+def _max_distance_for(rule: InstagramPostAutoreply, model: str) -> float:
+    """The rule's threshold on ``model``'s scale.
+
+    Null on the rule follows the installation default, so a rule nobody
+    tuned tracks the tuned value rather than freezing whatever it was the
+    day it was written. Each model has its own column: an OpenAI value read
+    as a local-model one would answer every comment."""
+    if model == MODEL_GEMMA:
+        return rule.max_distance_gemma or DEFAULT_MATCH_MAX_DISTANCE_GEMMA
+    return rule.max_distance or DEFAULT_MATCH_MAX_DISTANCE
+
+
+# (reply, reason, distance, id of the closest answer)
+MatchResult = tuple[str | None, str, float | None, int | None]
+
+
 async def _semantic_match(
     session: AsyncSession,
     *,
@@ -84,22 +124,27 @@ async def _semantic_match(
     post_id: int,
     text: str,
     max_distance: float,
-) -> tuple[str | None, str, float | None]:
-    """``(reply, reason, distance)`` from the answers this post offers.
+    model: str = MODEL_OPENAI,
+    log_misses: bool = True,
+) -> MatchResult:
+    """``(reply, reason, distance, answer_id)`` from the answers this post
+    offers, matched with ``model``'s vectors.
 
     Those are the ones picked for the publication, or the whole library
     when it has picked none — absence means "everything", so similarity
     matching works before anyone curates it.
     """
-    if not embedding_search_enabled():
-        return None, "embeddings_disabled", None
+    if not _model_enabled(model):
+        return None, "embeddings_disabled", None, None
     try:
-        vector = await embed_text(text)
+        vector = await _embed_comment(model, text)
     except Exception:
         # Embedding is a network call; if it fails we simply do not answer.
         # Silence is always a safe outcome here.
-        log.exception("instagram.autoreply.embed_failed account_id=%s", account_id)
-        return None, "embed_failed", None
+        log.exception(
+            "instagram.autoreply.embed_failed account_id=%s model=%s", account_id, model
+        )
+        return None, "embed_failed", None, None
 
     picked = list(
         (
@@ -111,17 +156,22 @@ async def _semantic_match(
         ).all()
     )
 
-    distance = InstagramCommentReply.embedding.cosine_distance(vector)
+    column = (
+        InstagramCommentReply.embedding_gemma
+        if model == MODEL_GEMMA
+        else InstagramCommentReply.embedding
+    )
+    distance = column.cosine_distance(vector)
     query = select(InstagramCommentReply, distance.label("distance")).where(
         InstagramCommentReply.account_id == account_id,
         InstagramCommentReply.enabled.is_(True),
-        InstagramCommentReply.embedding.is_not(None),
+        column.is_not(None),
     )
     if picked:
         query = query.where(InstagramCommentReply.id.in_(picked))
     row = (await session.exec(query.order_by(distance).limit(1))).first()
     if row is None:
-        return None, "no_prepared_answers", None
+        return None, "no_prepared_answers", None, None
 
     candidate, dist = row
     if dist is None or float(dist) > max_distance:
@@ -133,16 +183,82 @@ async def _semantic_match(
         # answer plus its distance is what tells an admin whether to
         # reword the example or leave it alone. Diagnosing this without it
         # meant re-embedding the comment by hand against the library.
-        log.info(
-            "instagram.autoreply.below_threshold closest=%r distance=%.4f "
-            "max=%.2f account_id=%s",
-            candidate.trigger,
-            float(dist) if dist is not None else -1.0,
-            max_distance,
-            account_id,
+        if log_misses:
+            log.info(
+                "instagram.autoreply.below_threshold closest=%r distance=%.4f "
+                "max=%.2f account_id=%s model=%s",
+                candidate.trigger,
+                float(dist) if dist is not None else -1.0,
+                max_distance,
+                account_id,
+                model,
+            )
+        return (
+            None,
+            "below_threshold",
+            (float(dist) if dist is not None else None),
+            candidate.id,
         )
-        return None, "below_threshold", (float(dist) if dist is not None else None)
-    return candidate.reply, "semantic_match", float(dist)
+    return candidate.reply, "semantic_match", float(dist), candidate.id
+
+
+async def _shadow_match(
+    session: AsyncSession,
+    *,
+    comment: InstagramComment,
+    post: InstagramPost,
+    rule: InstagramPostAutoreply,
+    text: str,
+    read_model: str,
+    primary: MatchResult,
+) -> None:
+    """Shadow mode: run the model that is *not* answering and log both.
+
+    Only ever logs. It exists so the switch to the local model is decided
+    on real comments: the line says whether the two would have given the
+    same answer, and how close each one was."""
+    other = MODEL_OPENAI if read_model == MODEL_GEMMA else MODEL_GEMMA
+    if not get_settings().embedding_shadow or not _model_enabled(other):
+        return
+    try:
+        shadow = await _semantic_match(
+            session,
+            account_id=comment.account_id,
+            post_id=post.id,
+            text=text,
+            max_distance=_max_distance_for(rule, other),
+            model=other,
+            log_misses=False,
+        )
+    except Exception:
+        log.exception(
+            "instagram.autoreply.shadow_failed comment=%s", comment.ig_comment_id
+        )
+        return
+    by_model = {read_model: primary, other: shadow}
+    oa, gm = by_model[MODEL_OPENAI], by_model[MODEL_GEMMA]
+    # Same answer, or both silent.
+    same = (oa[0] is None and gm[0] is None) or (
+        oa[0] is not None and gm[0] is not None and oa[3] == gm[3]
+    )
+    log.info(
+        "instagram.autoreply.shadow account_id=%s comment=%s reading=%s "
+        "openai=(answer=%s %s %s) gemma=(answer=%s %s %s) same_decision=%s",
+        comment.account_id,
+        comment.ig_comment_id,
+        read_model,
+        oa[3],
+        oa[1],
+        _fmt_distance(oa[2]),
+        gm[3],
+        gm[1],
+        _fmt_distance(gm[2]),
+        same,
+    )
+
+
+def _fmt_distance(distance: float | None) -> str:
+    return "-" if distance is None else f"{distance:.4f}"
 
 
 async def _rules_for_post(
@@ -217,6 +333,8 @@ async def decide_reply(
     # alone cannot tell an admin whether to configure a key, write answers,
     # or loosen the threshold — and that is exactly what they need to know.
     semantic_miss: str | None = None
+    # Looked up once, and only when a similarity rule is about to run.
+    read_model: str | None = None
 
     for rule in rules:
         if rule.match_type == MATCH_KEYWORD:
@@ -233,16 +351,26 @@ async def decide_reply(
             )
 
         if rule.match_type == MATCH_SEMANTIC:
-            body, reason, distance = await _semantic_match(
+            if read_model is None:
+                read_model = await account_read_model(session, comment.account_id)
+            primary = await _semantic_match(
                 session,
                 account_id=comment.account_id,
                 post_id=post.id,
                 text=text,
-                # Null on the rule follows the installation default, so a
-                # rule nobody tuned tracks the tuned value rather than
-                # freezing whatever it was the day it was written.
-                max_distance=rule.max_distance or DEFAULT_MATCH_MAX_DISTANCE,
+                max_distance=_max_distance_for(rule, read_model),
+                model=read_model,
             )
+            await _shadow_match(
+                session,
+                comment=comment,
+                post=post,
+                rule=rule,
+                text=text,
+                read_model=read_model,
+                primary=primary,
+            )
+            body, reason, distance, _answer_id = primary
             if body is None:
                 # Fall through to a catch-all rule if one exists — a
                 # library miss should not block a generic answer.

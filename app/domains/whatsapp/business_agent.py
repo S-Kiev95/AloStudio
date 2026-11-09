@@ -66,7 +66,7 @@ from app.domains.conversations.models import (
     CONVERSATION_STATUS_RESOLVED,
     Conversation,
 )
-from app.domains.conversations.service import toggle_status
+from app.domains.conversations.service import bot_handoff, toggle_status
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_WHATSAPP,
     WHATSAPP_PROVIDER_CLOUD,
@@ -665,6 +665,10 @@ async def process_handover_value(
             activity=activity,
             metadata=metadata,
         )
+        if owner == OWNER_APP:
+            # Stamps waiting_since and fires conversation.bot_handoff: the
+            # team gets notified and reports count the handoff.
+            await bot_handoff(session, conversation=conversation)
         changed.append(conversation)
     log.info(
         "whatsapp.handover.applied channel_id=%s conversations=%s",

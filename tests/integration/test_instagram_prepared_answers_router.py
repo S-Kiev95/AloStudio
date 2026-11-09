@@ -133,7 +133,7 @@ async def test_status_says_similarity_is_off_without_a_provider(
         _url(owner, "/instagram_autoreply_status"), headers=headers
     )
     assert resp.status_code == 200
-    assert resp.json() == {"semantic_available": False}
+    assert resp.json() == {"semantic_available": False, "embedding_model": "openai"}
 
 
 async def test_status_says_similarity_is_on_with_one(
@@ -143,7 +143,7 @@ async def test_status_says_similarity_is_on_with_one(
     resp = await client.get(
         _url(owner, "/instagram_autoreply_status"), headers=headers
     )
-    assert resp.json() == {"semantic_available": True}
+    assert resp.json() == {"semantic_available": True, "embedding_model": "openai"}
 
 
 async def test_an_answer_saved_with_a_provider_is_indexed(

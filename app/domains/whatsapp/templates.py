@@ -118,7 +118,7 @@ async def send_template_message(
     session: AsyncSession,
     *,
     channel: WhatsappChannel,
-    message: Message,
+    message: Message | None,
     to_phone: str,
     template_info: dict[str, Any],
 ) -> bool:
@@ -159,7 +159,7 @@ async def _send_template_cloud(
     session: AsyncSession,
     *,
     channel: WhatsappChannel,
-    message: Message,
+    message: Message | None,
     to_phone: str,
     template_info: dict[str, Any],
 ) -> bool:
@@ -199,7 +199,7 @@ async def _send_template_360dialog(
     session: AsyncSession,
     *,
     channel: WhatsappChannel,
-    message: Message,
+    message: Message | None,
     to_phone: str,
     template_info: dict[str, Any],
 ) -> bool:
@@ -232,7 +232,7 @@ async def _post_and_stamp(
     session: AsyncSession,
     *,
     channel: WhatsappChannel,
-    message: Message,
+    message: Message | None,
     url: str,
     headers: dict[str, str],
     body: dict[str, Any],
@@ -272,7 +272,9 @@ async def _post_and_stamp(
     if not isinstance(messages, list) or not messages:
         return False
     msg_id = messages[0].get("id") if isinstance(messages[0], dict) else None
-    if msg_id:
+    # ``message`` is None for sends that aren't a chat message (team
+    # notices): nothing to thread the delivery status onto.
+    if msg_id and message is not None:
         message.source_id = str(msg_id)
         session.add(message)
         await session.flush()
@@ -280,7 +282,7 @@ async def _post_and_stamp(
         "whatsapp.send_template.%s.ok channel_id=%s message_id=%s remote_id=%s",
         log_prefix,
         channel.id,
-        message.id,
+        message.id if message is not None else None,
         msg_id,
     )
     return True

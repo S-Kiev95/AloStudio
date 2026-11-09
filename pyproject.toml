@@ -109,3 +109,9 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 exclude = ["^reference/", "^alembic/versions/"]
+
+# The embeddings service runs in its own virtualenv (torch is not part of
+# the app's environment); see app/embeddings_service/requirements.txt.
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*", "sentence_transformers", "sentence_transformers.*"]
+ignore_missing_imports = true

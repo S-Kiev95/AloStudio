@@ -384,6 +384,8 @@ async def test_handoff_to_our_app_moves_the_conversation_to_the_team(db_session)
     assert ba.thread_owner(conversation) == ba.OWNER_APP
     # A handoff is a request for a person: it reopens the conversation.
     assert conversation.status == CONVERSATION_STATUS_OPEN
+    # ...and runs the bot handoff: the customer is waiting for the team.
+    assert conversation.waiting_since is not None
     assert any(
         "handed the conversation off to the team: Consulta por pagos" in a
         for a in await _activities(db_session, conversation)

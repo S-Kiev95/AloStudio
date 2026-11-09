@@ -28,9 +28,10 @@ from sqlmodel import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import get_session
+from app.core.embeddings import account_read_model, provider_enabled
 from app.core.errors import ChatwootHTTPException
-from app.core.llm import LlmError, embedding_search_enabled
-from app.domains.portals.embeddings import vector_search
+from app.core.llm import LlmError
+from app.domains.portals.embeddings import log_shadow_search, vector_search
 from app.domains.portals.models import (
     ARTICLE_STATUS_PUBLISHED,
     Article,
@@ -97,7 +98,12 @@ async def index_articles(
     portal whose articles predate indexing still returns results."""
     portal = await _resolve_portal(session, slug)
 
-    if query and query.strip() and embedding_search_enabled():
+    read_model = (
+        await account_read_model(session, portal.account_id)
+        if query and query.strip()
+        else None
+    )
+    if query and query.strip() and read_model and provider_enabled(read_model):
         try:
             hits = await vector_search(
                 session,
@@ -106,6 +112,16 @@ async def index_articles(
                 locale=locale,
                 category_slug=category_slug,
                 status=ARTICLE_STATUS_PUBLISHED,
+                model=read_model,
+            )
+            await log_shadow_search(
+                session,
+                portal_id=portal.id,
+                query=query.strip(),
+                locale=locale,
+                category_slug=category_slug,
+                read_model=read_model,
+                primary=hits,
             )
             if hits:
                 return [present_article(a) for a in hits]
