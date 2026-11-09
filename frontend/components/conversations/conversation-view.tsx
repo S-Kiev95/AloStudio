@@ -22,6 +22,7 @@ import { ConversationActions } from "./conversation-actions";
 import { ConversationParticipants } from "./conversation-participants";
 import { EmailComposer } from "./email-composer";
 import { EmailMessage } from "./email-message";
+import { useInboxPanels } from "./inbox-shell";
 import { MessageBubble, PendingMessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
 
@@ -91,6 +92,7 @@ export function ConversationView({
   accountId: string;
   displayId: number;
 }) {
+  const { contactCollapsed, toggleContactCollapsed } = useInboxPanels();
   const conv = useConversation(accountId, displayId);
   const messages = useMessages(accountId, displayId);
   const pending = usePendingMessages(accountId, displayId);
@@ -302,6 +304,8 @@ export function ConversationView({
         contactId={contactId}
         currentDisplayId={displayId}
         conversationStatus={status}
+        collapsed={contactCollapsed}
+        onToggleCollapse={toggleContactCollapsed}
       />
     </div>
   );

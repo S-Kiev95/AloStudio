@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 
 import { ChannelBadge, channelLabel } from "./channel-badge";
 import { ConversationFilters } from "./conversation-filters";
+import { PanelLeftClose, useInboxPanels } from "./inbox-shell";
 
 const STATUS_PILLS = [
   { key: "open", label: "Abiertas" },
@@ -48,6 +49,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname() ?? "";
+  const { listCollapsed, toggleListCollapsed } = useInboxPanels();
 
   // URL is the source of truth for the shareable list state, so refresh,
   // back/forward, and deep links all just work. Transient UI (selection, the
@@ -240,6 +242,18 @@ export function ConversationList({ accountId }: { accountId: string }) {
             </button>
           );
         })}
+        {!listCollapsed ? (
+          <button
+            type="button"
+            onClick={toggleListCollapsed}
+            aria-expanded={!listCollapsed}
+            aria-label="Colapsar lista de conversaciones"
+            title="Colapsar lista de conversaciones"
+            className="ml-auto hidden h-7 w-7 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon lg:inline-flex"
+          >
+            <PanelLeftClose className="h-4 w-4" aria-hidden />
+          </button>
+        ) : null}
       </div>
 
       {/* Search, status pills, inbox selector, and active toolbars */}

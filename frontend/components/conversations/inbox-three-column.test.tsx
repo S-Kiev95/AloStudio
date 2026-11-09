@@ -17,7 +17,11 @@ import { ConversationList } from "./conversation-list";
 import { ConversationView } from "./conversation-view";
 import { InboxChannelsView } from "./inbox-channels-view";
 import { InboxReportsView } from "./inbox-reports-view";
-import { InboxShell } from "./inbox-shell";
+import {
+  INBOX_CONTACT_COLLAPSED_KEY,
+  INBOX_LIST_COLLAPSED_KEY,
+  InboxShell,
+} from "./inbox-shell";
 import { InboxTabs } from "./inbox-tabs";
 
 let mockPathname = "/accounts/1/conversations";
@@ -262,6 +266,7 @@ beforeEach(() => {
   conversationsListHits = 0;
   currentRole = 1;
   mockPathname = "/accounts/1/conversations";
+  window.localStorage.clear();
 });
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
@@ -435,5 +440,95 @@ describe("Bandeja en tres columnas y pestañas", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /conectar canal/i })).toBeNull();
     expect(screen.queryByRole("button", { name: "Desconectar" })).toBeNull();
+  });
+
+  it("colapsa y abre cada panel lateral por separado y recuerda su estado en localStorage", async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    mockPathname = "/accounts/1/conversations/42";
+    const { unmount } = render(
+      <QueryClientProvider client={qc}>
+        <InboxShell list={<ConversationList accountId="1" />}>
+          <ConversationView accountId="1" displayId={42} />
+        </InboxShell>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("camila@ejemplo.com")).toBeInTheDocument();
+
+    const listPanel = screen.getByTestId("inbox-list-panel");
+    const contactPanel = screen.getByTestId("inbox-contact-panel");
+    expect(listPanel).toHaveAttribute("data-collapsed", "false");
+    expect(contactPanel).toHaveAttribute("data-collapsed", "false");
+
+    const collapseListBtn = screen.getByRole("button", {
+      name: "Colapsar lista de conversaciones",
+    });
+    const collapseContactBtn = screen.getByRole("button", {
+      name: "Colapsar panel de contacto",
+    });
+    expect(collapseListBtn).toHaveAttribute("aria-expanded", "true");
+    expect(collapseContactBtn).toHaveAttribute("aria-expanded", "true");
+
+    // 1. Colapsar solo el panel izquierdo (lista de conversaciones)
+    fireEvent.click(collapseListBtn);
+    expect(listPanel).toHaveAttribute("data-collapsed", "true");
+    expect(contactPanel).toHaveAttribute("data-collapsed", "false");
+    expect(window.localStorage.getItem(INBOX_LIST_COLLAPSED_KEY)).toBe("1");
+    expect(
+      screen.getByRole("button", { name: "Expandir lista de conversaciones" }),
+    ).toHaveAttribute("aria-expanded", "false");
+
+    // 2. Colapsar también el panel derecho (contacto)
+    fireEvent.click(collapseContactBtn);
+    expect(contactPanel).toHaveAttribute("data-collapsed", "true");
+    expect(window.localStorage.getItem(INBOX_CONTACT_COLLAPSED_KEY)).toBe("1");
+    expect(
+      screen.getByRole("button", { name: "Expandir panel de contacto" }),
+    ).toHaveAttribute("aria-expanded", "false");
+
+    // 3. Desmontar y volver a montar: recuerda el estado de ambos paneles
+    unmount();
+    render(
+      <QueryClientProvider client={qc}>
+        <InboxShell list={<ConversationList accountId="1" />}>
+          <ConversationView accountId="1" displayId={42} />
+        </InboxShell>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByTestId("inbox-list-panel")).toHaveAttribute(
+      "data-collapsed",
+      "true",
+    );
+    expect(screen.getByTestId("inbox-contact-panel")).toHaveAttribute(
+      "data-collapsed",
+      "true",
+    );
+
+    // 4. Volver a abrir cada panel por separado
+    fireEvent.click(
+      screen.getByRole("button", { name: "Expandir panel de contacto" }),
+    );
+    expect(screen.getByTestId("inbox-contact-panel")).toHaveAttribute(
+      "data-collapsed",
+      "false",
+    );
+    expect(screen.getByTestId("inbox-list-panel")).toHaveAttribute(
+      "data-collapsed",
+      "true",
+    );
+    expect(window.localStorage.getItem(INBOX_CONTACT_COLLAPSED_KEY)).toBe("0");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Expandir lista de conversaciones" }),
+    );
+    expect(screen.getByTestId("inbox-list-panel")).toHaveAttribute(
+      "data-collapsed",
+      "false",
+    );
+    expect(window.localStorage.getItem(INBOX_LIST_COLLAPSED_KEY)).toBe("0");
   });
 });

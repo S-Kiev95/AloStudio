@@ -4,8 +4,11 @@ import {
   ChevronRight,
   ExternalLink,
   MessageSquare,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { useContact, useContactNotes } from "@/lib/api/contacts";
@@ -13,6 +16,8 @@ import { useConversations } from "@/lib/api/conversations";
 import { useCustomAttributes } from "@/lib/api/custom-attributes";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
+
+import { useInboxPanels } from "./inbox-shell";
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   open: {
@@ -33,6 +38,62 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   },
 };
 
+function ContactPanelFrame({
+  collapsed,
+  onToggleCollapse,
+  children,
+}: {
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  children: ReactNode;
+}) {
+  const toggleLabel = collapsed
+    ? "Expandir panel de contacto"
+    : "Colapsar panel de contacto";
+
+  return (
+    <aside
+      aria-label="Contacto"
+      data-testid="inbox-contact-panel"
+      data-collapsed={collapsed ? "true" : "false"}
+      className={cn(
+        "hidden shrink-0 overflow-hidden lg:flex lg:flex-col lg:border-l lg:border-glass lg:transition-[width] lg:duration-200 lg:ease-out motion-reduce:transition-none",
+        collapsed ? "lg:w-11" : "lg:w-[280px]",
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center py-2",
+          collapsed ? "justify-center" : "justify-start px-3",
+        )}
+      >
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          aria-expanded={!collapsed}
+          aria-label={toggleLabel}
+          title={toggleLabel}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
+        >
+          {collapsed ? (
+            <PanelRightOpen className="h-4 w-4" aria-hidden />
+          ) : (
+            <PanelRightClose className="h-4 w-4" aria-hidden />
+          )}
+        </button>
+      </div>
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto px-4 pb-4",
+          collapsed && "hidden",
+        )}
+      >
+        {children}
+      </div>
+    </aside>
+  );
+}
+
 /**
  * The right-hand panel (~280 px) inside the three-column inbox: surfaces who
  * the conversation is with — large avatar, name, status, email, phone, custom
@@ -44,12 +105,20 @@ export function ContactPanel({
   contactId,
   currentDisplayId,
   conversationStatus,
+  collapsed: collapsedProp,
+  onToggleCollapse: onToggleCollapseProp,
 }: {
   accountId: string;
   contactId: number | null | undefined;
   currentDisplayId: number;
   conversationStatus?: string;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
+  const { contactCollapsed, toggleContactCollapsed } = useInboxPanels();
+  const collapsed = collapsedProp ?? contactCollapsed;
+  const onToggleCollapse = onToggleCollapseProp ?? toggleContactCollapsed;
+
   const enabled = typeof contactId === "number" && Number.isFinite(contactId);
   const contact = useContact(accountId, contactId ?? -1);
   const notes = useContactNotes(accountId, contactId ?? -1);
@@ -57,29 +126,38 @@ export function ContactPanel({
 
   if (!enabled) {
     return (
-      <aside className="hidden lg:block lg:w-[280px] lg:shrink-0 lg:border-l lg:border-glass lg:p-4">
+      <ContactPanelFrame
+        collapsed={collapsed}
+        onToggleCollapse={onToggleCollapse}
+      >
         <p className="text-sm text-fg-muted">
           Sin contacto asociado a esta conversación.
         </p>
-      </aside>
+      </ContactPanelFrame>
     );
   }
 
   if (contact.isLoading) {
     return (
-      <aside className="hidden lg:block lg:w-[280px] lg:shrink-0 lg:border-l lg:border-glass lg:p-4">
+      <ContactPanelFrame
+        collapsed={collapsed}
+        onToggleCollapse={onToggleCollapse}
+      >
         <p className="text-sm text-fg-muted">Cargando contacto…</p>
-      </aside>
+      </ContactPanelFrame>
     );
   }
 
   if (contact.isError || !contact.data) {
     return (
-      <aside className="hidden lg:block lg:w-[280px] lg:shrink-0 lg:border-l lg:border-glass lg:p-4">
+      <ContactPanelFrame
+        collapsed={collapsed}
+        onToggleCollapse={onToggleCollapse}
+      >
         <p role="alert" className="text-sm text-danger">
           No se pudo cargar el contacto.
         </p>
-      </aside>
+      </ContactPanelFrame>
     );
   }
 
@@ -105,12 +183,9 @@ export function ContactPanel({
   }));
 
   return (
-    <aside
-      aria-label="Contacto"
-      className={cn(
-        "hidden shrink-0 overflow-y-auto p-4",
-        "lg:block lg:w-[280px] lg:border-l lg:border-glass",
-      )}
+    <ContactPanelFrame
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
     >
       <div className="space-y-5 pb-4">
         {/* Identity */}
@@ -225,7 +300,7 @@ export function ContactPanel({
           currentDisplayId={currentDisplayId}
         />
       </div>
-    </aside>
+    </ContactPanelFrame>
   );
 }
 
