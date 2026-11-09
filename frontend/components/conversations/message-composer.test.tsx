@@ -152,7 +152,7 @@ describe("MessageComposer attachments", () => {
     expect(screen.getByText("dos.pdf")).toBeInTheDocument();
   });
 
-  it("encuentra el botón Enviar por su nombre accesible dentro del cuadro de texto, está deshabilitado sin texto y envía con texto", async () => {
+  it("encuentra el botón Enviar fuera del cuadro de texto, abajo a la derecha en la fila de acciones, está deshabilitado sin texto y envía con texto", async () => {
     const sent: unknown[] = [];
     const server = setupServer(
       http.get("*/canned_responses", () => HttpResponse.json([])),
@@ -166,11 +166,16 @@ describe("MessageComposer attachments", () => {
       wrap(<MessageComposer accountId="1" displayId={1} />);
       const box = screen.getByLabelText("Respuesta");
       const sendBtn = screen.getByRole("button", { name: "Enviar" });
+      const privateBtn = screen.getByRole("button", { name: "Nota privada" });
 
       expect(sendBtn).toBeDisabled();
       expect(sendBtn).toHaveAttribute("title", "Enviar");
       expect(sendBtn).toHaveTextContent("");
-      expect(box.parentElement).toContainElement(sendBtn);
+      expect(sendBtn).toHaveClass("rounded-full", "ml-auto");
+      expect(box).not.toHaveClass("pr-12");
+      expect(box).not.toHaveClass("py-[13px]");
+      expect(privateBtn.parentElement).toContainElement(sendBtn);
+      expect(privateBtn.parentElement).not.toContainElement(box);
 
       fireEvent.change(box, { target: { value: "Respuesta desde el botón" } });
       expect(sendBtn).not.toBeDisabled();
@@ -182,5 +187,41 @@ describe("MessageComposer attachments", () => {
     } finally {
       server.close();
     }
+  });
+
+  it("crece con líneas vacías (Shift+Enter) sin mostrar scroll hasta superar el alto máximo", () => {
+    wrap(<MessageComposer accountId="1" displayId={1} />);
+    const box = screen.getByLabelText("Respuesta") as HTMLTextAreaElement;
+
+    let mockedScrollHeight = 60;
+    Object.defineProperty(box, "scrollHeight", {
+      configurable: true,
+      get: () => mockedScrollHeight,
+    });
+    Object.defineProperty(box, "offsetHeight", {
+      configurable: true,
+      get: () => mockedScrollHeight + 2,
+    });
+    Object.defineProperty(box, "clientHeight", {
+      configurable: true,
+      get: () => mockedScrollHeight,
+    });
+
+    // 2 lines (Shift+Enter on empty): grows including 2px border, no scrollbar
+    fireEvent.change(box, { target: { value: "\n" } });
+    expect(box.style.height).toBe("62px");
+    expect(box.style.overflowY).toBe("hidden");
+
+    // 6 lines (140px scrollHeight + 2px border = 142px <= 144px): still no scrollbar
+    mockedScrollHeight = 140;
+    fireEvent.change(box, { target: { value: "\n\n\n\n\n" } });
+    expect(box.style.height).toBe("142px");
+    expect(box.style.overflowY).toBe("hidden");
+
+    // 7 lines (160px scrollHeight + 2px border = 162px > 144px): caps at 144px and enables scroll
+    mockedScrollHeight = 160;
+    fireEvent.change(box, { target: { value: "\n\n\n\n\n\n" } });
+    expect(box.style.height).toBe("144px");
+    expect(box.style.overflowY).toBe("auto");
   });
 });
