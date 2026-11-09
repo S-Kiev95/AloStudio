@@ -11,6 +11,8 @@ revisa el dueño antes.
 **Experimentales:** F9 (embeddings) y F10 (decisiones) se prueban en ramas
 aparte (`exp/*`). Pasan a `develop` solo si convencen al dueño con números.
 
+**Estado de F1 (2026-11-09):** scripts en `ops/respaldo/` y procedimiento en `docs/operacion/respaldos.md`; probados en CTC contra un repositorio local; falta que el dueño conecte Drive y Healthchecks con `configurar.sh`.
+
 **Orden propuesto:** F1 → F2 → F3 → F4, y después según prioridad. F1 va
 primero porque hoy un disco roto o un servidor perdido se lleva los datos de
 CTC. F3 conviene arrancarla temprano porque las revisiones de cada red
