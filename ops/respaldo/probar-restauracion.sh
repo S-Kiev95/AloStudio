@@ -12,7 +12,9 @@ umask 077
 
 CONF="${ALOSTUDIO_RESPALDO_ENV:-$HOME/.config/alostudio-respaldo/env}"
 # shellcheck source=/dev/null
+set -a
 . "$CONF"
+set +a
 
 : "${RESTIC_REPOSITORY:?falta en $CONF}"
 : "${RESTIC_PASSWORD_FILE:?falta en $CONF}"

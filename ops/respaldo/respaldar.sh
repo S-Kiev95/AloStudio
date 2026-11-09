@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Respaldo diario de AloStudio: base Postgres, archivos de MinIO y
-# configuración, cifrado con restic y guardado fuera del servidor (Google
-# Drive vía rclone). Guarda además los volcados de la base de los últimos
+# configuración, cifrado con restic y guardado fuera del servidor (bucket
+# de Cloudflare R2). Guarda además los volcados de la base de los últimos
 # días en el disco local, para restaurar rápido sin bajar nada.
 #
 # Configuración: ~/.config/alostudio-respaldo/env (ver env.ejemplo).
@@ -15,7 +15,9 @@ umask 077
 
 CONF="${ALOSTUDIO_RESPALDO_ENV:-$HOME/.config/alostudio-respaldo/env}"
 # shellcheck source=/dev/null
+set -a
 . "$CONF"
+set +a
 
 : "${RESTIC_REPOSITORY:?falta en $CONF}"
 : "${RESTIC_PASSWORD_FILE:?falta en $CONF}"
