@@ -66,11 +66,13 @@ docker run -d --name "$CONT" --network none \
   -e POSTGRES_PASSWORD="$(head -c 18 /dev/urandom | base64)" \
   -e POSTGRES_USER=prueba -e POSTGRES_DB=prueba \
   "$PG_IMAGEN" > /dev/null
+# Por TCP: durante la inicialización la imagen levanta un Postgres temporal
+# solo por socket y después lo reinicia; el socket responde antes de tiempo.
 for _ in $(seq 1 60); do
-  docker exec "$CONT" pg_isready -U prueba -d prueba > /dev/null 2>&1 && break
+  docker exec "$CONT" pg_isready -h 127.0.0.1 -U prueba -d prueba > /dev/null 2>&1 && break
   sleep 1
 done
-docker exec "$CONT" pg_isready -U prueba -d prueba > /dev/null
+docker exec "$CONT" pg_isready -h 127.0.0.1 -U prueba -d prueba > /dev/null
 
 docker exec -i "$CONT" pg_restore -U prueba -d prueba --no-owner --no-acl \
   < "$ETAPA/base.dump"
