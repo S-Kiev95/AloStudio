@@ -185,7 +185,7 @@ def test_the_page_edge_gets_page_field_names_not_instagram_ones():
     field name reaches this Page edge. ``messaging_seen`` did exactly
     that in production: it belongs to the app-level ``object=instagram``
     subscription, not to a Page's ``subscribed_apps``."""
-    assert set(PAGE_WEBHOOK_FIELDS) == {"messages", "message_reads"}
+    assert set(PAGE_WEBHOOK_FIELDS) == {"messages", "message_echoes", "message_reads"}
     for instagram_only in ("messaging_seen", "comments", "mentions"):
         assert instagram_only not in PAGE_WEBHOOK_FIELDS
 
@@ -198,7 +198,7 @@ async def test_the_page_is_installed_on_the_facebook_host():
     ok, err = await subscribe_page_webhooks(page_id="PAGE1", page_token="PT")
     assert (ok, err) == (True, None)
     sent = route.calls[0].request.url.params["subscribed_fields"]
-    assert sent == "messages,message_reads"
+    assert sent == "messages,message_echoes,message_reads"
 
 
 @respx.mock

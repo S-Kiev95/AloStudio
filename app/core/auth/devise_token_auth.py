@@ -43,7 +43,9 @@ Ruby source of truth:
 
 from __future__ import annotations
 
+import hashlib
 import secrets
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -106,11 +108,31 @@ def _hash_token(token: str) -> str:
     return bcrypt.hashpw(token.encode("utf-8"), salt).decode("utf-8")
 
 
+# BCrypt costs ~250 ms on the production CPU and runs on the event loop, so
+# a page that fires six requests at once waited ~1.5 s in line. The compare
+# is a pure function of (token, hash), so successful results are memoized.
+# Revoking or expiring a session still works: the caller looks the client
+# up in ``user.tokens`` and checks expiry before getting here, and a new
+# session stores a new hash. Only successes are kept, keyed by a digest so
+# raw tokens never sit in memory.
+_VERIFIED_MAX = 2048
+_verified: OrderedDict[tuple[str, str], None] = OrderedDict()
+
+
 def _verify_token(token: str, hashed: str) -> bool:
+    key = (hashed, hashlib.sha256(token.encode("utf-8")).hexdigest())
+    if key in _verified:
+        _verified.move_to_end(key)
+        return True
     try:
-        return bcrypt.checkpw(token.encode("utf-8"), hashed.encode("utf-8"))
+        ok = bcrypt.checkpw(token.encode("utf-8"), hashed.encode("utf-8"))
     except ValueError:
         return False
+    if ok:
+        _verified[key] = None
+        if len(_verified) > _VERIFIED_MAX:
+            _verified.popitem(last=False)
+    return ok
 
 
 def _now_utc() -> datetime:
