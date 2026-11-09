@@ -120,7 +120,10 @@ def _metrics_error(exc: _GraphError) -> str:
         return exc.result.error_message or ""
     if number in _PERMISSION_CODES:
         # Not the publishing permission: reading needs its own.
-        return "La página no dio permiso para leer estadísticas (pages_read_engagement)."
+        return (
+            "La página no dio permiso para leer estadísticas "
+            "(pages_read_engagement, pages_read_user_content). Volvé a conectarla."
+        )
     if exc.result.retryable:
         return "Facebook no respondió por ahora; se reintenta más tarde."
     return f"Facebook no devolvió estadísticas: {exc.meta_message}".strip()
@@ -374,7 +377,7 @@ class _Graph:
 
     async def post_metrics(self, object_id: str, *, is_video: bool) -> dict[str, int]:
         """Reactions, comments and shares from the post's edges (needs
-        ``pages_read_engagement``), plus views and reach from its insights
+        ``pages_read_engagement`` and ``pages_read_user_content``), plus views and reach from its insights
         when ``read_insights`` allows it. Reactions are reported as
         ``likes``. ``post_media_view`` / ``post_total_media_view_unique``
         replace the ``post_impressions*`` metrics Meta retires after v25;

@@ -99,27 +99,34 @@ export function EmailComposer({
         </div>
       ) : null}
 
-      <Textarea
-        aria-label="Tu respuesta"
-        rows={5}
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="Escribí tu respuesta…"
-      />
-
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-fg-muted">
-          Se envía con la firma y el diseño de la casilla.
-        </p>
-        <Button type="submit" size="sm" disabled={!content.trim() || send.isPending}>
+      <div className="relative">
+        <Textarea
+          aria-label="Tu respuesta"
+          rows={5}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Escribí tu respuesta…"
+          className="pr-12"
+        />
+        <Button
+          type="submit"
+          size="icon"
+          aria-label="Enviar"
+          title="Enviar"
+          disabled={!content.trim() || send.isPending}
+          className="absolute bottom-2 right-2 h-8 w-8 rounded-control p-0"
+        >
           {send.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           ) : (
             <Send className="h-4 w-4" aria-hidden />
           )}
-          Enviar
         </Button>
       </div>
+
+      <p className="text-xs text-fg-muted">
+        Se envía con la firma y el diseño de la casilla.
+      </p>
     </form>
   );
 }

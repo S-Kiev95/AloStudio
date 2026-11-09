@@ -139,7 +139,8 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
               Facebook Login
             </Button>
             <Button
-              variant="secondary"
+              variant="ghost"
+              className="btn-instagram-brand text-white hover:bg-transparent hover:text-white"
               onClick={() => setPendingFlow("instagram")}
             >
               <Instagram mono className="h-4 w-4" aria-hidden />

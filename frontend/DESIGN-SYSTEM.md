@@ -33,7 +33,7 @@ Existe una versión diurna (`:root`, modo claro) sobre fondo blanco frío donde 
    - **Neonderthaw** (`--font-script`, `font-script`, `36px`): exclusivamente para el wordmark `AloStudio` en la barra lateral y cabeceras públicas de autenticación.
 6. **The Counting Rule:** todas las tablas, métricas y contadores usan números tabulares (`font-variant-numeric: tabular-nums`, `tabular-nums` / `font-numeric`) para alinear importes, horas y cantidades en columna.
 7. **The Light-Not-Lift Rule:** un resplandor significa "está encendido", nunca "flota". Cards, filas, listas y modales no llevan halo ni `drop-shadow`; solo menús desplegables y popovers usan `shadow-menu` (`--menu-shadow`).
-8. **The Ignition Rule:** un estado encendido prende una sola vez en `360ms` (`cubic-bezier(0.16, 1, 0.3, 1)`), y las transiciones entre estados toman `220ms` (`180ms` en campos). Jamás hay parpadeos ni animaciones en bucle. Con `prefers-reduced-motion: reduce` toda ignición y transición de luz se desactiva.
+8. **The Ignition Rule:** un estado encendido prende una sola vez en `360ms` (`cubic-bezier(0.16, 1, 0.3, 1)`), y las transiciones entre estados toman `220ms` (`180ms` en campos). Jamás hay parpadeos ni animaciones en bucle, con la única excepción del cartel de la marca `AloStudio` en modo noche aprobada por el dueño el 2026-10-30 y ampliada el 2026-11-06 con cinco escenas en bucle continuo (`breathe`, `sequential`, `last-o`, `random-beat` y `normal`, tras el encendido inicial; ver *Excepción: el cartel de la marca* en `docs/design-neon/DESIGN.md`). Con `prefers-reduced-motion: reduce` toda ignición, escena del cartel y transición de luz se desactiva.
 
 ---
 
@@ -85,6 +85,7 @@ Definidos en [`app/globals.css`](app/globals.css) (`:root` día y `.dark` noche)
 - `.neon-nav` / `.neon-nav-lit`: filas apagadas con zumbido y fila activa encendida en la barra lateral principal.
 - `.lit-tube` / `.lit-tube-ignite`: contorno de tubo cobalto encendido + animación única de `360ms`.
 - `.lit-tube-solid`: cuerpo sólido de tubo encendido para `<Button variant="primary">`.
+- `.btn-instagram-brand`: **excepción de marca** para el botón "Instagram Login" en [`InstagramConnection`](components/instagram/instagram-connection.tsx) — degradado oficial de Instagram (`#F58529 → #DD2A7B → #8134AF → #515BD4`), texto e ícono en blanco con contraste WCAG AA y el mismo tamaño (`40px`), radio (`rounded-control`, `10px`) y estados (`hover`, `focus-visible`, `disabled`) que el botón primario de "Facebook Login".
 - `.neon-tab` / `.neon-tab-active`: pestaña sobre riel con barra luminosa de `2px` e inset horizontal de `14px`.
 - `.glass-field`: pozo `--neon-field` con borde `--neon-glass` que al recibir foco conmuta a `--neon-core` y anillo `3px` `--neon-halo-far` en `180ms`.
 

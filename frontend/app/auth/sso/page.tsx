@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
+import { NeonWordmark } from "@/components/brand/neon-wordmark";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { messageFromBody } from "@/lib/api/errors";
 
@@ -82,11 +83,9 @@ export default function SsoPage() {
       <div className="fixed right-3 top-3 z-20">
         <ThemeToggle />
       </div>
-      <div className="glass-panel w-full max-w-[420px] rounded-panel bg-surface p-7 sm:p-9">
+      <div className="page-enter glass-panel w-full max-w-[420px] rounded-panel bg-surface p-7 sm:p-9">
         <div className="mb-7">
-          <span className="neon-wordmark inline-block select-none text-[38px] leading-none">
-            AloStudio
-          </span>
+          <NeonWordmark className="text-[38px]" />
         </div>
         <Suspense>
           <SsoExchange />

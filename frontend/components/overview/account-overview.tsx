@@ -1,23 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import {
-  AlarmClock,
-  ArrowRight,
-  BarChart3,
-  Hourglass,
-  Inbox,
-  Instagram,
-  type LucideIcon,
-  Megaphone,
-  MessagesSquare,
-  UserX,
-} from "lucide-react";
-import { useMemo } from "react";
+import { ArrowRight } from "lucide-react";
+import { useContext, useEffect, useMemo } from "react";
 
 import { MetricChart } from "@/components/reports/metric-chart";
 import { SummaryCards } from "@/components/reports/summary-cards";
-import { PageHeader } from "@/components/shell/page-header";
+import {
+  BarsIcon,
+  ClockIcon,
+  HourglassIcon,
+  InboxIcon,
+  InstagramNavIcon,
+  MegaphoneIcon,
+  MessagesIcon,
+  UnassignedIcon,
+} from "@/components/shell/app-icons";
+import { PageSignContext } from "@/components/shell/page-header";
+import type { IconComponent } from "@/components/ui/brand-icons";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -27,67 +27,48 @@ import {
   useReportSummary,
   useReportTimeseries,
 } from "@/lib/api/reports";
-import { cn } from "@/lib/utils";
 
-/** Time-aware Spanish greeting so Inicio opens with a human note. */
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h < 6 || h >= 20) return "Buenas noches";
-  if (h < 13) return "Buenos días";
-  return "Buenas tardes";
-}
-
-type Tone = "info" | "warning" | "danger" | "muted";
-
-/** The disciplined tint pattern (see instagram/state-badge) — a wash of the
- *  status colour behind its own icon, the one place Inicio spends colour. */
-const TONE: Record<Tone, string> = {
-  info: "bg-info/10 text-info",
-  warning: "bg-warning/10 text-warning",
-  danger: "bg-danger/10 text-danger",
-  muted: "bg-surface-2 text-fg-muted",
-};
+import { NetworkOrbit } from "./network-orbit";
 
 const LIVE: {
   key: keyof LiveMetrics;
   label: string;
-  icon: LucideIcon;
-  tone: Tone;
+  icon: IconComponent;
 }[] = [
-  { key: "open", label: "Abiertas", icon: Inbox, tone: "info" },
-  { key: "unattended", label: "Sin atender", icon: AlarmClock, tone: "warning" },
-  { key: "unassigned", label: "Sin asignar", icon: UserX, tone: "danger" },
-  { key: "pending", label: "Pendientes", icon: Hourglass, tone: "muted" },
+  { key: "open", label: "Abiertas", icon: InboxIcon },
+  { key: "unattended", label: "Sin atender", icon: ClockIcon },
+  { key: "unassigned", label: "Sin asignar", icon: UnassignedIcon },
+  { key: "pending", label: "Pendientes", icon: HourglassIcon },
 ];
 
 const ACTIONS: {
   label: string;
   desc: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   segment: string;
 }[] = [
   {
     label: "Conversaciones",
     desc: "Bandeja de entrada",
-    icon: MessagesSquare,
+    icon: MessagesIcon,
     segment: "conversations",
   },
   {
     label: "Instagram",
     desc: "DMs, posts y comentarios",
-    icon: Instagram,
+    icon: InstagramNavIcon,
     segment: "instagram",
   },
   {
     label: "Campañas",
     desc: "Envíos y plantillas",
-    icon: Megaphone,
+    icon: MegaphoneIcon,
     segment: "campaigns",
   },
   {
     label: "Reportes",
     desc: "Métricas y exportes",
-    icon: BarChart3,
+    icon: BarsIcon,
     segment: "reports",
   },
 ];
@@ -113,10 +94,8 @@ function LiveCard({
   return (
     <Card className="flex items-center gap-3 p-4">
       <span
-        className={cn(
-          "grid h-11 w-11 shrink-0 place-items-center rounded-md",
-          TONE[def.tone],
-        )}
+        data-live-icon={def.key}
+        className="neon-nav inline-flex shrink-0 items-center justify-center"
       >
         <Icon className="h-5 w-5" aria-hidden />
       </span>
@@ -143,8 +122,8 @@ function ActionRow({
       href={`/accounts/${accountId}/${action.segment}`}
       className="group flex items-center gap-3 rounded-md border border-transparent px-2 py-2 transition-colors hover:border-glass hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
     >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-surface-2 text-fg-muted transition-colors group-hover:bg-focused group-hover:text-lit">
-        <Icon className="h-4 w-4" aria-hidden />
+      <span className="neon-nav inline-flex shrink-0 items-center justify-center transition-colors group-hover:text-lit">
+        <Icon className="h-5 w-5" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-fg">{action.label}</p>
@@ -164,6 +143,13 @@ function ActionRow({
  * client-side because the metrics are live queries.
  */
 export function AccountOverview({ accountId }: { accountId: string }) {
+  const shell = useContext(PageSignContext);
+  useEffect(() => {
+    if (!shell) return;
+    shell.setSignTitle("Inicio");
+    return () => shell.setSignTitle(null);
+  }, [shell]);
+
   // Memoized so the window doesn't drift every render and thrash the queries.
   const range = useMemo(() => rangeForDays(7), []);
   const live = useLiveMetrics(accountId);
@@ -172,20 +158,33 @@ export function AccountOverview({ accountId }: { accountId: string }) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
-      <PageHeader
-        signTitle="Inicio"
-        title={greeting()}
-        description="Un vistazo a tu cuenta — estado actual y últimos 7 días."
-        actions={
-          <Link
-            href={`/accounts/${accountId}/reports`}
-            className={buttonVariants({ variant: "secondary", size: "sm" })}
-          >
-            Ver reportes
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-        }
-      />
+      <section className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_auto] lg:gap-8">
+        <div className="min-w-0">
+          <h2 className="neon-sign text-[34px] leading-[1.2] sm:text-[42px]">
+            Bienvenido
+          </h2>
+          <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-fg-muted">
+            Todos tus canales, conversaciones y turnos en un solo lugar. Así
+            están las cosas ahora y en los últimos 7 días.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Link
+              href={`/accounts/${accountId}/conversations`}
+              className={buttonVariants({ variant: "primary" })}
+            >
+              Abrir bandeja
+            </Link>
+            <Link
+              href={`/accounts/${accountId}/publications`}
+              className={buttonVariants({ variant: "secondary" })}
+            >
+              Ir al calendario
+            </Link>
+          </div>
+        </div>
+
+        <NetworkOrbit className="mx-auto md:mx-0" />
+      </section>
 
       <section className="space-y-3">
         <SectionLabel>Ahora mismo</SectionLabel>

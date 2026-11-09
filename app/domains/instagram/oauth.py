@@ -73,6 +73,9 @@ FACEBOOK_PAGE_SCOPES: tuple[str, ...] = (
     "pages_messaging",
     "pages_manage_posts",
     "pages_read_engagement",
+    # Reactions and comments on the Page's own posts: without it Meta answers
+    # "(#10) This endpoint requires the 'pages_read_user_content' permission".
+    "pages_read_user_content",
     "read_insights",
     "business_management",
 )

@@ -230,31 +230,53 @@ export function MessageComposer({
         </div>
       ) : null}
 
-      <Textarea
-        ref={textareaRef}
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        onKeyDown={(e) => {
-          // Enter sends, or takes the first quick reply while they are
-          // listed; Shift+Enter is a new line.
-          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            if (showListbox && visibleCanned[0]) {
-              insertCanned(visibleCanned[0].content);
-            } else {
-              submit();
+      <div className="relative">
+        <Textarea
+          ref={textareaRef}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter sends, or takes the first quick reply while they are
+            // listed; Shift+Enter is a new line.
+            if (
+              e.key === "Enter" &&
+              !e.shiftKey &&
+              !e.nativeEvent.isComposing
+            ) {
+              e.preventDefault();
+              if (showListbox && visibleCanned[0]) {
+                insertCanned(visibleCanned[0].content);
+              } else {
+                submit();
+              }
             }
+          }}
+          rows={3}
+          placeholder={
+            isPrivate
+              ? "Nota interna (no la ve el cliente)…"
+              : "Escribí una respuesta… escribí / para respuestas rápidas"
           }
-        }}
-        rows={3}
-        placeholder={
-          isPrivate
-            ? "Nota interna (no la ve el cliente)…"
-            : "Escribí una respuesta… escribí / para respuestas rápidas"
-        }
-        aria-label={isPrivate ? "Nota privada" : "Respuesta"}
-        className={cn(isPrivate && "border-warning")}
-      />
+          aria-label={isPrivate ? "Nota privada" : "Respuesta"}
+          className={cn("pr-12", isPrivate && "border-warning")}
+        />
+        <Button
+          type="button"
+          variant={isPrivate ? "ghost" : "primary"}
+          size="icon"
+          onClick={submit}
+          disabled={uploading || (!content.trim() && attachments.length === 0)}
+          aria-label="Enviar"
+          title="Enviar"
+          className={cn(
+            "absolute bottom-2 right-2 h-8 w-8 rounded-control p-0",
+            isPrivate &&
+              "border border-warning bg-warning text-white hover:bg-warning hover:opacity-90 dark:text-bg",
+          )}
+        >
+          <Send className="h-4 w-4" aria-hidden />
+        </Button>
+      </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
@@ -308,16 +330,6 @@ export function MessageComposer({
           aria-label="Adjuntar archivos"
         >
           <Paperclip className="h-3.5 w-3.5" aria-hidden />
-        </Button>
-
-        <Button
-          onClick={submit}
-          disabled={uploading || (!content.trim() && attachments.length === 0)}
-          size="sm"
-          className="ml-auto"
-        >
-          <Send className="h-3.5 w-3.5" aria-hidden />
-          Enviar
         </Button>
       </div>
 
