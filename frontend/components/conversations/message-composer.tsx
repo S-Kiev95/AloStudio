@@ -269,7 +269,7 @@ export function MessageComposer({
           aria-label="Enviar"
           title="Enviar"
           className={cn(
-            "absolute bottom-2 right-2 h-8 w-8 rounded-control p-0",
+            "absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full p-0",
             isPrivate &&
               "border border-warning bg-warning text-white hover:bg-warning hover:opacity-90 dark:text-bg",
           )}
