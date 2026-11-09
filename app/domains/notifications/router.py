@@ -213,6 +213,9 @@ async def update_settings_endpoint(
         settings=settings,
         email=payload.selected_email_flags,
         push=payload.selected_push_flags,
+        whatsapp=payload.selected_whatsapp_flags,
+        whatsapp_number=payload.whatsapp_number or None,
+        clear_whatsapp_number=payload.whatsapp_number == "",
     )
     return present_notification_settings(settings)
 

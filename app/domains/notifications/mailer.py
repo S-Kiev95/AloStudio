@@ -39,6 +39,7 @@ _SUBJECTS: dict[str, str] = {
     "conversation_creation": "Nueva conversación #{n}",
     "conversation_assignment": "Se te asignó la conversación #{n}",
     "assigned_conversation_new_message": "Nuevo mensaje en la conversación #{n}",
+    "conversation_bot_handoff": "La conversación #{n} pide atención de una persona",
 }
 _LEADS: dict[str, str] = {
     "conversation_creation": (
@@ -47,6 +48,9 @@ _LEADS: dict[str, str] = {
     "conversation_assignment": "Se te asignó una conversación.",
     "assigned_conversation_new_message": (
         "Recibiste un nuevo mensaje en una conversación asignada a vos."
+    ),
+    "conversation_bot_handoff": (
+        "El bot derivó una conversación al equipo: alguien tiene que responderla."
     ),
 }
 

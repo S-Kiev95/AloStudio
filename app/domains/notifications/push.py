@@ -41,6 +41,7 @@ _PUSH_TITLES: dict[str, str] = {
     "sla_missed_first_response": "SLA incumplido",
     "sla_missed_next_response": "SLA incumplido",
     "sla_missed_resolution": "SLA incumplido",
+    "conversation_bot_handoff": "Piden atención de una persona",
 }
 
 

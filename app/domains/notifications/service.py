@@ -155,11 +155,18 @@ async def update_settings(
     settings: NotificationSetting,
     email: list[str] | None,
     push: list[str] | None,
+    whatsapp: list[str] | None = None,
+    whatsapp_number: str | None = None,
+    clear_whatsapp_number: bool = False,
 ) -> NotificationSetting:
     if email is not None:
         settings.email_subscriptions = email
     if push is not None:
         settings.push_subscriptions = push
+    if whatsapp is not None:
+        settings.whatsapp_subscriptions = whatsapp
+    if whatsapp_number is not None or clear_whatsapp_number:
+        settings.whatsapp_number = whatsapp_number
     session.add(settings)
     await session.flush()
     return settings

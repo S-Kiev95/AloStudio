@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { PushToggle } from "./push-toggle";
+import { WhatsappNotice } from "./whatsapp-notice";
 
 /**
  * Per-user notification preferences. Two checkbox columns (email / push)
@@ -176,6 +177,17 @@ export function NotificationsSettingsView({
           )}
         </CardContent>
       </Card>
+
+      {settings.data ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Aviso por WhatsApp</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <WhatsappNotice accountId={accountId} settings={settings.data} />
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

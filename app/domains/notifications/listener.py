@@ -3,7 +3,7 @@
 Ports:
   reference/chatwoot/app/listeners/notification_listener.rb
 
-Subscribes to three dispatcher events for Phase v2.5:
+Subscribes to these dispatcher events (three from Phase v2.5):
 
   * ``conversation.created`` → ``conversation_creation`` for every
     inbox member except the performer.
@@ -14,6 +14,9 @@ Subscribes to three dispatcher events for Phase v2.5:
     for the conversation's assignee when the message is incoming
     AND the assignee isn't the sender (defensive — Contact senders
     can never match an assignee, but the check costs nothing).
+  * ``conversation.bot_handoff`` → ``conversation_bot_handoff`` (AloStudio)
+    for the assignee, or every inbox member when nobody is assigned:
+    the bot handed the chat to the team and someone has to answer.
 
 After each insert, also fires an ActionCable broadcast to the
 assignee's account stream so the bell badge updates without the
@@ -50,12 +53,14 @@ from app.domains.notifications.mailer import enqueue_notification_email
 from app.domains.notifications.models import (
     NOTIFICATION_TYPE_ASSIGNED_CONVERSATION_NEW_MESSAGE,
     NOTIFICATION_TYPE_CONVERSATION_ASSIGNMENT,
+    NOTIFICATION_TYPE_CONVERSATION_BOT_HANDOFF,
     NOTIFICATION_TYPE_CONVERSATION_CREATION,
     Notification,
 )
 from app.domains.notifications.presenters import present_notification
 from app.domains.notifications.push import enqueue_notification_push
 from app.domains.notifications.service import create_notification
+from app.domains.notifications.whatsapp import enqueue_notification_whatsapp
 from app.domains.users.models import User
 
 log = logging.getLogger(__name__)
@@ -72,6 +77,8 @@ async def fan_out_to_notifications(
             await _on_assignee_changed(session, payload)
         elif event_name == ev.MESSAGE_CREATED:
             await _on_message_created(session, payload)
+        elif event_name == ev.CONVERSATION_BOT_HANDOFF:
+            await _on_bot_handoff(session, payload)
     except Exception:
         log.exception("notifications.listener.error event=%s", event_name)
 
@@ -123,6 +130,31 @@ async def _on_assignee_changed(
         primary_actor_id=conversation.id,  # type: ignore[arg-type]
     )
     await _broadcast_created(session, notification, conversation)
+
+
+async def _on_bot_handoff(
+    session: AsyncSession, payload: dict[str, Any]
+) -> None:
+    conversation = payload.get("conversation")
+    if not isinstance(conversation, Conversation):
+        return
+    if conversation.assignee_id is not None:
+        recipients = [conversation.assignee_id]
+    else:
+        recipients = await _inbox_member_ids(session, conversation.inbox_id)
+    for uid in recipients:
+        notification = await create_notification(
+            session,
+            account_id=conversation.account_id,
+            user_id=uid,
+            notification_type=NOTIFICATION_TYPE_CONVERSATION_BOT_HANDOFF,
+            primary_actor_type="Conversation",
+            primary_actor_id=conversation.id,  # type: ignore[arg-type]
+        )
+        await _broadcast_created(session, notification, conversation)
+        # WhatsApp is only offered for handoffs (a paid template per send).
+        if notification.id is not None:
+            await enqueue_notification_whatsapp(notification.id)
 
 
 async def _on_message_created(

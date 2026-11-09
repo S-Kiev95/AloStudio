@@ -55,6 +55,9 @@ NOTIFICATION_TYPE_PARTICIPATING_CONVERSATION_NEW_MESSAGE = 5
 NOTIFICATION_TYPE_SLA_MISSED_FIRST_RESPONSE = 6
 NOTIFICATION_TYPE_SLA_MISSED_NEXT_RESPONSE = 7
 NOTIFICATION_TYPE_SLA_MISSED_RESOLUTION = 8
+# AloStudio: the bot (Meta Business Agent or an agent bot) handed the
+# conversation to the team.
+NOTIFICATION_TYPE_CONVERSATION_BOT_HANDOFF = 9
 
 _NOTIFICATION_TYPE_INT_TO_STR: dict[int, str] = {
     NOTIFICATION_TYPE_CONVERSATION_CREATION: "conversation_creation",
@@ -65,6 +68,7 @@ _NOTIFICATION_TYPE_INT_TO_STR: dict[int, str] = {
     NOTIFICATION_TYPE_SLA_MISSED_FIRST_RESPONSE: "sla_missed_first_response",
     NOTIFICATION_TYPE_SLA_MISSED_NEXT_RESPONSE: "sla_missed_next_response",
     NOTIFICATION_TYPE_SLA_MISSED_RESOLUTION: "sla_missed_resolution",
+    NOTIFICATION_TYPE_CONVERSATION_BOT_HANDOFF: "conversation_bot_handoff",
 }
 _NOTIFICATION_TYPE_STR_TO_INT: dict[str, int] = {
     v: k for k, v in _NOTIFICATION_TYPE_INT_TO_STR.items()
@@ -185,6 +189,15 @@ class NotificationSetting(TimestampMixin, table=True):
         default_factory=list,
         sa_column=Column(JSON, nullable=False, server_default="[]"),
     )
+    # WhatsApp is opt-in: each send is a paid Meta template. The number is
+    # digits only, with country code (E.164 without the "+").
+    whatsapp_subscriptions: list[str] = Field(
+        default_factory=list,
+        sa_column=Column(JSON, nullable=False, server_default="[]"),
+    )
+    whatsapp_number: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +253,7 @@ __all__ = [
     "NOTIFICATION_SUBSCRIPTION_FCM",
     "NOTIFICATION_TYPE_ASSIGNED_CONVERSATION_NEW_MESSAGE",
     "NOTIFICATION_TYPE_CONVERSATION_ASSIGNMENT",
+    "NOTIFICATION_TYPE_CONVERSATION_BOT_HANDOFF",
     "NOTIFICATION_TYPE_CONVERSATION_CREATION",
     "NOTIFICATION_TYPE_CONVERSATION_MENTION",
     "NOTIFICATION_TYPE_PARTICIPATING_CONVERSATION_NEW_MESSAGE",

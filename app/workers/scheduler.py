@@ -337,6 +337,9 @@ class WorkerSettings:
 
         from app.domains.notifications.mailer import send_notification_email_task
         from app.domains.notifications.push import send_notification_push_task
+        from app.domains.notifications.whatsapp import (
+            send_notification_whatsapp_task,
+        )
         from app.domains.portals.embeddings import reindex_article_task
         from app.workers.business_agent import release_to_ai_task
         from app.workers.deliver_webhook import (
@@ -371,6 +374,9 @@ class WorkerSettings:
             # notification is created and the recipient wants it by email / push.
             send_notification_email_task,
             send_notification_push_task,
+            # Enqueued only for bot handoffs, when the recipient opted into
+            # the WhatsApp notice.
+            send_notification_whatsapp_task,
             # Enqueued on-demand when a Help-Center article is created/edited
             # and OpenAI embedding search is enabled.
             reindex_article_task,

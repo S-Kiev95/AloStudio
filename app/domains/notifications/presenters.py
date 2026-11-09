@@ -115,6 +115,8 @@ def present_notification_settings(s: NotificationSetting) -> dict[str, Any]:
         "user_id": s.user_id,
         "selected_email_flags": list(s.email_subscriptions or []),
         "selected_push_flags": list(s.push_subscriptions or []),
+        "selected_whatsapp_flags": list(s.whatsapp_subscriptions or []),
+        "whatsapp_number": s.whatsapp_number,
     }
 
 
