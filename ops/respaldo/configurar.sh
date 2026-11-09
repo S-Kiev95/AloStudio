@@ -35,17 +35,32 @@ read -r -p "Nombre del volumen (de la lista de arriba): " MINIO_VOLUMEN
 
 echo
 echo "== 3. Cloudflare R2"
-read -r -p "ID de cuenta de Cloudflare (Account ID): " R2_CUENTA
+echo "El Account ID y el Access Key ID tienen 32 caracteres (letras a-f y"
+echo "números); el Secret Access Key, 64. No es el \"Token value\"."
+pedir() { # pedir <variable> <pregunta> <regex> [-s]
+  local valor
+  while :; do
+    if [ "${4:-}" = -s ]; then read -r -s -p "$2" valor; echo; else read -r -p "$2" valor; fi
+    valor=$(printf '%s' "$valor" | tr -d '[:space:]')
+    [[ "$valor" =~ $3 ]] && break
+    echo "  No tiene el formato esperado (${#valor} caracteres). Probá de nuevo."
+  done
+  printf -v "$1" '%s' "$valor"
+}
+pedir R2_CUENTA "Account ID: " '^[0-9a-f]{32}$'
 read -r -p "Nombre del bucket [alostudio-respaldos]: " R2_BUCKET
 R2_BUCKET=${R2_BUCKET:-alostudio-respaldos}
-read -r -p "Access Key ID del token de R2: " R2_KEY_ID
-read -r -s -p "Secret Access Key del token de R2 (no se ve al escribir): " R2_SECRET
-echo
-[ -n "$R2_CUENTA" ] && [ -n "$R2_KEY_ID" ] && [ -n "$R2_SECRET" ] || {
-  echo "Faltan datos de R2."
-  exit 1
-}
+pedir R2_KEY_ID "Access Key ID: " '^[0-9a-f]{32}$'
+pedir R2_SECRET "Secret Access Key (no se ve al escribir): " '^[0-9a-f]{64}$' -s
 REPO="s3:https://$R2_CUENTA.r2.cloudflarestorage.com/$R2_BUCKET/$SERVIDOR"
+
+# Probar la conexión antes de seguir: con datos malos restic reintenta
+# varios minutos sin decir nada.
+if ! curl -s -o /dev/null -m 15 "https://$R2_CUENTA.r2.cloudflarestorage.com/"; then
+  echo "No se puede conectar con R2 para esa cuenta. Revisá el Account ID"
+  echo "(R2 → Overview → Account Details) y volvé a correr el script."
+  exit 1
+fi
 
 echo
 echo "== 4. Clave de cifrado de las copias"
@@ -90,7 +105,7 @@ set -a
 # shellcheck source=/dev/null
 . "$ENV"
 set +a
-if restic cat config > /dev/null 2>&1; then
+if timeout 60 restic cat config > /dev/null 2>&1; then
   echo "El repositorio de copias ya existe en R2."
 else
   restic init
