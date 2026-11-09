@@ -54,6 +54,8 @@ export interface NeonWordmarkProps {
   href?: string;
   onClick?: () => void;
   as?: "span" | "div" | "p";
+  /** When true, renders only the steady lit "A" monogram without scene loops. */
+  collapsed?: boolean;
 }
 
 /**
@@ -69,14 +71,22 @@ export function NeonWordmark({
   href,
   onClick,
   as = "span",
+  collapsed = false,
 }: NeonWordmarkProps) {
-  const [igniting, setIgniting] = useState(true);
+  const [igniting, setIgniting] = useState(!collapsed);
   const [activeScene, setActiveScene] = useState<NeonScene | null>(null);
   const [tubeStates, setTubeStates] = useState<ReadonlyMap<number, TubeState>>(
     () => new Map(),
   );
 
   useEffect(() => {
+    if (collapsed) {
+      setIgniting(false);
+      setActiveScene(null);
+      setTubeStates((prev) => (prev.size === 0 ? prev : new Map()));
+      return;
+    }
+
     const timers = new Set<ReturnType<typeof setTimeout>>();
     let nextSceneIndex = 0;
 
@@ -262,50 +272,59 @@ export function NeonWordmark({
       mql?.removeEventListener?.("change", resetAndReschedule);
       observer?.disconnect();
     };
-  }, []);
+  }, [collapsed]);
 
   const mergedClassName = cn(
     "neon-wordmark neon-wordmark-live inline-block select-none text-[36px] leading-none",
-    igniting && "neon-wordmark-ignite",
+    !collapsed && igniting && "neon-wordmark-ignite",
     className,
   );
 
-  const rootStyle = activeScene
-    ? ({
-        "--scene-duration": `${
-          activeScene === "breathe"
-            ? BREATHE_DURATION_MS
-            : activeScene === "last-o"
-              ? LAST_O_DURATION_MS
-              : SEQUENTIAL_DURATION_MS
-        }ms`,
-        "--peak-duration": `${
-          activeScene === "random-beat"
-            ? RANDOM_BEAT_PEAK_MS
-            : SEQUENTIAL_PEAK_MS
-        }ms`,
-      } as CSSProperties)
-    : undefined;
+  const rootStyle =
+    !collapsed && activeScene
+      ? ({
+          "--scene-duration": `${
+            activeScene === "breathe"
+              ? BREATHE_DURATION_MS
+              : activeScene === "last-o"
+                ? LAST_O_DURATION_MS
+                : SEQUENTIAL_DURATION_MS
+          }ms`,
+          "--peak-duration": `${
+            activeScene === "random-beat"
+              ? RANDOM_BEAT_PEAK_MS
+              : SEQUENTIAL_PEAK_MS
+          }ms`,
+        } as CSSProperties)
+      : undefined;
 
-  const letters = LETTERS.map((char, index) => {
-    const tubeState = tubeStates.get(index);
-    const style = {
-      "--letter-delay": `${index * LETTER_STAGGER_MS}ms`,
-    } as CSSProperties;
+  const letters = collapsed ? (
+    <span aria-hidden="true" className="neon-wordmark-letter">
+      {LETTERS[0]}
+    </span>
+  ) : (
+    LETTERS.map((char, index) => {
+      const tubeState = tubeStates.get(index);
+      const style = {
+        "--letter-delay": `${index * LETTER_STAGGER_MS}ms`,
+      } as CSSProperties;
 
-    return (
-      <span
-        key={index}
-        aria-hidden="true"
-        data-ignite={IGNITE_FLICKERS[index]}
-        data-tube={tubeState}
-        style={style}
-        className="neon-wordmark-letter"
-      >
-        {char}
-      </span>
-    );
-  });
+      return (
+        <span
+          key={index}
+          aria-hidden="true"
+          data-ignite={IGNITE_FLICKERS[index]}
+          data-tube={tubeState}
+          style={style}
+          className="neon-wordmark-letter"
+        >
+          {char}
+        </span>
+      );
+    })
+  );
+
+  const sceneAttr = collapsed ? undefined : (activeScene ?? undefined);
 
   if (href) {
     return (
@@ -313,7 +332,7 @@ export function NeonWordmark({
         href={href}
         onClick={onClick}
         aria-label={WORD}
-        data-scene={activeScene ?? undefined}
+        data-scene={sceneAttr}
         style={rootStyle}
         className={mergedClassName}
       >
@@ -328,7 +347,7 @@ export function NeonWordmark({
       role="img"
       aria-label={WORD}
       onClick={onClick}
-      data-scene={activeScene ?? undefined}
+      data-scene={sceneAttr}
       style={rootStyle}
       className={mergedClassName}
     >

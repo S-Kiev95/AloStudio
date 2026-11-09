@@ -166,3 +166,25 @@ export const MessagesIcon = appIcon(
 export const InstagramNavIcon: IconComponent = ({ className, ...props }) => (
   <Instagram mono className={cn("scale-[0.85]", className)} {...props} />
 );
+
+const SIDEBAR_PANE =
+  "M6.5 4.5h3v15h-3a3 3 0 0 1-3-3v-9a3 3 0 0 1 3-3z";
+
+export const SidebarCollapseIcon = appIcon(
+  <path d={SIDEBAR_PANE} />,
+  <>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="3" />
+    <path d="M9.5 4.5v15" />
+    <path d="M16 9.5 13.5 12l2.5 2.5" />
+  </>,
+);
+
+export const SidebarExpandIcon = appIcon(
+  <path d={SIDEBAR_PANE} />,
+  <>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="3" />
+    <path d="M9.5 4.5v15" />
+    <path d="M13.5 9.5 16 12l-2.5 2.5" />
+  </>,
+);
+

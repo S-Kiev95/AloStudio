@@ -2,31 +2,69 @@
 
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { NeonWordmark } from "@/components/brand/neon-wordmark";
 import type { Profile } from "@/lib/auth/profile";
 import { useCable } from "@/lib/realtime/use-cable";
+import { cn } from "@/lib/utils";
 
 import { AccountSwitcher } from "./account-switcher";
 import { AgentMenu } from "./agent-menu";
+import { SidebarCollapseIcon, SidebarExpandIcon } from "./app-icons";
 import { activeNavItemKey, NAV_ITEMS, navHref } from "./nav";
 import { NotificationBell } from "./notification-bell";
 import { PageSignContext } from "./page-header";
 import { SidebarNav } from "./sidebar-nav";
 import { ThemeToggle } from "./theme-toggle";
 
+export const SIDEBAR_COLLAPSED_STORAGE_KEY = "alostudio:sidebar-collapsed";
+
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+function readSidebarCollapsed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+    return raw === "1" || raw === "true";
+  } catch {
+    return false;
+  }
+}
+
+function writeSidebarCollapsed(collapsed: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      SIDEBAR_COLLAPSED_STORAGE_KEY,
+      collapsed ? "1" : "0",
+    );
+  } catch {
+    // Ignore storage failures (private mode / quota).
+  }
+}
+
 function Brand({
   href,
   onClick,
+  collapsed = false,
 }: {
   href: string;
   onClick?: () => void;
+  collapsed?: boolean;
 }) {
   return (
     <NeonWordmark
       href={href}
       onClick={onClick}
+      collapsed={collapsed}
       className="rounded-sm text-[36px]"
     />
   );
@@ -60,6 +98,23 @@ export function DashboardShell({
   const pathname = usePathname() ?? "";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [customSign, setCustomSign] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() =>
+    readSidebarCollapsed(),
+  );
+  const [animateSidebar, setAnimateSidebar] = useState(false);
+
+  useIsomorphicLayoutEffect(() => {
+    setSidebarCollapsed(readSidebarCollapsed());
+  }, []);
+
+  const handleToggleSidebar = () => {
+    setAnimateSidebar(true);
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      writeSidebarCollapsed(next);
+      return next;
+    });
+  };
 
   useCable({
     pubsubToken: profile.pubsubToken,
@@ -70,16 +125,52 @@ export function DashboardShell({
   const signCtx = useMemo(() => ({ setSignTitle: setCustomSign }), []);
   const signTitle = customSign ?? resolveDefaultSign(pathname, accountId);
   const homeHref = navHref(accountId, "");
+  const toggleLabel = sidebarCollapsed
+    ? "Expandir barra lateral"
+    : "Colapsar barra lateral";
 
   return (
     <PageSignContext.Provider value={signCtx}>
       <div className="flex min-h-dvh gap-3 p-2 text-fg lg:p-3">
-        {/* Desktop glass sidebar (236px) */}
-        <aside className="glass-panel hidden rounded-panel bg-surface lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-24px)] lg:w-[236px] lg:shrink-0 lg:flex-col">
-          <div className="px-[14px] pb-[28px] pt-[18px]">
-            <Brand href={homeHref} />
+        {/* Desktop glass sidebar (236px expanded, 68px collapsed) */}
+        <aside
+          data-collapsed={sidebarCollapsed ? "true" : "false"}
+          className={cn(
+            "glass-panel hidden overflow-hidden rounded-panel bg-surface lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-24px)] lg:shrink-0 lg:flex-col",
+            sidebarCollapsed ? "lg:w-[68px]" : "lg:w-[236px]",
+            animateSidebar &&
+              "lg:transition-[width] lg:duration-200 lg:ease-out motion-reduce:transition-none",
+          )}
+        >
+          <div
+            className={cn(
+              "flex items-center pb-[28px] pt-[18px]",
+              sidebarCollapsed ? "justify-center px-2" : "px-[14px]",
+            )}
+          >
+            <Brand href={homeHref} collapsed={sidebarCollapsed} />
           </div>
-          <SidebarNav accountId={accountId} />
+          <SidebarNav accountId={accountId} collapsed={sidebarCollapsed} />
+          <div className="border-t border-glass px-[10px] pb-3 pt-2">
+            <button
+              type="button"
+              onClick={handleToggleSidebar}
+              aria-expanded={!sidebarCollapsed}
+              aria-label={toggleLabel}
+              title={toggleLabel}
+              className={cn(
+                "neon-nav flex h-11 w-full items-center rounded-control hover:bg-hover-glass",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
+                sidebarCollapsed ? "justify-center px-0" : "px-[14px]",
+              )}
+            >
+              {sidebarCollapsed ? (
+                <SidebarExpandIcon className="h-5 w-5 shrink-0" aria-hidden />
+              ) : (
+                <SidebarCollapseIcon className="h-5 w-5 shrink-0" aria-hidden />
+              )}
+            </button>
+          </div>
         </aside>
 
         {/* Mobile full-height drawer */}

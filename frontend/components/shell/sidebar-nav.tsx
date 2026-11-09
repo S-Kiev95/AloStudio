@@ -18,16 +18,18 @@ const BY_KEY = new Map(NAV_ITEMS.map((item) => [item.key, item]));
 export function SidebarNav({
   accountId,
   onNavigate,
+  collapsed = false,
 }: {
   accountId: string;
   onNavigate?: () => void;
+  collapsed?: boolean;
 }) {
   const pathname = usePathname() ?? "";
   const activeKey = activeNavItemKey(pathname, accountId);
 
   return (
     <nav
-      className="flex flex-1 flex-col gap-3 overflow-y-auto px-[10px] pb-3"
+      className="flex flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden px-[10px] pb-3"
       aria-label="Principal"
     >
       {NAV_GROUPS.map((group, i) => {
@@ -40,7 +42,7 @@ export function SidebarNav({
               isLast && "mt-auto pt-2",
             )}
           >
-            {group.label ? (
+            {group.label && !collapsed ? (
               <p className="px-[14px] pb-0.5 pt-2 text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
                 {group.label}
               </p>
@@ -57,16 +59,19 @@ export function SidebarNav({
                   href={href}
                   onClick={onNavigate}
                   aria-current={active ? "page" : undefined}
+                  aria-label={collapsed ? item.label : undefined}
+                  title={collapsed ? item.label : undefined}
                   className={cn(
-                    "group relative flex h-11 items-center gap-3 rounded-control px-[14px] font-display text-[16px] font-normal leading-none",
+                    "group relative flex h-11 items-center whitespace-nowrap rounded-control font-display text-[16px] font-normal leading-none",
+                    collapsed ? "justify-center px-0" : "gap-3 px-[14px]",
                     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
                     active
-                      ? "lit-tube lit-tube-ignite neon-nav-lit bg-focused/60 dark:bg-transparent"
+                      ? "lit-tube lit-tube-ignite neon-nav-lit bg-focused dark:bg-transparent"
                       : "neon-nav hover:bg-hover-glass",
                   )}
                 >
                   <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                  {item.label}
+                  {collapsed ? null : item.label}
                 </Link>
               );
             })}
