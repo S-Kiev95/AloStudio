@@ -77,10 +77,7 @@ export function readStoredPanelStretch(
   }
 }
 
-export function writeStoredPanelStretch(
-  key: string,
-  stretchPx: number,
-): void {
+export function writeStoredPanelStretch(key: string, stretchPx: number): void {
   if (typeof window === "undefined") return;
   try {
     const normalized = Number.isFinite(stretchPx)
@@ -96,6 +93,18 @@ function measureMaxInboxStretch(anchorEl: HTMLElement | null): number {
   if (typeof window === "undefined") return DEFAULT_INBOX_MAX_STRETCH_PX;
   if (anchorEl) {
     const anchorRect = anchorEl.getBoundingClientRect();
+    // Up to the top of the work panel's title bar ("Bandeja", bell, account
+    // switcher): the owner wants the chats to cover it too. Double click
+    // brings it back.
+    const topbar = anchorEl
+      .closest(".glass-panel")
+      ?.querySelector<HTMLElement>(":scope > header");
+    if (topbar) {
+      const diff = Math.round(
+        anchorRect.top - topbar.getBoundingClientRect().top,
+      );
+      if (diff > 0) return diff;
+    }
     const mainEl =
       anchorEl.closest("#main-content") ??
       anchorEl.closest("main") ??
@@ -216,8 +225,9 @@ export function InboxShell({
   children: ReactNode;
 }) {
   const pathname = usePathname() ?? "";
-  const hasConversation =
-    /^\/accounts\/[^/]+\/conversations\/\d+(?:\/|$)/.test(pathname);
+  const hasConversation = /^\/accounts\/[^/]+\/conversations\/\d+(?:\/|$)/.test(
+    pathname,
+  );
 
   const anchorRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef<{
@@ -366,23 +376,20 @@ export function InboxShell({
     [],
   );
 
-  const finishDrag = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const drag = dragStateRef.current;
-      const pointerId = event.pointerId ?? 0;
-      if (!drag || drag.pointerId !== pointerId) return;
-      dragStateRef.current = null;
-      setIsDragging(false);
-      try {
-        if (event.currentTarget.hasPointerCapture?.(pointerId)) {
-          event.currentTarget.releasePointerCapture(pointerId);
-        }
-      } catch {
-        // Ignore in synthetic test environments.
+  const finishDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragStateRef.current;
+    const pointerId = event.pointerId ?? 0;
+    if (!drag || drag.pointerId !== pointerId) return;
+    dragStateRef.current = null;
+    setIsDragging(false);
+    try {
+      if (event.currentTarget.hasPointerCapture?.(pointerId)) {
+        event.currentTarget.releasePointerCapture(pointerId);
       }
-    },
-    [],
-  );
+    } catch {
+      // Ignore in synthetic test environments.
+    }
+  }, []);
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -460,7 +467,10 @@ export function InboxShell({
           data-stretch={String(stretchPx)}
           style={shellStyle}
           onScroll={(e) => {
-            if (e.currentTarget === e.target && e.currentTarget.scrollTop !== 0) {
+            if (
+              e.currentTarget === e.target &&
+              e.currentTarget.scrollTop !== 0
+            ) {
               e.currentTarget.scrollTop = 0;
             }
           }}
