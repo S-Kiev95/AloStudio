@@ -159,6 +159,7 @@ async def create_inbox(
 
     Chatwoot returns 200 (not 201) on create — we match exactly.
     """
+    await _require_portal_in_account(session, ctx, payload.portal_id)
     result = await InboxBuilder(
         session,
         InboxBuilderParams(
@@ -272,6 +273,7 @@ async def update_inbox_endpoint(
                 status_code=422, detail={"message": str(exc)}
             ) from exc
 
+    await _require_portal_in_account(session, ctx, payload.portal_id)
     if payload.handoff_assignee_id:
         member = (
             await session.exec(
@@ -452,6 +454,28 @@ def _require_inbox_id(payload: InboxMembersBody) -> int:
 # ============================================================================
 # helpers
 # ============================================================================
+async def _require_portal_in_account(
+    session: AsyncSession, ctx: AccountContext, portal_id: int | None
+) -> None:
+    """422 when ``portal_id`` is another account's Help Center."""
+    if portal_id is None:
+        return
+    from app.domains.portals.models import Portal
+
+    found = (
+        await session.exec(
+            select(Portal.id).where(
+                Portal.id == portal_id, Portal.account_id == ctx.account.id
+            )
+        )
+    ).first()
+    if found is None:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "El centro de ayuda no pertenece a la cuenta."},
+        )
+
+
 async def _find_inbox_in_account(
     session: AsyncSession, ctx: AccountContext, inbox_id: int
 ) -> Inbox:

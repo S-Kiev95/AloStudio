@@ -52,6 +52,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context
 from app.core.errors import ChatwootHTTPException
+from app.domains.accounts.service import require_account_users
 from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.filter import conversation_filter
@@ -534,6 +535,28 @@ async def create_conversation_endpoint(
             status_code=422,
             detail={"message": "Contact inbox could not be resolved"},
         )
+
+    # Ids from the body must belong to this account: a foreign user or team
+    # would be shown (and notified) on this account's conversation.
+    if payload.assignee_id is not None:
+        await require_account_users(
+            session, account_id=ctx.account.id, user_ids=[payload.assignee_id]
+        )
+    if payload.team_id is not None:
+        from app.domains.teams.models import Team
+
+        team = (
+            await session.exec(
+                select(Team.id).where(
+                    Team.id == payload.team_id, Team.account_id == ctx.account.id
+                )
+            )
+        ).first()
+        if team is None:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={"message": "El equipo no pertenece a la cuenta."},
+            )
 
     params = ConversationBuilderParams(
         additional_attributes=payload.additional_attributes,

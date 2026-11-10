@@ -36,6 +36,7 @@ from datetime import UTC, datetime
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.errors import ChatwootHTTPException
 from app.core.security import hash_password
 from app.core.tokens import base58_token
 from app.domains.accounts.email_validator import validate_signup_email
@@ -50,6 +51,35 @@ from app.domains.users.models import (
     AccountUser,
     User,
 )
+
+
+async def require_account_users(
+    session: AsyncSession, *, account_id: int, user_ids: list[int]
+) -> None:
+    """422 unless every id is a user of ``account_id``.
+
+    Guards the endpoints that take user ids in the body (inbox and team
+    members, assignee): an id from another account would show that user's
+    name and email to this account.
+    """
+    wanted = set(user_ids)
+    if not wanted:
+        return
+    found = set(
+        (
+            await session.exec(
+                select(AccountUser.user_id).where(
+                    AccountUser.account_id == account_id,
+                    AccountUser.user_id.in_(wanted),  # type: ignore[union-attr]
+                )
+            )
+        ).all()
+    )
+    if found != wanted:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "Hay usuarios que no pertenecen a la cuenta."},
+        )
 
 
 @dataclass(slots=True)

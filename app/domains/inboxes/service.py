@@ -32,6 +32,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.errors import ChatwootHTTPException
 from app.core.tokens import base58_token
 from app.domains.accounts.models import Account
+from app.domains.accounts.service import require_account_users
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
@@ -1120,6 +1121,9 @@ async def add_members(
         return []
     existing = set(await list_member_ids(session, inbox.id))
     new_ids = [uid for uid in user_ids if uid not in existing]
+    await require_account_users(
+        session, account_id=inbox.account_id, user_ids=new_ids
+    )
     members = [InboxMember(inbox_id=inbox.id, user_id=uid) for uid in new_ids]
     for m in members:
         session.add(m)
