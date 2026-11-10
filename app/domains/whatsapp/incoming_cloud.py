@@ -531,16 +531,51 @@ async def _store_echo(
         return None
 
 
-def _for_channel(value: dict[str, Any], channel: WhatsappChannel) -> bool:
-    """Several numbers can share one callback URL, and Meta batches their
-    changes; a change naming another ``phone_number_id`` isn't ours."""
-    # Messages name the number in ``metadata``; handovers in ``recipient``.
-    named = None
+def _named_number(value: dict[str, Any]) -> str | None:
+    """The ``phone_number_id`` a change is about, if it names one.
+
+    Messages name the number in ``metadata``; handovers in ``recipient``.
+    """
     for key in ("metadata", "recipient"):
         node = value.get(key)
         if isinstance(node, dict) and node.get("phone_number_id"):
-            named = node.get("phone_number_id")
-            break
+            return str(node.get("phone_number_id"))
+    return None
+
+
+def payloads_by_number(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Split a Cloud payload by the ``phone_number_id`` each change names.
+
+    For the app-level webhook (``/webhooks/whatsapp``): with one Meta app
+    for every client, Meta batches the changes of many numbers, from many
+    accounts, in one POST. Each part keeps only that number's changes.
+    Changes that name no number can't be routed and are left out.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for entry in (payload or {}).get("entry") or []:
+        if not isinstance(entry, dict):
+            continue
+        for change in entry.get("changes") or []:
+            if not isinstance(change, dict):
+                continue
+            value = change.get("value")
+            number = _named_number(value) if isinstance(value, dict) else None
+            if number is None:
+                continue
+            part = out.setdefault(
+                number,
+                {**{k: v for k, v in payload.items() if k != "entry"}, "entry": []},
+            )
+            part["entry"].append(
+                {**{k: v for k, v in entry.items() if k != "changes"}, "changes": [change]}
+            )
+    return out
+
+
+def _for_channel(value: dict[str, Any], channel: WhatsappChannel) -> bool:
+    """Several numbers can share one callback URL, and Meta batches their
+    changes; a change naming another ``phone_number_id`` isn't ours."""
+    named = _named_number(value)
     if not named:
         return True
     cfg = channel.provider_config or {}

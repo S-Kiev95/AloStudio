@@ -114,6 +114,9 @@ from app.domains.uploads.router import router as uploads_router
 from app.domains.users.router import router as profile_router
 from app.domains.web_widget.router import router as web_widget_router
 from app.domains.webhooks.router import router as outbound_webhooks_router
+from app.domains.whatsapp.embedded_signup_router import (
+    router as whatsapp_embedded_signup_router,
+)
 from app.domains.whatsapp.router import router as whatsapp_webhook_router
 from app.domains.whatsapp.templates_router import (
     router as whatsapp_templates_router,
@@ -297,6 +300,8 @@ def create_app() -> FastAPI:
     # WhatsApp template listing + sync — the campaign composer picks an
     # approved template + fills its {{n}} variables.
     app.include_router(whatsapp_templates_router)
+    # WhatsApp Embedded Signup (F2): a client connects its own number.
+    app.include_router(whatsapp_embedded_signup_router)
     # Facebook Messenger webhook (Phase 5d). ``/webhooks/fb_messenger``
     # — installation-wide verify token via ``settings.fb_verify_token``
     # (env var FB_VERIFY_TOKEN), single endpoint shared across every

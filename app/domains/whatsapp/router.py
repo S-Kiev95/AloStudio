@@ -19,6 +19,8 @@ Anchors:
 
 from __future__ import annotations
 
+import json
+import logging
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, Request
@@ -35,6 +37,8 @@ from app.domains.inboxes.models import (
     Inbox,
     WhatsappChannel,
 )
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/webhooks/whatsapp",
@@ -147,18 +151,11 @@ async def whatsapp_receive(
     # subscription setup; this rejects forged inbound WhatsApp payloads.
     # Fails closed when the secret is unset. WhatsApp Cloud signs with
     # the Meta app secret, same as Instagram/Messenger.
-    settings = get_settings()
-    if settings.meta_verify_webhook_signature and not verify_sha256_signature(
-        raw,
-        request.headers.get("X-Hub-Signature-256"),
-        settings.meta_app_secret,
-    ):
+    if not _signature_ok(raw, request):
         raise ChatwootHTTPException(
             status_code=401,
             detail={"error": "Invalid signature"},
         )
-
-    import json
 
     try:
         payload = json.loads(raw)
@@ -172,6 +169,19 @@ async def whatsapp_receive(
         return {"status": "ok"}
     channel, inbox = channel_inbox
 
+    await _process(session, channel=channel, inbox=inbox, payload=payload)
+    return {"status": "ok"}
+
+
+async def _process(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    inbox: Inbox,
+    payload: dict[str, Any],
+) -> None:
+    """Run the per-provider processor; a failure is logged, never raised
+    (Meta retries on 5xx and the payload would fail the same way)."""
     from app.domains.inboxes.models import (
         WHATSAPP_PROVIDER_360DIALOG,
         WHATSAPP_PROVIDER_CLOUD,
@@ -191,13 +201,122 @@ async def whatsapp_receive(
                 session, channel=channel, inbox=inbox, payload=payload
             )
     except Exception:
-        import logging
+        log.exception("whatsapp.webhook.process_failed channel_id=%s", channel.id)
 
-        logging.getLogger(__name__).exception(
-            "whatsapp.webhook.process_failed channel_id=%s", channel.id
+
+def _signature_ok(raw: bytes, request: Request) -> bool:
+    """X-Hub-Signature-256 against the Meta app secret, when the
+    installation verifies webhook signatures (CH-1)."""
+    settings = get_settings()
+    if not settings.meta_verify_webhook_signature:
+        return True
+    return verify_sha256_signature(
+        raw,
+        request.headers.get("X-Hub-Signature-256"),
+        settings.meta_app_secret,
+    )
+
+
+# ---------------------------------------------------------------------------
+# App-level webhook (F2 multitenant)
+# ---------------------------------------------------------------------------
+# With one Meta app for every client, Embedded Signup points each WABA here
+# and Meta batches the changes of many numbers, from many accounts, in one
+# POST. Each change is routed by the phone_number_id it names.
+@router.get("")
+async def whatsapp_app_verify(
+    hub_challenge: Annotated[str | None, Query(alias="hub.challenge")] = None,
+    hub_verify_token: Annotated[
+        str | None, Query(alias="hub.verify_token")
+    ] = None,
+) -> Any:
+    """Meta's handshake for the app-level route: the installation's
+    WHATSAPP_VERIFY_TOKEN. Unset refuses every request."""
+    expected = get_settings().whatsapp_verify_token
+    if not expected or hub_verify_token != expected:
+        raise ChatwootHTTPException(
+            status_code=401,
+            detail={"error": "Error; wrong verify token"},
         )
+    return PlainTextResponse(hub_challenge or "")
 
+
+@router.post("")
+async def whatsapp_app_receive(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Receive a batched app-level payload. Always 200, like the
+    per-number route; numbers no account has connected are dropped."""
+    raw = await request.body()
+    if not _signature_ok(raw, request):
+        raise ChatwootHTTPException(
+            status_code=401,
+            detail={"error": "Invalid signature"},
+        )
+    try:
+        payload = json.loads(raw)
+    except ValueError:
+        return {"status": "ok"}
+    if not isinstance(payload, dict):
+        return {"status": "ok"}
+
+    from app.domains.whatsapp.incoming_cloud import payloads_by_number
+
+    for number_id, part in payloads_by_number(payload).items():
+        resolved = await _resolve_by_number_id(session, phone_number_id=number_id)
+        if resolved is None:
+            log.info(
+                "whatsapp.app_webhook.unknown_number phone_number_id=%s", number_id
+            )
+            continue
+        channel, inbox = resolved
+        await _process(session, channel=channel, inbox=inbox, payload=part)
     return {"status": "ok"}
+
+
+async def _resolve_by_number_id(
+    session: AsyncSession, *, phone_number_id: str
+) -> tuple[WhatsappChannel, Inbox] | None:
+    """The Cloud channel whose provider_config.phone_number_id matches.
+
+    More than one match means two accounts claim the number: nothing is
+    delivered rather than guessing (Embedded Signup refuses that case).
+    """
+    from app.domains.inboxes.models import WHATSAPP_PROVIDER_CLOUD
+
+    table = WhatsappChannel.__table__  # type: ignore[attr-defined]
+    channels = list(
+        (
+            await session.exec(
+                select(WhatsappChannel).where(
+                    WhatsappChannel.provider == WHATSAPP_PROVIDER_CLOUD,
+                    table.c.provider_config["phone_number_id"].astext
+                    == phone_number_id,
+                )
+            )
+        ).all()
+    )
+    if len(channels) != 1:
+        if channels:
+            log.error(
+                "whatsapp.app_webhook.ambiguous_number phone_number_id=%s channels=%s",
+                phone_number_id,
+                [c.id for c in channels],
+            )
+        return None
+    channel = channels[0]
+    inbox = (
+        await session.exec(
+            select(Inbox).where(
+                Inbox.channel_type == CHANNEL_TYPE_WHATSAPP,
+                Inbox.channel_id == channel.id,
+            )
+        )
+    ).first()
+    if inbox is None:
+        return None
+    return channel, inbox
 
 
 async def _expected_verify_token(

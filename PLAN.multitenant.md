@@ -108,8 +108,7 @@ B por cada camino encontrado. Cada hallazgo nuevo suma su caso.
 
 ## Pasos siguientes (necesitan decisiones del dueño)
 
-2. **Alta de clientes:** registro, creación de cuenta y conexión de canales
-   con Embedded Signup de WhatsApp y los OAuth de Meta.
+2. **Alta de clientes** (en curso, ver "Paso 2" abajo).
 3. **Facturación:** proveedor de pagos, moneda, planes y límites. El código
    del webhook de pagos no puede tirar excepciones.
 4. **Límites de uso:** cuotas por cuenta en el worker y la API.
@@ -117,3 +116,59 @@ B por cada camino encontrado. Cada hallazgo nuevo suma su caso.
    de datos de una cuenta.
 6. **Enterprise:** script de despliegue en servidor dedicado, como CTC hoy.
 7. **Legal:** términos, privacidad y acuerdo de tratamiento de datos.
+
+## Paso 2. Alta de clientes (2026-11-10)
+
+### Backend (hecho, con tests en `tests/integration/test_multitenant_onboarding.py`)
+
+- **`MULTITENANT`** (variable de entorno, apagada por defecto). Prendida:
+  - `POST /inboxes` rechaza WhatsApp, Instagram y Facebook cargados a mano
+    (422): se conectan solo con Embedded Signup y OAuth.
+  - El registro (`POST /api/v1/accounts`, con `ENABLE_ACCOUNT_SIGNUP`)
+    crea la cuenta sin confirmar, manda el correo de confirmación, no abre
+    sesión y limita a 5 registros por hora por IP. El login ya rechazaba a
+    quien no confirmó.
+  - La configuración de la instalación es solo para superadministradores
+    (sin la regla del "admin de la primera cuenta").
+- **`GET /api/v1/installation/public`**: `signup_enabled` y `multitenant`
+  para las pantallas sin login.
+- **Webhook único de WhatsApp** `GET/POST /webhooks/whatsapp`: handshake
+  con `WHATSAPP_VERIFY_TOKEN`, firma de Meta, y cada cambio va a la cuenta
+  cuyo canal tiene ese `phone_number_id` (si dos canales lo tienen, no se
+  entrega y queda en el log). La ruta por número sigue funcionando.
+- **Embedded Signup de WhatsApp**
+  (`/api/v1/accounts/{id}/whatsapp/embedded_signup`): canje del código,
+  `debug_token` (el token es de nuestra app y tiene permiso sobre esa
+  WABA), número leído de Meta, suscripción de la app a la WABA apuntando al
+  webhook único, y recién ahí se guarda el canal. Un número de otra cuenta
+  se rechaza; uno de la misma cuenta se reconecta con token nuevo. Registra
+  el número en la Cloud API si Meta dice que hace falta.
+- Ajustes nuevos en Ajustes → Instalación: `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID`
+  y `WHATSAPP_VERIFY_TOKEN`.
+
+### Frontend (Argon, `PLAN.registro-y-whatsapp.md`)
+
+Página de registro, link en el login, botón "Conectar WhatsApp" con el SDK
+de Meta y formularios manuales de Meta ocultos en multitenant.
+
+### Lo que hace el dueño del lado de Meta (antes de probar en serio)
+
+1. En la app de Meta multi-cliente: producto WhatsApp, y en Facebook Login
+   for Business una configuración de tipo "WhatsApp Embedded Signup"; su
+   ID va a `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID`.
+2. Webhook de la app (WhatsApp → Configuración): URL
+   `https://<dominio>/webhooks/whatsapp`, token = `WHATSAPP_VERIFY_TOKEN`,
+   campos `messages`, `message_echoes`, `messaging_handovers` y `standby`.
+3. Tech Provider: verificación del negocio y acceso avanzado a
+   `whatsapp_business_management` y `whatsapp_business_messaging` en la
+   revisión de la app.
+4. En el servidor multitenant: `MULTITENANT=true`, `ENABLE_ACCOUNT_SIGNUP`
+   cuando se quiera abrir el registro, y un superadministrador creado antes
+   de abrirlo.
+
+### Pendiente del paso 2
+
+- Al borrar una bandeja conectada por Embedded Signup, desuscribir la app
+  de la WABA (`DELETE /{waba_id}/subscribed_apps`) para que Meta no siga
+  mandando sus mensajes.
+- Captcha en el registro, si el límite por IP no alcanza.

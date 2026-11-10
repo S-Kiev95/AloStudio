@@ -50,6 +50,7 @@ from fastapi import APIRouter, Depends, Path, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import (
     AccountContext,
@@ -159,6 +160,19 @@ async def create_inbox(
 
     Chatwoot returns 200 (not 201) on create — we match exactly.
     """
+    if get_settings().multitenant and payload.channel.type in _META_CHANNEL_TYPES:
+        # Ids typed into a form prove nothing: another business's number or
+        # Instagram would route its customers' messages here. Embedded
+        # Signup and the OAuth flows take them from Meta instead.
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    "En esta instalación WhatsApp, Instagram y Facebook se "
+                    "conectan con el botón de Meta, no cargando los datos a mano."
+                )
+            },
+        )
     await _require_portal_in_account(session, ctx, payload.portal_id)
     result = await InboxBuilder(
         session,
@@ -454,6 +468,9 @@ def _require_inbox_id(payload: InboxMembersBody) -> int:
 # ============================================================================
 # helpers
 # ============================================================================
+_META_CHANNEL_TYPES = frozenset({"whatsapp", "instagram", "facebook"})
+
+
 async def _require_portal_in_account(
     session: AsyncSession, ctx: AccountContext, portal_id: int | None
 ) -> None:

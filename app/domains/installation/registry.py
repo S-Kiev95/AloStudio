@@ -98,6 +98,31 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         ),
         group=META_GROUP,
     ),
+    # --- WhatsApp Embedded Signup (clients connect their own number) ---
+    ConfigSpec(
+        name="WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID",
+        setting="whatsapp_embedded_signup_config_id",
+        title="Configuración de WhatsApp Embedded Signup",
+        description=(
+            "El ID de la configuración de Facebook Login for Business que "
+            "abre el alta de WhatsApp. Se crea en la app de Meta, en "
+            "Facebook Login for Business → Configuraciones."
+        ),
+        group=META_GROUP,
+    ),
+    ConfigSpec(
+        name="WHATSAPP_VERIFY_TOKEN",
+        setting="whatsapp_verify_token",
+        title="Token de verificación del webhook de WhatsApp",
+        description=(
+            "Una clave que inventás vos. Meta la manda al registrar el "
+            "webhook único de WhatsApp (/webhooks/whatsapp) de los números "
+            "conectados con Embedded Signup."
+        ),
+        group=META_GROUP,
+        kind="password",
+        secret=True,
+    ),
     # --- Outgoing mail (resets, confirmations, invitations) ------------
     ConfigSpec(
         name="SMTP_HOST",
