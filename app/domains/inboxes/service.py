@@ -1022,6 +1022,7 @@ async def update_inbox(
     channel_updates: dict[str, Any],
     sender_name_type: str | None = None,
     csat_config: dict[str, Any] | None = None,
+    handoff_assignee_id: int | None = None,
 ) -> Inbox:
     """Apply PATCH-style updates to inbox + channel atomically.
 
@@ -1037,6 +1038,9 @@ async def update_inbox(
         inbox.sender_name_type = sender_name_type_from_str(sender_name_type)
     if csat_config is not None:
         inbox.csat_config = csat_config
+    if handoff_assignee_id is not None:
+        # 0 clears it; the router already checked the user is in the account.
+        inbox.handoff_assignee_id = handoff_assignee_id or None
 
     if channel is not None and channel_updates:
         # Switching IMAP on starts the clock. Without this, enabling it on

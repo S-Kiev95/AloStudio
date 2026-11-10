@@ -11,7 +11,7 @@ import {
   it,
 } from "vitest";
 
-import { AiHandoff } from "./ai-handoff";
+import { AiHandoff, describeThreadControl } from "./ai-handoff";
 
 let postBody: unknown = null;
 
@@ -101,6 +101,20 @@ describe("AiHandoff", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tomar conversación" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Not the escalation partner",
+    );
+  });
+
+  it("calculates reusable thread control summaries for the collapsed header", () => {
+    expect(describeThreadControl(null)).toBeNull();
+    expect(describeThreadControl({ owner: "ai_agent" })?.summary).toBe(
+      "Responde la IA de Meta",
+    );
+    expect(
+      describeThreadControl({ owner: "app", metadata: "Consulta por pagos" })
+        ?.summary,
+    ).toBe("La IA la derivó: Consulta por pagos");
+    expect(describeThreadControl({ owner: "app" })?.summary).toBe(
+      "Atiende el equipo",
     );
   });
 });

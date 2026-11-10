@@ -272,17 +272,38 @@ async def update_inbox_endpoint(
                 status_code=422, detail={"message": str(exc)}
             ) from exc
 
+    if payload.handoff_assignee_id:
+        member = (
+            await session.exec(
+                select(AccountUser.id).where(
+                    AccountUser.account_id == ctx.account.id,
+                    AccountUser.user_id == payload.handoff_assignee_id,
+                )
+            )
+        ).first()
+        if member is None:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={"message": "Ese agente no pertenece a la cuenta."},
+            )
+
     updated = await update_inbox(
         session,
         inbox=inbox,
         channel=channel,
         inbox_updates=payload.model_dump(
-            exclude={"channel", "sender_name_type", "csat_config"},
+            exclude={
+                "channel",
+                "sender_name_type",
+                "csat_config",
+                "handoff_assignee_id",
+            },
             exclude_none=True,
         ),
         channel_updates=channel_updates,
         sender_name_type=payload.sender_name_type,
         csat_config=payload.csat_config,
+        handoff_assignee_id=payload.handoff_assignee_id,
     )
     return present_inbox(updated, channel=channel, is_administrator=True)
 

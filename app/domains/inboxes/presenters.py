@@ -94,6 +94,7 @@ def present_inbox(
         "csat_config": inbox.csat_config or {},
         "enable_auto_assignment": inbox.enable_auto_assignment,
         "auto_assignment_config": inbox.auto_assignment_config or {},
+        "handoff_assignee_id": inbox.handoff_assignee_id,
         "out_of_office_message": inbox.out_of_office_message,
         # ``working_hours`` is Rails' ``resource.weekly_schedule`` — empty
         # list until the working_hours table lands (Phase 6+).

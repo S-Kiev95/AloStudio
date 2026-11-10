@@ -249,9 +249,9 @@ export function ConversationList({ accountId }: { accountId: string }) {
             aria-expanded={!listCollapsed}
             aria-label="Colapsar lista de conversaciones"
             title="Colapsar lista de conversaciones"
-            className="ml-auto hidden h-7 w-7 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon lg:inline-flex"
+            className="ml-auto hidden h-8 w-8 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon lg:inline-flex"
           >
-            <PanelLeftClose className="h-4 w-4" aria-hidden />
+            <PanelLeftClose className="h-5 w-5" aria-hidden />
           </button>
         ) : null}
       </div>

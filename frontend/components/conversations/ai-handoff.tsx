@@ -30,6 +30,37 @@ function SecretaryIcon({ className }: { className?: string }) {
   );
 }
 
+export type ThreadControlDescription = {
+  aiAnswering: boolean;
+  title: string;
+  detail: string;
+  summary: string;
+  actionLabel: string;
+  action: "take" | "release";
+};
+
+export function describeThreadControl(
+  control?: ThreadControl | null,
+): ThreadControlDescription | null {
+  if (!control) return null;
+  const aiAnswering = control.owner === "ai_agent";
+  const handoff =
+    !aiAnswering && control.metadata
+      ? `La IA la derivó: ${control.metadata}`
+      : null;
+  const title = aiAnswering ? "Responde la IA de Meta" : "Atiende el equipo";
+  return {
+    aiAnswering,
+    title,
+    detail: aiAnswering
+      ? "Si respondés, la conversación pasa al equipo."
+      : (handoff ?? "Podés devolverla a la IA cuando termines."),
+    summary: aiAnswering ? title : (handoff ?? title),
+    actionLabel: aiAnswering ? "Tomar conversación" : "Devolver a la IA",
+    action: aiAnswering ? "take" : "release",
+  };
+}
+
 /** Who is answering a WhatsApp chat on a number run by Meta Business Agent.
  *
  *  Only rendered once the conversation has a thread owner, so inboxes
@@ -48,22 +79,14 @@ export function AiHandoff({
   control?: ThreadControl | null;
 }) {
   const mutation = useThreadControl(accountId, displayId);
-  if (!control) return null;
-  const aiAnswering = control.owner === "ai_agent";
+  const info = describeThreadControl(control);
+  if (!info) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-glass px-4 py-2">
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-fg">
-          {aiAnswering ? "Responde la IA de Meta" : "Atiende el equipo"}
-        </p>
-        <p className="text-xs text-fg-muted">
-          {aiAnswering
-            ? "Si respondés, la conversación pasa al equipo."
-            : control.metadata
-              ? `La IA la derivó: ${control.metadata}`
-              : "Podés devolverla a la IA cuando termines."}
-        </p>
+        <p className="text-sm font-medium text-fg">{info.title}</p>
+        <p className="text-xs text-fg-muted">{info.detail}</p>
         {mutation.isError ? (
           <p role="alert" className="mt-1 text-xs text-danger">
             {mutation.error.message}
@@ -74,11 +97,11 @@ export function AiHandoff({
         variant="secondary"
         size="icon"
         loading={mutation.isPending}
-        aria-label={aiAnswering ? "Tomar conversación" : "Devolver a la IA"}
-        title={aiAnswering ? "Tomar conversación" : "Devolver a la IA"}
-        onClick={() => mutation.mutate(aiAnswering ? "take" : "release")}
+        aria-label={info.actionLabel}
+        title={info.actionLabel}
+        onClick={() => mutation.mutate(info.action)}
       >
-        {mutation.isPending ? null : aiAnswering ? (
+        {mutation.isPending ? null : info.aiAnswering ? (
           <Meta className="h-5 w-5" aria-hidden />
         ) : (
           <SecretaryIcon className="h-5 w-5" />

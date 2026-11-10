@@ -76,9 +76,9 @@ function ContactPanelFrame({
           className="inline-flex h-8 w-8 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
         >
           {collapsed ? (
-            <PanelRightOpen className="h-4 w-4" aria-hidden />
+            <PanelRightOpen className="h-5 w-5" aria-hidden />
           ) : (
-            <PanelRightClose className="h-4 w-4" aria-hidden />
+            <PanelRightClose className="h-5 w-5" aria-hidden />
           )}
         </button>
       </div>

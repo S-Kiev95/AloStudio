@@ -19,6 +19,7 @@ import { InboxChannelsView } from "./inbox-channels-view";
 import { InboxReportsView } from "./inbox-reports-view";
 import {
   INBOX_CONTACT_COLLAPSED_KEY,
+  INBOX_DETAILS_COLLAPSED_KEY,
   INBOX_LIST_COLLAPSED_KEY,
   InboxShell,
 } from "./inbox-shell";
@@ -470,7 +471,17 @@ describe("Bandeja en tres columnas y pestañas", () => {
       name: "Colapsar panel de contacto",
     });
     expect(collapseListBtn).toHaveAttribute("aria-expanded", "true");
+    expect(collapseListBtn).toHaveAttribute(
+      "title",
+      "Colapsar lista de conversaciones",
+    );
+    expect(collapseListBtn.querySelector("svg")).toHaveClass("h-5", "w-5");
     expect(collapseContactBtn).toHaveAttribute("aria-expanded", "true");
+    expect(collapseContactBtn).toHaveAttribute(
+      "title",
+      "Colapsar panel de contacto",
+    );
+    expect(collapseContactBtn.querySelector("svg")).toHaveClass("h-5", "w-5");
 
     // 1. Colapsar solo el panel izquierdo (lista de conversaciones)
     fireEvent.click(collapseListBtn);
@@ -530,5 +541,79 @@ describe("Bandeja en tres columnas y pestañas", () => {
       "false",
     );
     expect(window.localStorage.getItem(INBOX_LIST_COLLAPSED_KEY)).toBe("0");
+  });
+
+  it("pliega el bloque superior de detalles entre conversaciones y recargas", async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    mockPathname = "/accounts/1/conversations/42";
+    const { rerender, unmount } = render(
+      <QueryClientProvider client={qc}>
+        <InboxShell list={<ConversationList accountId="1" />}>
+          <ConversationView accountId="1" displayId={42} />
+        </InboxShell>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByLabelText("Asignar agente")).toBeInTheDocument();
+    expect(screen.getByText("Participantes")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("collapsed-assignee-summary"),
+    ).not.toBeInTheDocument();
+
+    const hideBtn = screen.getByRole("button", { name: "Ocultar detalles" });
+    expect(hideBtn).toHaveAttribute("title", "Ocultar detalles");
+    expect(hideBtn).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(hideBtn);
+
+    expect(window.localStorage.getItem(INBOX_DETAILS_COLLAPSED_KEY)).toBe("1");
+    expect(
+      screen.queryByLabelText("Asignar agente"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Participantes")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("collapsed-assignee-summary"),
+    ).toHaveTextContent("Asignada a Agente Ana");
+
+    // Switching to conversation #43 (unassigned) keeps details collapsed and updates summary.
+    mockPathname = "/accounts/1/conversations/43";
+    rerender(
+      <QueryClientProvider client={qc}>
+        <InboxShell list={<ConversationList accountId="1" />}>
+          <ConversationView accountId="1" displayId={43} />
+        </InboxShell>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByText("Perfecto, paso mañana por el local"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("collapsed-assignee-summary"),
+    ).toHaveTextContent("Sin asignar");
+
+    // Remounting preserves the collapsed state from localStorage.
+    unmount();
+    render(
+      <QueryClientProvider client={qc}>
+        <InboxShell list={<ConversationList accountId="1" />}>
+          <ConversationView accountId="1" displayId={42} />
+        </InboxShell>
+      </QueryClientProvider>,
+    );
+
+    const showBtn = screen.getByRole("button", { name: "Mostrar detalles" });
+    expect(showBtn).toHaveAttribute("title", "Mostrar detalles");
+    expect(showBtn).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByLabelText("Asignar agente"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(showBtn);
+    expect(window.localStorage.getItem(INBOX_DETAILS_COLLAPSED_KEY)).toBe("0");
+    expect(await screen.findByLabelText("Asignar agente")).toBeInTheDocument();
   });
 });
