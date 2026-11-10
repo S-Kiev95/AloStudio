@@ -172,3 +172,12 @@ de Meta y formularios manuales de Meta ocultos en multitenant.
   de la WABA (`DELETE /{waba_id}/subscribed_apps`) para que Meta no siga
   mandando sus mensajes.
 - Captcha en el registro, si el límite por IP no alcanza.
+
+### Para el lanzamiento (pedido del dueño, 2026-11-10)
+
+- **Elegir y pagar un plan al registrarse:** el registro termina en el
+  paso 3 (facturación). La cuenta queda en prueba o suspendida hasta que
+  el pago se confirme.
+- **Entrar con cuentas de otros servicios:** además del email, Facebook, X
+  y los demás que se decidan. Google ya existe (`app/domains/auth/google.py`):
+  revisar que en multitenant cree la cuenta con el mismo flujo del registro.
