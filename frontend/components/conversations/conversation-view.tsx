@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowLeft, CheckCircle2, Megaphone, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Megaphone,
+  RotateCcw,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 
@@ -16,7 +23,7 @@ import {
 } from "@/lib/api/conversations";
 import { cn } from "@/lib/utils";
 
-import { AiHandoff } from "./ai-handoff";
+import { AiHandoff, describeThreadControl } from "./ai-handoff";
 import { ContactPanel } from "./contact-panel";
 import { ConversationActions } from "./conversation-actions";
 import { ConversationParticipants } from "./conversation-participants";
@@ -92,7 +99,12 @@ export function ConversationView({
   accountId: string;
   displayId: number;
 }) {
-  const { contactCollapsed, toggleContactCollapsed } = useInboxPanels();
+  const {
+    contactCollapsed,
+    toggleContactCollapsed,
+    detailsCollapsed,
+    toggleDetailsCollapsed,
+  } = useInboxPanels();
   const conv = useConversation(accountId, displayId);
   const messages = useMessages(accountId, displayId);
   const pending = usePendingMessages(accountId, displayId);
@@ -114,6 +126,16 @@ export function ConversationView({
   const contactName = conv.data?.meta?.sender?.name ?? `#${displayId}`;
   const contactId = conv.data?.meta?.sender?.id ?? null;
   const resolved = status === "resolved";
+  const assigneeName = conv.data?.meta?.assignee?.name?.trim() || null;
+  const assigneeSummary = assigneeName
+    ? `Asignada a ${assigneeName}`
+    : "Sin asignar";
+  const handoffInfo = describeThreadControl(
+    conv.data?.additional_attributes?.thread_control,
+  );
+  const detailsToggleLabel = detailsCollapsed
+    ? "Mostrar detalles"
+    : "Ocultar detalles";
   // Email is read and answered differently enough that the chat view is
   // the wrong shape for it: subject, recipients, long bodies, and a
   // thread you scan rather than scroll.
@@ -179,9 +201,35 @@ export function ConversationView({
                 {subject}
               </p>
             ) : null}
-            <p className="font-numeric text-xs tabular-nums text-fg-muted">
-              #{displayId}
-            </p>
+            <div className="flex min-w-0 items-center gap-1.5 text-xs text-fg-muted">
+              <span className="shrink-0 font-numeric tabular-nums">
+                #{displayId}
+              </span>
+              {detailsCollapsed && conv.data ? (
+                <>
+                  <span aria-hidden>·</span>
+                  <span
+                    data-testid="collapsed-assignee-summary"
+                    className="min-w-0 truncate"
+                    title={assigneeSummary}
+                  >
+                    {assigneeSummary}
+                  </span>
+                  {handoffInfo ? (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span
+                        data-testid="collapsed-ai-summary"
+                        className="min-w-0 truncate text-fg"
+                        title={handoffInfo.summary}
+                      >
+                        {handoffInfo.summary}
+                      </span>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
             <AdOrigin referral={conv.data?.ad_referral} />
           </div>
           {status ? <StatusChip status={status} /> : null}
@@ -201,31 +249,63 @@ export function ConversationView({
               </>
             )}
           </Button>
+          <button
+            type="button"
+            onClick={toggleDetailsCollapsed}
+            aria-expanded={!detailsCollapsed}
+            aria-label={detailsToggleLabel}
+            title={detailsToggleLabel}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
+          >
+            {detailsCollapsed ? (
+              <ChevronDown className="h-5 w-5" aria-hidden />
+            ) : (
+              <ChevronUp className="h-5 w-5" aria-hidden />
+            )}
+          </button>
         </header>
 
-        {/* Meta Business Agent handoff (WhatsApp numbers answered by Meta's AI) */}
-        <AiHandoff
-          accountId={accountId}
-          displayId={displayId}
-          control={conv.data?.additional_attributes?.thread_control}
-        />
+        <div
+          data-testid="conversation-details-panel"
+          data-collapsed={detailsCollapsed ? "true" : "false"}
+          className={cn(
+            "transition-[max-height,opacity] duration-200 ease-out motion-reduce:transition-none",
+            detailsCollapsed
+              ? "hidden max-h-0 overflow-hidden opacity-0"
+              : "opacity-100",
+          )}
+        >
+          {!detailsCollapsed ? (
+            <>
+              {/* Meta Business Agent handoff (WhatsApp numbers answered by Meta's AI) */}
+              <AiHandoff
+                accountId={accountId}
+                displayId={displayId}
+                control={conv.data?.additional_attributes?.thread_control}
+              />
 
-        {/* Actions (assignee / team / "+ Etiqueta" / priority / macro) */}
-        {conv.data ? (
-          <ConversationActions
-            accountId={accountId}
-            displayId={displayId}
-            priority={conv.data.priority}
-            assigneeId={conv.data.meta?.assignee?.id ?? null}
-            teamId={conv.data.meta?.team?.id ?? null}
-            labels={conv.data.labels ?? []}
-          />
-        ) : null}
+              {/* Actions (assignee / team / "+ Etiqueta" / priority / macro) */}
+              {conv.data ? (
+                <ConversationActions
+                  accountId={accountId}
+                  displayId={displayId}
+                  priority={conv.data.priority}
+                  assigneeId={conv.data.meta?.assignee?.id ?? null}
+                  teamId={conv.data.meta?.team?.id ?? null}
+                  labels={conv.data.labels ?? []}
+                />
+              ) : null}
 
-        {/* Participants (agents watching this conversation) */}
-        {conv.data && !isEmail ? (
-          <ConversationParticipants accountId={accountId} displayId={displayId} />
-        ) : null}
+              {/* Participants (agents watching this conversation) */}
+              {conv.data && !isEmail ? (
+                <ConversationParticipants
+                  accountId={accountId}
+                  displayId={displayId}
+                />
+              ) : null}
+            </>
+          ) : null}
+        </div>
 
         {/* Thread */}
         <div

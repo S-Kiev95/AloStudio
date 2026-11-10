@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 export const INBOX_LIST_COLLAPSED_KEY = "alostudio:inbox-list-collapsed";
 export const INBOX_CONTACT_COLLAPSED_KEY = "alostudio:inbox-contact-collapsed";
+export const INBOX_DETAILS_COLLAPSED_KEY = "alostudio:inbox-details-collapsed";
 
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -48,6 +49,8 @@ type InboxPanelsContextValue = {
   toggleListCollapsed: () => void;
   contactCollapsed: boolean;
   toggleContactCollapsed: () => void;
+  detailsCollapsed: boolean;
+  toggleDetailsCollapsed: () => void;
 };
 
 const InboxPanelsContext = createContext<InboxPanelsContextValue | null>(null);
@@ -59,6 +62,9 @@ export function useInboxPanels(): InboxPanelsContextValue {
   );
   const [fallbackContact, setFallbackContact] = useState<boolean>(() =>
     readStoredPanelCollapsed(INBOX_CONTACT_COLLAPSED_KEY),
+  );
+  const [fallbackDetails, setFallbackDetails] = useState<boolean>(() =>
+    readStoredPanelCollapsed(INBOX_DETAILS_COLLAPSED_KEY),
   );
 
   const toggleFallbackList = useCallback(() => {
@@ -77,12 +83,22 @@ export function useInboxPanels(): InboxPanelsContextValue {
     });
   }, []);
 
+  const toggleFallbackDetails = useCallback(() => {
+    setFallbackDetails((prev) => {
+      const next = !prev;
+      writeStoredPanelCollapsed(INBOX_DETAILS_COLLAPSED_KEY, next);
+      return next;
+    });
+  }, []);
+
   if (ctx) return ctx;
   return {
     listCollapsed: fallbackList,
     toggleListCollapsed: toggleFallbackList,
     contactCollapsed: fallbackContact,
     toggleContactCollapsed: toggleFallbackContact,
+    detailsCollapsed: fallbackDetails,
+    toggleDetailsCollapsed: toggleFallbackDetails,
   };
 }
 
@@ -111,10 +127,14 @@ export function InboxShell({
   const [contactCollapsed, setContactCollapsed] = useState<boolean>(() =>
     readStoredPanelCollapsed(INBOX_CONTACT_COLLAPSED_KEY),
   );
+  const [detailsCollapsed, setDetailsCollapsed] = useState<boolean>(() =>
+    readStoredPanelCollapsed(INBOX_DETAILS_COLLAPSED_KEY),
+  );
 
   useIsomorphicLayoutEffect(() => {
     setListCollapsed(readStoredPanelCollapsed(INBOX_LIST_COLLAPSED_KEY));
     setContactCollapsed(readStoredPanelCollapsed(INBOX_CONTACT_COLLAPSED_KEY));
+    setDetailsCollapsed(readStoredPanelCollapsed(INBOX_DETAILS_COLLAPSED_KEY));
   }, []);
 
   const toggleListCollapsed = useCallback(() => {
@@ -133,18 +153,30 @@ export function InboxShell({
     });
   }, []);
 
+  const toggleDetailsCollapsed = useCallback(() => {
+    setDetailsCollapsed((prev) => {
+      const next = !prev;
+      writeStoredPanelCollapsed(INBOX_DETAILS_COLLAPSED_KEY, next);
+      return next;
+    });
+  }, []);
+
   const ctxValue = useMemo<InboxPanelsContextValue>(
     () => ({
       listCollapsed,
       toggleListCollapsed,
       contactCollapsed,
       toggleContactCollapsed,
+      detailsCollapsed,
+      toggleDetailsCollapsed,
     }),
     [
       listCollapsed,
       toggleListCollapsed,
       contactCollapsed,
       toggleContactCollapsed,
+      detailsCollapsed,
+      toggleDetailsCollapsed,
     ],
   );
 
@@ -170,7 +202,7 @@ export function InboxShell({
                 title="Expandir lista de conversaciones"
                 className="inline-flex h-8 w-8 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
               >
-                <PanelLeftOpen className="h-4 w-4" aria-hidden />
+                <PanelLeftOpen className="h-5 w-5" aria-hidden />
               </button>
             </div>
           ) : null}
