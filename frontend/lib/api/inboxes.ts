@@ -28,6 +28,9 @@ export type InboxDetail = Inbox & {
   greeting_message?: string | null;
   enable_auto_assignment?: boolean;
   csat_survey_enabled?: boolean;
+  /** Who takes a conversation the bot hands to the team when nobody is
+   *  assigned. Null = nobody (the whole inbox is notified). */
+  handoff_assignee_id?: number | null;
   phone_number?: string | null;
   provider?: string | null;
   webhook_url?: string | null;
@@ -79,6 +82,8 @@ export type InboxUpdateInput = {
   greeting_message?: string;
   enable_auto_assignment?: boolean;
   csat_survey_enabled?: boolean;
+  /** 0 clears it. */
+  handoff_assignee_id?: number;
   /** The `channel:` sub-hash. What it may carry is allow-listed per
    *  channel type server-side, so anything else is dropped rather than
    *  written. */

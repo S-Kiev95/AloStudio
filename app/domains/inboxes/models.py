@@ -928,6 +928,7 @@ class Inbox(TimestampMixin, table=True):
             "channel_type",
         ),
         Index("index_inboxes_on_portal_id", "portal_id"),
+        Index("index_inboxes_on_handoff_assignee_id", "handoff_assignee_id"),
     )
 
     id: int | None = Field(
@@ -1003,6 +1004,16 @@ class Inbox(TimestampMixin, table=True):
     # Portal FK is deferred until Phase 6 (HelpCenter) — keep column for
     # schema parity, no SA-level ForeignKey declared yet.
     portal_id: int | None = Field(default=None, sa_column=Column(BigInteger, nullable=True))
+    # AloStudio: who takes a conversation the bot hands to the team when
+    # nobody is assigned yet. Null = nobody (the whole inbox is notified).
+    handoff_assignee_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
 
     # Relationships
     account: "Account" = Relationship(sa_relationship_kwargs={"lazy": "selectin"})
