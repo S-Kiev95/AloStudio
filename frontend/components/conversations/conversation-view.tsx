@@ -180,10 +180,10 @@ export function ConversationView({
     null;
 
   return (
-    <div className="flex min-h-0 flex-1">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="flex items-center gap-3 border-b border-glass px-4 py-3">
+        <header className="flex shrink-0 items-center gap-3 border-b border-glass px-4 py-3">
           <Link
             href={`/accounts/${accountId}/conversations`}
             aria-label="Volver"
@@ -272,7 +272,7 @@ export function ConversationView({
             "transition-[max-height,opacity] duration-200 ease-out motion-reduce:transition-none",
             detailsCollapsed
               ? "hidden max-h-0 overflow-hidden opacity-0"
-              : "opacity-100",
+              : "shrink-0 opacity-100",
           )}
         >
           {!detailsCollapsed ? (

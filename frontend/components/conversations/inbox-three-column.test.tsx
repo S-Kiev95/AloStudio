@@ -18,8 +18,10 @@ import { ConversationView } from "./conversation-view";
 import { InboxChannelsView } from "./inbox-channels-view";
 import { InboxReportsView } from "./inbox-reports-view";
 import {
+  DEFAULT_INBOX_MAX_STRETCH_PX,
   INBOX_CONTACT_COLLAPSED_KEY,
   INBOX_DETAILS_COLLAPSED_KEY,
+  INBOX_HEIGHT_OFFSET_KEY,
   INBOX_LIST_COLLAPSED_KEY,
   InboxShell,
 } from "./inbox-shell";
@@ -615,5 +617,171 @@ describe("Bandeja en tres columnas y pestañas", () => {
     fireEvent.click(showBtn);
     expect(window.localStorage.getItem(INBOX_DETAILS_COLLAPSED_KEY)).toBe("0");
     expect(await screen.findByLabelText("Asignar agente")).toBeInTheDocument();
+  });
+
+  it("permite estirar la bandeja hacia arriba con teclado y puntero, resetear con doble clic, persistir y ajustar al redimensionar", async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    mockPathname = "/accounts/1/conversations/42";
+    const { unmount } = render(
+      <QueryClientProvider client={qc}>
+        <main id="main-content">
+          <InboxTabs accountId="1" />
+          <InboxShell list={<ConversationList accountId="1" />}>
+            <ConversationView accountId="1" displayId={42} />
+          </InboxShell>
+        </main>
+      </QueryClientProvider>,
+    );
+
+    const handle = screen.getByRole("separator", {
+      name: "Cambiar el alto de la bandeja",
+    });
+    const shell = screen.getByTestId("inbox-shell");
+
+    expect(handle).toHaveAttribute("aria-orientation", "horizontal");
+    expect(handle).toHaveAttribute("aria-valuemin", "0");
+    expect(handle).toHaveAttribute(
+      "aria-valuemax",
+      String(DEFAULT_INBOX_MAX_STRETCH_PX),
+    );
+    expect(handle).toHaveAttribute("aria-valuenow", "0");
+    expect(shell.style.getPropertyValue("--inbox-stretch")).toBe("0px");
+
+    // Flechas arriba/abajo mueven de a 24 px; no baja de 0.
+    fireEvent.keyDown(handle, { key: "ArrowUp" });
+    expect(handle).toHaveAttribute("aria-valuenow", "24");
+    expect(shell.style.getPropertyValue("--inbox-stretch")).toBe("24px");
+    expect(window.localStorage.getItem(INBOX_HEIGHT_OFFSET_KEY)).toBe("24");
+
+    fireEvent.keyDown(handle, { key: "ArrowUp" });
+    expect(handle).toHaveAttribute("aria-valuenow", "48");
+    expect(shell.style.getPropertyValue("--inbox-stretch")).toBe("48px");
+
+    fireEvent.keyDown(handle, { key: "ArrowDown" });
+    expect(handle).toHaveAttribute("aria-valuenow", "24");
+
+    fireEvent.keyDown(handle, { key: "ArrowDown" });
+    fireEvent.keyDown(handle, { key: "ArrowDown" });
+    expect(handle).toHaveAttribute("aria-valuenow", "0");
+
+    // End y Home llevan a los extremos.
+    fireEvent.keyDown(handle, { key: "End" });
+    expect(handle).toHaveAttribute(
+      "aria-valuenow",
+      String(DEFAULT_INBOX_MAX_STRETCH_PX),
+    );
+    expect(window.localStorage.getItem(INBOX_HEIGHT_OFFSET_KEY)).toBe(
+      String(DEFAULT_INBOX_MAX_STRETCH_PX),
+    );
+
+    fireEvent.keyDown(handle, { key: "Home" });
+    expect(handle).toHaveAttribute("aria-valuenow", "0");
+    expect(window.localStorage.getItem(INBOX_HEIGHT_OFFSET_KEY)).toBe("0");
+
+    // Arrastre con pointer events (y captura del puntero).
+    if (typeof window.PointerEvent === "undefined") {
+      class MockPointerEvent extends MouseEvent {
+        pointerId: number;
+        pointerType: string;
+        constructor(
+          type: string,
+          params: PointerEventInit & { pointerId?: number; pointerType?: string } = {},
+        ) {
+          super(type, params);
+          this.pointerId = params.pointerId ?? 0;
+          this.pointerType = params.pointerType ?? "mouse";
+        }
+      }
+      window.PointerEvent =
+        MockPointerEvent as unknown as typeof window.PointerEvent;
+    }
+
+    const setPointerCapture = vi.fn();
+    const releasePointerCapture = vi.fn();
+    Object.defineProperty(handle, "setPointerCapture", {
+      value: setPointerCapture,
+      configurable: true,
+    });
+    Object.defineProperty(handle, "hasPointerCapture", {
+      value: () => true,
+      configurable: true,
+    });
+    Object.defineProperty(handle, "releasePointerCapture", {
+      value: releasePointerCapture,
+      configurable: true,
+    });
+
+    fireEvent.pointerDown(handle, {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientY: 200,
+    });
+    expect(setPointerCapture).toHaveBeenCalledWith(1);
+    expect(document.body.style.userSelect).toBe("none");
+
+    fireEvent.pointerMove(handle, { pointerId: 1, clientY: 130 });
+    expect(handle).toHaveAttribute("aria-valuenow", "70");
+    expect(shell.style.getPropertyValue("--inbox-stretch")).toBe("70px");
+    expect(window.localStorage.getItem(INBOX_HEIGHT_OFFSET_KEY)).toBe("70");
+
+    fireEvent.pointerUp(handle, { pointerId: 1, clientY: 130 });
+    expect(releasePointerCapture).toHaveBeenCalledWith(1);
+    expect(document.body.style.userSelect).toBe("");
+
+    // Doble clic vuelve a la posición original.
+    fireEvent.doubleClick(handle);
+    expect(handle).toHaveAttribute("aria-valuenow", "0");
+    expect(shell.style.getPropertyValue("--inbox-stretch")).toBe("0px");
+    expect(window.localStorage.getItem(INBOX_HEIGHT_OFFSET_KEY)).toBe("0");
+
+    // Dejar un valor elegido, desmontar y volver a montar: se recupera de localStorage.
+    fireEvent.keyDown(handle, { key: "End" });
+    expect(handle).toHaveAttribute(
+      "aria-valuenow",
+      String(DEFAULT_INBOX_MAX_STRETCH_PX),
+    );
+
+    unmount();
+    const prevInnerHeight = window.innerHeight;
+    render(
+      <QueryClientProvider client={qc}>
+        <main id="main-content">
+          <InboxTabs accountId="1" />
+          <InboxShell list={<ConversationList accountId="1" />}>
+            <ConversationView accountId="1" displayId={42} />
+          </InboxShell>
+        </main>
+      </QueryClientProvider>,
+    );
+
+    const restoredHandle = screen.getByRole("separator", {
+      name: "Cambiar el alto de la bandeja",
+    });
+    expect(restoredHandle).toHaveAttribute(
+      "aria-valuenow",
+      String(DEFAULT_INBOX_MAX_STRETCH_PX),
+    );
+
+    // Si la ventana se achica, el alto elegido se ajusta al nuevo máximo (clamp).
+    Object.defineProperty(window, "innerHeight", {
+      value: 600,
+      configurable: true,
+      writable: true,
+    });
+    fireEvent(window, new Event("resize"));
+
+    expect(restoredHandle).toHaveAttribute("aria-valuemax", "60");
+    expect(restoredHandle).toHaveAttribute("aria-valuenow", "60");
+    expect(window.localStorage.getItem(INBOX_HEIGHT_OFFSET_KEY)).toBe("60");
+
+    Object.defineProperty(window, "innerHeight", {
+      value: prevInnerHeight,
+      configurable: true,
+      writable: true,
+    });
   });
 });
