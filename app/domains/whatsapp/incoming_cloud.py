@@ -541,9 +541,13 @@ def _for_channel(value: dict[str, Any], channel: WhatsappChannel) -> bool:
         if isinstance(node, dict) and node.get("phone_number_id"):
             named = node.get("phone_number_id")
             break
+    if not named:
+        return True
     cfg = channel.provider_config or {}
     ours = cfg.get("phone_number_id") if isinstance(cfg, dict) else None
-    return not named or not ours or str(named) == str(ours)
+    # A channel that doesn't know its own number id can't claim a change
+    # that names one: it could be another account's number.
+    return bool(ours) and str(named) == str(ours)
 
 
 async def process_360dialog_webhook(

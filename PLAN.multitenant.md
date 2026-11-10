@@ -40,45 +40,71 @@ integraciones. Sin hallazgos.
 | 2 | `POST /conversations` (`assignee_id`, `team_id`) | Pasan directo a `create_conversation`: una conversación puede quedar asignada a un usuario o equipo de otra cuenta, que además recibe el aviso | Validar contra la cuenta; si no, 422 |
 | 3 | `portal_id` al crear o editar una bandeja | No se valida: una bandeja puede quedar ligada al centro de ayuda de otra cuenta | Validar `Portal.account_id`; si no, 422 |
 
-Estado: los tres corregidos en esta rama, con casos en
+| 4 | `inbox_id` al crear o editar un webhook | No se valida. La respuesta muestra el nombre de la bandeja ajena; los webhooks por bandeja todavía no se entregan, pero cuando se activen recibirían sus eventos | Validar `Inbox.account_id`; si no, 422 |
+| 5 | Bandeja de Facebook creada a mano | `page_id` es único solo por cuenta, y los mensajes entrantes se reparten por `page_id`: una segunda cuenta con la misma página recibiría mensajes de la primera. El OAuth ya lo impedía; la carga manual no | Rechazar una página que ya está en otra cuenta, 422 |
+| 6 | WhatsApp entrante (`_for_channel`) | Si el canal no tiene guardado su `phone_number_id`, aceptaba cambios que nombran cualquier número | Un canal sin id solo acepta cambios que no nombran número |
+
+Estado: los seis corregidos en esta rama, con casos en
 `tests/integration/test_tenant_isolation.py`.
 
 Ya validados: los integrantes de equipos (401 "Invalid User IDs", como
 Chatwoot), `contact_id`, `inbox_id` y `source_id` al crear una
 conversación o un contact inbox, la unión de contactos, participantes,
 `assignment_policy_id`, `conversation_ids` de las macros, `product_ids` de
-Instagram, `channel_id` de los plugs y `handoff_assignee_id`.
+Instagram, `channel_id` de los plugs, `handoff_assignee_id`, la bandeja de
+las campañas (se valida al crear y no se puede cambiar) y los equipos y
+agentes dentro de automatizaciones y macros (se resuelven dentro de la
+cuenta de la conversación).
 
-Queda para revisar: `campaign_id` en mensajes (solo se guarda como marca,
-riesgo bajo) y los ids dentro de JSON (condiciones y acciones de
-automatizaciones y macros, filtros guardados, CRM).
+### 1.c Resto de la auditoría (2026-11-10)
 
-### 1.c Lo que falta auditar
+- **Worker (ARQ):** las tareas cargan por id y siguen las relaciones del
+  propio registro; el envío de campañas busca los contactos con
+  `account_id` de la campaña. Sin hallazgos.
+- **Webhooks entrantes:** firma de Meta y de Twilio activa en CTC y en
+  develop (`META_VERIFY_WEBHOOK_SIGNATURE`, `TWILIO_VERIFY_SIGNATURE`; la
+  clave de Meta se carga desde Ajustes). Número de WhatsApp, id de
+  Instagram, bot de Telegram y correo son únicos en toda la instalación.
+  Hallazgos 5 y 6 arriba.
+- **MCP:** el token está atado a una cuenta y cada herramienta lee
+  `ctx.account`; las lecturas por id comparan `account_id`. Sin hallazgos.
+- **Tiempo real:** para suscribirse hace falta el `pubsub_token` del
+  usuario y, para el canal de la cuenta, ser miembro. Sin hallazgos.
+- **Públicas:** el widget resuelve todo desde el token del sitio y el del
+  visitante; el centro de ayuda usa un slug único y filtra artículos,
+  categorías y vectores por portal; la configuración de la instalación es
+  solo para superadministradores. Sin hallazgos.
+- **Búsqueda y reportes:** filtran siempre por la cuenta, también cuando
+  se pide una bandeja, agente o equipo por id. Sin hallazgos.
 
-- **Worker (ARQ):** cada tarea recibe ids. Ver que no mezcle cuentas al
-  cargar relaciones (por ejemplo el canal de otra cuenta).
-- **Webhooks entrantes** (Meta, email, Telegram, SMS): el ruteo por
-  `phone_number_id`, `page_id`, `instagram_id` y dirección de correo tiene
-  que caer en una sola bandeja. Qué pasa si dos cuentas conectan el mismo
-  número o página.
-- **MCP:** revisado el 2026-11-10. El token MCP está atado a una cuenta
-  (`mcp_tokens.account_id`) y cada herramienta lee `ctx.account`; las
-  lecturas por id comparan `account_id`, y el canal de Instagram sale de un
-  post o comentario ya buscado dentro de la cuenta. Sin hallazgos. Falta el
-  agente de chat, si corre fuera del MCP.
-- **Tiempo real:** las suscripciones por `pubsub_token` solo reciben eventos
-  de su usuario o cuenta.
-- **Públicas:** widget del sitio, centro de ayuda, CSAT, OAuth. Que un token
-  de una cuenta no dé acceso a otra.
-- **Búsqueda y vectores:** filtros de cuenta en la búsqueda full-text, en
-  `article_embeddings` y en los vectores de autorespuestas.
-- **Reportes y exportaciones:** filtran por cuenta.
+### 1.d Requisitos para el alta de clientes (paso 2)
 
-### 1.d Tests
+Salen de la auditoría y no son arreglos de una línea:
 
-Un archivo de integración `tests/integration/test_tenant_isolation.py` con
-dos cuentas: la cuenta B intenta leer, cambiar y referenciar datos de la
-cuenta A por cada camino encontrado. Cada hallazgo suma su caso.
+- **Probar que el canal es de quien lo conecta.** Hoy una bandeja de
+  WhatsApp, Instagram o Facebook se puede crear a mano con cualquier
+  número o id. Con muchos clientes, una cuenta podría registrar el número
+  o el Instagram de otra empresa (por ejemplo después de que esa empresa
+  se dé de baja, con la suscripción de Meta todavía activa) y recibir los
+  mensajes de sus clientes. En multitenant los canales de Meta se conectan
+  solo por Embedded Signup y OAuth, que sacan el id del token; la carga
+  manual queda apagada o verifica contra la Graph API que el token tiene
+  acceso a ese id.
+- **Un solo webhook de WhatsApp para la app.** Con una sola app de Meta
+  como tech provider, Meta manda los eventos de todos los números a una
+  misma dirección. Hoy la dirección lleva el número
+  (`/webhooks/whatsapp/{phone_number}`) y los cambios de otros números se
+  descartan. Hace falta una ruta de app que reparta cada cambio por
+  `phone_number_id`.
+- **Superadministrador desde el día uno.** Si no hay ninguno, la
+  configuración de la instalación la controla el administrador de la
+  primera cuenta.
+
+### 1.e Tests
+
+`tests/integration/test_tenant_isolation.py`: dos cuentas, y la cuenta A
+intenta referenciar usuarios, equipos, portales, bandejas y páginas de la
+B por cada camino encontrado. Cada hallazgo nuevo suma su caso.
 
 ## Pasos siguientes (necesitan decisiones del dueño)
 

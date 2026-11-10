@@ -19,6 +19,7 @@ from app.domains.inboxes.models import (
     FacebookPage,
 )
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+from app.domains.teams import models as _teams  # noqa: F401  (mapper)
 
 pytestmark = pytest.mark.integration
 
@@ -160,10 +161,10 @@ async def test_page_id_unique_per_account(db_session):
     assert "already taken" in exc_info.value.detail["message"]
 
 
-async def test_same_page_id_different_account_is_allowed(db_session):
-    """The unique index is scoped — two separate accounts can each
-    connect to the same FB page (rare but valid: whitelabel
-    resellers do this)."""
+async def test_same_page_id_in_another_account_is_refused(db_session):
+    """Inbound events are routed by ``page_id`` alone, so a page in two
+    accounts would hand one account's messages to the other. The OAuth
+    connect flow already refused it; the hand-made inbox does too."""
     owner_a = await _make_account(db_session, suffix="-ma")
     owner_b = await _make_account(db_session, suffix="-mb")
     base = {"page_id": "7777777777", "page_access_token": "tok"}
@@ -177,13 +178,14 @@ async def test_same_page_id_different_account_is_allowed(db_session):
             channel_params=dict(base),
         ),
     ).perform()
-    # Should NOT raise.
-    await InboxBuilder(
-        db_session,
-        InboxBuilderParams(
-            account=owner_b.account,
-            name="B",
-            channel_type="facebook",
-            channel_params=dict(base),
-        ),
-    ).perform()
+    with pytest.raises(ChatwootHTTPException) as exc_info:
+        await InboxBuilder(
+            db_session,
+            InboxBuilderParams(
+                account=owner_b.account,
+                name="B",
+                channel_type="facebook",
+                channel_params=dict(base),
+            ),
+        ).perform()
+    assert exc_info.value.status_code == 422

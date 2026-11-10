@@ -14,6 +14,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
+from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.contacts.models import Contact
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
@@ -153,3 +154,57 @@ async def test_inbox_refuses_the_help_center_of_another_account(client, db_sessi
     assert res.status_code == 422
     await db_session.refresh(inbox)
     assert inbox.portal_id is None
+
+
+async def test_a_facebook_page_can_not_be_added_by_hand_to_a_second_account(
+    db_session, two_accounts
+):
+    a, _, b = two_accounts
+
+    async def add_page(owner):
+        return await InboxBuilder(
+            db_session,
+            InboxBuilderParams(
+                account=owner.account,
+                name="Página",
+                channel_type="facebook",
+                channel_params={"page_id": "1234567890", "page_access_token": "t"},
+            ),
+        ).perform()
+
+    await add_page(b)
+    # Inbound events are routed by page_id alone: a second account with the
+    # same page would get the first one's messages.
+    with pytest.raises(ChatwootHTTPException) as exc:
+        await add_page(a)
+    assert exc.value.status_code == 422
+
+
+async def test_webhook_refuses_an_inbox_of_another_account(client, db_session, two_accounts):
+    a, headers, b = two_accounts
+    foreign_inbox = await _api_inbox(db_session, b)
+    url = f"/api/v1/accounts/{a.account.id}/webhooks"
+    body = {
+        "url": "https://hooks.example.com/a",
+        "subscriptions": ["message_created"],
+        "inbox_id": foreign_inbox.id,
+    }
+    res = await client.post(url, headers=headers, json={"webhook": body})
+    assert res.status_code == 422
+    assert "bandeja" in res.text
+
+
+def test_whatsapp_change_for_another_number_is_not_taken_by_a_channel_without_id():
+    from app.domains.inboxes.models import WhatsappChannel
+    from app.domains.whatsapp.incoming_cloud import _for_channel
+
+    knows_its_id = WhatsappChannel(
+        account_id=1, phone_number="+59811111111", provider_config={"phone_number_id": "p1"}
+    )
+    no_id = WhatsappChannel(account_id=2, phone_number="+59822222222", provider_config={})
+    change = {"metadata": {"phone_number_id": "p1"}}
+
+    assert _for_channel(change, knows_its_id)
+    assert not _for_channel(change, no_id)
+    # A change that names no number (older payload shapes) still goes through.
+    assert _for_channel({}, no_id)

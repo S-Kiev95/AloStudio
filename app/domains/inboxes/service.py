@@ -538,6 +538,25 @@ class InboxBuilder:
                 },
             )
         user_token = params.get("user_access_token") or page_token
+        # Inbound events are routed by page_id alone, so a page in two
+        # accounts would hand one account's messages to the other. The
+        # OAuth connect flow refuses this too (``facebook.connect_service``).
+        elsewhere = (
+            await self._session.exec(
+                select(FacebookPage.id).where(
+                    FacebookPage.page_id == str(page_id),
+                    FacebookPage.account_id != self._params.account.id,
+                )
+            )
+        ).first()
+        if elsewhere is not None:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Page id is already taken",
+                    "attributes": ["page_id"],
+                },
+            )
 
         ch = FacebookPage(
             account_id=self._params.account.id,
