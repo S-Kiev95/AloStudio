@@ -367,6 +367,37 @@ componentes.
 - Las respuestas del bot y del agente en el idioma del cliente.
 - Buen trabajo para Argon una vez definida la estructura.
 
+## F14. Foto del contacto en la bandeja
+
+Pedido del dueño el 2026-11-10. Hoy los contactos se ven con un círculo de
+color y sus iniciales (`frontend/components/ui/avatar.tsx`); el backend
+devuelve `avatar_url` vacío (`app/domains/contacts/presenters.py`).
+
+Qué se puede por canal:
+
+- **WhatsApp:** no. La Cloud API de Meta no entrega la foto de perfil de
+  quien escribe. Quedan las iniciales.
+- **Instagram y Messenger:** sí. Se pide `profile_pic` junto con el nombre
+  en la consulta de perfil que ya se hace (`fetch_contact_name` en
+  `app/domains/instagram/graph.py`). El link de Meta vence a los pocos días:
+  bajar la imagen, guardarla en MinIO y renovarla de vez en cuando con un
+  trabajo de ARQ.
+- **Email:** Gravatar, opcional y apagado por defecto (manda a un tercero un
+  hash del correo).
+- **Chat del sitio:** no hay foto.
+
+Trabajo:
+
+- Columna de avatar en el contacto, guardada al recibir el primer mensaje
+  y renovada por el trabajo periódico.
+- `Avatar` acepta una imagen y cae a las iniciales si no hay foto o si no
+  carga. Se muestra en la lista, el encabezado de la conversación y el panel
+  del contacto.
+- Arreglo chico que se puede hacer antes: las iniciales ignoran lo que no es
+  letra ni número. Hoy "Lucía Pereira (demo)" muestra "L(" en vez de "LP".
+- En CTC el canal principal es WhatsApp, así que ahí casi todo sigue con
+  iniciales; la mejora se nota en Instagram y Messenger.
+
 ## Descartado
 
 - **Consultas de Telegram respondidas por el bot de Meta** (2026-11-09): se
