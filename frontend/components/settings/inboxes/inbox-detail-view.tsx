@@ -20,6 +20,7 @@ import {
   useUpdateInbox,
 } from "@/lib/api/inboxes";
 
+import { HandoffAssigneePanel } from "./handoff-assignee-panel";
 import { InboxMembersPanel } from "./inbox-members-panel";
 
 export function InboxDetailView({
@@ -138,6 +139,19 @@ export function InboxDetailView({
         </CardHeader>
         <CardContent>
           <InboxMembersPanel accountId={accountId} inboxId={inboxId} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Cuando el bot deriva</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <HandoffAssigneePanel
+            accountId={accountId}
+            inboxId={inboxId}
+            current={inbox.handoff_assignee_id ?? null}
+          />
         </CardContent>
       </Card>
 

@@ -148,6 +148,8 @@ class InboxUpdateRequest(BaseModel):
     sender_name_type: Literal["friendly", "professional"] | None = None
     business_name: str | None = None
     csat_config: dict[str, Any] | None = None
+    # User who takes bot handoffs when nobody is assigned; 0 clears it.
+    handoff_assignee_id: int | None = None
     channel: ChannelUpdate | None = None
 
 

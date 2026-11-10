@@ -24,6 +24,7 @@ from app.domains.conversations import events as ev
 from app.domains.conversations.listeners import broadcast_event
 from app.domains.conversations.service import (
     ConversationBuilderParams,
+    bot_handoff,
     create_conversation,
 )
 from app.domains.inboxes.models import (
@@ -188,6 +189,71 @@ async def test_handoff_with_assignee_notifies_only_the_assignee(db_session):
 
     rows = await _handoff_rows(db_session, conv)
     assert [r.user_id for r in rows] == [assignee.id]
+
+
+async def test_handoff_in_an_inbox_without_members_notifies_the_admins(db_session):
+    owner, _ = await _seed_user(db_session, "-adm-o")
+    inbox = await _whatsapp_inbox(db_session, owner, templates=[])
+    conv = await _conversation(db_session, owner, inbox)
+
+    await broadcast_event(db_session, ev.CONVERSATION_BOT_HANDOFF, conversation=conv)
+
+    rows = await _handoff_rows(db_session, conv)
+    assert [r.user_id for r in rows] == [owner.user.id]
+
+
+async def test_bot_handoff_assigns_the_inbox_default_assignee(db_session):
+    owner, _ = await _seed_user(db_session, "-def-o")
+    inbox = await _whatsapp_inbox(db_session, owner, templates=[])
+    sofia = await _with_member(db_session, owner, inbox, "-def-1")
+    await _with_member(db_session, owner, inbox, "-def-2")
+    inbox.handoff_assignee_id = sofia.id
+    db_session.add(inbox)
+    await db_session.flush()
+    conv = await _conversation(db_session, owner, inbox)
+
+    await bot_handoff(db_session, conversation=conv)
+
+    assert conv.assignee_id == sofia.id
+    rows = await _handoff_rows(db_session, conv)
+    assert [r.user_id for r in rows] == [sofia.id]
+
+
+async def test_bot_handoff_keeps_an_existing_assignee(db_session):
+    owner, _ = await _seed_user(db_session, "-keep-o")
+    inbox = await _whatsapp_inbox(db_session, owner, templates=[])
+    sofia = await _with_member(db_session, owner, inbox, "-keep-1")
+    other = await _with_member(db_session, owner, inbox, "-keep-2")
+    inbox.handoff_assignee_id = sofia.id
+    db_session.add(inbox)
+    await db_session.flush()
+    conv = await _conversation(db_session, owner, inbox, assignee_id=other.id)
+
+    await bot_handoff(db_session, conversation=conv)
+
+    assert conv.assignee_id == other.id
+
+
+async def test_inbox_default_assignee_is_set_checked_and_cleared(client, db_session):
+    owner, headers = await _seed_user(db_session, "-patch-o")
+    inbox = await _whatsapp_inbox(db_session, owner, templates=[])
+    sofia = await _with_member(db_session, owner, inbox, "-patch-1")
+    stranger, _ = await _seed_user(db_session, "-patch-x")
+    url = f"/api/v1/accounts/{owner.account.id}/inboxes/{inbox.id}"
+
+    res = await client.patch(url, headers=headers, json={"handoff_assignee_id": sofia.id})
+    assert res.status_code == 200, res.text
+    assert res.json()["handoff_assignee_id"] == sofia.id
+
+    # Someone from another account can't be picked.
+    res = await client.patch(url, headers=headers, json={"handoff_assignee_id": stranger.user.id})
+    assert res.status_code == 422
+
+    # Saving something else keeps it; 0 clears it.
+    res = await client.patch(url, headers=headers, json={"name": "WA CTC"})
+    assert res.json()["handoff_assignee_id"] == sofia.id
+    res = await client.patch(url, headers=headers, json={"handoff_assignee_id": 0})
+    assert res.json()["handoff_assignee_id"] is None
 
 
 # ---------------------------------------------------------------------------

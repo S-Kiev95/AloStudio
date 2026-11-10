@@ -406,8 +406,19 @@ async def bot_handoff(
 ) -> Conversation:
     """Port of ``Conversation#bot_handoff!``.
 
-    Opens the conversation and stamps ``waiting_since`` if blank.
+    Opens the conversation and stamps ``waiting_since`` if blank. When
+    nobody is assigned and the inbox names a handoff assignee (AloStudio),
+    the conversation goes to that person first, so the handoff notice
+    reaches them.
     """
+    if conversation.assignee_id is None:
+        inbox = await session.get(Inbox, conversation.inbox_id)
+        if inbox is not None and inbox.handoff_assignee_id is not None:
+            await update_assignee(
+                session,
+                conversation=conversation,
+                assignee_id=inbox.handoff_assignee_id,
+            )
     if conversation.waiting_since is None:
         conversation.waiting_since = _utcnow()
     conversation.status = CONVERSATION_STATUS_OPEN

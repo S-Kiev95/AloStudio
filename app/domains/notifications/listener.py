@@ -15,8 +15,9 @@ Subscribes to these dispatcher events (three from Phase v2.5):
     AND the assignee isn't the sender (defensive — Contact senders
     can never match an assignee, but the check costs nothing).
   * ``conversation.bot_handoff`` → ``conversation_bot_handoff`` (AloStudio)
-    for the assignee, or every inbox member when nobody is assigned:
-    the bot handed the chat to the team and someone has to answer.
+    for the assignee, or every inbox member when nobody is assigned (the
+    account administrators when the inbox has no members): the bot handed
+    the chat to the team and someone has to answer.
 
 After each insert, also fires an ActionCable broadcast to the
 assignee's account stream so the bell badge updates without the
@@ -61,7 +62,11 @@ from app.domains.notifications.presenters import present_notification
 from app.domains.notifications.push import enqueue_notification_push
 from app.domains.notifications.service import create_notification
 from app.domains.notifications.whatsapp import enqueue_notification_whatsapp
-from app.domains.users.models import User
+from app.domains.users.models import (
+    ACCOUNT_USER_ROLE_ADMINISTRATOR,
+    AccountUser,
+    User,
+)
 
 log = logging.getLogger(__name__)
 
@@ -142,6 +147,10 @@ async def _on_bot_handoff(
         recipients = [conversation.assignee_id]
     else:
         recipients = await _inbox_member_ids(session, conversation.inbox_id)
+    if not recipients:
+        # An inbox nobody was added to would swallow the notice: someone
+        # has to answer, so the account's administrators get it.
+        recipients = await _account_admin_ids(session, conversation.account_id)
     for uid in recipients:
         notification = await create_notification(
             session,
@@ -204,6 +213,14 @@ async def _inbox_member_ids(
         for uid in (await session.exec(stmt)).all()
         if uid is not None
     ]
+
+
+async def _account_admin_ids(session: AsyncSession, account_id: int) -> list[int]:
+    stmt = select(AccountUser.user_id).where(
+        AccountUser.account_id == account_id,
+        AccountUser.role == ACCOUNT_USER_ROLE_ADMINISTRATOR,
+    )
+    return [uid for uid in (await session.exec(stmt)).all() if uid is not None]
 
 
 def _performer_id(payload: dict[str, Any]) -> int | None:
