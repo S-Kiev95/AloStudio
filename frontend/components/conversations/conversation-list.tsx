@@ -210,9 +210,9 @@ export function ConversationList({ accountId }: { accountId: string }) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* Assignee tabs with counts */}
-      <div className="flex items-center gap-4 border-b border-glass px-3">
+      <div className="flex shrink-0 items-center gap-4 border-b border-glass px-3">
         {ASSIGNEE_TABS.map((t) => {
           const isActive = assigneeType === t.key;
           const count = meta?.[t.countKey];
@@ -257,7 +257,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
       </div>
 
       {/* Search, status pills, inbox selector, and active toolbars */}
-      <div className="space-y-2.5 border-b border-glass p-3">
+      <div className="shrink-0 space-y-2.5 border-b border-glass p-3">
         <div className="flex gap-1.5">
           <div className="relative min-w-0 flex-1">
             <Search
@@ -570,7 +570,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
 
       {/* Compact pagination */}
       {page > 1 || items.length >= PER_PAGE ? (
-        <div className="flex items-center justify-between border-t border-glass px-3 py-2">
+        <div className="flex shrink-0 items-center justify-between border-t border-glass px-3 py-2">
           <FilterButton
             active={false}
             disabled={page <= 1}
