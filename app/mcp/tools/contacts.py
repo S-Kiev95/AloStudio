@@ -171,6 +171,35 @@ def register(mcp: FastMCP) -> None:
         )
         return _present(contact)
 
+    @mcp.tool(name="merge_contacts")
+    @requires("admin")
+    async def merge_contacts(base_contact_id: int, mergee_contact_id: int) -> dict[str, Any]:
+        """Merge a duplicate into another contact of the account: the
+        ``mergee``'s conversations, notes and addresses move to the
+        ``base`` and the ``mergee`` is deleted. Not reversible."""
+        if base_contact_id == mergee_contact_id:
+            raise ValueError("can't merge a contact with itself")
+        base = await _find_contact(base_contact_id)
+        mergee = await _find_contact(mergee_contact_id)
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        merged = await contact_service.ContactMergeAction(
+            session=ctx.session, account_id=ctx.account.id, base=base, mergee=mergee
+        ).perform()
+        return _present(merged)
+
+    @mcp.tool(name="set_contact_blocked")
+    @requires("admin")
+    async def set_contact_blocked(contact_id: int, blocked: bool) -> dict[str, Any]:
+        """Mark a contact as blocked or unblocked: the same flag as muting
+        a conversation in the inbox. It does not delete anything."""
+        contact = await _find_contact(contact_id)
+        ctx = current_mcp_context()
+        contact = await contact_service.update_contact(
+            ctx.session, contact=contact, payload={"blocked": blocked}
+        )
+        return _present(contact)
+
     @mcp.tool(name="set_contact_custom_attribute")
     @requires("write")
     async def set_contact_custom_attribute(

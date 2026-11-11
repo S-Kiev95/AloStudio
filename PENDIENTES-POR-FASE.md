@@ -44,7 +44,7 @@ anota en esta sección y lo decide el dueño.
 | F1 Respaldos | — | Hecha en CTC |
 | F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; resto para más adelante |
 | F3 Redes que faltan | B | Sin empezar |
-| F4 Herramientas MCP | A | Prioridad alta y media hechas (2026-11-11); falta la baja |
+| F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 Plantillas de WhatsApp | A | Sin empezar |
 | F6 Gastos por uso | A | Sin empezar |
 | F7 Llamadas y voz | B | Sin empezar |
@@ -143,9 +143,14 @@ dentro de la rama.
 - **Visto de paso:** `create_campaign` por la API acepta un `sender_id` sin
   validar la cuenta (el MCP usa siempre el usuario del token); revisarlo
   junto con el aislamiento de F2.
-- **Falta, prioridad baja (scope `admin`):** automatizaciones, autopost RSS,
-  plugs, webhooks, horarios, artículos del centro de ayuda, fusionar y
-  bloquear contactos.
+- **Hecho el 2026-11-11 (prioridad baja, scope `admin`), en develop:**
+  automatizaciones (`list`, `create`, `update`, `delete`), webhooks
+  (`list`, `create`, `delete`), horarios (`get_working_hours`,
+  `set_working_hours`), autopost RSS y plugs (listar y pausar),
+  centro de ayuda (`list_help_centers`, `list_articles`, `create_article`,
+  `update_article`), `merge_contacts` y `set_contact_blocked`.
+- Queda abierto para cuando haga falta: crear autoposts y plugs por MCP
+  (hoy solo listar y pausar), portales y categorías del centro de ayuda.
 - Adjuntos desde la biblioteca de medios (`media_id`) en `send_message`:
   hoy solo URLs públicas.
 

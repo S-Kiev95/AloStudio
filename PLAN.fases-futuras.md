@@ -90,6 +90,8 @@ Slack y Twitch. Detalle de cada app en `HANDOFF-apps-redes-sociales.md`
 
 ## F4. Herramientas que le faltan al MCP
 
+**Estado (2026-11-11): hecha.** Prioridad alta, media y baja en develop; detalle en `PENDIENTES-POR-FASE.md`.
+
 Hoy `/mcp` tiene 43 herramientas (`app/mcp/tools/`): conversaciones,
 mensajes, contactos, etiquetas, citas, productos (solo lectura),
 publicaciones e Instagram. Comparado contra los dominios del backend el

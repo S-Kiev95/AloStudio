@@ -96,6 +96,18 @@ client as that message, through `requires`.
   * `update_appointment(appointment_id, title?, starts_at?, ends_at?,
     product_id?, notes?)` — write
 
+### Account configuration (`admin` scope)
+
+  * Automation rules: `list_automation_rules`, `create_automation_rule`,
+    `update_automation_rule`, `delete_automation_rule`
+  * Webhooks: `list_webhooks`, `create_webhook`, `delete_webhook`
+  * Business hours: `get_working_hours`, `set_working_hours`
+  * RSS autoposts and plugs: `list_autoposts`, `set_autopost_active`,
+    `list_plugs`, `set_plug_active`
+  * Help Center: `list_help_centers`, `list_articles`, `create_article`,
+    `update_article`
+  * Contacts: `merge_contacts`, `set_contact_blocked`
+
 Publishing also has `refresh_publication_metrics`, `list_publishing_networks`,
 `list_signatures` and `list_publication_sets`. Instagram (posts, comments,
 products) has its own module.
