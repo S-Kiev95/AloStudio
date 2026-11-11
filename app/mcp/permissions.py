@@ -12,6 +12,7 @@ import functools
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal
 
+from app.core.errors import ChatwootHTTPException
 from app.mcp.context import current_mcp_context
 from app.mcp.models import scope_satisfies
 
@@ -20,6 +21,18 @@ Scope = Literal["read", "write", "admin"]
 
 class MCPPermissionError(Exception):
     """Raised when a tool is called with insufficient scope."""
+
+
+def as_value_error(exc: ChatwootHTTPException) -> ValueError:
+    """The service's message as a tool error (``errors`` appended)."""
+    detail = exc.detail
+    if not isinstance(detail, dict):
+        return ValueError(str(detail))
+    msg = detail.get("message") or detail.get("error") or str(detail)
+    errors = detail.get("errors")
+    if isinstance(errors, list) and errors:
+        msg = f"{msg}: {'; '.join(str(e) for e in errors)}"
+    return ValueError(str(msg))
 
 
 def requires(scope: Scope):
@@ -35,11 +48,16 @@ def requires(scope: Scope):
                 raise MCPPermissionError(
                     f"tool requires {scope!r} scope; token has {ctx.scope!r}"
                 )
-            return await fn(*args, **kwargs)
+            try:
+                return await fn(*args, **kwargs)
+            except ChatwootHTTPException as exc:
+                # The services speak HTTP (422 + {"message": ...}); an MCP
+                # client needs the message itself, not "422: {...}".
+                raise as_value_error(exc) from exc
 
         return wrapper
 
     return decorator
 
 
-__all__ = ["MCPPermissionError", "Scope", "requires"]
+__all__ = ["MCPPermissionError", "Scope", "as_value_error", "requires"]

@@ -13,12 +13,21 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastmcp import FastMCP
-from sqlmodel import select
+from sqlmodel import col, select
 
+from app.domains.canned_responses import service as canned_service
+from app.domains.inboxes.models import Inbox
+from app.domains.labels import service as label_service
 from app.domains.labels.models import Label
 from app.domains.reporting.service import (
     build_summary,
     live_conversation_metrics,
+)
+from app.domains.teams.models import Team
+from app.domains.users.models import (
+    ACCOUNT_USER_ROLE_ADMINISTRATOR,
+    AccountUser,
+    User,
 )
 from app.mcp.context import current_mcp_context
 from app.mcp.permissions import requires
@@ -53,6 +62,130 @@ def register(mcp: FastMCP) -> None:
                     "color": lab.color,
                 }
                 for lab in rows
+            ]
+        }
+
+    @mcp.tool(name="create_label")
+    @requires("write")
+    async def create_label(
+        title: str,
+        description: str | None = None,
+        color: str | None = None,
+    ) -> dict[str, Any]:
+        """Create a label on the current account (title in lowercase, no
+        spaces; duplicates are refused). add_label also creates a missing
+        label on the fly; use this one to give it a description or color."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        label = await label_service.create_label(
+            ctx.session,
+            account_id=ctx.account.id,
+            payload={"title": title, "description": description, "color": color},
+        )
+        return {
+            "id": label.id,
+            "title": label.title,
+            "description": label.description,
+            "color": label.color,
+        }
+
+    @mcp.tool(name="list_inboxes")
+    @requires("read")
+    async def list_inboxes() -> dict[str, Any]:
+        """The account's inboxes (one per connected channel: WhatsApp,
+        Instagram, email, web chat…). Use their id in create_conversation
+        and to read the channel of a conversation."""
+        ctx = current_mcp_context()
+        rows = list(
+            (
+                await ctx.session.exec(
+                    select(Inbox)
+                    .where(Inbox.account_id == ctx.account.id)
+                    .order_by(col(Inbox.id).asc())
+                )
+            ).all()
+        )
+        return {
+            "inboxes": [
+                {
+                    "id": inbox.id,
+                    "name": inbox.name,
+                    "channel_type": inbox.channel_type,
+                    "enable_auto_assignment": inbox.enable_auto_assignment,
+                }
+                for inbox in rows
+            ]
+        }
+
+    @mcp.tool(name="list_agents")
+    @requires("read")
+    async def list_agents() -> dict[str, Any]:
+        """The people of the account (agents and administrators). Use their
+        id in assign_agent and create_conversation."""
+        ctx = current_mcp_context()
+        rows = list(
+            (
+                await ctx.session.exec(
+                    select(User, AccountUser)
+                    .join(AccountUser, col(AccountUser.user_id) == col(User.id))
+                    .where(AccountUser.account_id == ctx.account.id)
+                    .order_by(col(User.name).asc())
+                )
+            ).all()
+        )
+        return {
+            "agents": [
+                {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "role": (
+                        "administrator"
+                        if account_user.role == ACCOUNT_USER_ROLE_ADMINISTRATOR
+                        else "agent"
+                    ),
+                }
+                for user, account_user in rows
+            ]
+        }
+
+    @mcp.tool(name="list_teams")
+    @requires("read")
+    async def list_teams() -> dict[str, Any]:
+        """The account's teams. Use their id in assign_team and
+        create_conversation."""
+        ctx = current_mcp_context()
+        rows = list(
+            (
+                await ctx.session.exec(
+                    select(Team)
+                    .where(Team.account_id == ctx.account.id)
+                    .order_by(col(Team.name).asc())
+                )
+            ).all()
+        )
+        return {
+            "teams": [
+                {"id": team.id, "name": team.name, "description": team.description}
+                for team in rows
+            ]
+        }
+
+    @mcp.tool(name="list_canned_responses")
+    @requires("read")
+    async def list_canned_responses(search: str | None = None) -> dict[str, Any]:
+        """The account's canned responses (short code + text), optionally
+        filtered by ``search`` in the short code or the text. Useful to reply
+        with the wording the team already agreed on."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        rows = await canned_service.list_canned_responses(
+            ctx.session, account_id=ctx.account.id, search=search
+        )
+        return {
+            "canned_responses": [
+                {"id": row.id, "short_code": row.short_code, "content": row.content}
+                for row in rows
             ]
         }
 

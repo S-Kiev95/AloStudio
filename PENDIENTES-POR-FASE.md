@@ -44,7 +44,7 @@ anota en esta sección y lo decide el dueño.
 | F1 Respaldos | — | Hecha en CTC |
 | F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; resto para más adelante |
 | F3 Redes que faltan | B | Sin empezar |
-| F4 Herramientas MCP | A | Sin empezar |
+| F4 Herramientas MCP | A | Prioridad alta hecha (2026-11-11); faltan media y baja |
 | F5 Plantillas de WhatsApp | A | Sin empezar |
 | F6 Gastos por uso | A | Sin empezar |
 | F7 Llamadas y voz | B | Sin empezar |
@@ -126,11 +126,23 @@ dentro de la rama.
 
 ## F4. Herramientas que le faltan al MCP
 
-- Prioridad alta: `list_inboxes`, `list_agents`, `list_teams`,
-  `create_contact`, `update_contact`, `create_conversation`, adjuntos y
-  plantillas en `send_message`, `list_canned_responses`, `upload_media`,
-  publicaciones (`show`, `update`, `retry`), `create_label`.
-- Después las de prioridad media y baja del plan.
+- **Hecho el 2026-11-11 (prioridad alta), en develop:** `list_inboxes`,
+  `list_agents`, `list_teams`, `list_canned_responses`, `create_label`,
+  `create_contact`, `update_contact`, `create_conversation` (WhatsApp por
+  el teléfono del contacto; Instagram, Messenger y Telegram solo si el
+  contacto escribió antes), adjuntos por URL en `send_message`,
+  `list_whatsapp_templates`, `send_whatsapp_template`, `show_publication`,
+  `update_publication`, `retry_publication` y `upload_media`. Los errores
+  del backend le llegan al agente como mensaje claro.
+- **Falta, prioridad media:** productos (crear y editar), citas (editar y
+  reprogramar), `list_macros` y `execute_macro`, reportes de conversaciones
+  y agentes, CSAT, campañas, `refresh_publication_metrics`,
+  `list_publishing_networks`, firmas y sets de publicaciones.
+- **Falta, prioridad baja (scope `admin`):** automatizaciones, autopost RSS,
+  plugs, webhooks, horarios, artículos del centro de ayuda, fusionar y
+  bloquear contactos.
+- Adjuntos desde la biblioteca de medios (`media_id`) en `send_message`:
+  hoy solo URLs públicas.
 
 ## F5. Plantillas de WhatsApp
 

@@ -47,8 +47,6 @@ from app.core.oauth_state import verify_oauth_state
 from app.domains.publishing import analytics, autopost, connections, plugs, presets
 from app.domains.publishing import service as svc
 from app.domains.publishing.models import (
-    PUBLICATION_STATE_PUBLISHING,
-    PUBLICATION_STATE_SCHEDULED,
     Publication,
     PublicationSet,
     PublishingAutopost,
@@ -107,30 +105,6 @@ async def _find_publication(
             detail={"error": "Resource could not be found"},
         )
     return row
-
-
-async def _publish_now_if_due(
-    session: AsyncSession, publication: Publication
-) -> None:
-    """Enqueue a publication that should go out now — one scheduled for
-    now or earlier (claimed first), or one put back to publishing by a
-    retry. Commits first so the worker's own session sees it."""
-    from app.workers.publishing import enqueue_publication
-
-    if publication.state == PUBLICATION_STATE_SCHEDULED:
-        due = (
-            publication.scheduled_for is not None
-            and publication.scheduled_for <= datetime.now(UTC)
-        )
-        if not due or not await svc.start_publishing(
-            session, publication_id=publication.id  # type: ignore[arg-type]
-        ):
-            return
-    elif publication.state != PUBLICATION_STATE_PUBLISHING:
-        return
-    await session.commit()
-    await enqueue_publication(publication.id)  # type: ignore[arg-type]
-    await session.refresh(publication)
 
 
 @router.get("/channels")
@@ -550,7 +524,7 @@ async def create_publication_endpoint(
         payload=payload.model_dump(exclude_unset=True),
         created_by_id=ctx.user.id,
     )
-    await _publish_now_if_due(session, row)
+    await svc.publish_now_if_due(session, row)
     return await present_one_publication(session, row)
 
 
@@ -577,7 +551,7 @@ async def update_publication_endpoint(
         publication=row,
         payload=payload.model_dump(exclude_unset=True),
     )
-    await _publish_now_if_due(session, updated)
+    await svc.publish_now_if_due(session, updated)
     return await present_one_publication(session, updated)
 
 
@@ -600,7 +574,7 @@ async def retry_publication_endpoint(
 ) -> dict[str, Any]:
     row = await _find_publication(session, ctx, publication_id, for_update=True)
     updated = await svc.retry_publication(session, publication=row)
-    await _publish_now_if_due(session, updated)
+    await svc.publish_now_if_due(session, updated)
     return await present_one_publication(session, updated)
 
 

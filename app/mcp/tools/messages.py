@@ -29,8 +29,15 @@ from app.domains.conversations.models import (
 )
 from app.domains.conversations.service import (
     MessageBuilderParams,
+    _AttachmentSpec,
     create_message,
 )
+from app.domains.inboxes.models import (
+    CHANNEL_TYPE_WHATSAPP,
+    Inbox,
+    WhatsappChannel,
+)
+from app.domains.whatsapp.template_processor import find_approved_template
 from app.mcp.context import current_mcp_context
 from app.mcp.permissions import requires
 
@@ -73,6 +80,47 @@ def _present(msg: Message) -> dict[str, Any]:
     }
 
 
+_FILE_TYPES = frozenset({"image", "audio", "video", "file"})
+
+
+def _attachment_specs(raw: list[dict[str, Any]] | None) -> list[_AttachmentSpec] | None:
+    """``[{"url": "https://…", "file_type": "image"}]`` → message
+    attachments. The URL has to be public: the channel (WhatsApp,
+    Instagram…) downloads it from there."""
+    if not raw:
+        return None
+    specs: list[_AttachmentSpec] = []
+    for item in raw:
+        url = str((item or {}).get("url") or "").strip()
+        if not url.startswith("https://"):
+            raise ValueError("each attachment needs a public https url")
+        file_type = str(item.get("file_type") or "file")
+        if file_type not in _FILE_TYPES:
+            raise ValueError(f"file_type must be one of {sorted(_FILE_TYPES)}")
+        specs.append(_AttachmentSpec(file_type=file_type, external_url=url))
+    return specs
+
+
+async def _whatsapp_channel(inbox_id: int) -> WhatsappChannel:
+    ctx = current_mcp_context()
+    inbox = await ctx.session.get(Inbox, inbox_id)
+    if inbox is None or inbox.account_id != ctx.account.id:
+        raise ValueError(f"inbox {inbox_id} not found in this account")
+    if inbox.channel_type != CHANNEL_TYPE_WHATSAPP:
+        raise ValueError(f"inbox {inbox_id} is not a WhatsApp inbox")
+    channel = await ctx.session.get(WhatsappChannel, inbox.channel_id)
+    if channel is None:
+        raise ValueError(f"inbox {inbox_id} has no WhatsApp channel")
+    return channel
+
+
+def _body_text(template: dict[str, Any]) -> str:
+    for component in template.get("components") or []:
+        if isinstance(component, dict) and str(component.get("type")).upper() == "BODY":
+            return str(component.get("text") or "")
+    return ""
+
+
 def register(mcp: FastMCP) -> None:
     @mcp.tool(name="list_messages")
     @requires("read")
@@ -110,8 +158,9 @@ def register(mcp: FastMCP) -> None:
     @requires("write")
     async def send_message(
         conversation_id: int,
-        content: str,
+        content: str | None = None,
         private: bool = False,
+        attachments: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Reply to the conversation as the agent.
 
@@ -119,8 +168,14 @@ def register(mcp: FastMCP) -> None:
         the contact — used for handoff comments). With
         ``private=false`` (default) the message is delivered to the
         contact via the conversation's channel (email, WhatsApp,
-        Telegram, etc.) by the outbound listener cascade."""
-        if not isinstance(content, str) or not content.strip():
+        Telegram, etc.) by the outbound listener cascade.
+
+        ``attachments``: ``[{"url": "https://…", "file_type": "image"}]``
+        (``image``, ``audio``, ``video`` or ``file``), public URLs; the
+        text goes as the caption. On WhatsApp, outside the 24 h window use
+        send_whatsapp_template instead."""
+        specs = _attachment_specs(attachments)
+        if not (isinstance(content, str) and content.strip()) and not specs:
             raise ValueError("content can't be blank")
         conv = await _find_conv(conversation_id)
         ctx = current_mcp_context()
@@ -128,9 +183,80 @@ def register(mcp: FastMCP) -> None:
             ctx.session,
             conversation=conv,
             params=MessageBuilderParams(
-                content=content,
+                content=content or "",
                 message_type="outgoing",
                 private=private,
+                attachments=specs,
+            ),
+            user_id=ctx.user.id,
+        )
+        return _present(msg)
+
+    @mcp.tool(name="list_whatsapp_templates")
+    @requires("read")
+    async def list_whatsapp_templates(inbox_id: int) -> dict[str, Any]:
+        """Approved WhatsApp templates of a WhatsApp inbox: name, language,
+        category, body text and how many ``{{n}}`` variables it takes. Only
+        approved ones can be sent (send_whatsapp_template)."""
+        channel = await _whatsapp_channel(inbox_id)
+        templates = []
+        for tpl in channel.message_templates or []:
+            if not isinstance(tpl, dict) or str(tpl.get("status", "")).upper() != "APPROVED":
+                continue
+            body = _body_text(tpl)
+            templates.append(
+                {
+                    "name": tpl.get("name"),
+                    "language": tpl.get("language"),
+                    "category": tpl.get("category"),
+                    "body": body,
+                    "variables": body.count("{{"),
+                }
+            )
+        return {"inbox_id": inbox_id, "templates": templates}
+
+    @mcp.tool(name="send_whatsapp_template")
+    @requires("write")
+    async def send_whatsapp_template(
+        conversation_id: int,
+        name: str,
+        language: str,
+        body_params: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Send an approved WhatsApp template (list_whatsapp_templates) on a
+        WhatsApp conversation. It is the only way to write to a contact who
+        has not written in the last 24 h. ``body_params`` fill ``{{1}}``,
+        ``{{2}}``… in order. Meta charges each template it delivers."""
+        conv = await _find_conv(conversation_id)
+        channel = await _whatsapp_channel(conv.inbox_id)
+        template = find_approved_template(channel.message_templates, name, language)
+        if template is None:
+            raise ValueError(
+                f"no approved template {name!r} in {language!r}; see list_whatsapp_templates"
+            )
+        params = [str(p) for p in body_params or []]
+        body = _body_text(template)
+        if body.count("{{") != len(params):
+            raise ValueError(
+                f"template {name!r} takes {body.count('{{')} body params, got {len(params)}"
+            )
+        text = body
+        for position, value in enumerate(params, start=1):
+            text = text.replace(f"{{{{{position}}}}}", value)
+        ctx = current_mcp_context()
+        msg = await create_message(
+            ctx.session,
+            conversation=conv,
+            params=MessageBuilderParams(
+                content=text or name,
+                message_type="outgoing",
+                template_params={
+                    "name": name,
+                    "language": language,
+                    "processed_params": {
+                        "body": {str(i): v for i, v in enumerate(params, start=1)}
+                    },
+                },
             ),
             user_id=ctx.user.id,
         )

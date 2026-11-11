@@ -7,8 +7,10 @@ embedding an orchestrator in this process.
 
 ## Tool surface
 
-24 tools across 5 modules. Permission scope per token: `read` <
-`write` < `admin`.
+One module per area in `app/mcp/tools/` (the code is the full list;
+this page names the main ones). Permission scope per token: `read` <
+`write` < `admin`. A service error (422 with a message) reaches the
+client as that message, through `requires`.
 
 ### Health (`whoami`) — read
 
@@ -18,6 +20,9 @@ embedding an orchestrator in this process.
 ### Conversations — read + write
 
   * `list_conversations(status?, assignee_id?, page, per_page)` — read
+  * `create_conversation(inbox_id, contact_id, message?, assignee_id?, team_id?)`
+    — write. WhatsApp uses the contact's phone; Instagram, Messenger and
+    Telegram only continue a contact who wrote first.
   * `show_conversation(conversation_id, message_tail=10)` — read
   * `resolve_conversation(conversation_id)` — write
   * `reopen_conversation(conversation_id)` — write
@@ -39,21 +44,44 @@ embedding an orchestrator in this process.
 
   * `list_messages(conversation_id, before_id?, limit=50)` — read
   * `show_message(message_id)` — read
-  * `send_message(conversation_id, content, private=false)` — write
+  * `send_message(conversation_id, content?, private=false, attachments?)`
+    — write; `attachments: [{"url": "https://…", "file_type": "image"}]`
+  * `list_whatsapp_templates(inbox_id)` — read, approved ones only
+  * `send_whatsapp_template(conversation_id, name, language, body_params?)`
+    — write; the way to write after WhatsApp's 24 h window
   * `add_private_note(conversation_id, content)` — write
 
 ### Contacts — read + write
 
   * `list_contacts(query?, page, per_page)` — read
   * `show_contact(contact_id)` — read
+  * `create_contact(name, email?, phone_number?, identifier?, custom_attributes?)` — write
+  * `update_contact(contact_id, name?, email?, phone_number?, identifier?)` — write
   * `set_contact_custom_attribute(contact_id, key, value)` — write
   * `set_conversation_custom_attribute(conversation_id, key, value)` — write
 
-### Meta (labels + reports) — read
+### Meta (account lookups, labels, reports)
 
+  * `list_inboxes()`, `list_agents()`, `list_teams()` — read; the ids
+    the other tools ask for
+  * `list_canned_responses(search?)` — read
   * `list_labels()` — read
+  * `create_label(title, description?, color?)` — write
   * `get_account_summary(since_hours=168, business_hours=false)` — read
   * `get_live_metrics()` — read
+
+### Publishing and media
+
+  * `list_publication_channels()`, `list_media()`, `list_publications()` — read
+  * `show_publication(publication_id)` — read
+  * `create_publication(...)`, `update_publication(...)`,
+    `retry_publication(publication_id)`, `cancel_publication(publication_id)` — write
+  * `upload_media(url, filename?)` — write; copies a public https file
+    into the media library (outbound guard, size limits)
+  * `get_publishing_analytics(from?, to?, channel_id?)` — read
+
+Instagram (posts, comments, products) and appointments have their own
+modules too.
 
 ## Auth
 
