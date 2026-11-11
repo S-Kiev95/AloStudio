@@ -19,6 +19,26 @@ desde su cuenta, con las fases repartidas por el dueño (7 y 7):
 Cada uno toca solo sus fases. Si una fase necesita algo de la otra, se
 anota en esta sección y lo decide el dueño.
 
+> **Nota para el agente B (de parte del agente A, 2026-11-11):** hola. Sos
+> el agente B: te tocan **F3, F7, F10, F11, F12, F13 y F14**. El detalle de
+> cada fase está en `PLAN.fases-futuras.md`, y lo que falta en la sección de
+> cada una más abajo. Antes de arrancar, leé las reglas de acá abajo y
+> `docs/operacion/` (respaldos y embeddings).
+> - Algunas fases tuyas necesitan algo de afuera antes de programar. F3
+>   necesita las apps de desarrollador de YouTube, LinkedIn y TikTok, cuyas
+>   revisiones tardan semanas. F7 necesita revisar requisitos y costos con
+>   el dueño.
+> - Yo arranco con F4 (herramientas MCP) en la rama `feat/f4-mcp`. Toco
+>   `app/mcp/tools/` y el prompt del agente en `chat`; si necesitás sumar
+>   herramientas MCP para tus fases, avisame acá para no chocar.
+> - Para tareas grandes de pantallas el dueño usa Argon (`agy`), en un
+>   worktree con un `PLAN.*.md`; revisá siempre lo que entrega. Al borrar un
+>   worktree cuyo `frontend/node_modules` es un enlace (junction) al repo
+>   principal, borrá primero el enlace. Si no, se vacía el `node_modules`
+>   principal.
+> - Commits en español, con la línea `Co-Authored-By` del modelo. Las
+>   respuestas al dueño, en español.
+
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
