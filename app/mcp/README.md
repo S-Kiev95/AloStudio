@@ -67,6 +67,8 @@ client as that message, through `requires`.
   * `list_canned_responses(search?)` — read
   * `list_labels()` — read
   * `create_label(title, description?, color?)` — write
+  * `get_report_by(group_by: agent|team|inbox, from?, to?)` — read
+  * `get_csat(from?, to?, rating?, page)` — read
   * `get_account_summary(since_hours=168, business_hours=false)` — read
   * `get_live_metrics()` — read
 
@@ -80,8 +82,23 @@ client as that message, through `requires`.
     into the media library (outbound guard, size limits)
   * `get_publishing_analytics(from?, to?, channel_id?)` — read
 
-Instagram (posts, comments, products) and appointments have their own
-modules too.
+### Campaigns
+
+  * `list_campaigns()`, `get_campaign_result(campaign_id)` — read
+  * `create_campaign(title, inbox_id, contact_ids, message, scheduled_at,
+    template_name?, template_language?, template_params?)` — write; one-off,
+    WhatsApp needs an approved template
+
+### Macros, catalogue and appointments
+
+  * `list_macros()` — read; `execute_macro(macro_id, conversation_ids)` — write
+  * `create_product(...)`, `update_product(product_id, ...)` — write
+  * `update_appointment(appointment_id, title?, starts_at?, ends_at?,
+    product_id?, notes?)` — write
+
+Publishing also has `refresh_publication_metrics`, `list_publishing_networks`,
+`list_signatures` and `list_publication_sets`. Instagram (posts, comments,
+products) has its own module.
 
 ## Auth
 

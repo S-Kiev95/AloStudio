@@ -57,6 +57,7 @@ from app.domains.inboxes.models import (
     CHANNEL_TYPE_WHATSAPP,
     Inbox,
 )
+from app.domains.macros import service as macro_service
 from app.domains.teams.models import Team
 from app.mcp.context import current_mcp_context
 from app.mcp.permissions import requires
@@ -354,6 +355,48 @@ def register(mcp: FastMCP) -> None:
                 user_id=ctx.user.id,
             )
         return _present_conv(conv)
+
+    @mcp.tool(name="list_macros")
+    @requires("read")
+    async def list_macros() -> dict[str, Any]:
+        """Macros the token's user can run: the account's shared ones plus
+        their own. Each is a saved list of actions (assign, label, send a
+        message…) for execute_macro."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None and ctx.user.id is not None
+        rows = await macro_service.list_macros_for_user(
+            ctx.session, account_id=ctx.account.id, user_id=ctx.user.id
+        )
+        return {
+            "macros": [
+                {"id": m.id, "name": m.name, "actions": m.actions or []} for m in rows
+            ]
+        }
+
+    @mcp.tool(name="execute_macro")
+    @requires("write")
+    async def execute_macro(macro_id: int, conversation_ids: list[int]) -> dict[str, Any]:
+        """Run a macro (list_macros) on one or more conversations of the
+        account. Conversations of other accounts are skipped."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None and ctx.user.id is not None
+        macro = await macro_service.fetch_macro_visible_to_user(
+            ctx.session,
+            account_id=ctx.account.id,
+            macro_id=macro_id,
+            user_id=ctx.user.id,
+        )
+        if macro is None or not await macro_service.can_user_execute_macro(
+            ctx.session, macro=macro, user_id=ctx.user.id
+        ):
+            raise ValueError(f"macro {macro_id} not found for this user")
+        ran = await macro_service.execute_macro_on_conversations(
+            ctx.session,
+            macro=macro,
+            conversation_ids=conversation_ids,
+            user_id=ctx.user.id,
+        )
+        return {"macro_id": macro.id, "conversations": ran}
 
     @mcp.tool(name="assign_agent")
     @requires("write")

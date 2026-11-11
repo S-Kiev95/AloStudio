@@ -13,13 +13,15 @@ from app.core.errors import ChatwootHTTPException
 from app.core.outbound import guarded_client
 from app.domains.media_library import service as media_svc
 from app.domains.media_library.presenters import present_asset
-from app.domains.publishing import analytics
+from app.domains.publishing import analytics, connections, presets
 from app.domains.publishing import service as svc
 from app.domains.publishing.models import Publication
 from app.domains.publishing.presenters import (
     present_channel,
     present_one_publication,
     present_publications,
+    present_sets,
+    present_signature,
 )
 from app.mcp.context import current_mcp_context
 from app.mcp.permissions import requires
@@ -282,6 +284,50 @@ def register(mcp: FastMCP) -> None:
             uploaded_by_id=ctx.user.id,
         )
         return present_asset(asset)
+
+    @mcp.tool(name="refresh_publication_metrics")
+    @requires("write")
+    async def refresh_publication_metrics(publication_id: int) -> dict[str, Any]:
+        """Read the figures of a published post now instead of waiting for
+        the hourly refresh (channels read in the last minutes are skipped,
+        to save the networks' quota)."""
+        ctx = current_mcp_context()
+        publication = await _publication(publication_id)
+        await analytics.refresh_publication_metrics(ctx.session, publication=publication)
+        return await present_one_publication(ctx.session, publication)
+
+    @mcp.tool(name="list_publishing_networks")
+    @requires("read")
+    async def list_publishing_networks() -> dict[str, Any]:
+        """Networks this installation can publish to and whether each is
+        configured. Connecting one needs the owner in the browser
+        (Publicaciones → Canales)."""
+        return {
+            "networks": [
+                {k: v for k, v in n.items() if k != "fields"}
+                for n in connections.connectable_networks()
+            ]
+        }
+
+    @mcp.tool(name="list_signatures")
+    @requires("read")
+    async def list_signatures() -> dict[str, Any]:
+        """Saved signatures (text added at the end of a post). Copy the text
+        into create_publication's content."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        rows = await presets.list_signatures(ctx.session, account_id=ctx.account.id)
+        return {"signatures": [present_signature(r) for r in rows]}
+
+    @mcp.tool(name="list_publication_sets")
+    @requires("read")
+    async def list_publication_sets() -> dict[str, Any]:
+        """Saved publication sets: a name with channels, settings and media
+        to reuse. Pass their channels and settings to create_publication."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        rows = await presets.list_sets(ctx.session, account_id=ctx.account.id)
+        return {"sets": await present_sets(ctx.session, rows)}
 
     @mcp.tool(name="cancel_publication")
     @requires("write")
