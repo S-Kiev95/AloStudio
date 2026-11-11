@@ -4,25 +4,61 @@ Lista viva: qué falta de cada fase de `PLAN.fases-futuras.md`. Se actualiza
 al cerrar cada trabajo. El detalle de cada fase está en ese plan; acá solo
 el estado y lo que queda.
 
-Última actualización: 2026-11-10.
+Última actualización: 2026-11-11.
 
-| Fase | Estado |
-|---|---|
-| F1 Respaldos | Hecha en CTC |
-| F2 Multitenant | Pasos 1 y 2 hechos en `feat/multitenant`; resto para más adelante |
-| F3 Redes que faltan | Sin empezar |
-| F4 Herramientas MCP | Sin empezar |
-| F5 Plantillas de WhatsApp | Sin empezar |
-| F6 Gastos por uso | Sin empezar |
-| F7 Llamadas y voz | Sin empezar |
-| F8 Búsqueda en conversaciones viejas | Sin empezar |
-| F9 EmbeddingGemma | En develop, comparando en sombra con OpenAI |
-| F10 Jev y Laya | Sin empezar |
-| F11 CRM (Krayin) | Sin empezar |
-| F12 Grafos | Sin empezar |
-| F13 Multi-idioma | Sin empezar |
-| F14 Foto del contacto | Sin empezar |
-| F15 Canal de aviso por agente | Idea; esperando la opinión de los agentes de CTC |
+## Reparto entre los dos agentes
+
+Desde el 2026-11-11 trabajan dos agentes de Claude en este repo, cada uno
+desde su cuenta, con las fases repartidas por el dueño (7 y 7):
+
+- **Agente A** (sesión de la cuenta del dueño que viene trabajando el
+  backend, la bandeja y los avisos): F2, F4, F5, F6, F8, F9 y F15.
+- **Agente B** (sesión de la otra cuenta, la de los logos 3D): F3, F7, F10,
+  F11, F12, F13 y F14.
+
+Cada uno toca solo sus fases. Si una fase necesita algo de la otra, se
+anota en esta sección y lo decide el dueño.
+
+| Fase | Agente | Estado |
+|---|---|---|
+| F1 Respaldos | — | Hecha en CTC |
+| F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; resto para más adelante |
+| F3 Redes que faltan | B | Sin empezar |
+| F4 Herramientas MCP | A | Sin empezar |
+| F5 Plantillas de WhatsApp | A | Sin empezar |
+| F6 Gastos por uso | A | Sin empezar |
+| F7 Llamadas y voz | B | Sin empezar |
+| F8 Búsqueda en conversaciones viejas | A | Sin empezar |
+| F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
+| F10 Jev y Laya | B | Sin empezar |
+| F11 CRM (Krayin) | B | Sin empezar |
+| F12 Grafos | B | Sin empezar |
+| F13 Multi-idioma | B | Sin empezar |
+| F14 Foto del contacto | B | Sin empezar |
+| F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
+
+### Reglas para no pisarse
+
+- **Una rama por fase**, salida de `develop` (`feat/f3-youtube`,
+  `feat/f8-busqueda`…). Antes de mezclar a `develop`: traer lo último de
+  `develop`, correr los tests y el typecheck, y recién ahí mezclar.
+- **Migraciones de Alembic:** antes de mezclar, `alembic heads` tiene que
+  dar una sola cabeza. Si el otro agente subió una migración, se encadena
+  la propia encima (`down_revision`), nunca dos cabezas en `develop`.
+- **`main` es la instalación de CTC.** Solo se mezcla `develop` a `main` y
+  se despliega en CTC cuando el dueño lo pide. Antes de una migración en
+  CTC, respaldo (`ops/respaldo/respaldar.sh --sin-aviso`). El frontend de CTC
+  se compila preferentemente después de las 22:00 (los estilos se rompen
+  unos minutos).
+- **`feat/multitenant` no va nunca a `develop` ni a `main`** (instalación
+  multitenant aparte; ver `PLAN.multitenant.md` en esa rama).
+- **Archivos compartidos** (`app/main.py`, `app/core/config.py`,
+  `frontend/lib/api/*`, menús): cambios chicos y en commits propios, para
+  que los conflictos sean fáciles.
+- **Secretos:** nunca en el chat ni en el repo; se cargan en Ajustes →
+  Instalación o los genera un script en el servidor.
+- Al terminar o pausar algo, actualizar la tabla y la sección de la fase en
+  este archivo, en el mismo commit.
 
 ---
 
