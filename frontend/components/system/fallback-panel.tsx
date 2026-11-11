@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 /**
  * Branded panel for error / 404 / empty-state screens. Centred card with an
  * optional icon, message + a primary action. Shared so the look stays
- * consistent across `error.tsx` and `not-found.tsx` at every level.
+ * consistent across `error.tsx` and `not-found.tsx` at every level. It is a
+ * `data-bounce` obstacle, for the screens that float logos around it.
  */
 export function FallbackPanel({
   icon: Icon,
@@ -23,7 +24,10 @@ export function FallbackPanel({
   secondary?: { label: string; href?: string; onClick?: () => void };
 }) {
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-4 p-6 text-center">
+    <div
+      data-bounce
+      className="relative z-10 mx-auto flex max-w-md flex-col items-center gap-4 p-6 text-center"
+    >
       {Icon ? (
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-focused text-lit">
           <Icon className="h-6 w-6" aria-hidden />

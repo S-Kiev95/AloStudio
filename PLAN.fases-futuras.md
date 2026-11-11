@@ -13,6 +13,8 @@ aparte (`exp/*`). Pasan a `develop` solo si convencen al dueño con números.
 
 **Estado de F1 (2026-11-09): hecho en CTC.** Scripts en `ops/respaldo/`, procedimiento en `docs/operacion/respaldos.md`. Copias cifradas con restic en el bucket `alostudio-respaldos` de Cloudflare R2, cron diario 03:30 y prueba de restauración el día 1, avisos en Healthchecks.io. Primera copia y prueba de restauración verificadas. Develop sigue sin respaldo de AloStudio (el dueño solo quiso avisos para CTC).
 
+**Pendientes al día:** `PENDIENTES-POR-FASE.md`.
+
 **Orden propuesto:** F1 → F2 → F3 → F4, y después según prioridad. F1 va
 primero porque hoy un disco roto o un servidor perdido se lleva los datos de
 CTC. F3 conviene arrancarla temprano porque las revisiones de cada red
