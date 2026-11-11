@@ -20,16 +20,15 @@ from email.message import EmailMessage
 from typing import Any
 
 import aiosmtplib
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
 from app.domains.conversations.models import Conversation
 from app.domains.notifications.models import (
     Notification,
-    NotificationSetting,
     notification_type_to_str,
 )
+from app.domains.notifications.service import get_or_create_settings
 from app.domains.users.models import User
 
 log = logging.getLogger(__name__)
@@ -109,15 +108,12 @@ async def send_notification_email(
         return False
 
     type_str = notification_type_to_str(notification.notification_type)
-    setting = (
-        await session.exec(
-            select(NotificationSetting).where(
-                NotificationSetting.account_id == notification.account_id,
-                NotificationSetting.user_id == notification.user_id,
-            )
-        )
-    ).first()
-    subscriptions = (setting.email_subscriptions if setting else []) or []
+    # Someone who never opened Ajustes → Notificaciones has no row yet; the
+    # defaults that screen shows (every type on) apply to them too.
+    setting = await get_or_create_settings(
+        session, account_id=notification.account_id, user_id=notification.user_id
+    )
+    subscriptions = setting.email_subscriptions or []
     if type_str not in subscriptions:
         return False
 

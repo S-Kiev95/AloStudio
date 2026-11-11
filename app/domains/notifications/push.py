@@ -24,10 +24,10 @@ from app.core.webpush import send_web_push
 from app.domains.conversations.models import Conversation
 from app.domains.notifications.models import (
     Notification,
-    NotificationSetting,
     NotificationSubscription,
     notification_type_to_str,
 )
+from app.domains.notifications.service import get_or_create_settings
 
 log = get_logger("app.notifications.push")
 
@@ -82,15 +82,12 @@ async def send_notification_push(
         return 0
 
     type_str = notification_type_to_str(notification.notification_type)
-    setting = (
-        await session.exec(
-            select(NotificationSetting).where(
-                NotificationSetting.account_id == notification.account_id,
-                NotificationSetting.user_id == notification.user_id,
-            )
-        )
-    ).first()
-    if type_str not in ((setting.push_subscriptions if setting else []) or []):
+    # Someone who never opened Ajustes → Notificaciones has no row yet; the
+    # defaults that screen shows (every type on) apply to them too.
+    setting = await get_or_create_settings(
+        session, account_id=notification.account_id, user_id=notification.user_id
+    )
+    if type_str not in (setting.push_subscriptions or []):
         return 0
 
     subs = list(

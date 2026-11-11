@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { PushToggle } from "./push-toggle";
+import { SoundToggle } from "./sound-toggle";
 import { WhatsappNotice } from "./whatsapp-notice";
 
 /**
@@ -86,8 +87,9 @@ export function NotificationsSettingsView({
         <CardHeader>
           <CardTitle>Este dispositivo</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <PushToggle />
+          <SoundToggle />
         </CardContent>
       </Card>
 
