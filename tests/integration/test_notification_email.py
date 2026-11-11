@@ -132,3 +132,25 @@ async def test_skips_email_when_not_subscribed(db_session, monkeypatch):
     sent = await send_notification_email(db_session, notification_id=notif.id)
     assert sent is False
     assert called is False
+
+
+async def test_someone_who_never_opened_the_settings_gets_the_defaults(
+    db_session, monkeypatch
+):
+    """No settings row yet: the defaults the settings screen shows (every
+    type on) apply, instead of silently sending nothing."""
+    owner, conv = await _seed(db_session, "-defaults")
+    notif = _make_notification(owner, conv)
+    db_session.add(notif)
+    await db_session.flush()
+
+    captured: dict = {}
+
+    async def fake_send(message, **kwargs):
+        captured["msg"] = message
+
+    monkeypatch.setattr(mailer_mod.aiosmtplib, "send", fake_send)
+
+    sent = await send_notification_email(db_session, notification_id=notif.id)
+    assert sent is True
+    assert captured["msg"]["To"] == owner.user.email

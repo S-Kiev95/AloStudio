@@ -3,6 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
+import { playNotificationSound } from "../notification-sound";
 import { createCable } from "./cable";
 
 /**
@@ -39,6 +40,7 @@ export function useCable({
         // wait the 60s poll interval to update.
         if (msg.event === "notification.created") {
           qc.invalidateQueries({ queryKey: ["notifications", accountId] });
+          playNotificationSound();
           return;
         }
         qc.invalidateQueries({ queryKey: ["conversations", accountId] });
