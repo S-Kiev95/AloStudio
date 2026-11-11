@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { FloatingLogos } from "@/components/brand/floating-logos";
 import { AUTH_HEADERS } from "@/lib/auth/cookies";
 import { getAuthTokens } from "@/lib/auth/session";
 
@@ -41,8 +42,12 @@ export default async function AccountsIndex() {
   if (accountId) redirect(`/accounts/${accountId}`);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md items-center justify-center p-6 text-fg">
-      <div className="glass-panel w-full rounded-panel p-8">
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden p-6 text-fg">
+      <FloatingLogos />
+      <div
+        data-bounce
+        className="glass-panel relative z-10 w-full max-w-md rounded-panel bg-surface p-8"
+      >
         <div className="neon-sign">
           <h1 className="text-[28px] leading-[1.2]">Sin cuentas</h1>
         </div>
