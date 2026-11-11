@@ -7,6 +7,18 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
+export const signupSchema = z.object({
+  account_name: z
+    .string()
+    .trim()
+    .min(1, "El nombre de la empresa es obligatorio"),
+  user_full_name: z.string().trim().min(1, "Tu nombre es obligatorio"),
+  email: z.string().email("Email inválido"),
+  password: z.string().min(6, "Mínimo 6 caracteres"),
+});
+
+export type SignupInput = z.infer<typeof signupSchema>;
+
 export const forgotSchema = z.object({
   email: z.string().email("Email inválido"),
 });

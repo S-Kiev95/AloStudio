@@ -21,7 +21,23 @@ export type InstallationConfig = {
   editable: boolean;
 };
 
+export type PublicInstallationSettings = {
+  signup_enabled: boolean;
+  multitenant: boolean;
+};
+
 const KEY = ["installation-configs"];
+const PUBLIC_KEY = ["installation-public"];
+
+export function usePublicInstallation() {
+  return useQuery({
+    queryKey: PUBLIC_KEY,
+    queryFn: () =>
+      apiFetch<PublicInstallationSettings>("/api/v1/installation/public"),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
 
 export function useInstallationConfigs() {
   return useQuery({

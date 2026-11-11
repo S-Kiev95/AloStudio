@@ -116,4 +116,12 @@ describe("the dashboard guard", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("location")).toBeNull();
   });
+
+  it("lets /login and /registro through without a session", () => {
+    for (const publicPath of ["/login", "/registro"]) {
+      const res = middleware(request(publicPath));
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    }
+  });
 });

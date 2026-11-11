@@ -14,7 +14,13 @@ import {
 
 /** Connects a Page by logging in with Facebook. Facebook sends the browser
  *  back here with `fb_pick` (several Pages to choose from) or `fb_error`. */
-function FacebookPageConnectInner({ accountId }: { accountId: string }) {
+function FacebookPageConnectInner({
+  accountId,
+  showManualHint = true,
+}: {
+  accountId: string;
+  showManualHint?: boolean;
+}) {
   const router = useRouter();
   const params = useSearchParams();
   const nonce = params.get("fb_pick");
@@ -94,17 +100,28 @@ function FacebookPageConnectInner({ accountId }: { accountId: string }) {
           </Button>
         </div>
       )}
-      <p className="border-t border-glass pt-3 text-xs text-fg-muted">
-        También podés cargar los datos a mano en el formulario de abajo.
-      </p>
+      {showManualHint ? (
+        <p className="border-t border-glass pt-3 text-xs text-fg-muted">
+          También podés cargar los datos a mano en el formulario de abajo.
+        </p>
+      ) : null}
     </div>
   );
 }
 
-export function FacebookPageConnect({ accountId }: { accountId: string }) {
+export function FacebookPageConnect({
+  accountId,
+  showManualHint = true,
+}: {
+  accountId: string;
+  showManualHint?: boolean;
+}) {
   return (
     <Suspense>
-      <FacebookPageConnectInner accountId={accountId} />
+      <FacebookPageConnectInner
+        accountId={accountId}
+        showManualHint={showManualHint}
+      />
     </Suspense>
   );
 }

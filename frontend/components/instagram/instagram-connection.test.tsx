@@ -29,6 +29,9 @@ vi.mock("next/navigation", () => ({
 
 const server = setupServer(
   http.get("*/inboxes", () => HttpResponse.json({ payload: [] })),
+  http.get("*/api/v1/installation/public", () =>
+    HttpResponse.json({ signup_enabled: false, multitenant: false }),
+  ),
 );
 
 beforeAll(() => {
@@ -169,6 +172,23 @@ describe("InstagramConnection — antes de ir a Meta", () => {
       "h-10",
       "px-6",
       "rounded-control",
+    );
+  });
+
+  it("oculta la carga manual de token en multitenant", async () => {
+    server.use(
+      http.get("*/api/v1/installation/public", () =>
+        HttpResponse.json({ signup_enabled: true, multitenant: true }),
+      ),
+    );
+    renderConnection();
+    expect(
+      await screen.findByRole("button", { name: /Facebook Login/ }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: /Modo avanzado: pegar un token/ }),
+      ).toBeNull(),
     );
   });
 });

@@ -8,11 +8,24 @@ import { ChannelForm } from "./channel-form";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 let posted: { channel?: Record<string, unknown> } | null = null;
 
 const server = setupServer(
+  http.get("*/api/v1/installation/public", () =>
+    HttpResponse.json({ signup_enabled: false, multitenant: false }),
+  ),
+  http.get("*/api/v1/accounts/1/whatsapp/embedded_signup", () =>
+    HttpResponse.json({
+      ready: false,
+      missing: ["META_APP_ID"],
+      app_id: "",
+      config_id: "",
+      graph_api_version: "v23.0",
+    }),
+  ),
   http.post("*/inboxes", async ({ request }) => {
     posted = (await request.json()) as { channel?: Record<string, unknown> };
     return HttpResponse.json({ id: 1, name: "Soporte", channel_type: "Channel::Email" });
@@ -26,12 +39,12 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
-function renderForm() {
+function renderForm(channel = "email") {
   return render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <ChannelForm accountId="1" channel="email" />
+      <ChannelForm accountId="1" channel={channel} />
     </QueryClientProvider>,
   );
 }
@@ -93,5 +106,60 @@ describe("ChannelForm, creating an email inbox", () => {
 
     await waitFor(() => expect(posted).not.toBeNull());
     expect(posted!.channel!.imap_address).toBe("imap.gmail.com");
+  });
+});
+
+describe("ChannelForm en multitenant", () => {
+  it("oculta los formularios manuales de WhatsApp, Facebook e Instagram y deja solo los botones de Meta", async () => {
+    server.use(
+      http.get("*/api/v1/installation/public", () =>
+        HttpResponse.json({ signup_enabled: true, multitenant: true }),
+      ),
+      http.get("*/api/v1/accounts/1/whatsapp/embedded_signup", () =>
+        HttpResponse.json({
+          ready: true,
+          missing: [],
+          app_id: "111",
+          config_id: "cfg-1",
+          graph_api_version: "v23.0",
+        }),
+      ),
+    );
+
+    const wa = renderForm("whatsapp");
+    expect(
+      await screen.findByRole("button", { name: "Conectar WhatsApp" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: /Crear canal/ }),
+      ).toBeNull(),
+    );
+    wa.unmount();
+
+    const fb = renderForm("facebook");
+    expect(
+      await screen.findByRole("button", { name: "Conectar con Facebook" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: /Crear canal/ }),
+      ).toBeNull(),
+    );
+    fb.unmount();
+
+    const ig = renderForm("instagram");
+    expect(
+      await screen.findByRole("button", { name: "Facebook Login" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Instagram Login" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: /Crear canal/ }),
+      ).toBeNull(),
+    );
+    ig.unmount();
   });
 });

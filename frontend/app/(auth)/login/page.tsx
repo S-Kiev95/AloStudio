@@ -10,11 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { messageFromBody } from "@/lib/api/errors";
+import { usePublicInstallation } from "@/lib/api/installation";
 import { safeNextPath } from "@/lib/auth/next-path";
 import { type LoginInput, loginSchema } from "@/lib/auth/schemas";
 
 export default function LoginPage() {
   const router = useRouter();
+  const installation = usePublicInstallation();
   const [formError, setFormError] = useState<string | null>(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
 
@@ -151,6 +153,15 @@ export default function LoginPage() {
         >
           ¿Olvidaste tu contraseña?
         </Link>
+
+        {installation.data?.signup_enabled ? (
+          <Link
+            href="/registro"
+            className="block pt-1 text-center text-sm text-info hover:underline"
+          >
+            ¿No tenés cuenta? Creá una
+          </Link>
+        ) : null}
       </form>
     </div>
   );

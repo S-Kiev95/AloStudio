@@ -7,6 +7,7 @@ import { Facebook, Instagram } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { startOAuth, useInstagramInboxes } from "@/lib/api/instagram";
+import { usePublicInstallation } from "@/lib/api/installation";
 
 import type { ConnectFlow } from "@/lib/inboxes/instagram-capabilities";
 
@@ -33,6 +34,8 @@ function outcomeMessage(
 
 export function InstagramConnection({ accountId }: { accountId: string }) {
   const inboxes = useInstagramInboxes(accountId);
+  const installation = usePublicInstallation();
+  const multitenant = Boolean(installation.data?.multitenant);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -152,20 +155,22 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
             método.
           </p>
 
-          <div className="border-t border-border pt-4">
-            <button
-              type="button"
-              onClick={() => setShowManual((v) => !v)}
-              className="text-sm text-info hover:underline"
-            >
-              {showManual ? "Ocultar" : "Modo avanzado: pegar un token"}
-            </button>
-            {showManual ? (
-              <div className="mt-3">
-                <ManualConnectForm accountId={accountId} />
-              </div>
-            ) : null}
-          </div>
+          {!multitenant ? (
+            <div className="border-t border-border pt-4">
+              <button
+                type="button"
+                onClick={() => setShowManual((v) => !v)}
+                className="text-sm text-info hover:underline"
+              >
+                {showManual ? "Ocultar" : "Modo avanzado: pegar un token"}
+              </button>
+              {showManual ? (
+                <div className="mt-3">
+                  <ManualConnectForm accountId={accountId} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

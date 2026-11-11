@@ -164,6 +164,54 @@ export function useConnectPendingPage(accountId: string) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// WhatsApp Embedded Signup
+// ---------------------------------------------------------------------------
+export type WhatsappEmbeddedSignupInfo = {
+  ready: boolean;
+  missing: string[];
+  app_id: string;
+  config_id: string;
+  graph_api_version: string;
+};
+
+export type WhatsappEmbeddedSignupInput = {
+  code: string;
+  waba_id: string;
+  phone_number_id: string;
+};
+
+export type WhatsappEmbeddedSignupResult = {
+  created: boolean;
+  inbox: InboxDetail;
+};
+
+export function useWhatsappEmbeddedSignup(accountId: string) {
+  return useQuery({
+    queryKey: ["whatsapp-embedded-signup", accountId],
+    queryFn: () =>
+      apiFetch<WhatsappEmbeddedSignupInfo>(
+        `/api/v1/accounts/${accountId}/whatsapp/embedded_signup`,
+      ),
+    retry: false,
+  });
+}
+
+export function useConnectWhatsappEmbeddedSignup(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: WhatsappEmbeddedSignupInput) =>
+      apiFetch<WhatsappEmbeddedSignupResult>(
+        `/api/v1/accounts/${accountId}/whatsapp/embedded_signup`,
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        },
+      ),
+    onSuccess: () => invalidate(qc, accountId),
+  });
+}
+
 export function useCreateInbox(accountId: string) {
   const qc = useQueryClient();
   return useMutation({
