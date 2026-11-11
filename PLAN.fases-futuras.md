@@ -398,6 +398,22 @@ Trabajo:
 - En CTC el canal principal es WhatsApp, así que ahí casi todo sigue con
   iniciales; la mejora se nota en Instagram y Messenger.
 
+## F15. Canal de aviso que elige cada agente
+
+Idea del dueño del 2026-11-10. Hoy un aviso (derivación del bot,
+asignación, mensaje nuevo) llega por la campana con sonido, el push del
+navegador, el email y, solo para derivaciones, WhatsApp con plantilla de
+Meta (se cobra cada envío).
+
+- Que cada agente elija en Ajustes → Notificaciones por dónde prefiere
+  enterarse: push, email, WhatsApp o Telegram, y para qué avisos.
+- Telegram sería gratis: un bot de AloStudio al que cada agente le escribe
+  una vez para vincularse (con un código de un solo uso), y por ahí le
+  llegan los avisos.
+- WhatsApp sigue con su costo por envío; mostrarlo al elegirlo.
+- Antes de hacerlo, preguntar a los agentes de CTC qué usarían de verdad
+  (Sofía lo consulta el 2026-11-11).
+
 ## Descartado
 
 - **Consultas de Telegram respondidas por el bot de Meta** (2026-11-09): se
