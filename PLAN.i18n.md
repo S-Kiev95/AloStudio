@@ -33,9 +33,10 @@ Brasil), francés, alemán, japonés y coreano**.
   nombres de marca o términos técnicos que no se traducen (Instagram,
   Telegram, Slug, SKU, CSV, Client ID…). Empezó en 1254.
 
-**Falta:** revisar en el navegador las pantallas principales en cada idioma
-(textos que no entran, sobre todo alemán y francés), los textos que manda
-el backend, y el idioma del bot (abajo).
+**Backend (2026-11-12):** correos, avisos push y por WhatsApp en el idioma de
+cada destinatario, e Instalación y Plugs traducidos en el panel (detalle
+abajo). **Falta:** el bot externo, los errores de la API y la revisión en el
+navegador.
 
 ---
 
@@ -103,27 +104,48 @@ Recorrer bandeja, calendario, Ajustes y el login en cada idioma, en claro y
 oscuro, buscando textos que no entran (botones y pestañas en alemán y
 francés) y frases que quedaron raras.
 
-### Textos que vienen del backend
-Hoy llegan en español y se muestran tal cual: los grupos y nombres de
-**Ajustes → Instalación**, el **catálogo de Plugs** (nombre y descripción de
-cada acción) y los mensajes de error de la API.
-
-### Backend y bot
-1. **Correos** (confirmación de cuenta, recuperar contraseña, avisos):
-   plantillas por idioma con el `ui_settings.locale` del destinatario.
-2. **Avisos push y por WhatsApp** a los agentes: mismo criterio.
-3. **Errores de la API:** pasar a códigos que el frontend traduce (ya hay
+### Pendiente del backend y el bot
+1. **El bot que atiende clientes** (Alicia) no vive en este repo: entra por
+   webhooks y MCP y su prompt está en su propio servidor. La regla para que
+   conteste en el idioma del cliente quedó en `INTEGRATIONS.md` ("Replying
+   in the customer's language"); falta aplicarla en Alicia, con el visto
+   bueno del dueño, y probarla con un mensaje en portugués en una bandeja de
+   prueba antes de llevarla a CTC.
+2. **Errores de la API:** pasar a códigos que el frontend traduce (ya hay
    dos: `not_authorized` y `too_many_attempts`, en `lib/api/errors.ts`).
-4. **El bot responde en el idioma del cliente:** pedírselo explícito al
-   modelo en el prompt, sin cambiar las instrucciones de cada bandeja.
-   Probar con mensajes en portugués en una bandeja de prueba antes de
-   llevarlo a CTC.
-5. **Idioma de la cuenta** (`accounts.locale`): por defecto para usuarios
+3. **Plantilla de WhatsApp en otros idiomas:** cargar y aprobar en Meta la
+   variante de `aviso_derivacion` en cada idioma que se use; hasta entonces
+   el aviso sale en español.
+4. **Idioma de la cuenta** (`accounts.locale`): por defecto para usuarios
    nuevos y el centro de ayuda público. Decidir con el dueño.
+
+## Backend (hecho el 2026-11-12)
+
+- **`app/core/i18n/`**: catálogos por idioma (`es.py`, `en.py`…),
+  `t(locale, clave, **valores)`, `user_locale(user)` (lee
+  `ui_settings.locale`; español si no eligió) y `mail_text()` (saludo,
+  cuerpo y firma). `tests/unit/test_i18n_catalogs.py` compara las claves y
+  los `{valores}` de los siete idiomas con el español.
+- **Correos en el idioma del destinatario:** confirmar email, recuperar
+  contraseña, avisos por mail, e invitaciones (en el idioma del invitado si
+  ya eligió uno; si no, en el de quien invita).
+- **Avisos push** en el idioma del destinatario.
+- **Aviso por WhatsApp:** usa la variante de la plantilla en el idioma del
+  destinatario si Meta la tiene aprobada; si no, la de español, como antes.
+- **Quien nunca eligió idioma en el perfil:** al entrar al panel se guarda
+  el que está viendo (el del selector del login o el del navegador), para
+  que los correos le lleguen en ese idioma.
+- **Ajustes → Instalación y Plugs:** el backend sigue mandando sus textos en
+  español; el panel los traduce por el nombre del ajuste o el id de la
+  acción (`translateOr`) y muestra el del backend si no conoce la clave.
+  Un ajuste nuevo en `registry.py` necesita sus claves en
+  `settingsInstall.items.<NOMBRE>`.
+- **Agente del panel:** ya respondía en el idioma del usuario; ahora además
+  sabe en qué idioma tiene la app, para cuando el mensaje no lo deja claro.
 
 ## Criterios de terminado
 
 - `i18n-pendientes.mjs` solo con marcas y términos técnicos. **Cumplido.**
 - Pantallas principales revisadas en el navegador en cada idioma.
-- Correos y avisos en el idioma del destinatario.
+- Correos y avisos en el idioma del destinatario. **Cumplido.**
 - El bot contesta en portugués a un mensaje en portugués.

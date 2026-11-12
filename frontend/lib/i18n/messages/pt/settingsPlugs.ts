@@ -30,4 +30,14 @@ export const settingsPlugs: Strings<typeof es> = {
   message: "Mensagem",
   messagePlaceholder: "Escreva a resposta automática…",
   save: "Salvar plug",
+  kinds: {
+    reply_after_likes: {
+      label: "Responder ao chegar a N curtidas",
+      description: "Quando um post chega a essa quantidade de curtidas, publica sua mensagem como resposta a esse mesmo post (por exemplo, um link ou uma oferta).",
+    },
+    repost_after_likes: {
+      label: "Repostar ao chegar a N curtidas",
+      description: "Quando um post chega a essa quantidade de curtidas, ele é repostado no seu perfil para que seus seguidores o vejam de novo.",
+    },
+  },
 };

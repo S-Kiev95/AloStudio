@@ -40,12 +40,18 @@ import {
 } from "@/lib/api/publications";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
+import { translateOr, type Translate } from "@/lib/i18n/translate";
 
 function formatRunDate(iso: string | null): string | null {
   if (!iso) return null;
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return null;
   return new Date(ms).toLocaleString();
+}
+
+// Plug actions come from the backend in Spanish; translated by their id.
+function kindLabel(t: Translate, kind: { kind: string; label: string }): string {
+  return translateOr(t, `settingsPlugs.kinds.${kind.kind}.label`, kind.label); // i18n-ignore
 }
 
 export function PlugsView({ accountId }: { accountId: string }) {
@@ -409,7 +415,9 @@ export function PlugsView({ accountId }: { accountId: string }) {
                                 <div className="min-w-0 flex-1 space-y-1">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <p className="text-sm font-medium text-fg">
-                                      {kindMeta?.label ?? plug.kind}
+                                      {kindMeta
+                                        ? kindLabel(t, kindMeta)
+                                        : plug.kind}
                                     </p>
                                     <span
                                       className={cn(
@@ -591,13 +599,17 @@ export function PlugsView({ accountId }: { accountId: string }) {
               >
                 {availableKinds.map((kind) => (
                   <option key={kind.kind} value={kind.kind}>
-                    {kind.label}
+                    {kindLabel(t, kind)}
                   </option>
                 ))}
               </Select>
               {selectedKind?.description ? (
                 <p className="text-xs text-fg-muted">
-                  {selectedKind.description}
+                  {translateOr(
+                    t,
+                    `settingsPlugs.kinds.${selectedKind.kind}.description`, // i18n-ignore
+                    selectedKind.description,
+                  )}
                 </p>
               ) : null}
             </div>

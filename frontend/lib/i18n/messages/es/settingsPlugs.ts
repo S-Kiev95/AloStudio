@@ -27,4 +27,14 @@ export const settingsPlugs = {
   message: "Mensaje",
   messagePlaceholder: "Escribí la respuesta automática…",
   save: "Guardar plug",
+  kinds: {
+    reply_after_likes: {
+      label: "Responder al llegar a N me gusta",
+      description: "Cuando un post llega a esa cantidad de me gusta, publica tu mensaje como respuesta a ese mismo post (por ejemplo, un link o una oferta).",
+    },
+    repost_after_likes: {
+      label: "Repostear al llegar a N me gusta",
+      description: "Cuando un post llega a esa cantidad de me gusta, lo repostea en tu perfil para que lo vuelvan a ver tus seguidores.",
+    },
+  },
 };

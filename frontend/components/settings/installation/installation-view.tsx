@@ -19,6 +19,39 @@ import {
 } from "@/lib/api/installation";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
+import { translateOr, type Translate } from "@/lib/i18n/translate";
+
+// The backend names each setting in Spanish (app/domains/installation/
+// registry.py); the dictionary translates them by name, and the backend's
+// text shows for anything it doesn't know yet.
+// i18n-ignore-start: backend group names, used only as lookup keys
+const GROUP_KEYS: Record<string, string> = {
+  "Meta (Facebook e Instagram)": "meta",
+  "Correo saliente": "mail",
+  "Redes para publicar": "publishing",
+  Acceso: "access",
+  Webhooks: "webhooks",
+  Marca: "brand",
+  "Inteligencia artificial": "ai",
+};
+// i18n-ignore-end
+
+function groupTitle(t: Translate, group: string): string {
+  const id = GROUP_KEYS[group];
+  return id ? translateOr(t, `settingsInstall.groups.${id}`, group) : group;
+}
+
+function configTitle(t: Translate, config: InstallationConfig): string {
+  return translateOr(t, `settingsInstall.items.${config.name}.title`, config.title); // i18n-ignore
+}
+
+function configDescription(t: Translate, config: InstallationConfig): string {
+  return translateOr(
+    t,
+    `settingsInstall.items.${config.name}.description`, // i18n-ignore
+    config.description,
+  );
+}
 
 export function InstallationView() {
   const t = useT();
@@ -80,7 +113,7 @@ function ConfigGroup({
           onClick={() => setOpen((o) => !o)}
           className="flex w-full items-center justify-between gap-3 rounded-control text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
         >
-          <CardTitle>{group}</CardTitle>
+          <CardTitle>{groupTitle(t, group)}</CardTitle>
           <span className="flex shrink-0 items-center gap-2 text-xs text-fg-muted">
             {t("settingsInstall.configuredCount", { done, total: items.length })}
             <ChevronDown
@@ -183,8 +216,8 @@ function ConfigRow({ config }: { config: InstallationConfig }) {
       <div className="space-y-1">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <Label htmlFor={inputId}>{config.title}</Label>
-            <p className="text-xs text-fg-muted">{config.description}</p>
+            <Label htmlFor={inputId}>{configTitle(t, config)}</Label>
+            <p className="text-xs text-fg-muted">{configDescription(t, config)}</p>
           </div>
           <input
             id={inputId}
@@ -203,8 +236,8 @@ function ConfigRow({ config }: { config: InstallationConfig }) {
 
   return (
     <div className="space-y-1">
-      <Label htmlFor={inputId}>{config.title}</Label>
-      <p className="text-xs text-fg-muted">{config.description}</p>
+      <Label htmlFor={inputId}>{configTitle(t, config)}</Label>
+      <p className="text-xs text-fg-muted">{configDescription(t, config)}</p>
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <Input
           id={inputId}

@@ -30,4 +30,14 @@ export const settingsPlugs: Strings<typeof es> = {
   message: "Message",
   messagePlaceholder: "Write the automatic reply…",
   save: "Save plug",
+  kinds: {
+    reply_after_likes: {
+      label: "Reply when it reaches N likes",
+      description: "When a post reaches that many likes, it publishes your message as a reply to that same post (for example, a link or an offer).",
+    },
+    repost_after_likes: {
+      label: "Repost when it reaches N likes",
+      description: "When a post reaches that many likes, it reposts it on your profile so your followers see it again.",
+    },
+  },
 };

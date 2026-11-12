@@ -30,4 +30,14 @@ export const settingsPlugs: Strings<typeof es> = {
   message: "メッセージ",
   messagePlaceholder: "自動返信を入力…",
   save: "プラグを保存",
+  kinds: {
+    reply_after_likes: {
+      label: "いいねが N 件に達したら返信",
+      description: "投稿のいいねがその数に達すると、その投稿への返信としてメッセージを公開します (リンクや特典など)。",
+    },
+    repost_after_likes: {
+      label: "いいねが N 件に達したらリポスト",
+      description: "投稿のいいねがその数に達すると、フォロワーがもう一度見られるようにプロフィールでリポストします。",
+    },
+  },
 };

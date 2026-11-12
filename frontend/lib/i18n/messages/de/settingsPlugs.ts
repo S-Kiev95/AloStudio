@@ -30,4 +30,14 @@ export const settingsPlugs: Strings<typeof es> = {
   message: "Nachricht",
   messagePlaceholder: "Schreib die automatische Antwort…",
   save: "Plug speichern",
+  kinds: {
+    reply_after_likes: {
+      label: "Bei N Likes antworten",
+      description: "Wenn ein Beitrag diese Anzahl Likes erreicht, wird deine Nachricht als Antwort auf genau diesen Beitrag veröffentlicht (zum Beispiel ein Link oder ein Angebot).",
+    },
+    repost_after_likes: {
+      label: "Bei N Likes reposten",
+      description: "Wenn ein Beitrag diese Anzahl Likes erreicht, wird er in deinem Profil erneut gepostet, damit deine Follower ihn wieder sehen.",
+    },
+  },
 };
