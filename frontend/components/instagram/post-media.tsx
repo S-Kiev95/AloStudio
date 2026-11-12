@@ -12,6 +12,7 @@ import { useState } from "react";
 
 import type { InstagramPost, MediaType } from "@/lib/api/instagram-posts";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 export const MEDIA_ICON: Record<MediaType, LucideIcon> = {
   IMAGE: ImageIcon,
@@ -106,6 +107,7 @@ export function PostThumb({ post }: { post: InstagramPost }) {
 
 /** One rendered frame of a post's media (image or playable video). */
 function MediaFrame({ item }: { item: MediaItem }) {
+  const t = useT();
   const [broken, setBroken] = useState(false);
 
   if (item.kind === "video") {
@@ -123,7 +125,7 @@ function MediaFrame({ item }: { item: MediaItem }) {
   if (broken) {
     return (
       <div className="grid h-48 w-full place-items-center rounded-md border border-glass bg-surface-2 text-xs text-fg-muted">
-        No se pudo cargar la vista previa.
+        {t("instagram.media.previewFailed")}
       </div>
     );
   }
@@ -131,7 +133,7 @@ function MediaFrame({ item }: { item: MediaItem }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={item.url}
-      alt="Vista previa de la publicación"
+      alt={t("instagram.media.previewLabel")}
       loading="lazy"
       onError={() => setBroken(true)}
       className="max-h-[28rem] w-full rounded-md border border-glass bg-surface-2 object-contain"
@@ -145,6 +147,7 @@ function MediaFrame({ item }: { item: MediaItem }) {
  * through; a post with no renderable media renders nothing.
  */
 export function PostMediaPreview({ post }: { post: InstagramPost }) {
+  const t = useT();
   const items = mediaItems(post.source);
   const [index, setIndex] = useState(0);
   if (items.length === 0) return null;
@@ -157,7 +160,7 @@ export function PostMediaPreview({ post }: { post: InstagramPost }) {
       {items.length > 1 ? (
         <div
           className="flex gap-2 overflow-x-auto pb-1"
-          aria-label="Elementos del carrusel"
+          aria-label={t("instagram.media.carouselItems")}
         >
           {items.map((item, i) => (
             <button
@@ -165,7 +168,7 @@ export function PostMediaPreview({ post }: { post: InstagramPost }) {
               type="button"
               onClick={() => setIndex(i)}
               aria-current={i === index ? "true" : undefined}
-              aria-label={`Elemento ${i + 1} de ${items.length}`}
+              aria-label={t("instagram.media.itemOf", { n: i + 1, total: items.length })}
               className={cn(
                 "relative h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon",
                 i === index

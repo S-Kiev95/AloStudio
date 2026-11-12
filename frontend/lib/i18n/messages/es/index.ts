@@ -9,6 +9,7 @@
 import type { Strings } from "../types";
 
 import { core } from "./core";
+import { instagram } from "./instagram";
 import { publications } from "./publications";
 import { reports } from "./reports";
 import { products } from "./products";
@@ -22,6 +23,7 @@ import { conversations } from "./conversations";
 
 export const es = {
   ...core,
+  instagram,
   publications,
   reports,
   products,

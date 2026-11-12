@@ -20,29 +20,31 @@ import {
 import { cn } from "@/lib/utils";
 
 import { PostReplyPicker } from "./post-reply-picker";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const MATCHES: { value: MatchType; label: string; help: string }[] = [
+const MATCHES: { value: MatchType; label: MessageKey; help: MessageKey }[] = [
   {
     value: "keyword",
-    label: "Palabra clave",
-    help: "“Comentá INFO y te lo paso”. Solo responde si el comentario incluye alguna de las palabras.",
+    label: "instagram.rules.match.keyword",
+    help: "instagram.rules.match.keywordHelp",
   },
   {
     value: "semantic",
-    label: "Por similitud",
-    help: "Busca en tus respuestas preparadas la más parecida. Si ninguna se acerca, no responde.",
+    label: "instagram.rules.match.semantic",
+    help: "instagram.rules.match.semanticHelp",
   },
   {
     value: "all",
-    label: "Todos",
-    help: "Contesta cualquier comentario que no haya coincidido antes.",
+    label: "instagram.rules.match.all",
+    help: "instagram.rules.match.allHelp",
   },
 ];
 
-const MATCH_LABEL: Record<MatchType, string> = {
-  keyword: "Palabra clave",
-  semantic: "Por similitud",
-  all: "Todos",
+const MATCH_LABEL: Record<MatchType, MessageKey> = {
+  keyword: "instagram.rules.match.keyword",
+  semantic: "instagram.rules.match.semantic",
+  all: "instagram.rules.match.all",
 };
 
 /** How close a comment has to be for a similarity rule to answer.
@@ -53,23 +55,23 @@ const MATCH_LABEL: Record<MatchType, string> = {
  *  same question lands around 0.23-0.47, a different question at 0.65+. */
 const STRICTNESS: {
   value: number;
-  label: string;
-  help: string;
+  label: MessageKey;
+  help: MessageKey;
 }[] = [
   {
     value: 0.45,
-    label: "Exigente",
-    help: "Solo si preguntan casi con las mismas palabras.",
+    label: "instagram.rules.strict.strict",
+    help: "instagram.rules.strict.strictHelp",
   },
   {
     value: 0.55,
-    label: "Equilibrada",
-    help: "Entiende la misma pregunta dicha de otra forma. Recomendada.",
+    label: "instagram.rules.strict.balanced",
+    help: "instagram.rules.strict.balancedHelp",
   },
   {
     value: 0.65,
-    label: "Amplia",
-    help: "Contesta aunque se parezca poco. Puede responder otra pregunta.",
+    label: "instagram.rules.strict.broad",
+    help: "instagram.rules.strict.broadHelp",
   },
 ];
 
@@ -98,6 +100,7 @@ export function PostAutoreplyRules({
   accountId: string;
   postId: number;
 }) {
+  const t = useT();
   const rules = usePostRules(accountId, postId);
   const status = useAutoreplyStatus(accountId);
   const create = useCreatePostRule(accountId, postId);
@@ -177,7 +180,7 @@ export function PostAutoreplyRules({
       else await create.mutateAsync(input);
       reset();
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo guardar.");
+      setError((e as { message?: string })?.message ?? t("instagram.saveFailed"));
     }
   }
 
@@ -191,12 +194,12 @@ export function PostAutoreplyRules({
       <div className="flex items-start justify-between gap-3">
         {/* The card around this already carries the title. */}
         <p className="text-xs text-fg-muted">
-          Nunca responde a tus propios comentarios ni dos veces al mismo.
+          {t("instagram.rules.neverOwn")}
         </p>
         {!open ? (
           <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
             <Plus className="h-4 w-4" aria-hidden />
-            Agregar regla
+            {t("instagram.rules.add")}
           </Button>
         ) : null}
       </div>
@@ -206,7 +209,7 @@ export function PostAutoreplyRules({
           {/* Named, because the form sits above the list and an edit would
               otherwise look like a second rule being written. */}
           <p className="text-sm font-medium text-fg">
-            {editing ? "Editar regla" : "Nueva regla"}
+            {editing ? t("instagram.rules.edit") : t("instagram.rules.new")}
           </p>
           {error ? (
             <p role="alert" className="text-sm text-danger">
@@ -235,10 +238,10 @@ export function PostAutoreplyRules({
                     matchType === m.value ? "text-lit" : "text-fg",
                   )}
                 >
-                  {m.label}
+                  {t(m.label)}
                 </span>
                 <span className="mt-0.5 block text-xs text-fg-muted">
-                  {m.help}
+                  {t(m.help)}
                 </span>
               </button>
             ))}
@@ -247,16 +250,16 @@ export function PostAutoreplyRules({
           {matchType === "keyword" ? (
             <div className="space-y-1.5">
               <Label htmlFor="kw" required>
-                Palabras que lo disparan
+                {t("instagram.rules.triggerWords")}
               </Label>
               <Input
                 id="kw"
                 value={keywords}
                 onChange={(e) => setKeywords(e.target.value)}
-                placeholder="info, link, precio"
+                placeholder={t("instagram.rules.triggerPlaceholder")}
               />
               <p className="text-xs text-fg-muted">
-                Separadas por coma. No distingue mayúsculas ni acentos.
+                {t("instagram.rules.triggerHelp")}
               </p>
             </div>
           ) : null}
@@ -264,7 +267,7 @@ export function PostAutoreplyRules({
           {needsText ? (
             <div className="space-y-1.5">
               <Label htmlFor="rt" required>
-                Responder
+                {t("instagram.reply")}
               </Label>
               <Textarea
                 id="rt"
@@ -272,18 +275,18 @@ export function PostAutoreplyRules({
                 maxLength={2200}
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                placeholder="¡Ahí va! https://tutienda.com/promo"
+                placeholder={t("instagram.rules.replyPlaceholder")}
               />
             </div>
           ) : (
             <>
               <p className="rounded-md border border-glass bg-surface-2 p-2.5 text-xs text-fg-muted">
                 {semanticAvailable
-                  ? "Usa tus respuestas preparadas. Al guardar la regla vas a poder elegir cuáles usa esta publicación."
-                  : "Este modo no está configurado en el servidor (falta la clave de embeddings), así que la regla no va a contestar nada todavía."}
+                  ? t("instagram.rules.usesAnswers")
+                  : t("instagram.rules.semanticOff")}
               </p>
               <div className="space-y-1.5">
-                <Label>Cuánto se tiene que parecer</Label>
+                <Label>{t("instagram.rules.howClose")}</Label>
                 <div className="grid gap-2 sm:grid-cols-3">
                   {levels.map((s) => (
                     <button
@@ -307,38 +310,37 @@ export function PostAutoreplyRules({
                             : "text-fg",
                         )}
                       >
-                        {s.label}
+                        {t(s.label)}
                       </span>
                       <span className="mt-0.5 block text-xs text-fg-muted">
-                        {s.help}
+                        {t(s.help)}
                       </span>
                     </button>
                   ))}
                 </div>
                 <p className="text-xs text-fg-muted">
-                  Si ninguna respuesta llega a ese parecido, el comentario
-                  queda para que lo conteste una persona.
+                  {t("instagram.rules.noMatchHuman")}
                 </p>
               </div>
             </>
           )}
 
           <div className="space-y-1.5">
-            <Label>Dónde responder</Label>
+            <Label>{t("instagram.rules.where")}</Label>
             <div className="flex flex-wrap gap-2">
               {(
                 [
                   {
                     v: "dm" as Delivery,
                     icon: Send,
-                    label: "Mensaje privado",
-                    help: "El link no queda a la vista y te deja el contacto en la bandeja.",
+                    label: t("instagram.rules.dm"),
+                    help: t("instagram.rules.dmHelp"),
                   },
                   {
                     v: "public" as Delivery,
                     icon: MessageSquare,
-                    label: "Respuesta pública",
-                    help: "Debajo del comentario, a la vista de todos.",
+                    label: t("instagram.rules.public"),
+                    help: t("instagram.rules.publicHelp"),
                   },
                 ] as const
               ).map((d) => {
@@ -382,21 +384,20 @@ export function PostAutoreplyRules({
               loading={create.isPending || update.isPending}
               disabled={!canSave}
             >
-              {editing ? "Guardar cambios" : "Guardar regla"}
+              {editing ? t("common.saveChanges") : t("instagram.rules.save")}
             </Button>
             <Button size="sm" variant="ghost" onClick={reset}>
-              Cancelar
+              {t("actions.cancel")}
             </Button>
           </div>
         </div>
       ) : null}
 
       {rules.isLoading ? (
-        <p className="py-4 text-center text-sm text-fg-muted">Cargando…</p>
+        <p className="py-4 text-center text-sm text-fg-muted">{t("common.loading")}</p>
       ) : (rules.data?.length ?? 0) === 0 ? (
         <p className="py-4 text-center text-sm text-fg-muted">
-          Sin reglas: los comentarios de esta publicación quedan para que los
-          responda una persona.
+          {t("instagram.rules.none")}
         </p>
       ) : (
         <ul className="divide-y divide-glass overflow-hidden rounded-md border border-glass">
@@ -408,7 +409,7 @@ export function PostAutoreplyRules({
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-1.5 text-xs">
                   <span className="rounded-pill bg-surface-2 px-2 py-0.5 font-medium text-fg">
-                    {MATCH_LABEL[r.match_type]}
+                    {t(MATCH_LABEL[r.match_type])}
                   </span>
                   {r.keywords ? (
                     <span className="font-medium text-lit">
@@ -416,23 +417,27 @@ export function PostAutoreplyRules({
                     </span>
                   ) : null}
                   <span className="text-fg-muted">
-                    {r.delivery === "dm" ? "· por privado" : "· en público"}
+                    {r.delivery === "dm" ? t("instagram.rules.viaDm") : t("instagram.rules.viaPublic")}
                   </span>
                   {r.match_type === "semantic" ? (
                     <span className="text-fg-muted">
                       ·{" "}
-                      {levels.find((s) => s.value === effectiveOf(r))
-                        ?.label ?? `exigencia ${effectiveOf(r)}`}
+                      {(() => {
+                        const level = levels.find((s) => s.value === effectiveOf(r));
+                        return level
+                          ? t(level.label)
+                          : t("instagram.rules.strictnessValue", { value: effectiveOf(r) });
+                      })()}
                     </span>
                   ) : null}
                 </p>
                 <p className="mt-1 truncate text-sm text-fg">
-                  {r.reply_text ?? "Usa las respuestas preparadas"}
+                  {r.reply_text ?? t("instagram.rules.usesAnswersShort")}
                 </p>
               </div>
               <button
                 type="button"
-                aria-label="Editar regla"
+                aria-label={t("instagram.rules.edit")}
                 onClick={() => edit(r)}
                 className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg"
               >
@@ -440,10 +445,10 @@ export function PostAutoreplyRules({
               </button>
               <button
                 type="button"
-                aria-label="Eliminar regla"
+                aria-label={t("instagram.rules.delete")}
                 disabled={del.isPending}
                 onClick={() => {
-                  if (window.confirm("¿Eliminar esta regla?")) del.mutate(r.id);
+                  if (window.confirm(t("instagram.rules.deleteConfirm"))) del.mutate(r.id);
                 }}
                 className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50"
               >
@@ -460,11 +465,10 @@ export function PostAutoreplyRules({
         <div className="space-y-2 border-t border-glass pt-4">
           <div>
             <p className="text-sm font-medium text-fg">
-              Qué respuestas usa esta publicación
+              {t("instagram.rules.whichAnswers")}
             </p>
             <p className="text-xs text-fg-muted">
-              Tildá las que apliquen. Se escriben una sola vez en Instagram →
-              Respuestas automáticas y las podés usar en varias publicaciones.
+              {t("instagram.rules.whichAnswersHelp")}
             </p>
           </div>
           <PostReplyPicker accountId={accountId} postId={postId} />

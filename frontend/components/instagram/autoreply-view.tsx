@@ -16,10 +16,13 @@ import {
   useDeleteCommentReply,
   useUpdateCommentReply,
 } from "@/lib/api/instagram-autoreply";
+import { useT } from "@/lib/i18n/provider";
+import { rich } from "@/lib/i18n/rich";
 
 /** The account's library of prepared answers — written once here, then
  *  picked per publication (see `PostReplyPicker`). */
 export function AutoreplyView({ accountId }: { accountId: string }) {
+  const t = useT();
   const status = useAutoreplyStatus(accountId);
   const list = useCommentReplies(accountId);
   const create = useCreateCommentReply(accountId);
@@ -54,7 +57,7 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
       else await create.mutateAsync(input);
       reset();
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo guardar.");
+      setError((e as { message?: string })?.message ?? t("instagram.saveFailed"));
     }
   }
 
@@ -71,18 +74,18 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
       <div className="space-y-2 rounded-md border border-glass p-3">
         <div className="space-y-1.5">
           <Label htmlFor="trigger" required>
-            Si preguntan algo como…
+            {t("instagram.answers.ifTheyAsk")}
           </Label>
           <Input
             id="trigger"
             value={trigger}
             onChange={(e) => setTrigger(e.target.value)}
-            placeholder="¿Hacen envíos al interior?"
+            placeholder={t("instagram.answers.questionPlaceholder")}
           />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="reply" required>
-            Responder
+            {t("instagram.reply")}
           </Label>
           <Textarea
             id="reply"
@@ -90,7 +93,7 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
             value={reply}
             maxLength={2200}
             onChange={(e) => setReply(e.target.value)}
-            placeholder="¡Sí! Enviamos a todo el país. Te paso los costos por DM."
+            placeholder={t("instagram.answers.answerPlaceholder")}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -101,22 +104,21 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
             disabled={!trigger.trim() || !reply.trim()}
           >
             <Plus className="h-4 w-4" aria-hidden />
-            {editing ? "Guardar cambios" : "Agregar"}
+            {editing ? t("common.saveChanges") : t("instagram.add")}
           </Button>
           {editing ? (
             <Button size="sm" variant="ghost" onClick={reset}>
-              Cancelar
+              {t("actions.cancel")}
             </Button>
           ) : null}
         </div>
       </div>
 
       {list.isLoading ? (
-        <p className="py-6 text-center text-sm text-fg-muted">Cargando…</p>
+        <p className="py-6 text-center text-sm text-fg-muted">{t("common.loading")}</p>
       ) : (list.data?.length ?? 0) === 0 ? (
         <p className="py-6 text-center text-sm text-fg-muted">
-          Todavía no cargaste respuestas. Sin ninguna, este modo no contesta
-          nada.
+          {t("instagram.answers.empty")}
         </p>
       ) : (
         <ul className="divide-y divide-glass overflow-hidden rounded-md border border-glass">
@@ -133,13 +135,13 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
                 {available && !r.indexed ? (
                   <p className="mt-1 flex items-center gap-1 text-xs text-warning">
                     <TriangleAlert className="h-3 w-3" aria-hidden />
-                    Sin indexar — no se va a usar. Volvé a guardarla.
+                    {t("instagram.answers.notIndexed")}
                   </p>
                 ) : null}
               </div>
               <button
                 type="button"
-                aria-label="Editar"
+                aria-label={t("actions.edit")}
                 onClick={() => {
                   setEditing(r);
                   setTrigger(r.trigger);
@@ -151,10 +153,10 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
               </button>
               <button
                 type="button"
-                aria-label="Eliminar"
+                aria-label={t("actions.delete")}
                 disabled={del.isPending}
                 onClick={() => {
-                  if (window.confirm(`¿Eliminar "${r.trigger}"?`)) {
+                  if (window.confirm(t("instagram.answers.deleteConfirm", { name: r.trigger }))) {
                     del.mutate(r.id);
                   }
                 }}
@@ -172,12 +174,9 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Respuestas preparadas</CardTitle>
+        <CardTitle>{t("instagram.answers.title")}</CardTitle>
         <p className="mt-1 text-sm text-fg-muted">
-          Escribí un ejemplo de cómo lo preguntaría alguien y qué contestar.
-          Podés cargar varios ejemplos con la misma respuesta para cubrir
-          distintas formas de preguntar lo mismo. Después, en cada
-          publicación, elegís cuáles usa.
+          {t("instagram.answers.intro")}
         </p>
       </CardHeader>
       <CardContent>{body}</CardContent>
@@ -189,6 +188,7 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
  *  guardarla" here would send the admin in a circle — nothing they do in
  *  this screen can fix it. */
 function UnavailableNotice() {
+  const t = useT();
   return (
     <div
       role="alert"
@@ -196,13 +196,12 @@ function UnavailableNotice() {
     >
       <p className="flex items-center gap-1.5 font-medium text-warning">
         <TriangleAlert className="h-4 w-4" aria-hidden />
-        La respuesta por similitud no está configurada en este servidor
+        {t("instagram.answers.notConfigured")}
       </p>
       <p className="mt-1 text-fg-muted">
-        Falta la clave del proveedor de embeddings (<code>OPENAI_API_KEY</code>).
-        Podés cargar las respuestas igual, pero no se van a indexar ni a usar
-        hasta que se configure. Las reglas por palabra clave no dependen de
-        esto y siguen funcionando.
+        {rich(t("instagram.answers.missingKey"), {
+          key: <code>OPENAI_API_KEY</code>,
+        })}
       </p>
     </div>
   );

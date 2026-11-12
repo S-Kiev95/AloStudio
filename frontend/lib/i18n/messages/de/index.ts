@@ -1,6 +1,7 @@
 import type { Messages } from "../es";
 
 import { core } from "./core";
+import { instagram } from "./instagram";
 import { publications } from "./publications";
 import { dates } from "./dates";
 import { crm } from "./crm";
@@ -14,6 +15,7 @@ import { actions } from "./actions";
 
 export const de: Messages = {
   ...core,
+  instagram,
   publications,
   dates,
   crm,

@@ -13,6 +13,8 @@ import type { ConnectFlow } from "@/lib/inboxes/instagram-capabilities";
 import { ConnectCapabilitiesDialog } from "./connect-capabilities-dialog";
 import { ConnectedChannelCard } from "./connected-channel-card";
 import { ManualConnectForm } from "./manual-connect-form";
+import { useT } from "@/lib/i18n/provider";
+import type { Translate } from "@/lib/i18n/translate";
 
 /** What the OAuth callback redirected back with (see the backend's
  *  `_back_to_dashboard`): `ig=connected|reconnected` + `ig_login` +
@@ -21,17 +23,19 @@ function outcomeMessage(
   ig: string | null,
   login: string | null,
   user: string | null,
+  t: Translate,
 ): string | null {
   if (ig !== "connected" && ig !== "reconnected") return null;
-  const flow = login === "instagram" ? "Instagram Login" : "Facebook Login";
+  const flow = login === "instagram" ? "Instagram Login" : "Facebook Login"; // i18n-ignore
   // Meta doesn't always hand back the handle; say "Cuenta" when it didn't.
-  const who = user ? `@${user}` : "Cuenta";
+  const who = user ? `@${user}` : t("shell.account");
   return ig === "reconnected"
-    ? `${who} reconectada por ${flow}. Se renovó el token de la cuenta que ya tenías.`
-    : `${who} conectada por ${flow}.`;
+    ? t("instagram.connect.reconnectedVia", { who, flow })
+    : t("instagram.connect.connectedVia", { who, flow });
 }
 
 export function InstagramConnection({ accountId }: { accountId: string }) {
+  const t = useT();
   const inboxes = useInstagramInboxes(accountId);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -45,6 +49,7 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
       searchParams.get("ig"),
       searchParams.get("ig_login"),
       searchParams.get("ig_user"),
+      t,
     ),
   );
 
@@ -74,7 +79,7 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
       // sent the admin looking in the wrong place.
       setOauthError(
         (e as { message?: string })?.message ??
-          "No se pudo iniciar la conexión.",
+          t("publications.channels.connectStartFailed"),
       );
       setPendingFlow(null);
     } finally {
@@ -97,18 +102,18 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
       {/* Connected channels */}
       <Card>
         <CardHeader>
-          <CardTitle>Cuentas conectadas</CardTitle>
+          <CardTitle>{t("instagram.connect.connectedAccounts")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {inboxes.isLoading ? (
-            <p className="text-sm text-fg-muted">Cargando…</p>
+            <p className="text-sm text-fg-muted">{t("common.loading")}</p>
           ) : inboxes.isError ? (
             <p role="alert" className="text-sm text-danger">
-              No se pudieron cargar las cuentas.
+              {t("instagram.connect.loadFailed")}
             </p>
           ) : (inboxes.data?.length ?? 0) === 0 ? (
             <p className="text-sm text-fg-muted">
-              Todavía no hay ninguna cuenta de Instagram conectada.
+              {t("instagram.connect.none")}
             </p>
           ) : (
             inboxes.data?.map((ib) => (
@@ -125,7 +130,7 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
       {/* Connect new */}
       <Card>
         <CardHeader>
-          <CardTitle>Conectar una cuenta</CardTitle>
+          <CardTitle>{t("instagram.connect.connectAccount")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {oauthError ? (
@@ -148,8 +153,7 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
             </Button>
           </div>
           <p className="text-xs text-fg-muted">
-            Antes de ir a Meta te mostramos qué vas a poder hacer con cada
-            método.
+            {t("instagram.connect.beforeMeta")}
           </p>
 
           <div className="border-t border-border pt-4">
@@ -158,7 +162,7 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
               onClick={() => setShowManual((v) => !v)}
               className="text-sm text-info hover:underline"
             >
-              {showManual ? "Ocultar" : "Modo avanzado: pegar un token"}
+              {showManual ? t("instagram.comments.hide") : t("instagram.connect.advanced")}
             </button>
             {showManual ? (
               <div className="mt-3">

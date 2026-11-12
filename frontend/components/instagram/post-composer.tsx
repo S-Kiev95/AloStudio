@@ -16,14 +16,16 @@ import {
   useProducts,
 } from "@/lib/api/instagram-posts";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 // No standalone "Video": Meta deprecated the VIDEO media_type — a single
 // feed video is published as a Reel now (and shows in the feed the same).
-const MEDIA_TYPES: { value: MediaType; label: string }[] = [
-  { value: "IMAGE", label: "Imagen" },
-  { value: "REELS", label: "Reel" },
-  { value: "CAROUSEL", label: "Carrusel" },
-  { value: "STORIES", label: "Story" },
+const MEDIA_TYPES: { value: MediaType; label: MessageKey }[] = [
+  { value: "IMAGE", label: "instagram.composer.type.image" },
+  { value: "REELS", label: "instagram.composer.type.reel" },
+  { value: "CAROUSEL", label: "instagram.composer.type.carousel" },
+  { value: "STORIES", label: "instagram.composer.type.story" },
 ];
 
 const selectClass =
@@ -38,6 +40,7 @@ export function PostComposer({
   accountId: string;
   onCreated?: () => void;
 }) {
+  const t = useT();
   const inboxes = useInstagramInboxes(accountId);
   const products = useProducts(accountId);
   const create = useCreatePost(accountId);
@@ -94,13 +97,13 @@ export function PostComposer({
 
   async function submit() {
     setError(null);
-    if (!inboxId) return setError("Elegí una cuenta de Instagram.");
+    if (!inboxId) return setError(t("instagram.composer.pickAccount"));
     const source = buildSource();
     if (!source)
       return setError(
         mediaType === "CAROUSEL"
-          ? "El carrusel necesita al menos 2 elementos con URL."
-          : "Completá la URL del contenido.",
+          ? t("instagram.composer.carouselMin")
+          : t("instagram.composer.urlRequired"),
       );
 
     const input: CreatePostInput = {
@@ -132,7 +135,7 @@ export function PostComposer({
       onCreated?.();
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo crear la publicación.",
+        (e as { message?: string })?.message ?? t("instagram.composer.createFailed"),
       );
     }
   }
@@ -154,7 +157,7 @@ export function PostComposer({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="c-inbox" required>
-            Cuenta
+            {t("shell.account")}
           </Label>
           <select
             id="c-inbox"
@@ -162,7 +165,7 @@ export function PostComposer({
             value={inboxId}
             onChange={(e) => setInboxId(e.target.value)}
           >
-            <option value="">Elegí una cuenta…</option>
+            <option value="">{t("instagram.composer.pickAccountPlaceholder")}</option>
             {inboxes.data?.map((ib) => (
               <option key={ib.id} value={ib.id}>
                 {ib.name}
@@ -171,7 +174,7 @@ export function PostComposer({
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="c-type">Tipo</Label>
+          <Label htmlFor="c-type">{t("instagram.composer.typeLabel")}</Label>
           <select
             id="c-type"
             className={selectClass}
@@ -180,7 +183,7 @@ export function PostComposer({
           >
             {MEDIA_TYPES.map((m) => (
               <option key={m.value} value={m.value}>
-                {m.label}
+                {t(m.label)}
               </option>
             ))}
           </select>
@@ -189,15 +192,15 @@ export function PostComposer({
 
       {/* Source fields per media type */}
       {mediaType === "IMAGE" ? (
-        <UrlField id="c-img" label="Imagen" value={imageUrl} onChange={setImageUrl} accountId={accountId} uploadKind="image" />
+        <UrlField id="c-img" label={t("publications.media.image")} value={imageUrl} onChange={setImageUrl} accountId={accountId} uploadKind="image" />
       ) : null}
       {mediaType === "REELS" ? (
         <>
-          <UrlField id="c-reel" label="Video" value={videoUrl} onChange={setVideoUrl} accountId={accountId} uploadKind="video" />
-          <UrlField id="c-cover" label="Portada (opcional)" value={coverUrl} onChange={setCoverUrl} required={false} accountId={accountId} uploadKind="image" />
+          <UrlField id="c-reel" label={t("publications.media.video")} value={videoUrl} onChange={setVideoUrl} accountId={accountId} uploadKind="video" />
+          <UrlField id="c-cover" label={t("instagram.composer.cover")} value={coverUrl} onChange={setCoverUrl} required={false} accountId={accountId} uploadKind="image" />
           <label className="flex items-center gap-2 text-sm text-fg">
             <input type="checkbox" checked={shareToFeed} onChange={(e) => setShareToFeed(e.target.checked)} />
-            También compartir en el feed
+            {t("instagram.composer.shareToFeed")}
           </label>
         </>
       ) : null}
@@ -205,15 +208,15 @@ export function PostComposer({
         <div className="space-y-1.5">
           <div className="flex gap-3 text-sm">
             <label className="flex items-center gap-1.5">
-              <input type="radio" checked={storyKind === "image"} onChange={() => setStoryKind("image")} /> Imagen
+              <input type="radio" checked={storyKind === "image"} onChange={() => setStoryKind("image")} /> {t("publications.media.image")}
             </label>
             <label className="flex items-center gap-1.5">
-              <input type="radio" checked={storyKind === "video"} onChange={() => setStoryKind("video")} /> Video
+              <input type="radio" checked={storyKind === "video"} onChange={() => setStoryKind("video")} /> {t("publications.media.video")}
             </label>
           </div>
           <UrlField
             id="c-story"
-            label={storyKind === "image" ? "Imagen" : "Video"}
+            label={storyKind === "image" ? t("publications.media.image") : t("publications.media.video")}
             value={storyUrl}
             onChange={setStoryUrl}
             accountId={accountId}
@@ -223,7 +226,7 @@ export function PostComposer({
       ) : null}
       {mediaType === "CAROUSEL" ? (
         <div className="space-y-2">
-          <Label>Elementos (2–10)</Label>
+          <Label>{t("instagram.composer.items")}</Label>
           {children.map((c, i) => (
             <div key={i} className="flex items-center gap-2">
               <select
@@ -237,8 +240,8 @@ export function PostComposer({
                   )
                 }
               >
-                <option value="image">Imagen</option>
-                <option value="video">Video</option>
+                <option value="image">{t("publications.media.image")}</option>
+                <option value="video">{t("publications.media.video")}</option>
               </select>
               <Input
                 placeholder="URL"
@@ -252,7 +255,12 @@ export function PostComposer({
               <CompactImageUpload
                 accountId={accountId}
                 kind={c.kind}
-                label={`Subir ${c.kind === "image" ? "imagen" : "video"} del elemento ${i + 1}`}
+                label={t(
+                  c.kind === "image"
+                    ? "instagram.composer.uploadItemImage"
+                    : "instagram.composer.uploadItemVideo",
+                  { n: i + 1 },
+                )}
                 onUploaded={(url) =>
                   setChildren((prev) =>
                     prev.map((x, j) => (j === i ? { ...x, url } : x)),
@@ -262,7 +270,7 @@ export function PostComposer({
               {children.length > 2 ? (
                 <button
                   type="button"
-                  aria-label="Quitar"
+                  aria-label={t("common.remove")}
                   onClick={() => setChildren((prev) => prev.filter((_, j) => j !== i))}
                   className="rounded-md p-2 text-fg-muted hover:bg-surface-2"
                 >
@@ -278,21 +286,21 @@ export function PostComposer({
               size="sm"
               onClick={() => setChildren((prev) => [...prev, { kind: "image", url: "" }])}
             >
-              <Plus className="h-4 w-4" aria-hidden /> Agregar elemento
+              <Plus className="h-4 w-4" aria-hidden /> {t("instagram.composer.addItem")}
             </Button>
           ) : null}
         </div>
       ) : null}
 
       <div className="space-y-1.5">
-        <Label htmlFor="c-caption">Caption</Label>
+        <Label htmlFor="c-caption">{t("instagram.caption")}</Label>
         <Textarea id="c-caption" rows={3} value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={2200} />
       </div>
 
       {/* Products */}
       {products.data?.length ? (
         <div className="space-y-1.5">
-          <Label>Productos vinculados</Label>
+          <Label>{t("instagram.linkedProducts")}</Label>
           <div className="flex flex-wrap gap-1.5">
             {products.data.map((p) => {
               const on = productIds.includes(p.id);
@@ -319,17 +327,17 @@ export function PostComposer({
       <div className="space-y-1.5">
         <label className="flex items-center gap-2 text-sm text-fg">
           <input type="checkbox" checked={scheduleLater} onChange={(e) => setScheduleLater(e.target.checked)} />
-          Programar para más tarde
+          {t("instagram.composer.scheduleLater")}
         </label>
         {scheduleLater ? (
           <Input type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} />
         ) : (
-          <p className="text-xs text-fg-muted">Se publica ahora (en el próximo ciclo del worker).</p>
+          <p className="text-xs text-fg-muted">{t("instagram.composer.publishesNow")}</p>
         )}
       </div>
 
       <Button onClick={submit} loading={create.isPending}>
-        {scheduleLater ? "Programar publicación" : "Publicar"}
+        {scheduleLater ? t("instagram.composer.schedule") : t("instagram.composer.publish")}
       </Button>
     </div>
   );
@@ -429,6 +437,7 @@ function UrlField({
    *  MP4/H.264 for Meta to accept it. */
   uploadKind?: "image" | "video";
 }) {
+  const t = useT();
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -444,7 +453,7 @@ function UrlField({
       onChange(await uploadInstagramMedia(accountId, file));
     } catch (e) {
       setUploadError(
-        e instanceof Error ? e.message : "No se pudo subir la imagen.",
+        e instanceof Error ? e.message : t("instagram.composer.uploadImageFailed"),
       );
     } finally {
       setUploading(false);
@@ -471,7 +480,12 @@ function UrlField({
             type="file"
             accept={isVideo ? "video/*" : "image/*"}
             className="hidden"
-            aria-label={`Subir ${isVideo ? "video" : "imagen"} para ${label}`}
+            aria-label={t(
+              isVideo
+                ? "instagram.composer.uploadVideoFor"
+                : "instagram.composer.uploadImageFor",
+              { label },
+            )}
             tabIndex={-1}
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -500,11 +514,11 @@ function UrlField({
             <Upload className="h-4 w-4 shrink-0" aria-hidden />
             {uploading
               ? isVideo
-                ? "Subiendo video…"
-                : "Subiendo y convirtiendo…"
+                ? t("instagram.composer.uploadingVideo")
+                : t("instagram.composer.uploadingConverting")
               : dragging
-                ? `Soltá ${isVideo ? "el video" : "la imagen"} acá`
-                : `Arrastrá ${isVideo ? "un video" : "una imagen"} o hacé clic para elegirlo`}
+                ? t(isVideo ? "instagram.composer.dropVideo" : "instagram.composer.dropImage")
+                : t(isVideo ? "instagram.composer.dragVideo" : "instagram.composer.dragImage")}
           </button>
           {uploadError ? (
             <p role="alert" className="text-xs text-danger">
@@ -513,8 +527,8 @@ function UrlField({
           ) : (
             <p className="text-xs text-fg-muted">
               {isVideo
-                ? "Se sube tal cual: Instagram exige MP4 (H.264 + AAC). No lo convertimos."
-                : "Cualquier formato — la convertimos a JPEG (lo único que acepta Instagram)."}
+                ? t("instagram.composer.videoAsIs")
+                : t("instagram.composer.imageConverted")}
             </p>
           )}
           {value && !uploading ? (
@@ -530,7 +544,7 @@ function UrlField({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={value}
-                alt="Vista previa"
+                alt={t("publications.editor.preview")}
                 className="max-h-40 rounded-md border border-border object-contain"
               />
             )
