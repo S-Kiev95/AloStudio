@@ -191,7 +191,11 @@ export function ConversationView({
           >
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </Link>
-          <Avatar name={contactName} size="sm" />
+          <Avatar
+            name={contactName}
+            src={conv.data?.meta?.sender?.thumbnail}
+            size="sm"
+          />
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-semibold text-fg">
               {contactName}

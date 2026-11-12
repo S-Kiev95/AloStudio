@@ -4,7 +4,7 @@ Lista viva: qué falta de cada fase de `PLAN.fases-futuras.md`. Se actualiza
 al cerrar cada trabajo. El detalle de cada fase está en ese plan; acá solo
 el estado y lo que queda.
 
-Última actualización: 2026-11-11.
+Última actualización: 2026-11-12.
 
 ## Reparto entre los dos agentes
 
@@ -54,7 +54,7 @@ anota en esta sección y lo decide el dueño.
 | F11 CRM (Krayin) | B | Sin empezar |
 | F12 Grafos | B | Sin empezar |
 | F13 Multi-idioma | B | Sin empezar |
-| F14 Foto del contacto | B | Sin empezar |
+| F14 Foto del contacto | B | Hecha (2026-11-12), en develop; falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 
 ### Reglas para no pisarse
@@ -193,10 +193,26 @@ multi-idioma.
 
 ## F14. Foto del contacto
 
-- Foto de Instagram y Messenger guardada en MinIO y renovada; WhatsApp sigue
-  con iniciales.
-- Arreglo chico que se puede hacer antes: que las iniciales ignoren lo que
-  no es letra ("Lucía Pereira (demo)" muestra "L(").
+- **Hecho el 2026-11-12, en develop:** columnas `avatar_url` y
+  `avatar_refreshed_at` en `contacts` (migración `c2d3e4f5a6b8`). La foto
+  de Instagram y Messenger (`profile_pic` del Graph) se baja a MinIO unos
+  segundos después del primer mensaje (trabajo de ARQ) y se renueva cada 7
+  días para los contactos activos en los últimos 30 (cron diario 04:23 UTC,
+  hasta 200 por corrida). Se sirve por `GET /contacts/{id}/avatar` y llega
+  en `thumbnail`; `Avatar` la muestra en la lista y el encabezado de la
+  Bandeja, el panel del contacto y la lista de Contactos, y cae a las
+  iniciales si no hay o no carga. Las iniciales ya ignoran símbolos y lo que
+  va entre paréntesis ("Lucía Pereira (demo)" da "LP").
+- **Falta probarlo con Meta real** (en develop o CTC): que el Graph devuelva
+  `profile_pic` con los permisos actuales. Antes de la revisión de la app,
+  Meta solo responde por personas con rol en la app; sin foto quedan las
+  iniciales, sin error.
+- Los contactos viejos reciben foto en la primera corrida del cron después
+  de desplegar, si escribieron en los últimos 30 días.
+- WhatsApp sigue con iniciales (la API no da la foto). Gravatar para email:
+  no se hizo (opcional en el plan, apagado por defecto).
+- Al borrar un contacto, su foto queda en MinIO (clave fija por contacto,
+  pesa pocos KB). Borrarla junto con el contacto si llega a importar.
 
 ## F15. Canal de aviso por agente
 

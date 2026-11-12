@@ -342,6 +342,10 @@ class WorkerSettings:
         )
         from app.domains.portals.embeddings import reindex_article_task
         from app.workers.business_agent import release_to_ai_task
+        from app.workers.contact_avatars import (
+            refresh_contact_avatar_task,
+            refresh_stale_avatars_task,
+        )
         from app.workers.deliver_webhook import (
             MAX_ATTEMPTS as WEBHOOK_MAX_ATTEMPTS,
         )
@@ -392,6 +396,10 @@ class WorkerSettings:
             # Cron, below. Registered here because ARQ resolves a cron job
             # against the function list.
             fetch_imap_inboxes_task,
+            # Enqueued a few seconds after a new Instagram or Messenger
+            # contact writes; the daily refresh below is a cron.
+            refresh_contact_avatar_task,
+            refresh_stale_avatars_task,
         ]
 
     # ARQ reads these off the class, so they're class-level by contract, not
@@ -411,6 +419,7 @@ class WorkerSettings:
         from arq.connections import RedisSettings
         from arq.cron import cron
 
+        from app.workers.contact_avatars import refresh_stale_avatars_task
         from app.workers.email_poll import fetch_imap_inboxes_task
         from app.workers.publishing import (
             METRICS_JOB_TIMEOUT_SECONDS,
@@ -461,6 +470,14 @@ class WorkerSettings:
             cron(
                 fetch_imap_inboxes_task,
                 minute=set(range(1, 60, 2)),
+            ),
+            # Contact profile pictures, once a day: Meta's links expire and
+            # people change their picture. Early UTC, off the other jobs.
+            cron(
+                refresh_stale_avatars_task,
+                hour={4},
+                minute={23},
+                timeout=METRICS_JOB_TIMEOUT_SECONDS,
             ),
         ]
 

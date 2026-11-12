@@ -167,6 +167,17 @@ class Contact(TimestampMixin, table=True):
     country_code: str = Field(
         default="", sa_column=Column(String, nullable=True, server_default="")
     )
+    # Profile picture (F14): our copy in the object store, since Meta's
+    # links expire within days. ``avatar_refreshed_at`` is the last time Meta
+    # was asked, whether or not it had a picture, so a contact without one
+    # isn't asked again on every message.
+    avatar_url: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    avatar_refreshed_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
 
     # ------- flags + timestamps --------
     blocked: bool = Field(

@@ -68,6 +68,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
+from app.domains.contacts.avatar import enqueue_first_fetch
 from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.contacts.service import ContactInboxBuilder, dispatch_contact_created
 from app.domains.conversations.ad_referral import (
@@ -564,6 +565,7 @@ async def _process_message_event(
         session, account_id=channel.account_id, igsid=igsid
     )
     await _name_contact(session, contact=contact, channel=channel, igsid=igsid)
+    await enqueue_first_fetch(contact)
     contact_inbox = await ContactInboxBuilder(
         session=session,
         contact=contact,

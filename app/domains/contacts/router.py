@@ -42,6 +42,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi.responses import Response
 from sqlalchemy import func, or_
 from sqlalchemy.orm import lazyload, selectinload
 from sqlmodel import select
@@ -54,6 +55,7 @@ from app.core.deps import (
     require_admin,
 )
 from app.core.errors import ChatwootHTTPException
+from app.domains.contacts.avatar import read_avatar
 from app.domains.contacts.filter import contact_filter
 from app.domains.contacts.models import Contact, ContactInbox, Note
 from app.domains.contacts.presenters import (
@@ -325,6 +327,29 @@ async def show_contact(
     contact = await _find_contact_in_account(session, ctx, contact_id)
     return present_contact_show(
         contact, with_contact_inboxes=include_contact_inboxes
+    )
+
+
+@router.get("/{contact_id}/avatar")
+async def show_contact_avatar(
+    contact_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    """The contact's profile picture (F14), streamed from the object store,
+    which the browser can't reach. ``thumbnail`` links here with a ``v``
+    that changes on each refresh, so it can be cached for long."""
+    contact = await _find_contact_in_account(session, ctx, contact_id)
+    stored = await read_avatar(contact)
+    if stored is None:
+        raise ChatwootHTTPException(
+            status_code=404, detail={"error": "Resource could not be found"}
+        )
+    data, mime = stored
+    return Response(
+        content=data,
+        media_type=mime,
+        headers={"Cache-Control": "private, max-age=604800"},
     )
 
 

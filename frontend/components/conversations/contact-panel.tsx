@@ -190,7 +190,7 @@ export function ContactPanel({
       <div className="space-y-5 pb-4">
         {/* Identity */}
         <div className="flex flex-col items-center text-center">
-          <Avatar name={displayName} size="xl" />
+          <Avatar name={displayName} src={c.thumbnail} size="xl" />
           <p className="mt-3 max-w-full truncate text-base font-semibold text-fg">
             {displayName}
           </p>
