@@ -9,6 +9,9 @@
 import type { Strings } from "../types";
 
 import { core } from "./core";
+import { settingsOauth } from "./settingsOauth";
+import { settingsIntegrations } from "./settingsIntegrations";
+import { settingsInstall } from "./settingsInstall";
 import { settingsEmailTpl } from "./settingsEmailTpl";
 import { settingsAutomation } from "./settingsAutomation";
 import { settingsInboxes } from "./settingsInboxes";
@@ -49,6 +52,9 @@ import { conversations } from "./conversations";
 
 export const es = {
   ...core,
+  settingsOauth,
+  settingsIntegrations,
+  settingsInstall,
   settingsEmailTpl,
   settingsAutomation,
   settingsInboxes,

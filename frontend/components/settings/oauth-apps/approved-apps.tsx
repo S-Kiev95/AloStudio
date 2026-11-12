@@ -5,31 +5,33 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  OAUTH_SCOPE_LABEL,
   type OAuthAuthorization,
   useOAuthAuthorizations,
   useRevokeOAuthAuthorization,
 } from "@/lib/api/oauth";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
+import type { Translate } from "@/lib/i18n/translate";
 
-function when(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleString() : "Nunca";
+function when(iso: string | null, t: Translate, intlTag: string): string {
+  return iso ? new Date(iso).toLocaleString(intlTag) : t("settingsOauth.never");
 }
 
 /** The apps this user authorized in this account, to take access back. */
 export function ApprovedApps({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = useOAuthAuthorizations(accountId);
 
   return (
     <div className="overflow-hidden rounded-md border border-glass bg-surface">
       {isLoading ? (
-        <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+        <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
       ) : isError ? (
         <p role="alert" className="p-8 text-center text-sm text-danger">
-          No se pudieron cargar las apps aprobadas.
+          {t("settingsOauth.approvedLoadFailed")}
         </p>
       ) : (data?.length ?? 0) === 0 ? (
         <p className="p-8 text-center text-sm text-fg-muted">
-          No autorizaste ninguna app en esta cuenta.
+          {t("settingsOauth.noneApproved")}
         </p>
       ) : (
         <ul className="divide-y divide-glass">
@@ -49,13 +51,15 @@ function ApprovedRow({
   accountId: string;
   authorization: OAuthAuthorization;
 }) {
+  const t = useT();
+  const intlTag = useIntlTag();
   const revoke = useRevokeOAuthAuthorization(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onRevoke() {
     if (
       !window.confirm(
-        `¿Quitarle el acceso a "${authorization.app.name}"? Va a dejar de poder usar tu cuenta.`,
+        t("settingsOauth.revokeConfirm", { name: authorization.app.name }),
       )
     )
       return;
@@ -63,7 +67,7 @@ function ApprovedRow({
     try {
       await revoke.mutateAsync(authorization.app.id);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo quitar el acceso.");
+      setError((e as { message?: string })?.message ?? t("settingsOauth.revokeFailed"));
     }
   }
 
@@ -75,9 +79,11 @@ function ApprovedRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">{authorization.app.name}</p>
         <p className="font-numeric text-xs tabular-nums text-fg-muted">
-          {OAUTH_SCOPE_LABEL[authorization.scope]} · Autorizada{" "}
-          {when(authorization.authorized_at)} · Último uso{" "}
-          {when(authorization.last_used_at)}
+          {t("settingsOauth.authorizedLine", {
+            scope: t(`settingsOauth.scope.${authorization.scope}`),
+            authorized: when(authorization.authorized_at, t, intlTag),
+            lastUsed: when(authorization.last_used_at, t, intlTag),
+          })}
         </p>
         {error ? (
           <p role="alert" className="text-xs text-danger">
@@ -92,7 +98,7 @@ function ApprovedRow({
         loading={revoke.isPending}
         onClick={() => void onRevoke()}
       >
-        Quitar acceso
+        {t("settingsOauth.revoke")}
       </Button>
     </li>
   );

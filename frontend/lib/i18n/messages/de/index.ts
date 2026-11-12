@@ -1,6 +1,9 @@
 import type { Messages } from "../es";
 
 import { core } from "./core";
+import { settingsOauth } from "./settingsOauth";
+import { settingsIntegrations } from "./settingsIntegrations";
+import { settingsInstall } from "./settingsInstall";
 import { settingsEmailTpl } from "./settingsEmailTpl";
 import { settingsAutomation } from "./settingsAutomation";
 import { settingsInboxes } from "./settingsInboxes";
@@ -41,6 +44,9 @@ import { actions } from "./actions";
 
 export const de: Messages = {
   ...core,
+  settingsOauth,
+  settingsIntegrations,
+  settingsInstall,
   settingsEmailTpl,
   settingsAutomation,
   settingsInboxes,
