@@ -53,7 +53,7 @@ anota en esta sección y lo decide el dueño.
 | F10 Jev y Laya | B | Sin empezar |
 | F11 CRM (Krayin) | B | Sin empezar |
 | F12 Grafos | B | Sin empezar |
-| F13 Multi-idioma | B | Interfaz en 7 idiomas, correos y avisos en el idioma del destinatario, en develop (2026-11-12); falta el bot externo (Alicia), errores de la API y revisión en navegador |
+| F13 Multi-idioma | B | Interfaz en 7 idiomas, correos y avisos en el idioma del destinatario, en develop (2026-11-12); falta el bot que atiende clientes (externo), errores de la API y revisión en navegador |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en develop; falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 
@@ -205,9 +205,9 @@ Detalle en `PLAN.i18n.md`.
   contraseña, invitaciones, avisos), avisos push y por WhatsApp en el idioma
   de cada destinatario (`app/core/i18n/`); Instalación y Plugs traducidos
   en el panel; quien nunca eligió idioma queda con el que ve al entrar.
-- **Falta:** el bot que atiende clientes (Alicia) vive fuera del repo: la
-  regla para responder en el idioma del cliente está en `INTEGRATIONS.md`,
-  falta aplicarla allá con el visto bueno del dueño. Además: errores de la
+- **Falta:** confirmar con el dueño cuál es el bot que atiende clientes
+  (entra de afuera; en el repo no hay uno) y aplicarle la regla de idioma
+  que está en `INTEGRATIONS.md`. Además: errores de la
   API como códigos traducibles, la plantilla de WhatsApp aprobada en otros
   idiomas, y revisar las pantallas en el navegador en cada idioma.
 

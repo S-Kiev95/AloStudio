@@ -105,12 +105,13 @@ oscuro, buscando textos que no entran (botones y pestañas en alemán y
 francés) y frases que quedaron raras.
 
 ### Pendiente del backend y el bot
-1. **El bot que atiende clientes** (Alicia) no vive en este repo: entra por
-   webhooks y MCP y su prompt está en su propio servidor. La regla para que
-   conteste en el idioma del cliente quedó en `INTEGRATIONS.md` ("Replying
-   in the customer's language"); falta aplicarla en Alicia, con el visto
-   bueno del dueño, y probarla con un mensaje en portugués en una bandeja de
-   prueba antes de llevarla a CTC.
+1. **El bot que atiende clientes:** en este repo no hay un modelo que le
+   conteste al cliente; el bot entra de afuera (webhooks de AgentBot o MCP)
+   y deriva con `bot_handoff`. Falta confirmar con el dueño cuál es ese bot
+   en CTC. La regla para que conteste en el idioma del cliente quedó en
+   `INTEGRATIONS.md` ("Replying in the customer's language"), para aplicarla
+   en ese bot y probarla con un mensaje en portugués en una bandeja de
+   prueba.
 2. **Errores de la API:** pasar a códigos que el frontend traduce (ya hay
    dos: `not_authorized` y `too_many_attempts`, en `lib/api/errors.ts`).
 3. **Plantilla de WhatsApp en otros idiomas:** cargar y aprobar en Meta la
