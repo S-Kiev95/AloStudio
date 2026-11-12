@@ -18,18 +18,20 @@ import {
   useReportTimeseries,
 } from "@/lib/api/reports";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const AVAILABILITY_CHIP: Record<string, { label: string; className: string }> = {
+const AVAILABILITY_CHIP: Record<string, { label: MessageKey; className: string }> = {
   online: {
-    label: "En línea",
+    label: "conversations.reports.availability.online",
     className: "border border-success bg-surface-2 text-success",
   },
   busy: {
-    label: "Ocupado",
+    label: "conversations.reports.availability.busy",
     className: "border border-warning bg-surface-2 text-warning",
   },
   offline: {
-    label: "Desconectado",
+    label: "conversations.reports.availability.offline",
     className: "border border-glass bg-surface-2 text-fg-muted",
   },
 };
@@ -54,6 +56,7 @@ function StatCard({
 }
 
 export function InboxReportsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const range = useMemo(() => rangeForDays(7), []);
   const live = useLiveMetrics(accountId);
   const summary = useReportSummary(accountId, range);
@@ -103,49 +106,49 @@ export function InboxReportsView({ accountId }: { accountId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-medium text-fg">
-            Resumen de la bandeja
+            {t("conversations.reports.title")}
           </h2>
           <p className="text-xs text-fg-muted">
-            Estado actual y actividad de los últimos 7 días.
+            {t("conversations.reports.subtitle")}
           </p>
         </div>
         <Link
           href={`/accounts/${accountId}/reports`}
           className={buttonVariants({ variant: "secondary", size: "sm" })}
         >
-          Ver reportes completos
+          {t("conversations.reports.seeFull")}
           <ArrowRight className="h-4 w-4" aria-hidden />
         </Link>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
-          label="Conversaciones abiertas"
+          label={t("conversations.reports.open")}
           value={(live.data?.open ?? 0).toLocaleString()}
           loading={live.isLoading}
         />
         <StatCard
-          label="Conversaciones resueltas"
+          label={t("conversations.reports.resolved")}
           value={(summary.data?.resolutions_count ?? 0).toLocaleString()}
           loading={summary.isLoading}
         />
         <StatCard
-          label="Conversaciones pendientes"
+          label={t("conversations.reports.pending")}
           value={(live.data?.pending ?? 0).toLocaleString()}
           loading={live.isLoading}
         />
         <StatCard
-          label="Mensajes de hoy"
+          label={t("conversations.reports.messagesToday")}
           value={messagesToday.toLocaleString()}
           loading={seriesLoading}
         />
         <StatCard
-          label="Contactos"
+          label={t("conversations.reports.contacts")}
           value={(contacts.data?.meta.count ?? 0).toLocaleString()}
           loading={contacts.isLoading}
         />
         <StatCard
-          label="Agentes conectados"
+          label={t("conversations.reports.agentsOnline")}
           value={`${onlineAgents}/${agentList.length}`}
           loading={agents.isLoading}
         />
@@ -154,7 +157,7 @@ export function InboxReportsView({ accountId }: { accountId: string }) {
       <Card className="p-5">
         <div className="mb-4 flex items-center justify-between gap-2">
           <h3 className="text-sm font-medium text-fg">
-            Mensajes (últimos 7 días)
+            {t("conversations.reports.messages7d")}
           </h3>
           <span className="font-numeric text-sm font-medium tabular-nums text-fg-muted">
             {seriesLoading
@@ -175,11 +178,11 @@ export function InboxReportsView({ accountId }: { accountId: string }) {
       </Card>
 
       <Card className="p-5">
-        <h3 className="mb-3 text-sm font-medium text-fg">Agentes</h3>
+        <h3 className="mb-3 text-sm font-medium text-fg">{t("conversations.reports.agents")}</h3>
         {agents.isLoading ? (
-          <p className="text-sm text-fg-muted">Cargando agentes…</p>
+          <p className="text-sm text-fg-muted">{t("conversations.reports.loadingAgents")}</p>
         ) : agentList.length === 0 ? (
-          <p className="text-sm text-fg-muted">No hay agentes en esta cuenta.</p>
+          <p className="text-sm text-fg-muted">{t("conversations.reports.noAgents")}</p>
         ) : (
           <ul className="divide-y divide-glass">
             {agentList.map((agent) => {
@@ -208,7 +211,7 @@ export function InboxReportsView({ accountId }: { accountId: string }) {
                       chip.className,
                     )}
                   >
-                    {chip.label}
+                    {t(chip.label)}
                   </span>
                 </li>
               );

@@ -32,22 +32,24 @@ import { EmailMessage } from "./email-message";
 import { useInboxPanels } from "./inbox-shell";
 import { MessageBubble, PendingMessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const STATUS_CHIP: Record<string, { label: string; className: string }> = {
+const STATUS_CHIP: Record<string, { label: MessageKey; className: string }> = {
   open: {
-    label: "Abierta",
+    label: "conversations.status.open",
     className: "border border-success bg-surface-2 text-success",
   },
   pending: {
-    label: "Pendiente",
+    label: "conversations.status.pending",
     className: "border border-warning bg-surface-2 text-warning",
   },
   resolved: {
-    label: "Resuelta",
+    label: "conversations.status.resolved",
     className: "border border-glass bg-surface-2 text-fg-muted",
   },
   snoozed: {
-    label: "Pospuesta",
+    label: "conversations.status.snoozed",
     className: "border border-glass bg-surface-2 text-fg-muted",
   },
 };
@@ -61,23 +63,31 @@ const STATUS_CHIP: Record<string, { label: string; className: string }> = {
  *  same referral block also covers ig.me / m.me links, where calling the
  *  origin an ad would be wrong. */
 function AdOrigin({ referral }: { referral?: AdReferral | null }) {
+  const t = useT();
   if (!referral) return null;
   const label =
     referral.headline?.trim() ||
-    (referral.ad_id ? `Anuncio ${referral.ad_id}` : "un enlace");
+    (referral.ad_id
+      ? t("conversations.view.adNumber", { id: referral.ad_id })
+      : t("conversations.view.aLink"));
   return (
     <p
       className="mt-0.5 flex items-center gap-1.5 text-xs text-fg-muted"
-      title={referral.ad_id ? `ID del anuncio: ${referral.ad_id}` : undefined}
+      title={
+        referral.ad_id
+          ? t("conversations.view.adId", { id: referral.ad_id })
+          : undefined
+      }
     >
       <Megaphone className="h-3 w-3 shrink-0 text-primary" aria-hidden />
-      <span className="shrink-0">Vino de</span>
+      <span className="shrink-0">{t("conversations.view.cameFrom")}</span>
       <span className="truncate font-medium text-fg">{label}</span>
     </p>
   );
 }
 
 function StatusChip({ status }: { status: string }) {
+  const t = useT();
   const s = STATUS_CHIP[status];
   if (!s) return null;
   return (
@@ -87,7 +97,7 @@ function StatusChip({ status }: { status: string }) {
         s.className,
       )}
     >
-      {s.label}
+      {t(s.label)}
     </span>
   );
 }
@@ -99,6 +109,7 @@ export function ConversationView({
   accountId: string;
   displayId: number;
 }) {
+  const t = useT();
   const {
     contactCollapsed,
     toggleContactCollapsed,
@@ -114,8 +125,7 @@ export function ConversationView({
   function handleDelete(id: number) {
     if (
       window.confirm(
-        "¿Eliminar este mensaje? Se quita de la conversación, pero el " +
-          "destinatario ya lo recibió en su WhatsApp.",
+        t("conversations.view.deleteConfirm"),
       )
     ) {
       del.mutate(id);
@@ -128,14 +138,15 @@ export function ConversationView({
   const resolved = status === "resolved";
   const assigneeName = conv.data?.meta?.assignee?.name?.trim() || null;
   const assigneeSummary = assigneeName
-    ? `Asignada a ${assigneeName}`
-    : "Sin asignar";
+    ? t("conversations.view.assignedTo", { name: assigneeName })
+    : t("conversations.actions.unassigned");
   const handoffInfo = describeThreadControl(
     conv.data?.additional_attributes?.thread_control,
+    t,
   );
   const detailsToggleLabel = detailsCollapsed
-    ? "Mostrar detalles"
-    : "Ocultar detalles";
+    ? t("conversations.view.showDetails")
+    : t("conversations.view.hideDetails");
   // Email is read and answered differently enough that the chat view is
   // the wrong shape for it: subject, recipients, long bodies, and a
   // thread you scan rather than scroll.
@@ -186,7 +197,7 @@ export function ConversationView({
         <header className="flex shrink-0 items-center gap-3 border-b border-glass px-4 py-3">
           <Link
             href={`/accounts/${accountId}/conversations`}
-            aria-label="Volver"
+            aria-label={t("actions.back")}
             className="rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg lg:hidden"
           >
             <ArrowLeft className="h-5 w-5" aria-hidden />
@@ -245,11 +256,11 @@ export function ConversationView({
           >
             {resolved ? (
               <>
-                <RotateCcw className="h-4 w-4" aria-hidden /> Reabrir
+                <RotateCcw className="h-4 w-4" aria-hidden /> {t("conversations.list.reopen")}
               </>
             ) : (
               <>
-                <CheckCircle2 className="h-4 w-4" aria-hidden /> Resolver
+                <CheckCircle2 className="h-4 w-4" aria-hidden /> {t("conversations.list.resolve")}
               </>
             )}
           </Button>
@@ -328,14 +339,14 @@ export function ConversationView({
           className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
         >
           {messages.isLoading ? (
-            <p className="text-center text-sm text-fg-muted">Cargando…</p>
+            <p className="text-center text-sm text-fg-muted">{t("common.loading")}</p>
           ) : messages.isError ? (
             <p role="alert" className="text-center text-sm text-danger">
-              No se pudieron cargar los mensajes.
+              {t("conversations.view.loadFailed")}
             </p>
           ) : (messages.data?.payload.length ?? 0) === 0 &&
             (isEmail || pending.length === 0) ? (
-            <p className="text-center text-sm text-fg-muted">Sin mensajes.</p>
+            <p className="text-center text-sm text-fg-muted">{t("conversations.view.noMessages")}</p>
           ) : (
             messages.data?.payload.map((m, i, all) =>
               isEmail ? (

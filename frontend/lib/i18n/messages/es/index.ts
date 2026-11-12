@@ -9,9 +9,13 @@
 import type { Strings } from "../types";
 
 import { core } from "./core";
+import { actions } from "./actions";
+import { conversations } from "./conversations";
 
 export const es = {
   ...core,
+  actions,
+  conversations,
 };
 
 export type Messages = Strings<typeof es>;

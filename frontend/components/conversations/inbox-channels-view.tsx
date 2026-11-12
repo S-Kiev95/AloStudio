@@ -27,6 +27,7 @@ import {
 } from "@/lib/api/inboxes";
 import { useIsAccountAdmin } from "@/lib/api/profile";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 const CHANNEL_ICON: Record<string, IconComponent> = {
   "Channel::Telegram": Telegram,
@@ -41,6 +42,7 @@ const CHANNEL_ICON: Record<string, IconComponent> = {
 };
 
 export function InboxChannelsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data: inboxes, isLoading, isError } = useInboxes(accountId);
   // Connecting and disconnecting are admin-only: an agent would only get
   // the backend's denial.
@@ -51,30 +53,30 @@ export function InboxChannelsView({ accountId }: { accountId: string }) {
     <div className="mx-auto max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-medium text-fg">Canales conectados</h2>
+          <h2 className="text-lg font-medium text-fg">{t("conversations.channels.title")}</h2>
           <p className="text-sm text-fg-muted">
-            Todos los canales conectados acá llegan a la misma bandeja.
+            {t("conversations.channels.subtitle")}
           </p>
         </div>
         {isAdmin ? (
           <Link href={newHref} className={buttonVariants({ size: "sm" })}>
             <Plus className="h-4 w-4" aria-hidden />
-            Conectar canal
+            {t("conversations.channels.connect")}
           </Link>
         ) : null}
       </div>
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los canales.
+            {t("conversations.channels.loadFailed")}
           </p>
         ) : (inboxes?.length ?? 0) === 0 ? (
           <div className="p-8 text-center">
             <p className="text-sm text-fg-muted">
-              No hay canales conectados todavía.
+              {t("conversations.channels.empty")}
             </p>
             {isAdmin ? (
               <Link
@@ -82,7 +84,7 @@ export function InboxChannelsView({ accountId }: { accountId: string }) {
                 className={cn(buttonVariants({ size: "sm" }), "mt-3")}
               >
                 <Plus className="h-4 w-4" aria-hidden />
-                Conectar canal
+                {t("conversations.channels.connect")}
               </Link>
             ) : null}
           </div>
@@ -112,18 +114,20 @@ function ChannelRow({
   inbox: Inbox;
   isAdmin: boolean;
 }) {
+  const t = useT();
   const del = useDeleteInbox(accountId);
   const [error, setError] = useState<string | null>(null);
   const Icon = CHANNEL_ICON[inbox.channel_type] ?? Webhook;
 
   async function onDisconnect() {
-    if (!window.confirm(`¿Desconectar el canal "${inbox.name}"?`)) return;
+    if (!window.confirm(t("conversations.channels.disconnectConfirm", { name: inbox.name })))
+      return;
     setError(null);
     try {
       await del.mutateAsync(inbox.id);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo desconectar.",
+        (e as { message?: string })?.message ?? t("conversations.channels.disconnectFailed"),
       );
     }
   }
@@ -149,7 +153,7 @@ function ChannelRow({
           href={`/accounts/${accountId}/settings/inboxes/${inbox.id}`}
           className={buttonVariants({ variant: "secondary", size: "sm" })}
         >
-          Detalles de conexión
+          {t("conversations.channels.details")}
         </Link>
         {isAdmin ? (
           <Button
@@ -160,7 +164,7 @@ function ChannelRow({
             onClick={onDisconnect}
             className="text-fg-muted hover:text-danger"
           >
-            Desconectar
+            {t("conversations.channels.disconnect")}
           </Button>
         ) : null}
       </div>

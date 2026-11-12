@@ -12,11 +12,13 @@ import {
 } from "@/lib/api/conversations";
 import { clockTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 type Attachment = NonNullable<Message["attachments"]>[number];
 
 /** Inline thumbnail that opens a full-screen lightbox on click. */
 function ImageAttachment({ src }: { src: string }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -32,12 +34,12 @@ function ImageAttachment({ src }: { src: string }) {
         type="button"
         onClick={() => setOpen(true)}
         className="mt-1 block cursor-zoom-in"
-        aria-label="Ampliar imagen"
+        aria-label={t("conversations.bubble.zoomImage")}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
-          alt="Adjunto"
+          alt={t("conversations.bubble.attachment")}
           loading="lazy"
           className="max-h-56 max-w-full rounded-md border border-glass object-contain"
         />
@@ -46,13 +48,13 @@ function ImageAttachment({ src }: { src: string }) {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Imagen ampliada"
+          aria-label={t("conversations.bubble.zoomedImage")}
           onClick={() => setOpen(false)}
           className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-backdrop p-4"
         >
           <button
             type="button"
-            aria-label="Cerrar"
+            aria-label={t("actions.close")}
             autoFocus
             onClick={() => setOpen(false)}
             className="absolute right-4 top-4 rounded-md bg-surface-2 p-2 text-fg hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
@@ -62,7 +64,7 @@ function ImageAttachment({ src }: { src: string }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
-            alt="Adjunto"
+            alt={t("conversations.bubble.attachment")}
             onClick={(e) => e.stopPropagation()}
             className="max-h-full max-w-full rounded-md object-contain"
           />
@@ -91,6 +93,7 @@ function fmtTime(s: number): string {
 
 /** WhatsApp-style voice/audio player: round play button + seek bar + time. */
 function AudioAttachment({ src }: { src: string }) {
+  const t = useT();
   const ref = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
@@ -132,7 +135,7 @@ function AudioAttachment({ src }: { src: string }) {
       <button
         type="button"
         onClick={toggle}
-        aria-label={playing ? "Pausar" : "Reproducir"}
+        aria-label={playing ? t("conversations.bubble.pause") : t("conversations.bubble.play")}
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neon text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
         {playing ? (
@@ -174,6 +177,7 @@ function LocationAttachment({
   lng: number;
   title?: string;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const label = title || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   const maps = `https://www.google.com/maps?q=${lat},${lng}`;
@@ -194,7 +198,7 @@ function LocationAttachment({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={`Ver ubicación: ${label}`}
+        aria-label={t("conversations.bubble.seeLocation", { label })}
         className="mt-1 block w-56 max-w-full cursor-pointer overflow-hidden rounded-md border border-glass text-left"
       >
         {/* Taller than its clip window so OSM's attribution/donation footer
@@ -202,7 +206,7 @@ function LocationAttachment({
         <div className="relative h-28 w-full overflow-hidden">
           <iframe
             src={embed(0.004)}
-            title="Ubicación"
+            title={t("conversations.bubble.location")}
             loading="lazy"
             className="pointer-events-none absolute inset-x-0 top-0 h-44 w-full border-0"
           />
@@ -231,7 +235,7 @@ function LocationAttachment({
               </span>
               <button
                 type="button"
-                aria-label="Cerrar"
+                aria-label={t("actions.close")}
                 onClick={() => setOpen(false)}
                 className="rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
               >
@@ -240,7 +244,7 @@ function LocationAttachment({
             </div>
             <iframe
               src={embed(0.01)}
-              title="Mapa"
+              title={t("conversations.bubble.map")}
               className="h-[60vh] w-full border-0"
             />
             <a
@@ -249,7 +253,7 @@ function LocationAttachment({
               rel="noreferrer"
               className="border-t border-glass bg-surface px-3 py-2 text-center text-xs font-medium text-lit hover:underline"
             >
-              Abrir en Google Maps · © OpenStreetMap
+              {t("conversations.bubble.openInMaps")}
             </a>
           </div>
         </div>
@@ -272,6 +276,7 @@ const IG_MEDIA_TYPES = new Set([
 const VIDEO_EXTENSIONS = new Set(["mp4", "mov", "webm", "m4v"]);
 
 function AttachmentView({ att }: { att: Attachment }) {
+  const t = useT();
   // Location carries coordinates, not a blob — render an embedded map.
   if (att.file_type === "location") {
     const lat = att.coordinates_lat;
@@ -313,7 +318,7 @@ function AttachmentView({ att }: { att: Attachment }) {
       className="mt-1 flex items-center gap-1.5 rounded-md border border-glass bg-surface px-2 py-1 text-xs font-medium text-lit hover:underline"
     >
       <Paperclip className="h-3 w-3 shrink-0" aria-hidden />
-      Descargar adjunto
+      {t("conversations.bubble.download")}
     </a>
   );
 }
@@ -335,6 +340,7 @@ export function MessageBubble({
   /** Replaces the author and time under the bubble. */
   footer?: ReactNode;
 }) {
+  const t = useT();
   if (message.message_type === MESSAGE_TYPE.activity) {
     return (
       <div className="my-2 text-center text-xs text-fg-muted">
@@ -379,7 +385,7 @@ export function MessageBubble({
         >
           {isPrivate ? (
             <span className="mb-1 flex items-center gap-1 text-xs font-medium text-warning">
-              <Lock className="h-3 w-3" aria-hidden /> Nota privada
+              <Lock className="h-3 w-3" aria-hidden /> {t("conversations.composer.privateNote")}
             </span>
           ) : null}
           {deleted ? (
@@ -390,7 +396,7 @@ export function MessageBubble({
               )}
             >
               <Trash2 className="h-3 w-3 shrink-0" aria-hidden />
-              {message.content || "Este mensaje fue eliminado"}
+              {message.content || t("conversations.bubble.deleted")}
             </p>
           ) : (
             <>
@@ -422,7 +428,7 @@ export function MessageBubble({
         ) : null)}
       {!footer && message.status === "failed" ? (
         <span role="alert" className="mt-1 max-w-[80%] text-right text-[11px] text-danger">
-          No se pudo enviar
+          {t("conversations.bubble.notSent")}
           {typeof message.content_attributes?.external_error === "string"
             ? `: ${message.content_attributes.external_error}`
             : "."}
@@ -442,11 +448,15 @@ export function PendingMessageBubble({
   displayId: number;
   pending: PendingMessage;
 }) {
+  const t = useT();
   const send = useSendMessage(accountId, displayId);
   const forget = useForgetPendingMessage();
   const { input } = pending;
   const files = input.attachments?.length ?? 0;
-  const filesLabel = files === 1 ? "1 adjunto" : `${files} adjuntos`;
+  const filesLabel =
+    files === 1
+      ? t("conversations.bubble.oneAttachment")
+      : t("conversations.bubble.manyAttachments", { count: files });
 
   return (
     <MessageBubble
@@ -462,7 +472,7 @@ export function PendingMessageBubble({
       footer={
         pending.failed ? (
           <span role="alert" className="mt-1 text-right text-[11px] text-danger">
-            {pending.error || "No se pudo enviar."}{" "}
+            {pending.error || t("conversations.composer.sendFailed")}{" "}
             <button
               type="button"
               className="font-medium underline"
@@ -471,19 +481,21 @@ export function PendingMessageBubble({
                 send.mutate(input);
               }}
             >
-              Reintentar
+              {t("actions.retry")}
             </button>{" "}
             <button
               type="button"
               className="font-medium underline"
               onClick={() => forget(pending.mutationId)}
             >
-              Descartar
+              {t("actions.discard")}
             </button>
           </span>
         ) : (
           <span className="mt-1 text-right text-[11px] text-fg-muted">
-            {files && input.content ? `Enviando con ${filesLabel}…` : "Enviando…"}
+            {files && input.content
+              ? t("conversations.bubble.sendingWith", { files: filesLabel })
+              : t("conversations.bubble.sending")}
           </span>
         )
       }
@@ -493,12 +505,13 @@ export function PendingMessageBubble({
 
 /** Hover-revealed delete affordance next to a message bubble. */
 function DeleteButton({ onClick }: { onClick: () => void }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label="Eliminar mensaje"
-      title="Eliminar mensaje"
+      aria-label={t("conversations.bubble.delete")}
+      title={t("conversations.bubble.delete")}
       className="shrink-0 rounded-md p-1 text-fg-muted opacity-0 transition hover:bg-hover-glass hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
     >
       <Trash2 className="h-3.5 w-3.5" aria-hidden />

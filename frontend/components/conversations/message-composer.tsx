@@ -9,6 +9,7 @@ import { useCannedResponses } from "@/lib/api/canned-responses";
 import { useSendMessage } from "@/lib/api/conversations";
 import { uploadAttachment } from "@/lib/api/uploads";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 type PendingAttachment = {
   key: string;
@@ -30,6 +31,7 @@ export function MessageComposer({
   accountId: string;
   displayId: number;
 }) {
+  const t = useT();
   const [content, setContent] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -175,12 +177,12 @@ export function MessageComposer({
       {showListbox ? (
         <ul
           role="listbox"
-          aria-label="Respuestas predefinidas"
+          aria-label={t("conversations.composer.cannedResponses")}
           className="absolute bottom-full left-3 right-3 z-20 mb-1 max-h-56 overflow-auto rounded-md border border-glass bg-surface-2 shadow-menu"
         >
           {visibleCanned.length === 0 ? (
             <li className="px-3 py-2 text-xs text-fg-muted">
-              No hay respuestas rápidas configuradas.
+              {t("conversations.composer.noCanned")}
             </li>
           ) : (
             visibleCanned.map((c) => (
@@ -220,7 +222,7 @@ export function MessageComposer({
                 <button
                   type="button"
                   onClick={() => removeAttachment(att.key)}
-                  aria-label={`Quitar ${att.name}`}
+                  aria-label={t("conversations.composer.removeAttachment", { name: att.name })}
                   className="absolute right-1 top-1 rounded-full bg-backdrop p-0.5 text-white hover:opacity-90"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden />
@@ -241,7 +243,7 @@ export function MessageComposer({
                 <button
                   type="button"
                   onClick={() => removeAttachment(att.key)}
-                  aria-label={`Quitar ${att.name}`}
+                  aria-label={t("conversations.composer.removeAttachment", { name: att.name })}
                   className="rounded-sm p-0.5 text-fg-muted hover:text-danger"
                 >
                   <X className="h-3 w-3" aria-hidden />
@@ -275,10 +277,10 @@ export function MessageComposer({
         rows={1}
         placeholder={
           isPrivate
-            ? "Nota interna (no la ve el cliente)…"
-            : "Escribí una respuesta… escribí / para respuestas rápidas"
+            ? t("conversations.composer.notePlaceholder")
+            : t("conversations.composer.replyPlaceholder")
         }
-        aria-label={isPrivate ? "Nota privada" : "Respuesta"}
+        aria-label={isPrivate ? t("conversations.composer.privateNote") : t("conversations.composer.reply")}
         className={cn("overflow-y-hidden", isPrivate && "border-warning")}
       />
 
@@ -296,7 +298,7 @@ export function MessageComposer({
           )}
         >
           <Lock className="h-3.5 w-3.5" aria-hidden />
-          Nota privada
+          {t("conversations.composer.privateNote")}
         </button>
 
         <button
@@ -312,7 +314,7 @@ export function MessageComposer({
           )}
         >
           <Zap className="h-3.5 w-3.5" aria-hidden />
-          Respuestas rápidas
+          {t("conversations.composer.quickReplies")}
         </button>
 
         <input
@@ -321,7 +323,7 @@ export function MessageComposer({
           multiple
           onChange={onPickFile}
           className="hidden"
-          aria-label="Adjuntar archivos"
+          aria-label={t("conversations.composer.attach")}
           tabIndex={-1}
         />
         <Button
@@ -331,7 +333,7 @@ export function MessageComposer({
           onClick={() => fileRef.current?.click()}
           loading={uploading}
           disabled={uploading || attachments.length >= MAX_ATTACHMENTS}
-          aria-label="Adjuntar archivos"
+          aria-label={t("conversations.composer.attach")}
         >
           <Paperclip className="h-3.5 w-3.5" aria-hidden />
         </Button>
@@ -342,8 +344,8 @@ export function MessageComposer({
           size="icon"
           onClick={submit}
           disabled={uploading || (!content.trim() && attachments.length === 0)}
-          aria-label="Enviar"
-          title="Enviar"
+          aria-label={t("actions.send")}
+          title={t("actions.send")}
           className={cn(
             "ml-auto h-8 w-8 rounded-full p-0",
             isPrivate &&
@@ -356,7 +358,7 @@ export function MessageComposer({
 
       {uploadError ? (
         <p role="alert" className="mt-1 text-xs text-danger">
-          No se pudieron subir algunos archivos. Reintentá.
+          {t("conversations.composer.uploadFailed")}
         </p>
       ) : null}
     </div>

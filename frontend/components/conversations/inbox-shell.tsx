@@ -18,6 +18,7 @@ import {
 } from "react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 export const INBOX_LIST_COLLAPSED_KEY = "alostudio:inbox-list-collapsed";
 export const INBOX_CONTACT_COLLAPSED_KEY = "alostudio:inbox-contact-collapsed";
@@ -224,6 +225,7 @@ export function InboxShell({
   list: ReactNode;
   children: ReactNode;
 }) {
+  const t = useT();
   const pathname = usePathname() ?? "";
   const hasConversation = /^\/accounts\/[^/]+\/conversations\/\d+(?:\/|$)/.test(
     pathname,
@@ -487,7 +489,7 @@ export function InboxShell({
             role="separator"
             tabIndex={0}
             aria-orientation="horizontal"
-            aria-label="Cambiar el alto de la bandeja"
+            aria-label={t("conversations.shell.resize")}
             aria-valuemin={0}
             aria-valuemax={maxStretchPx}
             aria-valuenow={stretchPx}
@@ -536,8 +538,8 @@ export function InboxShell({
                   type="button"
                   onClick={toggleListCollapsed}
                   aria-expanded={false}
-                  aria-label="Expandir lista de conversaciones"
-                  title="Expandir lista de conversaciones"
+                  aria-label={t("conversations.shell.expandList")}
+                  title={t("conversations.shell.expandList")}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
                 >
                   <PanelLeftOpen className="h-5 w-5" aria-hidden />

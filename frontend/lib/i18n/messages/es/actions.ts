@@ -1,0 +1,18 @@
+export const actions = {
+  apply: "Aplicar",
+  cancel: "Cancelar",
+  selectPlaceholder: "Seleccionar…",
+  edit: "Editar",
+  clear: "Limpiar",
+  previous: "Anterior",
+  next: "Siguiente",
+  addPlaceholder: "Agregar…",
+  back: "Volver",
+  send: "Enviar",
+  close: "Cerrar",
+  retry: "Reintentar",
+  discard: "Descartar",
+  yes: "Sí",
+  no: "No",
+  page: "Página {n}",
+};

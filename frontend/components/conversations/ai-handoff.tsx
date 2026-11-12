@@ -3,6 +3,8 @@
 import { Meta } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { type ThreadControl, useThreadControl } from "@/lib/api/conversations";
+import { useT } from "@/lib/i18n/provider";
+import { createTranslate, type Translate } from "@/lib/i18n/translate";
 
 /** A person at the desk: headset and collar, a rounded line over a soft fill. */
 function SecretaryIcon({ className }: { className?: string }) {
@@ -41,22 +43,23 @@ export type ThreadControlDescription = {
 
 export function describeThreadControl(
   control?: ThreadControl | null,
+  t: Translate = createTranslate("es"),
 ): ThreadControlDescription | null {
   if (!control) return null;
   const aiAnswering = control.owner === "ai_agent";
   const handoff =
     !aiAnswering && control.metadata
-      ? `La IA la derivó: ${control.metadata}`
+      ? t("conversations.handoff.derived", { reason: control.metadata })
       : null;
-  const title = aiAnswering ? "Responde la IA de Meta" : "Atiende el equipo";
+  const title = aiAnswering ? t("conversations.handoff.aiAnswering") : t("conversations.handoff.teamAnswering");
   return {
     aiAnswering,
     title,
     detail: aiAnswering
-      ? "Si respondés, la conversación pasa al equipo."
-      : (handoff ?? "Podés devolverla a la IA cuando termines."),
+      ? t("conversations.handoff.replyTakesOver")
+      : (handoff ?? t("conversations.handoff.canReturn")),
     summary: aiAnswering ? title : (handoff ?? title),
-    actionLabel: aiAnswering ? "Tomar conversación" : "Devolver a la IA",
+    actionLabel: aiAnswering ? t("conversations.handoff.take") : t("conversations.handoff.release"),
     action: aiAnswering ? "take" : "release",
   };
 }
@@ -79,7 +82,8 @@ export function AiHandoff({
   control?: ThreadControl | null;
 }) {
   const mutation = useThreadControl(accountId, displayId);
-  const info = describeThreadControl(control);
+  const t = useT();
+  const info = describeThreadControl(control, t);
   if (!info) return null;
 
   return (
