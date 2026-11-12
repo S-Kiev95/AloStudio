@@ -264,7 +264,7 @@ function describeScheduledForIntl(
 }
 
 /** "Lun" / "Lunes" in Spanish (as the app always showed), Intl elsewhere. */
-function weekdayName(d: Date, width: "short" | "long", locale: Locale): string {
+export function weekdayName(d: Date, width: "short" | "long", locale: Locale): string {
   const mondayFirst = (d.getDay() + 6) % 7;
   if (locale === "es") {
     return (width === "short" ? SHORT_WEEKDAYS : LONG_WEEKDAYS)[mondayFirst];

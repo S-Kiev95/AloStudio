@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 
 import type { ParsedPublicationError } from "@/lib/api/publications";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 export function PublicationErrorAlert({
   error,
@@ -14,6 +15,7 @@ export function PublicationErrorAlert({
   onDismiss?: () => void;
   className?: string;
 }) {
+  const t = useT();
   if (!error) return null;
 
   return (
@@ -37,7 +39,7 @@ export function PublicationErrorAlert({
       {onDismiss ? (
         <button
           type="button"
-          aria-label="Cerrar aviso"
+          aria-label={t("publications.closeNotice")}
           onClick={onDismiss}
           className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-danger hover:bg-hover-glass"
         >

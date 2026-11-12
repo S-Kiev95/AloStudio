@@ -1,6 +1,7 @@
 import type { Messages } from "../es";
 
 import { core } from "./core";
+import { publications } from "./publications";
 import { dates } from "./dates";
 import { crm } from "./crm";
 import { overview } from "./overview";
@@ -13,6 +14,7 @@ import { actions } from "./actions";
 
 export const ja: Messages = {
   ...core,
+  publications,
   dates,
   crm,
   overview,
