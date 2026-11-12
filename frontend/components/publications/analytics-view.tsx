@@ -35,39 +35,42 @@ import { cn } from "@/lib/utils";
 import { ChannelAvatar, channelDisplayName, NetworkIcon } from "./network-icon";
 import { formatMetricValue } from "./publication-detail-dialog";
 import { PublicationErrorAlert } from "./publication-error-alert";
+import { useT } from "@/lib/i18n/provider";
+import type { Translate } from "@/lib/i18n/translate";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 type PeriodOption = 7 | 30 | 90 | "custom";
 type SeriesMetric = "reach" | "views";
 
-const PERIOD_OPTIONS: { value: PeriodOption; label: string }[] = [
-  { value: 7, label: "7 días" },
-  { value: 30, label: "30 días" },
-  { value: 90, label: "90 días" },
-  { value: "custom", label: "Personalizado" },
+const PERIOD_OPTIONS: { value: PeriodOption; label: MessageKey }[] = [
+  { value: 7, label: "reports.range.d7" },
+  { value: 30, label: "reports.range.d30" },
+  { value: 90, label: "reports.range.d90" },
+  { value: "custom", label: "publications.analytics.custom" },
 ];
 
 const TOTAL_CARDS: {
   key: "posts" | MetricName;
-  label: string;
+  label: MessageKey;
 }[] = [
-  { key: "posts", label: "Publicaciones" },
-  { key: "views", label: "Vistas" },
-  { key: "reach", label: "Alcance" },
-  { key: "interactions", label: "Interacciones" },
-  { key: "likes", label: "Me gusta" },
-  { key: "comments", label: "Comentarios" },
-  { key: "shares", label: "Compartidos" },
-  { key: "saves", label: "Guardados" },
+  { key: "posts", label: "publications.metrics.posts" },
+  { key: "views", label: "publications.metrics.views" },
+  { key: "reach", label: "publications.metrics.reach" },
+  { key: "interactions", label: "publications.metrics.interactions" },
+  { key: "likes", label: "publications.metrics.likes" },
+  { key: "comments", label: "publications.metrics.comments" },
+  { key: "shares", label: "publications.metrics.shares" },
+  { key: "saves", label: "publications.metrics.saves" },
 ];
 
-const METRIC_LABELS: { key: MetricName; label: string }[] = [
-  { key: "views", label: "Vistas" },
-  { key: "reach", label: "Alcance" },
-  { key: "interactions", label: "Interacciones" },
-  { key: "likes", label: "Me gusta" },
-  { key: "comments", label: "Comentarios" },
-  { key: "shares", label: "Compartidos" },
-  { key: "saves", label: "Guardados" },
+const METRIC_LABELS: { key: MetricName; label: MessageKey }[] = [
+  { key: "views", label: "publications.metrics.views" },
+  { key: "reach", label: "publications.metrics.reach" },
+  { key: "interactions", label: "publications.metrics.interactions" },
+  { key: "likes", label: "publications.metrics.likes" },
+  { key: "comments", label: "publications.metrics.comments" },
+  { key: "shares", label: "publications.metrics.shares" },
+  { key: "saves", label: "publications.metrics.saves" },
 ];
 
 /** Local midnight of a ``YYYY-MM-DD`` date, or ``null``. */
@@ -78,21 +81,25 @@ function localDay(ymd: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function validateCustomRange(from: string, to: string): string | null {
-  if (!from || !to) return "Seleccioná las fechas Desde y Hasta.";
+function validateCustomRange(
+  from: string,
+  to: string,
+  t: Translate,
+): string | null {
+  if (!from || !to) return t("publications.analytics.pickDates");
   const start = localDay(from);
   const end = localDay(to);
   if (!start || !end) {
-    return "Las fechas ingresadas no son válidas.";
+    return t("publications.analytics.invalidDates");
   }
   if (end.getTime() < start.getTime()) {
-    return "La fecha Hasta debe ser igual o posterior a Desde.";
+    return t("publications.analytics.toBeforeFrom");
   }
   // Both ends count: the period runs through the whole "Hasta" day.
   const days =
     Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
   if (days > 366) {
-    return "El período no puede superar un año (366 días).";
+    return t("publications.analytics.maxYear");
   }
   return null;
 }
@@ -102,6 +109,7 @@ export function PublicationsAnalyticsView({
 }: {
   accountId: string;
 }) {
+  const t = useT();
   const today = useMemo(() => new Date(), []);
   const [period, setPeriod] = useState<PeriodOption>(30);
   const [customFrom, setCustomFrom] = useState<string>(() =>
@@ -134,7 +142,7 @@ export function PublicationsAnalyticsView({
   }, [period, customFrom, customTo, today]);
 
   const customError =
-    period === "custom" ? validateCustomRange(customFrom, customTo) : null;
+    period === "custom" ? validateCustomRange(customFrom, customTo, t) : null;
 
   const selectedChannelId = channelIdStr ? Number(channelIdStr) : undefined;
 
@@ -148,9 +156,9 @@ export function PublicationsAnalyticsView({
   if (channelsQuery.isLoading) {
     return (
       <div className="space-y-4">
-        <PageHeader title="Estadísticas" />
+        <PageHeader title={t("nav.analytics")} />
         <div className="rounded-md border border-glass bg-surface p-12 text-center text-sm text-fg-muted">
-          Cargando estadísticas…
+          {t("publications.analytics.loading")}
         </div>
       </div>
     );
@@ -160,22 +168,21 @@ export function PublicationsAnalyticsView({
   if (!hasChannels) {
     return (
       <div className="space-y-4">
-        <PageHeader title="Estadísticas" />
+        <PageHeader title={t("nav.analytics")} />
         <div
           data-testid="analytics-empty-state"
           className="flex min-h-[420px] flex-col items-center justify-center rounded-md border border-glass bg-surface px-6 py-16 text-center"
         >
           <h2 className="text-xl font-medium text-fg sm:text-2xl">
-            Todavía no hay estadísticas para mostrar
+            {t("publications.analytics.emptyTitle")}
           </h2>
           <p className="mt-2 text-sm text-fg-muted">
-            Agregá canales de redes sociales para empezar a medir tus
-            publicaciones.
+            {t("publications.analytics.emptyBody")}
           </p>
 
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs">
             <span className="font-medium uppercase tracking-[0.08em] text-fg-muted">
-              Soportadas:
+              {t("publications.analytics.supported")}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-pill border border-glass bg-field px-3 py-1 text-fg">
               <Instagram className="h-3.5 w-3.5 text-[#E1306C]" aria-hidden />
@@ -192,7 +199,7 @@ export function PublicationsAnalyticsView({
               href={`/accounts/${accountId}/publications`}
               className={buttonVariants()}
             >
-              Ir al calendario para agregar canales
+              {t("publications.analytics.goAddChannels")}
             </Link>
           </div>
         </div>
@@ -205,16 +212,16 @@ export function PublicationsAnalyticsView({
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Estadísticas"
+        title={t("nav.analytics")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <select
-              aria-label="Filtrar por canal"
+              aria-label={t("publications.analytics.filterByChannel")}
               value={channelIdStr}
               onChange={(e) => setChannelIdStr(e.target.value)}
               className={selectClassName("sm")}
             >
-              <option value="">Todos los canales</option>
+              <option value="">{t("conversations.list.allChannels")}</option>
               {channels.map((ch) => (
                 <option key={ch.id} value={String(ch.id)}>
                   {channelDisplayName(ch)}
@@ -223,11 +230,11 @@ export function PublicationsAnalyticsView({
             </select>
 
             <SegmentedControl
-              ariaLabel="Período"
+              ariaLabel={t("reports.period")}
               size="sm"
               value={period}
               onValueChange={setPeriod}
-              options={PERIOD_OPTIONS}
+              options={PERIOD_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
             />
           </div>
         }
@@ -236,7 +243,7 @@ export function PublicationsAnalyticsView({
       {period === "custom" ? (
         <div className="flex flex-wrap items-end gap-3 rounded-md border border-glass bg-surface p-3">
           <div className="space-y-1">
-            <Label htmlFor="analytics-from">Desde</Label>
+            <Label htmlFor="analytics-from">{t("publications.analytics.from")}</Label>
             <Input
               id="analytics-from"
               type="date"
@@ -246,7 +253,7 @@ export function PublicationsAnalyticsView({
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="analytics-to">Hasta</Label>
+            <Label htmlFor="analytics-to">{t("publications.analytics.to")}</Label>
             <Input
               id="analytics-to"
               type="date"
@@ -266,20 +273,19 @@ export function PublicationsAnalyticsView({
       {/* Update cadence notice */}
       <p className="flex items-center gap-1.5 text-xs text-fg-muted">
         <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        Las cifras de los posts se actualizan cada hora y las de los canales una
-        vez por día (03:47 UTC).
+        {t("publications.analytics.refreshNote")}
       </p>
 
       {analyticsQuery.isError ? (
         <PublicationErrorAlert
           error={parsePublicationError(
             analyticsQuery.error,
-            "No se pudieron cargar las estadísticas.",
+            t("publications.analytics.loadFailed"),
           )}
         />
       ) : analyticsQuery.isLoading ? (
         <div className="rounded-md border border-glass bg-surface p-10 text-center text-sm text-fg-muted">
-          Cargando estadísticas…
+          {t("publications.analytics.loading")}
         </div>
       ) : data ? (
         <>
@@ -297,7 +303,7 @@ export function PublicationsAnalyticsView({
                   className="p-4"
                 >
                   <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
-                    {card.label}
+                    {t(card.label)}
                   </p>
                   <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
                     {formatMetricValue(rawVal)}
@@ -309,10 +315,10 @@ export function PublicationsAnalyticsView({
 
           {/* Per-channel breakdown & daily series chart */}
           <section className="space-y-3">
-            <h2 className="text-base font-medium text-fg">Por canal</h2>
+            <h2 className="text-base font-medium text-fg">{t("publications.analytics.byChannel")}</h2>
             {data.channels.length === 0 ? (
               <Card className="p-6 text-center text-sm text-fg-muted">
-                Sin datos de canales para el período seleccionado.
+                {t("publications.analytics.noChannelData")}
               </Card>
             ) : (
               <div className="space-y-4">
@@ -329,12 +335,12 @@ export function PublicationsAnalyticsView({
           {/* Top posts */}
           <Card>
             <CardHeader>
-              <CardTitle>Mejores publicaciones</CardTitle>
+              <CardTitle>{t("publications.analytics.topPosts")}</CardTitle>
             </CardHeader>
             <CardContent>
               {data.top_posts.length === 0 ? (
                 <p className="py-6 text-center text-sm text-fg-muted">
-                  Todavía no hay publicaciones destacadas en este período.
+                  {t("publications.analytics.noTopPosts")}
                 </p>
               ) : (
                 <ul className="divide-y divide-glass">
@@ -367,20 +373,20 @@ export function PublicationsAnalyticsView({
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-xs font-medium text-info hover:underline"
                           >
-                            Ver publicación
+                            {t("publications.analytics.viewPost")}
                             <ExternalLink className="h-3 w-3" aria-hidden />
                           </a>
                         ) : null}
                       </div>
 
                       <p className="line-clamp-2 whitespace-pre-wrap break-words text-sm text-fg">
-                        {post.content?.trim() || "(Sin texto)"}
+                        {post.content?.trim() || t("publications.noTextParen")}
                       </p>
 
                       <div className="flex flex-wrap gap-3 text-xs text-fg-muted">
                         {METRIC_LABELS.map((m) => (
                           <span key={m.key} className="font-numeric tabular-nums">
-                            {m.label}:{" "}
+                            {t(m.label)}:{" "}
                             <strong className="font-semibold text-fg">
                               {formatMetricValue(post.metrics?.[m.key])}
                             </strong>
@@ -400,6 +406,7 @@ export function PublicationsAnalyticsView({
 }
 
 function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
+  const t = useT();
   const [seriesMetric, setSeriesMetric] = useState<SeriesMetric>("reach");
   const name = channelDisplayName(entry.channel);
 
@@ -420,7 +427,7 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
         <div className="flex flex-wrap items-center gap-4">
           <div className="text-right">
             <p className="text-[11px] uppercase tracking-[0.08em] text-fg-muted">
-              Seguidores
+              {t("publications.analytics.followers")}
             </p>
             <div className="flex items-center justify-end gap-1.5">
               <span className="font-numeric text-lg font-semibold tabular-nums text-fg">
@@ -432,7 +439,7 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
 
           <div className="text-right">
             <p className="text-[11px] uppercase tracking-[0.08em] text-fg-muted">
-              Publicaciones
+              {t("publications.metrics.posts")}
             </p>
             <p className="font-numeric text-lg font-semibold tabular-nums text-fg">
               {entry.posts.toLocaleString()}
@@ -449,7 +456,7 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
             className="rounded-sm border border-glass bg-surface-2 px-3 py-2"
           >
             <p className="text-[10px] uppercase tracking-wide text-fg-muted">
-              {m.label}
+              {t(m.label)}
             </p>
             <p className="font-numeric text-sm font-semibold tabular-nums text-fg">
               {formatMetricValue(entry.metrics?.[m.key])}
@@ -460,15 +467,15 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
 
       <div className="space-y-3 border-t border-glass pt-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-medium text-fg-muted">Evolución diaria</p>
+          <p className="text-xs font-medium text-fg-muted">{t("publications.analytics.dailyTrend")}</p>
           <SegmentedControl
-            ariaLabel={`Serie diaria de ${name}`}
+            ariaLabel={t("publications.analytics.dailySeriesOf", { name })}
             size="sm"
             value={seriesMetric}
             onValueChange={setSeriesMetric}
             options={[
-              { value: "reach" as SeriesMetric, label: "Alcance" },
-              { value: "views" as SeriesMetric, label: "Vistas" },
+              { value: "reach" as SeriesMetric, label: t("publications.metrics.reach") },
+              { value: "views" as SeriesMetric, label: t("publications.metrics.views") },
             ]}
           />
         </div>

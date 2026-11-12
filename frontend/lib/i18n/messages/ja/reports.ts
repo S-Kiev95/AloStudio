@@ -1,0 +1,57 @@
+import type { reports as es } from "../es/reports";
+import type { Strings } from "../types";
+
+export const reports: Strings<typeof es> = {
+  bot: {
+    conversations: "ボットの会話",
+    messages: "ボットのメッセージ",
+    resolutionRate: "解決率",
+    handoffRate: "引き継ぎ率",
+  },
+  noData: "選択した期間のデータはありません。",
+  range: {
+    d7: "7 日間",
+    d30: "30 日間",
+    d90: "90 日間",
+  },
+  period: "期間",
+  loadingMetrics: "指標を読み込み中…",
+  metricsFailed: "指標を読み込めませんでした。",
+  evolution: "推移",
+  metric: "指標",
+  seriesFailed: "データ系列を読み込めませんでした。",
+  traffic: "会話のトラフィック",
+  trafficFailed: "トラフィックを読み込めませんでした。",
+  botPerformance: "ボットのパフォーマンス",
+  botFailed: "ボットの指標を読み込めませんでした。",
+  breakdown: "内訳",
+  scope: "範囲",
+  cards: {
+    conversations: "会話",
+    incoming: "受信メッセージ",
+    outgoing: "送信メッセージ",
+    resolutions: "解決数",
+    firstResponse: "初回応答 (平均)",
+    resolution: "解決 (平均)",
+    reply: "応答 (平均)",
+    noPrevious: "前期間なし",
+    noChange: "変化なし",
+    vsPrevious: "前期間比",
+  },
+  table: {
+    resolved: "解決済み",
+    firstResponse: "初回応答 (平均)",
+    spend: "広告費",
+    costPerConversation: "会話あたりの費用",
+    costPerResolved: "解決あたりの費用",
+    entity: "対象",
+    loadFailed: "内訳を読み込めませんでした。",
+    noData: "この期間のデータはありません。",
+  },
+  heatmap: {
+    empty: "選択した範囲に会話はありません。",
+    none: "会話なし",
+    one: "会話 1 件",
+    many: "会話 {count} 件",
+  },
+};

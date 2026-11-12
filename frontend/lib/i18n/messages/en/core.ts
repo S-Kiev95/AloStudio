@@ -1,6 +1,8 @@
-import type { Messages } from "./es";
+import type { core as es } from "../es/core";
 
-export const en: Messages = {
+import type { Strings } from "../types";
+
+export const core: Strings<typeof es> = {
   common: {
     loading: "Loading…",
     saveChanges: "Save changes",

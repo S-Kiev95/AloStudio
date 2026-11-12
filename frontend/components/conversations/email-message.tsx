@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import type { Message } from "@/lib/api/conversations";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 type EmailMeta = NonNullable<
   NonNullable<Message["content_attributes"]>["email"]
@@ -27,6 +28,7 @@ export function EmailMessage({
   message: Message;
   defaultOpen: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(defaultOpen);
   const meta = message.content_attributes?.email;
   const outgoing = message.message_type === 1;
@@ -35,7 +37,7 @@ export function EmailMessage({
     meta?.from_name?.trim() ||
     message.sender?.name?.trim() ||
     meta?.from?.trim() ||
-    (outgoing ? "Vos" : "Contacto");
+    (outgoing ? t("conversations.email.you") : t("conversations.contact.title"));
   const address = meta?.from?.trim() || null;
 
   const preview = (message.content ?? "").replace(/\s+/g, " ").trim();
@@ -63,7 +65,7 @@ export function EmailMessage({
               <span className="truncate text-xs text-fg-muted">{address}</span>
             ) : null}
             {outgoing ? (
-              <span className="text-xs text-lit">enviado</span>
+              <span className="text-xs text-lit">{t("conversations.email.sent")}</span>
             ) : null}
           </div>
           {open ? (
@@ -101,7 +103,7 @@ export function EmailMessage({
               and paragraphs, and collapsing them turns a quoted reply
               into an unreadable run-on. */}
           <p className="whitespace-pre-wrap break-words text-sm text-fg">
-            {message.content || <span className="text-fg-muted">(sin texto)</span>}
+            {message.content || <span className="text-fg-muted">{t("conversations.email.noText")}</span>}
           </p>
           {message.attachments?.length ? (
             <Attachments attachments={message.attachments} />
@@ -113,6 +115,7 @@ export function EmailMessage({
 }
 
 function Recipients({ meta }: { meta: EmailMeta | undefined }) {
+  const t = useT();
   const to = meta?.to ?? [];
   const cc = meta?.cc ?? [];
   if (!to.length && !cc.length) return null;
@@ -120,13 +123,13 @@ function Recipients({ meta }: { meta: EmailMeta | undefined }) {
     <dl className="mt-0.5 space-y-0.5 text-xs text-fg-muted">
       {to.length ? (
         <div className="flex gap-1.5">
-          <dt className="shrink-0">Para:</dt>
+          <dt className="shrink-0">{t("conversations.email.to")}</dt>
           <dd className="min-w-0 truncate">{to.join(", ")}</dd>
         </div>
       ) : null}
       {cc.length ? (
         <div className="flex gap-1.5">
-          <dt className="shrink-0">CC:</dt>
+          <dt className="shrink-0">{t("conversations.email.ccLabel")}</dt>
           <dd className="min-w-0 truncate">{cc.join(", ")}</dd>
         </div>
       ) : null}

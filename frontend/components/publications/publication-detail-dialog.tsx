@@ -33,29 +33,34 @@ import {
   PublicationStateBadge,
   TargetStateBadge,
 } from "./publication-state-badge";
+import { useT } from "@/lib/i18n/provider";
+import { createTranslate, type MessageKey, type Translate } from "@/lib/i18n/translate";
 
-const METRIC_FIELDS: { key: MetricName; label: string }[] = [
-  { key: "views", label: "Vistas" },
-  { key: "reach", label: "Alcance" },
-  { key: "interactions", label: "Interacciones" },
-  { key: "likes", label: "Me gusta" },
-  { key: "comments", label: "Comentarios" },
-  { key: "shares", label: "Compartidos" },
-  { key: "saves", label: "Guardados" },
+const METRIC_FIELDS: { key: MetricName; label: MessageKey }[] = [
+  { key: "views", label: "publications.metrics.views" },
+  { key: "reach", label: "publications.metrics.reach" },
+  { key: "interactions", label: "publications.metrics.interactions" },
+  { key: "likes", label: "publications.metrics.likes" },
+  { key: "comments", label: "publications.metrics.comments" },
+  { key: "shares", label: "publications.metrics.shares" },
+  { key: "saves", label: "publications.metrics.saves" },
 ];
 
-export function formatUpdatedAgo(iso: string | null | undefined): string {
+export function formatUpdatedAgo(
+  iso: string | null | undefined,
+  t: Translate = createTranslate("es"),
+): string {
   if (!iso) return "";
   const ms = new Date(iso).getTime();
   if (Number.isNaN(ms)) return "";
   const diffSec = Math.max(0, Math.round((Date.now() - ms) / 1000));
-  if (diffSec < 60) return "actualizado hace menos de 1m";
+  if (diffSec < 60) return t("publications.detail.updatedJustNow");
   const min = Math.round(diffSec / 60);
-  if (min < 60) return `actualizado hace ${min}m`;
+  if (min < 60) return t("publications.detail.updatedAgo", { ago: t("time.minutesAgo", { n: min }) });
   const hr = Math.round(min / 60);
-  if (hr < 24) return `actualizado hace ${hr}h`;
+  if (hr < 24) return t("publications.detail.updatedAgo", { ago: t("time.hoursAgo", { n: hr }) });
   const days = Math.round(hr / 24);
-  return `actualizado hace ${days}d`;
+  return t("publications.detail.updatedAgo", { ago: t("time.daysAgo", { n: days }) });
 }
 
 export function formatMetricValue(val: number | null | undefined): string {
@@ -77,6 +82,7 @@ export function PublicationDetailDialog({
   isAdmin: boolean;
   onEdit?: (pub: Publication) => void;
 }) {
+  const t = useT();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [error, setError] = useState<ParsedPublicationError | null>(null);
 
@@ -117,7 +123,7 @@ export function PublicationDetailDialog({
   if (!open || !pub) return null;
 
   const dateIso = pub.published_at ?? pub.scheduled_for ?? pub.created_at;
-  const dateLabel = dateIso ? formatDateTimeLocal(dateIso) : "Sin fecha";
+  const dateLabel = dateIso ? formatDateTimeLocal(dateIso) : t("publications.detail.noDate");
 
   async function handleRetry() {
     if (!pub) return;
@@ -126,7 +132,7 @@ export function PublicationDetailDialog({
       await retryMutation.mutateAsync(pub.id);
     } catch (err) {
       setError(
-        parsePublicationError(err, "No se pudo reintentar la publicación."),
+        parsePublicationError(err, t("publications.detail.retryFailed")),
       );
     }
   }
@@ -140,7 +146,7 @@ export function PublicationDetailDialog({
       setError(
         parsePublicationError(
           err,
-          "No se pudieron actualizar las estadísticas.",
+          t("publications.detail.refreshFailed"),
         ),
       );
     }
@@ -148,14 +154,14 @@ export function PublicationDetailDialog({
 
   async function handleDelete() {
     if (!pub) return;
-    if (!window.confirm("¿Borrar esta publicación?")) return;
+    if (!window.confirm(t("publications.detail.deleteConfirm"))) return;
     setError(null);
     try {
       await deleteMutation.mutateAsync(pub.id);
       onClose();
     } catch (err) {
       setError(
-        parsePublicationError(err, "No se pudo borrar la publicación."),
+        parsePublicationError(err, t("publications.detail.deleteFailed")),
       );
     }
   }
@@ -180,7 +186,7 @@ export function PublicationDetailDialog({
                 id="publication-detail-title"
                 className="text-lg font-medium text-fg"
               >
-                Detalle de publicación
+                {t("publications.detail.title")}
               </h2>
               <PublicationStateBadge state={pub.state} />
             </div>
@@ -191,7 +197,7 @@ export function PublicationDetailDialog({
 
           <button
             type="button"
-            aria-label="Cerrar diálogo"
+            aria-label={t("actions.closeDialog")}
             onClick={onClose}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
           >
@@ -229,7 +235,7 @@ export function PublicationDetailDialog({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={m.url}
-                    alt={`Medio ${idx + 1}`}
+                    alt={t("publications.detail.mediaNumber", { n: idx + 1 })}
                     className="h-full w-full object-cover"
                   />
                 )}
@@ -241,7 +247,7 @@ export function PublicationDetailDialog({
         {/* Targets */}
         <div className="space-y-3">
           <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-fg-muted">
-            Destinos ({pub.targets.length})
+            {t("publications.detail.targets", { count: pub.targets.length })}
           </h3>
           {pub.targets.map((target) => {
             const chName = channelDisplayName(target.channel);
@@ -288,7 +294,7 @@ export function PublicationDetailDialog({
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs font-medium text-info hover:underline"
                       >
-                        Ver en la red
+                        {t("publications.detail.viewOnNetwork")}
                         <ExternalLink className="h-3 w-3" aria-hidden />
                       </a>
                     ) : null}
@@ -319,7 +325,7 @@ export function PublicationDetailDialog({
                           className="rounded-sm border border-glass bg-field px-2.5 py-1.5"
                         >
                           <p className="text-[10px] uppercase tracking-wide text-fg-muted">
-                            {mf.label}
+                            {t(mf.label)}
                           </p>
                           <p className="font-numeric text-sm font-semibold tabular-nums text-fg">
                             {formatMetricValue(target.metrics?.[mf.key])}
@@ -334,7 +340,7 @@ export function PublicationDetailDialog({
                       </p>
                     ) : target.metrics_updated_at ? (
                       <p className="text-xs text-fg-muted">
-                        {formatUpdatedAgo(target.metrics_updated_at)}
+                        {formatUpdatedAgo(target.metrics_updated_at, t)}
                       </p>
                     ) : null}
                   </div>
@@ -355,7 +361,7 @@ export function PublicationDetailDialog({
                 onClick={() => onEdit(pub)}
               >
                 <Pencil className="h-4 w-4" aria-hidden />
-                Editar
+                {t("actions.edit")}
               </Button>
             ) : null}
 
@@ -368,7 +374,7 @@ export function PublicationDetailDialog({
                 onClick={() => void handleRefreshMetrics()}
               >
                 <RefreshCw className="h-4 w-4" aria-hidden />
-                Actualizar estadísticas
+                {t("publications.detail.refreshStats")}
               </Button>
             ) : null}
 
@@ -380,7 +386,7 @@ export function PublicationDetailDialog({
                 onClick={() => void handleRetry()}
               >
                 <RotateCcw className="h-4 w-4" aria-hidden />
-                Reintentar
+                {t("actions.retry")}
               </Button>
             ) : null}
 
@@ -393,7 +399,7 @@ export function PublicationDetailDialog({
                 onClick={() => void handleDelete()}
               >
                 <Trash2 className="h-4 w-4" aria-hidden />
-                Borrar
+                {t("publications.media.delete")}
               </Button>
             ) : null}
           </div>

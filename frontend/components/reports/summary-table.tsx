@@ -12,24 +12,25 @@ import {
 } from "@/lib/api/reports";
 import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 const COLUMNS = [
-  { key: "conversations_count", label: "Conversaciones", kind: "count" },
-  { key: "resolved_conversations_count", label: "Resueltas", kind: "count" },
-  { key: "avg_resolution_time", label: "Resolución (prom.)", kind: "duration" },
+  { key: "conversations_count", label: "reports.cards.conversations", kind: "count" },
+  { key: "resolved_conversations_count", label: "reports.table.resolved", kind: "count" },
+  { key: "avg_resolution_time", label: "reports.cards.resolution", kind: "duration" },
   {
     key: "avg_first_response_time",
-    label: "1ª respuesta (prom.)",
+    label: "reports.table.firstResponse",
     kind: "duration",
   },
-  { key: "avg_reply_time", label: "Respuesta (prom.)", kind: "duration" },
+  { key: "avg_reply_time", label: "reports.cards.reply", kind: "duration" },
 ] as const;
 
 /** Spend columns, appended only for ads whose figures have been synced. */
 const MONEY_COLUMNS = [
-  { key: "spend", label: "Inversión" },
-  { key: "cost_per_conversation", label: "Costo / conv." },
-  { key: "cost_per_resolution", label: "Costo / resuelta" },
+  { key: "spend", label: "reports.table.spend" },
+  { key: "cost_per_conversation", label: "reports.table.costPerConversation" },
+  { key: "cost_per_resolution", label: "reports.table.costPerResolved" },
 ] as const;
 
 function money(value: number | null | undefined, currency?: string | null) {
@@ -52,6 +53,7 @@ export function SummaryTable({
   scope: SummaryScope;
   range: ReportRange;
 }) {
+  const t = useT();
   const query = useSummaryReport(accountId, scope, range);
   // Agent rows arrive without a name (just the user id) — resolve from
   // the agents list. Other scopes carry their own name so this stays idle.
@@ -63,7 +65,7 @@ export function SummaryTable({
   }, [agents.data]);
 
   const entityLabel =
-    SUMMARY_SCOPES.find((s) => s.key === scope)?.entityLabel ?? "Entidad";
+    SUMMARY_SCOPES.find((s) => s.key === scope)?.entityLabel ?? t("reports.table.entity");
 
   const rows = useMemo(() => {
     const nameOf = (r: SummaryRow) =>
@@ -77,20 +79,20 @@ export function SummaryTable({
 
   if (query.isLoading) {
     return (
-      <p className="py-10 text-center text-sm text-fg-muted">Cargando…</p>
+      <p className="py-10 text-center text-sm text-fg-muted">{t("common.loading")}</p>
     );
   }
   if (query.isError) {
     return (
       <p role="alert" className="py-10 text-center text-sm text-danger">
-        No se pudo cargar el desglose.
+        {t("reports.table.loadFailed")}
       </p>
     );
   }
   if (rows.length === 0) {
     return (
       <p className="py-10 text-center text-sm text-fg-muted">
-        No hay datos para este período.
+        {t("reports.table.noData")}
       </p>
     );
   }
@@ -116,7 +118,7 @@ export function SummaryTable({
                 key={c.key}
                 className="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted"
               >
-                {c.label}
+                {t(c.label)}
               </th>
             ))}
             {hasSpend
@@ -125,7 +127,7 @@ export function SummaryTable({
                     key={c.key}
                     className="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-[0.08em] text-table-focused"
                   >
-                    {c.label}
+                    {t(c.label)}
                   </th>
                 ))
               : null}

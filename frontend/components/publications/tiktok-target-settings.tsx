@@ -10,6 +10,9 @@ import {
   useChannelComposeInfo,
 } from "@/lib/api/publications";
 import { Select } from "@/components/ui/select";
+import { useT } from "@/lib/i18n/provider";
+import { rich } from "@/lib/i18n/rich";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 // TikTok asks for every choice to be made by hand: nothing preselected.
 export const EMPTY_TIKTOK_SETTINGS: TikTokSettings = {
@@ -22,11 +25,11 @@ export const EMPTY_TIKTOK_SETTINGS: TikTokSettings = {
   brand_content: false,
 };
 
-const PRIVACY_LABELS: Record<TikTokPrivacyLevel, string> = {
-  PUBLIC_TO_EVERYONE: "Todos",
-  MUTUAL_FOLLOW_FRIENDS: "Amigos (se siguen mutuamente)",
-  FOLLOWER_OF_CREATOR: "Seguidores",
-  SELF_ONLY: "Solo yo",
+const PRIVACY_LABELS: Record<TikTokPrivacyLevel, MessageKey> = {
+  PUBLIC_TO_EVERYONE: "publications.tiktok.privacy.PUBLIC_TO_EVERYONE",
+  MUTUAL_FOLLOW_FRIENDS: "publications.tiktok.privacy.MUTUAL_FOLLOW_FRIENDS",
+  FOLLOWER_OF_CREATOR: "publications.tiktok.privacy.FOLLOWER_OF_CREATOR",
+  SELF_ONLY: "publications.tiktok.privacy.SELF_ONLY",
 };
 
 const MUSIC_POLICY_URL =
@@ -142,6 +145,7 @@ export function TikTokTargetSettings({
    * knows (the video is longer than the account allows), or ``null``. */
   onProblemChange: (problem: string | null) => void;
 }) {
+  const t = useT();
   const info = useChannelComposeInfo(accountId, channel.id);
   const data = info.data;
   const privacyId = `tiktok-privacy-${channel.id}`;
@@ -150,7 +154,11 @@ export function TikTokTargetSettings({
   const maxSeconds = data?.max_video_post_duration_sec ?? null;
   const tooLong =
     duration !== null && maxSeconds !== null && duration > maxSeconds + 0.5
-      ? `${channelLabel(channel)} (TikTok): el video dura ${formatMinutes(duration)} y la cuenta admite hasta ${formatMinutes(maxSeconds)}.`
+      ? t("publications.tiktok.tooLongProblem", {
+          label: channelLabel(channel),
+          duration: formatMinutes(duration),
+          max: formatMinutes(maxSeconds),
+        })
       : null;
   const reportProblem = useRef(onProblemChange);
   reportProblem.current = onProblemChange;
@@ -161,14 +169,14 @@ export function TikTokTargetSettings({
 
   if (info.isLoading) {
     return (
-      <p className="text-xs text-fg-muted">Consultando la cuenta de TikTok…</p>
+      <p className="text-xs text-fg-muted">{t("publications.tiktok.checking")}</p>
     );
   }
   if (info.isError || !data || data.can_post === false) {
     return (
       <p role="alert" className="text-xs text-danger">
         {data?.message ??
-          "No se pudo consultar la cuenta de TikTok. Probá de nuevo en unos minutos."}
+          t("publications.tiktok.checkFailed")}
       </p>
     );
   }
@@ -180,25 +188,30 @@ export function TikTokTargetSettings({
   return (
     <div className="space-y-3">
       <p className="text-xs text-fg-muted">
-        Se publica en la cuenta{" "}
-        <span className="font-medium text-fg">
-          {data.nickname ?? channel.name}
-        </span>
-        {data.username ? ` (@${data.username})` : ""}.
+        {rich(t("publications.tiktok.postsTo"), {
+          account: (
+            <span className="font-medium text-fg">
+              {data.nickname ?? channel.name}
+            </span>
+          ),
+          username: data.username ? ` (@${data.username})` : "",
+        })}
         {!photosOnly && maxMinutes
-          ? ` Admite videos de hasta ${maxMinutes} minutos.`
+          ? ` ${t("publications.tiktok.maxMinutes", { n: maxMinutes })}`
           : ""}
       </p>
       {tooLong && duration !== null && maxSeconds !== null ? (
         <p role="alert" className="text-xs text-danger">
-          El video dura {formatMinutes(duration)} y esta cuenta admite hasta{" "}
-          {formatMinutes(maxSeconds)}: recortalo o elegí otro.
+          {t("publications.tiktok.tooLongAlert", {
+            duration: formatMinutes(duration),
+            max: formatMinutes(maxSeconds),
+          })}
         </p>
       ) : null}
 
       <div className="space-y-1">
         <label htmlFor={privacyId} className="text-xs text-fg-muted">
-          Quién puede verlo
+          {t("publications.tiktok.whoCanSee")}
         </label>
         <Select
           id={privacyId}
@@ -211,7 +224,7 @@ export function TikTokTargetSettings({
           }
         >
           <option value="" disabled>
-            Elegí una opción
+            {t("publications.tiktok.pickOption")}
           </option>
           {(data.privacy_level_options ?? []).map((level) => {
             const blocked = level === "SELF_ONLY" && value.brand_content;
@@ -222,11 +235,11 @@ export function TikTokTargetSettings({
                 disabled={blocked}
                 title={
                   blocked
-                    ? "El contenido de marca no puede tener visibilidad privada."
+                    ? t("publications.tiktok.brandNotPrivate")
                     : undefined
                 }
               >
-                {PRIVACY_LABELS[level]}
+                {t(PRIVACY_LABELS[level])}
               </option>
             );
           })}
@@ -235,12 +248,12 @@ export function TikTokTargetSettings({
 
       <div className="flex flex-wrap gap-x-4 gap-y-2">
         <Toggle
-          label="Permitir comentarios"
+          label={t("publications.tiktok.allowComments")}
           checked={value.allow_comment}
           disabled={data.comment_disabled}
           title={
             data.comment_disabled
-              ? "Los comentarios están desactivados en la configuración de la cuenta de TikTok."
+              ? t("publications.tiktok.commentsOff")
               : undefined
           }
           onChange={(next) => onChange({ allow_comment: next })}
@@ -248,23 +261,23 @@ export function TikTokTargetSettings({
         {photosOnly ? null : (
           <>
             <Toggle
-              label="Permitir dúos"
+              label={t("publications.tiktok.allowDuet")}
               checked={value.allow_duet}
               disabled={data.duet_disabled}
               title={
                 data.duet_disabled
-                  ? "Los dúos están desactivados en la configuración de la cuenta de TikTok."
+                  ? t("publications.tiktok.duetOff")
                   : undefined
               }
               onChange={(next) => onChange({ allow_duet: next })}
             />
             <Toggle
-              label="Permitir stitch"
+              label={t("publications.tiktok.allowStitch")}
               checked={value.allow_stitch}
               disabled={data.stitch_disabled}
               title={
                 data.stitch_disabled
-                  ? "El stitch está desactivado en la configuración de la cuenta de TikTok."
+                  ? t("publications.tiktok.stitchOff")
                   : undefined
               }
               onChange={(next) => onChange({ allow_stitch: next })}
@@ -275,7 +288,7 @@ export function TikTokTargetSettings({
 
       <div className="space-y-2">
         <Toggle
-          label="Divulgar contenido comercial"
+          label={t("publications.tiktok.disclose")}
           checked={value.disclose}
           onChange={(next) =>
             onChange(
@@ -288,17 +301,17 @@ export function TikTokTargetSettings({
         {value.disclose ? (
           <div className="space-y-2 pl-6">
             <Toggle
-              label="Tu marca"
+              label={t("publications.tiktok.yourBrand")}
               checked={value.brand_organic}
               onChange={(next) => onChange({ brand_organic: next })}
             />
             <Toggle
-              label="Contenido de marca (con un tercero)"
+              label={t("publications.tiktok.brandedContent")}
               checked={value.brand_content}
               disabled={value.privacy_level === "SELF_ONLY"}
               title={
                 value.privacy_level === "SELF_ONLY"
-                  ? "El contenido de marca no puede tener visibilidad «Solo yo»: cambiá quién puede verlo."
+                  ? t("publications.tiktok.brandedNotSelfOnly")
                   : undefined
               }
               onChange={(next) => onChange({ brand_content: next })}
@@ -306,12 +319,12 @@ export function TikTokTargetSettings({
             {value.brand_organic || value.brand_content ? (
               <p className="text-xs text-fg-muted">
                 {value.brand_content
-                  ? "La publicación se va a etiquetar como «Colaboración pagada»."
-                  : "La publicación se va a etiquetar como «Contenido promocional»."}
+                  ? t("publications.tiktok.labelPaid")
+                  : t("publications.tiktok.labelPromo")}
               </p>
             ) : (
               <p className="text-xs text-danger">
-                Indicá si el contenido promociona tu marca, a un tercero o ambos.
+                {t("publications.editor.tiktokDisclosureShort")}
               </p>
             )}
           </div>
@@ -319,8 +332,7 @@ export function TikTokTargetSettings({
       </div>
 
       <p className="text-xs text-fg-muted">
-        Después de publicar, TikTok puede tardar unos minutos en mostrarla en el
-        perfil.
+        {t("publications.tiktok.mayTakeMinutes")}
       </p>
     </div>
   );
@@ -328,26 +340,27 @@ export function TikTokTargetSettings({
 
 /** The declaration TikTok asks to show right before the publish button. */
 export function TikTokConsent({ settings }: { settings: TikTokSettings[] }) {
+  const t = useT();
   if (settings.length === 0) return null;
   const branded = settings.some((s) => s.disclose && s.brand_content);
   const link = "text-lit underline underline-offset-2";
   return (
     <p className="text-xs text-fg-muted">
-      Al publicar en TikTok, aceptás{" "}
-      {branded ? (
-        <>
-          la{" "}
-          <a href={BRANDED_POLICY_URL} target="_blank" rel="noreferrer" className={link}>
-            Política de contenido de marca
-          </a>{" "}
-          y{" "}
-        </>
-      ) : null}
-      la{" "}
-      <a href={MUSIC_POLICY_URL} target="_blank" rel="noreferrer" className={link}>
-        Confirmación de uso de música
-      </a>{" "}
-      de TikTok.
+      {rich(
+        t(branded ? "publications.tiktok.consentBranded" : "publications.tiktok.consent"),
+        {
+          brand: (
+            <a href={BRANDED_POLICY_URL} target="_blank" rel="noreferrer" className={link}>
+              {t("publications.tiktok.brandPolicy")}
+            </a>
+          ),
+          music: (
+            <a href={MUSIC_POLICY_URL} target="_blank" rel="noreferrer" className={link}>
+              {t("publications.tiktok.musicConfirmation")}
+            </a>
+          ),
+        },
+      )}
     </p>
   );
 }

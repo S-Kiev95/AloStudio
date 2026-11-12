@@ -1,0 +1,57 @@
+import type { reports as es } from "../es/reports";
+import type { Strings } from "../types";
+
+export const reports: Strings<typeof es> = {
+  bot: {
+    conversations: "Conversas com o bot",
+    messages: "Mensagens do bot",
+    resolutionRate: "Taxa de resolução",
+    handoffRate: "Taxa de encaminhamento",
+  },
+  noData: "Sem dados no período selecionado.",
+  range: {
+    d7: "7 dias",
+    d30: "30 dias",
+    d90: "90 dias",
+  },
+  period: "Período",
+  loadingMetrics: "Carregando métricas…",
+  metricsFailed: "Não foi possível carregar as métricas.",
+  evolution: "Evolução",
+  metric: "Métrica",
+  seriesFailed: "Não foi possível carregar a série.",
+  traffic: "Tráfego de conversas",
+  trafficFailed: "Não foi possível carregar o tráfego.",
+  botPerformance: "Desempenho do bot",
+  botFailed: "Não foi possível carregar as métricas do bot.",
+  breakdown: "Detalhamento",
+  scope: "Escopo",
+  cards: {
+    conversations: "Conversas",
+    incoming: "Mensagens recebidas",
+    outgoing: "Mensagens enviadas",
+    resolutions: "Resoluções",
+    firstResponse: "Primeira resposta (média)",
+    resolution: "Resolução (média)",
+    reply: "Resposta (média)",
+    noPrevious: "sem período anterior",
+    noChange: "sem mudanças",
+    vsPrevious: "vs. período anterior",
+  },
+  table: {
+    resolved: "Resolvidas",
+    firstResponse: "1ª resposta (média)",
+    spend: "Investimento",
+    costPerConversation: "Custo / conversa",
+    costPerResolved: "Custo / resolvida",
+    entity: "Entidade",
+    loadFailed: "Não foi possível carregar o detalhamento.",
+    noData: "Não há dados para este período.",
+  },
+  heatmap: {
+    empty: "Nenhuma conversa no período escolhido.",
+    none: "Sem conversas",
+    one: "1 conversa",
+    many: "{count} conversas",
+  },
+};

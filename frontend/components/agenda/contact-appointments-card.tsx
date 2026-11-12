@@ -21,6 +21,7 @@ import {
   AppointmentStatusBadge,
 } from "./status-badge";
 import { formatDateTimeLocal } from "./week-utils";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 export function ContactAppointmentsCard({
   accountId,
@@ -29,6 +30,8 @@ export function ContactAppointmentsCard({
   accountId: string;
   contact: AppointmentContact;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [sinceIso] = useState(() => new Date().toISOString());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
@@ -56,20 +59,20 @@ export function ContactAppointmentsCard({
     } catch (err) {
       setError(
         (err as { message?: string })?.message ??
-          "No se pudo cambiar el estado.",
+          t("agenda.statusChangeFailed"),
       );
     }
   }
 
   async function handleDelete(appt: Appointment) {
-    if (!window.confirm(`¿Eliminar la cita "${appt.title}"?`)) return;
+    if (!window.confirm(t("agenda.deleteConfirm", { title: appt.title }))) return;
     setError(null);
     try {
       await deleteMutation.mutateAsync(appt.id);
     } catch (err) {
       setError(
         (err as { message?: string })?.message ??
-          "No se pudo eliminar la cita.",
+          t("agenda.deleteFailed"),
       );
     }
   }
@@ -77,7 +80,7 @@ export function ContactAppointmentsCard({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <CardTitle>Próximas citas</CardTitle>
+        <CardTitle>{t("agenda.upcoming")}</CardTitle>
         <Button
           size="sm"
           variant="secondary"
@@ -87,7 +90,7 @@ export function ContactAppointmentsCard({
           }}
         >
           <CalendarPlus className="h-4 w-4" aria-hidden />
-          Agendar cita
+          {t("agenda.schedule")}
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -98,14 +101,14 @@ export function ContactAppointmentsCard({
         ) : null}
 
         {isLoading ? (
-          <p className="text-sm text-fg-muted">Cargando citas…</p>
+          <p className="text-sm text-fg-muted">{t("agenda.loading")}</p>
         ) : isError ? (
           <p role="alert" className="text-sm text-danger">
-            No se pudieron cargar las citas del contacto.
+            {t("agenda.contactLoadFailed")}
           </p>
         ) : upcoming.length === 0 ? (
           <p className="text-sm text-fg-muted">
-            No hay próximas citas agendadas para este contacto.
+            {t("agenda.contactEmpty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass rounded-md border border-glass">
@@ -123,7 +126,7 @@ export function ContactAppointmentsCard({
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-xs text-fg-muted">
                     <span className="font-numeric tabular-nums text-fg">
-                      {formatDateTimeLocal(appt.starts_at)}
+                      {formatDateTimeLocal(appt.starts_at, locale)}
                     </span>
                     {appt.product ? (
                       <span className="inline-flex items-center gap-1">
@@ -136,7 +139,7 @@ export function ContactAppointmentsCard({
 
                 <div className="flex items-center gap-1.5">
                   <select
-                    aria-label={`Estado de ${appt.title}`}
+                    aria-label={t("agenda.statusOf", { title: appt.title })}
                     value={appt.status}
                     onChange={(e) =>
                       handleStatusChange(
@@ -148,14 +151,14 @@ export function ContactAppointmentsCard({
                   >
                     {APPOINTMENT_STATUS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
-                        {opt.label}
+                        {t(opt.label)}
                       </option>
                     ))}
                   </select>
                   <button
                     type="button"
-                    aria-label={`Editar ${appt.title}`}
-                    title="Editar"
+                    aria-label={t("agenda.editItem", { title: appt.title })}
+                    title={t("actions.edit")}
                     onClick={() => {
                       setEditing(appt);
                       setDialogOpen(true);
@@ -166,8 +169,8 @@ export function ContactAppointmentsCard({
                   </button>
                   <button
                     type="button"
-                    aria-label={`Eliminar ${appt.title}`}
-                    title="Eliminar"
+                    aria-label={t("agenda.deleteItem", { title: appt.title })}
+                    title={t("actions.delete")}
                     onClick={() => handleDelete(appt)}
                     disabled={deleteMutation.isPending}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"

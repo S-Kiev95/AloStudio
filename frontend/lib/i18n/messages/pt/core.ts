@@ -1,7 +1,8 @@
-import type { Messages } from "./es";
+import type { core as es } from "../es/core";
 
-/** Brazilian Portuguese. */
-export const pt: Messages = {
+import type { Strings } from "../types";
+
+export const core: Strings<typeof es> = {
   common: {
     loading: "Carregando…",
     saveChanges: "Salvar alterações",

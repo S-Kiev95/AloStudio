@@ -9,6 +9,7 @@ import type { Contact, ContactInput } from "@/lib/api/contacts";
 import { useCustomAttributes } from "@/lib/api/custom-attributes";
 
 import { CustomAttributeInput } from "./custom-attribute-input";
+import { useT } from "@/lib/i18n/provider";
 
 export function ContactForm({
   accountId,
@@ -23,6 +24,7 @@ export function ContactForm({
   onSubmit: (input: ContactInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const customAttrs = useCustomAttributes(accountId, "contact_attribute");
 
   const [name, setName] = useState(initial?.name ?? "");
@@ -53,7 +55,7 @@ export function ContactForm({
     setError(null);
     if (!name.trim() && !email.trim() && !phone.trim()) {
       return setError(
-        "Necesitamos al menos un nombre, email o teléfono para identificar al contacto.",
+        t("contacts.form.needIdentity"),
       );
     }
     try {
@@ -68,7 +70,7 @@ export function ContactForm({
     } catch (e) {
       setError(
         (e as { message?: string })?.message ??
-          "No se pudo guardar el contacto.",
+          t("contacts.form.saveFailed"),
       );
     }
   }
@@ -83,7 +85,7 @@ export function ContactForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="c-name">Nombre</Label>
+          <Label htmlFor="c-name">{t("profile.name")}</Label>
           <Input
             id="c-name"
             value={name}
@@ -92,7 +94,7 @@ export function ContactForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="c-email">Email</Label>
+          <Label htmlFor="c-email">{t("common.email")}</Label>
           <Input
             id="c-email"
             type="email"
@@ -104,7 +106,7 @@ export function ContactForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="c-phone">Teléfono</Label>
+          <Label htmlFor="c-phone">{t("profile.phone")}</Label>
           <Input
             id="c-phone"
             type="tel"
@@ -114,12 +116,12 @@ export function ContactForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="c-id">Identificador externo</Label>
+          <Label htmlFor="c-id">{t("contacts.form.identifier")}</Label>
           <Input
             id="c-id"
             value={identifier ?? ""}
             onChange={(e) => setIdentifier(e.target.value)}
-            placeholder="ID en tu CRM"
+            placeholder={t("contacts.form.identifierPlaceholder")}
           />
         </div>
       </div>
@@ -130,13 +132,13 @@ export function ContactForm({
           checked={blocked}
           onChange={(e) => setBlocked(e.target.checked)}
         />
-        Contacto bloqueado
+        {t("contacts.form.blocked")}
       </label>
 
       {customAttrs.data?.length ? (
         <div className="space-y-3 rounded-md border border-border bg-surface p-3">
           <p className="text-xs font-medium uppercase text-fg-muted">
-            Atributos personalizados
+            {t("conversations.contact.customAttributes")}
           </p>
           {customAttrs.data.map((attr) => (
             <div key={attr.id} className="space-y-1.5">
@@ -160,10 +162,10 @@ export function ContactForm({
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear contacto"}
+          {initial ? t("common.saveChanges") : t("contacts.form.create")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

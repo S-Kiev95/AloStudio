@@ -14,6 +14,7 @@ import {
   formatTimeRange,
   groupAppointmentsByDay,
 } from "./week-utils";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 export function WeekView({
   weekStart,
@@ -30,7 +31,9 @@ export function WeekView({
   onStatusChange: (appointment: Appointment, status: AppointmentStatus) => void;
   onDelete: (appointment: Appointment) => void;
 }) {
-  const buckets = groupAppointmentsByDay(weekStart, appointments);
+  const t = useT();
+  const locale = useLocale();
+  const buckets = groupAppointmentsByDay(weekStart, appointments, locale);
   const todayKey = formatLocalDateKey(today);
 
   return (
@@ -66,7 +69,7 @@ export function WeekView({
               </div>
               {isToday ? (
                 <span className="rounded-pill bg-focused px-2 py-0.5 text-[11px] font-medium text-lit">
-                  Hoy
+                  {t("agenda.today")}
                 </span>
               ) : null}
             </header>
@@ -74,7 +77,7 @@ export function WeekView({
             <div className="flex-1 space-y-2 p-2">
               {day.items.length === 0 ? (
                 <p className="py-6 text-center text-xs text-fg-muted">
-                  Sin citas
+                  {t("agenda.noAppointments")}
                 </p>
               ) : (
                 day.items.map((appt) => {
@@ -82,7 +85,7 @@ export function WeekView({
                     appt.contact?.name?.trim() ||
                     appt.contact?.email?.trim() ||
                     appt.contact?.phone_number?.trim() ||
-                    `Contacto #${appt.contact_id}`;
+                    t("conversations.contact.fallbackName", { id: appt.contact_id });
 
                   return (
                     <article
@@ -91,7 +94,7 @@ export function WeekView({
                     >
                       <div className="flex items-start justify-between gap-1">
                         <span className="font-numeric font-semibold tabular-nums text-fg">
-                          {formatTimeRange(appt.starts_at, appt.ends_at)}
+                          {formatTimeRange(appt.starts_at, appt.ends_at, locale)}
                         </span>
                         <AppointmentStatusBadge status={appt.status} />
                       </div>
@@ -114,7 +117,7 @@ export function WeekView({
 
                       <div className="flex items-center justify-between gap-1 pt-1">
                         <select
-                          aria-label={`Estado de ${appt.title}`}
+                          aria-label={t("agenda.statusOf", { title: appt.title })}
                           value={appt.status}
                           onChange={(e) =>
                             onStatusChange(
@@ -126,14 +129,14 @@ export function WeekView({
                         >
                           {APPOINTMENT_STATUS_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
-                              {opt.label}
+                              {t(opt.label)}
                             </option>
                           ))}
                         </select>
                         <button
                           type="button"
-                          aria-label={`Editar ${appt.title}`}
-                          title="Editar"
+                          aria-label={t("agenda.editItem", { title: appt.title })}
+                          title={t("actions.edit")}
                           onClick={() => onEdit(appt)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                         >
@@ -141,8 +144,8 @@ export function WeekView({
                         </button>
                         <button
                           type="button"
-                          aria-label={`Eliminar ${appt.title}`}
-                          title="Eliminar"
+                          aria-label={t("agenda.deleteItem", { title: appt.title })}
+                          title={t("actions.delete")}
                           onClick={() => onDelete(appt)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                         >

@@ -1,9 +1,9 @@
 /**
  * Interface languages (F13). Spanish is the source: every text is written
- * in `messages/es.ts` first, and the other languages must have the same
- * keys (the type checker enforces it).
+ * in `messages/es/` first, and the other languages must have the same keys
+ * (the type checker enforces it).
  */
-export const LOCALES = ["es", "en", "pt"] as const;
+export const LOCALES = ["es", "en", "pt", "fr", "de", "ja", "ko"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "es";
@@ -18,6 +18,10 @@ export const LOCALE_NAMES: Record<Locale, string> = {
   es: "Español",
   en: "English",
   pt: "Português",
+  fr: "Français",
+  de: "Deutsch",
+  ja: "日本語",
+  ko: "한국어",
 };
 
 /** The regional variant handed to `Intl` for dates, numbers and money.
@@ -26,6 +30,10 @@ export const INTL_TAGS: Record<Locale, string> = {
   es: "es-UY",
   en: "en-US",
   pt: "pt-BR",
+  fr: "fr-FR",
+  de: "de-DE",
+  ja: "ja-JP",
+  ko: "ko-KR",
 };
 
 export function isLocale(value: unknown): value is Locale {

@@ -19,13 +19,15 @@ import { ContactForm } from "./contact-form";
 import { ContactableInboxesPanel } from "./contactable-inboxes-panel";
 import { MergeDialog } from "./merge-dialog";
 import { NotesPanel } from "./notes-panel";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 type Tab = "info" | "notes" | "inboxes";
 
-const TABS: { value: Tab; label: string }[] = [
-  { value: "info", label: "Información" },
-  { value: "notes", label: "Notas" },
-  { value: "inboxes", label: "Bandejas" },
+const TABS: { value: Tab; label: MessageKey }[] = [
+  { value: "info", label: "contacts.tabs.info" },
+  { value: "notes", label: "contacts.tabs.notes" },
+  { value: "inboxes", label: "contacts.tabs.inboxes" },
 ];
 
 export function ContactDetailView({
@@ -35,6 +37,7 @@ export function ContactDetailView({
   accountId: string;
   contactId: number;
 }) {
+  const t = useT();
   const router = useRouter();
   const { data: contact, isLoading, isError } = useContact(
     accountId,
@@ -55,14 +58,14 @@ export function ContactDetailView({
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver a contactos
+        {t("contacts.back")}
       </Link>
 
       {isLoading ? (
-        <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+        <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
       ) : isError || !contact ? (
         <p role="alert" className="p-8 text-center text-sm text-danger">
-          No se pudo cargar el contacto.
+          {t("conversations.contact.loadFailed")}
         </p>
       ) : (
         <>
@@ -75,7 +78,7 @@ export function ContactDetailView({
                 {contact.name?.trim() ||
                   contact.email?.trim() ||
                   contact.phone_number?.trim() ||
-                  `Contacto #${contact.id}`}
+                  t("conversations.contact.fallbackName", { id: contact.id })}
               </h2>
               <p className="flex flex-wrap items-center gap-3 text-xs text-fg-muted">
                 {contact.email ? (
@@ -95,7 +98,7 @@ export function ContactDetailView({
             </div>
             {contact.blocked ? (
               <span className="rounded-pill bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">
-                Bloqueado
+                {t("conversations.contact.blocked")}
               </span>
             ) : null}
             <Button
@@ -104,7 +107,7 @@ export function ContactDetailView({
               onClick={() => setMergeOpen(true)}
             >
               <GitMerge className="h-4 w-4" aria-hidden />
-              Combinar
+              {t("contacts.merge")}
             </Button>
           </div>
 
@@ -124,9 +127,9 @@ export function ContactDetailView({
 
           <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
             <TabsList>
-              {TABS.map((t) => (
-                <TabsTrigger key={t.value} value={t.value}>
-                  {t.label}
+              {TABS.map((tab) => (
+                <TabsTrigger key={tab.value} value={tab.value}>
+                  {t(tab.label)}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -135,7 +138,7 @@ export function ContactDetailView({
           {tab === "info" ? (
             <Card>
               <CardHeader>
-                <CardTitle>Datos del contacto</CardTitle>
+                <CardTitle>{t("contacts.details")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ContactForm
@@ -152,7 +155,7 @@ export function ContactDetailView({
           ) : tab === "notes" ? (
             <Card>
               <CardHeader>
-                <CardTitle>Notas</CardTitle>
+                <CardTitle>{t("contacts.tabs.notes")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <NotesPanel accountId={accountId} contactId={contactId} />
@@ -161,7 +164,7 @@ export function ContactDetailView({
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>Bandejas accesibles</CardTitle>
+                <CardTitle>{t("contacts.accessibleInboxes")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ContactableInboxesPanel
