@@ -53,7 +53,7 @@ export function CsatView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-medium text-fg">CSAT</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.csat")}</h2>
         <SegmentedControl
           size="sm"
           ariaLabel={t("reports.period")}

@@ -18,6 +18,7 @@ import {
   WhatsApp,
 } from "@/components/ui/brand-icons";
 import { CHANNEL_CATALOG } from "@/lib/inboxes/channel-catalog";
+import { useT } from "@/lib/i18n/provider";
 
 const ICON: Record<string, IconComponent> = {
   telegram: Telegram,
@@ -32,6 +33,7 @@ const ICON: Record<string, IconComponent> = {
 };
 
 export function ChannelPicker({ accountId }: { accountId: string }) {
+  const t = useT();
   return (
     <div className="space-y-4">
       <div>
@@ -40,11 +42,11 @@ export function ChannelPicker({ accountId }: { accountId: string }) {
           className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Volver
+          {t("actions.back")}
         </Link>
-        <h2 className="mt-2 text-xl font-medium text-fg">Elegí un canal</h2>
+        <h2 className="mt-2 text-xl font-medium text-fg">{t("settingsInboxes.chooseChannel")}</h2>
         <p className="text-sm text-fg-muted">
-          Conectá un canal de mensajería a tu cuenta.
+          {t("settingsInboxes.chooseChannelHint")}
         </p>
       </div>
 

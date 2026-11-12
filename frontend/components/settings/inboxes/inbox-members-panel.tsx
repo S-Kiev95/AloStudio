@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAgents } from "@/lib/api/account";
 import { useInboxMembers, useSetInboxMembers } from "@/lib/api/inboxes";
+import { useT } from "@/lib/i18n/provider";
 
 /** Assign / unassign agents to an inbox. Mirrors the teams members panel —
  *  the backend `inbox_members` PATCH replaces the whole set. */
@@ -16,6 +17,7 @@ export function InboxMembersPanel({
   accountId: string;
   inboxId: number;
 }) {
+  const t = useT();
   const members = useInboxMembers(accountId, inboxId);
   const agents = useAgents(accountId);
   const setMembers = useSetInboxMembers(accountId);
@@ -41,7 +43,7 @@ export function InboxMembersPanel({
       });
       setPicking(false);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo agregar.");
+      setError((e as { message?: string })?.message ?? t("settingsInboxes.addFailed"));
     }
   }
 
@@ -53,7 +55,7 @@ export function InboxMembersPanel({
         userIds: Array.from(memberIds).filter((id) => id !== userId),
       });
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo quitar.");
+      setError((e as { message?: string })?.message ?? t("settingsInboxes.removeFailed"));
     }
   }
 
@@ -61,7 +63,7 @@ export function InboxMembersPanel({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-fg-muted">
-          Agentes que pueden ver y responder en esta bandeja.
+          {t("settingsInboxes.membersHint")}
         </p>
         {!picking ? (
           <Button
@@ -71,7 +73,7 @@ export function InboxMembersPanel({
             disabled={available.length === 0}
           >
             <Plus className="h-4 w-4" aria-hidden />
-            Agregar
+            {t("settingsInboxes.add")}
           </Button>
         ) : null}
       </div>
@@ -86,11 +88,11 @@ export function InboxMembersPanel({
         <div className="space-y-2 rounded-md border border-border bg-surface-2 p-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium uppercase text-fg-muted">
-              Agentes disponibles
+              {t("settingsTeams.availableAgents")}
             </p>
             <button
               type="button"
-              aria-label="Cerrar"
+              aria-label={t("actions.close")}
               onClick={() => setPicking(false)}
               className="rounded-md p-1 text-fg-muted hover:bg-surface"
             >
@@ -99,7 +101,7 @@ export function InboxMembersPanel({
           </div>
           {available.length === 0 ? (
             <p className="text-sm text-fg-muted">
-              Todos los agentes ya están asignados.
+              {t("settingsInboxes.allAssigned")}
             </p>
           ) : (
             <ul className="divide-y divide-border rounded-md border border-border bg-surface">
@@ -120,7 +122,7 @@ export function InboxMembersPanel({
                     onClick={() => add(a.id)}
                     loading={setMembers.isPending}
                   >
-                    Agregar
+                    {t("settingsInboxes.add")}
                   </Button>
                 </li>
               ))}
@@ -130,14 +132,14 @@ export function InboxMembersPanel({
       ) : null}
 
       {members.isLoading ? (
-        <p className="text-sm text-fg-muted">Cargando agentes…</p>
+        <p className="text-sm text-fg-muted">{t("settingsInboxes.loadingAgents")}</p>
       ) : members.isError ? (
         <p role="alert" className="text-sm text-danger">
-          No se pudieron cargar los agentes.
+          {t("settingsAgents.loadFailed")}
         </p>
       ) : (members.data?.length ?? 0) === 0 ? (
         <p className="text-sm text-fg-muted">
-          Sin agentes asignados (la bandeja la ven todos los admins).
+          {t("settingsInboxes.noMembers")}
         </p>
       ) : (
         <ul className="divide-y divide-border rounded-md border border-border bg-surface">
@@ -154,10 +156,10 @@ export function InboxMembersPanel({
               </div>
               <button
                 type="button"
-                aria-label={`Quitar a ${m.name}`}
-                title="Quitar de la bandeja"
+                aria-label={t("settingsInboxes.removeNamed", { name: m.name })}
+                title={t("settingsInboxes.removeFromInbox")}
                 onClick={() => {
-                  if (window.confirm(`¿Quitar a ${m.name} de la bandeja?`)) {
+                  if (window.confirm(t("settingsInboxes.removeConfirm", { name: m.name }))) {
                     void remove(m.id);
                   }
                 }}

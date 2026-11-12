@@ -13,6 +13,7 @@ import { type ChannelPayload, useCreateInbox } from "@/lib/api/inboxes";
 import { channelDef, type ChannelDef } from "@/lib/inboxes/channel-catalog";
 
 import { FacebookPageConnect } from "./facebook-page-connect";
+import { useT } from "@/lib/i18n/provider";
 
 export function ChannelForm({
   accountId,
@@ -21,6 +22,7 @@ export function ChannelForm({
   accountId: string;
   channel: string;
 }) {
+  const t = useT();
   const def = channelDef(channel);
   const router = useRouter();
   const create = useCreateInbox(accountId);
@@ -33,9 +35,9 @@ export function ChannelForm({
   if (!def) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-danger">Canal desconocido: {channel}</p>
+        <p className="text-sm text-danger">{t("settingsInboxes.unknownChannel")} {channel}</p>
         <Link href={`${inboxesHref}/new`} className={buttonVariants({ size: "sm" })}>
-          Elegir un canal
+          {t("settingsInboxes.pickChannel")}
         </Link>
       </div>
     );
@@ -49,12 +51,12 @@ export function ChannelForm({
     e.preventDefault();
     setError(null);
     if (!name.trim()) {
-      setError("El nombre de la bandeja es obligatorio.");
+      setError(t("settingsInboxes.nameRequired"));
       return;
     }
     for (const f of def!.fields) {
       if (f.required && !values[f.name]?.trim()) {
-        setError(`Falta el campo: ${f.label}`);
+        setError(t("settingsInboxes.fieldMissing", { field: f.label }));
         return;
       }
     }
@@ -68,7 +70,7 @@ export function ChannelForm({
       router.push(`${inboxesHref}/${created.id}`);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "No se pudo crear el canal.",
+        err instanceof ApiError ? err.message : t("settingsInboxes.createFailed"),
       );
     }
   }
@@ -81,7 +83,7 @@ export function ChannelForm({
           className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Cambiar canal
+          {t("settingsInboxes.changeChannel")}
         </Link>
         <h2 className="mt-2 text-xl font-medium text-fg">{def.label}</h2>
         <p className="text-sm text-fg-muted">{def.blurb}</p>
@@ -93,11 +95,11 @@ export function ChannelForm({
         onSubmit={submit}
         className="space-y-4 rounded-md border border-glass bg-surface p-5"
       >
-        <Field label="Nombre de la bandeja" required>
+        <Field label={t("settingsInboxes.inboxName")} required>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Mi canal"
+            placeholder={t("settingsInboxes.inboxNamePlaceholder")}
           />
         </Field>
 
@@ -113,7 +115,7 @@ export function ChannelForm({
                   }
                   className="h-4 w-4 rounded border-glass accent-neon"
                 />
-                Activar
+                {t("settingsNotif.enable")}
               </label>
             ) : f.type === "select" ? (
               <select
@@ -153,10 +155,10 @@ export function ChannelForm({
             href={inboxesHref}
             className={buttonVariants({ variant: "secondary", size: "sm" })}
           >
-            Cancelar
+            {t("actions.cancel")}
           </Link>
           <Button type="submit" size="sm" loading={create.isPending}>
-            Crear canal
+            {t("settingsInboxes.createChannel")}
           </Button>
         </div>
       </form>

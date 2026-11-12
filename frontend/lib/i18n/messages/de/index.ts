@@ -1,6 +1,7 @@
 import type { Messages } from "../es";
 
 import { core } from "./core";
+import { settingsInboxes } from "./settingsInboxes";
 import { settingsWebhooks } from "./settingsWebhooks";
 import { settingsNotif } from "./settingsNotif";
 import { settingsMcp } from "./settingsMcp";
@@ -38,6 +39,7 @@ import { actions } from "./actions";
 
 export const de: Messages = {
   ...core,
+  settingsInboxes,
   settingsWebhooks,
   settingsNotif,
   settingsMcp,
