@@ -32,6 +32,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
+from app.core.i18n import mail_text, t, user_locale
 from app.core.logging import get_logger
 from app.core.mail import send_mail_later, system_message
 from app.domains.users.models import User
@@ -73,20 +74,16 @@ async def _dispatch_confirmation_email(user: User, raw_token: str) -> None:
             f"{get_settings().app_base_url.rstrip('/')}/confirm"
             f"?confirmation_token={raw_token}"
         )
+        locale = user_locale(user)
         send_mail_later(
             system_message(
                 to=user.email,
-                subject="Confirmá tu email en AloStudio",
-                body=f"""Hola {user.name or user.email},
-
-Para confirmar tu email y empezar a usar AloStudio, hacé clic acá:
-
-    {link}
-
-Si no creaste una cuenta, podés ignorar este email.
-
-— AloStudio
-""",
+                subject=t(locale, "confirm.subject"),
+                body=mail_text(
+                    locale,
+                    name=user.name or user.email,
+                    body=t(locale, "confirm.body", link=link),
+                ),
             ),
             context="auth.confirmation",
         )

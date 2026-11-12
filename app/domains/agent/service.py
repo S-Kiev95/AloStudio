@@ -30,6 +30,7 @@ from app.core import llm
 from app.core.config import get_settings
 from app.core.deps import AccountContext
 from app.core.errors import ChatwootHTTPException
+from app.core.i18n import user_locale
 from app.domains.agent.models import (
     AGENT_ROLE_ASSISTANT,
     AGENT_ROLE_TOOL,
@@ -69,6 +70,17 @@ TITLE_LENGTH = 60
 _DATE_ARGUMENTS: tuple[str, ...] = ("scheduled_for", "from", "to")
 
 _WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
+
+# The language the user has the dashboard in, named for the prompt.
+_LANGUAGE_NAMES = {
+    "es": "español",
+    "en": "inglés",
+    "pt": "portugués",
+    "fr": "francés",
+    "de": "alemán",
+    "ja": "japonés",
+    "ko": "coreano",
+}
 
 _server: FastMCP | None = None
 
@@ -597,9 +609,11 @@ def _system_prompt(ctx: AccountContext, thread: AgentThread) -> str:
         "publicaciones.",
         "",
         "Reglas:",
-        "- Respondé en el idioma del usuario, breve y claro, en texto plano: "
-        "párrafos cortos y listas con guiones. Sin markdown (nada de **, #, "
-        "tablas ni enlaces entre corchetes).",
+        "- Respondé en el idioma en que te escribe el usuario, breve y claro, "
+        "en texto plano: párrafos cortos y listas con guiones. Sin markdown "
+        "(nada de **, #, tablas ni enlaces entre corchetes). "
+        f"Tiene la app en {_LANGUAGE_NAMES[user_locale(ctx.user)]}: si no se "
+        "entiende en qué idioma escribe, usá ese.",
         "- Antes de crear una publicación consultá los canales con "
         "list_publication_channels y usá solo sus id. Nunca inventes ids. Un "
         'canal con status "reconnect" no puede publicar: avisale al usuario.',

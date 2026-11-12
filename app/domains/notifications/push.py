@@ -19,6 +19,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
+from app.core.i18n import CATALOGS, DEFAULT_LOCALE, t, user_locale
 from app.core.logging import get_logger
 from app.core.webpush import send_web_push
 from app.domains.conversations.models import Conversation
@@ -28,32 +29,28 @@ from app.domains.notifications.models import (
     notification_type_to_str,
 )
 from app.domains.notifications.service import get_or_create_settings
+from app.domains.users.models import User
 
 log = get_logger("app.notifications.push")
 
-# Human push titles per notification type (Spanish — matches the dashboard).
-_PUSH_TITLES: dict[str, str] = {
-    "conversation_creation": "Nueva conversación",
-    "conversation_assignment": "Conversación asignada",
-    "assigned_conversation_new_message": "Nuevo mensaje",
-    "participating_conversation_new_message": "Nuevo mensaje",
-    "conversation_mention": "Te mencionaron",
-    "sla_missed_first_response": "SLA incumplido",
-    "sla_missed_next_response": "SLA incumplido",
-    "sla_missed_resolution": "SLA incumplido",
-    "conversation_bot_handoff": "Piden atención de una persona",
-}
+# Titles per notification type live in ``app.core.i18n``
+# (``push.title.<type>``), in the recipient's language.
 
 
 def _push_payload(
-    notification: Notification, conversation: Conversation | None
+    notification: Notification,
+    conversation: Conversation | None,
+    locale: str = DEFAULT_LOCALE,
 ) -> bytes:
     type_str = notification_type_to_str(notification.notification_type)
-    title = _PUSH_TITLES.get(type_str, "Notificación")
+    title_key = f"push.title.{type_str}"
+    if title_key not in CATALOGS[DEFAULT_LOCALE]:
+        title_key = "push.title.default"
+    title = t(locale, title_key)
     body = ""
     url = ""
     if conversation is not None:
-        body = f"Conversación #{conversation.display_id}"
+        body = t(locale, "push.body", n=conversation.display_id)
         base = get_settings().app_base_url.rstrip("/")
         url = (
             f"{base}/accounts/{conversation.account_id}"
@@ -107,7 +104,8 @@ async def send_notification_push(
         conversation = await session.get(
             Conversation, notification.primary_actor_id
         )
-    payload = _push_payload(notification, conversation)
+    user = await session.get(User, notification.user_id)
+    payload = _push_payload(notification, conversation, user_locale(user))
 
     sent = 0
     dead = False

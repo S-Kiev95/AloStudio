@@ -104,6 +104,11 @@ ignore = [
     "RUF002",
 ]
 
+# Translation catalogs: each language's own typography (French ’ and « »,
+# German „ “) is correct there, not a look-alike typo.
+[tool.ruff.lint.per-file-ignores]
+"app/core/i18n/*.py" = ["RUF001"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true

@@ -34,6 +34,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
+from app.core.i18n import has_locale, mail_text, t, user_locale
 from app.core.mail import send_mail
 from app.core.security import hash_password
 from app.core.tokens import base58_token
@@ -203,20 +204,22 @@ def _build_invitation_email(
     msg = EmailMessage()
     msg["From"] = settings.mail_from
     msg["To"] = invitee.email or ""
-    msg["Subject"] = f"Te invitaron a {account.name} en AloStudio"
+    # Someone just invited has not chosen a language yet: write in the
+    # inviter's, the one the team works in.
+    locale = user_locale(invitee) if has_locale(invitee) else user_locale(inviter)
+    msg["Subject"] = t(locale, "invite.subject", account=account.name)
     msg.set_content(
-        f"""Hola {invitee.name or invitee.email},
-
-{inviter.name} te invitó a unirte a la cuenta "{account.name}" en AloStudio.
-
-Para terminar de configurar tu cuenta y elegir una contraseña, hacé clic acá:
-
-    {reset_url}
-
-El enlace vence en 7 días. Si no esperabas esta invitación podés ignorar este email.
-
-— AloStudio
-""",
+        mail_text(
+            locale,
+            name=invitee.name or invitee.email or "",
+            body=t(
+                locale,
+                "invite.body",
+                inviter=inviter.name,
+                account=account.name,
+                link=reset_url,
+            ),
+        )
     )
     return msg
 
