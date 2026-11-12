@@ -266,7 +266,7 @@ async def test_an_agent_is_refused(client, db_session):
 # The bootstrap: a fresh install has no super admin at all
 # ---------------------------------------------------------------------------
 async def test_the_first_accounts_admin_gets_in_when_nobody_is_super_admin(
-    client, db_session
+    client, db_session, no_other_accounts
 ):
     """Otherwise the settings screen is unreachable on exactly the
     install that needs it: the one deployed with no credentials."""
@@ -292,7 +292,7 @@ async def test_a_later_accounts_admin_does_not_get_the_bootstrap(
 
 
 async def test_the_bootstrap_closes_once_a_super_admin_exists(
-    client, db_session
+    client, db_session, no_other_accounts
 ):
     """Promoting a real super admin takes installation config away from
     the first account's admin — no lingering back door."""

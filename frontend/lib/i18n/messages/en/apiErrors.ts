@@ -21,7 +21,6 @@ export const apiErrors: Strings<typeof es> = {
   ssoDisabled: "SSO access isn't enabled.",
   googleDisabled: "Sign in with Google isn't enabled.",
   googleUnreachable: "Couldn't reach Google. Try again.",
-  inboxPendingDeletion: "This inbox is being deleted.",
   scheduledInPast: "The scheduled date has to be in the future.",
   phoneTaken: "That phone number is already in use.",
   blank: "Missing: {field}.",

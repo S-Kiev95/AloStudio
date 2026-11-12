@@ -21,7 +21,6 @@ export const apiErrors: Strings<typeof es> = {
   ssoDisabled: "SSO 접속이 활성화되어 있지 않습니다.",
   googleDisabled: "Google 로그인이 활성화되어 있지 않습니다.",
   googleUnreachable: "Google에 연결하지 못했습니다. 다시 시도하세요.",
-  inboxPendingDeletion: "이 받은편지함은 삭제 중입니다.",
   scheduledInPast: "예약 날짜는 미래여야 합니다.",
   phoneTaken: "이미 사용 중인 전화번호입니다.",
   blank: "입력 필요: {field}.",

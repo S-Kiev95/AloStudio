@@ -56,7 +56,6 @@ const WORDING_BY_CODE: Record<string, MessageKey> = {
   sso_disabled: "apiErrors.ssoDisabled",
   google_disabled: "apiErrors.googleDisabled",
   google_unreachable: "apiErrors.googleUnreachable",
-  inbox_pending_deletion: "apiErrors.inboxPendingDeletion",
   scheduled_in_past: "apiErrors.scheduledInPast",
   phone_taken: "apiErrors.phoneTaken",
   blank: "apiErrors.blank",

@@ -18,7 +18,6 @@ export const apiErrors = {
   ssoDisabled: "El acceso por SSO no está activado.",
   googleDisabled: "El ingreso con Google no está activado.",
   googleUnreachable: "No se pudo contactar a Google. Probá de nuevo.",
-  inboxPendingDeletion: "Esta bandeja se está eliminando.",
   scheduledInPast: "La fecha programada tiene que ser en el futuro.",
   phoneTaken: "Ese número de teléfono ya está en uso.",
   blank: "Falta completar: {field}.",

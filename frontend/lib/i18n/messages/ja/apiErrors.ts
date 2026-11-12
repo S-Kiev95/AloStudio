@@ -21,7 +21,6 @@ export const apiErrors: Strings<typeof es> = {
   ssoDisabled: "SSO によるアクセスは有効になっていません。",
   googleDisabled: "Google でのログインは有効になっていません。",
   googleUnreachable: "Google に接続できませんでした。もう一度お試しください。",
-  inboxPendingDeletion: "この受信箱は削除中です。",
   scheduledInPast: "予約日時は未来の日時にしてください。",
   phoneTaken: "その電話番号はすでに使われています。",
   blank: "未入力: {field}。",

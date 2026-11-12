@@ -21,7 +21,6 @@ export const apiErrors: Strings<typeof es> = {
   ssoDisabled: "Der SSO-Zugang ist nicht aktiviert.",
   googleDisabled: "Die Anmeldung mit Google ist nicht aktiviert.",
   googleUnreachable: "Google ist nicht erreichbar. Versuch es erneut.",
-  inboxPendingDeletion: "Dieser Posteingang wird gerade gelöscht.",
   scheduledInPast: "Das geplante Datum muss in der Zukunft liegen.",
   phoneTaken: "Diese Telefonnummer wird bereits verwendet.",
   blank: "Fehlt: {field}.",

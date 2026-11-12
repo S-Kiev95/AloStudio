@@ -50,7 +50,6 @@ _CODE_BY_TEXT: dict[str, str] = {
     "SSO is not enabled.": "sso_disabled",
     "El ingreso con Google no está activado.": "google_disabled",
     "No se pudo contactar a Google. Probá de nuevo.": "google_unreachable",
-    "The inbox is scheduled for deletion": "inbox_pending_deletion",
     "scheduled_for must be in the future": "scheduled_in_past",
     "Phone number is already taken": "phone_taken",
 }
