@@ -16,8 +16,11 @@ import { cn } from "@/lib/utils";
 
 import { useAgentShell } from "./agent-shell";
 import { formatRelativeIso } from "./agent-time";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 export function AgentThreadList({ accountId }: { accountId: string }) {
+  const t = useT();
+  const locale = useLocale();
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const shell = useAgentShell();
@@ -37,7 +40,7 @@ export function AgentThreadList({ accountId }: { accountId: string }) {
   }
 
   async function handleDelete(thread: AgentThreadSummary) {
-    if (!window.confirm(`¿Borrar el chat “${thread.title}”?`)) return;
+    if (!window.confirm(t("agent.deleteConfirm", { title: thread.title }))) return;
     setDeleteError(null);
     try {
       await deleteThread.mutateAsync(thread.id);
@@ -46,7 +49,7 @@ export function AgentThreadList({ accountId }: { accountId: string }) {
         router.push(`/accounts/${accountId}/agent`);
       }
     } catch (err) {
-      setDeleteError(getAgentErrorMessage(err, "No se pudo borrar el chat."));
+      setDeleteError(getAgentErrorMessage(err, t("agent.deleteFailed")));
     }
   }
 
@@ -55,12 +58,12 @@ export function AgentThreadList({ accountId }: { accountId: string }) {
       <div className="flex items-center gap-2 border-b border-glass p-3">
         <Button type="button" className="flex-1" onClick={handleNewChat}>
           <Plus className="h-4 w-4" aria-hidden />
-          Nuevo chat
+          {t("agent.newChat")}
         </Button>
         {shell?.mobileListOpen ? (
           <button
             type="button"
-            aria-label="Cerrar lista de chats"
+            aria-label={t("agent.closeList")}
             onClick={shell.closeMobileList}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control text-fg-muted hover:bg-hover-glass hover:text-fg md:hidden"
           >
@@ -80,17 +83,17 @@ export function AgentThreadList({ accountId }: { accountId: string }) {
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {threadsQuery.isLoading ? (
-          <p className="p-6 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-6 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : threadsQuery.isError ? (
           <p role="alert" className="p-6 text-center text-sm text-danger">
             {getAgentErrorMessage(
               threadsQuery.error,
-              "No se pudieron cargar los chats.",
+              t("agent.chatsLoadFailed"),
             )}
           </p>
         ) : threads.length === 0 ? (
           <p className="p-6 text-center text-sm text-fg-muted">
-            Todavía no tenés chats.
+            {t("agent.noChats")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -120,7 +123,7 @@ export function AgentThreadList({ accountId }: { accountId: string }) {
                         {thread.title}
                       </span>
                       <span className="shrink-0 font-numeric text-[11px] tabular-nums text-fg-muted">
-                        {formatRelativeIso(thread.updated_at)}
+                        {formatRelativeIso(thread.updated_at, locale)}
                       </span>
                     </div>
                     {thread.has_pending_action ? (
@@ -129,7 +132,7 @@ export function AgentThreadList({ accountId }: { accountId: string }) {
                           className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning"
                           aria-hidden
                         />
-                        Por confirmar
+                        {t("agent.toConfirm")}
                       </span>
                     ) : null}
                   </Link>
@@ -137,8 +140,8 @@ export function AgentThreadList({ accountId }: { accountId: string }) {
                     type="button"
                     onClick={() => void handleDelete(thread)}
                     disabled={deleteThread.isPending}
-                    aria-label={`Borrar chat ${thread.title}`}
-                    title="Borrar chat"
+                    aria-label={t("agent.deleteChatNamed", { title: thread.title })}
+                    title={t("agent.deleteChat")}
                     className="mr-2 shrink-0 rounded-md p-1.5 text-fg-muted transition hover:bg-hover-glass hover:text-danger disabled:opacity-40 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />

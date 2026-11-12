@@ -5,15 +5,17 @@ import {
   type CampaignAnalytics,
   useCampaignAnalytics,
 } from "@/lib/api/campaigns";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 const DELIVERY_LABELS: {
   key: keyof CampaignAnalytics["delivery"];
-  label: string;
+  label: MessageKey;
 }[] = [
-  { key: "sent", label: "Enviados" },
-  { key: "delivered", label: "Entregados" },
-  { key: "read", label: "Leídos" },
-  { key: "failed", label: "Fallidos" },
+  { key: "sent", label: "campaigns.analytics.sent" },
+  { key: "delivered", label: "campaigns.analytics.delivered" },
+  { key: "read", label: "campaigns.analytics.read" },
+  { key: "failed", label: "campaigns.analytics.failed" },
 ];
 
 export function CampaignAnalyticsPanel({
@@ -23,6 +25,7 @@ export function CampaignAnalyticsPanel({
   accountId: string;
   displayId: number;
 }) {
+  const t = useT();
   const { data, isLoading, isError } = useCampaignAnalytics(
     accountId,
     displayId,
@@ -31,27 +34,27 @@ export function CampaignAnalyticsPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Entrega</CardTitle>
+        <CardTitle>{t("campaigns.analytics.delivery")}</CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <p className="text-sm text-fg-muted">Cargando métricas…</p>
+          <p className="text-sm text-fg-muted">{t("reports.loadingMetrics")}</p>
         ) : isError || !data ? (
           <p role="alert" className="text-sm text-danger">
-            No se pudieron cargar las métricas.
+            {t("reports.metricsFailed")}
           </p>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
-              <Metric label="Audiencia" value={data.audience_count} />
-              <Metric label="Conversaciones" value={data.conversations_count} />
-              <Metric label="Mensajes" value={data.messages_count} />
+              <Metric label={t("campaigns.analytics.audience")} value={data.audience_count} />
+              <Metric label={t("overview.conversations")} value={data.conversations_count} />
+              <Metric label={t("campaigns.analytics.messages")} value={data.messages_count} />
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {DELIVERY_LABELS.map((d) => (
                 <Metric
                   key={d.key}
-                  label={d.label}
+                  label={t(d.label)}
                   value={data.delivery[d.key]}
                 />
               ))}

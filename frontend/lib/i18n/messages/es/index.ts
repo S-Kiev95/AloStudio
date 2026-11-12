@@ -9,6 +9,11 @@
 import type { Strings } from "../types";
 
 import { core } from "./core";
+import { placeholder } from "./placeholder";
+import { notificationsPage } from "./notificationsPage";
+import { oauth } from "./oauth";
+import { campaigns } from "./campaigns";
+import { agent } from "./agent";
 import { instagram } from "./instagram";
 import { publications } from "./publications";
 import { reports } from "./reports";
@@ -23,6 +28,11 @@ import { conversations } from "./conversations";
 
 export const es = {
   ...core,
+  placeholder,
+  notificationsPage,
+  oauth,
+  campaigns,
+  agent,
   instagram,
   publications,
   reports,

@@ -22,6 +22,7 @@ import {
   useWhatsappTemplates,
 } from "@/lib/api/whatsapp-templates";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 const selectClass = selectClassName();
 
@@ -38,6 +39,7 @@ export function CampaignForm({
   onSubmit: (input: CampaignInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const inboxes = useInboxes(accountId);
   const agents = useAgents(accountId);
   const labels = useLabels(accountId);
@@ -121,20 +123,20 @@ export function CampaignForm({
 
   async function submit() {
     setError(null);
-    if (!title.trim()) return setError("El título es obligatorio.");
+    if (!title.trim()) return setError(t("agenda.dialog.titleRequired"));
     if (!inboxId)
-      return setError("Elegí una bandeja.");
+      return setError(t("campaigns.form.pickInbox"));
     if (campaignType === "one_off" && !scheduledAt)
-      return setError("Las campañas puntuales necesitan fecha programada.");
+      return setError(t("campaigns.form.needsDate"));
     if (isWhatsapp && !templateName)
-      return setError("Elegí una plantilla de WhatsApp.");
+      return setError(t("campaigns.form.pickTemplate"));
     if (
       isWhatsapp &&
       (selectedTemplate?.variables ?? []).some(
         (n) => !(templateVars[String(n)] ?? "").trim(),
       )
     )
-      return setError("Completá todas las variables de la plantilla.");
+      return setError(t("campaigns.form.fillVariables"));
 
     // WhatsApp: build the template blob the backend validates + sends.
     let templateParams: Record<string, unknown> | null = null;
@@ -184,7 +186,7 @@ export function CampaignForm({
       await onSubmit(input);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar la campaña.",
+        (e as { message?: string })?.message ?? t("campaigns.form.saveFailed"),
       );
     }
   }
@@ -199,7 +201,7 @@ export function CampaignForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="c-title" required>
-          Título
+          {t("agenda.dialog.titleLabel")}
         </Label>
         <Input
           id="c-title"
@@ -210,7 +212,7 @@ export function CampaignForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="c-desc">Descripción</Label>
+        <Label htmlFor="c-desc">{t("products.form.description")}</Label>
         <Textarea
           id="c-desc"
           rows={2}
@@ -220,7 +222,7 @@ export function CampaignForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label>Tipo</Label>
+        <Label>{t("instagram.composer.typeLabel")}</Label>
         <div className="flex flex-wrap gap-3 text-sm">
           {CAMPAIGN_TYPES.map((t) => (
             <label key={t.value} className="flex items-center gap-1.5">
@@ -237,7 +239,7 @@ export function CampaignForm({
         </div>
         {initial ? (
           <p className="text-xs text-fg-muted">
-            El tipo no se puede cambiar después de crear la campaña.
+            {t("campaigns.form.typeLocked")}
           </p>
         ) : null}
       </div>
@@ -245,7 +247,7 @@ export function CampaignForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="c-inbox" required>
-            Bandeja
+            {t("conversations.filters.attr.inbox")}
           </Label>
           <select
             id="c-inbox"
@@ -253,7 +255,7 @@ export function CampaignForm({
             value={inboxId}
             onChange={(e) => setInboxId(e.target.value)}
           >
-            <option value="">Elegí una bandeja…</option>
+            <option value="">{t("campaigns.form.pickInboxPlaceholder")}</option>
             {inboxes.data?.map((ib) => (
               <option key={ib.id} value={ib.id}>
                 {ib.name}
@@ -262,14 +264,14 @@ export function CampaignForm({
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="c-sender">Remitente</Label>
+          <Label htmlFor="c-sender">{t("campaigns.form.sender")}</Label>
           <select
             id="c-sender"
             className={selectClass}
             value={senderId}
             onChange={(e) => setSenderId(e.target.value)}
           >
-            <option value="">Sin remitente específico</option>
+            <option value="">{t("campaigns.form.noSender")}</option>
             {agents.data?.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -283,7 +285,7 @@ export function CampaignForm({
         <div className="space-y-3 rounded-md border border-glass bg-surface-2 p-3">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
-              Plantilla de WhatsApp
+              {t("campaigns.form.waTemplate")}
             </p>
             <button
               type="button"
@@ -292,21 +294,21 @@ export function CampaignForm({
               className="text-xs font-medium text-lit hover:underline disabled:opacity-50"
             >
               {syncTemplates.isPending
-                ? "Actualizando…"
-                : "Actualizar plantillas"}
+                ? t("campaigns.form.refreshing")
+                : t("campaigns.form.refreshTemplates")}
             </button>
           </div>
           {templatesQ.isLoading ? (
-            <p className="text-sm text-fg-muted">Cargando plantillas…</p>
+            <p className="text-sm text-fg-muted">{t("campaigns.form.loadingTemplates")}</p>
           ) : (templatesQ.data?.templates.length ?? 0) === 0 ? (
             <p className="text-sm text-fg-muted">
-              No hay plantillas aprobadas. Actualizá, o creá una en Meta.
+              {t("campaigns.form.noTemplates")}
             </p>
           ) : (
             <>
               <div className="space-y-1.5">
                 <Label htmlFor="c-tpl" required>
-                  Plantilla
+                  {t("campaigns.form.template")}
                 </Label>
                 <select
                   id="c-tpl"
@@ -317,7 +319,7 @@ export function CampaignForm({
                     setTemplateVars({});
                   }}
                 >
-                  <option value="">Elegí una plantilla…</option>
+                  <option value="">{t("campaigns.form.pickTemplatePlaceholder")}</option>
                   {templatesQ.data!.templates.map((t) => (
                     <option key={`${t.name}:${t.language}`} value={t.name}>
                       {t.name} ({t.language})
@@ -352,7 +354,7 @@ export function CampaignForm({
         </div>
       ) : (
         <div className="space-y-1.5">
-          <Label htmlFor="c-msg">Mensaje</Label>
+          <Label htmlFor="c-msg">{t("campaigns.form.message")}</Label>
           <Textarea
             id="c-msg"
             rows={3}
@@ -365,7 +367,7 @@ export function CampaignForm({
       {campaignType === "one_off" ? (
         <div className="space-y-1.5">
           <Label htmlFor="c-when" required>
-            Fecha programada
+            {t("campaigns.form.scheduledAt")}
           </Label>
           <Input
             id="c-when"
@@ -376,7 +378,7 @@ export function CampaignForm({
           />
           {labels.data?.length ? (
             <div className="mt-3 space-y-1.5">
-              <Label>Audiencia (etiquetas)</Label>
+              <Label>{t("campaigns.form.audience")}</Label>
               <div className="flex flex-wrap gap-1.5">
                 {labels.data.map((l) => {
                   const on = audienceLabels.has(l.id);
@@ -399,7 +401,7 @@ export function CampaignForm({
                 })}
               </div>
               <p className="text-xs text-fg-muted">
-                Sin etiquetas seleccionadas la campaña se envía a toda la base.
+                {t("campaigns.form.noLabelsAll")}
               </p>
             </div>
           ) : null}
@@ -407,11 +409,11 @@ export function CampaignForm({
       ) : (
         <div className="space-y-3 rounded-md border border-glass bg-surface-2 p-3">
           <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
-            Reglas del trigger
+            {t("campaigns.form.triggerRules")}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="c-url">Patrón de URL</Label>
+              <Label htmlFor="c-url">{t("campaigns.form.urlPattern")}</Label>
               <Input
                 id="c-url"
                 value={urlPattern}
@@ -420,7 +422,7 @@ export function CampaignForm({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="c-time">Tiempo en página (segundos)</Label>
+              <Label htmlFor="c-time">{t("campaigns.form.timeOnPage")}</Label>
               <Input
                 id="c-time"
                 type="number"
@@ -438,7 +440,7 @@ export function CampaignForm({
               onChange={(e) => setBusinessHoursOnly(e.target.checked)}
               className="accent-neon"
             />
-            Disparar solo durante horario laboral
+            {t("campaigns.form.businessHoursOnly")}
           </label>
         </div>
       )}
@@ -450,15 +452,15 @@ export function CampaignForm({
           onChange={(e) => setEnabled(e.target.checked)}
           className="accent-neon"
         />
-        Activa
+        {t("campaigns.active")}
       </label>
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear campaña"}
+          {initial ? t("common.saveChanges") : t("campaigns.form.create")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>
