@@ -1,3 +1,5 @@
+import { clientT } from "@/lib/i18n/client-t";
+
 /** A stack of blocks, and the email HTML it renders to.
  *
  *  Kept out of the components so the generator can be tested on its own:
@@ -98,7 +100,7 @@ export const DEFAULT_PAGE: PageSettings = {
   bodyColor: "#ffffff",
   textColor: "#1f2328",
   width: 600,
-  fontFamily: "Arial, Helvetica, sans-serif",
+  fontFamily: "Arial, Helvetica, sans-serif", // i18n-ignore
 };
 
 export function newId(): string {
@@ -112,7 +114,9 @@ export function blankBlock(type: Block["type"]): Block {
       return {
         id,
         type: "text",
-        text: "Escribí acá",
+        // The starting text goes into the email itself, so it is written
+        // in the language of whoever adds the block.
+        text: clientT()("settingsEmailTpl.defaults.text"),
         align: "left",
         fontSize: 15,
         color: "#1f2328",
@@ -124,7 +128,7 @@ export function blankBlock(type: Block["type"]): Block {
       return {
         id,
         type: "button",
-        label: "Ver más",
+        label: clientT()("settingsEmailTpl.defaults.button"),
         href: "",
         background: "#003366",
         color: "#ffffff",

@@ -17,8 +17,10 @@ import {
 import { cn } from "@/lib/utils";
 
 import { PortalForm } from "./portal-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function PortalsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = usePortals(accountId);
   const create = useCreatePortal(accountId);
 
@@ -37,7 +39,7 @@ export function PortalsView({ accountId }: { accountId: string }) {
           !creating ? (
             <Button size="sm" onClick={() => setCreating(true)}>
               <Plus className="h-4 w-4" aria-hidden />
-              Nuevo portal
+              {t("helpCenter.newPortal")}
             </Button>
           ) : undefined
         }
@@ -46,7 +48,7 @@ export function PortalsView({ accountId }: { accountId: string }) {
       {creating ? (
         <Card>
           <CardHeader>
-            <CardTitle>Nuevo portal</CardTitle>
+            <CardTitle>{t("helpCenter.newPortal")}</CardTitle>
           </CardHeader>
           <CardContent>
             <PortalForm
@@ -61,14 +63,14 @@ export function PortalsView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los portales.
+            {t("helpCenter.portalsLoadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay portales todavía. Creá uno para empezar.
+            {t("helpCenter.noPortals")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -89,19 +91,20 @@ function PortalRow({
   accountId: string;
   portal: Portal;
 }) {
+  const t = useT();
   const del = useDeletePortal(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(`¿Eliminar el portal "${portal.name}"?`)) return;
+    if (!window.confirm(t("helpCenter.deletePortalConfirm", { name: portal.name }))) return;
     setError(null);
     try {
       await del.mutateAsync(portal.slug);
     } catch (err) {
       setError(
-        (err as { message?: string })?.message ?? "No se pudo eliminar.",
+        (err as { message?: string })?.message ?? t("actions.deleteFailed"),
       );
     }
   }
@@ -123,7 +126,7 @@ function PortalRow({
             {portal.name}
             {portal.archived ? (
               <span className="ml-2 rounded-sm bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase text-fg-muted">
-                Archivado
+                {t("helpCenter.status.archived")}
               </span>
             ) : null}
           </p>
@@ -140,8 +143,8 @@ function PortalRow({
       </Link>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className={cn(

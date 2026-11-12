@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   NOTIFICATION_TYPE_LABELS,
+  type NotificationType,
   useDeleteNotification,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
@@ -18,12 +19,14 @@ import {
 } from "@/lib/api/notifications";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * Full-page notifications inbox. Same actions as the bell dropdown,
  * but paginated + with a filter toggle (all vs unread).
  */
 export function NotificationsPage({ accountId }: { accountId: string }) {
+  const t = useT();
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [page, setPage] = useState(1);
 
@@ -44,10 +47,10 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <PageHeader
-        title="Notificaciones"
+        title={t("notifications.title")}
         description={
           <span className="font-numeric tabular-nums">
-            {unread.data ?? 0} sin leer · {total} en total
+            {t("notificationsPage.counts", { unread: unread.data ?? 0, total })}
           </span>
         }
         actions={
@@ -58,7 +61,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
             disabled={!unread.data || markAllRead.isPending}
           >
             <CheckCheck className="h-4 w-4" aria-hidden />
-            Marcar todo
+            {t("notifications.markAll")}
           </Button>
         }
       />
@@ -70,33 +73,34 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
           setPage(1);
         }}
       >
-        <TabsList aria-label="Filtro">
-          <TabsTrigger value="all">Todas</TabsTrigger>
-          <TabsTrigger value="unread">No leídas</TabsTrigger>
+        <TabsList aria-label={t("notificationsPage.filter")}>
+          <TabsTrigger value="all">{t("conversations.list.status.all")}</TabsTrigger>
+          <TabsTrigger value="unread">{t("notificationsPage.unread")}</TabsTrigger>
         </TabsList>
       </Tabs>
 
       <Card>
         <CardContent className="p-0">
           {list.isLoading ? (
-            <p className="px-4 py-6 text-sm text-fg-muted">Cargando…</p>
+            <p className="px-4 py-6 text-sm text-fg-muted">{t("common.loading")}</p>
           ) : list.isError ? (
             <p role="alert" className="px-4 py-6 text-sm text-danger">
-              No se pudieron cargar las notificaciones.
+              {t("notificationsPage.loadFailed")}
             </p>
           ) : rows.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-fg-muted">
               {filter === "unread"
-                ? "No tenés notificaciones sin leer."
-                : "Todavía no tenés notificaciones."}
+                ? t("notificationsPage.emptyUnread")
+                : t("notifications.empty")}
             </p>
           ) : (
             <ul className="divide-y divide-glass">
               {rows.map((n) => {
                 const isUnread = n.read_at == null;
                 const label =
-                  NOTIFICATION_TYPE_LABELS[n.notification_type] ??
-                  "Notificación";
+                  (n.notification_type in NOTIFICATION_TYPE_LABELS
+                    ? t(`notifications.types.${n.notification_type as NotificationType}`)
+                    : t("notifications.fallback"));
                 const href =
                   n.primary_actor?.display_id != null
                     ? `/accounts/${accountId}/conversations/${n.primary_actor.display_id}`
@@ -132,7 +136,9 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
                           </p>
                           <p className="mt-0.5 font-numeric text-xs tabular-nums text-fg-muted">
                             {n.primary_actor?.display_id != null
-                              ? `Conversación #${n.primary_actor.display_id}`
+                              ? t("conversations.list.fallbackName", {
+                                  id: n.primary_actor.display_id,
+                                })
                               : null}
                             {n.primary_actor?.display_id != null &&
                             n.last_activity_at
@@ -166,12 +172,12 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
                           onClick={() => markRead.mutate(n.id)}
                           className="rounded-md px-2 py-1 text-xs text-fg-muted hover:bg-hover-glass hover:text-fg"
                         >
-                          Marcar leído
+                          {t("notificationsPage.markRead")}
                         </button>
                       ) : null}
                       <button
                         type="button"
-                        aria-label="Borrar notificación"
+                        aria-label={t("notifications.delete")}
                         onClick={() => deleteOne.mutate(n.id)}
                         className="rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-danger"
                       >
@@ -188,7 +194,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
 
       {totalPages > 1 ? (
         <nav
-          aria-label="Paginación"
+          aria-label={t("notificationsPage.pagination")}
           className="flex items-center justify-between font-numeric text-sm tabular-nums text-fg-muted"
         >
           <Button
@@ -197,10 +203,10 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
             disabled={page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
-            Anterior
+            {t("actions.previous")}
           </Button>
           <span>
-            Página {page} de {totalPages}
+            {t("notificationsPage.pageOf", { n: page, pages: totalPages })}
           </span>
           <Button
             variant="secondary"
@@ -208,7 +214,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
             disabled={page >= totalPages}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           >
-            Siguiente
+            {t("actions.next")}
           </Button>
         </nav>
       ) : null}

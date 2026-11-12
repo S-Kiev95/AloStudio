@@ -11,8 +11,10 @@ import {
 } from "@/lib/api/automation-rules";
 
 import { AutomationRuleForm } from "./automation-rule-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function AutomationRuleNewView({ accountId }: { accountId: string }) {
+  const t = useT();
   const router = useRouter();
   const create = useCreateAutomationRule(accountId);
 
@@ -28,11 +30,11 @@ export function AutomationRuleNewView({ accountId }: { accountId: string }) {
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver a reglas
+        {t("settingsAutomation.back")}
       </Link>
       <Card>
         <CardHeader>
-          <CardTitle>Nueva regla</CardTitle>
+          <CardTitle>{t("settingsAutomation.new")}</CardTitle>
         </CardHeader>
         <CardContent>
           <AutomationRuleForm

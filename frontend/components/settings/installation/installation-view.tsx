@@ -18,19 +18,21 @@ import {
   useSetInstallationConfig,
 } from "@/lib/api/installation";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 export function InstallationView() {
+  const t = useT();
   const configs = useInstallationConfigs();
 
   if (configs.isLoading) {
-    return <p className="text-sm text-fg-muted">Cargando…</p>;
+    return <p className="text-sm text-fg-muted">{t("common.loading")}</p>;
   }
   if (configs.isError) {
     return (
       <p role="alert" className="text-sm text-danger">
         {configs.error instanceof ApiError && configs.error.status === 401
-          ? "Sólo el operador de la instalación puede ver esta pantalla. Pedile acceso a quien la desplegó."
-          : "No se pudo cargar la configuración."}
+          ? t("settingsInstall.operatorOnly")
+          : t("settingsInstall.loadFailed")}
       </p>
     );
   }
@@ -41,12 +43,10 @@ export function InstallationView() {
     <div className="space-y-6">
       <div className="space-y-1">
         <h2 className="text-xl font-medium text-fg">
-          Configuración de la instalación
+          {t("settings.items.installation")}
         </h2>
         <p className="text-sm text-fg-muted">
-          Ajustes que valen para todo AloStudio, no para una cuenta. Podés
-          dejarlos vacíos y completarlos cuando tengas las credenciales — la
-          app funciona sin ellos, y cada función te avisa qué le falta.
+          {t("settingsInstall.intro")}
         </p>
       </div>
 
@@ -65,6 +65,7 @@ function ConfigGroup({
   group: string;
   items: InstallationConfig[];
 }) {
+  const t = useT();
   const [open, setOpen] = useState(true);
   const done = items.filter((c) => c.configured).length;
   const contentId = `config-group-${group.replace(/\W+/g, "-")}`;
@@ -81,7 +82,7 @@ function ConfigGroup({
         >
           <CardTitle>{group}</CardTitle>
           <span className="flex shrink-0 items-center gap-2 text-xs text-fg-muted">
-            {done}/{items.length} configurados
+            {t("settingsInstall.configuredCount", { done, total: items.length })}
             <ChevronDown
               className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
               aria-hidden
@@ -106,6 +107,7 @@ function ConfigGroup({
 /** The settings of one network at a time, picked from a list: each network
  *  brings several, and all of them at once is a wall of inputs. */
 function NetworkConfigs({ items }: { items: InstallationConfig[] }) {
+  const t = useT();
   const networks = [...new Set(items.map((c) => c.network as string))];
   const [picked, setPicked] = useState<string | null>(null);
   if (networks.length === 0) return null;
@@ -116,7 +118,7 @@ function NetworkConfigs({ items }: { items: InstallationConfig[] }) {
   return (
     <div className="space-y-6 border-t border-glass pt-6">
       <div className="space-y-1.5">
-        <Label htmlFor="config-network">Red</Label>
+        <Label htmlFor="config-network">{t("settingsInstall.network")}</Label>
         <div className="flex items-center gap-2">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control border border-glass bg-field">
             <NetworkIcon network={network} />
@@ -129,7 +131,10 @@ function NetworkConfigs({ items }: { items: InstallationConfig[] }) {
             {networks.map((net) => (
               <option key={net} value={net}>
                 {networkLabel(net)}
-                {ready(net) ? " · configurada" : " · sin configurar"}
+                {" · "}
+                {ready(net)
+                  ? t("settingsInstall.netConfigured")
+                  : t("settingsInstall.netNotConfigured")}
               </option>
             ))}
           </Select>
@@ -145,6 +150,7 @@ function NetworkConfigs({ items }: { items: InstallationConfig[] }) {
 }
 
 function ConfigRow({ config }: { config: InstallationConfig }) {
+  const t = useT();
   const set = useSetInstallationConfig();
   const clear = useClearInstallationConfig();
   const [draft, setDraft] = useState("");
@@ -157,7 +163,7 @@ function ConfigRow({ config }: { config: InstallationConfig }) {
       await set.mutateAsync({ name: config.name, value });
       setDraft("");
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo guardar.");
+      setError((e as { message?: string })?.message ?? t("settingsInboxes.saveFailed"));
     }
   }
 
@@ -167,7 +173,7 @@ function ConfigRow({ config }: { config: InstallationConfig }) {
       await clear.mutateAsync(config.name);
       setDraft("");
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo borrar.");
+      setError((e as { message?: string })?.message ?? t("settingsInstall.clearFailed"));
     }
   }
 
@@ -210,7 +216,7 @@ function ConfigRow({ config }: { config: InstallationConfig }) {
           placeholder={
             config.configured
               ? String(config.value)
-              : "Sin configurar"
+              : t("settingsInstall.notConfigured")
           }
           className="min-w-0 flex-1"
           autoComplete="off"
@@ -221,7 +227,7 @@ function ConfigRow({ config }: { config: InstallationConfig }) {
           disabled={!config.editable || draft.trim() === ""}
           loading={set.isPending}
         >
-          Guardar
+          {t("actions.save")}
         </Button>
       </div>
       <SourceNote config={config} onReset={reset} pending={clear.isPending} />
@@ -239,34 +245,35 @@ function SourceNote({
   onReset: () => void;
   pending: boolean;
 }) {
+  const t = useT();
   return (
     <p className="flex flex-wrap items-center gap-2 pt-1 text-xs text-fg-muted">
       {config.configured ? (
         <span className="inline-flex items-center gap-1 text-success">
           <Check className="h-3 w-3" aria-hidden />
-          Configurado
+          {t("settingsInstall.configured")}
         </span>
       ) : (
         <span className="inline-flex items-center gap-1">
           <Minus className="h-3 w-3" aria-hidden />
-          Sin configurar
+          {t("settingsInstall.notConfigured")}
         </span>
       )}
       <span aria-hidden>·</span>
       {config.source === "database" ? (
         <>
-          <span>guardado desde acá</span>
+          <span>{t("settingsInstall.savedHere")}</span>
           <button
             type="button"
             onClick={onReset}
             disabled={pending}
             className="text-lit hover:underline disabled:opacity-50"
           >
-            volver al valor del servidor
+            {t("settingsInstall.resetToServer")}
           </button>
         </>
       ) : (
-        <span>viene del archivo del servidor (.env)</span>
+        <span>{t("settingsInstall.fromEnv")}</span>
       )}
     </p>
   );

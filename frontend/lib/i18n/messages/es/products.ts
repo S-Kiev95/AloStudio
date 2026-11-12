@@ -25,4 +25,5 @@ export const products = {
   active: "Activo",
   inactive: "Inactivo",
   deleteConfirm: "¿Eliminar \"{name}\"?",
+  description: "Descripción",
 };

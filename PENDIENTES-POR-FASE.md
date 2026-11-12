@@ -53,7 +53,7 @@ anota en esta sección y lo decide el dueño.
 | F10 Jev y Laya | B | Sin empezar |
 | F11 CRM (Krayin) | B | Sin empezar |
 | F12 Grafos | B | Sin empezar |
-| F13 Multi-idioma | B | Estructura y primer tramo en develop (2026-11-12); falta el barrido de pantallas (Argon) y el backend |
+| F13 Multi-idioma | B | Interfaz completa en 7 idiomas en develop (2026-11-12); falta revisión en navegador, textos del backend y bot |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en develop; falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 
@@ -195,17 +195,16 @@ Sin cambios respecto del plan: Jev y Laya, CRM con base Krayin y grafos.
 Detalle en `PLAN.i18n.md`.
 
 - **Hecho el 2026-11-12, en develop:** estructura propia sin librerías
-  (`frontend/lib/i18n/`), español, inglés y portugués. Cada usuario elige
-  en Ajustes → Mi perfil → Idioma (se guarda en `ui_settings.locale`); sin
-  sesión, selector en el login; si no eligió, el del navegador. Traducidos
-  el menú, la barra de arriba, Ajustes (menú), Mi perfil y las pantallas de
-  acceso.
-- **Falta el barrido** del resto de las pantallas, por tandas, pensado para
-  Argon (`PLAN.i18n.md`). Medida: `node scripts/i18n-pendientes.mjs` en
-  `frontend/` (848 líneas en 173 archivos al empezar).
-- **Después, backend y bot:** correos y avisos en el idioma del
-  destinatario, errores de la API traducibles, y el bot respondiendo en el
-  idioma del cliente.
+  (`frontend/lib/i18n/`) y **toda la interfaz del panel traducida** a
+  español, inglés, portugués, francés, alemán, japonés y coreano. Cada
+  usuario elige en Ajustes → Mi perfil → Idioma (se guarda en
+  `ui_settings.locale`); sin sesión, selector en el login; si no eligió,
+  el del navegador. `node scripts/i18n-pendientes.mjs` en `frontend/` quedó
+  en 58 textos, todos marcas o términos técnicos (empezó en 1254).
+- **Falta:** revisar las pantallas principales en el navegador en cada
+  idioma; los textos que manda el backend (Instalación, catálogo de Plugs,
+  errores de la API); correos y avisos en el idioma del destinatario; y el
+  bot respondiendo en el idioma del cliente.
 
 ## F14. Foto del contacto
 

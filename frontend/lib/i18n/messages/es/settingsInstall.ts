@@ -1,0 +1,15 @@
+export const settingsInstall = {
+  configuredCount: "{done}/{total} configurados",
+  netConfigured: "configurada",
+  netNotConfigured: "sin configurar",
+  operatorOnly: "Sólo el operador de la instalación puede ver esta pantalla. Pedile acceso a quien la desplegó.",
+  loadFailed: "No se pudo cargar la configuración.",
+  intro: "Ajustes que valen para todo AloStudio, no para una cuenta. Podés dejarlos vacíos y completarlos cuando tengas las credenciales — la app funciona sin ellos, y cada función te avisa qué le falta.",
+  network: "Red",
+  clearFailed: "No se pudo borrar.",
+  notConfigured: "Sin configurar",
+  configured: "Configurado",
+  savedHere: "guardado desde acá",
+  resetToServer: "volver al valor del servidor",
+  fromEnv: "viene del archivo del servidor (.env)",
+};

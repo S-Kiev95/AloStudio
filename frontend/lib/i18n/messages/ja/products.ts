@@ -28,4 +28,5 @@ export const products: Strings<typeof es> = {
   active: "有効",
   inactive: "無効",
   deleteConfirm: "「{name}」を削除しますか？",
+  description: "説明",
 };

@@ -8,6 +8,7 @@ import type { AgentPendingAction } from "@/lib/api/agent";
 import { cn } from "@/lib/utils";
 
 import { formatPendingSchedule } from "./agent-time";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 const MAX_COLLAPSED_LINES = 8;
 const MAX_COLLAPSED_CHARS = 480;
@@ -31,6 +32,8 @@ export function PendingActionCard({
   onConfirm: () => void;
   onReject: () => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [expanded, setExpanded] = useState(false);
 
   const content = action.publication.content ?? "";
@@ -78,7 +81,7 @@ export function PendingActionCard({
               onClick={() => setExpanded((prev) => !prev)}
               className="mt-1 text-xs font-medium text-info hover:underline"
             >
-              {expanded ? "Ver menos" : "Ver más"}
+              {expanded ? t("agent.pending.seeLess") : t("agent.pending.seeMore")}
             </button>
           ) : null}
         </div>
@@ -102,7 +105,7 @@ export function PendingActionCard({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={m.url}
-                  alt={`Medio ${idx + 1}`}
+                  alt={t("publications.detail.mediaNumber", { n: idx + 1 })}
                   loading="lazy"
                   className="h-full w-full object-cover"
                 />
@@ -113,7 +116,7 @@ export function PendingActionCard({
       ) : null}
 
       <p className="font-numeric text-xs font-medium tabular-nums text-fg-muted">
-        {formatPendingSchedule(action)}
+        {formatPendingSchedule(action, locale)}
       </p>
 
       {error ? (
@@ -143,12 +146,12 @@ export function PendingActionCard({
           disabled={isConfirming || disabled}
           onClick={onReject}
         >
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
 
       <p className="text-xs text-fg-muted">
-        Si querés cambiar algo, escribilo y el agente arma una nueva propuesta.
+        {t("agent.pending.changeHint")}
       </p>
     </div>
   );

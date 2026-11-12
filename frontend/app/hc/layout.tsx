@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getT } from "@/lib/i18n/server";
 
 export const metadata: Metadata = {
   // Each portal page overrides this — the default here only covers the
@@ -14,16 +15,17 @@ export const metadata: Metadata = {
  * inside :file:`[slug]/layout.tsx`. We just set the page background +
  * font scale here.
  */
-export default function HelpCenterLayout({
+export default async function HelpCenterLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = await getT();
   return (
     <div className="min-h-screen bg-bg text-fg">
       {children}
       <footer className="mt-12 border-t border-border py-6 text-center text-xs text-fg-muted">
-        Powered by AloStudio
+        {t("hc.poweredBy")}
       </footer>
     </div>
   );

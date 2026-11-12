@@ -1,3 +1,4 @@
+import type { MessageKey } from "@/lib/i18n/translate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
@@ -16,16 +17,16 @@ export type AttributeDisplayType =
 
 export const ATTRIBUTE_DISPLAY_TYPES: {
   value: AttributeDisplayType;
-  label: string;
+  label: MessageKey;
 }[] = [
-  { value: "text", label: "Texto" },
-  { value: "number", label: "Número" },
-  { value: "currency", label: "Moneda" },
-  { value: "percent", label: "Porcentaje" },
-  { value: "link", label: "Enlace" },
-  { value: "date", label: "Fecha" },
-  { value: "list", label: "Lista" },
-  { value: "checkbox", label: "Casilla" },
+  { value: "text", label: "settingsAttrs.types.text" },
+  { value: "number", label: "settingsAttrs.types.number" },
+  { value: "currency", label: "settingsAttrs.types.currency" },
+  { value: "percent", label: "settingsAttrs.types.percent" },
+  { value: "link", label: "settingsAttrs.types.link" },
+  { value: "date", label: "settingsAttrs.types.date" },
+  { value: "list", label: "settingsAttrs.types.list" },
+  { value: "checkbox", label: "settingsAttrs.types.checkbox" },
 ];
 
 export type CustomAttribute = {

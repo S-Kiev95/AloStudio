@@ -166,11 +166,6 @@ function sortPublications(items: Publication[]): Publication[] {
   });
 }
 
-function weekdayIndexMondayFirst(date: Date): number {
-  const day = date.getDay(); // 0 = Sun
-  return day === 0 ? 6 : day - 1;
-}
-
 export function buildDayColumns(
   startDate: Date,
   numDays: number,

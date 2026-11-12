@@ -1,3 +1,4 @@
+import type { MessageKey } from "@/lib/i18n/translate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
@@ -5,9 +6,9 @@ import { apiFetch } from "./fetcher";
 export type CampaignType = "ongoing" | "one_off";
 export type CampaignStatus = "active" | "completed";
 
-export const CAMPAIGN_TYPES: { value: CampaignType; label: string }[] = [
-  { value: "ongoing", label: "Continua (widget web)" },
-  { value: "one_off", label: "Puntual (programada)" },
+export const CAMPAIGN_TYPES: { value: CampaignType; label: MessageKey }[] = [
+  { value: "ongoing", label: "campaigns.typeLong.ongoing" },
+  { value: "one_off", label: "campaigns.typeLong.oneOff" },
 ];
 
 /** One entry in the audience array — Chatwoot scopes campaigns by labels. */

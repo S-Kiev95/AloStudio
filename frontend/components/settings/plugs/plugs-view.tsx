@@ -39,6 +39,7 @@ import {
   useUpdatePublicationPlug,
 } from "@/lib/api/publications";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 function formatRunDate(iso: string | null): string | null {
   if (!iso) return null;
@@ -48,6 +49,7 @@ function formatRunDate(iso: string | null): string | null {
 }
 
 export function PlugsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const isAdmin = useIsAccountAdmin(accountId);
   const catalogQuery = usePublicationPlugsCatalog(accountId);
   const channelsQuery = usePublicationChannels(accountId);
@@ -217,7 +219,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
 
     if (selectedChannelId === null || !selectedChannel) {
       setDialogError({
-        message: "Elegí un canal para configurar el plug.",
+        message: t("settingsPlugs.channelRequired"),
         errors: [],
       });
       return;
@@ -225,7 +227,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
 
     if (!selectedKindKey) {
       setDialogError({
-        message: "Elegí una acción del catálogo.",
+        message: t("settingsPlugs.actionRequired"),
         errors: [],
       });
       return;
@@ -234,7 +236,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
     const parsedThreshold = Number.parseInt(likesThreshold, 10);
     if (!Number.isFinite(parsedThreshold) || parsedThreshold < 1) {
       setDialogError({
-        message: "El umbral debe ser al menos 1 me gusta.",
+        message: t("settingsPlugs.thresholdMin"),
         errors: [],
       });
       return;
@@ -243,14 +245,14 @@ export function PlugsView({ accountId }: { accountId: string }) {
     if (requiresMessage && messageMax !== null) {
       if (Array.from(message.trim()).length < 1) {
         setDialogError({
-          message: "Escribí el mensaje para esta acción.",
+          message: t("settingsPlugs.messageRequired"),
           errors: [],
         });
         return;
       }
       if (messageCount > messageMax) {
         setDialogError({
-          message: `El mensaje supera el máximo de ${messageMax} caracteres (${messageCount}/${messageMax}).`,
+          message: t("settingsPlugs.messageTooLong", { max: messageMax, count: messageCount }),
           errors: [],
         });
         return;
@@ -278,7 +280,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
       }
       closeDialog();
     } catch (err) {
-      setDialogError(parsePublicationError(err, "No se pudo guardar el plug."));
+      setDialogError(parsePublicationError(err, t("settingsPlugs.saveFailed")));
     }
   }
 
@@ -291,7 +293,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
       });
     } catch (err) {
       setPageError(
-        parsePublicationError(err, "No se pudo actualizar el plug."),
+        parsePublicationError(err, t("settingsPlugs.updateFailed")),
       );
     }
   }
@@ -301,7 +303,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
     try {
       await deleteMutation.mutateAsync(plug.id);
     } catch (err) {
-      setPageError(parsePublicationError(err, "No se pudo borrar el plug."));
+      setPageError(parsePublicationError(err, t("settingsPlugs.deleteFailed")));
     }
   }
 
@@ -313,10 +315,9 @@ export function PlugsView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xl font-medium text-fg">Plugs</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settingsPlugs.title")}</h2>
         <p className="text-sm text-fg-muted">
-          Ejecutá acciones automáticas sobre tus publicaciones cuando alcancen
-          un umbral de me gusta.
+          {t("settingsPlugs.intro")}
         </p>
       </div>
 
@@ -327,30 +328,30 @@ export function PlugsView({ accountId }: { accountId: string }) {
 
       {isLoading ? (
         <div className="rounded-xl border border-glass bg-surface p-8 text-center text-sm text-fg-muted">
-          Cargando…
+          {t("common.loading")}
         </div>
       ) : isError ? (
         <div
           role="alert"
           className="rounded-xl border border-glass bg-surface p-8 text-center text-sm text-danger"
         >
-          No se pudieron cargar los plugs.
+          {t("settingsPlugs.loadFailed")}
         </div>
       ) : compatibleChannels.length === 0 ? (
         <div className="space-y-4 rounded-xl border border-glass bg-surface-1 p-6">
           <div className="space-y-1">
             <p className="text-sm font-medium text-fg">
-              Conectá Threads para usar acciones automáticas
+              {t("settingsPlugs.connectThreads")}
             </p>
             <p className="text-xs text-fg-muted">
-              No hay canales conectados con acciones disponibles en el catálogo.
+              {t("settingsPlugs.noChannels")}
             </p>
           </div>
           <Link
             href={`/accounts/${accountId}/publications`}
             className={buttonVariants({ variant: "primary", size: "md" })}
           >
-            Ir al calendario para conectar canales
+            {t("settingsPlugs.goToCalendar")}
           </Link>
         </div>
       ) : (
@@ -359,7 +360,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
             <div className="rounded-xl border border-glass bg-surface-1 p-5">
               <Button type="button" onClick={() => openCreate()}>
                 <Plus className="h-4 w-4" aria-hidden />
-                Agregar plug
+                {t("settingsPlugs.add")}
               </Button>
             </div>
           ) : null}
@@ -373,7 +374,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
               return (
                 <section
                   key={channel.id}
-                  aria-label={`Plugs de ${channelDisplayName(channel)}`}
+                  aria-label={t("settingsPlugs.channelPlugs", { name: channelDisplayName(channel) })}
                   className="overflow-hidden rounded-xl border border-glass bg-surface"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-glass bg-surface-1 px-4 py-3">
@@ -392,7 +393,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
 
                   {channelPlugs.length === 0 ? (
                     <p className="p-6 text-center text-sm text-fg-muted">
-                      No hay acciones automáticas configuradas en este canal.
+                      {t("settingsPlugs.noneInChannel")}
                     </p>
                   ) : (
                     <ul className="divide-y divide-glass">
@@ -418,13 +419,12 @@ export function PlugsView({ accountId }: { accountId: string }) {
                                           : "border-glass bg-surface-2 text-fg-muted",
                                       )}
                                     >
-                                      {plug.active ? "Activo" : "Pausado"}
+                                      {plug.active ? t("settingsAutoposts.active") : t("settingsAutoposts.paused")}
                                     </span>
                                   </div>
 
                                   <p className="font-numeric text-xs tabular-nums text-fg-muted">
-                                    Cuando llegue a {plug.likes_threshold} me
-                                    gusta
+                                    {t("settingsPlugs.whenLikes", { n: plug.likes_threshold })}
                                   </p>
 
                                   {plug.message ? (
@@ -444,12 +444,12 @@ export function PlugsView({ accountId }: { accountId: string }) {
                                     disabled={updateMutation.isPending}
                                     onClick={() => void handleToggleActive(plug)}
                                   >
-                                    {plug.active ? "Pausar" : "Activar"}
+                                    {plug.active ? t("settingsAutoposts.pause") : t("settingsNotif.enable")}
                                   </Button>
                                   <button
                                     type="button"
-                                    aria-label="Editar plug"
-                                    title="Editar plug"
+                                    aria-label={t("settingsPlugs.edit")}
+                                    title={t("settingsPlugs.edit")}
                                     onClick={() => openEdit(plug)}
                                     className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                   >
@@ -457,8 +457,8 @@ export function PlugsView({ accountId }: { accountId: string }) {
                                   </button>
                                   <button
                                     type="button"
-                                    aria-label="Borrar plug"
-                                    title="Borrar plug"
+                                    aria-label={t("settingsPlugs.delete")}
+                                    title={t("settingsPlugs.delete")}
                                     disabled={deleteMutation.isPending}
                                     onClick={() => void handleDelete(plug)}
                                     className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -472,7 +472,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
                             {plug.runs.length > 0 ? (
                               <div className="space-y-1.5 rounded-md border border-glass bg-surface-2 p-2.5">
                                 <p className="text-[11px] font-medium uppercase tracking-wider text-fg-muted">
-                                  Últimas corridas
+                                  {t("settingsPlugs.lastRuns")}
                                 </p>
                                 <ul className="space-y-1">
                                   {plug.runs.map((run, idx) => {
@@ -489,7 +489,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
                                                 className="h-3.5 w-3.5"
                                                 aria-hidden
                                               />
-                                              Bien
+                                              {t("settingsPlugs.runOk")}
                                             </span>
                                           ) : (
                                             <span className="inline-flex items-center gap-1 font-medium text-danger">
@@ -497,7 +497,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
                                                 className="h-3.5 w-3.5"
                                                 aria-hidden
                                               />
-                                              Falló
+                                              {t("settingsPlugs.runFailed")}
                                             </span>
                                           )}
                                           {!run.ok && run.error_message ? (
@@ -542,11 +542,11 @@ export function PlugsView({ accountId }: { accountId: string }) {
                 id="plug-dialog-title"
                 className="text-lg font-medium text-fg"
               >
-                {editing ? "Editar plug" : "Agregar plug"}
+                {editing ? t("settingsPlugs.edit") : t("settingsPlugs.add")}
               </h3>
               <button
                 type="button"
-                aria-label="Cerrar diálogo"
+                aria-label={t("actions.closeDialog")}
                 onClick={closeDialog}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
               >
@@ -563,7 +563,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
 
             <div className="space-y-1.5">
               <Label htmlFor="plug-channel" required>
-                Canal
+                {t("settingsPlugs.channel")}
               </Label>
               <Select
                 id="plug-channel"
@@ -581,7 +581,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
 
             <div className="space-y-1.5">
               <Label htmlFor="plug-kind" required>
-                Acción
+                {t("settingsMacros.action")}
               </Label>
               <Select
                 id="plug-kind"
@@ -604,7 +604,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
 
             <div className="space-y-1.5">
               <Label htmlFor="plug-threshold" required>
-                Cuando llegue a N me gusta
+                {t("settingsPlugs.thresholdLabel")}
               </Label>
               <Input
                 id="plug-threshold"
@@ -620,7 +620,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <Label htmlFor="plug-message" required>
-                    Mensaje
+                    {t("settingsPlugs.message")}
                   </Label>
                   <span
                     className={cn(
@@ -638,7 +638,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
                   rows={3}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Escribí la respuesta automática…"
+                  placeholder={t("settingsPlugs.messagePlaceholder")}
                   aria-invalid={messageCount > messageMax}
                 />
               </div>
@@ -651,7 +651,7 @@ export function PlugsView({ accountId }: { accountId: string }) {
                 onChange={(e) => setActive(e.target.checked)}
                 className="h-4 w-4 rounded border-glass bg-field accent-primary"
               />
-              <span>Activo</span>
+              <span>{t("settingsAutoposts.active")}</span>
             </label>
 
             <div className="flex items-center justify-end gap-2 border-t border-glass pt-3">
@@ -661,10 +661,10 @@ export function PlugsView({ accountId }: { accountId: string }) {
                 onClick={closeDialog}
                 disabled={isSubmitting}
               >
-                Cancelar
+                {t("actions.cancel")}
               </Button>
               <Button type="submit" loading={isSubmitting}>
-                {editing ? "Guardar cambios" : "Guardar plug"}
+                {editing ? t("common.saveChanges") : t("settingsPlugs.save")}
               </Button>
             </div>
           </form>

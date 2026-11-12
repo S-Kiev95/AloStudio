@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/select";
 import { useAgents } from "@/lib/api/account";
 import { ApiError } from "@/lib/api/errors";
 import { useUpdateInbox } from "@/lib/api/inboxes";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * Default assignee for bot handoffs: when the AI hands a conversation to the
@@ -22,6 +23,7 @@ export function HandoffAssigneePanel({
   inboxId: number;
   current: number | null;
 }) {
+  const t = useT();
   const agents = useAgents(accountId);
   const update = useUpdateInbox(accountId);
   const [value, setValue] = useState<string>("");
@@ -43,7 +45,7 @@ export function HandoffAssigneePanel({
       setSaved(true);
     } catch (e) {
       setError(
-        e instanceof ApiError ? e.message : "No se pudo guardar el responsable.",
+        e instanceof ApiError ? e.message : t("settingsInboxes.handoffSaveFailed"),
       );
     }
   }
@@ -51,12 +53,10 @@ export function HandoffAssigneePanel({
   return (
     <div className="space-y-3">
       <p className="text-sm text-fg-muted">
-        Cuando la IA derive una conversación a una persona y todavía no esté
-        asignada, se le asigna a quien elijas y le llega el aviso. Con
-        &quot;Nadie&quot;, el aviso le llega a todos los agentes de la bandeja.
+        {t("settingsInboxes.handoffIntro")}
       </p>
       <label className="block space-y-1">
-        <span className="text-sm font-medium text-fg">Responsable</span>
+        <span className="text-sm font-medium text-fg">{t("settingsInboxes.handoffAssignee")}</span>
         <Select
           value={value}
           disabled={agents.isLoading}
@@ -66,7 +66,7 @@ export function HandoffAssigneePanel({
           }}
           className="max-w-xs"
         >
-          <option value="">Nadie</option>
+          <option value="">{t("settingsInboxes.nobody")}</option>
           {(agents.data ?? []).map((a) => (
             <option key={a.id} value={String(a.id)}>
               {a.available_name || a.name}
@@ -81,9 +81,9 @@ export function HandoffAssigneePanel({
       ) : null}
       <div className="flex items-center gap-2">
         <Button size="sm" onClick={save} loading={update.isPending}>
-          Guardar
+          {t("actions.save")}
         </Button>
-        {saved ? <span className="text-xs text-success">Guardado ✓</span> : null}
+        {saved ? <span className="text-xs text-success">{t("settingsInboxes.savedCheck")}</span> : null}
       </div>
     </div>
   );

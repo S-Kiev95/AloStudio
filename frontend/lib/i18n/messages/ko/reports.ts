@@ -54,4 +54,27 @@ export const reports: Strings<typeof es> = {
     one: "대화 1건",
     many: "대화 {count}건",
   },
+  metricNames: {
+    conversations_count: "대화",
+    incoming_messages_count: "받은 메시지",
+    outgoing_messages_count: "보낸 메시지",
+    resolutions_count: "해결",
+    avg_first_response_time: "첫 응답",
+    avg_resolution_time: "해결 시간",
+    reply_time: "응답 시간",
+  },
+  scopes: {
+    agent: "상담원",
+    team: "팀",
+    inbox: "받은편지함",
+    label: "라벨",
+    ad: "광고",
+  },
+  scopeEntity: {
+    agent: "상담원",
+    team: "팀",
+    inbox: "받은편지함",
+    label: "라벨",
+    ad: "광고",
+  },
 };

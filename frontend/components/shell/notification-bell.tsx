@@ -194,7 +194,7 @@ function NotificationRow({
         </p>
         <p className="mt-0.5 text-xs text-fg-muted">
           {n.primary_actor?.display_id != null
-            ? `Conversación #${n.primary_actor.display_id}`
+            ? t("conversations.list.fallbackName", { id: n.primary_actor.display_id })
             : null}
           {n.primary_actor?.display_id != null && n.last_activity_at
             ? " · "

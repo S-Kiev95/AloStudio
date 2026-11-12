@@ -1,129 +1,129 @@
 # PLAN — Multi-idioma (F13)
 
-Fase F13 de `PLAN.fases-futuras.md`. Agente B. Rama base `feat/f13-idiomas`.
-Español es el idioma fuente; inglés y portugués (de Brasil) primero.
+Fase F13 de `PLAN.fases-futuras.md`. Agente B. Rama `feat/f13-idiomas`.
+Español es el idioma fuente. Idiomas: **español, inglés, portugués (de
+Brasil), francés, alemán, japonés y coreano**.
 
 ## Estado
 
-**Hecho (2026-11-12): la estructura y el primer tramo.**
+**Hecho (2026-11-12): toda la interfaz del panel, en los siete idiomas.**
 
-- `frontend/lib/i18n/`: idiomas (`config.ts`), diccionarios
-  (`messages/es.ts`, `en.ts`, `pt.ts`), `t()` (`translate.ts`), el provider
-  y los hooks para componentes cliente (`provider.tsx`) y `getT()` para
-  componentes de servidor (`server.ts`). Sin librerías nuevas.
-- Idioma de cada persona: lo elige en **Ajustes → Mi perfil → Idioma**, se
-  guarda en `ui_settings.locale` del usuario y lo sigue a cualquier
-  dispositivo. Sin sesión (login, recuperar contraseña) se elige con el
-  selector de arriba a la derecha y queda solo en ese navegador. Sin
-  elección, el del navegador (`Accept-Language`); si no es uno de los tres,
-  español.
+- `frontend/lib/i18n/`: idiomas y su etiqueta para `Intl` (`config.ts`),
+  `t()` con claves tipadas (`translate.ts`), provider y hooks para
+  componentes cliente (`provider.tsx`: `useT`, `useLocale`, `useIntlTag`),
+  `getT()` para componentes de servidor (`server.ts`), `rich()` para frases
+  con elementos adentro (`rich.tsx`) y `clientT()` para textos que se arman
+  fuera de React (`client-t.ts`). Sin librerías.
+- Diccionarios: `messages/<idioma>/`, un archivo por sección (`core.ts`
+  con lo común, y `conversations.ts`, `settingsInboxes.ts`…), reunidos en
+  `messages/<idioma>/index.ts`. El tipo `Strings<T>` obliga a que cada idioma
+  tenga exactamente las claves del español: si falta una, no compila.
+- Idioma de cada persona: **Ajustes → Mi perfil → Idioma**, guardado en
+  `ui_settings.locale` del usuario. Sin sesión (login, recuperar
+  contraseña), selector arriba a la derecha. Sin elección, el del navegador
+  (`Accept-Language`); si no es uno de los siete, español.
 - Cómo viaja: la cookie `alo_locale` sirve para el primer render del
-  servidor (`<html lang>`, componentes de servidor). Al entrar al panel, si
-  el perfil dice otro idioma que la cookie, gana el perfil.
-- Traducido: menú lateral, barra de arriba (cuenta, usuario, tema,
-  notificaciones), menú de Ajustes, Mi perfil, y las pantallas de acceso
-  (iniciar sesión, recuperar y cambiar contraseña, confirmar email) con sus
-  validaciones. `relativeTime` ("hace 5m") ya recibe el idioma.
-- Para medir lo que falta: `node scripts/i18n-pendientes.mjs` en
-  `frontend/` (con `--files`, archivo por archivo). Cuenta líneas con
-  letras del español (á, ñ, ¿…), así que se le escapan los textos sin
-  tildes ("Guardar", "Cancelar"): sirve para ver la tendencia, no como
-  lista completa. Al empezar el barrido: **848 líneas en 173 archivos**.
+  servidor; al entrar al panel, si el perfil dice otro idioma, gana el
+  perfil.
+- Barrido terminado: bandeja, inicio, reportes, CRM, agenda, calendario y
+  publicaciones, Instagram, campañas, agente, Help Center (panel y sitio
+  público), notificaciones, páginas de error, todo Ajustes, y los mapas y
+  mensajes de `lib/api` y `lib/inboxes`.
+- `node scripts/i18n-pendientes.mjs` (en `frontend/`) da **58 textos**, todos
+  nombres de marca o términos técnicos que no se traducen (Instagram,
+  Telegram, Slug, SKU, CSV, Client ID…). Empezó en 1254.
 
-**Falta:** el barrido del resto de las pantallas (abajo, para Argon), los
-textos del backend y el idioma del bot.
+**Falta:** revisar en el navegador las pantallas principales en cada idioma
+(textos que no entran, sobre todo alemán y francés), los textos que manda
+el backend, y el idioma del bot (abajo).
 
 ---
 
+## Herramientas (`frontend/scripts/`)
+
+- `i18n-pendientes.mjs [carpetas…]`: lista los textos de interfaz que
+  siguen fijos en el código (lee el árbol de TypeScript; no necesita tildes
+  para encontrarlos). Se saltea una línea con `// i18n-ignore` y un tramo
+  entre `i18n-ignore-start` / `i18n-ignore-end`. Excluye `lib/legal`,
+  `components/legal` y `app/api`.
+- `i18n-tool.mjs`:
+  - `apply <mapeo>`: cada línea `ruta:línea seccion.clave` reemplaza el
+    texto de esa línea por `t("seccion.clave")` y agrega el español al
+    diccionario. `~fragmento` elige entre dos textos de la misma línea; `!`
+    deja la clave como texto (para listas fuera de un componente, que
+    después se muestran con `t(item.label)`). `= x:1 seccion.clave Texto`
+    solo agrega el español. Valida todo antes de escribir nada. No escribe
+    en las secciones de `core.ts`: las claves nuevas van en otra sección.
+  - `ensure <archivos>`: agrega `const t = useT()` (o `await getT()` en
+    componentes de servidor de `app/`) y los imports.
+  - `dump <seccion>`: el español de una sección, `clave=texto`.
+  - `putall <idioma> <archivo>`: bloques `### seccion` con `clave=texto`;
+    solo completa claves que ya existen en español.
+
+Ojo con `!` en entradas de una sola línea (`{ value: "x", label: "Y" }`):
+toma el primer texto de la línea. Esos casos se hacen a mano.
+
 ## Cómo se traduce un componente (convenciones)
 
-1. **El texto va primero a `messages/es.ts`**, en la sección de su pantalla
-   (`conversations`, `contacts`, `settings.labels`…). Después la misma clave
-   en `en.ts` y `pt.ts`: el typecheck falla si falta una, y un test compara
-   que los tres tengan las mismas claves y los mismos `{valores}`.
+1. **El texto va primero al español**, en la sección de su pantalla. Después
+   la misma clave en los otros seis idiomas: el typecheck falla si falta.
 2. **Componente cliente:** `const t = useT();` y `{t("seccion.clave")}`.
-   **Componente de servidor:** `const t = await getT();`.
-3. **Valores dentro del texto** con llaves: `"hace {n}m"` →
-   `t("time.minutesAgo", { n: 5 })`. Nunca armar frases pegando pedazos
-   traducidos: el orden de las palabras cambia entre idiomas.
-4. **Plurales:** dos claves (`oneItem` / `manyItems`) y elegir con el número.
-   No hace falta nada más para estos tres idiomas.
-5. **Listas fijas fuera de un componente** (menús, opciones de un select,
-   mapas de estados): guardan la **clave**, no el texto, y el componente
-   hace `t(item.label)`. Ejemplos: `components/shell/nav.ts`,
-   `components/settings/settings-sidebar.tsx`. Tipo: `MessageKey`.
-6. **Validaciones de zod:** el mensaje del esquema es una clave
-   (`lib/auth/schemas.ts`) y el formulario la muestra con
-   `t(errorKey(error.message))`.
-7. **Fechas, horas, números y monedas:** con `Intl` y la etiqueta del
-   idioma, nunca con formato a mano: `useIntlTag()` da `"es-UY"`,
-   `"en-US"` o `"pt-BR"`. Funciones de `lib/time.ts` reciben `locale`
-   (`useLocale()`) como último argumento.
-8. **No se traduce:** nombres de redes y marcas (Instagram, WhatsApp, CRM,
-   CSAT, MCP), datos del usuario (nombres de contactos, mensajes, etiquetas
-   que creó), y los textos legales de `lib/legal` (términos, privacidad,
-   eliminación de datos), que quedan en español hasta tener una traducción
-   revisada por alguien.
-9. **Tests:** los existentes buscan textos en español y siguen andando,
-   porque sin provider `t()` responde en español. No cambiar textos en los
-   tests salvo que el texto en español haya cambiado.
-10. **Tono:** español rioplatense con vos, como el resto de la app; inglés
-    neutro; portugués de Brasil con "você".
+   **Componente de servidor:** `const t = await getT();`. **Fuera de React**
+   (validaciones de `lib/api`, valores por defecto): `clientT()`, que lee el
+   idioma de la cookie.
+3. **Valores dentro del texto** con llaves: `t("time.minutesAgo", { n: 5 })`.
+   Nunca armar frases pegando pedazos traducidos: el orden cambia entre
+   idiomas. Si la frase lleva un enlace, negrita o `<code>`, `rich()`:
+   `rich(t("x.frase"), { nombre: <strong>…</strong> })`.
+4. **Plurales:** dos claves (`fooOne` / `fooMany`) y elegir con el número.
+   En japonés y coreano suelen tener el mismo texto.
+5. **Listas fijas fuera de un componente** (opciones, mapas de estados,
+   catálogos): guardan la **clave** (tipo `MessageKey`) y el componente hace
+   `t(item.label)`. El catálogo de canales mezcla claves y nombres técnicos
+   en inglés ("Bot token"): se muestra con `t(texto as MessageKey)`, que
+   devuelve tal cual lo que no conoce.
+6. **Fechas, horas y números:** con `Intl` y `useIntlTag()`; las funciones
+   de fechas (`lib/time.ts`, `week-utils.ts`, `calendar-utils.ts`,
+   `agent-time.ts`) reciben el idioma como último argumento.
+7. **No se traduce:** nombres de redes y marcas, datos del usuario, términos
+   de protocolo (OAuth, PKCE, IMAP…), y los textos legales de `lib/legal`,
+   que quedan en español hasta tener una traducción revisada.
+8. **Tests:** buscan textos en español y siguen andando, porque sin
+   provider `t()` responde en español y `clientT()` sin cookie también.
+9. **Tono:** español rioplatense con vos; inglés neutro; portugués de Brasil
+   con "você"; francés con "vous"; alemán con "du", como las apps de
+   consumo; japonés en です/ます; coreano en 합니다/해요 según el caso.
+10. **Una variable `t` por alcance:** no usar `t` como nombre en
+    `.map((t) => …)`, tapa el traductor.
 
-## Barrido de pantallas (para Argon)
+## Lo que falta
 
-Worktree propio desde `feat/f13-idiomas`; **solo frontend**, sin librerías
-nuevas, sin tocar backend, rutas, datos ni llamadas a la API. Un commit por
-tanda, en español (`feat(idiomas): ...`), terminado en
-`Co-Authored-By: Antigravity <noreply@google.com>`. Al final de cada tanda:
-`npm run typecheck`, `npm run lint`, `npm test` en verde y la salida de
-`node scripts/i18n-pendientes.mjs`.
+### Revisión en el navegador
+Recorrer bandeja, calendario, Ajustes y el login en cada idioma, en claro y
+oscuro, buscando textos que no entran (botones y pestañas en alemán y
+francés) y frases que quedaron raras.
 
-Orden (de lo que más se ve a lo que menos), con su sección del diccionario:
+### Textos que vienen del backend
+Hoy llegan en español y se muestran tal cual: los grupos y nombres de
+**Ajustes → Instalación**, el **catálogo de Plugs** (nombre y descripción de
+cada acción) y los mensajes de error de la API.
 
-1. **Bandeja** (`components/conversations`, `conversations.*`): lista,
-   filtros, conversación, compositor, panel del contacto, acciones.
-2. **Inicio y estadísticas** (`components/overview`, `components/reports`,
-   `overview.*`, `reports.*`).
-3. **CRM** (`components/contacts`, `components/products`,
-   `components/agenda`, `components/crm`).
-4. **Calendario y publicaciones** (`components/publications`): el más
-   grande; partirlo en editor, calendario, medios y estadísticas.
-5. **Instagram** (`components/instagram`).
-6. **Campañas, agente y Help Center** (`components/campaigns`,
-   `components/agent`, `components/help-center`).
-7. **Ajustes** (`components/settings/*`), una pantalla por commit.
-8. **Lo que queda:** notificaciones, `lib/api` (etiquetas de estados y
-   tipos), `lib/inboxes`, páginas de error y 404, centro de ayuda público
-   (`app/hc`).
-
-Cada pantalla terminada se revisa en el navegador en los tres idiomas
-(Ajustes → Mi perfil → Idioma), en claro y oscuro, buscando textos que
-quedaron en español y textos que no entran en su lugar (el alemán no está,
-pero el portugués suele ser más largo).
-
-## Backend y bot (agente B, después del barrido)
-
-1. **Correos** (confirmación de cuenta, recuperar contraseña, avisos por
-   mail): plantillas por idioma, con el `ui_settings.locale` del
-   destinatario y español si no tiene.
+### Backend y bot
+1. **Correos** (confirmación de cuenta, recuperar contraseña, avisos):
+   plantillas por idioma con el `ui_settings.locale` del destinatario.
 2. **Avisos push y por WhatsApp** a los agentes: mismo criterio.
-3. **Errores de la API** que se muestran tal cual en pantalla: hoy en
-   español o en inglés según el caso. Pasar a códigos que el frontend
-   traduce, empezando por los más vistos (login, permisos, validaciones).
-4. **El bot y el agente responden en el idioma del cliente:** detectar el
-   idioma del mensaje entrante y pedírselo explícito al modelo en el prompt
-   ("respondé en el idioma del cliente"), sin cambiar las instrucciones de
-   cada bandeja. Probar con mensajes en portugués en una bandeja de prueba
-   antes de llevarlo a CTC.
-5. **Idioma de la cuenta** (`accounts.locale`, ya existe por herencia de
-   Chatwoot): por defecto para usuarios nuevos y para el centro de ayuda
-   público. Decidir con el dueño si hace falta.
+3. **Errores de la API:** pasar a códigos que el frontend traduce (ya hay
+   dos: `not_authorized` y `too_many_attempts`, en `lib/api/errors.ts`).
+4. **El bot responde en el idioma del cliente:** pedírselo explícito al
+   modelo en el prompt, sin cambiar las instrucciones de cada bandeja.
+   Probar con mensajes en portugués en una bandeja de prueba antes de
+   llevarlo a CTC.
+5. **Idioma de la cuenta** (`accounts.locale`): por defecto para usuarios
+   nuevos y el centro de ayuda público. Decidir con el dueño.
 
 ## Criterios de terminado
 
-- `node scripts/i18n-pendientes.mjs` en 0, salvo `lib/legal` y falsos
-  positivos anotados acá.
-- Las pantallas principales revisadas en los tres idiomas en el navegador.
+- `i18n-pendientes.mjs` solo con marcas y términos técnicos. **Cumplido.**
+- Pantallas principales revisadas en el navegador en cada idioma.
 - Correos y avisos en el idioma del destinatario.
 - El bot contesta en portugués a un mensaje en portugués.

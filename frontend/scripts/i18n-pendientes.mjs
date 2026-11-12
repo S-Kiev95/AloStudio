@@ -24,7 +24,7 @@ const SKIP_FILES = [
   /\.d\.ts$/,
   /^tests\//,
   /^scripts\//,
-  /^lib\/legal\//, // legal texts stay in Spanish until reviewed (PLAN.i18n.md)
+  /^(lib|components)\/legal\//, // legal texts stay in Spanish until reviewed (PLAN.i18n.md)
   /^app\/(privacidad|terminos|eliminacion-de-datos)\//,
   /^app\/api\//, // server routes: messages for logs and the backend
   /^middleware\.ts$/,

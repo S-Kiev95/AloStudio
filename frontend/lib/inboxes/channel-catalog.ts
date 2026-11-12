@@ -6,6 +6,10 @@ import type { ChannelType } from "@/lib/api/inboxes";
  * `InboxBuilder` validation (`app/domains/inboxes/service.py`). `name`
  * supports a dotted path (`provider_config.api_key`) which the form nests
  * into the channel payload; `fixed` values are always sent.
+ *
+ * `label`, `blurb`, `help` and `placeholder` hold a dictionary key or, for
+ * product and API names ("Bot token", "Page ID"), the literal text: render
+ * them through `t()`, which hands back what it doesn't know.
  */
 export type FieldType = "text" | "password" | "checkbox" | "select";
 
@@ -31,11 +35,13 @@ export type ChannelDef = {
   fields: ChannelField[];
 };
 
+// i18n-ignore-start: the texts in Spanish are dictionary keys now; what's
+// left in English are product and API field names, rendered as they are.
 export const CHANNEL_CATALOG: ChannelDef[] = [
   {
     type: "telegram",
     label: "Telegram",
-    blurb: "Conectá un bot de Telegram con el token de BotFather.",
+    blurb: "channelCatalog.telegram.blurb",
     fields: [
       {
         name: "bot_token",
@@ -43,26 +49,26 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
         type: "password",
         required: true,
         placeholder: "123456789:AA…",
-        help: "El token que te dio @BotFather al crear el bot.",
+        help: "channelCatalog.telegram.tokenHelp",
       },
       {
         name: "bot_name",
-        label: "Nombre del bot",
+        label: "channelCatalog.telegram.botName",
         type: "text",
         placeholder: "MiNegocioBot",
-        help: "Opcional — el @username del bot.",
+        help: "channelCatalog.telegram.botNameHelp",
       },
     ],
   },
   {
     type: "whatsapp",
     label: "WhatsApp (Cloud API)",
-    blurb: "Número de WhatsApp Business vía la Cloud API de Meta.",
+    blurb: "channelCatalog.whatsapp.blurb",
     fixed: { provider: "whatsapp_cloud" },
     fields: [
       {
         name: "phone_number",
-        label: "Número de teléfono",
+        label: "channelCatalog.phoneNumber",
         type: "text",
         required: true,
         placeholder: "+5491122334455",
@@ -90,11 +96,11 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
   {
     type: "sms",
     label: "SMS (Bandwidth)",
-    blurb: "Número de SMS a través de Bandwidth.",
+    blurb: "channelCatalog.sms.blurb",
     fields: [
       {
         name: "phone_number",
-        label: "Número de teléfono",
+        label: "channelCatalog.phoneNumber",
         type: "text",
         required: true,
         placeholder: "+15551234567",
@@ -128,7 +134,7 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
   {
     type: "twilio_sms",
     label: "Twilio (SMS / WhatsApp)",
-    blurb: "Número de Twilio para SMS o WhatsApp.",
+    blurb: "channelCatalog.twilio.blurb",
     fields: [
       {
         name: "account_sid",
@@ -145,14 +151,14 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
       },
       {
         name: "phone_number",
-        label: "Número de teléfono",
+        label: "channelCatalog.phoneNumber",
         type: "text",
         required: true,
         placeholder: "+15551234567",
       },
       {
         name: "medium",
-        label: "Medio",
+        label: "channelCatalog.twilio.medium",
         type: "select",
         options: [
           { value: "sms", label: "SMS" },
@@ -164,11 +170,11 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
   {
     type: "email",
     label: "Email",
-    blurb: "Una casilla de correo como canal de soporte.",
+    blurb: "channelCatalog.email.blurb",
     fields: [
       {
         name: "email",
-        label: "Dirección de email",
+        label: "channelCatalog.email.address",
         type: "text",
         required: true,
         placeholder: "soporte@tudominio.com",
@@ -180,86 +186,86 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
       // server only demands the rest of a side once it is switched on.
       {
         name: "imap_enabled",
-        label: "Recibir correos (IMAP)",
+        label: "channelCatalog.email.imapEnabled",
         type: "checkbox",
-        help: "Sin esto, lo que te escriban no entra a la bandeja.",
+        help: "channelCatalog.email.imapHelp",
       },
       {
         name: "imap_address",
-        label: "Servidor IMAP",
+        label: "channelCatalog.email.imapServer",
         type: "text",
         placeholder: "imap.gmail.com",
       },
-      { name: "imap_port", label: "Puerto IMAP", type: "text", placeholder: "993" },
+      { name: "imap_port", label: "channelCatalog.email.imapPort", type: "text", placeholder: "993" },
       {
         name: "imap_login",
-        label: "Usuario IMAP",
+        label: "channelCatalog.email.imapUser",
         type: "text",
         placeholder: "soporte@tudominio.com",
       },
       {
         name: "imap_password",
-        label: "Contraseña IMAP",
+        label: "channelCatalog.email.imapPassword",
         type: "password",
-        help: "Si tenés verificación en dos pasos, usá una contraseña de aplicación.",
+        help: "channelCatalog.email.appPasswordHelp",
       },
       {
         name: "imap_enable_ssl",
-        label: "Conexión segura IMAP (SSL)",
+        label: "channelCatalog.email.imapSsl",
         type: "checkbox",
         default: true,
-        help: "Casi siempre sí. El puerto 993 no contesta sin cifrar.",
+        help: "settingsInboxes.sslHint",
       },
       {
         name: "smtp_enabled",
-        label: "Enviar correos (SMTP)",
+        label: "channelCatalog.email.smtpEnabled",
         type: "checkbox",
-        help: "Sin esto, las respuestas de los agentes no salen.",
+        help: "settingsInboxes.smtpHint",
       },
       {
         name: "smtp_address",
-        label: "Servidor SMTP",
+        label: "channelCatalog.email.smtpServer",
         type: "text",
         placeholder: "smtp.gmail.com",
       },
-      { name: "smtp_port", label: "Puerto SMTP", type: "text", placeholder: "587" },
+      { name: "smtp_port", label: "channelCatalog.email.smtpPort", type: "text", placeholder: "587" },
       {
         name: "smtp_login",
-        label: "Usuario SMTP",
+        label: "channelCatalog.email.smtpUser",
         type: "text",
         placeholder: "soporte@tudominio.com",
       },
-      { name: "smtp_password", label: "Contraseña SMTP", type: "password" },
+      { name: "smtp_password", label: "channelCatalog.email.smtpPassword", type: "password" },
       {
         name: "smtp_enable_starttls_auto",
-        label: "Conexión segura SMTP (STARTTLS)",
+        label: "channelCatalog.email.smtpStarttls",
         type: "checkbox",
         default: true,
-        help: "Necesario en el puerto 587. Gmail rechaza autenticarse sin esto.",
+        help: "settingsInboxes.starttlsHint",
       },
     ],
   },
   {
     type: "web_widget",
     label: "Web widget",
-    blurb: "Chat embebido para tu sitio web.",
+    blurb: "channelCatalog.web.blurb",
     fields: [
       {
         name: "website_url",
-        label: "URL del sitio",
+        label: "channelCatalog.web.siteUrl",
         type: "text",
         required: true,
         placeholder: "https://tudominio.com",
       },
       {
         name: "welcome_title",
-        label: "Título de bienvenida",
+        label: "channelCatalog.web.welcomeTitle",
         type: "text",
-        placeholder: "¡Hola! 👋",
+        placeholder: "channelCatalog.web.welcomePlaceholder",
       },
       {
         name: "welcome_tagline",
-        label: "Subtítulo",
+        label: "channelCatalog.web.tagline",
         type: "text",
       },
     ],
@@ -267,21 +273,21 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
   {
     type: "api",
     label: "API",
-    blurb: "Canal genérico vía API HTTP (webhook saliente opcional).",
+    blurb: "channelCatalog.api.blurb",
     fields: [
       {
         name: "webhook_url",
         label: "Webhook URL",
         type: "text",
         placeholder: "https://tu-servicio.com/webhook",
-        help: "Opcional — adónde reenviamos los mensajes entrantes.",
+        help: "channelCatalog.api.webhookHelp",
       },
     ],
   },
   {
     type: "facebook",
     label: "Facebook Messenger",
-    blurb: "Mensajes y publicaciones de tu Página de Facebook.",
+    blurb: "channelCatalog.facebook.blurb",
     fields: [
       {
         name: "page_id",
@@ -299,13 +305,13 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
         name: "user_access_token",
         label: "User access token",
         type: "password",
-        help: "Opcional — para refrescar el token de página al expirar.",
+        help: "channelCatalog.facebook.userTokenHelp",
       },
       {
         name: "instagram_id",
         label: "Instagram ID",
         type: "text",
-        help: "Opcional — si la página está conectada a una cuenta de IG.",
+        help: "channelCatalog.facebook.instagramIdHelp",
       },
     ],
   },
@@ -313,7 +319,7 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
     type: "instagram",
     label: "Instagram (Direct)",
     blurb:
-      "IG Business por token. Para publicar y moderar comentarios, usá la sección Instagram del menú.",
+      "channelCatalog.instagram.blurb",
     fields: [
       {
         name: "instagram_id",
@@ -330,6 +336,7 @@ export const CHANNEL_CATALOG: ChannelDef[] = [
     ],
   },
 ];
+// i18n-ignore-end
 
 export function channelDef(type: string): ChannelDef | undefined {
   return CHANNEL_CATALOG.find((c) => c.type === type);

@@ -241,4 +241,5 @@ export const conversations = {
     reports: "Reportes",
     channels: "Canales",
   },
+  allInboxes: "Todas las bandejas",
 };

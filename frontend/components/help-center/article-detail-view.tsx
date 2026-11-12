@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/portals";
 
 import { ArticleForm } from "./article-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function ArticleDetailView({
   accountId,
@@ -23,6 +24,7 @@ export function ArticleDetailView({
   slug: string;
   articleId: number;
 }) {
+  const t = useT();
   const router = useRouter();
   const { data: article, isLoading, isError } = useArticle(
     accountId,
@@ -43,13 +45,13 @@ export function ArticleDetailView({
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver al portal
+        {t("helpCenter.backToPortal")}
       </Link>
       {isLoading ? (
-        <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+        <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
       ) : isError || !article ? (
         <p role="alert" className="p-8 text-center text-sm text-danger">
-          No se pudo cargar el artículo.
+          {t("helpCenter.articleLoadFailed")}
         </p>
       ) : (
         <Card>

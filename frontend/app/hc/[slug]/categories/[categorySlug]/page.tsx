@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { fetchArticles, fetchCategories, fetchPortal } from "@/lib/hc/fetch";
+import { getT } from "@/lib/i18n/server";
 
 export const revalidate = 300;
 
@@ -27,6 +28,7 @@ export default async function CategoryPage({
 }: {
   params: Promise<{ slug: string; categorySlug: string }>;
 }) {
+  const t = await getT();
   const { slug, categorySlug } = await params;
   const portal = await fetchPortal(slug);
   if (!portal) notFound();
@@ -64,7 +66,7 @@ export default async function CategoryPage({
 
       {articles.length === 0 ? (
         <p className="text-sm text-fg-muted">
-          No hay artículos publicados en esta categoría todavía.
+          {t("hc.categoryEmpty")}
         </p>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border bg-surface">

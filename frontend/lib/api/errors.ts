@@ -1,3 +1,6 @@
+import type { MessageKey } from "@/lib/i18n/translate";
+import { clientT } from "@/lib/i18n/client-t";
+
 /**
  * Normalises the backend's error envelopes into one shape.
  *
@@ -40,10 +43,9 @@ export class ApiError extends Error {
  * copy to wording that exists for somebody else, and would come undone the
  * day a typo in it is fixed.
  */
-const WORDING_BY_CODE: Record<string, string> = {
-  not_authorized: "No tenés permiso para hacer esto.",
-  too_many_attempts:
-    "Demasiados intentos fallidos. Esperá unos minutos y probá de nuevo.",
+const WORDING_BY_CODE: Record<string, MessageKey> = {
+  not_authorized: "apiErrors.notAuthorized",
+  too_many_attempts: "apiErrors.tooManyAttempts",
 };
 
 export function messageFromBody(body: unknown, fallback: string): string {
@@ -51,7 +53,7 @@ export function messageFromBody(body: unknown, fallback: string): string {
     const b = body as Record<string, unknown>;
     const ours =
       typeof b.code === "string" ? WORDING_BY_CODE[b.code] : undefined;
-    if (ours) return ours;
+    if (ours) return clientT()(ours);
     if (typeof b.message === "string") return b.message;
     if (typeof b.error === "string") return b.error;
     if (Array.isArray(b.errors) && typeof b.errors[0] === "string") {

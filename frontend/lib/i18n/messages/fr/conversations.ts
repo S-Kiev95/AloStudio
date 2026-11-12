@@ -244,4 +244,5 @@ export const conversations: Strings<typeof es> = {
     reports: "Rapports",
     channels: "Canaux",
   },
+  allInboxes: "Toutes les boîtes de réception",
 };
