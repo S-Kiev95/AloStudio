@@ -15,6 +15,7 @@ from typing import Any
 
 from sqlalchemy import inspect as sa_inspect
 
+from app.domains.contacts.avatar import contact_thumbnail
 from app.domains.contacts.models import Contact, ContactInbox, Note
 from app.domains.inboxes.models import Inbox
 from app.domains.users.models import AccountUser, User
@@ -59,7 +60,8 @@ def present_contact(
     """Serialize a contact.
 
     Wire parity with ``app/views/api/v1/models/_contact.json.jbuilder``.
-    The ``availability_status`` and ``thumbnail`` keys are emitted
+    ``thumbnail`` is the contact's profile picture (F14) or ``""``. The
+    ``availability_status`` and ``thumbnail`` keys are emitted
     unconditionally — Chatwoot reads them from the ``AvailabilityStatusable``
     and ``Avatarable`` concerns which always return a string (``"offline"``
     or ``"online"`` / avatar URL or Gravatar fallback). We emit the
@@ -75,7 +77,7 @@ def present_contact(
         "phone_number": contact.phone_number,
         "blocked": contact.blocked,
         "identifier": contact.identifier,
-        "thumbnail": "",
+        "thumbnail": contact_thumbnail(contact),
         "custom_attributes": contact.custom_attributes or {},
     }
     if contact.last_activity_at is not None:

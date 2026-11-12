@@ -324,7 +324,7 @@ function ContactRow({
         href={`/accounts/${accountId}/contacts/${contact.id}`}
         className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neon"
       >
-        <Avatar name={displayName} />
+        <Avatar name={displayName} src={contact.thumbnail} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-fg">
             {displayName}

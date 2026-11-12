@@ -679,7 +679,7 @@ function ConversationRow({
         aria-current={active ? "page" : undefined}
         className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 pr-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neon"
       >
-        <Avatar name={name} size="sm" />
+        <Avatar name={name} src={conv.meta?.sender?.thumbnail} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             {/* Before the name, so the column reads as one scannable strip
