@@ -649,12 +649,16 @@ describe("Bandeja en tres columnas y pestañas", () => {
     );
     expect(handle).toHaveAttribute("aria-valuenow", "0");
     expect(shell.style.getPropertyValue("--inbox-stretch")).toBe("0px");
+    // Sin estirar queda debajo de la barra de arriba (sus menús abren encima).
+    expect(shell).toHaveClass("z-20");
 
     // Flechas arriba/abajo mueven de a 24 px; no baja de 0.
     fireEvent.keyDown(handle, { key: "ArrowUp" });
     expect(handle).toHaveAttribute("aria-valuenow", "24");
     expect(shell.style.getPropertyValue("--inbox-stretch")).toBe("24px");
     expect(window.localStorage.getItem(INBOX_HEIGHT_OFFSET_KEY)).toBe("24");
+    // Estirada tapa la barra a propósito: capa por encima de ella.
+    expect(shell).toHaveClass("z-[36]");
 
     fireEvent.keyDown(handle, { key: "ArrowUp" });
     expect(handle).toHaveAttribute("aria-valuenow", "48");

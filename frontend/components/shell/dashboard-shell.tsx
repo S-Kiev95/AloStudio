@@ -207,7 +207,11 @@ export function DashboardShell({
 
         {/* Work glass panel */}
         <div className="glass-panel flex min-w-0 flex-1 flex-col rounded-panel bg-surface">
-          <header className="vt-topbar flex h-16 shrink-0 items-center gap-3 border-b border-glass px-4 lg:h-20 lg:px-6">
+          {/* view-transition-name makes the bar its own stacking layer, so its
+              menus (account, notifications, user) can only rise as high as the
+              bar itself: z-[35] keeps them above the page's own layers (up to
+              z-30) and below the mobile drawer (z-40) and dialogs (z-50). */}
+          <header className="vt-topbar relative z-[35] flex h-16 shrink-0 items-center gap-3 border-b border-glass px-4 lg:h-20 lg:px-6">
             <button
               type="button"
               aria-label="Abrir menú"
