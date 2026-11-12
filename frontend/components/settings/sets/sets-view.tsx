@@ -19,6 +19,7 @@ import {
   usePublicationChannels,
   usePublicationSets,
 } from "@/lib/api/publications";
+import { useT } from "@/lib/i18n/provider";
 
 function formatSetDate(iso: string | null): string {
   if (!iso) return "—";
@@ -28,6 +29,7 @@ function formatSetDate(iso: string | null): string {
 }
 
 export function SetsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const isAdmin = useIsAccountAdmin(accountId);
   const setsQuery = usePublicationSets(accountId);
   const channelsQuery = usePublicationChannels(accountId);
@@ -70,17 +72,18 @@ export function SetsView({ accountId }: { accountId: string }) {
     try {
       await deleteMutation.mutateAsync(item.id);
     } catch (err) {
-      setPageError(parsePublicationError(err, "No se pudo borrar el set."));
+      setPageError(parsePublicationError(err, t("settingsSets.deleteFailed")));
     }
   }
 
   return (
     <div className="max-w-3xl space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xl font-medium text-fg">Sets ({sets.length})</h2>
+        <h2 className="text-xl font-medium text-fg">
+          {t("settingsSets.title", { count: sets.length })}
+        </h2>
         <p className="text-sm text-fg-muted">
-          Gestioná tus sets de contenido para reutilizarlos fácilmente en tus
-          publicaciones.
+          {t("settingsSets.intro")}
         </p>
       </div>
 
@@ -88,7 +91,7 @@ export function SetsView({ accountId }: { accountId: string }) {
         <div className="rounded-xl border border-glass bg-surface-1 p-5">
           <Button type="button" onClick={openCreate}>
             <Plus className="h-4 w-4" aria-hidden />
-            Agregar set
+            {t("settingsSets.add")}
           </Button>
         </div>
       ) : null}
@@ -100,14 +103,14 @@ export function SetsView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-xl border border-glass bg-surface">
         {setsQuery.isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : setsQuery.isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los sets.
+            {t("settingsSets.loadFailed")}
           </p>
         ) : sets.length === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay sets guardados todavía.
+            {t("settingsSets.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -141,14 +144,16 @@ export function SetsView({ accountId }: { accountId: string }) {
                     {resolvedChannels.length > 0 ? (
                       <div
                         className="flex items-center -space-x-1.5"
-                        aria-label={`Canales: ${resolvedChannels.map(channelDisplayName).join(", ")}`}
+                        aria-label={t("settingsSets.channelsLabel", {
+                          names: resolvedChannels.map(channelDisplayName).join(", "),
+                        })}
                       >
                         {resolvedChannels.map((ch) => (
                           <ChannelAvatar key={ch.id} channel={ch} size="sm" />
                         ))}
                       </div>
                     ) : (
-                      <span className="text-xs text-fg-muted">Sin canales</span>
+                      <span className="text-xs text-fg-muted">{t("settingsSets.noChannels")}</span>
                     )}
 
                     <span className="font-numeric text-xs tabular-nums text-fg-muted">
@@ -159,8 +164,8 @@ export function SetsView({ accountId }: { accountId: string }) {
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          aria-label="Editar set"
-                          title="Editar set"
+                          aria-label={t("settingsSets.edit")}
+                          title={t("settingsSets.edit")}
                           onClick={() => openEdit(item)}
                           className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
@@ -168,8 +173,8 @@ export function SetsView({ accountId }: { accountId: string }) {
                         </button>
                         <button
                           type="button"
-                          aria-label="Borrar set"
-                          title="Borrar set"
+                          aria-label={t("settingsSets.delete")}
+                          title={t("settingsSets.delete")}
                           disabled={deleteMutation.isPending}
                           onClick={() => void handleDelete(item)}
                           className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

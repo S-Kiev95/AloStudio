@@ -1,6 +1,10 @@
 import type { Messages } from "../es";
 
 import { core } from "./core";
+import { settingsSignatures } from "./settingsSignatures";
+import { settingsSets } from "./settingsSets";
+import { settingsPlugs } from "./settingsPlugs";
+import { settingsAutoposts } from "./settingsAutoposts";
 import { settingsOauth } from "./settingsOauth";
 import { settingsIntegrations } from "./settingsIntegrations";
 import { settingsInstall } from "./settingsInstall";
@@ -44,6 +48,10 @@ import { actions } from "./actions";
 
 export const en: Messages = {
   ...core,
+  settingsSignatures,
+  settingsSets,
+  settingsPlugs,
+  settingsAutoposts,
   settingsOauth,
   settingsIntegrations,
   settingsInstall,

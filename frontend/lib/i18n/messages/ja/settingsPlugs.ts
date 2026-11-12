@@ -1,0 +1,33 @@
+import type { settingsPlugs as es } from "../es/settingsPlugs";
+import type { Strings } from "../types";
+
+export const settingsPlugs: Strings<typeof es> = {
+  messageTooLong: "メッセージが上限の {max} 文字を超えています ({count}/{max})。",
+  channelPlugs: "{name} のプラグ",
+  whenLikes: "いいねが {n} 件に達したら",
+  channelRequired: "プラグを設定するチャネルを選んでください。",
+  actionRequired: "カタログからアクションを選んでください。",
+  thresholdMin: "しきい値は 1 いいね以上にしてください。",
+  messageRequired: "このアクションのメッセージを入力してください。",
+  saveFailed: "プラグを保存できませんでした。",
+  updateFailed: "プラグを更新できませんでした。",
+  deleteFailed: "プラグを削除できませんでした。",
+  title: "プラグ",
+  intro: "投稿のいいね数がしきい値に達したときに、自動アクションを実行します。",
+  loadFailed: "プラグを読み込めませんでした。",
+  connectThreads: "自動アクションを使うには Threads を接続してください",
+  noChannels: "カタログにアクションがある接続済みチャネルはありません。",
+  goToCalendar: "カレンダーでチャネルを接続する",
+  add: "プラグを追加",
+  noneInChannel: "このチャネルには自動アクションが設定されていません。",
+  edit: "プラグを編集",
+  delete: "プラグを削除",
+  lastRuns: "最近の実行",
+  runOk: "成功",
+  runFailed: "失敗",
+  channel: "チャネル",
+  thresholdLabel: "いいねが N 件に達したら",
+  message: "メッセージ",
+  messagePlaceholder: "自動返信を入力…",
+  save: "プラグを保存",
+};
