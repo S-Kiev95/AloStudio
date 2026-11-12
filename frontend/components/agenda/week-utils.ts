@@ -1,5 +1,11 @@
 import type { Appointment } from "@/lib/api/appointments";
+import { DEFAULT_LOCALE, INTL_TAGS, type Locale } from "@/lib/i18n/config";
+import { createTranslate } from "@/lib/i18n/translate";
 
+// Every formatter takes the interface language last (`useLocale()`), and
+// defaults to Spanish so existing callers read as before.
+
+// i18n-ignore-start: the Spanish names; other languages come from Intl.
 const SHORT_WEEKDAYS = [
   "Lun",
   "Mar",
@@ -19,6 +25,7 @@ const LONG_WEEKDAYS = [
   "Sábado",
   "Domingo",
 ] as const;
+// i18n-ignore-end
 
 /** Local midnight on Monday of the week containing `date`. */
 export function startOfWeekMonday(date: Date): Date {
@@ -76,7 +83,9 @@ export type DayBucket = {
 export function groupAppointmentsByDay(
   weekStart: Date,
   appointments: Appointment[],
+  locale: Locale = DEFAULT_LOCALE,
 ): DayBucket[] {
+  const tag = INTL_TAGS[locale];
   const monday = startOfWeekMonday(weekStart);
   const buckets: DayBucket[] = [];
   const byKey = new Map<string, DayBucket>();
@@ -87,10 +96,10 @@ export function groupAppointmentsByDay(
     const bucket: DayBucket = {
       date: d,
       key,
-      shortName: SHORT_WEEKDAYS[i],
-      longName: LONG_WEEKDAYS[i],
+      shortName: weekdayName(d, "short", locale),
+      longName: weekdayName(d, "long", locale),
       dayNumber: d.getDate(),
-      monthShort: d.toLocaleDateString("es-ES", { month: "short" }),
+      monthShort: d.toLocaleDateString(tag, { month: "short" }),
       items: [],
     };
     buckets.push(bucket);
@@ -113,10 +122,13 @@ export function groupAppointmentsByDay(
   return buckets;
 }
 
-export function formatWeekRangeLabel(weekStart: Date): string {
+export function formatWeekRangeLabel(
+  weekStart: Date,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   const monday = startOfWeekMonday(weekStart);
   const sunday = addDaysLocal(monday, 6);
-  const fmtDayMonth = new Intl.DateTimeFormat("es-ES", {
+  const fmtDayMonth = new Intl.DateTimeFormat(INTL_TAGS[locale], {
     day: "numeric",
     month: "short",
   });
@@ -126,10 +138,11 @@ export function formatWeekRangeLabel(weekStart: Date): string {
 export function formatTimeRange(
   startsAt: string,
   endsAt: string | null,
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
   const start = new Date(startsAt);
   if (Number.isNaN(start.getTime())) return "";
-  const fmt = new Intl.DateTimeFormat("es-ES", {
+  const fmt = new Intl.DateTimeFormat(INTL_TAGS[locale], {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -140,10 +153,13 @@ export function formatTimeRange(
   return `${fmt.format(start)} – ${fmt.format(end)}`;
 }
 
-export function formatDateTimeLocal(iso: string): string {
+export function formatDateTimeLocal(
+  iso: string,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("es-ES", {
+  return d.toLocaleString(INTL_TAGS[locale], {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -172,6 +188,8 @@ export function fromDatetimeLocalInput(value: string): string | null {
   return d.toISOString();
 }
 
+// i18n-ignore-start: hand-made Spanish wording; other languages use
+// describeScheduledForIntl below.
 function dayPeriod(hour: number): string {
   if (hour < 6) return "de la madrugada";
   if (hour < 12) return "de la mañana";
@@ -194,10 +212,12 @@ function relativeFromNow(minutes: number): string {
 export function describeScheduledFor(
   value: string,
   now: Date = new Date(),
+  locale: Locale = DEFAULT_LOCALE,
 ): { text: string; past: boolean } | null {
   if (!value.trim()) return null;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
+  if (locale !== "es") return describeScheduledForIntl(d, now, locale);
   const weekday = new Intl.DateTimeFormat("es-ES", { weekday: "long" }).format(d);
   const dayDiff = Math.round(
     (new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() -
@@ -210,4 +230,45 @@ export function describeScheduledFor(
   const minutes = Math.floor((d.getTime() - now.getTime()) / 60_000);
   if (minutes < 0) return { text: `Esa hora ya pasó: ${when}.`, past: true };
   return { text: `Se publica ${when} (${relativeFromNow(minutes)}).`, past: false };
+}
+// i18n-ignore-end
+
+/** The same sentence in another language, from `Intl` and the dictionary:
+ *  "Publishes Monday, 11/2, 02:00 (in 1 hour)." The hand-made Spanish
+ *  above stays, it reads better than any generic format. */
+function describeScheduledForIntl(
+  d: Date,
+  now: Date,
+  locale: Locale,
+): { text: string; past: boolean } {
+  const tag = INTL_TAGS[locale];
+  const t = createTranslate(locale);
+  const when = new Intl.DateTimeFormat(tag, {
+    weekday: "long",
+    day: "numeric",
+    month: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+  const minutes = Math.floor((d.getTime() - now.getTime()) / 60_000);
+  if (minutes < 0) return { text: t("dates.alreadyPassed", { when }), past: true };
+  const rtf = new Intl.RelativeTimeFormat(tag, { numeric: "always" });
+  const rel =
+    minutes < 60
+      ? rtf.format(Math.max(minutes, 1), "minute")
+      : minutes < 48 * 60
+        ? rtf.format(Math.round(minutes / 60), "hour")
+        : rtf.format(Math.round(minutes / 1440), "day");
+  return { text: t("dates.publishesAt", { when, rel }), past: false };
+}
+
+/** "Lun" / "Lunes" in Spanish (as the app always showed), Intl elsewhere. */
+function weekdayName(d: Date, width: "short" | "long", locale: Locale): string {
+  const mondayFirst = (d.getDay() + 6) % 7;
+  if (locale === "es") {
+    return (width === "short" ? SHORT_WEEKDAYS : LONG_WEEKDAYS)[mondayFirst];
+  }
+  const name = new Intl.DateTimeFormat(INTL_TAGS[locale], { weekday: width }).format(d);
+  return name.charAt(0).toLocaleUpperCase(INTL_TAGS[locale]) + name.slice(1);
 }

@@ -1,0 +1,57 @@
+import type { reports as es } from "../es/reports";
+import type { Strings } from "../types";
+
+export const reports: Strings<typeof es> = {
+  bot: {
+    conversations: "Bot conversations",
+    messages: "Bot messages",
+    resolutionRate: "Resolution rate",
+    handoffRate: "Handoff rate",
+  },
+  noData: "No data for the selected period.",
+  range: {
+    d7: "7 days",
+    d30: "30 days",
+    d90: "90 days",
+  },
+  period: "Period",
+  loadingMetrics: "Loading metrics…",
+  metricsFailed: "Couldn't load the metrics.",
+  evolution: "Trend",
+  metric: "Metric",
+  seriesFailed: "Couldn't load the series.",
+  traffic: "Conversation traffic",
+  trafficFailed: "Couldn't load the traffic.",
+  botPerformance: "Bot performance",
+  botFailed: "Couldn't load the bot metrics.",
+  breakdown: "Breakdown",
+  scope: "Scope",
+  cards: {
+    conversations: "Conversations",
+    incoming: "Incoming messages",
+    outgoing: "Outgoing messages",
+    resolutions: "Resolutions",
+    firstResponse: "First response (avg.)",
+    resolution: "Resolution (avg.)",
+    reply: "Reply (avg.)",
+    noPrevious: "no previous period",
+    noChange: "no change",
+    vsPrevious: "vs. previous period",
+  },
+  table: {
+    resolved: "Resolved",
+    firstResponse: "1st response (avg.)",
+    spend: "Spend",
+    costPerConversation: "Cost / conv.",
+    costPerResolved: "Cost / resolved",
+    entity: "Entity",
+    loadFailed: "Couldn't load the breakdown.",
+    noData: "No data for this period.",
+  },
+  heatmap: {
+    empty: "No conversations in the chosen range.",
+    none: "No conversations",
+    one: "1 conversation",
+    many: "{count} conversations",
+  },
+};

@@ -2,6 +2,7 @@
 
 import type { TimeseriesPoint } from "@/lib/api/reports";
 import { shortDate } from "@/lib/time";
+import { useT } from "@/lib/i18n/provider";
 
 /** Dependency-free responsive bar chart for a daily-bucketed series. */
 export function MetricChart({
@@ -11,10 +12,11 @@ export function MetricChart({
   data: TimeseriesPoint[];
   formatValue: (v: number) => string;
 }) {
+  const t = useT();
   if (!data.length) {
     return (
       <p className="py-12 text-center text-sm text-fg-muted">
-        Sin datos en el período seleccionado.
+        {t("reports.noData")}
       </p>
     );
   }

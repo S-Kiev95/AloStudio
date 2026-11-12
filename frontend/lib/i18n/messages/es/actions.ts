@@ -15,4 +15,8 @@ export const actions = {
   yes: "Sí",
   no: "No",
   page: "Página {n}",
+  delete: "Eliminar",
+  closeDialog: "Cerrar diálogo",
+  deleteFailed: "No se pudo eliminar.",
+  save: "Guardar",
 };

@@ -18,4 +18,8 @@ export const actions: Strings<typeof es> = {
   yes: "예",
   no: "아니요",
   page: "{n}페이지",
+  delete: "삭제",
+  closeDialog: "대화상자 닫기",
+  deleteFailed: "삭제하지 못했습니다.",
+  save: "저장",
 };

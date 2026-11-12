@@ -8,8 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ContactInput, useCreateContact } from "@/lib/api/contacts";
 
 import { ContactForm } from "./contact-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function ContactNewView({ accountId }: { accountId: string }) {
+  const t = useT();
   const router = useRouter();
   const create = useCreateContact(accountId);
 
@@ -25,11 +27,11 @@ export function ContactNewView({ accountId }: { accountId: string }) {
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver a contactos
+        {t("contacts.back")}
       </Link>
       <Card>
         <CardHeader>
-          <CardTitle>Nuevo contacto</CardTitle>
+          <CardTitle>{t("contacts.new")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ContactForm

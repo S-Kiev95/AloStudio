@@ -243,7 +243,10 @@ async function apply(mappingFile) {
       const isAsync = host.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword);
       // A server component can't use hooks: it awaits getT(), so it must be
       // async (Next allows async server components).
-      const server = !isClient && ts.isFunctionDeclaration(host);
+      // Only route files under app/ can be server components; a shared
+      // component without the directive renders on the client when a
+      // client component imports it.
+      const server = !isClient && file.startsWith("app/") && ts.isFunctionDeclaration(host);
       if (server && !isAsync) {
         const at = host.getStart(sf) + host.getText(sf).indexOf("function");
         edits.push({ start: at, end: at, text: "async " });
@@ -318,8 +321,103 @@ async function put(lang, section, file) {
   console.log(`${lang}/${section}.ts: ${pairs.length} texts`);
 }
 
+/**
+ * `ensure <file>...`: every component or hook that calls `t(` without
+ * declaring it (a `const t`, a parameter named `t`) gets `const t = useT();`
+ * (`await getT()` in a server file), plus the import.
+ */
+function ensure(files) {
+  for (const file of files) {
+    const path = join(ROOT, file);
+    const original = readFileSync(path, "utf8");
+    const crlf = original.includes("\r\n");
+    const src = original.replace(/\r\n/g, "\n");
+    const sf = ts.createSourceFile(path, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const isClient = /^\s*["']use client["']/.test(src);
+    const edits = [];
+    const visit = (node) => {
+      let name = "";
+      if (ts.isFunctionDeclaration(node) && node.name) name = node.name.text;
+      else if ((ts.isArrowFunction(node) || ts.isFunctionExpression(node)) && node.parent && ts.isVariableDeclaration(node.parent) && ts.isIdentifier(node.parent.name)) name = node.parent.name.text;
+      const isHost = (/^[A-Z]/.test(name) || /^use[A-Z]/.test(name)) && node.body && ts.isBlock(node.body);
+      if (isHost) {
+        const body = node.body.getText(sf);
+        const hasParamT = node.parameters.some((p) => ts.isIdentifier(p.name) && p.name.text === "t");
+        if (/(^|[^\w.])t\(/.test(body) && !/\bconst t = /.test(body) && !hasParamT) {
+          const isAsync = node.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword);
+          const server = !isClient && file.startsWith("app/") && ts.isFunctionDeclaration(node);
+          if (server && !isAsync) {
+            const at = node.getStart(sf) + node.getText(sf).indexOf("function");
+            edits.push({ at, text: "async " });
+          }
+          edits.push({ at: node.body.getStart(sf) + 1, text: `\n  const t = ${server ? "await getT()" : "useT()"};` });
+        }
+        return; // nested functions use the host's t
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+    if (!edits.length) continue;
+    edits.sort((a, b) => b.at - a.at);
+    let out = src;
+    for (const e of edits) out = out.slice(0, e.at) + e.text + out.slice(e.at);
+    if (out.includes("useT()") && !/\buseT\b[^;]*from "@\/lib\/i18n\/provider"/.test(out)) {
+      const last = [...out.matchAll(/^import [^;]+;$/gms)].at(-1);
+      const at = last ? last.index + last[0].length : 0;
+      out = out.slice(0, at) + `\nimport { useT } from "@/lib/i18n/provider";` + out.slice(at);
+    }
+    if (out.includes("await getT()") && !/\bgetT\b[^;]*from "@\/lib\/i18n\/server"/.test(out)) {
+      const last = [...out.matchAll(/^import [^;]+;$/gms)].at(-1);
+      const at = last ? last.index + last[0].length : 0;
+      out = out.slice(0, at) + `\nimport { getT } from "@/lib/i18n/server";` + out.slice(at);
+    }
+    writeFileSync(path, crlf ? out.replace(/\n/g, "\r\n") : out);
+    console.log(`ensured ${file} (${edits.length})`);
+  }
+}
+
+/** `putall <lang> <file>`: like `put`, for a file with `### section`
+ *  headers, one block per section. Sections are merged with what the
+ *  language already has, so a block can add just the new keys. */
+async function putAll(lang, file) {
+  const blocks = new Map();
+  let current = null;
+  for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
+    const h = line.match(/^### (\w+)/);
+    if (h) {
+      current = h[1];
+      blocks.set(current, []);
+    } else if (current && line.trim()) blocks.get(current).push(line);
+  }
+  for (const [section, lines] of blocks) {
+    const existing = flatten(await loadSection(lang, section));
+    const given = new Map(existing);
+    for (const l of lines) {
+      const i = l.indexOf("=");
+      if (i < 1) throw new Error(`bad line in ${section}: ${l}`);
+      given.set(l.slice(0, i).trim(), l.slice(i + 1));
+    }
+    const tmp = join(ROOT, `.i18n-${lang}-${section}.tmp`);
+    const source = new Set(flatten(await loadSection("es", section)).map(([k]) => k));
+    writeFileSync(
+      tmp,
+      [...given]
+        .filter(([k]) => source.has(k))
+        .map(([k, v]) => `${k}=${v}`)
+        .join("\n"),
+    );
+    try {
+      await put(lang, section, tmp);
+    } finally {
+      (await import("node:fs")).rmSync(tmp, { force: true });
+    }
+  }
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
-if (cmd === "apply") await apply(rest[0]);
+if (cmd === "putall") await putAll(rest[0], rest[1]);
+else if (cmd === "ensure") ensure(rest);
+else if (cmd === "apply") await apply(rest[0]);
 else if (cmd === "dump") await dump(rest[0]);
 else if (cmd === "put") await put(rest[0], rest[1], rest[2]);
 else {

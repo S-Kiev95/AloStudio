@@ -18,4 +18,8 @@ export const actions: Strings<typeof es> = {
   yes: "Sim",
   no: "Não",
   page: "Página {n}",
+  delete: "Excluir",
+  closeDialog: "Fechar diálogo",
+  deleteFailed: "Não foi possível excluir.",
+  save: "Salvar",
 };

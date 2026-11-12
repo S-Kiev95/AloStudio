@@ -9,11 +9,25 @@
 import type { Strings } from "../types";
 
 import { core } from "./core";
+import { reports } from "./reports";
+import { products } from "./products";
+import { overview } from "./overview";
+import { crm } from "./crm";
+import { contacts } from "./contacts";
+import { agenda } from "./agenda";
+import { dates } from "./dates";
 import { actions } from "./actions";
 import { conversations } from "./conversations";
 
 export const es = {
   ...core,
+  reports,
+  products,
+  overview,
+  crm,
+  contacts,
+  agenda,
+  dates,
   actions,
   conversations,
 };

@@ -28,18 +28,19 @@ import { MetricChart } from "./metric-chart";
 import { SummaryCards } from "./summary-cards";
 import { SummaryTable } from "./summary-table";
 import { TrafficHeatmap } from "./traffic-heatmap";
+import { useT } from "@/lib/i18n/provider";
 
 const RANGES = [
-  { value: 7, label: "7 días" },
-  { value: 30, label: "30 días" },
-  { value: 90, label: "90 días" },
+  { value: 7, label: "reports.range.d7" },
+  { value: 30, label: "reports.range.d30" },
+  { value: 90, label: "reports.range.d90" },
 ] as const;
 
 const LIVE_CARDS = [
-  { key: "open", label: "Abiertas" },
-  { key: "unattended", label: "Sin atender" },
-  { key: "unassigned", label: "Sin asignar" },
-  { key: "pending", label: "Pendientes" },
+  { key: "open", label: "overview.live.open" },
+  { key: "unattended", label: "overview.live.unattended" },
+  { key: "unassigned", label: "overview.live.unassigned" },
+  { key: "pending", label: "overview.live.pending" },
 ] as const;
 
 const SCOPE_OPTIONS = SUMMARY_SCOPES.map((s) => ({
@@ -48,6 +49,7 @@ const SCOPE_OPTIONS = SUMMARY_SCOPES.map((s) => ({
 }));
 
 export function ReportsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const [days, setDays] = useState<number>(30);
   const [metric, setMetric] = useState<MetricKey>("conversations_count");
   const [scope, setScope] = useState<SummaryScope>("agent");
@@ -67,14 +69,14 @@ export function ReportsView({ accountId }: { accountId: string }) {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Reportes"
+        title={t("nav.reports")}
         actions={
           <SegmentedControl
-            ariaLabel="Período"
+            ariaLabel={t("reports.period")}
             size="sm"
             value={days}
             onValueChange={setDays}
-            options={RANGES}
+            options={RANGES.map((o) => ({ ...o, label: t(o.label) }))}
           />
         }
       />
@@ -84,7 +86,7 @@ export function ReportsView({ accountId }: { accountId: string }) {
         {LIVE_CARDS.map((c) => (
           <Card key={c.key} className="p-4">
             <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
-              {c.label}
+              {t(c.label)}
             </p>
             <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
               {live.isLoading ? "…" : (live.data?.[c.key] ?? 0).toLocaleString()}
@@ -95,10 +97,10 @@ export function ReportsView({ accountId }: { accountId: string }) {
 
       {/* Summary cards */}
       {summary.isLoading ? (
-        <p className="text-sm text-fg-muted">Cargando métricas…</p>
+        <p className="text-sm text-fg-muted">{t("reports.loadingMetrics")}</p>
       ) : summary.isError ? (
         <p role="alert" className="text-sm text-danger">
-          No se pudieron cargar las métricas.
+          {t("reports.metricsFailed")}
         </p>
       ) : summary.data ? (
         <SummaryCards data={summary.data} />
@@ -108,9 +110,9 @@ export function ReportsView({ accountId }: { accountId: string }) {
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>Evolución</CardTitle>
+            <CardTitle>{t("reports.evolution")}</CardTitle>
             <select
-              aria-label="Métrica"
+              aria-label={t("reports.metric")}
               value={metric}
               onChange={(e) => setMetric(e.target.value as MetricKey)}
               className={selectClassName("sm")}
@@ -125,10 +127,10 @@ export function ReportsView({ accountId }: { accountId: string }) {
         </CardHeader>
         <CardContent>
           {series.isLoading ? (
-            <p className="py-12 text-center text-sm text-fg-muted">Cargando…</p>
+            <p className="py-12 text-center text-sm text-fg-muted">{t("common.loading")}</p>
           ) : series.isError ? (
             <p role="alert" className="py-12 text-center text-sm text-danger">
-              No se pudo cargar la serie.
+              {t("reports.seriesFailed")}
             </p>
           ) : (
             <MetricChart data={series.data ?? []} formatValue={formatValue} />
@@ -139,14 +141,14 @@ export function ReportsView({ accountId }: { accountId: string }) {
       {/* Conversation-traffic heatmap */}
       <Card>
         <CardHeader>
-          <CardTitle>Tráfico de conversaciones</CardTitle>
+          <CardTitle>{t("reports.traffic")}</CardTitle>
         </CardHeader>
         <CardContent>
           {traffic.isLoading ? (
-            <p className="py-8 text-center text-sm text-fg-muted">Cargando…</p>
+            <p className="py-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
           ) : traffic.isError ? (
             <p role="alert" className="py-8 text-center text-sm text-danger">
-              No se pudo cargar el tráfico.
+              {t("reports.trafficFailed")}
             </p>
           ) : (
             <TrafficHeatmap data={traffic.data?.data ?? []} />
@@ -157,14 +159,14 @@ export function ReportsView({ accountId }: { accountId: string }) {
       {/* Bot performance */}
       <Card>
         <CardHeader>
-          <CardTitle>Rendimiento del bot</CardTitle>
+          <CardTitle>{t("reports.botPerformance")}</CardTitle>
         </CardHeader>
         <CardContent>
           {bot.isLoading ? (
-            <p className="py-8 text-center text-sm text-fg-muted">Cargando…</p>
+            <p className="py-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
           ) : bot.isError ? (
             <p role="alert" className="py-8 text-center text-sm text-danger">
-              No se pudieron cargar las métricas del bot.
+              {t("reports.botFailed")}
             </p>
           ) : bot.data ? (
             <BotMetricsCards data={bot.data} />
@@ -176,10 +178,10 @@ export function ReportsView({ accountId }: { accountId: string }) {
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>Desglose</CardTitle>
+            <CardTitle>{t("reports.breakdown")}</CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               <SegmentedControl
-                ariaLabel="Ámbito"
+                ariaLabel={t("reports.scope")}
                 size="sm"
                 value={scope}
                 onValueChange={setScope}

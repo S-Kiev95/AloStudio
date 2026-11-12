@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input";
 import type { CustomAttribute } from "@/lib/api/custom-attributes";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 const selectClass =
   "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -22,6 +23,7 @@ export function CustomAttributeInput({
   value: unknown;
   onChange: (next: unknown) => void;
 }) {
+  const t = useT();
   const id = `ca-${attribute.attribute_key}`;
   const type = attribute.attribute_display_type;
 
@@ -48,7 +50,7 @@ export function CustomAttributeInput({
         value={(value as string) ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
       >
-        <option value="">Sin valor</option>
+        <option value="">{t("contacts.noValue")}</option>
         {values.map((v) => (
           <option key={v} value={v}>
             {v}

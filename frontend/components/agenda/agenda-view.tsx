@@ -39,21 +39,25 @@ import {
   startOfWeekMonday,
 } from "./week-utils";
 import { WeekView } from "./week-view";
+import { useLocale, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 type ViewMode = "week" | "list";
 
 const STATUS_FILTERS: {
   value: AppointmentStatus | undefined;
-  label: string;
+  label: MessageKey;
 }[] = [
-  { value: undefined, label: "Todas" },
-  { value: "scheduled", label: "Programadas" },
-  { value: "confirmed", label: "Confirmadas" },
-  { value: "done", label: "Realizadas" },
-  { value: "cancelled", label: "Canceladas" },
+  { value: undefined, label: "agenda.filters.all" },
+  { value: "scheduled", label: "agenda.filters.scheduled" },
+  { value: "confirmed", label: "agenda.filters.confirmed" },
+  { value: "done", label: "agenda.filters.done" },
+  { value: "cancelled", label: "agenda.filters.cancelled" },
 ];
 
 export function AgendaView({ accountId }: { accountId: string }) {
+  const t = useT();
+  const locale = useLocale();
   const [mode, setMode] = useState<ViewMode>("week");
   const [weekStart, setWeekStart] = useState<Date>(() =>
     startOfWeekMonday(new Date()),
@@ -98,19 +102,19 @@ export function AgendaView({ accountId }: { accountId: string }) {
     } catch (err) {
       setActionError(
         (err as { message?: string })?.message ??
-          "No se pudo actualizar el estado.",
+          t("agenda.statusFailed"),
       );
     }
   }
 
   async function handleDelete(appointment: Appointment) {
-    if (!window.confirm(`¿Eliminar la cita "${appointment.title}"?`)) return;
+    if (!window.confirm(t("agenda.deleteConfirm", { title: appointment.title }))) return;
     setActionError(null);
     try {
       await deleteMutation.mutateAsync(appointment.id);
     } catch (err) {
       setActionError(
-        (err as { message?: string })?.message ?? "No se pudo eliminar la cita.",
+        (err as { message?: string })?.message ?? t("agenda.deleteFailed"),
       );
     }
   }
@@ -120,8 +124,8 @@ export function AgendaView({ accountId }: { accountId: string }) {
   return (
     <div className="mx-auto max-w-7xl space-y-4">
       <PageHeader
-        title="Agenda"
-        description="Citas y turnos programados con tus contactos."
+        title={t("agenda.title")}
+        description={t("agenda.subtitle")}
         actions={
           <Button
             size="sm"
@@ -131,7 +135,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
             }}
           >
             <Plus className="h-4 w-4" aria-hidden />
-            Nueva cita
+            {t("agenda.newAppointment")}
           </Button>
         }
       />
@@ -139,7 +143,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
       {/* Controles de vista y navegación semanal */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SegmentedControl
-          ariaLabel="Modo de vista"
+          ariaLabel={t("agenda.viewMode")}
           value={mode}
           onValueChange={(next) => {
             setMode(next);
@@ -151,7 +155,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
               label: (
                 <>
                   <CalendarIcon className="h-4 w-4" aria-hidden />
-                  Semana
+                  {t("agenda.week")}
                 </>
               ),
             },
@@ -160,7 +164,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
               label: (
                 <>
                   <List className="h-4 w-4" aria-hidden />
-                  Lista
+                  {t("agenda.list")}
                 </>
               ),
             },
@@ -173,7 +177,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
               type="button"
               size="sm"
               variant="secondary"
-              aria-label="Semana anterior"
+              aria-label={t("agenda.prevWeek")}
               onClick={() => setWeekStart((w) => addDaysLocal(w, -7))}
             >
               <ChevronLeft className="h-4 w-4" aria-hidden />
@@ -184,19 +188,19 @@ export function AgendaView({ accountId }: { accountId: string }) {
               variant="secondary"
               onClick={() => setWeekStart(startOfWeekMonday(new Date()))}
             >
-              Hoy
+              {t("agenda.today")}
             </Button>
             <Button
               type="button"
               size="sm"
               variant="secondary"
-              aria-label="Semana siguiente"
+              aria-label={t("agenda.nextWeek")}
               onClick={() => setWeekStart((w) => addDaysLocal(w, 7))}
             >
               <ChevronRight className="h-4 w-4" aria-hidden />
             </Button>
             <span className="ml-1 font-numeric text-sm font-medium tabular-nums text-fg">
-              {formatWeekRangeLabel(weekStart)}
+              {formatWeekRangeLabel(weekStart, locale)}
             </span>
           </div>
         ) : null}
@@ -204,14 +208,14 @@ export function AgendaView({ accountId }: { accountId: string }) {
 
       {/* Filtro por estado */}
       <SegmentedControl
-        ariaLabel="Filtrar por estado"
+        ariaLabel={t("agenda.filterByStatus")}
         size="sm"
         value={statusFilter}
         onValueChange={(next) => {
           setStatusFilter(next);
           setPage(1);
         }}
-        options={STATUS_FILTERS}
+        options={STATUS_FILTERS.map((o) => ({ ...o, label: t(o.label) }))}
       />
 
       {actionError ? (
@@ -222,14 +226,14 @@ export function AgendaView({ accountId }: { accountId: string }) {
 
       {isLoading ? (
         <div className="rounded-md border border-glass bg-surface p-8 text-center text-sm text-fg-muted">
-          Cargando citas…
+          {t("agenda.loading")}
         </div>
       ) : isError ? (
         <div
           role="alert"
           className="rounded-md border border-glass bg-surface p-8 text-center text-sm text-danger"
         >
-          No se pudieron cargar las citas.
+          {t("agenda.loadFailed")}
         </div>
       ) : mode === "week" ? (
         <WeekView
@@ -244,7 +248,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
         />
       ) : appointments.length === 0 ? (
         <div className="rounded-md border border-glass bg-surface p-8 text-center text-sm text-fg-muted">
-          No hay citas para el filtro seleccionado.
+          {t("agenda.emptyFilter")}
         </div>
       ) : (
         <div className="overflow-hidden rounded-md border border-glass bg-surface">
@@ -254,7 +258,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
                 appt.contact?.name?.trim() ||
                 appt.contact?.email?.trim() ||
                 appt.contact?.phone_number?.trim() ||
-                `Contacto #${appt.contact_id}`;
+                t("conversations.contact.fallbackName", { id: appt.contact_id });
 
               return (
                 <li
@@ -270,7 +274,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-fg-muted">
                       <span className="font-numeric font-medium tabular-nums text-fg">
-                        {formatDateTimeLocal(appt.starts_at)}
+                        {formatDateTimeLocal(appt.starts_at, locale)}
                       </span>
                       <Link
                         href={`/accounts/${accountId}/contacts/${appt.contact_id}`}
@@ -293,7 +297,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
 
                   <div className="flex items-center gap-2">
                     <select
-                      aria-label={`Estado de ${appt.title}`}
+                      aria-label={t("agenda.statusOf", { title: appt.title })}
                       value={appt.status}
                       onChange={(e) =>
                         handleStatusChange(
@@ -305,14 +309,14 @@ export function AgendaView({ accountId }: { accountId: string }) {
                     >
                       {APPOINTMENT_STATUS_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
-                          {opt.label}
+                          {t(opt.label)}
                         </option>
                       ))}
                     </select>
                     <button
                       type="button"
-                      aria-label={`Editar ${appt.title}`}
-                      title="Editar"
+                      aria-label={t("agenda.editItem", { title: appt.title })}
+                      title={t("actions.edit")}
                       onClick={() => {
                         setEditing(appt);
                         setDialogOpen(true);
@@ -323,8 +327,8 @@ export function AgendaView({ accountId }: { accountId: string }) {
                     </button>
                     <button
                       type="button"
-                      aria-label={`Eliminar ${appt.title}`}
-                      title="Eliminar"
+                      aria-label={t("agenda.deleteItem", { title: appt.title })}
+                      title={t("actions.delete")}
                       onClick={() => handleDelete(appt)}
                       disabled={deleteMutation.isPending}
                       className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
@@ -339,7 +343,9 @@ export function AgendaView({ accountId }: { accountId: string }) {
 
           {page > 1 || appointments.length >= 50 ? (
             <div className="flex items-center justify-between border-t border-glass px-4 py-2.5 text-xs text-fg-muted">
-              <span className="font-numeric tabular-nums">Página {page}</span>
+              <span className="font-numeric tabular-nums">
+                {t("actions.page", { n: page })}
+              </span>
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -347,7 +353,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  Anterior
+                  {t("actions.previous")}
                 </Button>
                 <Button
                   size="sm"
@@ -355,7 +361,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
                   disabled={appointments.length < 50}
                   onClick={() => setPage((p) => p + 1)}
                 >
-                  Siguiente
+                  {t("actions.next")}
                 </Button>
               </div>
             </div>

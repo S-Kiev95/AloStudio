@@ -109,8 +109,19 @@ function scan(file) {
   const src = readFileSync(file, "utf8");
   const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const hits = [];
+  // `// i18n-ignore` skips its line; `// i18n-ignore-start` … `-end` a
+  // block. For text that stays as is on purpose (brand names, the Spanish
+  // branch of a formatter).
+  const ignored = new Set();
+  let inIgnore = false;
+  src.split("\n").forEach((l, i) => {
+    if (l.includes("i18n-ignore-start")) inIgnore = true;
+    if (inIgnore || l.includes("i18n-ignore")) ignored.add(i + 1);
+    if (l.includes("i18n-ignore-end")) inIgnore = false;
+  });
   const add = (node, text) => {
     const { line } = sf.getLineAndCharacterOfPosition(node.getStart());
+    if (ignored.has(line + 1)) return;
     hits.push({ line: line + 1, text: text.trim().replace(/\s+/g, " ") });
   };
 
