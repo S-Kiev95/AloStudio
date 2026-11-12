@@ -210,9 +210,9 @@ multi-idioma.
 - **Sofía, en cada dispositivo:** activar el push en Ajustes →
   Notificaciones → Este dispositivo y probar el sonido. Si quiere, el aviso
   por WhatsApp con su número.
-- **Agentes en las bandejas de CTC:** ninguna bandeja tiene agentes
-  cargados. Sumar a quienes atienden (Ajustes → Bandejas → Agentes) para que
-  funcionen la asignación automática y los avisos de conversación nueva.
+- **Agentes en las bandejas de CTC:** resuelto el 2026-11-11. Sofía Costa es
+  administradora (chats y publicaciones) y Yamila Gonzalez agente (solo
+  chats); las dos están en las 4 bandejas.
 - **Revisiones de Meta de CTC y de Skiev:** los borradores están listos; los
   envía el dueño. Después, borrar el contenido de prueba en Meta.
 - **Bot de CTC:** las frases que nunca debe decir (`never_say_phrases`)
