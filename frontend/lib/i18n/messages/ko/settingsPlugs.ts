@@ -30,4 +30,14 @@ export const settingsPlugs: Strings<typeof es> = {
   message: "메시지",
   messagePlaceholder: "자동 답장을 작성하세요…",
   save: "플러그 저장",
+  kinds: {
+    reply_after_likes: {
+      label: "좋아요 N개에 도달하면 답글",
+      description: "게시물의 좋아요가 그 수에 도달하면 그 게시물에 답글로 메시지를 게시합니다(예: 링크나 혜택).",
+    },
+    repost_after_likes: {
+      label: "좋아요 N개에 도달하면 리포스트",
+      description: "게시물의 좋아요가 그 수에 도달하면 팔로워가 다시 볼 수 있도록 프로필에 리포스트합니다.",
+    },
+  },
 };

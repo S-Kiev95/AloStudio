@@ -6,13 +6,15 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import { NeonWordmark } from "@/components/brand/neon-wordmark";
 import type { Profile } from "@/lib/auth/profile";
-import { isLocale } from "@/lib/i18n/config";
+import { saveLocaleIfMissing } from "@/lib/api/profile";
+import { isLocale, type Locale } from "@/lib/i18n/config";
 import { useLocale, useSwitchLocale, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 import { useCable } from "@/lib/realtime/use-cable";
@@ -128,6 +130,7 @@ export function DashboardShell({
       switchLocale(profile.locale);
     }
   }, [profile.locale, locale, switchLocale]);
+  useSaveFirstLocale(!isLocale(profile.locale), locale);
 
   useCable({
     pubsubToken: profile.pubsubToken,
@@ -262,4 +265,19 @@ export function DashboardShell({
       </div>
     </PageSignContext.Provider>
   );
+}
+
+/**
+ * Someone who never picked a language in their profile is seeing the one
+ * from the sign-in switcher or their browser. Save it, once: the backend
+ * writes their mail and notifications in the profile's language, and
+ * without this they'd get Spanish while reading the app in another one.
+ */
+function useSaveFirstLocale(missing: boolean, locale: Locale) {
+  const saved = useRef(false);
+  useEffect(() => {
+    if (!missing || saved.current) return;
+    saved.current = true;
+    void saveLocaleIfMissing(locale);
+  }, [missing, locale]);
 }

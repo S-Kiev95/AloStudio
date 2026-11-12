@@ -43,3 +43,14 @@ export function createTranslate(locale: Locale): Translate {
     );
   };
 }
+
+/**
+ * For texts the backend sends (a setting's title, a plug's name): the
+ * translation under `key` when the dictionary has one, else the backend's
+ * own text. Lets the screen translate what it knows without hiding what it
+ * doesn't.
+ */
+export function translateOr(t: Translate, key: string, fallback: string): string {
+  const text = t(key as MessageKey);
+  return text === key ? fallback : text;
+}

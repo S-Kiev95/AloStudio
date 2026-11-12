@@ -49,6 +49,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
+from app.core.i18n import mail_text, t, user_locale
 from app.core.logging import get_logger
 from app.core.mail import send_mail_later, system_message
 from app.core.security import hash_password
@@ -111,22 +112,16 @@ async def _dispatch_reset_email(user: User, raw_token: str) -> None:
     dashboard's reset page, valid for :data:`RESET_PASSWORD_WITHIN`."""
     if user.email:
         link = f"{get_settings().app_base_url.rstrip('/')}/reset-password?token={raw_token}"
+        locale = user_locale(user)
         send_mail_later(
             system_message(
                 to=user.email,
-                subject="Elegí tu contraseña de AloStudio",
-                body=f"""Hola {user.name or user.email},
-
-Recibimos un pedido para elegir una contraseña nueva para tu cuenta de AloStudio.
-Hacé clic acá para elegirla:
-
-    {link}
-
-El enlace vence en 6 horas. Si no lo pediste, podés ignorar este email:
-tu contraseña no cambia.
-
-— AloStudio
-""",
+                subject=t(locale, "reset.subject"),
+                body=mail_text(
+                    locale,
+                    name=user.name or user.email,
+                    body=t(locale, "reset.body", link=link),
+                ),
             ),
             context="auth.password_reset",
         )

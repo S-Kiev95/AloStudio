@@ -30,4 +30,14 @@ export const settingsPlugs: Strings<typeof es> = {
   message: "Message",
   messagePlaceholder: "Écrivez la réponse automatique…",
   save: "Enregistrer le plug",
+  kinds: {
+    reply_after_likes: {
+      label: "Répondre à N j’aime",
+      description: "Quand un post atteint ce nombre de j’aime, votre message est publié en réponse à ce même post (par exemple, un lien ou une offre).",
+    },
+    repost_after_likes: {
+      label: "Republier à N j’aime",
+      description: "Quand un post atteint ce nombre de j’aime, il est republié sur votre profil pour que vos abonnés le revoient.",
+    },
+  },
 };
