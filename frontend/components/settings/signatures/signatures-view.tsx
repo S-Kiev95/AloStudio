@@ -18,18 +18,19 @@ import {
   useUpdatePublicationSignature,
 } from "@/lib/api/publications";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 
 const SIGNATURE_MAX_CHARS = 2000;
 
-function formatSignatureDate(iso: string | null): string | null {
+function formatSignatureDate(iso: string | null, intlTag: string): string | null {
   if (!iso) return null;
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return null;
-  return new Date(ms).toLocaleDateString();
+  return new Date(ms).toLocaleDateString(intlTag);
 }
 
 export function SignaturesView({ accountId }: { accountId: string }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const isAdmin = useIsAccountAdmin(accountId);
   const signaturesQuery = usePublicationSignatures(accountId);
@@ -206,6 +207,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
             {signatures.map((sig) => {
               const dateLabel = formatSignatureDate(
                 sig.updated_at ?? sig.created_at,
+                intlTag,
               );
               return (
                 <li

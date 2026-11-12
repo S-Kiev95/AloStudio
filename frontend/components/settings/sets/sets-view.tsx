@@ -19,16 +19,17 @@ import {
   usePublicationChannels,
   usePublicationSets,
 } from "@/lib/api/publications";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 
-function formatSetDate(iso: string | null): string {
+function formatSetDate(iso: string | null, intlTag: string): string {
   if (!iso) return "—";
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return "—";
-  return new Date(ms).toLocaleDateString();
+  return new Date(ms).toLocaleDateString(intlTag);
 }
 
 export function SetsView({ accountId }: { accountId: string }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const isAdmin = useIsAccountAdmin(accountId);
   const setsQuery = usePublicationSets(accountId);
@@ -157,7 +158,7 @@ export function SetsView({ accountId }: { accountId: string }) {
                     )}
 
                     <span className="font-numeric text-xs tabular-nums text-fg-muted">
-                      {formatSetDate(item.updated_at ?? item.created_at)}
+                      {formatSetDate(item.updated_at ?? item.created_at, intlTag)}
                     </span>
 
                     {isAdmin ? (

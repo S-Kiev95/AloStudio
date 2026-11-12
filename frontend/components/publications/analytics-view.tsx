@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { ChannelAvatar, channelDisplayName, NetworkIcon } from "./network-icon";
 import { formatMetricValue } from "./publication-detail-dialog";
 import { PublicationErrorAlert } from "./publication-error-alert";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { Translate } from "@/lib/i18n/translate";
 import type { MessageKey } from "@/lib/i18n/translate";
 
@@ -109,6 +109,7 @@ export function PublicationsAnalyticsView({
 }: {
   accountId: string;
 }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const today = useMemo(() => new Date(), []);
   const [period, setPeriod] = useState<PeriodOption>(30);
@@ -306,7 +307,7 @@ export function PublicationsAnalyticsView({
                     {t(card.label)}
                   </p>
                   <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
-                    {formatMetricValue(rawVal)}
+                    {formatMetricValue(rawVal, intlTag)}
                   </p>
                 </Card>
               );
@@ -388,7 +389,7 @@ export function PublicationsAnalyticsView({
                           <span key={m.key} className="font-numeric tabular-nums">
                             {t(m.label)}:{" "}
                             <strong className="font-semibold text-fg">
-                              {formatMetricValue(post.metrics?.[m.key])}
+                              {formatMetricValue(post.metrics?.[m.key], intlTag)}
                             </strong>
                           </span>
                         ))}
@@ -406,6 +407,7 @@ export function PublicationsAnalyticsView({
 }
 
 function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const [seriesMetric, setSeriesMetric] = useState<SeriesMetric>("reach");
   const name = channelDisplayName(entry.channel);
@@ -431,7 +433,7 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
             </p>
             <div className="flex items-center justify-end gap-1.5">
               <span className="font-numeric text-lg font-semibold tabular-nums text-fg">
-                {formatMetricValue(entry.followers)}
+                {formatMetricValue(entry.followers, intlTag)}
               </span>
               <FollowersDelta delta={entry.followers_change} />
             </div>
@@ -442,7 +444,7 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
               {t("publications.metrics.posts")}
             </p>
             <p className="font-numeric text-lg font-semibold tabular-nums text-fg">
-              {entry.posts.toLocaleString()}
+              {entry.posts.toLocaleString(intlTag)}
             </p>
           </div>
         </div>
@@ -459,7 +461,7 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
               {t(m.label)}
             </p>
             <p className="font-numeric text-sm font-semibold tabular-nums text-fg">
-              {formatMetricValue(entry.metrics?.[m.key])}
+              {formatMetricValue(entry.metrics?.[m.key], intlTag)}
             </p>
           </div>
         ))}
@@ -486,7 +488,7 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
             timestamp: (localDay(pt.date)?.getTime() ?? 0) / 1000,
             value: pt[seriesMetric] ?? 0,
           }))}
-          formatValue={(v) => v.toLocaleString()}
+          formatValue={(v) => v.toLocaleString(intlTag)}
         />
       </div>
     </Card>
@@ -494,6 +496,7 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
 }
 
 function FollowersDelta({ delta }: { delta: number | null }) {
+  const intlTag = useIntlTag();
   if (delta === null || !Number.isFinite(delta)) {
     return null;
   }
@@ -512,7 +515,7 @@ function FollowersDelta({ delta }: { delta: number | null }) {
       )}
     >
       <Icon className="h-3 w-3" aria-hidden />
-      {up ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
+      {up ? `+${delta.toLocaleString(intlTag)}` : delta.toLocaleString(intlTag)}
     </span>
   );
 }

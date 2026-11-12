@@ -24,9 +24,12 @@ export function relativeTime(
 }
 
 /** Clock time (HH:MM) for message bubbles. */
-export function clockTime(unixSeconds: number | null | undefined): string {
+export function clockTime(
+  unixSeconds: number | null | undefined,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   if (!unixSeconds) return "";
-  return new Date(unixSeconds * 1000).toLocaleTimeString([], {
+  return new Date(unixSeconds * 1000).toLocaleTimeString(INTL_TAGS[locale], {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -54,9 +57,12 @@ export function formatDuration(seconds: number | null | undefined): string {
 }
 
 /** Short date label (e.g. "12 may") for chart axes from unix seconds. */
-export function shortDate(unixSeconds: number | null | undefined): string {
+export function shortDate(
+  unixSeconds: number | null | undefined,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   if (!unixSeconds) return "";
-  return new Date(unixSeconds * 1000).toLocaleDateString(undefined, {
+  return new Date(unixSeconds * 1000).toLocaleDateString(INTL_TAGS[locale], {
     day: "numeric",
     month: "short",
   });

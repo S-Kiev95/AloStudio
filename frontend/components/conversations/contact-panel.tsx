@@ -18,7 +18,7 @@ import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { useInboxPanels } from "./inbox-shell";
-import { useT } from "@/lib/i18n/provider";
+import { useLocale, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 import type { Translate } from "@/lib/i18n/translate";
 
@@ -119,6 +119,7 @@ export function ContactPanel({
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
+  const locale = useLocale();
   const t = useT();
   const { contactCollapsed, toggleContactCollapsed } = useInboxPanels();
   const collapsed = collapsedProp ?? contactCollapsed;
@@ -290,7 +291,7 @@ export function ContactPanel({
                   <p className="line-clamp-3 text-fg">{n.content}</p>
                   <p className="mt-0.5 text-fg-muted">
                     {n.user?.name ?? t("conversations.contact.system")}
-                    {n.created_at ? ` · ${relativeTime(n.created_at)}` : ""}
+                    {n.created_at ? ` · ${relativeTime(n.created_at, locale)}` : ""}
                   </p>
                 </li>
               ))}

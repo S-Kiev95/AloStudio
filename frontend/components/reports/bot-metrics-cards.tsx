@@ -3,7 +3,7 @@
 import { Card } from "@/components/ui/card";
 import type { BotMetrics } from "@/lib/api/reports";
 import type { MessageKey } from "@/lib/i18n/translate";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 
 const CARDS: {
   key: keyof BotMetrics;
@@ -17,6 +17,7 @@ const CARDS: {
 ];
 
 export function BotMetricsCards({ data }: { data: BotMetrics }) {
+  const intlTag = useIntlTag();
   const t = useT();
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -26,7 +27,7 @@ export function BotMetricsCards({ data }: { data: BotMetrics }) {
             {t(c.label)}
           </p>
           <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
-            {data[c.key].toLocaleString()}
+            {data[c.key].toLocaleString(intlTag)}
             {c.suffix ?? ""}
           </p>
         </Card>

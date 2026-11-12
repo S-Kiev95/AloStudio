@@ -349,7 +349,10 @@ async def test_admin_destroys_inbox(client, seeded):
     )
     assert resp.status_code == 200
     # Chatwoot's async-delete message carries through.
-    assert resp.json() == {"message": "The inbox is scheduled for deletion"}
+    assert resp.json() == {
+        "message": "The inbox is scheduled for deletion",
+        "code": "inbox_pending_deletion",
+    }
 
 
 # ---------------------------------------------------------------------------

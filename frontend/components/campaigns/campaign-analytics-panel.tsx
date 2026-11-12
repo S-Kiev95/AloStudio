@@ -5,7 +5,7 @@ import {
   type CampaignAnalytics,
   useCampaignAnalytics,
 } from "@/lib/api/campaigns";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 
 const DELIVERY_LABELS: {
@@ -67,13 +67,14 @@ export function CampaignAnalyticsPanel({
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
+  const intlTag = useIntlTag();
   return (
     <div className="rounded-lg border border-border bg-surface p-3">
       <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
         {label}
       </p>
       <p className="mt-1 text-2xl font-semibold text-fg">
-        {value.toLocaleString()}
+        {value.toLocaleString(intlTag)}
       </p>
     </div>
   );

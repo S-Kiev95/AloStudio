@@ -20,7 +20,7 @@ export async function POST(req: Request): Promise<Response> {
   const { token } = (payload ?? {}) as { token?: string };
   if (!token) {
     return NextResponse.json(
-      { errors: ["Falta el token de SSO."] },
+      { errors: ["Falta el token de SSO."], code: "sso_token_missing" },
       { status: 422 },
     );
   }
@@ -34,7 +34,7 @@ export async function POST(req: Request): Promise<Response> {
     });
   } catch {
     return NextResponse.json(
-      { errors: ["No se pudo contactar el servidor."] },
+      { errors: ["No se pudo contactar el servidor."], code: "server_unreachable" },
       { status: 502 },
     );
   }
@@ -47,7 +47,7 @@ export async function POST(req: Request): Promise<Response> {
   const accountId = await persistSessionFromResponse(res, body);
   if (accountId === false) {
     return NextResponse.json(
-      { errors: ["El servidor no devolvió credenciales de sesión."] },
+      { errors: ["El servidor no devolvió credenciales de sesión."], code: "no_session" },
       { status: 502 },
     );
   }

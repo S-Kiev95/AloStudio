@@ -2,7 +2,7 @@
 
 import type { TimeseriesPoint } from "@/lib/api/reports";
 import { shortDate } from "@/lib/time";
-import { useT } from "@/lib/i18n/provider";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 /** Dependency-free responsive bar chart for a daily-bucketed series. */
 export function MetricChart({
@@ -12,6 +12,7 @@ export function MetricChart({
   data: TimeseriesPoint[];
   formatValue: (v: number) => string;
 }) {
+  const locale = useLocale();
   const t = useT();
   if (!data.length) {
     return (
@@ -38,7 +39,7 @@ export function MetricChart({
             <div
               key={d.timestamp}
               className="group flex flex-1 flex-col justify-end"
-              title={`${shortDate(d.timestamp)}: ${formatValue(d.value)}`}
+              title={`${shortDate(d.timestamp, locale)}: ${formatValue(d.value)}`}
             >
               {/* `opacity-60`, not `bg-primary/60`: the theme colours are
                   `var(--…)` holding a hex, and Tailwind 3 can't put an
@@ -54,8 +55,8 @@ export function MetricChart({
         })}
       </div>
       <div data-axis className="mt-2 flex justify-between text-xs text-fg-muted">
-        <span>{shortDate(data[0].timestamp)}</span>
-        <span>{shortDate(data[data.length - 1].timestamp)}</span>
+        <span>{shortDate(data[0].timestamp, locale)}</span>
+        <span>{shortDate(data[data.length - 1].timestamp, locale)}</span>
       </div>
     </div>
   );

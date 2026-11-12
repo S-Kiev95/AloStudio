@@ -104,21 +104,35 @@ Recorrer bandeja, calendario, Ajustes y el login en cada idioma, en claro y
 oscuro, buscando textos que no entran (botones y pestañas en alemán y
 francés) y frases que quedaron raras.
 
-### Pendiente del backend y el bot
-1. **El bot que atiende clientes:** en este repo no hay un modelo que le
-   conteste al cliente; el bot entra de afuera (webhooks de AgentBot o MCP)
-   y deriva con `bot_handoff`. Falta confirmar con el dueño cuál es ese bot
-   en CTC. La regla para que conteste en el idioma del cliente quedó en
-   `INTEGRATIONS.md` ("Replying in the customer's language"), para aplicarla
-   en ese bot y probarla con un mensaje en portugués en una bandeja de
-   prueba.
-2. **Errores de la API:** pasar a códigos que el frontend traduce (ya hay
-   dos: `not_authorized` y `too_many_attempts`, en `lib/api/errors.ts`).
-3. **Plantilla de WhatsApp en otros idiomas:** cargar y aprobar en Meta la
-   variante de `aviso_derivacion` en cada idioma que se use; hasta entonces
-   el aviso sale en español.
-4. **Idioma de la cuenta** (`accounts.locale`): por defecto para usuarios
-   nuevos y el centro de ayuda público. Decidir con el dueño.
+### Pendiente y decisiones
+1. **El bot que atiende clientes:** queda para más adelante. La idea del
+   dueño es un bot **por fuera del sistema** que use la CLI o el MCP de
+   AloStudio. Cuando se haga, que conteste en el idioma del cliente: la
+   regla está en `INTEGRATIONS.md` ("Replying in the customer's language").
+2. **Plantilla de WhatsApp en otros idiomas:** el código ya elige la
+   variante del idioma del destinatario; falta cargarlas y aprobarlas en el
+   WhatsApp Manager de Meta. Textos y pasos en
+   `docs/whatsapp-aviso-derivacion.md`. Hasta entonces el aviso sale en
+   español.
+3. **Idioma por defecto: español** (decisión del dueño, 2026-11-12). Es el
+   de quien no eligió idioma ni tiene el navegador en uno de los siete, y
+   el del centro de ayuda público. El inglés sería el preferible el día que
+   AloStudio apunte a un público internacional; cambiarlo es
+   `DEFAULT_LOCALE` en `frontend/lib/i18n/config.ts` y en
+   `app/core/i18n/__init__.py`. `accounts.locale` no se usa por ahora.
+
+### Errores de la API (hecho el 2026-11-12)
+Los mensajes en inglés del backend siguen igual (son los que lee un cliente
+compatible con Chatwoot), pero `app/core/errors.py` les agrega un `code`
+(`not_found`, `invalid_login`, `blank` + `field`…) que el panel traduce en
+`lib/api/errors.ts`. Las rutas propias del panel (`app/api/auth/*`) también
+mandan su `code`. Un mensaje nuevo que se quiera traducir: sumarlo a
+`_CODE_BY_TEXT` en el backend y a `WORDING_BY_CODE` en el panel.
+
+### Fechas y números
+Todas las fechas, horas y números que se muestran usan la etiqueta `Intl`
+del idioma del panel (`useIntlTag()` / `useLocale()`), no la del navegador:
+antes, con el panel en alemán, la bandeja mostraba "12 ago".
 
 ## Backend (hecho el 2026-11-12)
 
