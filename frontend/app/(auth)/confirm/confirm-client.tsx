@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/provider";
 
 type Status = "working" | "error" | "missing";
 
 export function ConfirmClient({ token }: { token: string | null }) {
   const router = useRouter();
+  const t = useT();
   const [status, setStatus] = useState<Status>(token ? "working" : "missing");
   const [message, setMessage] = useState<string | null>(null);
   const ran = useRef(false);
@@ -32,14 +34,14 @@ export function ConfirmClient({ token }: { token: string | null }) {
         return;
       }
       setStatus("error");
-      setMessage(body?.message ?? "No se pudo confirmar el email.");
+      setMessage(body?.message ?? t("auth.confirm.failed"));
     })();
-  }, [token, router]);
+  }, [token, router, t]);
 
   if (status === "working") {
     return (
       <p role="status" className="text-sm text-fg-muted">
-        Confirmando tu cuenta…
+        {t("auth.confirm.working")}
       </p>
     );
   }
@@ -48,14 +50,14 @@ export function ConfirmClient({ token }: { token: string | null }) {
     <div className="space-y-4">
       <p role="alert" className="text-sm text-danger">
         {status === "missing"
-          ? "Falta el token de confirmación en el enlace."
+          ? t("auth.confirm.missingToken")
           : message}
       </p>
       <Link
         href="/login"
         className={buttonVariants({ variant: "secondary", size: "sm" })}
       >
-        Ir a iniciar sesión
+        {t("auth.confirm.goToLogin")}
       </Link>
     </div>
   );

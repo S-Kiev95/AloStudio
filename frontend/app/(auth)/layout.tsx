@@ -1,5 +1,6 @@
 import { FloatingLogos } from "@/components/brand/floating-logos";
 import { NeonWordmark } from "@/components/brand/neon-wordmark";
+import { LanguageSwitcher } from "@/components/shell/language-switcher";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 
 export default function AuthLayout({
@@ -9,7 +10,8 @@ export default function AuthLayout({
 }) {
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center p-4 sm:p-6">
-      <div className="fixed right-3 top-3 z-20">
+      <div className="fixed right-3 top-3 z-20 flex items-center gap-1">
+        <LanguageSwitcher />
         <ThemeToggle />
       </div>
       <FloatingLogos />

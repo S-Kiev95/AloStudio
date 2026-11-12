@@ -41,6 +41,8 @@ export type ProfileUpdateInput = {
   avatar_url?: string | null;
   message_signature?: string | null;
   phone_number?: string | null;
+  /** Replaces the whole hash on the backend: send it merged. */
+  ui_settings?: Record<string, unknown>;
 };
 
 export type ChangePasswordInput = {
