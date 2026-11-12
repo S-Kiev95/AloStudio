@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useT } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
 import { activeNavItemKey, NAV_GROUPS, NAV_ITEMS, navHref } from "./nav";
@@ -26,11 +27,12 @@ export function SidebarNav({
 }) {
   const pathname = usePathname() ?? "";
   const activeKey = activeNavItemKey(pathname, accountId);
+  const t = useT();
 
   return (
     <nav
       className="flex flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden px-[10px] pb-3"
-      aria-label="Principal"
+      aria-label={t("nav.main")}
     >
       {NAV_GROUPS.map((group, i) => {
         const isLast = i === NAV_GROUPS.length - 1;
@@ -53,14 +55,15 @@ export function SidebarNav({
               const href = navHref(accountId, item.segment);
               const active = activeKey === item.key;
               const Icon = item.icon;
+              const label = t(item.label);
               return (
                 <Link
                   key={item.key}
                   href={href}
                   onClick={onNavigate}
                   aria-current={active ? "page" : undefined}
-                  aria-label={collapsed ? item.label : undefined}
-                  title={collapsed ? item.label : undefined}
+                  aria-label={collapsed ? label : undefined}
+                  title={collapsed ? label : undefined}
                   className={cn(
                     "group relative flex h-11 items-center whitespace-nowrap rounded-control font-display text-[16px] font-normal leading-none",
                     collapsed ? "justify-center px-0" : "gap-3 px-[14px]",
@@ -71,7 +74,7 @@ export function SidebarNav({
                   )}
                 >
                   <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                  {collapsed ? null : item.label}
+                  {collapsed ? null : label}
                 </Link>
               );
             })}

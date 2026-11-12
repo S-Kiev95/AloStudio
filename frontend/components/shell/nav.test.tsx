@@ -8,6 +8,8 @@ import {
   DashboardShell,
   SIDEBAR_COLLAPSED_STORAGE_KEY,
 } from "./dashboard-shell";
+import { createTranslate } from "@/lib/i18n/translate";
+
 import { activeNavItemKey, NAV_ITEMS } from "./nav";
 import { SidebarNav } from "./sidebar-nav";
 
@@ -34,6 +36,7 @@ const MOCK_PROFILE: Profile = {
   pubsubToken: "tok",
   activeAccountId: 1,
   accounts: [{ id: 1, name: "AloStudio Demo", role: "administrator" }],
+  locale: null,
 };
 
 afterEach(() => {
@@ -44,7 +47,8 @@ afterEach(() => {
 
 describe("Navigation and CRM tabs", () => {
   it("lists main sidebar items in the expected order with Agente right after Calendario", () => {
-    expect(NAV_ITEMS.map((i) => i.label)).toEqual([
+    const t = createTranslate("es");
+    expect(NAV_ITEMS.map((i) => t(i.label))).toEqual([
       "Inicio",
       "Calendario",
       "Agente",
@@ -144,8 +148,9 @@ describe("Navigation and CRM tabs", () => {
     // Todos los ítems del menú (incluido Ajustes) siguen accesibles con title y el activo se distingue
     const nav = screen.getByRole("navigation", { name: "Principal" });
     for (const item of NAV_ITEMS) {
-      const link = within(nav).getByRole("link", { name: item.label });
-      expect(link).toHaveAttribute("title", item.label);
+      const label = createTranslate("es")(item.label);
+      const link = within(nav).getByRole("link", { name: label });
+      expect(link).toHaveAttribute("title", label);
       expect(link).toHaveTextContent("");
     }
     expect(

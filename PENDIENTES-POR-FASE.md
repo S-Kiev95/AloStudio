@@ -53,7 +53,7 @@ anota en esta sección y lo decide el dueño.
 | F10 Jev y Laya | B | Sin empezar |
 | F11 CRM (Krayin) | B | Sin empezar |
 | F12 Grafos | B | Sin empezar |
-| F13 Multi-idioma | B | Sin empezar |
+| F13 Multi-idioma | B | Estructura y primer tramo en develop (2026-11-12); falta el barrido de pantallas (Argon) y el backend |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en develop; falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 
@@ -186,10 +186,26 @@ dentro de la rama.
   0,55 antes de pasar esa cuenta a Gemma.
 - Pasar cuenta por cuenta; en CTC hoy no está configurado (sigue OpenAI).
 
-## F10 a F13
+## F10 a F12
 
-Sin cambios respecto del plan: Jev y Laya, CRM con base Krayin, grafos y
-multi-idioma.
+Sin cambios respecto del plan: Jev y Laya, CRM con base Krayin y grafos.
+
+## F13. Multi-idioma
+
+Detalle en `PLAN.i18n.md`.
+
+- **Hecho el 2026-11-12, en develop:** estructura propia sin librerías
+  (`frontend/lib/i18n/`), español, inglés y portugués. Cada usuario elige
+  en Ajustes → Mi perfil → Idioma (se guarda en `ui_settings.locale`); sin
+  sesión, selector en el login; si no eligió, el del navegador. Traducidos
+  el menú, la barra de arriba, Ajustes (menú), Mi perfil y las pantallas de
+  acceso.
+- **Falta el barrido** del resto de las pantallas, por tandas, pensado para
+  Argon (`PLAN.i18n.md`). Medida: `node scripts/i18n-pendientes.mjs` en
+  `frontend/` (848 líneas en 173 archivos al empezar).
+- **Después, backend y bot:** correos y avisos en el idioma del
+  destinatario, errores de la API traducibles, y el bot respondiendo en el
+  idioma del cliente.
 
 ## F14. Foto del contacto
 

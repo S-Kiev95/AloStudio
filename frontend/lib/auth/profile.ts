@@ -20,6 +20,8 @@ export type Profile = {
   pubsubToken: string | null;
   activeAccountId: number | null;
   accounts: ProfileAccount[];
+  /** Interface language saved in the profile (F13), if the user chose one. */
+  locale: string | null;
 };
 
 /** Fetch the signed-in user's profile from the backend (server-side). */
@@ -44,6 +46,10 @@ export async function getProfile(): Promise<Profile | null> {
       availableName: data.available_name ?? null,
       pubsubToken: data.pubsub_token ?? null,
       activeAccountId: data.account_id ?? null,
+      locale:
+        typeof data.ui_settings?.locale === "string"
+          ? data.ui_settings.locale
+          : null,
       accounts: (data.accounts ?? []).map(
         (a: { id: number; name: string; role?: string; availability?: string }) => ({
           id: a.id,
