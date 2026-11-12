@@ -13,6 +13,7 @@ import {
   type LabelInput,
 } from "@/lib/api/labels";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 export function LabelForm({
   initial,
@@ -25,6 +26,7 @@ export function LabelForm({
   onSubmit: (input: LabelInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [color, setColor] = useState(
@@ -37,7 +39,7 @@ export function LabelForm({
 
   async function submit() {
     setError(null);
-    if (!title.trim()) return setError("El título es obligatorio.");
+    if (!title.trim()) return setError(t("agenda.dialog.titleRequired"));
     try {
       await onSubmit({
         title: title.trim(),
@@ -47,7 +49,7 @@ export function LabelForm({
       });
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar la etiqueta.",
+        (e as { message?: string })?.message ?? t("settingsLabels.saveFailed"),
       );
     }
   }
@@ -62,7 +64,7 @@ export function LabelForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="l-title" required>
-          Título
+          {t("agenda.dialog.titleLabel")}
         </Label>
         <Input
           id="l-title"
@@ -73,7 +75,7 @@ export function LabelForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="l-desc">Descripción</Label>
+        <Label htmlFor="l-desc">{t("products.form.description")}</Label>
         <Textarea
           id="l-desc"
           rows={2}
@@ -83,7 +85,7 @@ export function LabelForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label>Color</Label>
+        <Label>{t("helpCenter.color")}</Label>
         <div className="flex flex-wrap gap-2">
           {LABEL_SWATCHES.map((c) => {
             const on = c === color;
@@ -114,15 +116,15 @@ export function LabelForm({
           checked={showOnSidebar}
           onChange={(e) => setShowOnSidebar(e.target.checked)}
         />
-        Mostrar en la barra lateral
+        {t("settingsLabels.showInSidebar")}
       </label>
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear etiqueta"}
+          {initial ? t("common.saveChanges") : t("settingsLabels.create")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

@@ -28,4 +28,5 @@ export const products: Strings<typeof es> = {
   active: "활성",
   inactive: "비활성",
   deleteConfirm: "“{name}”을(를) 삭제할까요?",
+  description: "설명",
 };

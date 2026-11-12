@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { AgentBot, AgentBotInput } from "@/lib/api/agent-bots";
+import { useT } from "@/lib/i18n/provider";
 
 export function AgentBotForm({
   initial,
@@ -19,6 +20,7 @@ export function AgentBotForm({
   onSubmit: (input: AgentBotInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [outgoingUrl, setOutgoingUrl] = useState(initial?.outgoing_url ?? "");
@@ -26,7 +28,7 @@ export function AgentBotForm({
 
   async function submit() {
     setError(null);
-    if (!name.trim()) return setError("El nombre es obligatorio.");
+    if (!name.trim()) return setError(t("profile.nameRequired"));
     try {
       await onSubmit({
         name: name.trim(),
@@ -35,7 +37,7 @@ export function AgentBotForm({
       });
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar el bot.",
+        (e as { message?: string })?.message ?? t("settingsBots.saveFailed"),
       );
     }
   }
@@ -50,7 +52,7 @@ export function AgentBotForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="ab-name" required>
-          Nombre
+          {t("profile.name")}
         </Label>
         <Input
           id="ab-name"
@@ -60,7 +62,7 @@ export function AgentBotForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="ab-desc">Descripción</Label>
+        <Label htmlFor="ab-desc">{t("products.description")}</Label>
         <Textarea
           id="ab-desc"
           rows={2}
@@ -70,7 +72,7 @@ export function AgentBotForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="ab-url">URL de salida</Label>
+        <Label htmlFor="ab-url">{t("settingsBots.outgoingUrl")}</Label>
         <Input
           id="ab-url"
           type="url"
@@ -79,16 +81,16 @@ export function AgentBotForm({
           placeholder="https://…"
         />
         <p className="text-xs text-fg-muted">
-          El backend enviará los eventos de mensaje a esta URL.
+          {t("settingsBots.outgoingUrlHint")}
         </p>
       </div>
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear bot"}
+          {initial ? t("common.saveChanges") : t("settingsBots.create")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

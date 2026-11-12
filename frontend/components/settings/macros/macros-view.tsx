@@ -11,33 +11,35 @@ import {
   useMacros,
 } from "@/lib/api/macros";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 export function MacrosView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = useMacros(accountId);
 
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-medium text-fg">Macros</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.macros")}</h2>
         <Link
           href={`/accounts/${accountId}/settings/macros/new`}
           className={buttonVariants({ size: "sm" })}
         >
           <Plus className="h-4 w-4" aria-hidden />
-          Nuevo macro
+          {t("settingsMacros.new")}
         </Link>
       </div>
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los macros.
+            {t("settingsMacros.listLoadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay macros todavía.
+            {t("settingsMacros.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -52,18 +54,19 @@ export function MacrosView({ accountId }: { accountId: string }) {
 }
 
 function MacroRow({ accountId, macro }: { accountId: string; macro: Macro }) {
+  const t = useT();
   const del = useDeleteMacro(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(`¿Eliminar el macro "${macro.name}"?`)) return;
+    if (!window.confirm(t("settingsMacros.deleteConfirm", { name: macro.name }))) return;
     setError(null);
     try {
       await del.mutateAsync(macro.id);
     } catch (err) {
-      setError((err as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((err as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
@@ -79,9 +82,15 @@ function MacroRow({ accountId, macro }: { accountId: string; macro: Macro }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-fg">{macro.name}</p>
           <p className="text-xs text-fg-muted">
-            {macro.actions.length}{" "}
-            {macro.actions.length === 1 ? "acción" : "acciones"}
-            {macro.created_by ? ` · por ${macro.created_by.name}` : ""}
+            {t(
+              macro.actions.length === 1
+                ? "settingsMacros.actionsOne"
+                : "settingsMacros.actionsMany",
+              { count: macro.actions.length },
+            )}
+            {macro.created_by
+              ? ` · ${t("settingsMacros.by", { name: macro.created_by.name })}`
+              : ""}
           </p>
           {error ? (
             <p role="alert" className="text-xs text-danger">
@@ -97,13 +106,13 @@ function MacroRow({ accountId, macro }: { accountId: string; macro: Macro }) {
               : "bg-surface-2 text-fg-muted",
           )}
         >
-          {macro.visibility === "global" ? "Global" : "Personal"}
+          {macro.visibility === "global" ? t("settingsMacros.global") : t("settingsMacros.personal")}
         </span>
       </Link>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

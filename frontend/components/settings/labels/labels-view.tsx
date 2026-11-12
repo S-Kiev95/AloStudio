@@ -15,8 +15,10 @@ import {
 } from "@/lib/api/labels";
 
 import { LabelForm } from "./label-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function LabelsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = useLabels(accountId);
   const create = useCreateLabel(accountId);
   const update = useUpdateLabel(accountId);
@@ -38,11 +40,11 @@ export function LabelsView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-medium text-fg">Etiquetas</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.labels")}</h2>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
-            Nueva etiqueta
+            {t("settingsLabels.new")}
           </Button>
         ) : null}
       </div>
@@ -50,7 +52,7 @@ export function LabelsView({ accountId }: { accountId: string }) {
       {creating ? (
         <Card>
           <CardHeader>
-            <CardTitle>Nueva etiqueta</CardTitle>
+            <CardTitle>{t("settingsLabels.new")}</CardTitle>
           </CardHeader>
           <CardContent>
             <LabelForm
@@ -65,7 +67,7 @@ export function LabelsView({ accountId }: { accountId: string }) {
       {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>Editar etiqueta</CardTitle>
+            <CardTitle>{t("settingsLabels.edit")}</CardTitle>
           </CardHeader>
           <CardContent>
             <LabelForm
@@ -80,14 +82,14 @@ export function LabelsView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar las etiquetas.
+            {t("settingsLabels.loadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay etiquetas todavía.
+            {t("settingsLabels.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -118,16 +120,17 @@ function LabelRow({
   label: LabelType;
   onEdit: () => void;
 }) {
+  const t = useT();
   const del = useDeleteLabel(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(`¿Eliminar "${label.title}"?`)) return;
+    if (!window.confirm(t("instagram.answers.deleteConfirm", { name: label.title }))) return;
     setError(null);
     try {
       await del.mutateAsync(label.id);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((e as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
@@ -153,8 +156,8 @@ function LabelRow({
         className="flex items-center gap-1 text-xs text-fg-muted"
         title={
           label.show_on_sidebar
-            ? "Visible en la barra lateral"
-            : "Oculto en la barra lateral"
+            ? t("settingsLabels.visibleInSidebar")
+            : t("settingsLabels.hiddenInSidebar")
         }
       >
         {label.show_on_sidebar ? (
@@ -165,8 +168,8 @@ function LabelRow({
       </span>
       <button
         type="button"
-        aria-label="Editar"
-        title="Editar"
+        aria-label={t("actions.edit")}
+        title={t("actions.edit")}
         onClick={onEdit}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -174,8 +177,8 @@ function LabelRow({
       </button>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

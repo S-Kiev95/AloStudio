@@ -15,8 +15,10 @@ import {
 } from "@/lib/api/teams";
 
 import { TeamForm } from "./team-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function TeamsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = useTeams(accountId);
   const create = useCreateTeam(accountId);
 
@@ -30,11 +32,11 @@ export function TeamsView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-medium text-fg">Equipos</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.teams")}</h2>
         {!creating ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
-            Nuevo equipo
+            {t("settingsTeams.new")}
           </Button>
         ) : null}
       </div>
@@ -42,7 +44,7 @@ export function TeamsView({ accountId }: { accountId: string }) {
       {creating ? (
         <Card>
           <CardHeader>
-            <CardTitle>Nuevo equipo</CardTitle>
+            <CardTitle>{t("settingsTeams.new")}</CardTitle>
           </CardHeader>
           <CardContent>
             <TeamForm
@@ -56,14 +58,14 @@ export function TeamsView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los equipos.
+            {t("settingsTeams.listLoadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay equipos todavía.
+            {t("settingsTeams.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -78,18 +80,19 @@ export function TeamsView({ accountId }: { accountId: string }) {
 }
 
 function TeamRow({ accountId, team }: { accountId: string; team: Team }) {
+  const t = useT();
   const del = useDeleteTeam(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(`¿Eliminar el equipo "${team.name}"?`)) return;
+    if (!window.confirm(t("settingsTeams.deleteConfirm", { name: team.name }))) return;
     setError(null);
     try {
       await del.mutateAsync(team.id);
     } catch (err) {
-      setError((err as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((err as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
@@ -107,7 +110,7 @@ function TeamRow({ accountId, team }: { accountId: string; team: Team }) {
             {team.name}
             {team.is_member ? (
               <span className="ml-2 rounded-sm bg-focused px-1.5 py-0.5 text-[10px] font-medium uppercase text-lit">
-                Sos miembro
+                {t("settingsTeams.youAreMember")}
               </span>
             ) : null}
           </p>
@@ -115,7 +118,7 @@ function TeamRow({ accountId, team }: { accountId: string; team: Team }) {
             <p className="truncate text-xs text-fg-muted">{team.description}</p>
           ) : null}
           {!team.allow_auto_assign ? (
-            <p className="text-xs text-fg-muted">Sin asignación automática</p>
+            <p className="text-xs text-fg-muted">{t("settingsTeams.noAutoAssign")}</p>
           ) : null}
           {error ? (
             <p role="alert" className="text-xs text-danger">
@@ -126,8 +129,8 @@ function TeamRow({ accountId, team }: { accountId: string; team: Team }) {
       </Link>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

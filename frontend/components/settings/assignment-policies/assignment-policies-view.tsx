@@ -15,13 +15,16 @@ import {
 } from "@/lib/api/assignment-policies";
 
 import { AssignmentPolicyForm } from "./assignment-policy-form";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const PRIORITY_LABELS: Record<string, string> = {
-  earliest_created: "La creada primero",
-  longest_waiting: "La que más espera",
+const PRIORITY_LABELS: Record<string, MessageKey> = {
+  earliest_created: "settingsAssign.priority.earliest_created",
+  longest_waiting: "settingsAssign.priority.longest_waiting",
 };
 
 export function AssignmentPoliciesView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = useAssignmentPolicies(accountId);
   const create = useCreateAssignmentPolicy(accountId);
   const update = useUpdateAssignmentPolicy(accountId);
@@ -45,16 +48,16 @@ export function AssignmentPoliciesView({ accountId }: { accountId: string }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-medium text-fg">
-            Políticas de asignación
+            {t("settings.items.assignment_policies")}
           </h2>
           <p className="text-sm text-fg-muted">
-            Reparto automático de conversaciones entre agentes de una bandeja.
+            {t("settingsAssign.subtitle")}
           </p>
         </div>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
-            Nueva política
+            {t("settingsAssign.new")}
           </Button>
         ) : null}
       </div>
@@ -62,7 +65,7 @@ export function AssignmentPoliciesView({ accountId }: { accountId: string }) {
       {creating ? (
         <Card>
           <CardHeader>
-            <CardTitle>Nueva política</CardTitle>
+            <CardTitle>{t("settingsAssign.new")}</CardTitle>
           </CardHeader>
           <CardContent>
             <AssignmentPolicyForm
@@ -77,7 +80,7 @@ export function AssignmentPoliciesView({ accountId }: { accountId: string }) {
       {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>Editar política</CardTitle>
+            <CardTitle>{t("settingsAssign.edit")}</CardTitle>
           </CardHeader>
           <CardContent>
             <AssignmentPolicyForm
@@ -92,14 +95,14 @@ export function AssignmentPoliciesView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar las políticas.
+            {t("settingsAssign.loadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay políticas todavía.
+            {t("settingsAssign.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -130,16 +133,17 @@ function PolicyRow({
   policy: AssignmentPolicy;
   onEdit: () => void;
 }) {
+  const t = useT();
   const del = useDeleteAssignmentPolicy(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(`¿Eliminar la política "${policy.name}"?`)) return;
+    if (!window.confirm(t("settingsAssign.deleteConfirm", { name: policy.name }))) return;
     setError(null);
     try {
       await del.mutateAsync(policy.id);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((e as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
@@ -150,16 +154,19 @@ function PolicyRow({
           <p className="truncate text-sm font-medium text-fg">{policy.name}</p>
           {!policy.enabled ? (
             <span className="rounded-sm bg-surface-2 px-1.5 py-0.5 text-[10px] uppercase text-fg-muted">
-              Inactiva
+              {t("campaigns.inactive")}
             </span>
           ) : null}
         </div>
         <p className="truncate font-numeric text-xs tabular-nums text-fg-muted">
-          {PRIORITY_LABELS[policy.conversation_priority] ??
-            policy.conversation_priority}
+          {PRIORITY_LABELS[policy.conversation_priority]
+            ? t(PRIORITY_LABELS[policy.conversation_priority])
+            : policy.conversation_priority}
           {" · "}
-          {policy.fair_distribution_limit} conv. /{" "}
-          {policy.fair_distribution_window}s
+          {t("settingsAssign.perWindow", {
+            limit: policy.fair_distribution_limit,
+            secs: policy.fair_distribution_window,
+          })}
         </p>
         {error ? (
           <p role="alert" className="text-xs text-danger">
@@ -169,8 +176,8 @@ function PolicyRow({
       </div>
       <button
         type="button"
-        aria-label="Editar"
-        title="Editar"
+        aria-label={t("actions.edit")}
+        title={t("actions.edit")}
         onClick={onEdit}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -178,8 +185,8 @@ function PolicyRow({
       </button>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

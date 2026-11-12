@@ -1,6 +1,20 @@
 import type { Messages } from "../es";
 
 import { core } from "./core";
+import { settingsWebhooks } from "./settingsWebhooks";
+import { settingsNotif } from "./settingsNotif";
+import { settingsMcp } from "./settingsMcp";
+import { settingsAssign } from "./settingsAssign";
+import { settingsBots } from "./settingsBots";
+import { settingsHours } from "./settingsHours";
+import { settingsTeams } from "./settingsTeams";
+import { settingsSecurity } from "./settingsSecurity";
+import { settingsMacros } from "./settingsMacros";
+import { settingsLabels } from "./settingsLabels";
+import { settingsAttrs } from "./settingsAttrs";
+import { settingsCsat } from "./settingsCsat";
+import { settingsCanned } from "./settingsCanned";
+import { settingsAgents } from "./settingsAgents";
 import { helpCenter } from "./helpCenter";
 import { hc } from "./hc";
 import { authCallback } from "./authCallback";
@@ -24,6 +38,20 @@ import { actions } from "./actions";
 
 export const ko: Messages = {
   ...core,
+  settingsWebhooks,
+  settingsNotif,
+  settingsMcp,
+  settingsAssign,
+  settingsBots,
+  settingsHours,
+  settingsTeams,
+  settingsSecurity,
+  settingsMacros,
+  settingsLabels,
+  settingsAttrs,
+  settingsCsat,
+  settingsCanned,
+  settingsAgents,
   helpCenter,
   hc,
   authCallback,

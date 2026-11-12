@@ -4,6 +4,7 @@ import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * One-time secret reveal — shows the freshly-minted token value with a copy
@@ -17,6 +18,7 @@ export function SecretReveal({
   token: string;
   onDismiss: () => void;
 }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -32,10 +34,9 @@ export function SecretReveal({
   return (
     <div className="space-y-3 rounded-md border border-warning bg-surface-2 p-4">
       <div>
-        <p className="text-sm font-medium text-fg">Guardalo ahora</p>
+        <p className="text-sm font-medium text-fg">{t("settingsMcp.saveNow")}</p>
         <p className="text-xs text-fg-muted">
-          Este token solo se muestra una vez. Si lo perdés, vas a tener que
-          rotarlo para generar uno nuevo.
+          {t("settingsMcp.shownOnce")}
         </p>
       </div>
       <div className="flex items-center gap-2">
@@ -45,18 +46,18 @@ export function SecretReveal({
         <Button size="sm" variant="secondary" onClick={copy}>
           {copied ? (
             <>
-              <Check className="h-4 w-4" aria-hidden /> Copiado
+              <Check className="h-4 w-4" aria-hidden /> {t("settingsMcp.copied")}
             </>
           ) : (
             <>
-              <Copy className="h-4 w-4" aria-hidden /> Copiar
+              <Copy className="h-4 w-4" aria-hidden /> {t("settingsMcp.copy")}
             </>
           )}
         </Button>
       </div>
       <div className="flex justify-end">
         <Button size="sm" variant="ghost" onClick={onDismiss}>
-          Cerrar
+          {t("actions.close")}
         </Button>
       </div>
     </div>

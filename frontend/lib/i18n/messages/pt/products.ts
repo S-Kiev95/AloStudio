@@ -28,4 +28,5 @@ export const products: Strings<typeof es> = {
   active: "Ativo",
   inactive: "Inativo",
   deleteConfirm: "Excluir \"{name}\"?",
+  description: "Descrição",
 };

@@ -12,6 +12,7 @@ import {
   type MCPTokenInfo,
   type MCPTokenUpdateInput,
 } from "@/lib/api/mcp-tokens";
+import { useT } from "@/lib/i18n/provider";
 
 export function TokenForm({
   initial,
@@ -24,18 +25,19 @@ export function TokenForm({
   onSubmit: (input: { name: string; scope: MCPScope }) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [scope, setScope] = useState<MCPScope>(initial?.scope ?? "read");
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
     setError(null);
-    if (!name.trim()) return setError("El nombre es obligatorio.");
+    if (!name.trim()) return setError(t("profile.nameRequired"));
     try {
       await onSubmit({ name: name.trim(), scope });
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar el token.",
+        (e as { message?: string })?.message ?? t("settingsMcp.saveFailed"),
       );
     }
   }
@@ -50,19 +52,19 @@ export function TokenForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="mt-name" required>
-          Nombre
+          {t("profile.name")}
         </Label>
         <Input
           id="mt-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Ej. agente-soporte"
+          placeholder={t("settingsMcp.namePlaceholder")}
           maxLength={255}
         />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="mt-scope">Permisos</Label>
+        <Label htmlFor="mt-scope">{t("settingsMcp.permissions")}</Label>
         <select
           id="mt-scope"
           className={selectClassName()}
@@ -82,10 +84,10 @@ export function TokenForm({
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Generar token"}
+          {initial ? t("common.saveChanges") : t("settingsMcp.generate")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

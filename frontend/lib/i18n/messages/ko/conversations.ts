@@ -244,4 +244,5 @@ export const conversations: Strings<typeof es> = {
     reports: "보고서",
     channels: "채널",
   },
+  allInboxes: "모든 받은편지함",
 };

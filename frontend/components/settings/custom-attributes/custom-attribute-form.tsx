@@ -16,6 +16,8 @@ import {
   type CustomAttributeInput,
 } from "@/lib/api/custom-attributes";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import { rich } from "@/lib/i18n/rich";
 
 export function CustomAttributeForm({
   initial,
@@ -28,6 +30,7 @@ export function CustomAttributeForm({
   onSubmit: (input: CustomAttributeInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [displayName, setDisplayName] = useState(
     initial?.attribute_display_name ?? "",
   );
@@ -59,7 +62,7 @@ export function CustomAttributeForm({
   async function submit() {
     setError(null);
     if (!displayName.trim())
-      return setError("El nombre visible es obligatorio.");
+      return setError(t("settingsAttrs.displayNameRequired"));
     const input: CustomAttributeInput = {
       attribute_display_name: displayName.trim(),
       attribute_display_type: displayType,
@@ -73,7 +76,7 @@ export function CustomAttributeForm({
       await onSubmit(input);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar el atributo.",
+        (e as { message?: string })?.message ?? t("settingsAttrs.saveFailed"),
       );
     }
   }
@@ -88,7 +91,7 @@ export function CustomAttributeForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="ca-name" required>
-          Nombre visible
+          {t("settingsAttrs.displayName")}
         </Label>
         <Input
           id="ca-name"
@@ -97,14 +100,16 @@ export function CustomAttributeForm({
         />
         {initial?.attribute_key ? (
           <p className="text-xs text-fg-muted">
-            Clave: <code>{initial.attribute_key}</code> (no editable)
+            {rich(t("settingsAttrs.keyReadonly"), {
+              key: <code>{initial.attribute_key}</code>,
+            })}
           </p>
         ) : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="ca-type">Tipo</Label>
+          <Label htmlFor="ca-type">{t("instagram.composer.typeLabel")}</Label>
           <select
             id="ca-type"
             className={selectClassName()}
@@ -121,7 +126,7 @@ export function CustomAttributeForm({
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="ca-model">Aplica a</Label>
+          <Label htmlFor="ca-model">{t("settingsAttrs.appliesTo")}</Label>
           <select
             id="ca-model"
             className={selectClassName()}
@@ -129,14 +134,14 @@ export function CustomAttributeForm({
             onChange={(e) => setModel(e.target.value as AttributeModel)}
             disabled={Boolean(initial)}
           >
-            <option value="conversation_attribute">Conversaciones</option>
-            <option value="contact_attribute">Contactos</option>
+            <option value="conversation_attribute">{t("conversations.tabs.conversations")}</option>
+            <option value="contact_attribute">{t("conversations.reports.contacts")}</option>
           </select>
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="ca-desc">Descripción</Label>
+        <Label htmlFor="ca-desc">{t("products.form.description")}</Label>
         <Textarea
           id="ca-desc"
           rows={2}
@@ -148,7 +153,7 @@ export function CustomAttributeForm({
       {displayType === "text" ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="ca-regex">Patrón (regex)</Label>
+            <Label htmlFor="ca-regex">{t("settingsAttrs.regex")}</Label>
             <Input
               id="ca-regex"
               value={regex ?? ""}
@@ -157,12 +162,12 @@ export function CustomAttributeForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="ca-cue">Pista para el usuario</Label>
+            <Label htmlFor="ca-cue">{t("settingsAttrs.regexHint")}</Label>
             <Input
               id="ca-cue"
               value={regexCue ?? ""}
               onChange={(e) => setRegexCue(e.target.value)}
-              placeholder="Ej. ABC-1234"
+              placeholder={t("settingsAttrs.regexHintPlaceholder")}
             />
           </div>
         </div>
@@ -170,11 +175,11 @@ export function CustomAttributeForm({
 
       {displayType === "list" ? (
         <div className="space-y-2">
-          <Label>Valores</Label>
+          <Label>{t("settingsAttrs.values")}</Label>
           <div className="flex flex-wrap gap-1.5">
             {values.length === 0 ? (
               <p className="text-sm text-fg-muted">
-                Todavía no hay valores en la lista.
+                {t("settingsAttrs.noValues")}
               </p>
             ) : (
               values.map((v) => (
@@ -188,7 +193,7 @@ export function CustomAttributeForm({
                   {v}
                   <button
                     type="button"
-                    aria-label={`Quitar ${v}`}
+                    aria-label={t("conversations.participants.remove", { name: v })}
                     onClick={() =>
                       setValues((prev) => prev.filter((x) => x !== v))
                     }
@@ -210,11 +215,11 @@ export function CustomAttributeForm({
                   addValue();
                 }
               }}
-              placeholder="Nuevo valor"
+              placeholder={t("settingsAttrs.newValue")}
             />
             <Button type="button" variant="secondary" onClick={addValue}>
               <Plus className="h-4 w-4" aria-hidden />
-              Agregar
+              {t("instagram.add")}
             </Button>
           </div>
         </div>
@@ -222,10 +227,10 @@ export function CustomAttributeForm({
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear atributo"}
+          {initial ? t("common.saveChanges") : t("settingsAttrs.create")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>
