@@ -1,24 +1,25 @@
+import type { MessageKey } from "@/lib/i18n/translate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
 
 export type MCPScope = "read" | "write" | "admin";
 
-export const MCP_SCOPES: { value: MCPScope; label: string; hint: string }[] = [
+export const MCP_SCOPES: { value: MCPScope; label: MessageKey; hint: MessageKey }[] = [
   {
     value: "read",
-    label: "Lectura",
-    hint: "Solo puede leer conversaciones, contactos, posts, etc.",
+    label: "settingsMcp.scopes.read",
+    hint: "settingsMcp.scopeHints.read",
   },
   {
     value: "write",
-    label: "Escritura",
-    hint: "Puede crear y modificar (responder, etiquetar, publicar).",
+    label: "settingsMcp.scopes.write",
+    hint: "settingsMcp.scopeHints.write",
   },
   {
     value: "admin",
-    label: "Admin",
-    hint: "Acceso completo, igual que un administrador.",
+    label: "settingsMcp.scopes.admin",
+    hint: "settingsMcp.scopeHints.admin",
   },
 ];
 

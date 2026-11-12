@@ -20,4 +20,14 @@ export const settingsAttrs: Strings<typeof es> = {
   empty: "Ainda não há atributos definidos.",
   deleteConfirm: "Excluir \"{name}\"?",
   keyReadonly: "Chave: {key} (não editável)",
+  types: {
+    text: "Texto",
+    number: "Número",
+    currency: "Moeda",
+    percent: "Porcentagem",
+    link: "Link",
+    date: "Data",
+    list: "Lista",
+    checkbox: "Caixa de seleção",
+  },
 };

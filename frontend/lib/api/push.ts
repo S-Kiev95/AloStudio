@@ -1,3 +1,4 @@
+import { clientT } from "@/lib/i18n/client-t";
 import { useQuery } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
@@ -21,7 +22,7 @@ export function pushSupported(): boolean {
     typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
     "PushManager" in window &&
-    "Notification" in window
+    "Notification" in window // i18n-ignore
   );
 }
 
@@ -49,7 +50,7 @@ export async function currentPushSubscription(): Promise<PushSubscription | null
 export async function subscribeToPush(vapidPublicKey: string): Promise<void> {
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {
-    throw new Error("Permiso de notificaciones denegado.");
+    throw new Error(clientT()("apiErrors.pushDenied"));
   }
   const reg = await register();
   const sub = await reg.pushManager.subscribe({

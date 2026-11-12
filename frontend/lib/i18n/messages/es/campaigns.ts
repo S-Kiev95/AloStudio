@@ -57,4 +57,8 @@ export const campaigns = {
   inactive: "Inactiva",
   deleteConfirm: "¿Eliminar la campaña \"{title}\"?",
   scheduledAt: "Programada {when}",
+  typeLong: {
+    ongoing: "Continua (widget web)",
+    oneOff: "Puntual (programada)",
+  },
 };

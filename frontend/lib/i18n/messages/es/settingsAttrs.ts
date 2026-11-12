@@ -17,4 +17,14 @@ export const settingsAttrs = {
   empty: "No hay atributos definidos todavía.",
   deleteConfirm: "¿Eliminar \"{name}\"?",
   keyReadonly: "Clave: {key} (no editable)",
+  types: {
+    text: "Texto",
+    number: "Número",
+    currency: "Moneda",
+    percent: "Porcentaje",
+    link: "Enlace",
+    date: "Fecha",
+    list: "Lista",
+    checkbox: "Casilla",
+  },
 };

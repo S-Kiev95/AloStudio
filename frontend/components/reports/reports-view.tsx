@@ -43,10 +43,6 @@ const LIVE_CARDS = [
   { key: "pending", label: "overview.live.pending" },
 ] as const;
 
-const SCOPE_OPTIONS = SUMMARY_SCOPES.map((s) => ({
-  value: s.key,
-  label: s.label,
-}));
 
 export function ReportsView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -119,7 +115,7 @@ export function ReportsView({ accountId }: { accountId: string }) {
             >
               {TIMESERIES_METRICS.map((m) => (
                 <option key={m.key} value={m.key}>
-                  {m.label}
+                  {t(m.label)}
                 </option>
               ))}
             </select>
@@ -185,7 +181,7 @@ export function ReportsView({ accountId }: { accountId: string }) {
                 size="sm"
                 value={scope}
                 onValueChange={setScope}
-                options={SCOPE_OPTIONS}
+                options={SUMMARY_SCOPES.map((s) => ({ value: s.key, label: t(s.label) }))}
               />
               <span
                 className="mx-1 hidden h-6 w-px bg-glass sm:block"

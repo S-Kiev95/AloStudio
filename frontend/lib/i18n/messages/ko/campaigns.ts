@@ -60,4 +60,8 @@ export const campaigns: Strings<typeof es> = {
   inactive: "비활성",
   deleteConfirm: "“{title}” 캠페인을 삭제할까요?",
   scheduledAt: "예약: {when}",
+  typeLong: {
+    ongoing: "지속형 (웹 위젯)",
+    oneOff: "일회성 (예약)",
+  },
 };

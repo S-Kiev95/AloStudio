@@ -60,4 +60,8 @@ export const campaigns: Strings<typeof es> = {
   inactive: "Inativa",
   deleteConfirm: "Excluir a campanha \"{title}\"?",
   scheduledAt: "Agendada {when}",
+  typeLong: {
+    ongoing: "Contínua (widget web)",
+    oneOff: "Pontual (agendada)",
+  },
 };

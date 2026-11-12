@@ -65,7 +65,7 @@ export function SummaryTable({
   }, [agents.data]);
 
   const entityLabel =
-    SUMMARY_SCOPES.find((s) => s.key === scope)?.entityLabel ?? t("reports.table.entity");
+    t(SUMMARY_SCOPES.find((s) => s.key === scope)?.entityLabel ?? "reports.table.entity");
 
   const rows = useMemo(() => {
     const nameOf = (r: SummaryRow) =>

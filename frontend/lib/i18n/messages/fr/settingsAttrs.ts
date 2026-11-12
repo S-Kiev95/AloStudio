@@ -20,4 +20,14 @@ export const settingsAttrs: Strings<typeof es> = {
   empty: "Aucun attribut défini pour l’instant.",
   deleteConfirm: "Supprimer « {name} » ?",
   keyReadonly: "Clé : {key} (non modifiable)",
+  types: {
+    text: "Texte",
+    number: "Nombre",
+    currency: "Devise",
+    percent: "Pourcentage",
+    link: "Lien",
+    date: "Date",
+    list: "Liste",
+    checkbox: "Case à cocher",
+  },
 };

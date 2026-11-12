@@ -20,4 +20,14 @@ export const settingsMcp: Strings<typeof es> = {
   namePlaceholder: "z. B. support-agent",
   permissions: "Berechtigungen",
   generate: "Token erzeugen",
+  scopes: {
+    read: "Lesen",
+    write: "Schreiben",
+    admin: "Admin",
+  },
+  scopeHints: {
+    read: "Kann nur Konversationen, Kontakte, Beiträge usw. lesen.",
+    write: "Kann erstellen und ändern (antworten, labeln, veröffentlichen).",
+    admin: "Vollzugriff, wie ein Administrator.",
+  },
 };

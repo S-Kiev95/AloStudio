@@ -65,4 +65,8 @@ export const settingsEmailTpl: Strings<typeof es> = {
   sendTo: "送信先",
   sendTest: "テストを送信",
   testSaveFirst: "テストを送る前に変更を保存してください。送信されるのは保存済みのテンプレートで、編集中のものではありません。",
+  defaults: {
+    text: "ここに入力",
+    button: "詳しく見る",
+  },
 };

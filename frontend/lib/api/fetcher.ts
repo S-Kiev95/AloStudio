@@ -1,3 +1,5 @@
+import { clientT } from "@/lib/i18n/client-t";
+
 import { ApiError, messageFromBody } from "./errors";
 
 /**
@@ -42,7 +44,7 @@ export async function apiFetch<T>(
   if (!res.ok) {
     throw new ApiError(
       res.status,
-      messageFromBody(body, `request failed (${res.status})`),
+      messageFromBody(body, clientT()("apiErrors.requestFailedStatus", { status: res.status })),
       body,
     );
   }

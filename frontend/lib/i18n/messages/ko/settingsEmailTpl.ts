@@ -65,4 +65,8 @@ export const settingsEmailTpl: Strings<typeof es> = {
   sendTo: "받는 곳",
   sendTest: "테스트 보내기",
   testSaveFirst: "테스트를 보내기 전에 변경 사항을 저장하세요. 편집 중인 것이 아니라 저장된 템플릿이 발송됩니다.",
+  defaults: {
+    text: "여기에 입력",
+    button: "더 보기",
+  },
 };

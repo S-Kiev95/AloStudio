@@ -58,10 +58,10 @@ function CapabilityRow({
       <span className="min-w-0">
         <span className="sr-only">{estado}: </span>
         <span className={level === "no" ? "text-fg-muted" : undefined}>
-          {label}
+          {t(label)}
         </span>
         {note && !compact ? (
-          <span className="mt-0.5 block text-xs text-fg-muted">{note}</span>
+          <span className="mt-0.5 block text-xs text-fg-muted">{t(note)}</span>
         ) : null}
       </span>
     </li>

@@ -20,4 +20,14 @@ export const settingsAttrs: Strings<typeof es> = {
   empty: "定義済みの属性はまだありません。",
   deleteConfirm: "「{name}」を削除しますか？",
   keyReadonly: "キー: {key} (編集不可)",
+  types: {
+    text: "テキスト",
+    number: "数値",
+    currency: "通貨",
+    percent: "パーセント",
+    link: "リンク",
+    date: "日付",
+    list: "リスト",
+    checkbox: "チェックボックス",
+  },
 };

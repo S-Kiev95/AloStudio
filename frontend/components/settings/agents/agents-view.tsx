@@ -247,8 +247,8 @@ function AgentRow({
         disabled={update.isPending}
         className={selectClassName("sm")}
       >
-        <option value="agent">{ROLE_LABEL.agent}</option>
-        <option value="administrator">{ROLE_LABEL.administrator}</option>
+        <option value="agent">{t(ROLE_LABEL.agent)}</option>
+        <option value="administrator">{t(ROLE_LABEL.administrator)}</option>
       </select>
       <button
         type="button"

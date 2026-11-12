@@ -20,4 +20,14 @@ export const settingsAttrs: Strings<typeof es> = {
   empty: "아직 정의된 속성이 없습니다.",
   deleteConfirm: "\"{name}\"을(를) 삭제할까요?",
   keyReadonly: "키: {key} (편집 불가)",
+  types: {
+    text: "텍스트",
+    number: "숫자",
+    currency: "통화",
+    percent: "백분율",
+    link: "링크",
+    date: "날짜",
+    list: "목록",
+    checkbox: "체크박스",
+  },
 };

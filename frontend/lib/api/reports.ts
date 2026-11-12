@@ -35,13 +35,13 @@ export type ReportRange = { since: number; until: number };
 
 /** All metrics the backend allow-lists for the timeseries endpoint. */
 export const TIMESERIES_METRICS = [
-  { key: "conversations_count", label: "Conversaciones", kind: "count" },
-  { key: "incoming_messages_count", label: "Mensajes entrantes", kind: "count" },
-  { key: "outgoing_messages_count", label: "Mensajes salientes", kind: "count" },
-  { key: "resolutions_count", label: "Resoluciones", kind: "count" },
-  { key: "avg_first_response_time", label: "Primera respuesta", kind: "avg" },
-  { key: "avg_resolution_time", label: "Tiempo de resolución", kind: "avg" },
-  { key: "reply_time", label: "Tiempo de respuesta", kind: "avg" },
+  { key: "conversations_count", label: "reports.metricNames.conversations_count", kind: "count" },
+  { key: "incoming_messages_count", label: "reports.metricNames.incoming_messages_count", kind: "count" },
+  { key: "outgoing_messages_count", label: "reports.metricNames.outgoing_messages_count", kind: "count" },
+  { key: "resolutions_count", label: "reports.metricNames.resolutions_count", kind: "count" },
+  { key: "avg_first_response_time", label: "reports.metricNames.avg_first_response_time", kind: "avg" },
+  { key: "avg_resolution_time", label: "reports.metricNames.avg_resolution_time", kind: "avg" },
+  { key: "reply_time", label: "reports.metricNames.reply_time", kind: "avg" },
 ] as const;
 
 export type MetricKey = (typeof TIMESERIES_METRICS)[number]["key"];
@@ -88,14 +88,14 @@ export function useLiveMetrics(accountId: string) {
 // ---------------------------------------------------------------------------
 /** The four breakdown axes exposed by ``/summary_reports/{scope}``. */
 export const SUMMARY_SCOPES = [
-  { key: "agent", label: "Agentes", entityLabel: "Agente" },
-  { key: "team", label: "Equipos", entityLabel: "Equipo" },
-  { key: "inbox", label: "Bandejas", entityLabel: "Bandeja" },
-  { key: "label", label: "Etiquetas", entityLabel: "Etiqueta" },
+  { key: "agent", label: "reports.scopes.agent", entityLabel: "reports.scopeEntity.agent" },
+  { key: "team", label: "reports.scopes.team", entityLabel: "reports.scopeEntity.team" },
+  { key: "inbox", label: "reports.scopes.inbox", entityLabel: "reports.scopeEntity.inbox" },
+  { key: "label", label: "reports.scopes.label", entityLabel: "reports.scopeEntity.label" },
   // Attribution for click-to-WhatsApp / click-to-Messenger ads. Empty for
   // accounts that don't advertise — the rows come from the conversations
   // themselves, not from a table of ads we keep.
-  { key: "ad", label: "Anuncios", entityLabel: "Anuncio" },
+  { key: "ad", label: "reports.scopes.ad", entityLabel: "reports.scopeEntity.ad" },
 ] as const;
 
 export type SummaryScope = (typeof SUMMARY_SCOPES)[number]["key"];

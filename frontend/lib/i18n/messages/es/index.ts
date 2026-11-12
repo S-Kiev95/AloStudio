@@ -9,6 +9,9 @@
 import type { Strings } from "../types";
 
 import { core } from "./core";
+import { igCapabilities } from "./igCapabilities";
+import { channelCatalog } from "./channelCatalog";
+import { apiErrors } from "./apiErrors";
 import { settingsSignatures } from "./settingsSignatures";
 import { settingsSets } from "./settingsSets";
 import { settingsPlugs } from "./settingsPlugs";
@@ -56,6 +59,9 @@ import { conversations } from "./conversations";
 
 export const es = {
   ...core,
+  igCapabilities,
+  channelCatalog,
+  apiErrors,
   settingsSignatures,
   settingsSets,
   settingsPlugs,

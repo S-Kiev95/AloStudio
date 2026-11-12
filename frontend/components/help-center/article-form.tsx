@@ -134,7 +134,7 @@ export function ArticleForm({
           >
             {ARTICLE_STATUSES.map((s) => (
               <option key={s.value} value={s.value}>
-                {s.label}
+                {t(s.label)}
               </option>
             ))}
           </select>

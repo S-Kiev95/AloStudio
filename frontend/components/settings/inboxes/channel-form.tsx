@@ -14,6 +14,7 @@ import { channelDef, type ChannelDef } from "@/lib/inboxes/channel-catalog";
 
 import { FacebookPageConnect } from "./facebook-page-connect";
 import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 export function ChannelForm({
   accountId,
@@ -23,6 +24,8 @@ export function ChannelForm({
   channel: string;
 }) {
   const t = useT();
+  // Catalog texts are keys, or product names t() hands back unchanged.
+  const tx = (text: string) => t(text as MessageKey);
   const def = channelDef(channel);
   const router = useRouter();
   const create = useCreateInbox(accountId);
@@ -56,7 +59,7 @@ export function ChannelForm({
     }
     for (const f of def!.fields) {
       if (f.required && !values[f.name]?.trim()) {
-        setError(t("settingsInboxes.fieldMissing", { field: f.label }));
+        setError(t("settingsInboxes.fieldMissing", { field: tx(f.label) }));
         return;
       }
     }
@@ -85,7 +88,7 @@ export function ChannelForm({
           <ArrowLeft className="h-4 w-4" aria-hidden />
           {t("settingsInboxes.changeChannel")}
         </Link>
-        <h2 className="mt-2 text-xl font-medium text-fg">{def.label}</h2>
+        <h2 className="mt-2 text-xl font-medium text-fg">{tx(def.label)}</h2>
         <p className="text-sm text-fg-muted">{def.blurb}</p>
       </div>
 
@@ -104,7 +107,12 @@ export function ChannelForm({
         </Field>
 
         {def.fields.map((f) => (
-          <Field key={f.name} label={f.label} required={f.required} help={f.help}>
+          <Field
+            key={f.name}
+            label={tx(f.label)}
+            required={f.required}
+            help={f.help ? tx(f.help) : undefined}
+          >
             {f.type === "checkbox" ? (
               <label className="flex items-center gap-2 text-sm text-fg">
                 <input
@@ -134,7 +142,7 @@ export function ChannelForm({
                 type={f.type === "password" ? "password" : "text"}
                 value={values[f.name] ?? ""}
                 onChange={(e) => setField(f.name, e.target.value)}
-                placeholder={f.placeholder}
+                placeholder={f.placeholder ? tx(f.placeholder) : undefined}
                 // Chrome filled the saved AloStudio login into "Usuario
                 // IMAP" and the password to match, which reached the
                 // server as a mailbox that could not authenticate.

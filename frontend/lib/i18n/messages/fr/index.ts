@@ -1,6 +1,9 @@
 import type { Messages } from "../es";
 
 import { core } from "./core";
+import { igCapabilities } from "./igCapabilities";
+import { channelCatalog } from "./channelCatalog";
+import { apiErrors } from "./apiErrors";
 import { settingsSignatures } from "./settingsSignatures";
 import { settingsSets } from "./settingsSets";
 import { settingsPlugs } from "./settingsPlugs";
@@ -48,6 +51,9 @@ import { actions } from "./actions";
 
 export const fr: Messages = {
   ...core,
+  igCapabilities,
+  channelCatalog,
+  apiErrors,
   settingsSignatures,
   settingsSets,
   settingsPlugs,

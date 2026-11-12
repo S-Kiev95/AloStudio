@@ -51,4 +51,27 @@ export const reports = {
     one: "1 conversación",
     many: "{count} conversaciones",
   },
+  metricNames: {
+    conversations_count: "Conversaciones",
+    incoming_messages_count: "Mensajes entrantes",
+    outgoing_messages_count: "Mensajes salientes",
+    resolutions_count: "Resoluciones",
+    avg_first_response_time: "Primera respuesta",
+    avg_resolution_time: "Tiempo de resolución",
+    reply_time: "Tiempo de respuesta",
+  },
+  scopes: {
+    agent: "Agentes",
+    team: "Equipos",
+    inbox: "Bandejas",
+    label: "Etiquetas",
+    ad: "Anuncios",
+  },
+  scopeEntity: {
+    agent: "Agente",
+    team: "Equipo",
+    inbox: "Bandeja",
+    label: "Etiqueta",
+    ad: "Anuncio",
+  },
 };

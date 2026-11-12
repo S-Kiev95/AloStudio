@@ -1,3 +1,4 @@
+import { clientT } from "@/lib/i18n/client-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError } from "./errors";
@@ -324,7 +325,7 @@ export type ParsedPublicationError = {
  */
 export function parsePublicationError(
   err: unknown,
-  fallback = "Ocurrió un error al procesar la solicitud.",
+  fallback = clientT()("apiErrors.requestFailed"),
 ): ParsedPublicationError {
   if (err instanceof ApiError) {
     const body =

@@ -73,12 +73,12 @@ export function TokenForm({
         >
           {MCP_SCOPES.map((s) => (
             <option key={s.value} value={s.value}>
-              {s.label}
+              {t(s.label)}
             </option>
           ))}
         </select>
         <p className="text-xs text-fg-muted">
-          {MCP_SCOPES.find((s) => s.value === scope)?.hint}
+          {t(MCP_SCOPES.find((s) => s.value === scope)?.hint ?? MCP_SCOPES[0].hint)}
         </p>
       </div>
 

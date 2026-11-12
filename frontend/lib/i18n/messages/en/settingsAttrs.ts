@@ -20,4 +20,14 @@ export const settingsAttrs: Strings<typeof es> = {
   empty: "No attributes defined yet.",
   deleteConfirm: "Delete \"{name}\"?",
   keyReadonly: "Key: {key} (not editable)",
+  types: {
+    text: "Text",
+    number: "Number",
+    currency: "Currency",
+    percent: "Percentage",
+    link: "Link",
+    date: "Date",
+    list: "List",
+    checkbox: "Checkbox",
+  },
 };

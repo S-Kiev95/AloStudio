@@ -262,6 +262,7 @@ export function useSetInboxMembers(accountId: string) {
 
 /** Map the Ruby `channel_type` class name to a short, human label. */
 export function channelLabel(channelType: string): string {
+  // i18n-ignore-start: product names
   const map: Record<string, string> = {
     "Channel::Telegram": "Telegram",
     "Channel::Whatsapp": "WhatsApp",
@@ -273,5 +274,6 @@ export function channelLabel(channelType: string): string {
     "Channel::FacebookPage": "Facebook",
     "Channel::Instagram": "Instagram",
   };
+  // i18n-ignore-end
   return map[channelType] ?? channelType.replace("Channel::", "");
 }

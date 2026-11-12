@@ -224,16 +224,16 @@ export function CampaignForm({
       <div className="space-y-1.5">
         <Label>{t("instagram.composer.typeLabel")}</Label>
         <div className="flex flex-wrap gap-3 text-sm">
-          {CAMPAIGN_TYPES.map((t) => (
-            <label key={t.value} className="flex items-center gap-1.5">
+          {CAMPAIGN_TYPES.map((ct) => (
+            <label key={ct.value} className="flex items-center gap-1.5">
               <input
                 type="radio"
-                checked={campaignType === t.value}
-                onChange={() => setCampaignType(t.value)}
+                checked={campaignType === ct.value}
+                onChange={() => setCampaignType(ct.value)}
                 disabled={Boolean(initial)}
                 className="accent-neon"
               />
-              {t.label}
+              {t(ct.label)}
             </label>
           ))}
         </div>

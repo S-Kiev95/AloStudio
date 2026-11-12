@@ -21,10 +21,11 @@ import { cn } from "@/lib/utils";
 import { SecretReveal } from "./secret-reveal";
 import { TokenForm, TokenInputAdapter } from "./token-form";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const SCOPE_LABEL: Record<MCPScope, string> = Object.fromEntries(
+const SCOPE_LABEL: Record<MCPScope, MessageKey> = Object.fromEntries(
   MCP_SCOPES.map((s) => [s.value, s.label]),
-) as Record<MCPScope, string>;
+) as Record<MCPScope, MessageKey>;
 
 export function MCPTokensView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -221,7 +222,7 @@ function TokenRow({
               : "border-glass bg-focused text-lit",
         )}
       >
-        {SCOPE_LABEL[token.scope]}
+        {t(SCOPE_LABEL[token.scope])}
       </span>
       <button
         type="button"

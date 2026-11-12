@@ -118,9 +118,9 @@ export function CustomAttributeForm({
               setDisplayType(e.target.value as AttributeDisplayType)
             }
           >
-            {ATTRIBUTE_DISPLAY_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
+            {ATTRIBUTE_DISPLAY_TYPES.map((dt) => (
+              <option key={dt.value} value={dt.value}>
+                {t(dt.label)}
               </option>
             ))}
           </select>

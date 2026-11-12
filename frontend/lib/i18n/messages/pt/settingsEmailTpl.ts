@@ -65,4 +65,8 @@ export const settingsEmailTpl: Strings<typeof es> = {
   sendTo: "Enviar para",
   sendTest: "Enviar teste",
   testSaveFirst: "Salve as alterações antes de enviar o teste: é enviado o modelo salvo, não o que você está editando.",
+  defaults: {
+    text: "Escreva aqui",
+    button: "Ver mais",
+  },
 };

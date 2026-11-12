@@ -17,4 +17,14 @@ export const settingsMcp = {
   namePlaceholder: "Ej. agente-soporte",
   permissions: "Permisos",
   generate: "Generar token",
+  scopes: {
+    read: "Lectura",
+    write: "Escritura",
+    admin: "Admin",
+  },
+  scopeHints: {
+    read: "Solo puede leer conversaciones, contactos, posts, etc.",
+    write: "Puede crear y modificar (responder, etiquetar, publicar).",
+    admin: "Acceso completo, igual que un administrador.",
+  },
 };

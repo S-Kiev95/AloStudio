@@ -62,4 +62,8 @@ export const settingsEmailTpl = {
   sendTo: "Enviar a",
   sendTest: "Enviar prueba",
   testSaveFirst: "Guardá los cambios antes de mandar la prueba: se envía la plantilla guardada, no la que estás editando.",
+  defaults: {
+    text: "Escribí acá",
+    button: "Ver más",
+  },
 };

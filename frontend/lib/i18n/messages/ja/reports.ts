@@ -54,4 +54,27 @@ export const reports: Strings<typeof es> = {
     one: "会話 1 件",
     many: "会話 {count} 件",
   },
+  metricNames: {
+    conversations_count: "会話",
+    incoming_messages_count: "受信メッセージ",
+    outgoing_messages_count: "送信メッセージ",
+    resolutions_count: "解決",
+    avg_first_response_time: "初回応答",
+    avg_resolution_time: "解決時間",
+    reply_time: "応答時間",
+  },
+  scopes: {
+    agent: "エージェント",
+    team: "チーム",
+    inbox: "受信箱",
+    label: "ラベル",
+    ad: "広告",
+  },
+  scopeEntity: {
+    agent: "エージェント",
+    team: "チーム",
+    inbox: "受信箱",
+    label: "ラベル",
+    ad: "広告",
+  },
 };

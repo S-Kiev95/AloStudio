@@ -60,7 +60,7 @@ export function ConnectCapabilitiesDialog({
             <h2 id="connect-caps-title" className="text-lg font-medium">
               {t("instagram.connect.connectVia", { flow: flow.title })}
             </h2>
-            <p className="mt-1 text-sm text-fg-muted">{flow.summary}</p>
+            <p className="mt-1 text-sm text-fg-muted">{t(flow.summary)}</p>
           </div>
           <button
             type="button"
@@ -75,7 +75,7 @@ export function ConnectCapabilitiesDialog({
         <CapabilityList capabilities={flow.capabilities} />
 
         <p className="rounded-md border border-glass bg-surface-2 px-3 py-2 text-xs text-fg-muted">
-          {flow.requirement}
+          {t(flow.requirement)}
         </p>
 
         {limitations.length > 0 ? (

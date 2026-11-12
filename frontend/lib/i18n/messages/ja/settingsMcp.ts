@@ -20,4 +20,14 @@ export const settingsMcp: Strings<typeof es> = {
   namePlaceholder: "例: support-agent",
   permissions: "権限",
   generate: "トークンを生成",
+  scopes: {
+    read: "読み取り",
+    write: "書き込み",
+    admin: "管理者",
+  },
+  scopeHints: {
+    read: "会話、連絡先、投稿などの読み取りのみ。",
+    write: "作成と変更ができます (返信、ラベル付け、公開)。",
+    admin: "管理者と同じフルアクセス。",
+  },
 };

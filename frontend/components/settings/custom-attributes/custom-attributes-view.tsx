@@ -28,8 +28,8 @@ const MODEL_FILTERS: { value: AttributeModel | undefined; label: MessageKey }[] 
   { value: "contact_attribute", label: "conversations.reports.contacts" },
 ];
 
-const TYPE_LABEL: Record<string, string> = Object.fromEntries(
-  ATTRIBUTE_DISPLAY_TYPES.map((t) => [t.value, t.label]),
+const TYPE_LABEL: Record<string, MessageKey> = Object.fromEntries(
+  ATTRIBUTE_DISPLAY_TYPES.map((dt) => [dt.value, dt.label]),
 );
 
 export function CustomAttributesView({ accountId }: { accountId: string }) {
@@ -169,8 +169,9 @@ function AttrRow({
         </p>
         <p className="text-xs text-fg-muted">
           <code>{attribute.attribute_key}</code> ·{" "}
-          {TYPE_LABEL[attribute.attribute_display_type] ??
-            attribute.attribute_display_type}
+          {TYPE_LABEL[attribute.attribute_display_type]
+            ? t(TYPE_LABEL[attribute.attribute_display_type])
+            : attribute.attribute_display_type}
           {attribute.attribute_description
             ? ` · ${attribute.attribute_description}`
             : ""}

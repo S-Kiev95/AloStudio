@@ -60,4 +60,8 @@ export const campaigns: Strings<typeof es> = {
   inactive: "無効",
   deleteConfirm: "キャンペーン「{title}」を削除しますか？",
   scheduledAt: "予約: {when}",
+  typeLong: {
+    ongoing: "継続 (Web ウィジェット)",
+    oneOff: "単発 (予約)",
+  },
 };

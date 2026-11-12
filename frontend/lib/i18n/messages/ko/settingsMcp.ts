@@ -20,4 +20,14 @@ export const settingsMcp: Strings<typeof es> = {
   namePlaceholder: "예: support-agent",
   permissions: "권한",
   generate: "토큰 생성",
+  scopes: {
+    read: "읽기",
+    write: "쓰기",
+    admin: "관리자",
+  },
+  scopeHints: {
+    read: "대화, 연락처, 게시물 등을 읽기만 할 수 있습니다.",
+    write: "만들고 수정할 수 있습니다 (답장, 라벨 지정, 게시).",
+    admin: "관리자와 같은 전체 접근 권한.",
+  },
 };
