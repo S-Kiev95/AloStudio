@@ -4,12 +4,14 @@
  * action executor is the same for both surfaces — only the allow-list
  * differs (automation adds 3 extras).
  */
+import type { MessageKey } from "@/lib/i18n/translate";
+
 export type ActionKind = "none" | "text" | "list" | "enum";
 
 export type ActionMeta = {
-  label: string;
+  label: MessageKey;
   kind: ActionKind;
-  placeholder?: string;
+  placeholder?: MessageKey;
   options?: readonly string[];
 };
 
@@ -17,78 +19,78 @@ export type ActionMeta = {
 export const ACTION_META: Record<string, ActionMeta> = {
   // --- shared with macros ---------------------------------------------------
   send_message: {
-    label: "Enviar mensaje",
+    label: "settingsAutomation.actions.send_message",
     kind: "text",
-    placeholder: "Texto del mensaje",
+    placeholder: "settingsAutomation.ph.messageText",
   },
   add_label: {
-    label: "Agregar etiqueta",
+    label: "settingsAutomation.actions.add_label",
     kind: "list",
-    placeholder: "etiqueta1, etiqueta2",
+    placeholder: "settingsAutomation.ph.labels",
   },
   assign_team: {
-    label: "Asignar equipo",
+    label: "settingsAutomation.actions.assign_team",
     kind: "text",
-    placeholder: "ID del equipo",
+    placeholder: "settingsAutomation.ph.teamId",
   },
   assign_agent: {
-    label: "Asignar agente",
+    label: "settingsAutomation.actions.assign_agent",
     kind: "list",
-    placeholder: "ID de agente (o varios separados por coma)",
+    placeholder: "settingsAutomation.ph.agentIds",
   },
-  mute_conversation: { label: "Silenciar conversación", kind: "none" },
+  mute_conversation: { label: "settingsAutomation.actions.mute_conversation", kind: "none" },
   change_status: {
-    label: "Cambiar estado",
+    label: "settingsAutomation.actions.change_status",
     kind: "enum",
     options: ["open", "resolved", "pending", "snoozed"],
   },
   remove_label: {
-    label: "Quitar etiqueta",
+    label: "settingsAutomation.actions.remove_label",
     kind: "list",
-    placeholder: "etiqueta1, etiqueta2",
+    placeholder: "settingsAutomation.ph.labels",
   },
-  remove_assigned_agent: { label: "Quitar agente asignado", kind: "none" },
-  remove_assigned_team: { label: "Quitar equipo asignado", kind: "none" },
-  resolve_conversation: { label: "Resolver conversación", kind: "none" },
+  remove_assigned_agent: { label: "settingsAutomation.actions.remove_assigned_agent", kind: "none" },
+  remove_assigned_team: { label: "settingsAutomation.actions.remove_assigned_team", kind: "none" },
+  resolve_conversation: { label: "settingsAutomation.actions.resolve_conversation", kind: "none" },
   snooze_conversation: {
-    label: "Posponer conversación",
+    label: "settingsAutomation.actions.snooze_conversation",
     kind: "enum",
     options: ["tomorrow", "next_week", "next_month"],
   },
   change_priority: {
-    label: "Cambiar prioridad",
+    label: "settingsAutomation.actions.change_priority",
     kind: "enum",
     options: ["urgent", "high", "medium", "low", "null"],
   },
   send_email_transcript: {
-    label: "Enviar transcripción por email",
+    label: "settingsAutomation.actions.send_email_transcript",
     kind: "text",
-    placeholder: "email@dominio",
+    placeholder: "settingsAutomation.ph.email",
   },
   send_attachment: {
-    label: "Enviar archivo adjunto",
+    label: "settingsAutomation.actions.send_attachment",
     kind: "text",
-    placeholder: "URL o ID del archivo",
+    placeholder: "settingsAutomation.ph.fileRef",
   },
   add_private_note: {
-    label: "Agregar nota privada",
+    label: "settingsAutomation.actions.add_private_note",
     kind: "text",
-    placeholder: "Texto de la nota",
+    placeholder: "settingsAutomation.ph.noteText",
   },
   send_webhook_event: {
-    label: "Disparar webhook",
+    label: "settingsAutomation.actions.send_webhook_event",
     kind: "text",
-    placeholder: "https://…",
+    placeholder: "settingsAutomation.ph.url",
   },
   // --- automation-only extras ----------------------------------------------
   send_email_to_team: {
-    label: "Enviar email al equipo",
+    label: "settingsAutomation.actions.send_email_to_team",
     kind: "text",
-    placeholder: "ID del equipo",
+    placeholder: "settingsAutomation.ph.teamId",
   },
-  open_conversation: { label: "Reabrir conversación", kind: "none" },
+  open_conversation: { label: "settingsAutomation.actions.open_conversation", kind: "none" },
   pending_conversation: {
-    label: "Marcar como pendiente",
+    label: "settingsAutomation.actions.pending_conversation",
     kind: "none",
   },
 };

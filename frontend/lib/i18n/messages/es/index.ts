@@ -9,6 +9,8 @@
 import type { Strings } from "../types";
 
 import { core } from "./core";
+import { settingsEmailTpl } from "./settingsEmailTpl";
+import { settingsAutomation } from "./settingsAutomation";
 import { settingsInboxes } from "./settingsInboxes";
 import { settingsWebhooks } from "./settingsWebhooks";
 import { settingsNotif } from "./settingsNotif";
@@ -47,6 +49,8 @@ import { conversations } from "./conversations";
 
 export const es = {
   ...core,
+  settingsEmailTpl,
+  settingsAutomation,
   settingsInboxes,
   settingsWebhooks,
   settingsNotif,

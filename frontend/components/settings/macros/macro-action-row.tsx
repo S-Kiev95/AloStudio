@@ -56,7 +56,7 @@ export function MacroActionRow({
       >
         {MACRO_ACTIONS.map((a) => (
           <option key={a} value={a}>
-            {ACTION_META[a].label}
+            {t(ACTION_META[a].label)}
           </option>
         ))}
       </select>
@@ -81,7 +81,7 @@ export function MacroActionRow({
           aria-label={t("settingsMacros.params")}
           value={value.text}
           onChange={(e) => onChange({ ...value, text: e.target.value })}
-          placeholder={meta.placeholder}
+          placeholder={meta.placeholder ? t(meta.placeholder) : undefined}
           className="h-9 min-w-44 flex-1"
         />
       )}

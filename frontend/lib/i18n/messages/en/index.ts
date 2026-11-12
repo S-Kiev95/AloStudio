@@ -1,6 +1,8 @@
 import type { Messages } from "../es";
 
 import { core } from "./core";
+import { settingsEmailTpl } from "./settingsEmailTpl";
+import { settingsAutomation } from "./settingsAutomation";
 import { settingsInboxes } from "./settingsInboxes";
 import { settingsWebhooks } from "./settingsWebhooks";
 import { settingsNotif } from "./settingsNotif";
@@ -39,6 +41,8 @@ import { actions } from "./actions";
 
 export const en: Messages = {
   ...core,
+  settingsEmailTpl,
+  settingsAutomation,
   settingsInboxes,
   settingsWebhooks,
   settingsNotif,

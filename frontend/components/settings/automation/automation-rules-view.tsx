@@ -14,33 +14,35 @@ import {
   useUpdateAutomationRule,
 } from "@/lib/api/automation-rules";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 export function AutomationRulesView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = useAutomationRules(accountId);
 
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-medium text-fg">Automatización</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.automation")}</h2>
         <Link
           href={`/accounts/${accountId}/settings/automation/new`}
           className={buttonVariants({ size: "sm" })}
         >
           <Plus className="h-4 w-4" aria-hidden />
-          Nueva regla
+          {t("settingsAutomation.new")}
         </Link>
       </div>
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar las reglas.
+            {t("settingsAutomation.listLoadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay reglas todavía.
+            {t("settingsAutomation.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -61,6 +63,7 @@ function RuleRow({
   accountId: string;
   rule: AutomationRule;
 }) {
+  const t = useT();
   const update = useUpdateAutomationRule(accountId);
   const del = useDeleteAutomationRule(accountId);
   const clone = useCloneAutomationRule(accountId);
@@ -95,11 +98,20 @@ function RuleRow({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-fg">{rule.name}</p>
           <p className="truncate text-xs text-fg-muted">
-            {AUTOMATION_EVENT_LABELS[rule.event_name]} ·{" "}
-            {rule.conditions.length}{" "}
-            {rule.conditions.length === 1 ? "condición" : "condiciones"} ·{" "}
-            {rule.actions.length}{" "}
-            {rule.actions.length === 1 ? "acción" : "acciones"}
+            {t(AUTOMATION_EVENT_LABELS[rule.event_name])} ·{" "}
+            {t(
+              rule.conditions.length === 1
+                ? "settingsAutomation.conditionsOne"
+                : "settingsAutomation.conditionsMany",
+              { count: rule.conditions.length },
+            )}{" "}
+            ·{" "}
+            {t(
+              rule.actions.length === 1
+                ? "settingsMacros.actionsOne"
+                : "settingsMacros.actionsMany",
+              { count: rule.actions.length },
+            )}
           </p>
           {error ? (
             <p role="alert" className="text-xs text-danger">
@@ -115,15 +127,15 @@ function RuleRow({
               : "bg-surface-2 text-fg-muted",
           )}
         >
-          {rule.active ? "Activa" : "Inactiva"}
+          {rule.active ? t("settingsAutomation.active") : t("campaigns.inactive")}
         </span>
       </Link>
       <button
         type="button"
         role="switch"
         aria-checked={rule.active}
-        aria-label={rule.active ? "Desactivar" : "Activar"}
-        title={rule.active ? "Desactivar" : "Activar"}
+        aria-label={rule.active ? t("settingsNotif.disable") : t("settingsNotif.enable")}
+        title={rule.active ? t("settingsNotif.disable") : t("settingsNotif.enable")}
         onClick={(e) =>
           run(
             () =>
@@ -131,7 +143,7 @@ function RuleRow({
                 id: rule.id,
                 patch: { active: !rule.active },
               }),
-            "No se pudo cambiar el estado.",
+            t("settingsAutomation.toggleFailed"),
             e,
           )
         }
@@ -151,9 +163,9 @@ function RuleRow({
       </button>
       <button
         type="button"
-        aria-label="Clonar"
-        title="Clonar"
-        onClick={(e) => run(() => clone.mutateAsync(rule.id), "No se pudo clonar.", e)}
+        aria-label={t("settingsAutomation.clone")}
+        title={t("settingsAutomation.clone")}
+        onClick={(e) => run(() => clone.mutateAsync(rule.id), t("settingsAutomation.cloneFailed"), e)}
         disabled={clone.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -161,13 +173,13 @@ function RuleRow({
       </button>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (!window.confirm(`¿Eliminar la regla "${rule.name}"?`)) return;
-          run(() => del.mutateAsync(rule.id), "No se pudo eliminar.");
+          if (!window.confirm(t("settingsAutomation.deleteConfirm", { name: rule.name }))) return;
+          run(() => del.mutateAsync(rule.id), t("actions.deleteFailed"));
         }}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
