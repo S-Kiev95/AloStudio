@@ -475,7 +475,11 @@ export function InboxShell({
             }
           }}
           className={cn(
-            "relative z-20 flex min-h-[calc(100dvh-13.5rem)] overflow-hidden rounded-md border border-glass bg-surface lg:mt-[calc(var(--inbox-stretch,0px)*-1)] lg:h-[max(26rem,calc(100dvh-13.5rem+var(--inbox-stretch,0px)))] lg:min-h-[max(26rem,calc(100dvh-13.5rem+var(--inbox-stretch,0px)))]",
+            // Stretched up, the panel covers the title bar on purpose, so it
+            // goes above the bar's layer (z-[35]); otherwise it stays below,
+            // so the bar's menus open over it.
+            stretchPx > 0 ? "z-[36]" : "z-20",
+            "relative flex min-h-[calc(100dvh-13.5rem)] overflow-hidden rounded-md border border-glass bg-surface lg:mt-[calc(var(--inbox-stretch,0px)*-1)] lg:h-[max(26rem,calc(100dvh-13.5rem+var(--inbox-stretch,0px)))] lg:min-h-[max(26rem,calc(100dvh-13.5rem+var(--inbox-stretch,0px)))]",
             isDragging && "select-none",
           )}
         >
