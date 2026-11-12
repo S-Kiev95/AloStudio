@@ -1,11 +1,5 @@
-/**
- * Spanish, the source language. Every text starts here; `en.ts` and `pt.ts`
- * must have exactly the same keys, or the type check fails.
- *
- * Grouped by screen or piece of the interface. `{name}` marks a value filled
- * in at runtime. Rioplatense voice (vos), as in the rest of the app.
- */
-export const es = {
+/** Spanish (source): the shell, Ajustes menu, profile and sign-in screens. */
+export const core = {
   common: {
     loading: "Cargando…",
     saveChanges: "Guardar cambios",
@@ -178,6 +172,3 @@ export const es = {
   },
 };
 
-/** The shape every language must fill in: same keys, any text. */
-type Strings<T> = { [K in keyof T]: T[K] extends string ? string : Strings<T[K]> };
-export type Messages = Strings<typeof es>;

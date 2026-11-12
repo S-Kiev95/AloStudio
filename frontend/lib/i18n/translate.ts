@@ -1,9 +1,13 @@
 import { DEFAULT_LOCALE, type Locale } from "./config";
+import { de } from "./messages/de";
 import { en } from "./messages/en";
 import { es, type Messages } from "./messages/es";
+import { fr } from "./messages/fr";
+import { ja } from "./messages/ja";
+import { ko } from "./messages/ko";
 import { pt } from "./messages/pt";
 
-export const MESSAGES: Record<Locale, Messages> = { es, en, pt };
+export const MESSAGES: Record<Locale, Messages> = { es, en, pt, fr, de, ja, ko };
 
 /** Every dotted path to a text: `"nav.home"`, `"auth.login.title"`… */
 type Paths<T> = {

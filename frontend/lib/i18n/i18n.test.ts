@@ -2,11 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { relativeTime } from "@/lib/time";
 
-import { resolveLocale } from "./config";
-import { en } from "./messages/en";
+import { LOCALES, resolveLocale } from "./config";
 import { es } from "./messages/es";
-import { pt } from "./messages/pt";
-import { createTranslate, type MessageKey } from "./translate";
+import { createTranslate, MESSAGES, type MessageKey } from "./translate";
 
 function keys(obj: object, prefix = ""): string[] {
   return Object.entries(obj).flatMap(([k, v]) =>
@@ -14,18 +12,21 @@ function keys(obj: object, prefix = ""): string[] {
   );
 }
 
+const SOURCE_KEYS = keys(es) as MessageKey[];
+const placeholders = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join();
+
 describe("resolveLocale", () => {
   it("prefers the saved choice", () => {
     expect(resolveLocale("pt", "en-US,en;q=0.9")).toBe("pt");
   });
 
   it("falls back to the first supported browser language", () => {
-    expect(resolveLocale(undefined, "fr-FR,pt-BR;q=0.8,en;q=0.5")).toBe("pt");
-    expect(resolveLocale("de", "en-GB")).toBe("en");
+    expect(resolveLocale(undefined, "it-IT,pt-BR;q=0.8,en;q=0.5")).toBe("pt");
+    expect(resolveLocale("xx", "ja-JP")).toBe("ja");
   });
 
   it("ends in Spanish", () => {
-    expect(resolveLocale(null, "fr,de")).toBe("es");
+    expect(resolveLocale(null, "it,ru")).toBe("es");
     expect(resolveLocale(null, null)).toBe("es");
   });
 });
@@ -52,17 +53,30 @@ describe("createTranslate", () => {
 describe("dictionaries", () => {
   // The type check already enforces this; the test catches an `as` slipped in.
   it("have the same keys in every language", () => {
-    const base = keys(es).sort();
-    expect(keys(en).sort()).toEqual(base);
-    expect(keys(pt).sort()).toEqual(base);
+    const base = [...SOURCE_KEYS].sort();
+    for (const locale of LOCALES) {
+      expect(keys(MESSAGES[locale]).sort(), locale).toEqual(base);
+    }
+  });
+
+  it("have every text filled in", () => {
+    for (const locale of LOCALES) {
+      const t = createTranslate(locale);
+      for (const key of SOURCE_KEYS) {
+        expect(t(key).trim(), `${locale} ${key}`).not.toBe("");
+      }
+    }
   });
 
   it("keep the same placeholders as Spanish", () => {
-    const vars = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join();
-    const t = { es: createTranslate("es"), en: createTranslate("en"), pt: createTranslate("pt") };
-    for (const key of keys(es) as MessageKey[]) {
-      expect(vars(t.en(key)), key).toBe(vars(t.es(key)));
-      expect(vars(t.pt(key)), key).toBe(vars(t.es(key)));
+    const source = createTranslate("es");
+    for (const locale of LOCALES) {
+      const t = createTranslate(locale);
+      for (const key of SOURCE_KEYS) {
+        expect(placeholders(t(key)), `${locale} ${key}`).toBe(
+          placeholders(source(key)),
+        );
+      }
     }
   });
 });
