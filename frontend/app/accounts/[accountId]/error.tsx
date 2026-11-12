@@ -4,6 +4,7 @@ import { AlertTriangle } from "lucide-react";
 import { useEffect } from "react";
 
 import { FallbackPanel } from "@/components/system/fallback-panel";
+import { useT } from "@/lib/i18n/provider";
 
 /** Dashboard-level error boundary — keeps the shell visible. */
 export default function AccountError({
@@ -13,6 +14,7 @@ export default function AccountError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useT();
   useEffect(() => {
     console.error("AloStudio account error", error);
   }, [error]);
@@ -20,9 +22,9 @@ export default function AccountError({
   return (
     <FallbackPanel
       icon={AlertTriangle}
-      title="No pudimos cargar esta sección"
-      description="Algo falló al traer los datos. Probá de nuevo en un momento."
-      primary={{ label: "Reintentar", onClick: reset }}
+      title={t("errors.sectionTitle")}
+      description={t("errors.sectionBody")}
+      primary={{ label: t("actions.retry"), onClick: reset }}
     />
   );
 }

@@ -1,13 +1,15 @@
 import { Compass } from "lucide-react";
 
 import { FallbackPanel } from "@/components/system/fallback-panel";
+import { getT } from "@/lib/i18n/server";
 
-export default function HelpCenterNotFound() {
+export default async function HelpCenterNotFound() {
+  const t = await getT();
   return (
     <FallbackPanel
       icon={Compass}
-      title="No encontramos este artículo"
-      description="Es posible que ya no esté publicado o que el enlace haya cambiado."
+      title={t("hc.notFoundTitle")}
+      description={t("hc.notFoundBody")}
     />
   );
 }

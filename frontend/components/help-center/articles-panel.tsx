@@ -21,12 +21,14 @@ import {
   useDeleteArticle,
 } from "@/lib/api/portals";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const STATUS_FILTERS: { value: ArticleStatus | undefined; label: string }[] = [
-  { value: undefined, label: "Todos" },
-  { value: "published", label: "Publicados" },
-  { value: "draft", label: "Borradores" },
-  { value: "archived", label: "Archivados" },
+const STATUS_FILTERS: { value: ArticleStatus | undefined; label: MessageKey }[] = [
+  { value: undefined, label: "helpCenter.filters.all" },
+  { value: "published", label: "helpCenter.filters.published" },
+  { value: "draft", label: "helpCenter.filters.drafts" },
+  { value: "archived", label: "helpCenter.filters.archived" },
 ];
 
 const STATUS_BADGE: Record<ArticleStatus, string> = {
@@ -35,10 +37,10 @@ const STATUS_BADGE: Record<ArticleStatus, string> = {
   archived: "bg-surface-2 text-fg-muted",
 };
 
-const STATUS_LABEL: Record<ArticleStatus, string> = {
-  published: "Publicado",
-  draft: "Borrador",
-  archived: "Archivado",
+const STATUS_LABEL: Record<ArticleStatus, MessageKey> = {
+  published: "helpCenter.status.published",
+  draft: "helpCenter.status.draft",
+  archived: "helpCenter.status.archived",
 };
 
 export function ArticlesPanel({
@@ -50,6 +52,7 @@ export function ArticlesPanel({
   slug: string;
   locale?: string;
 }) {
+  const t = useT();
   const [status, setStatus] = useState<ArticleStatus | undefined>(undefined);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -67,13 +70,13 @@ export function ArticlesPanel({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-medium text-fg">Artículos</h3>
+        <h3 className="text-sm font-medium text-fg">{t("helpCenter.articles")}</h3>
         <Link
           href={`/accounts/${accountId}/help-center/${slug}/articles/new`}
           className={buttonVariants({ size: "sm" })}
         >
           <Plus className="h-4 w-4" aria-hidden />
-          Nuevo artículo
+          {t("helpCenter.newArticle")}
         </Link>
       </div>
 
@@ -84,16 +87,16 @@ export function ArticlesPanel({
         />
         <input
           type="search"
-          aria-label="Buscar artículos"
+          aria-label={t("helpCenter.searchArticles")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar artículos…"
+          placeholder={t("helpCenter.searchArticlesPlaceholder")}
           className="glass-field h-11 w-full rounded-control border border-glass bg-field pl-9 pr-9 text-sm text-fg placeholder:text-fg-muted"
         />
         {query ? (
           <button
             type="button"
-            aria-label="Limpiar búsqueda"
+            aria-label={t("conversations.list.clearSearch")}
             onClick={() => setQuery("")}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
           >
@@ -103,25 +106,25 @@ export function ArticlesPanel({
       </div>
 
       <SegmentedControl
-        ariaLabel="Estado del artículo"
+        ariaLabel={t("helpCenter.articleStatus")}
         size="sm"
         value={status}
         onValueChange={setStatus}
-        options={STATUS_FILTERS}
+        options={STATUS_FILTERS.map((o) => ({ ...o, label: t(o.label) }))}
       />
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-6 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-6 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-6 text-center text-sm text-danger">
-            No se pudieron cargar los artículos.
+            {t("helpCenter.articlesLoadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-6 text-center text-sm text-fg-muted">
             {debouncedQuery
-              ? "No se encontraron artículos."
-              : "No hay artículos todavía."}
+              ? t("helpCenter.noArticlesFound")
+              : t("helpCenter.noArticles")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -149,19 +152,20 @@ function ArticleRow({
   slug: string;
   article: Article;
 }) {
+  const t = useT();
   const del = useDeleteArticle(accountId, slug);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(`¿Eliminar el artículo "${article.title}"?`)) return;
+    if (!window.confirm(t("helpCenter.deleteArticleConfirm", { title: article.title }))) return;
     setError(null);
     try {
       await del.mutateAsync(article.id);
     } catch (err) {
       setError(
-        (err as { message?: string })?.message ?? "No se pudo eliminar.",
+        (err as { message?: string })?.message ?? t("actions.deleteFailed"),
       );
     }
   }
@@ -197,13 +201,13 @@ function ArticleRow({
             STATUS_BADGE[article.status],
           )}
         >
-          {STATUS_LABEL[article.status]}
+          {t(STATUS_LABEL[article.status])}
         </span>
       </Link>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"

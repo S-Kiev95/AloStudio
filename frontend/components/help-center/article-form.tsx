@@ -14,6 +14,7 @@ import {
   type ArticleStatus,
   type Category,
 } from "@/lib/api/portals";
+import { useT } from "@/lib/i18n/provider";
 
 const selectClass = selectClassName();
 
@@ -30,6 +31,7 @@ export function ArticleForm({
   onSubmit: (input: ArticleInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -45,7 +47,7 @@ export function ArticleForm({
 
   async function submit() {
     setError(null);
-    if (!title.trim()) return setError("El título es obligatorio.");
+    if (!title.trim()) return setError(t("agenda.dialog.titleRequired"));
     try {
       await onSubmit({
         title: title.trim(),
@@ -58,7 +60,7 @@ export function ArticleForm({
       });
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar el artículo.",
+        (e as { message?: string })?.message ?? t("helpCenter.articleSaveFailed"),
       );
     }
   }
@@ -73,7 +75,7 @@ export function ArticleForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="a-title" required>
-          Título
+          {t("agenda.dialog.titleLabel")}
         </Label>
         <Input
           id="a-title"
@@ -94,7 +96,7 @@ export function ArticleForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="a-locale">Idioma</Label>
+          <Label htmlFor="a-locale">{t("auth.language")}</Label>
           <Input
             id="a-locale"
             value={locale ?? ""}
@@ -107,14 +109,14 @@ export function ArticleForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="a-cat">Categoría</Label>
+          <Label htmlFor="a-cat">{t("helpCenter.category")}</Label>
           <select
             id="a-cat"
             className={selectClass}
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
           >
-            <option value="">Sin categoría</option>
+            <option value="">{t("helpCenter.noCategory")}</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -123,7 +125,7 @@ export function ArticleForm({
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="a-status">Estado</Label>
+          <Label htmlFor="a-status">{t("conversations.filters.attr.status")}</Label>
           <select
             id="a-status"
             className={selectClass}
@@ -140,7 +142,7 @@ export function ArticleForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="a-desc">Descripción corta</Label>
+        <Label htmlFor="a-desc">{t("helpCenter.shortDescription")}</Label>
         <Textarea
           id="a-desc"
           rows={2}
@@ -150,7 +152,7 @@ export function ArticleForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="a-content">Contenido (Markdown)</Label>
+        <Label htmlFor="a-content">{t("helpCenter.contentMarkdown")}</Label>
         <Textarea
           id="a-content"
           rows={14}
@@ -159,16 +161,16 @@ export function ArticleForm({
           className="font-mono text-sm"
         />
         <p className="text-xs text-fg-muted">
-          Usá Markdown estándar: ##, **negrita**, [link](url), listas con -.
+          {t("helpCenter.markdownHint")}
         </p>
       </div>
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear artículo"}
+          {initial ? t("common.saveChanges") : t("helpCenter.createArticle")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

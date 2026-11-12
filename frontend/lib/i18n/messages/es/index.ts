@@ -9,6 +9,10 @@
 import type { Strings } from "../types";
 
 import { core } from "./core";
+import { helpCenter } from "./helpCenter";
+import { hc } from "./hc";
+import { authCallback } from "./authCallback";
+import { errors } from "./errors";
 import { placeholder } from "./placeholder";
 import { notificationsPage } from "./notificationsPage";
 import { oauth } from "./oauth";
@@ -28,6 +32,10 @@ import { conversations } from "./conversations";
 
 export const es = {
   ...core,
+  helpCenter,
+  hc,
+  authCallback,
+  errors,
   placeholder,
   notificationsPage,
   oauth,

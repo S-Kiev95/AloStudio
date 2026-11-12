@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Portal, PortalInput } from "@/lib/api/portals";
 import { uploadAttachment } from "@/lib/api/uploads";
+import { useT } from "@/lib/i18n/provider";
 
 export function PortalForm({
   accountId,
@@ -23,6 +24,7 @@ export function PortalForm({
   onSubmit: (input: PortalInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [color, setColor] = useState(initial?.color ?? "#1f93ff");
@@ -47,7 +49,7 @@ export function PortalForm({
       setLogo(up.external_url);
     } catch (err) {
       setError(
-        (err as { message?: string })?.message ?? "No se pudo subir el logo.",
+        (err as { message?: string })?.message ?? t("helpCenter.logoUploadFailed"),
       );
     } finally {
       setUploadingLogo(false);
@@ -56,7 +58,7 @@ export function PortalForm({
 
   async function submit() {
     setError(null);
-    if (!name.trim()) return setError("El nombre es obligatorio.");
+    if (!name.trim()) return setError(t("products.form.nameRequired"));
     try {
       await onSubmit({
         name: name.trim(),
@@ -71,7 +73,7 @@ export function PortalForm({
       });
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar el portal.",
+        (e as { message?: string })?.message ?? t("helpCenter.portalSaveFailed"),
       );
     }
   }
@@ -87,7 +89,7 @@ export function PortalForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="p-name" required>
-            Nombre
+            {t("profile.name")}
           </Label>
           <Input
             id="p-name"
@@ -107,7 +109,7 @@ export function PortalForm({
           />
           {initial ? (
             <p className="text-xs text-fg-muted">
-              El slug no se puede cambiar después de crear el portal.
+              {t("helpCenter.slugLocked")}
             </p>
           ) : null}
         </div>
@@ -115,7 +117,7 @@ export function PortalForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label htmlFor="p-color">Color</Label>
+          <Label htmlFor="p-color">{t("helpCenter.color")}</Label>
           <div className="flex items-center gap-2">
             <input
               id="p-color"
@@ -132,7 +134,7 @@ export function PortalForm({
           </div>
         </div>
         <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="p-domain">Dominio personalizado</Label>
+          <Label htmlFor="p-domain">{t("helpCenter.customDomain")}</Label>
           <Input
             id="p-domain"
             value={customDomain ?? ""}
@@ -150,7 +152,7 @@ export function PortalForm({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={logo}
-                alt="Logo del portal"
+                alt={t("helpCenter.portalLogo")}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -164,7 +166,7 @@ export function PortalForm({
               accept="image/*"
               onChange={onPickLogo}
               className="hidden"
-              aria-label="Subir logo"
+              aria-label={t("helpCenter.uploadLogo")}
             />
             <Button
               type="button"
@@ -173,7 +175,7 @@ export function PortalForm({
               onClick={() => logoRef.current?.click()}
               loading={uploadingLogo}
             >
-              Subir logo
+              {t("helpCenter.uploadLogo")}
             </Button>
             {logo ? (
               <Button
@@ -183,7 +185,7 @@ export function PortalForm({
                 onClick={() => setLogo("")}
                 disabled={uploadingLogo}
               >
-                Quitar
+                {t("common.remove")}
               </Button>
             ) : null}
           </div>
@@ -191,7 +193,7 @@ export function PortalForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="p-home">Enlace de la página principal</Label>
+        <Label htmlFor="p-home">{t("helpCenter.homepageLink")}</Label>
         <Input
           id="p-home"
           type="url"
@@ -202,7 +204,7 @@ export function PortalForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="p-title">Título de página</Label>
+        <Label htmlFor="p-title">{t("helpCenter.pageTitle")}</Label>
         <Input
           id="p-title"
           value={pageTitle ?? ""}
@@ -211,7 +213,7 @@ export function PortalForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="p-header">Texto de cabecera</Label>
+        <Label htmlFor="p-header">{t("helpCenter.headerText")}</Label>
         <Textarea
           id="p-header"
           rows={2}
@@ -226,15 +228,15 @@ export function PortalForm({
           checked={archived}
           onChange={(e) => setArchived(e.target.checked)}
         />
-        Archivado (oculto del sitio público)
+        {t("helpCenter.archivedHidden")}
       </label>
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear portal"}
+          {initial ? t("common.saveChanges") : t("helpCenter.createPortal")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>
