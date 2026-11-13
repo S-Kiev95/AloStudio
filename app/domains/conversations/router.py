@@ -40,7 +40,7 @@ Route IDs: Chatwoot's URL ``:id`` for a conversation is **display_id**
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, Response, status
@@ -104,7 +104,7 @@ from app.domains.conversations.service import (
     update_labels,
     update_team,
 )
-from app.domains.inboxes.models import CHANNEL_TYPE_API, Inbox
+from app.domains.inboxes.models import CHANNEL_TYPE_API, CHANNEL_TYPE_WHATSAPP, Inbox
 from app.domains.inboxes.presenters import present_agent
 from app.domains.users.models import AccountUser, User
 
@@ -608,7 +608,29 @@ async def show_conversation(
     conv = await _load_conversation_by_display_id(
         session, ctx=ctx, display_id=display_id
     )
-    return present_conversation_show(conv)
+    body = present_conversation_show(conv)
+    if conv.inbox is not None and conv.inbox.channel_type == CHANNEL_TYPE_WHATSAPP:
+        body["can_reply"] = await _whatsapp_window_open(session, conv)
+    return body
+
+
+# WhatsApp only accepts free text within 24 h of the contact's last message;
+# after that only an approved template goes out.
+_WHATSAPP_WINDOW = timedelta(hours=24)
+
+
+async def _whatsapp_window_open(session: AsyncSession, conv: Conversation) -> bool:
+    stmt = (
+        select(func.max(Message.created_at))
+        .where(
+            Message.conversation_id == conv.id,
+            Message.message_type == MESSAGE_TYPE_INCOMING,
+        )
+    )
+    last_incoming = (await session.exec(stmt)).first()
+    if last_incoming is None:
+        return False
+    return datetime.now(UTC) - last_incoming < _WHATSAPP_WINDOW
 
 
 @router.patch("/{display_id}")

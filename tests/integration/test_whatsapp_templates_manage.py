@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -15,6 +16,10 @@ from httpx import ASGITransport, AsyncClient
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
+from app.domains.contacts.models import Contact
+from app.domains.contacts.service import ContactInboxBuilder
+from app.domains.conversations.models import MESSAGE_TYPE_INCOMING, Message
+from app.domains.conversations.service import ConversationBuilderParams, create_conversation
 from app.domains.inboxes.models import WHATSAPP_PROVIDER_CLOUD, WhatsappChannel
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
@@ -274,3 +279,38 @@ async def test_status_webhook_updates_the_cached_template(db_session):
     assert by_id["111"]["status"] == "REJECTED"
     assert by_id["111"]["rejected_reason"] == "INCORRECT_CATEGORY"
     assert by_id["222"]["category"] == "UTILITY"
+
+
+async def test_can_reply_follows_the_24h_window(client, db_session):
+    owner, inbox, _ = await _seed(db_session, "-window")
+    headers = await _headers(db_session, owner.user)
+    contact = Contact(account_id=owner.account.id, name="Ana", phone_number="+59899111222")
+    db_session.add(contact)
+    await db_session.flush()
+    contact_inbox = await ContactInboxBuilder(
+        session=db_session, contact=contact, inbox=inbox, source_id="59899111222"
+    ).perform()
+    conv = await create_conversation(
+        db_session, contact_inbox=contact_inbox, params=ConversationBuilderParams()
+    )
+    url = f"/api/v1/accounts/{owner.account.id}/conversations/{conv.display_id}"
+
+    # No message from the contact yet: only a template may open the chat.
+    assert (await client.get(url, headers=headers)).json()["can_reply"] is False
+
+    incoming = Message(
+        account_id=owner.account.id,
+        inbox_id=inbox.id,
+        conversation_id=conv.id,
+        message_type=MESSAGE_TYPE_INCOMING,
+        content="hola",
+        created_at=datetime.now(UTC) - timedelta(hours=2),
+    )
+    db_session.add(incoming)
+    await db_session.flush()
+    assert (await client.get(url, headers=headers)).json()["can_reply"] is True
+
+    incoming.created_at = datetime.now(UTC) - timedelta(hours=25)
+    db_session.add(incoming)
+    await db_session.flush()
+    assert (await client.get(url, headers=headers)).json()["can_reply"] is False
