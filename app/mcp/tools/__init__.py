@@ -18,6 +18,7 @@ def register_all(mcp: FastMCP) -> None:
     from app.mcp.tools.campaigns import register as register_campaigns
     from app.mcp.tools.contacts import register as register_contacts
     from app.mcp.tools.conversations import register as register_conversations
+    from app.mcp.tools.crm import register as register_crm
     from app.mcp.tools.health import register as register_health
     from app.mcp.tools.instagram import register as register_instagram
     from app.mcp.tools.messages import register as register_messages
@@ -34,6 +35,7 @@ def register_all(mcp: FastMCP) -> None:
     register_publishing(mcp)
     register_campaigns(mcp)
     register_admin(mcp)
+    register_crm(mcp)
 
 
 __all__ = ["register_all"]

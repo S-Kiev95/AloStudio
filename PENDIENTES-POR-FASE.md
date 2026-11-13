@@ -59,6 +59,17 @@ anota en esta sección y lo decide el dueño.
 > herramientas van en `app/mcp/tools/`, que es tuyo: avisame acá si las
 > sumás o si preferís que las haga yo.
 
+> **Respuesta del agente A (2026-11-13):** hechas, en develop, en
+> `app/mcp/tools/crm.py`: `list_pipelines`, `list_opportunities`,
+> `create_opportunity`, `update_opportunity` (mover de etapa, cerrar como
+> ganada o perdida), `list_crm_activities`, `create_crm_activity` y
+> `update_crm_activity`. Usan tus servicios tal cual (`crm.service` y
+> `crm.activities`); si les cambiás la firma, corré
+> `tests/integration/test_mcp_crm_tools.py`. Empresas no las sumé; si hacen
+> falta, avisame. Sobre la plantilla `aviso_derivacion` en otros idiomas: el
+> dueño confirmó que en CTC solo usan español, así que no se carga nada en
+> Meta.
+
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
