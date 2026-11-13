@@ -33,6 +33,7 @@ MESSAGES: dict[str, str] = {
     "notif.subject.conversation_assignment": "Se te asignó la conversación #{n}",
     "notif.subject.assigned_conversation_new_message": "Nuevo mensaje en la conversación #{n}",
     "notif.subject.conversation_bot_handoff": "La conversación #{n} pide atención de una persona",
+    "notif.subject.crm_activity_due": "La tarea \"{title}\" venció",
     "notif.subject.default": "Nueva notificación",
     "notif.lead.conversation_creation": (
         "Se creó una nueva conversación en una bandeja de la que sos miembro."
@@ -44,6 +45,7 @@ MESSAGES: dict[str, str] = {
     "notif.lead.conversation_bot_handoff": (
         "El bot derivó una conversación al equipo: alguien tiene que responderla."
     ),
+    "notif.lead.crm_activity_due": "Venció una tarea que tenés a cargo: {title}.",
     "notif.lead.default": "Tenés una nueva notificación en AloStudio.",
     "notif.body": (
         "{lead}\n\n"
@@ -62,6 +64,7 @@ MESSAGES: dict[str, str] = {
     "push.title.sla_missed_next_response": "SLA incumplido",
     "push.title.sla_missed_resolution": "SLA incumplido",
     "push.title.conversation_bot_handoff": "Piden atención de una persona",
+    "push.title.crm_activity_due": "Tarea vencida",
     "push.title.default": "Notificación",
     "push.body": "Conversación #{n}",
     # WhatsApp notice: what goes in the template when the contact has no name

@@ -28,6 +28,7 @@ MESSAGES: dict[str, str] = {
     "notif.subject.conversation_assignment": "Conversation #{n} was assigned to you",
     "notif.subject.assigned_conversation_new_message": "New message in conversation #{n}",
     "notif.subject.conversation_bot_handoff": "Conversation #{n} needs a person",
+    "notif.subject.crm_activity_due": "The task \"{title}\" is due",
     "notif.subject.default": "New notification",
     "notif.lead.conversation_creation": "A new conversation was created in an inbox you belong to.",
     "notif.lead.conversation_assignment": "A conversation was assigned to you.",
@@ -37,6 +38,7 @@ MESSAGES: dict[str, str] = {
     "notif.lead.conversation_bot_handoff": (
         "The bot handed a conversation to the team: someone needs to reply."
     ),
+    "notif.lead.crm_activity_due": "A task you own is due: {title}.",
     "notif.lead.default": "You have a new notification on AloStudio.",
     "notif.body": (
         "{lead}\n\n"
@@ -54,6 +56,7 @@ MESSAGES: dict[str, str] = {
     "push.title.sla_missed_next_response": "SLA missed",
     "push.title.sla_missed_resolution": "SLA missed",
     "push.title.conversation_bot_handoff": "A person is needed",
+    "push.title.crm_activity_due": "Task due",
     "push.title.default": "Notification",
     "push.body": "Conversation #{n}",
     "whatsapp.contact_fallback": "A contact",

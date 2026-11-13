@@ -238,19 +238,34 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         publications_fired = await fire_due_publications(pub_session)
         await pub_session.commit()
 
+    # CRM tasks that fell due (F11): the notification row is committed
+    # before its mail and push jobs are enqueued, since they read it back.
+    from app.domains.crm.activities import remind_due_activities
+    from app.domains.notifications.mailer import enqueue_notification_email
+    from app.domains.notifications.push import enqueue_notification_push
+
+    async with sessionmaker() as crm_session:
+        reminders = await remind_due_activities(crm_session)
+        await crm_session.commit()
+    for notification_id in reminders:
+        await enqueue_notification_email(notification_id)
+        await enqueue_notification_push(notification_id)
+
     log.info(
         "scheduler.tick.done campaigns_fired=%s conversations_reopened=%s "
-        "instagram_posts_fired=%s publications_fired=%s",
+        "instagram_posts_fired=%s publications_fired=%s crm_reminders=%s",
         campaigns_fired,
         conversations_reopened,
         len(ig_fired),
         len(publications_fired),
+        len(reminders),
     )
     return {
         "campaigns_fired": campaigns_fired,
         "conversations_reopened": conversations_reopened,
         "instagram_posts_fired": len(ig_fired),
         "publications_fired": len(publications_fired),
+        "crm_reminders": len(reminders),
     }
 
 

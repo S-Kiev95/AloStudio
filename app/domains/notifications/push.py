@@ -56,6 +56,11 @@ def _push_payload(
             f"{base}/accounts/{conversation.account_id}"
             f"/conversations/{conversation.display_id}"
         )
+    elif notification.primary_actor_type == "CrmActivity":
+        # A CRM task: its title, and the task list.
+        body = str((notification.meta or {}).get("title", ""))
+        base = get_settings().app_base_url.rstrip("/")
+        url = f"{base}/accounts/{notification.account_id}/tasks"
     return json.dumps(
         {"title": title, "body": body, "url": url}, ensure_ascii=False
     ).encode("utf-8")

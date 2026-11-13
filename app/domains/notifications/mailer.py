@@ -56,11 +56,15 @@ def build_notification_email(
     lead_key = f"notif.lead.{type_str}"
     if lead_key not in CATALOGS[DEFAULT_LOCALE]:
         lead_key = "notif.lead.default"
-    subject = t(locale, subject_key, n=display_id)
-    lead = t(locale, lead_key)
+    title = str((notification.meta or {}).get("title", ""))
+    subject = t(locale, subject_key, n=display_id, title=title)
+    lead = t(locale, lead_key, title=title)
+    base = f"{settings.app_base_url.rstrip('/')}/accounts/{notification.account_id}"
+    # A CRM task links to the task list; everything else to its conversation.
     link = (
-        f"{settings.app_base_url.rstrip('/')}"
-        f"/accounts/{notification.account_id}/conversations/{display_id}"
+        f"{base}/tasks"
+        if notification.primary_actor_type == "CrmActivity"
+        else f"{base}/conversations/{display_id}"
     )
     greeting = user.name or user.email or ""
     msg = EmailMessage()
