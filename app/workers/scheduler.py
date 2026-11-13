@@ -436,6 +436,7 @@ class WorkerSettings:
 
         from app.workers.contact_avatars import refresh_stale_avatars_task
         from app.workers.email_poll import fetch_imap_inboxes_task
+        from app.workers.message_embeddings import embed_messages_task
         from app.workers.publishing import (
             METRICS_JOB_TIMEOUT_SECONDS,
             snapshot_publishing_channels_task,
@@ -486,6 +487,10 @@ class WorkerSettings:
                 fetch_imap_inboxes_task,
                 minute=set(range(1, 60, 2)),
             ),
+            # Message vectors for meaning-based search (F8): every three
+            # minutes, off the 5-minute tick and the mail poll. A no-op
+            # until the local embedding service is configured.
+            cron(embed_messages_task, minute=set(range(2, 60, 3))),
             # Contact profile pictures, once a day: Meta's links expire and
             # people change their picture. Early UTC, off the other jobs.
             cron(
