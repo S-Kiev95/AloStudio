@@ -1,6 +1,7 @@
 import type { Messages } from "../es";
 
 import { core } from "./core";
+import { opportunities } from "./opportunities";
 import { igCapabilities } from "./igCapabilities";
 import { channelCatalog } from "./channelCatalog";
 import { apiErrors } from "./apiErrors";
@@ -51,6 +52,7 @@ import { actions } from "./actions";
 
 export const ko: Messages = {
   ...core,
+  opportunities,
   igCapabilities,
   channelCatalog,
   apiErrors,
