@@ -63,6 +63,7 @@ export const core: Strings<typeof es> = {
       sla_missed_next_response: "SLA: nächste Antwort überfällig",
       sla_missed_resolution: "SLA: Lösung überfällig",
       conversation_bot_handoff: "Der Bot hat eine Konversation ans Team übergeben",
+      crm_activity_due: "Eine CRM-Aufgabe ist fällig",
     },
   },
   validation: {

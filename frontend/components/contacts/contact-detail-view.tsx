@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ContactAppointmentsCard } from "@/components/agenda/contact-appointments-card";
+import { ContactActivitiesCard } from "@/components/crm/contact-activities-card";
 import { ContactOpportunitiesCard } from "@/components/crm/contact-opportunities-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,6 +126,8 @@ export function ContactDetailView({
           />
 
           <ContactOpportunitiesCard accountId={accountId} contact={contact} />
+
+          <ContactActivitiesCard accountId={accountId} contact={contact} />
 
           <ContactAppointmentsCard accountId={accountId} contact={contact} />
 

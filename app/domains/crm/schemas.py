@@ -33,4 +33,17 @@ class OpportunityBody(BaseModel):
     position: float | None = None
 
 
-__all__ = ["OpportunityBody", "PipelineBody"]
+__all__ = ["ActivityBody", "OpportunityBody", "PipelineBody"]
+
+
+class ActivityBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    kind: str | None = None
+    title: str | None = None
+    description: str | None = None
+    due_at: str | None = None
+    owner_id: int | None = None
+    contact_id: int | None = None
+    opportunity_id: int | None = None
+    done: bool | None = None

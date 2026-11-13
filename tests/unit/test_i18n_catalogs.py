@@ -65,3 +65,32 @@ def test_push_payload_in_the_recipients_language() -> None:
     assert en["body"] == "Conversation #42"
     assert es["body"] == "Conversación #42"
     assert en["title"] != es["title"]
+
+
+def test_a_crm_task_notification_points_to_the_task_list() -> None:
+    import json
+
+    from app.domains.notifications.mailer import build_notification_email
+
+    notification = SimpleNamespace(
+        notification_type=10,
+        account_id=7,
+        primary_actor_type="CrmActivity",
+        meta={"title": "Mandar presupuesto"},
+    )
+    push = json.loads(_push_payload(notification, None, "en"))  # type: ignore[arg-type]
+    assert push == {
+        "title": "Task due",
+        "body": "Mandar presupuesto",
+        "url": push["url"],
+    }
+    assert push["url"].endswith("/accounts/7/tasks")
+
+    user = SimpleNamespace(name="Ana", email="ana@x.test", ui_settings={})
+    mail = build_notification_email(
+        notification=notification,  # type: ignore[arg-type]
+        user=user,  # type: ignore[arg-type]
+        conversation=None,
+    )
+    assert mail["Subject"] == 'La tarea "Mandar presupuesto" venció'
+    assert "/accounts/7/tasks" in mail.get_content()

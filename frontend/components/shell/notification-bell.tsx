@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   NOTIFICATION_TYPE_LABELS,
+  notificationHref,
   type Notification,
   useDeleteNotification,
   useMarkAllNotificationsRead,
@@ -168,10 +169,11 @@ function NotificationRow({
   const label = isNotificationType(n.notification_type)
     ? t(`notifications.types.${n.notification_type}`)
     : t("notifications.fallback");
-  const href =
-    n.primary_actor?.display_id != null
-      ? `/accounts/${accountId}/conversations/${n.primary_actor.display_id}`
-      : undefined;
+  const href = notificationHref(n, accountId);
+  const taskTitle =
+    n.primary_actor_type === "CrmActivity" && typeof n.meta?.title === "string"
+      ? n.meta.title
+      : null;
 
   const body = (
     <div className="flex items-start gap-2">
@@ -193,10 +195,11 @@ function NotificationRow({
           {label}
         </p>
         <p className="mt-0.5 text-xs text-fg-muted">
-          {n.primary_actor?.display_id != null
-            ? t("conversations.list.fallbackName", { id: n.primary_actor.display_id })
-            : null}
-          {n.primary_actor?.display_id != null && n.last_activity_at
+          {taskTitle ??
+            (n.primary_actor?.display_id != null
+              ? t("conversations.list.fallbackName", { id: n.primary_actor.display_id })
+              : null)}
+          {(taskTitle || n.primary_actor?.display_id != null) && n.last_activity_at
             ? " · "
             : null}
           {relativeTime(n.last_activity_at, locale)}

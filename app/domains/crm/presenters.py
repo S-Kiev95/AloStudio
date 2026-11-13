@@ -11,7 +11,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.contacts.models import Contact
-from app.domains.crm.models import CrmOpportunity, CrmPipeline, CrmStage
+from app.domains.crm.models import CrmActivity, CrmOpportunity, CrmPipeline, CrmStage
 from app.domains.products.models import Product
 from app.domains.users.models import User
 
@@ -106,4 +106,46 @@ async def present_opportunities(
     return out
 
 
-__all__ = ["present_opportunities", "present_pipeline", "present_stage"]
+__all__ = ["present_activities", "present_opportunities", "present_pipeline", "present_stage"]
+
+
+async def present_activities(
+    session: AsyncSession, rows: Sequence[CrmActivity]
+) -> list[dict[str, Any]]:
+    """Batch-loads the contact, opportunity and owner of each activity."""
+    contacts = await _by_id(session, Contact, {r.contact_id for r in rows if r.contact_id})
+    opportunities = await _by_id(
+        session, CrmOpportunity, {r.opportunity_id for r in rows if r.opportunity_id}
+    )
+    owners = await _by_id(session, User, {r.owner_id for r in rows if r.owner_id})
+    out = []
+    for r in rows:
+        contact = contacts.get(r.contact_id) if r.contact_id else None
+        opportunity = opportunities.get(r.opportunity_id) if r.opportunity_id else None
+        owner = owners.get(r.owner_id) if r.owner_id else None
+        out.append(
+            {
+                "id": r.id,
+                "kind": r.kind,
+                "title": r.title,
+                "description": r.description,
+                "due_at": _ts(r.due_at),
+                "done_at": _ts(r.done_at),
+                "owner_id": r.owner_id,
+                "contact_id": r.contact_id,
+                "opportunity_id": r.opportunity_id,
+                "created_at": _ts(r.created_at),
+                "contact": (
+                    {"id": contact.id, "name": contact.name, "avatar_url": contact.avatar_url}
+                    if contact
+                    else None
+                ),
+                "opportunity": (
+                    {"id": opportunity.id, "title": opportunity.title} if opportunity else None
+                ),
+                "owner": (
+                    {"id": owner.id, "name": owner.display_name or owner.name} if owner else None
+                ),
+            }
+        )
+    return out

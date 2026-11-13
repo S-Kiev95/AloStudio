@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Trash2, User as UserIcon, X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAgents } from "@/lib/api/account";
-import { useContacts, useSearchContacts } from "@/lib/api/contacts";
 import {
   type Opportunity,
   type OpportunityInput,
@@ -20,11 +19,9 @@ import {
 } from "@/lib/api/crm";
 import { useProducts } from "@/lib/api/products";
 import { useT } from "@/lib/i18n/provider";
-import { cn } from "@/lib/utils";
 
+import { ContactPicker, type PickedContact } from "./contact-picker";
 import { stageLabel } from "./stage-label";
-
-type PickedContact = { id: number; name: string | null };
 
 /** Create or edit an opportunity. ``presetContact`` fixes the contact when
  *  it is opened from a contact's page. */
@@ -49,8 +46,6 @@ export function OpportunityDialog({
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const [contact, setContact] = useState<PickedContact | null>(null);
-  const [pickingContact, setPickingContact] = useState(false);
-  const [contactQuery, setContactQuery] = useState("");
   const [title, setTitle] = useState("");
   const [stageId, setStageId] = useState("");
   const [value, setValue] = useState("");
@@ -62,8 +57,6 @@ export function OpportunityDialog({
   const [lostReason, setLostReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const searchContacts = useSearchContacts(accountId, contactQuery, 1);
-  const recentContacts = useContacts(accountId, 1);
   const products = useProducts(accountId);
   const agents = useAgents(accountId);
   const create = useCreateOpportunity(accountId);
@@ -86,11 +79,9 @@ export function OpportunityDialog({
   useEffect(() => {
     if (!open) return;
     setError(null);
-    setContactQuery("");
     const firstStage = pipeline.stages[0]?.id;
     if (initial) {
       setContact(initial.contact ?? null);
-      setPickingContact(false);
       setTitle(initial.title);
       setStageId(String(initial.stage_id));
       setValue(initial.value != null ? String(initial.value) : "");
@@ -102,7 +93,6 @@ export function OpportunityDialog({
       setLostReason(initial.lost_reason ?? "");
     } else {
       setContact(presetContact ?? null);
-      setPickingContact(false);
       setTitle("");
       setStageId(String(defaultStageId ?? firstStage ?? ""));
       setValue("");
@@ -116,10 +106,6 @@ export function OpportunityDialog({
   }, [open, initial, presetContact, defaultStageId, pipeline]);
 
   const stage = pipeline.stages.find((s) => String(s.id) === stageId);
-  const candidates =
-    contactQuery.trim().length > 0
-      ? (searchContacts.data?.payload ?? [])
-      : (recentContacts.data?.payload ?? []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -211,71 +197,13 @@ export function OpportunityDialog({
 
         <div className="space-y-1.5">
           <Label htmlFor="opp-contact-search">{t("conversations.contact.title")}</Label>
-          {contact && !pickingContact ? (
-            <div className="flex items-center justify-between gap-2 rounded-control border border-glass bg-field px-3 py-2 text-sm">
-              <span className="flex min-w-0 items-center gap-2">
-                <UserIcon className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
-                <span className="truncate font-medium text-fg">
-                  {contact.name || t("conversations.contact.fallbackName", { id: contact.id })}
-                </span>
-              </span>
-              {presetContact ? null : (
-                <span className="flex gap-1">
-                  <Button type="button" size="sm" variant="ghost" onClick={() => setPickingContact(true)}>
-                    {t("agenda.dialog.change")}
-                  </Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => setContact(null)}>
-                    {t("common.remove")}
-                  </Button>
-                </span>
-              )}
-            </div>
-          ) : !pickingContact ? (
-            <Button type="button" size="sm" variant="secondary" onClick={() => setPickingContact(true)}>
-              {t("opportunities.pickContact")}
-            </Button>
-          ) : (
-            <div className="space-y-2">
-              <div className="relative">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-muted"
-                  aria-hidden
-                />
-                <Input
-                  id="opp-contact-search"
-                  value={contactQuery}
-                  onChange={(e) => setContactQuery(e.target.value)}
-                  placeholder={t("agenda.dialog.searchPlaceholder")}
-                  className="pl-9"
-                />
-              </div>
-              {candidates.length === 0 ? (
-                <p className="text-xs text-fg-muted">{t("agenda.dialog.noContacts")}</p>
-              ) : (
-                <ul className="max-h-40 divide-y divide-glass overflow-y-auto rounded-md border border-glass bg-surface">
-                  {candidates.map((c) => (
-                    <li key={c.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setContact({ id: c.id, name: c.name });
-                          setPickingContact(false);
-                        }}
-                        className={cn(
-                          "flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon",
-                          contact?.id === c.id && "bg-focused text-lit",
-                        )}
-                      >
-                        <span className="font-medium text-fg">
-                          {c.name || c.email || c.phone_number || t("conversations.contact.fallbackName", { id: c.id })}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+          <ContactPicker
+            accountId={accountId}
+            inputId="opp-contact-search"
+            value={contact}
+            onChange={setContact}
+            locked={Boolean(presetContact)}
+          />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

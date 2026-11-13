@@ -175,11 +175,80 @@ class CrmOpportunity(TimestampMixin, table=True):
     )
 
 
+ACTIVITY_KINDS = ("task", "call", "meeting", "email")
+
+
+class CrmActivity(TimestampMixin, table=True):
+    """Something to do (or done) with a contact or an opportunity: a task,
+    a call, a meeting, an email. Krayin's ``activities``, trimmed to what
+    the team uses. When ``due_at`` passes and it isn't done, its owner gets
+    one notification (``reminded_at`` records it; changing the due date
+    re-arms it)."""
+
+    __tablename__ = "crm_activities"
+    __table_args__ = (
+        Index("index_crm_activities_on_account_id", "account_id"),
+        Index("index_crm_activities_on_owner_id", "owner_id"),
+        Index("index_crm_activities_on_contact_id", "contact_id"),
+        Index("index_crm_activities_on_opportunity_id", "opportunity_id"),
+        Index("index_crm_activities_pending_due", "due_at", "done_at", "reminded_at"),
+    )
+
+    id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+        )
+    )
+    kind: str = Field(
+        default="task", sa_column=Column(String(16), nullable=False, server_default="task")
+    )
+    title: str = Field(sa_column=Column(String, nullable=False))
+    description: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    due_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    done_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    owner_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        ),
+    )
+    created_by_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        ),
+    )
+    contact_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True
+        ),
+    )
+    opportunity_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger, ForeignKey("crm_opportunities.id", ondelete="SET NULL"), nullable=True
+        ),
+    )
+    reminded_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+
+
 __all__ = [
+    "ACTIVITY_KINDS",
     "STAGE_KINDS",
     "STAGE_LOST",
     "STAGE_OPEN",
     "STAGE_WON",
+    "CrmActivity",
     "CrmOpportunity",
     "CrmPipeline",
     "CrmStage",

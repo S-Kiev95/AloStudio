@@ -253,3 +253,118 @@ async def test_new_pipeline_and_default_cannot_be_deleted(client, db_session):
     assert (
         await client.delete(f"{_base(owner)}/pipelines/{created.json()['id']}", headers=h)
     ).status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Activities and tasks
+# ---------------------------------------------------------------------------
+async def test_activity_lifecycle_and_filters(client, db_session):
+    owner, h = await _seed(db_session, "-act")
+    contact = Contact(account_id=owner.account.id, name="Lucía")
+    db_session.add(contact)
+    await db_session.flush()
+    opp = (
+        await client.post(
+            f"{_base(owner)}/opportunities",
+            json={"title": "Curso", "contact_id": contact.id},
+            headers=h,
+        )
+    ).json()
+
+    created = await client.post(
+        f"{_base(owner)}/activities",
+        json={
+            "kind": "call",
+            "title": "Llamar para cerrar",
+            "due_at": "2020-01-01T10:00:00Z",
+            "opportunity_id": opp["id"],
+        },
+        headers=h,
+    )
+    assert created.status_code == 200, created.text
+    activity = created.json()
+    # The opportunity's contact comes along; whoever creates it owns it.
+    assert activity["contact_id"] == contact.id
+    assert activity["owner_id"] == owner.user.id
+    assert activity["opportunity"]["title"] == "Curso"
+    await client.post(
+        f"{_base(owner)}/activities", json={"title": "Sin fecha"}, headers=h
+    )
+
+    overdue = (
+        await client.get(f"{_base(owner)}/activities", params={"status": "overdue"}, headers=h)
+    ).json()
+    assert [a["title"] for a in overdue] == ["Llamar para cerrar"]
+    pending = (await client.get(f"{_base(owner)}/activities", headers=h)).json()
+    # Soonest first, the undated ones last.
+    assert [a["title"] for a in pending] == ["Llamar para cerrar", "Sin fecha"]
+
+    done = await client.patch(
+        f"{_base(owner)}/activities/{activity['id']}", json={"done": True}, headers=h
+    )
+    assert done.json()["done_at"] is not None
+    finished = (
+        await client.get(f"{_base(owner)}/activities", params={"status": "done"}, headers=h)
+    ).json()
+    assert [a["id"] for a in finished] == [activity["id"]]
+    by_contact = (
+        await client.get(
+            f"{_base(owner)}/activities", params={"contact_id": contact.id}, headers=h
+        )
+    ).json()
+    assert by_contact == []  # only pending ones by default
+
+    bad = await client.post(
+        f"{_base(owner)}/activities", json={"title": "X", "kind": "lunch"}, headers=h
+    )
+    assert bad.status_code == 422
+
+
+async def test_due_activities_notify_their_owner_once(client, db_session):
+    from datetime import UTC, datetime, timedelta
+
+    from sqlmodel import select
+
+    from app.domains.crm.activities import remind_due_activities
+    from app.domains.notifications.models import Notification
+
+    owner, h = await _seed(db_session, "-remind")
+    past = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
+    future = (datetime.now(UTC) + timedelta(days=1)).isoformat()
+    due = (
+        await client.post(
+            f"{_base(owner)}/activities", json={"title": "Mandar presupuesto", "due_at": past}, headers=h
+        )
+    ).json()
+    await client.post(
+        f"{_base(owner)}/activities", json={"title": "Mañana", "due_at": future}, headers=h
+    )
+    done = (
+        await client.post(
+            f"{_base(owner)}/activities", json={"title": "Hecha", "due_at": past}, headers=h
+        )
+    ).json()
+    await client.patch(f"{_base(owner)}/activities/{done['id']}", json={"done": True}, headers=h)
+
+    ids = await remind_due_activities(db_session)
+    rows = (
+        await db_session.exec(select(Notification).where(Notification.id.in_(ids)))  # type: ignore[union-attr]
+    ).all()
+    mine = [n for n in rows if n.account_id == owner.account.id]
+    assert [(n.primary_actor_id, n.meta["title"]) for n in mine] == [
+        (due["id"], "Mandar presupuesto")
+    ]
+    assert mine[0].user_id == owner.user.id
+    # Once: a second pass doesn't repeat it…
+    again = await remind_due_activities(db_session)
+    assert not [i for i in again if i in ids]
+    # …until the due date changes.
+    earlier = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
+    await client.patch(
+        f"{_base(owner)}/activities/{due['id']}", json={"due_at": earlier}, headers=h
+    )
+    rearmed = await remind_due_activities(db_session)
+    rows = (
+        await db_session.exec(select(Notification).where(Notification.id.in_(rearmed)))  # type: ignore[union-attr]
+    ).all()
+    assert [n.primary_actor_id for n in rows if n.account_id == owner.account.id] == [due["id"]]
