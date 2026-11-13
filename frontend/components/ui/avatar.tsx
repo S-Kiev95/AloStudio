@@ -28,6 +28,7 @@ function hueFor(seed: string): string {
 }
 
 const SIZES = {
+  xs: "h-5 w-5 text-[9px]",
   sm: "h-8 w-8 text-xs",
   md: "h-9 w-9 text-sm",
   lg: "h-11 w-11 text-base",
