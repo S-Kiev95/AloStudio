@@ -1,4 +1,4 @@
-import type { MessageKey } from "@/lib/i18n/translate";
+import { translateOr, type MessageKey } from "@/lib/i18n/translate";
 import { clientT } from "@/lib/i18n/client-t";
 
 /**
@@ -44,8 +44,28 @@ export class ApiError extends Error {
  * day a typo in it is fixed.
  */
 const WORDING_BY_CODE: Record<string, MessageKey> = {
+  // From the backend (app/core/errors.py adds most of them centrally)
   not_authorized: "apiErrors.notAuthorized",
   too_many_attempts: "apiErrors.tooManyAttempts",
+  not_found: "apiErrors.notFound",
+  validation_failed: "apiErrors.validationFailed",
+  invalid_login: "apiErrors.invalidLogin",
+  sign_in_required: "apiErrors.signInRequired",
+  invalid_token: "apiErrors.invalidToken",
+  invalid_sso_token: "apiErrors.invalidSsoToken",
+  sso_disabled: "apiErrors.ssoDisabled",
+  google_disabled: "apiErrors.googleDisabled",
+  google_unreachable: "apiErrors.googleUnreachable",
+  scheduled_in_past: "apiErrors.scheduledInPast",
+  phone_taken: "apiErrors.phoneTaken",
+  blank: "apiErrors.blank",
+  taken: "apiErrors.taken",
+  // From our own route handlers (app/api/auth/*)
+  missing_fields: "apiErrors.missingFields",
+  server_unreachable: "apiErrors.serverUnreachable",
+  no_session: "apiErrors.noSession",
+  google_expired: "apiErrors.googleExpired",
+  sso_token_missing: "apiErrors.ssoTokenMissing",
 };
 
 export function messageFromBody(body: unknown, fallback: string): string {
@@ -53,7 +73,15 @@ export function messageFromBody(body: unknown, fallback: string): string {
     const b = body as Record<string, unknown>;
     const ours =
       typeof b.code === "string" ? WORDING_BY_CODE[b.code] : undefined;
-    if (ours) return clientT()(ours);
+    if (ours) {
+      const t = clientT();
+      // "blank" / "taken" name the field: in our words when we know it.
+      const field =
+        typeof b.field === "string"
+          ? translateOr(t, `apiErrors.fields.${b.field}`, b.field) // i18n-ignore
+          : "";
+      return t(ours, { field });
+    }
     if (typeof b.message === "string") return b.message;
     if (typeof b.error === "string") return b.error;
     if (Array.isArray(b.errors) && typeof b.errors[0] === "string") {

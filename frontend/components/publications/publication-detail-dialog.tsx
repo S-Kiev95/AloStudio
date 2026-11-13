@@ -33,7 +33,7 @@ import {
   PublicationStateBadge,
   TargetStateBadge,
 } from "./publication-state-badge";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 import { createTranslate, type MessageKey, type Translate } from "@/lib/i18n/translate";
 
 const METRIC_FIELDS: { key: MetricName; label: MessageKey }[] = [
@@ -63,8 +63,11 @@ export function formatUpdatedAgo(
   return t("publications.detail.updatedAgo", { ago: t("time.daysAgo", { n: days }) });
 }
 
-export function formatMetricValue(val: number | null | undefined): string {
-  return val == null ? "—" : val.toLocaleString();
+export function formatMetricValue(
+  val: number | null | undefined,
+  intlTag?: string,
+): string {
+  return val == null ? "—" : val.toLocaleString(intlTag);
 }
 
 export function PublicationDetailDialog({
@@ -82,6 +85,7 @@ export function PublicationDetailDialog({
   isAdmin: boolean;
   onEdit?: (pub: Publication) => void;
 }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [error, setError] = useState<ParsedPublicationError | null>(null);
@@ -328,7 +332,7 @@ export function PublicationDetailDialog({
                             {t(mf.label)}
                           </p>
                           <p className="font-numeric text-sm font-semibold tabular-nums text-fg">
-                            {formatMetricValue(target.metrics?.[mf.key])}
+                            {formatMetricValue(target.metrics?.[mf.key], intlTag)}
                           </p>
                         </div>
                       ))}

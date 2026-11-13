@@ -13,7 +13,7 @@ import {
   useUpdateContactNote,
 } from "@/lib/api/contacts";
 import { relativeTime } from "@/lib/time";
-import { useT } from "@/lib/i18n/provider";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 export function NotesPanel({
   accountId,
@@ -106,6 +106,7 @@ function NoteRow({
   contactId: number;
   note: ContactNote;
 }) {
+  const locale = useLocale();
   const t = useT();
   const update = useUpdateContactNote(accountId, contactId);
   const del = useDeleteContactNote(accountId, contactId);
@@ -172,7 +173,7 @@ function NoteRow({
           <div className="flex items-center justify-between text-xs text-fg-muted">
             <span>
               {note.user?.name ?? t("conversations.contact.system")} ·{" "}
-              {note.created_at ? relativeTime(note.created_at) : "—"}
+              {note.created_at ? relativeTime(note.created_at, locale) : "—"}
             </span>
             <div className="flex gap-0.5">
               <button

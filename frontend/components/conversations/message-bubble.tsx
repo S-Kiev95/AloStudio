@@ -12,7 +12,7 @@ import {
 } from "@/lib/api/conversations";
 import { clockTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n/provider";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 type Attachment = NonNullable<Message["attachments"]>[number];
 
@@ -340,6 +340,7 @@ export function MessageBubble({
   /** Replaces the author and time under the bubble. */
   footer?: ReactNode;
 }) {
+  const locale = useLocale();
   const t = useT();
   if (message.message_type === MESSAGE_TYPE.activity) {
     return (
@@ -356,7 +357,7 @@ export function MessageBubble({
 
   const author =
     message.sender?.name?.trim() || (!outgoing ? contactName?.trim() : "");
-  const time = clockTime(message.created_at);
+  const time = clockTime(message.created_at, locale);
   const caption = [author, time].filter(Boolean).join(" · ");
 
   return (

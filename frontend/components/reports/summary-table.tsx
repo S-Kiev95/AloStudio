@@ -12,7 +12,7 @@ import {
 } from "@/lib/api/reports";
 import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 
 const COLUMNS = [
   { key: "conversations_count", label: "reports.cards.conversations", kind: "count" },
@@ -33,11 +33,15 @@ const MONEY_COLUMNS = [
   { key: "cost_per_resolution", label: "reports.table.costPerResolved" },
 ] as const;
 
-function money(value: number | null | undefined, currency?: string | null) {
+function money(
+  value: number | null | undefined,
+  currency: string | null | undefined,
+  intlTag: string,
+) {
   // A null cost is a real state — spend exists but nothing was resolved yet,
   // so there is no per-result figure to divide into.
   if (value == null) return "—";
-  const n = value.toLocaleString("es-AR", {
+  const n = value.toLocaleString(intlTag, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -53,6 +57,7 @@ export function SummaryTable({
   scope: SummaryScope;
   range: ReportRange;
 }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const query = useSummaryReport(accountId, scope, range);
   // Agent rows arrive without a name (just the user id) — resolve from
@@ -144,7 +149,7 @@ export function SummaryTable({
                 const display =
                   c.kind === "duration"
                     ? formatDuration(v)
-                    : v.toLocaleString();
+                    : v.toLocaleString(intlTag);
                 return (
                   <td
                     key={c.key}
@@ -163,7 +168,7 @@ export function SummaryTable({
                       key={c.key}
                       className="px-3 py-2.5 text-right font-numeric tabular-nums text-fg"
                     >
-                      {money(row[c.key], row.currency)}
+                      {money(row[c.key], row.currency, intlTag)}
                     </td>
                   ))
                 : null}

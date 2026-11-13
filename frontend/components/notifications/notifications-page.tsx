@@ -19,13 +19,14 @@ import {
 } from "@/lib/api/notifications";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n/provider";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 /**
  * Full-page notifications inbox. Same actions as the bell dropdown,
  * but paginated + with a filter toggle (all vs unread).
  */
 export function NotificationsPage({ accountId }: { accountId: string }) {
+  const locale = useLocale();
   const t = useT();
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [page, setPage] = useState(1);
@@ -144,7 +145,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
                             n.last_activity_at
                               ? " · "
                               : null}
-                            {relativeTime(n.last_activity_at)}
+                            {relativeTime(n.last_activity_at, locale)}
                           </p>
                         </Link>
                       ) : (
@@ -160,7 +161,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
                             {label}
                           </p>
                           <p className="mt-0.5 font-numeric text-xs tabular-nums text-fg-muted">
-                            {relativeTime(n.last_activity_at)}
+                            {relativeTime(n.last_activity_at, locale)}
                           </p>
                         </>
                       )}

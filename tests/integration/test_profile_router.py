@@ -78,7 +78,8 @@ async def test_show_profile_requires_auth(client):
     # ``{"errors": [...]}`` (NOT the bad-creds string, which is
     # reserved for the ``/auth/sign_in`` failure path).
     assert resp.json() == {
-        "errors": ["You need to sign in or sign up before continuing."]
+        "errors": ["You need to sign in or sign up before continuing."],
+        "code": "sign_in_required",
     }
 
 

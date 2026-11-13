@@ -21,7 +21,7 @@ import { CommentsPanel } from "./comments-panel";
 import { PostAutoreplyRules } from "./post-autoreply-rules";
 import { PostMediaPreview } from "./post-media";
 import { StateBadge } from "./state-badge";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useLocale, useT } from "@/lib/i18n/provider";
 
 export function PostDetail({
   accountId,
@@ -131,22 +131,24 @@ export function PostDetail({
 }
 
 function PostMeta({ post }: { post: InstagramPost }) {
+  const intlTag = useIntlTag();
+  const locale = useLocale();
   const t = useT();
   const rows: { label: string; value: React.ReactNode }[] = [];
 
   if (post.published_at) {
     rows.push({
       label: t("instagram.post.published"),
-      value: new Date(post.published_at).toLocaleString(),
+      value: new Date(post.published_at).toLocaleString(intlTag),
     });
   }
   if (post.scheduled_for) {
     rows.push({
       label: t("instagram.post.scheduled"),
-      value: new Date(post.scheduled_for).toLocaleString(),
+      value: new Date(post.scheduled_for).toLocaleString(intlTag),
     });
   }
-  rows.push({ label: t("contacts.filters.attr.created"), value: relativeTime(post.created_at) });
+  rows.push({ label: t("contacts.filters.attr.created"), value: relativeTime(post.created_at, locale) });
   if (post.ig_media_id) {
     rows.push({ label: "Media ID", value: post.ig_media_id });
   }

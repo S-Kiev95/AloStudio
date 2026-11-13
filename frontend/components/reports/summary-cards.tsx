@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import type { ReportSummary, ReportSummaryWithPrev } from "@/lib/api/reports";
 import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 
 type CardDef = {
@@ -65,11 +65,12 @@ function SummaryCard({
   current: number;
   previous: number;
 }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const value =
     def.kind === "duration"
       ? formatDuration(current)
-      : current.toLocaleString();
+      : current.toLocaleString(intlTag);
 
   const pct =
     previous > 0 ? ((current - previous) / previous) * 100 : null;

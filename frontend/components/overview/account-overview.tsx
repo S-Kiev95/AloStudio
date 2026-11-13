@@ -29,7 +29,7 @@ import {
 } from "@/lib/api/reports";
 
 import { NetworkOrbit } from "./network-orbit";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 
 const LIVE: {
@@ -92,6 +92,7 @@ function LiveCard({
   value: number | undefined;
   loading: boolean;
 }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const Icon = def.icon;
   return (
@@ -104,7 +105,7 @@ function LiveCard({
       </span>
       <div className="min-w-0">
         <p className="font-numeric text-2xl font-semibold leading-none tabular-nums text-fg">
-          {loading ? "—" : (value ?? 0).toLocaleString()}
+          {loading ? "—" : (value ?? 0).toLocaleString(intlTag)}
         </p>
         <p className="mt-1.5 truncate text-xs text-fg-muted">{t(def.label)}</p>
       </div>
@@ -147,6 +148,7 @@ function ActionRow({
  * client-side because the metrics are live queries.
  */
 export function AccountOverview({ accountId }: { accountId: string }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const shell = useContext(PageSignContext);
   useEffect(() => {
@@ -229,7 +231,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
               <p className="text-xs text-fg-muted">{t("overview.last7")}</p>
             </div>
             <p className="font-numeric text-2xl font-semibold tabular-nums text-fg">
-              {summary.data?.conversations_count?.toLocaleString() ?? "—"}
+              {summary.data?.conversations_count?.toLocaleString(intlTag) ?? "—"}
             </p>
           </div>
           {series.isLoading ? (
@@ -237,7 +239,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
           ) : (
             <MetricChart
               data={series.data ?? []}
-              formatValue={(v) => v.toLocaleString()}
+              formatValue={(v) => v.toLocaleString(intlTag)}
             />
           )}
         </Card>

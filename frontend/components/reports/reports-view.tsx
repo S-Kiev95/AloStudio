@@ -28,7 +28,7 @@ import { MetricChart } from "./metric-chart";
 import { SummaryCards } from "./summary-cards";
 import { SummaryTable } from "./summary-table";
 import { TrafficHeatmap } from "./traffic-heatmap";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 
 const RANGES = [
   { value: 7, label: "reports.range.d7" },
@@ -45,6 +45,7 @@ const LIVE_CARDS = [
 
 
 export function ReportsView({ accountId }: { accountId: string }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const [days, setDays] = useState<number>(30);
   const [metric, setMetric] = useState<MetricKey>("conversations_count");
@@ -60,7 +61,7 @@ export function ReportsView({ accountId }: { accountId: string }) {
   const isAvg =
     TIMESERIES_METRICS.find((m) => m.key === metric)?.kind === "avg";
   const formatValue = (v: number) =>
-    isAvg ? formatDuration(v) : v.toLocaleString();
+    isAvg ? formatDuration(v) : v.toLocaleString(intlTag);
 
   return (
     <div className="space-y-5">
@@ -85,7 +86,7 @@ export function ReportsView({ accountId }: { accountId: string }) {
               {t(c.label)}
             </p>
             <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
-              {live.isLoading ? "…" : (live.data?.[c.key] ?? 0).toLocaleString()}
+              {live.isLoading ? "…" : (live.data?.[c.key] ?? 0).toLocaleString(intlTag)}
             </p>
           </Card>
         ))}

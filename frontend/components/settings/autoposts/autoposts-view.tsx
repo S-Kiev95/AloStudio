@@ -39,7 +39,7 @@ import { INTL_TAGS, type Locale } from "@/lib/i18n/config";
 import type { Translate } from "@/lib/i18n/translate";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { useLocale, useT } from "@/lib/i18n/provider";
+import { useIntlTag, useLocale, useT } from "@/lib/i18n/provider";
 
 type ChannelScope = "all" | "selected";
 
@@ -60,14 +60,15 @@ function formatReviewedAgo(
   });
 }
 
-function formatPreviewDate(iso: string | null): string | null {
+function formatPreviewDate(iso: string | null, intlTag: string): string | null {
   if (!iso) return null;
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return null;
-  return new Date(ms).toLocaleDateString();
+  return new Date(ms).toLocaleDateString(intlTag);
 }
 
 export function AutopostsView({ accountId }: { accountId: string }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const locale = useLocale();
   const isAdmin = useIsAccountAdmin(accountId);
@@ -548,7 +549,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                   ) : (
                     <ul className="divide-y divide-glass">
                       {previewItems.map((entry, idx) => {
-                        const dateStr = formatPreviewDate(entry.published_at);
+                        const dateStr = formatPreviewDate(entry.published_at, intlTag);
                         return (
                           <li
                             key={`${entry.link}-${idx}`}

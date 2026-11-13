@@ -128,7 +128,7 @@ async def test_non_member_gets_404(client, seeded):
     # Unknown account → 404 (``Resource could not be found``), not 401.
     resp = await client.get("/api/v1/accounts/999999/contacts", headers=admin_h)
     assert resp.status_code == 404
-    assert resp.json() == {"error": "Resource could not be found"}
+    assert resp.json() == {"error": "Resource could not be found", "code": "not_found"}
 
 
 # ---------------------------------------------------------------------------

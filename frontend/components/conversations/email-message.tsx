@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import type { Message } from "@/lib/api/conversations";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 
 type EmailMeta = NonNullable<
   NonNullable<Message["content_attributes"]>["email"]
@@ -28,6 +28,7 @@ export function EmailMessage({
   message: Message;
   defaultOpen: boolean;
 }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const [open, setOpen] = useState(defaultOpen);
   const meta = message.content_attributes?.email;
@@ -85,7 +86,7 @@ export function EmailMessage({
             </span>
           ) : null}
           <time className="font-numeric text-xs tabular-nums text-fg-muted">
-            {new Date(message.created_at * 1000).toLocaleString()}
+            {new Date(message.created_at * 1000).toLocaleString(intlTag)}
           </time>
           <ChevronDown
             aria-hidden

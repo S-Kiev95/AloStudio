@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 import { ChannelBadge, channelLabel } from "./channel-badge";
 import { ConversationFilters } from "./conversation-filters";
 import { PanelLeftClose, useInboxPanels } from "./inbox-shell";
-import { useT } from "@/lib/i18n/provider";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 const STATUS_PILLS = [
   { key: "open", label: "conversations.list.status.open" },
@@ -657,6 +657,7 @@ function ConversationRow({
   selected: boolean;
   onToggle: () => void;
 }) {
+  const locale = useLocale();
   const t = useT();
   const name =
     conv.meta?.sender?.name ??
@@ -729,7 +730,7 @@ function ConversationRow({
               </Megaphone>
             ) : null}
             <span className="shrink-0 font-numeric text-[11px] tabular-nums text-fg-muted">
-              {shortDate(conv.last_activity_at || conv.timestamp)}
+              {shortDate(conv.last_activity_at || conv.timestamp, locale)}
             </span>
           </div>
           <div className="mt-0.5 flex items-center gap-2">

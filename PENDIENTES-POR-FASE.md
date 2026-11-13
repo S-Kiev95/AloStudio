@@ -53,7 +53,7 @@ anota en esta sección y lo decide el dueño.
 | F10 Jev y Laya | B | Sin empezar |
 | F11 CRM (Krayin) | B | Sin empezar |
 | F12 Grafos | B | Sin empezar |
-| F13 Multi-idioma | B | Interfaz en 7 idiomas, correos y avisos en el idioma del destinatario, en develop (2026-11-12); falta el bot que atiende clientes (externo), errores de la API y revisión en navegador |
+| F13 Multi-idioma | B | Hecha (2026-11-12), en develop: 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en develop; falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 
@@ -205,11 +205,14 @@ Detalle en `PLAN.i18n.md`.
   contraseña, invitaciones, avisos), avisos push y por WhatsApp en el idioma
   de cada destinatario (`app/core/i18n/`); Instalación y Plugs traducidos
   en el panel; quien nunca eligió idioma queda con el que ve al entrar.
-- **Falta:** confirmar con el dueño cuál es el bot que atiende clientes
-  (entra de afuera; en el repo no hay uno) y aplicarle la regla de idioma
-  que está en `INTEGRATIONS.md`. Además: errores de la
-  API como códigos traducibles, la plantilla de WhatsApp aprobada en otros
-  idiomas, y revisar las pantallas en el navegador en cada idioma.
+- **También hecho:** errores de la API con códigos que el panel traduce;
+  fechas y números en el idioma del panel; revisión en el navegador; guía
+  de la plantilla de WhatsApp en cada idioma (`docs/whatsapp-aviso-derivacion.md`).
+- **Decidido:** español como idioma por defecto (el inglés, el día que haya
+  público internacional). El bot de clientes, más adelante y por fuera del
+  sistema, usando la CLI o el MCP.
+- **Falta:** cargar y aprobar en Meta las variantes de la plantilla de
+  WhatsApp en los idiomas que se usen.
 
 ## F14. Foto del contacto
 

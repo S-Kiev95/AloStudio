@@ -18,7 +18,7 @@ import {
   useReportTimeseries,
 } from "@/lib/api/reports";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 
 const AVAILABILITY_CHIP: Record<string, { label: MessageKey; className: string }> = {
@@ -56,6 +56,7 @@ function StatCard({
 }
 
 export function InboxReportsView({ accountId }: { accountId: string }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const range = useMemo(() => rangeForDays(7), []);
   const live = useLiveMetrics(accountId);
@@ -124,27 +125,27 @@ export function InboxReportsView({ accountId }: { accountId: string }) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label={t("conversations.reports.open")}
-          value={(live.data?.open ?? 0).toLocaleString()}
+          value={(live.data?.open ?? 0).toLocaleString(intlTag)}
           loading={live.isLoading}
         />
         <StatCard
           label={t("conversations.reports.resolved")}
-          value={(summary.data?.resolutions_count ?? 0).toLocaleString()}
+          value={(summary.data?.resolutions_count ?? 0).toLocaleString(intlTag)}
           loading={summary.isLoading}
         />
         <StatCard
           label={t("conversations.reports.pending")}
-          value={(live.data?.pending ?? 0).toLocaleString()}
+          value={(live.data?.pending ?? 0).toLocaleString(intlTag)}
           loading={live.isLoading}
         />
         <StatCard
           label={t("conversations.reports.messagesToday")}
-          value={messagesToday.toLocaleString()}
+          value={messagesToday.toLocaleString(intlTag)}
           loading={seriesLoading}
         />
         <StatCard
           label={t("conversations.reports.contacts")}
-          value={(contacts.data?.meta.count ?? 0).toLocaleString()}
+          value={(contacts.data?.meta.count ?? 0).toLocaleString(intlTag)}
           loading={contacts.isLoading}
         />
         <StatCard
@@ -164,7 +165,7 @@ export function InboxReportsView({ accountId }: { accountId: string }) {
               ? "—"
               : messagesSeries
                   .reduce((acc, p) => acc + p.value, 0)
-                  .toLocaleString()}
+                  .toLocaleString(intlTag)}
           </span>
         </div>
         {seriesLoading ? (
@@ -172,7 +173,7 @@ export function InboxReportsView({ accountId }: { accountId: string }) {
         ) : (
           <MetricChart
             data={messagesSeries}
-            formatValue={(v) => v.toLocaleString()}
+            formatValue={(v) => v.toLocaleString(intlTag)}
           />
         )}
       </Card>

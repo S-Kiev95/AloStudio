@@ -15,7 +15,7 @@ import {
   useReplyComment,
 } from "@/lib/api/instagram-comments";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 
 /**
  * Comments moderation for a published post. The GET does a live Meta sync and
@@ -160,6 +160,7 @@ function CommentRow({
   comment: IgComment;
   canReply?: boolean;
 }) {
+  const intlTag = useIntlTag();
   const t = useT();
   const hide = useHideComment(accountId, postId);
   const del = useDeleteComment(accountId, postId);
@@ -211,7 +212,7 @@ function CommentRow({
           </p>
           {comment.ig_created_at ? (
             <p className="mt-0.5 text-xs text-fg-muted">
-              {new Date(comment.ig_created_at).toLocaleString()}
+              {new Date(comment.ig_created_at).toLocaleString(intlTag)}
             </p>
           ) : null}
         </div>
