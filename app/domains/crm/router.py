@@ -16,6 +16,10 @@ Route map, under ``/api/v1/accounts/{account_id}/crm``:
   * ``POST   /activities``
   * ``PATCH  /activities/{id}``            — ``done: true`` marks it done
   * ``DELETE /activities/{id}``
+  * ``GET    /companies``                  — filters: q, contact_id (its company)
+  * ``POST   /companies``, ``GET|PATCH|DELETE /companies/{id}``
+  * ``POST   /companies/{id}/contacts``    — ``{contact_id}`` joins it
+  * ``DELETE /companies/{id}/contacts/{contact_id}``
 
 Selling is every agent's work: any member reads and edits opportunities;
 shaping the pipeline is for administrators.
@@ -32,14 +36,23 @@ from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
 from app.domains.crm import activities as act
+from app.domains.crm import companies as comp
 from app.domains.crm import service as svc
-from app.domains.crm.models import CrmActivity, CrmOpportunity, CrmPipeline
+from app.domains.crm.models import CrmActivity, CrmCompany, CrmOpportunity, CrmPipeline
 from app.domains.crm.presenters import (
     present_activities,
+    present_company,
+    present_company_contact,
     present_opportunities,
     present_pipeline,
 )
-from app.domains.crm.schemas import ActivityBody, OpportunityBody, PipelineBody
+from app.domains.crm.schemas import (
+    ActivityBody,
+    CompanyBody,
+    CompanyContactBody,
+    OpportunityBody,
+    PipelineBody,
+)
 
 router = APIRouter(prefix="/api/v1/accounts/{account_id}/crm", tags=["crm"])
 
@@ -141,6 +154,7 @@ async def index_opportunities(
     owner_id: int | None = None,
     status: str | None = None,
     q: str | None = None,
+    company_id: int | None = None,
 ) -> list[dict[str, Any]]:
     rows = await svc.list_opportunities(
         session,
@@ -150,6 +164,7 @@ async def index_opportunities(
         owner_id=owner_id,
         status=status,
         q=q,
+        company_id=company_id,
     )
     return await present_opportunities(session, rows)
 
@@ -276,6 +291,123 @@ async def destroy_activity(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     await act.delete_activity(session, activity=await _activity(session, ctx, activity_id))
+    return {}
+
+
+
+# ---------------------------------------------------------------------------
+# Companies
+# ---------------------------------------------------------------------------
+async def _company(session: AsyncSession, ctx: AccountContext, company_id: int) -> CrmCompany:
+    row = await comp.get_company(session, account_id=_account_id(ctx), company_id=company_id)
+    if row is None:
+        raise ChatwootHTTPException(status_code=404, detail=_NOT_FOUND)
+    return row
+
+
+async def _present_company(session: AsyncSession, company: CrmCompany) -> dict[str, Any]:
+    assert company.id is not None
+    counts = await comp.contact_counts(session, [company.id])
+    return present_company(company, counts.get(company.id, 0))
+
+
+@router.get("/companies")
+async def index_companies(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    q: str | None = None,
+    contact_id: int | None = None,
+) -> list[dict[str, Any]]:
+    rows = await comp.list_companies(
+        session, account_id=_account_id(ctx), q=q, contact_id=contact_id
+    )
+    counts = await comp.contact_counts(session, [r.id for r in rows if r.id is not None])
+    return [present_company(r, counts.get(r.id or 0, 0)) for r in rows]
+
+
+@router.post("/companies")
+async def create_company(
+    body: CompanyBody,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    row = await comp.save_company(
+        session,
+        account_id=_account_id(ctx),
+        company=None,
+        payload=body.model_dump(exclude_unset=True),
+    )
+    return await _present_company(session, row)
+
+
+@router.get("/companies/{company_id}")
+async def show_company(
+    company_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    company = await _company(session, ctx, company_id)
+    body = await _present_company(session, company)
+    body["contacts"] = [
+        present_company_contact(c) for c in await comp.company_contacts(session, company)
+    ]
+    return body
+
+
+@router.patch("/companies/{company_id}")
+async def update_company(
+    company_id: Annotated[int, Path()],
+    body: CompanyBody,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    row = await comp.save_company(
+        session,
+        account_id=_account_id(ctx),
+        company=await _company(session, ctx, company_id),
+        payload=body.model_dump(exclude_unset=True),
+    )
+    return await _present_company(session, row)
+
+
+@router.delete("/companies/{company_id}")
+async def destroy_company(
+    company_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    await comp.delete_company(session, company=await _company(session, ctx, company_id))
+    return {}
+
+
+@router.post("/companies/{company_id}/contacts")
+async def add_company_contact(
+    company_id: Annotated[int, Path()],
+    body: CompanyContactBody,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    company = await _company(session, ctx, company_id)
+    contact = await comp.set_contact_company(
+        session, account_id=_account_id(ctx), contact_id=body.contact_id, company=company
+    )
+    return present_company_contact(contact)
+
+
+@router.delete("/companies/{company_id}/contacts/{contact_id}")
+async def remove_company_contact(
+    company_id: Annotated[int, Path()],
+    contact_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    company = await _company(session, ctx, company_id)
+    members = {c.id for c in await comp.company_contacts(session, company)}
+    if contact_id not in members:
+        raise ChatwootHTTPException(status_code=404, detail=_NOT_FOUND)
+    await comp.set_contact_company(
+        session, account_id=_account_id(ctx), contact_id=contact_id, company=None
+    )
     return {}
 
 

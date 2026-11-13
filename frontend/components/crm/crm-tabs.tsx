@@ -10,6 +10,7 @@ export function CrmTabs({ accountId }: { accountId: string }) {
   const pathname = usePathname() ?? "";
   const tabs = [
     { href: `/accounts/${accountId}/contacts`, label: t("crm.contacts") },
+    { href: `/accounts/${accountId}/companies`, label: t("companies.pageTitle") },
     { href: `/accounts/${accountId}/opportunities`, label: t("opportunities.pageTitle") },
     { href: `/accounts/${accountId}/tasks`, label: t("activities.pageTitle") },
     { href: `/accounts/${accountId}/products`, label: t("crm.products") },

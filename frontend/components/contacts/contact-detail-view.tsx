@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { ContactAppointmentsCard } from "@/components/agenda/contact-appointments-card";
 import { ContactActivitiesCard } from "@/components/crm/contact-activities-card";
+import { ContactCompanyCard } from "@/components/crm/contact-company-card";
 import { ContactOpportunitiesCard } from "@/components/crm/contact-opportunities-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,6 +125,8 @@ export function ContactDetailView({
               router.push(`/accounts/${accountId}/contacts`);
             }}
           />
+
+          <ContactCompanyCard accountId={accountId} contactId={contact.id} />
 
           <ContactOpportunitiesCard accountId={accountId} contact={contact} />
 

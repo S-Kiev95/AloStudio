@@ -1,0 +1,30 @@
+import type { companies as es } from "../es/companies";
+import type { Strings } from "../types";
+
+export const companies: Strings<typeof es> = {
+  pageTitle: "Entreprises",
+  new: "Nouvelle entreprise",
+  create: "Créer l’entreprise",
+  company: "Entreprise",
+  assign: "Associer une entreprise",
+  createNamed: "Créer « {name} »",
+  back: "Retour aux entreprises",
+  details: "Informations de l’entreprise",
+  people: "Personnes",
+  peopleOne: "{count} personne",
+  peopleMany: "{count} personnes",
+  noPeople: "Aucune personne dans cette entreprise pour l’instant.",
+  removePerson: "Retirer {name} de l’entreprise",
+  noOpportunities: "Les personnes de cette entreprise n’ont pas d’opportunités.",
+  nameRequired: "Le nom est obligatoire.",
+  saveFailed: "Impossible d’enregistrer l’entreprise.",
+  loadFailed: "Impossible de charger les entreprises.",
+  deleteConfirm: "Supprimer l’entreprise « {name} » ? Ses personnes restent sans entreprise.",
+  empty: "Aucune entreprise pour l’instant.",
+  noneFound: "Aucune entreprise trouvée.",
+  search: "Rechercher des entreprises",
+  website: "Site web",
+  taxId: "Numéro fiscal (SIRET)",
+  address: "Adresse",
+  addPerson: "Ajouter une personne",
+};

@@ -73,6 +73,7 @@ export type StageInput = {
 };
 
 export type OpportunityFilters = {
+  company_id?: number;
   pipeline_id?: number;
   contact_id?: number;
   owner_id?: number;
@@ -259,5 +260,108 @@ export function useDeleteActivity(accountId: string) {
         method: "DELETE",
       }),
     onSuccess: () => invalidateActivities(qc, accountId),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Companies
+// ---------------------------------------------------------------------------
+export type Company = {
+  id: number;
+  name: string;
+  website: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  tax_id: string | null;
+  notes: string | null;
+  contacts_count: number;
+  created_at: number | null;
+};
+
+export type CompanyContact = {
+  id: number;
+  name: string | null;
+  email: string | null;
+  phone_number: string | null;
+  avatar_url: string | null;
+};
+
+export type CompanyDetail = Company & { contacts: CompanyContact[] };
+
+export type CompanyInput = {
+  name?: string;
+  website?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  tax_id?: string | null;
+  notes?: string | null;
+};
+
+export function useCompanies(accountId: string, filters: { q?: string; contact_id?: number } = {}) {
+  return useQuery({
+    queryKey: ["crm-companies", accountId, filters],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      if (filters.q?.trim()) sp.set("q", filters.q.trim());
+      if (filters.contact_id !== undefined) sp.set("contact_id", String(filters.contact_id));
+      const qs = sp.toString();
+      return apiFetch<Company[]>(`${base(accountId)}/companies${qs ? `?${qs}` : ""}`);
+    },
+  });
+}
+
+export function useCompany(accountId: string, companyId: number) {
+  return useQuery({
+    queryKey: ["crm-companies", accountId, "detail", companyId],
+    queryFn: () => apiFetch<CompanyDetail>(`${base(accountId)}/companies/${companyId}`),
+  });
+}
+
+function invalidateCompanies(qc: ReturnType<typeof useQueryClient>, accountId: string) {
+  qc.invalidateQueries({ queryKey: ["crm-companies", accountId] });
+  // A company's opportunities follow its people.
+  qc.invalidateQueries({ queryKey: ["crm-opportunities", accountId] });
+}
+
+export function useSaveCompany(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id?: number; data: CompanyInput }) =>
+      apiFetch<Company>(
+        input.id ? `${base(accountId)}/companies/${input.id}` : `${base(accountId)}/companies`,
+        { method: input.id ? "PATCH" : "POST", body: JSON.stringify(input.data) },
+      ),
+    onSuccess: () => invalidateCompanies(qc, accountId),
+  });
+}
+
+export function useDeleteCompany(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Record<string, never>>(`${base(accountId)}/companies/${id}`, { method: "DELETE" }),
+    onSuccess: () => invalidateCompanies(qc, accountId),
+  });
+}
+
+/** Put a contact in a company (``companyId``) or take it out of ``fromId``. */
+export function useSetContactCompany(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { contactId: number; companyId: number | null; fromId?: number | null }) => {
+      if (input.companyId !== null) {
+        await apiFetch(`${base(accountId)}/companies/${input.companyId}/contacts`, {
+          method: "POST",
+          body: JSON.stringify({ contact_id: input.contactId }),
+        });
+      } else if (input.fromId) {
+        await apiFetch(`${base(accountId)}/companies/${input.fromId}/contacts/${input.contactId}`, {
+          method: "DELETE",
+        });
+      }
+    },
+    onSuccess: () => invalidateCompanies(qc, accountId),
   });
 }

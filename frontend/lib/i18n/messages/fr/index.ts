@@ -1,6 +1,7 @@
 import type { Messages } from "../es";
 
 import { core } from "./core";
+import { companies } from "./companies";
 import { activities } from "./activities";
 import { opportunities } from "./opportunities";
 import { igCapabilities } from "./igCapabilities";
@@ -53,6 +54,7 @@ import { actions } from "./actions";
 
 export const fr: Messages = {
   ...core,
+  companies,
   activities,
   opportunities,
   igCapabilities,

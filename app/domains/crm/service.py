@@ -361,6 +361,7 @@ async def list_opportunities(
     owner_id: int | None = None,
     status: str | None = None,
     q: str | None = None,
+    company_id: int | None = None,
     limit: int = 500,
 ) -> list[CrmOpportunity]:
     stmt = select(CrmOpportunity).where(CrmOpportunity.account_id == account_id)
@@ -370,6 +371,15 @@ async def list_opportunities(
         stmt = stmt.where(CrmOpportunity.contact_id == contact_id)
     if owner_id is not None:
         stmt = stmt.where(CrmOpportunity.owner_id == owner_id)
+    if company_id is not None:
+        # The company's opportunities are its people's.
+        stmt = stmt.where(
+            col(CrmOpportunity.contact_id).in_(
+                select(Contact.id).where(
+                    Contact.company_id == company_id, Contact.account_id == account_id
+                )
+            )
+        )
     if status in STAGE_KINDS:
         stmt = stmt.join(CrmStage, col(CrmStage.id) == CrmOpportunity.stage_id).where(
             CrmStage.kind == status

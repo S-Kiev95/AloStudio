@@ -368,3 +368,91 @@ async def test_due_activities_notify_their_owner_once(client, db_session):
         await db_session.exec(select(Notification).where(Notification.id.in_(rearmed)))  # type: ignore[union-attr]
     ).all()
     assert [n.primary_actor_id for n in rows if n.account_id == owner.account.id] == [due["id"]]
+
+
+# ---------------------------------------------------------------------------
+# Companies
+# ---------------------------------------------------------------------------
+async def test_company_with_its_people_and_their_opportunities(client, db_session):
+    owner, h = await _seed(db_session, "-comp")
+    ana = Contact(account_id=owner.account.id, name="Ana")
+    beto = Contact(account_id=owner.account.id, name="Beto")
+    db_session.add_all([ana, beto])
+    await db_session.flush()
+
+    created = await client.post(
+        f"{_base(owner)}/companies",
+        json={"name": " Colegio Norte ", "website": "colegionorte.edu.uy", "phone": ""},
+        headers=h,
+    )
+    assert created.status_code == 200, created.text
+    company = created.json()
+    assert company["name"] == "Colegio Norte" and company["phone"] is None
+    assert company["contacts_count"] == 0
+
+    for contact in (ana, beto):
+        resp = await client.post(
+            f"{_base(owner)}/companies/{company['id']}/contacts",
+            json={"contact_id": contact.id},
+            headers=h,
+        )
+        assert resp.status_code == 200
+    shown = (await client.get(f"{_base(owner)}/companies/{company['id']}", headers=h)).json()
+    assert [c["name"] for c in shown["contacts"]] == ["Ana", "Beto"]
+    assert shown["contacts_count"] == 2
+
+    # Which company a contact belongs to.
+    mine = (
+        await client.get(f"{_base(owner)}/companies", params={"contact_id": ana.id}, headers=h)
+    ).json()
+    assert [c["id"] for c in mine] == [company["id"]]
+
+    # The company's opportunities are its people's.
+    await client.post(
+        f"{_base(owner)}/opportunities", json={"title": "Convenio", "contact_id": ana.id}, headers=h
+    )
+    await client.post(f"{_base(owner)}/opportunities", json={"title": "Suelta"}, headers=h)
+    opps = (
+        await client.get(
+            f"{_base(owner)}/opportunities", params={"company_id": company["id"]}, headers=h
+        )
+    ).json()
+    assert [o["title"] for o in opps] == ["Convenio"]
+
+    removed = await client.delete(
+        f"{_base(owner)}/companies/{company['id']}/contacts/{beto.id}", headers=h
+    )
+    assert removed.status_code == 200
+    assert (await client.get(f"{_base(owner)}/companies", headers=h)).json()[0][
+        "contacts_count"
+    ] == 1
+
+    # Deleting the company leaves its people without one.
+    assert (
+        await client.delete(f"{_base(owner)}/companies/{company['id']}", headers=h)
+    ).status_code == 200
+    await db_session.refresh(ana)
+    assert ana.company_id is None
+
+
+async def test_company_needs_a_name_and_stays_in_its_account(client, db_session):
+    owner, h = await _seed(db_session, "-comp2")
+    other, oh = await _seed(db_session, "-comp2-other")
+    blank = await client.post(f"{_base(owner)}/companies", json={"name": ""}, headers=h)
+    assert blank.status_code == 422 and blank.json()["code"] == "blank"
+    theirs = (
+        await client.post(f"{_base(other)}/companies", json={"name": "Ajena"}, headers=oh)
+    ).json()
+    assert (
+        await client.get(f"{_base(owner)}/companies/{theirs['id']}", headers=h)
+    ).status_code == 404
+    foreign = Contact(account_id=other.account.id, name="Ajeno")
+    db_session.add(foreign)
+    await db_session.flush()
+    mine = (await client.post(f"{_base(owner)}/companies", json={"name": "Mía"}, headers=h)).json()
+    resp = await client.post(
+        f"{_base(owner)}/companies/{mine['id']}/contacts",
+        json={"contact_id": foreign.id},
+        headers=h,
+    )
+    assert resp.status_code == 422
