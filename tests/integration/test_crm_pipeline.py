@@ -456,3 +456,114 @@ async def test_company_needs_a_name_and_stays_in_its_account(client, db_session)
         headers=h,
     )
     assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Contact origin
+# ---------------------------------------------------------------------------
+async def _api_conversation(db_session, owner, contact):
+    from app.domains.contacts.service import ContactInboxBuilder
+    from app.domains.conversations.service import (
+        ConversationBuilderParams,
+        create_conversation,
+    )
+    from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
+
+    inbox = (
+        await InboxBuilder(
+            db_session,
+            InboxBuilderParams(
+                account=owner.account,
+                name="API",
+                channel_type="api",
+                channel_params={"webhook_url": "https://example.com/h"},
+            ),
+        ).perform()
+    ).inbox
+    contact_inbox = await ContactInboxBuilder(
+        session=db_session, contact=contact, inbox=inbox
+    ).perform()
+    return await create_conversation(
+        db_session, contact_inbox=contact_inbox, params=ConversationBuilderParams()
+    )
+
+
+async def test_first_conversation_sets_origin_and_ad_upgrades_it(db_session) -> None:
+    from app.domains.crm.origin import stamp_from_referral
+
+    owner, _ = await _seed(db_session, "or1")
+    contact = Contact(account_id=owner.account.id, name="Lucía")
+    db_session.add(contact)
+    await db_session.flush()
+
+    conv = await _api_conversation(db_session, owner, contact)
+    await db_session.flush()
+    await db_session.refresh(contact)
+    assert (contact.source, contact.source_channel) == ("channel", "api")
+    assert contact.source_conversation_id == conv.id
+
+    conv.ad_source, conv.ad_id, conv.ad_headline = "ad", "123", "Inscripciones 2027"
+    assert await stamp_from_referral(db_session, conv)
+    await db_session.flush()
+    await db_session.refresh(contact)
+    assert (contact.source, contact.source_ad_id, contact.source_detail) == (
+        "ad",
+        "123",
+        "Inscripciones 2027",
+    )
+
+    # A second conversation never rewrites the first touch.
+    second = await _api_conversation(db_session, owner, contact)
+    second.ad_source, second.ad_id = "post", "999"
+    assert not await stamp_from_referral(db_session, second)
+    await db_session.refresh(contact)
+    assert contact.source_ad_id == "123"
+
+
+async def test_origin_set_by_hand_shown_and_filterable(client, db_session) -> None:
+    owner, headers = await _seed(db_session, "or2")
+    picked = Contact(account_id=owner.account.id, name="Marta")
+    other = Contact(account_id=owner.account.id, name="Nico")
+    db_session.add_all([picked, other])
+    await db_session.flush()
+    base = _base(owner)
+
+    res = await client.put(
+        f"{base}/contacts/{picked.id}/origin",
+        json={"source": "referral", "detail": "  La recomendó Juan "},
+        headers=headers,
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["origin"]["source"] == "referral"
+    assert res.json()["origin"]["detail"] == "La recomendó Juan"
+
+    bad = await client.put(
+        f"{base}/contacts/{picked.id}/origin", json={"source": "magic"}, headers=headers
+    )
+    assert bad.status_code == 422
+
+    contacts = f"/api/v1/accounts/{owner.account.id}/contacts"
+    shown = await client.get(f"{contacts}/{picked.id}", headers=headers)
+    assert shown.json()["payload"]["origin"]["source"] == "referral"
+
+    found = await client.post(
+        f"{contacts}/filter",
+        json={
+            "payload": [
+                {
+                    "attribute_key": "source",
+                    "filter_operator": "equal_to",
+                    "values": ["referral"],
+                    "query_operator": "AND",
+                }
+            ]
+        },
+        headers=headers,
+    )
+    assert found.status_code == 200, found.text
+    assert [c["id"] for c in found.json()["payload"]] == [picked.id]
+
+    cleared = await client.put(
+        f"{base}/contacts/{picked.id}/origin", json={"source": None}, headers=headers
+    )
+    assert cleared.json()["origin"] is None

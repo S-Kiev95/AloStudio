@@ -115,6 +115,7 @@ class Contact(TimestampMixin, table=True):
         ),
         Index("index_contacts_on_blocked", "blocked"),
         Index("index_contacts_on_company_id", "company_id"),
+        Index("index_contacts_on_account_id_and_source", "account_id", "source"),
         # Case-insensitive email index — matches Rails'
         # ``index_contacts_on_lower_email_account_id (lower(email),
         # account_id)`` functional index.
@@ -205,6 +206,21 @@ class Contact(TimestampMixin, table=True):
 
     # ------- company FK column kept for schema parity, no FK declared --------
     company_id: int | None = Field(default=None, sa_column=Column(BigInteger, nullable=True))
+
+    # ------- origin: how this person first reached the business (F11) -------
+    # ``source`` is a code (``channel``, ``ad``, ``post``, ``shortlink`` set
+    # automatically; ``referral``, ``event``… set by hand); see
+    # ``app/domains/crm/origin.py``. First touch wins.
+    source: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    source_channel: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    source_detail: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    source_ad_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    source_conversation_id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
+    )
+    source_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
 
     # Relationships
     account: "Account" = Relationship(sa_relationship_kwargs={"lazy": "selectin"})

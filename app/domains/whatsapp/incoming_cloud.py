@@ -679,6 +679,9 @@ async def _process_value(
         # conversation is already attributed when listeners fan out.
         if stamp_conversation(conversation, parse_whatsapp_referral(msg)):
             session.add(conversation)
+            from app.domains.crm.origin import stamp_from_referral
+
+            await stamp_from_referral(session, conversation)
 
         body = _message_text(msg)
         attachments, media_caption = await _build_media_attachments(

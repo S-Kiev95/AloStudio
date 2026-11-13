@@ -1,19 +1,10 @@
 "use client";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  Mail,
-  Phone,
-  Plus,
-  Search,
-  SlidersHorizontal,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Compass, Mail, Phone, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { useOriginSummary } from "@/components/crm/contact-origin-card";
 import { PageHeader } from "@/components/shell/page-header";
 import { Avatar } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
@@ -319,6 +310,7 @@ function ContactRow({
     }
   }
 
+  const originSummary = useOriginSummary();
   const displayName =
     contact.name?.trim() ||
     contact.email?.trim() ||
@@ -357,6 +349,12 @@ function ContactRow({
             {!contact.email && !contact.phone_number && contact.identifier
               ? `id ${contact.identifier}`
               : null}
+            {contact.origin ? (
+              <span className="flex items-center gap-1">
+                <Compass className="h-3 w-3" aria-hidden />
+                {originSummary(contact.origin)}
+              </span>
+            ) : null}
           </p>
           {error ? (
             <p role="alert" className="text-xs text-danger">

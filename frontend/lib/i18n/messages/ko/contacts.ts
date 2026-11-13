@@ -20,6 +20,9 @@ export const contacts: Strings<typeof es> = {
       company: "회사",
       blocked: "차단됨",
       created: "생성일",
+      source: "유입 경로",
+      sourceChannel: "유입 채널",
+      sourceDetail: "유입 경로 세부 정보",
     },
     saveAsSegment: "세그먼트로 저장…",
     segmentName: "세그먼트 이름",
@@ -80,4 +83,10 @@ export const contacts: Strings<typeof es> = {
   pageOfOne: "{pages}페이지 중 {n}페이지 · 연락처 {count}개",
   pageOfMany: "{pages}페이지 중 {n}페이지 · 연락처 {count}개",
   deleteConfirm: "“{name}” 연락처를 삭제할까요?",
+  photo: {
+    change: "사진 변경",
+    remove: "사진 삭제",
+    invalid: "사진은 2MB 이하의 JPG, PNG, WebP 또는 GIF여야 합니다.",
+    failed: "사진을 저장하지 못했습니다.",
+  },
 };

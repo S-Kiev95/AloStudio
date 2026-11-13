@@ -11,7 +11,9 @@ import type { Strings } from "../types";
 import { core } from "./core";
 import { companies } from "./companies";
 import { activities } from "./activities";
+import { metaCatalog } from "./metaCatalog";
 import { opportunities } from "./opportunities";
+import { origin } from "./origin";
 import { igCapabilities } from "./igCapabilities";
 import { channelCatalog } from "./channelCatalog";
 import { apiErrors } from "./apiErrors";
@@ -64,7 +66,11 @@ export const es = {
   ...core,
   companies,
   activities,
+  metaCatalog,
+
   opportunities,
+
+  origin,
   igCapabilities,
   channelCatalog,
   apiErrors,

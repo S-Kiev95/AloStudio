@@ -17,6 +17,9 @@ export const contacts = {
       company: "Empresa",
       blocked: "Bloqueado",
       created: "Creado",
+      source: "Origen",
+      sourceChannel: "Canal de origen",
+      sourceDetail: "Detalle del origen",
     },
     saveAsSegment: "Guardar como segmento…",
     segmentName: "Nombre del segmento",
@@ -77,4 +80,10 @@ export const contacts = {
   pageOfOne: "Página {n} de {pages} · {count} contacto",
   pageOfMany: "Página {n} de {pages} · {count} contactos",
   deleteConfirm: "¿Eliminar el contacto \"{name}\"?",
+  photo: {
+    change: "Cambiar foto",
+    remove: "Quitar foto",
+    invalid: "La foto tiene que ser JPG, PNG, WebP o GIF y pesar hasta 2 MB.",
+    failed: "No se pudo guardar la foto.",
+  },
 };

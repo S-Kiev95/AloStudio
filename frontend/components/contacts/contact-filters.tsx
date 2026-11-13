@@ -7,17 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { selectClassName } from "@/components/ui/select";
 import type { FilterCondition, FilterOperator } from "@/lib/api/conversations";
+import { ORIGIN_CHANNELS, ORIGIN_SOURCES } from "@/lib/api/crm";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 
-type ValueKind = "text" | "date" | "bool";
+type ValueKind = "text" | "date" | "bool" | "choice";
 
 type AttrDef = {
   key: string;
   label: MessageKey;
   ops: FilterOperator[];
   value: ValueKind;
+  /** For `choice`: the codes offered and how each is named. */
+  choices?: readonly { value: string; label: MessageKey }[];
 };
 
 const TEXT_OPS: FilterOperator[] = [
@@ -35,6 +38,16 @@ const DATE_OPS: FilterOperator[] = [
   "equal_to",
 ];
 const BOOL_OPS: FilterOperator[] = ["equal_to"];
+const CHOICE_OPS: FilterOperator[] = ["equal_to", "not_equal_to", "is_present", "is_not_present"];
+
+const SOURCE_CHOICES = ORIGIN_SOURCES.map((s) => ({
+  value: s,
+  label: `origin.sources.${s}` as MessageKey,
+}));
+const CHANNEL_CHOICES = ORIGIN_CHANNELS.map((c) => ({
+  value: c,
+  label: `origin.channels.${c}` as MessageKey,
+}));
 
 const ATTRIBUTES: AttrDef[] = [
   { key: "name", label: "contacts.filters.attr.name", ops: TEXT_OPS, value: "text" },
@@ -44,6 +57,9 @@ const ATTRIBUTES: AttrDef[] = [
   { key: "company_name", label: "contacts.filters.attr.company", ops: TEXT_OPS, value: "text" },
   { key: "blocked", label: "contacts.filters.attr.blocked", ops: BOOL_OPS, value: "bool" },
   { key: "created_at", label: "contacts.filters.attr.created", ops: DATE_OPS, value: "date" },
+  { key: "source", label: "contacts.filters.attr.source", ops: CHOICE_OPS, value: "choice", choices: SOURCE_CHOICES },
+  { key: "source_channel", label: "contacts.filters.attr.sourceChannel", ops: CHOICE_OPS, value: "choice", choices: CHANNEL_CHOICES },
+  { key: "source_detail", label: "contacts.filters.attr.sourceDetail", ops: TEXT_OPS, value: "text" },
 ];
 
 const OP_LABELS: Record<FilterOperator, MessageKey> = {
@@ -301,6 +317,23 @@ function ValueControl({
   onChange: (v: string) => void;
 }) {
   const t = useT();
+  if (def.value === "choice") {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={t("conversations.filters.value")}
+        className={SELECT_CLS}
+      >
+        <option value="">{t("actions.selectPlaceholder")}</option>
+        {def.choices?.map((c) => (
+          <option key={c.value} value={c.value}>
+            {t(c.label)}
+          </option>
+        ))}
+      </select>
+    );
+  }
   if (def.value === "bool") {
     return (
       <select

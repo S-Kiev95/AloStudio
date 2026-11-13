@@ -58,4 +58,5 @@ export const agenda = {
   statusOf: "Estado de {title}",
   editItem: "Editar {title}",
   deleteItem: "Eliminar {title}",
+  newAt: "Nueva cita el {day} {date} a las {time}",
 };

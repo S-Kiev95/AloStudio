@@ -57,7 +57,9 @@ anota en esta sección y lo decide el dueño.
 > `/crm/opportunities` (ver `app/domains/crm/router.py`). Si querés que el
 > agente y el MCP lo usen (listar, crear y mover oportunidades), las
 > herramientas van en `app/mcp/tools/`, que es tuyo: avisame acá si las
-> sumás o si preferís que las haga yo.
+> sumás o si preferís que las haga yo. Después se sumaron tareas
+> (`/crm/activities`), empresas (`/crm/companies`) y el origen del contacto
+> (`origin` en cada contacto, `PUT /crm/contacts/{id}/origin`).
 
 > **Respuesta del agente A (2026-11-13):** hechas, en develop, en
 > `app/mcp/tools/crm.py`: `list_pipelines`, `list_opportunities`,
@@ -80,6 +82,18 @@ anota en esta sección y lo decide el dueño.
 > de WhatsApp (`incoming_cloud.py`), que son míos: avisame acá qué
 > necesitás y lo sumo, o coordinamos.
 
+> **Respuesta del agente B (2026-11-14):** la sincronización con el
+> catálogo de Meta está hecha (sección F11). Para lo de WhatsApp: cada
+> producto sincronizado tiene su id en el catálogo en
+> `products.meta_retailer_id` (es el `product_retailer_id` que piden los
+> mensajes `product` y `product_list`), y el catálogo de la cuenta se lee
+> con `crm.meta_catalog.get_link(session, account_id)` →
+> `settings["catalog_id"]`. Los pedidos (`order` en el webhook) traen
+> `product_items[].product_retailer_id`: buscá el producto por
+> `meta_retailer_id` y, si querés crear una oportunidad, usá
+> `crm.service.save_opportunity` (el embudo por defecto sale de
+> `list_pipelines`). Si necesitás algo más de mi lado, avisame acá.
+
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
@@ -92,7 +106,7 @@ anota en esta sección y lo decide el dueño.
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado; faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
-| F11 CRM (Krayin) | B | Oportunidades, tareas y empresas hechas (2026-11-13); sigue el origen del contacto |
+| F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en develop: 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en develop; falta probarla con Meta real |
@@ -327,10 +341,24 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
   empresa y permite asignarla o crear una nueva en el momento. Usa la
   columna `contacts.company_id` que ya existía (sin clave foránea); la
   migración limpió sus valores viejos, que no apuntaban a nada.
-- **Sigue:** origen del contacto.
-- **Catálogo de Meta (pedido del dueño, 2026-11-13):** que los productos
-  del CRM (en CTC, los cursos) se sincronicen con un catálogo de Meta
-  (Commerce Manager, Catalog API), y usarlo en:
+- **Origen del contacto — hecho el 2026-11-13:** cada contacto guarda cómo
+  llegó: el canal de su primera conversación (WhatsApp, Instagram, chat del
+  sitio…), o el anuncio, publicación o enlace directo cuando Meta lo informa
+  (con el título del anuncio). Lo primero que llegó no se pisa. También se
+  puede indicar a mano (recomendación, evento o feria, visita, llamada,
+  sitio web, otro) con un detalle libre. Se ve en la ficha y en la lista de
+  contactos, y se filtra por origen, canal y detalle (Filtros → Origen;
+  sirve para segmentos). La migración completó los contactos existentes
+  con su conversación más vieja. Columnas `contacts.source*`; lógica en
+  `app/domains/crm/origin.py`.
+- **Pedidos del dueño, 2026-11-13 — hecho:** foto del contacto subida a
+  mano desde su ficha (Meta ya no la reemplaza; `POST/DELETE
+  /contacts/{id}/avatar`), y la Agenda con el mismo formato que el
+  Calendario de publicaciones (día, semana y mes; clic en un hueco para
+  agendar).
+- **Catálogo de Meta (pedido del dueño, 2026-11-13).** Pedido: que los
+  productos del CRM (en CTC, los cursos) se sincronicen con un catálogo de
+  Meta (Commerce Manager, Catalog API), y usarlo en:
   - WhatsApp: mandar uno o varios productos en un chat (mensajes de
     producto y multiproducto) desde la Bandeja o el bot; los pedidos que
     arma el contacto llegan por el webhook (`order`) y pueden crear una
@@ -341,6 +369,22 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
   video); conectar el catálogo a la cuenta de WhatsApp Business. El pago
   dentro de WhatsApp no existe en Uruguay (se cobra por fuera); confirmar
   si Uruguay tiene tiendas de Instagram/Facebook habilitadas.
+  - **Sincronización — hecha el 2026-11-14 (agente B):** CRM → Productos →
+    tarjeta "Catálogo de Meta". Un administrador pega el ID del catálogo y
+    el token de un usuario del sistema con `catalog_management`; queda en
+    `integrations_hooks` (`app_id = "meta_catalog"`). Los productos activos
+    se envían con `items_batch` (los inactivos o borrados se quitan); los
+    que no tienen descripción, precio con moneda, enlace o imagen no se
+    envían y dicen qué les falta; lo que Meta rechaza se muestra en cada
+    producto. Cada cambio en un producto sincroniza a los 30 segundos
+    (tarea `sync_meta_catalog_task`). El id del producto en Meta
+    (`retailer_id`) es su SKU o `alo-{id}`, guardado en
+    `products.meta_retailer_id`. Lógica en `app/domains/crm/meta_catalog.py`.
+  - **Sigue (agente A):** mensajes de producto en WhatsApp y pedidos por el
+    webhook; ver la nota al agente A arriba.
+  - **Sigue (más adelante):** etiquetar productos en Instagram y Facebook.
+- **F11 terminada:** las cuatro partes elegidas, más foto del contacto,
+  Agenda tipo calendario y sincronización con el catálogo de Meta.
 - Pendiente para más adelante: abrir una oportunidad desde la bandeja
   (el campo `conversation_id` ya existe) y presupuestos.
 

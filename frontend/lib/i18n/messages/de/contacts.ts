@@ -20,6 +20,9 @@ export const contacts: Strings<typeof es> = {
       company: "Firma",
       blocked: "Blockiert",
       created: "Erstellt",
+      source: "Herkunft",
+      sourceChannel: "Herkunftskanal",
+      sourceDetail: "Herkunftsdetail",
     },
     saveAsSegment: "Als Segment speichern…",
     segmentName: "Name des Segments",
@@ -80,4 +83,10 @@ export const contacts: Strings<typeof es> = {
   pageOfOne: "Seite {n} von {pages} · {count} Kontakt",
   pageOfMany: "Seite {n} von {pages} · {count} Kontakte",
   deleteConfirm: "Den Kontakt „{name}“ löschen?",
+  photo: {
+    change: "Foto ändern",
+    remove: "Foto entfernen",
+    invalid: "Das Foto muss ein JPG, PNG, WebP oder GIF mit höchstens 2 MB sein.",
+    failed: "Das Foto konnte nicht gespeichert werden.",
+  },
 };

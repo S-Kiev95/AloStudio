@@ -61,4 +61,5 @@ export const agenda: Strings<typeof es> = {
   statusOf: "Status de {title}",
   editItem: "Editar {title}",
   deleteItem: "Excluir {title}",
+  newAt: "Novo agendamento em {day} {date} às {time}",
 };

@@ -3,6 +3,7 @@
 import { Package, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { MetaCatalogCard, useProductCatalogState } from "@/components/crm/meta-catalog-card";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,8 @@ import {
   useProducts,
   useUpdateProduct,
 } from "@/lib/api/products";
+import { useMetaCatalog } from "@/lib/api/crm";
+import { useIsAccountAdmin } from "@/lib/api/profile";
 import { cn } from "@/lib/utils";
 
 import { ProductForm } from "./product-form";
@@ -38,6 +41,9 @@ export function ProductsView({ accountId }: { accountId: string }) {
   const { data, isLoading, isError } = useProducts(accountId, { enabled });
   const create = useCreateProduct(accountId);
   const update = useUpdateProduct(accountId);
+  const isAdmin = useIsAccountAdmin(accountId);
+  const catalog = useMetaCatalog(accountId);
+  const catalogConnected = catalog.data?.connected ?? false;
 
   async function handleCreate(input: ProductInput) {
     await create.mutateAsync(input);
@@ -95,6 +101,10 @@ export function ProductsView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
+      {isAdmin && catalog.data ? (
+        <MetaCatalogCard accountId={accountId} catalog={catalog.data} />
+      ) : null}
+
       <SegmentedControl
         ariaLabel={t("products.filterLabel")}
         size="sm"
@@ -121,6 +131,7 @@ export function ProductsView({ accountId }: { accountId: string }) {
                 key={p.id}
                 accountId={accountId}
                 product={p}
+                inCatalog={catalogConnected}
                 onEdit={() => {
                   setCreating(false);
                   setEditing(p);
@@ -137,13 +148,17 @@ export function ProductsView({ accountId }: { accountId: string }) {
 function ProductRow({
   accountId,
   product,
+  inCatalog,
   onEdit,
 }: {
   accountId: string;
   product: Product;
+  inCatalog: boolean;
   onEdit: () => void;
 }) {
   const t = useT();
+  const catalogState = useProductCatalogState();
+  const state = inCatalog ? catalogState(product) : null;
   const del = useDeleteProduct(accountId);
   const [error, setError] = useState<string | null>(null);
 
@@ -183,6 +198,18 @@ function ProductRow({
           {priceLabel}
           {product.sku ? ` · SKU ${product.sku}` : ""}
         </p>
+        {state ? (
+          <p
+            title={state.detail}
+            className={cn(
+              "truncate text-xs",
+              state.tone === "ok" ? "text-success" : state.tone === "warn" ? "text-warning" : "text-fg-muted",
+            )}
+          >
+            {state.label}
+            {state.detail ? `: ${state.detail}` : ""}
+          </p>
+        ) : null}
         {error ? (
           <p role="alert" className="text-xs text-danger">
             {error}

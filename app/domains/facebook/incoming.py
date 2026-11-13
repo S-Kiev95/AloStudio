@@ -388,6 +388,9 @@ async def _process_message_event(
         conversation, parse_messenger_referral(event)
     ):
         session.add(conversation)
+        from app.domains.crm.origin import stamp_from_referral
+
+        await stamp_from_referral(session, conversation)
 
     body = str(message_block.get("text") or "")
     message_type = "outgoing" if is_echo else "incoming"

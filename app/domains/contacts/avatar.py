@@ -76,7 +76,21 @@ def contact_thumbnail(contact: Contact) -> str:
 
 
 def needs_first_fetch(contact: Contact) -> bool:
-    return contact.avatar_refreshed_at is None
+    return contact.avatar_refreshed_at is None and not is_manual(contact)
+
+
+# A picture uploaded (or removed) by hand: Meta's never replaces it.
+MANUAL_FLAG = "avatar_manual"
+UPLOAD_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
+
+def is_manual(contact: Contact) -> bool:
+    return bool((contact.additional_attributes or {}).get(MANUAL_FLAG))
+
+
+def _mark_manual(contact: Contact) -> None:
+    # A new dict, so SQLAlchemy sees the JSONB change.
+    contact.additional_attributes = {**(contact.additional_attributes or {}), MANUAL_FLAG: True}
 
 
 # ---------------------------------------------------------------------------
@@ -171,6 +185,12 @@ async def refresh_avatar(session: AsyncSession, contact: Contact) -> bool:
     contact without a picture (or whose channel Meta won't answer for) isn't
     asked again until the next refresh window. The caller commits.
     """
+    if is_manual(contact):
+        # Marked as checked, so the daily batch doesn't keep picking it up.
+        contact.avatar_refreshed_at = datetime.now(UTC)
+        session.add(contact)
+        await session.flush()
+        return False
     identity = await _meta_identity(session, contact)
     if identity is None:
         return False
@@ -201,6 +221,35 @@ async def refresh_avatar(session: AsyncSession, contact: Contact) -> bool:
     await session.flush()
     log.info("contacts.avatar.refreshed contact_id=%s stored=%s", contact.id, stored)
     return stored
+
+
+async def store_uploaded_avatar(
+    session: AsyncSession, contact: Contact, *, data: bytes, mime: str | None
+) -> None:
+    """Keep a picture someone uploaded from the panel. Raises ``ValueError``
+    (``"avatar_type"`` / ``"avatar_size"`` / ``"avatar_store"``)."""
+    mime = (mime or "").split(";")[0].strip().lower()
+    if mime not in UPLOAD_TYPES:
+        raise ValueError("avatar_type")
+    if not data or len(data) > MAX_BYTES:
+        raise ValueError("avatar_size")
+    key = avatar_key(contact)
+    if not await _put(key, data, mime):
+        raise ValueError("avatar_store")
+    contact.avatar_url = object_url(key)
+    contact.avatar_refreshed_at = datetime.now(UTC)
+    _mark_manual(contact)
+    session.add(contact)
+    await session.flush()
+
+
+async def remove_avatar(session: AsyncSession, contact: Contact) -> None:
+    """Drop the picture; Meta's isn't fetched back."""
+    contact.avatar_url = None
+    contact.avatar_refreshed_at = datetime.now(UTC)
+    _mark_manual(contact)
+    session.add(contact)
+    await session.flush()
 
 
 async def read_avatar(contact: Contact) -> tuple[bytes, str] | None:
@@ -287,5 +336,7 @@ __all__ = [
     "enqueue_first_fetch",
     "read_avatar",
     "refresh_avatar",
+    "remove_avatar",
     "stale_contact_ids",
+    "store_uploaded_avatar",
 ]

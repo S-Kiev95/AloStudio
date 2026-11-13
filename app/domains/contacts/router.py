@@ -41,7 +41,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi import APIRouter, Depends, File, Path, Query, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy import func, or_
 from sqlalchemy.orm import lazyload, selectinload
@@ -55,7 +55,14 @@ from app.core.deps import (
     require_admin,
 )
 from app.core.errors import ChatwootHTTPException
-from app.domains.contacts.avatar import read_avatar
+from app.domains.contacts.avatar import (
+    MAX_BYTES as AVATAR_MAX_BYTES,
+)
+from app.domains.contacts.avatar import (
+    read_avatar,
+    remove_avatar,
+    store_uploaded_avatar,
+)
 from app.domains.contacts.filter import contact_filter
 from app.domains.contacts.models import Contact, ContactInbox, Note
 from app.domains.contacts.presenters import (
@@ -351,6 +358,50 @@ async def show_contact_avatar(
         media_type=mime,
         headers={"Cache-Control": "private, max-age=604800"},
     )
+
+
+_AVATAR_ERRORS = {
+    "avatar_type": "The picture must be a JPEG, PNG, WebP or GIF image",
+    "avatar_size": "The picture must be 2 MB or smaller",
+    "avatar_store": "The picture could not be saved",
+}
+
+
+@router.post("/{contact_id}/avatar")
+async def upload_contact_avatar(
+    contact_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    file: Annotated[UploadFile, File()],
+) -> dict[str, Any]:
+    """Set the contact's picture by hand (F11). Meta's never replaces it."""
+    contact = await _find_contact_in_account(session, ctx, contact_id)
+    if file.size is not None and file.size > AVATAR_MAX_BYTES:
+        raise ChatwootHTTPException(
+            status_code=422, detail={"message": _AVATAR_ERRORS["avatar_size"]}
+        )
+    try:
+        await store_uploaded_avatar(
+            session, contact, data=await file.read(), mime=file.content_type
+        )
+    except ValueError as exc:
+        code = str(exc)
+        raise ChatwootHTTPException(
+            status_code=502 if code == "avatar_store" else 422,
+            detail={"message": _AVATAR_ERRORS.get(code, code)},
+        ) from exc
+    return {"payload": present_contact(contact)}
+
+
+@router.delete("/{contact_id}/avatar")
+async def delete_contact_avatar(
+    contact_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    contact = await _find_contact_in_account(session, ctx, contact_id)
+    await remove_avatar(session, contact)
+    return {"payload": present_contact(contact)}
 
 
 @router.patch("/{contact_id}")

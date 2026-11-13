@@ -66,6 +66,14 @@ class CompanyContactBody(BaseModel):
     contact_id: int
 
 
+class ContactOriginBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    source: str | None = None
+    channel: str | None = None
+    detail: str | None = Field(default=None, max_length=255)
+
+
 __all__ = [
     "ActivityBody",
     "CompanyBody",
@@ -73,3 +81,11 @@ __all__ = [
     "OpportunityBody",
     "PipelineBody",
 ]
+
+
+class MetaCatalogBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    catalog_id: str = Field(min_length=1, max_length=40)
+    # Left out to keep the stored one (changing only the catalogue).
+    access_token: str | None = Field(default=None, max_length=1000)

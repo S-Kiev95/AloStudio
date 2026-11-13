@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Calendar as CalendarIcon,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   List,
@@ -12,8 +12,15 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import {
+  addMonthsLocal,
+  type CalendarPeriod,
+  computePeriodBounds,
+  formatCalendarRangeLabel,
+  startOfLocalDay,
+} from "@/components/publications/calendar-utils";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -26,6 +33,7 @@ import {
   useUpdateAppointment,
 } from "@/lib/api/appointments";
 
+import { AgendaHourlyGrid, AgendaMonthGrid, buildAgendaDays } from "./agenda-calendar";
 import { AppointmentDialog } from "./appointment-dialog";
 import {
   APPOINTMENT_STATUS_OPTIONS,
@@ -33,16 +41,14 @@ import {
 } from "./status-badge";
 import {
   addDaysLocal,
-  endOfWeekExclusive,
   formatDateTimeLocal,
-  formatWeekRangeLabel,
+  formatLocalDateKey,
   startOfWeekMonday,
 } from "./week-utils";
-import { WeekView } from "./week-view";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 
-type ViewMode = "week" | "list";
+type DisplayMode = "calendar" | "list";
 
 const STATUS_FILTERS: {
   value: AppointmentStatus | undefined;
@@ -55,13 +61,22 @@ const STATUS_FILTERS: {
   { value: "cancelled", label: "agenda.filters.cancelled" },
 ];
 
-export function AgendaView({ accountId }: { accountId: string }) {
+const NAV_BUTTON =
+  "inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon";
+
+export function AgendaView({ accountId, now: nowProp }: { accountId: string; now?: Date }) {
   const t = useT();
   const locale = useLocale();
-  const [mode, setMode] = useState<ViewMode>("week");
-  const [weekStart, setWeekStart] = useState<Date>(() =>
-    startOfWeekMonday(new Date()),
-  );
+  const [now, setNow] = useState<Date>(() => nowProp ?? new Date());
+  useEffect(() => {
+    if (nowProp) return;
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, [nowProp]);
+
+  const [mode, setMode] = useState<DisplayMode>("calendar");
+  const [period, setPeriod] = useState<CalendarPeriod>("week");
+  const [cursor, setCursor] = useState<Date>(() => startOfWeekMonday(nowProp ?? new Date()));
   const [statusFilter, setStatusFilter] = useState<
     AppointmentStatus | undefined
   >(undefined);
@@ -69,15 +84,16 @@ export function AgendaView({ accountId }: { accountId: string }) {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
+  const [presetStart, setPresetStart] = useState<Date | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const weekEnd = endOfWeekExclusive(weekStart);
+  const bounds = computePeriodBounds(period, cursor);
 
   const queryFilters =
-    mode === "week"
+    mode === "calendar"
       ? {
-          from: weekStart.toISOString(),
-          to: weekEnd.toISOString(),
+          from: bounds.start.toISOString(),
+          to: bounds.end.toISOString(),
           status: statusFilter,
         }
       : {
@@ -88,6 +104,31 @@ export function AgendaView({ accountId }: { accountId: string }) {
   const { data, isLoading, isError } = useAppointments(accountId, queryFilters);
   const updateMutation = useUpdateAppointment(accountId);
   const deleteMutation = useDeleteAppointment(accountId);
+
+  function shiftCursor(direction: -1 | 1) {
+    setCursor((prev) => {
+      if (period === "day") return addDaysLocal(prev, direction);
+      if (period === "week") return addDaysLocal(prev, direction * 7);
+      return addMonthsLocal(prev, direction);
+    });
+  }
+
+  function goToday() {
+    const base = nowProp ?? new Date();
+    setCursor(period === "week" ? startOfWeekMonday(base) : startOfLocalDay(base));
+  }
+
+  function openNew(at?: Date) {
+    setEditing(null);
+    setPresetStart(at ?? null);
+    setDialogOpen(true);
+  }
+
+  function openEdit(appt: Appointment) {
+    setEditing(appt);
+    setPresetStart(null);
+    setDialogOpen(true);
+  }
 
   async function handleStatusChange(
     appointment: Appointment,
@@ -120,90 +161,95 @@ export function AgendaView({ accountId }: { accountId: string }) {
   }
 
   const appointments = data ?? [];
+  const todayKey = formatLocalDateKey(now);
 
   return (
     <div className="mx-auto max-w-7xl space-y-4">
-      <PageHeader
-        title={t("agenda.title")}
-        description={t("agenda.subtitle")}
-        actions={
-          <Button
+      <PageHeader title={t("agenda.title")} description={t("agenda.subtitle")} />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {mode === "calendar" ? (
+            <>
+              <div className="inline-flex items-center rounded-control border border-glass bg-field p-0.5">
+                <button
+                  type="button"
+                  aria-label={t("publications.calendar.prevPeriod")}
+                  onClick={() => shiftCursor(-1)}
+                  className={NAV_BUTTON}
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden />
+                </button>
+                <span className="px-3 font-numeric text-sm font-medium tabular-nums text-fg">
+                  {formatCalendarRangeLabel(period, cursor, locale)}
+                </span>
+                <button
+                  type="button"
+                  aria-label={t("publications.calendar.nextPeriod")}
+                  onClick={() => shiftCursor(1)}
+                  className={NAV_BUTTON}
+                >
+                  <ChevronRight className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+              <Button type="button" size="sm" variant="simple" onClick={goToday}>
+                {t("agenda.today")}
+              </Button>
+            </>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {mode === "calendar" ? (
+            <SegmentedControl
+              ariaLabel={t("publications.calendar.range")}
+              size="sm"
+              value={period}
+              onValueChange={(next) => {
+                setPeriod(next);
+                if (next === "week") setCursor((c) => startOfWeekMonday(c));
+              }}
+              options={[
+                { value: "day" as CalendarPeriod, label: t("publications.calendar.day") },
+                { value: "week" as CalendarPeriod, label: t("agenda.week") },
+                { value: "month" as CalendarPeriod, label: t("publications.calendar.month") },
+              ]}
+            />
+          ) : null}
+          <SegmentedControl
+            ariaLabel={t("agenda.viewMode")}
             size="sm"
-            onClick={() => {
-              setEditing(null);
-              setDialogOpen(true);
+            value={mode}
+            onValueChange={(next) => {
+              setMode(next);
+              if (next === "list") setPage(1);
             }}
-          >
+            options={[
+              {
+                value: "calendar" as DisplayMode,
+                label: (
+                  <>
+                    <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+                    {t("nav.calendar")}
+                  </>
+                ),
+              },
+              {
+                value: "list" as DisplayMode,
+                label: (
+                  <>
+                    <List className="h-3.5 w-3.5" aria-hidden />
+                    {t("agenda.list")}
+                  </>
+                ),
+              },
+            ]}
+          />
+          <Button size="sm" onClick={() => openNew()}>
             <Plus className="h-4 w-4" aria-hidden />
             {t("agenda.newAppointment")}
           </Button>
-        }
-      />
-
-      {/* Controles de vista y navegación semanal */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SegmentedControl
-          ariaLabel={t("agenda.viewMode")}
-          value={mode}
-          onValueChange={(next) => {
-            setMode(next);
-            if (next === "list") setPage(1);
-          }}
-          options={[
-            {
-              value: "week" as ViewMode,
-              label: (
-                <>
-                  <CalendarIcon className="h-4 w-4" aria-hidden />
-                  {t("agenda.week")}
-                </>
-              ),
-            },
-            {
-              value: "list" as ViewMode,
-              label: (
-                <>
-                  <List className="h-4 w-4" aria-hidden />
-                  {t("agenda.list")}
-                </>
-              ),
-            },
-          ]}
-        />
-
-        {mode === "week" ? (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              aria-label={t("agenda.prevWeek")}
-              onClick={() => setWeekStart((w) => addDaysLocal(w, -7))}
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden />
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => setWeekStart(startOfWeekMonday(new Date()))}
-            >
-              {t("agenda.today")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              aria-label={t("agenda.nextWeek")}
-              onClick={() => setWeekStart((w) => addDaysLocal(w, 7))}
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden />
-            </Button>
-            <span className="ml-1 font-numeric text-sm font-medium tabular-nums text-fg">
-              {formatWeekRangeLabel(weekStart, locale)}
-            </span>
-          </div>
-        ) : null}
+        </div>
       </div>
 
       {/* Filtro por estado */}
@@ -235,16 +281,21 @@ export function AgendaView({ accountId }: { accountId: string }) {
         >
           {t("agenda.loadFailed")}
         </div>
-      ) : mode === "week" ? (
-        <WeekView
-          weekStart={weekStart}
-          appointments={appointments}
-          onEdit={(appt) => {
-            setEditing(appt);
-            setDialogOpen(true);
-          }}
-          onStatusChange={handleStatusChange}
-          onDelete={handleDelete}
+      ) : mode === "calendar" && period === "month" ? (
+        <AgendaMonthGrid
+          days={buildAgendaDays(bounds.start, 42, appointments, cursor.getMonth(), locale)}
+          todayKey={todayKey}
+          onCreateOn={(d) => openNew(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 10))}
+          onSelect={openEdit}
+        />
+      ) : mode === "calendar" ? (
+        <AgendaHourlyGrid
+          days={buildAgendaDays(bounds.start, period === "day" ? 1 : 7, appointments, undefined, locale)}
+          todayKey={todayKey}
+          now={now}
+          showNowLine={now >= bounds.start && now < bounds.end}
+          onCreateAt={(d, hour) => openNew(new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour))}
+          onSelect={openEdit}
         />
       ) : appointments.length === 0 ? (
         <div className="rounded-md border border-glass bg-surface p-8 text-center text-sm text-fg-muted">
@@ -317,10 +368,7 @@ export function AgendaView({ accountId }: { accountId: string }) {
                       type="button"
                       aria-label={t("agenda.editItem", { title: appt.title })}
                       title={t("actions.edit")}
-                      onClick={() => {
-                        setEditing(appt);
-                        setDialogOpen(true);
-                      }}
+                      onClick={() => openEdit(appt)}
                       className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                     >
                       <Pencil className="h-4 w-4" aria-hidden />
@@ -375,8 +423,10 @@ export function AgendaView({ accountId }: { accountId: string }) {
         onClose={() => {
           setDialogOpen(false);
           setEditing(null);
+          setPresetStart(null);
         }}
         initial={editing}
+        defaultStartsAt={presetStart}
       />
     </div>
   );
