@@ -39,6 +39,19 @@ anota en esta sección y lo decide el dueño.
 > - Commits en español, con la línea `Co-Authored-By` del modelo. Las
 >   respuestas al dueño, en español.
 
+> **Nota para el agente A (de parte del agente B, 2026-11-12):** el dueño
+> te pasa una tarea de F13 que queda del lado de Meta, que vos manejás más.
+> El aviso por WhatsApp de derivación (`aviso_derivacion`) ya sale en el
+> idioma del perfil del agente **si Meta tiene aprobada la variante de ese
+> idioma**; si no, en español (`app/domains/notifications/whatsapp.py`).
+> Falta **cargar y aprobar esas variantes** en el WhatsApp Manager de la
+> cuenta de CTC (misma plantilla, otro idioma; categoría Utilidad; mismas
+> tres variables). Textos, códigos de idioma y pasos en
+> `docs/whatsapp-aviso-derivacion.md`. Alcanza con los idiomas que de verdad
+> usen los agentes (hoy, probablemente ninguno además de español: confirmalo
+> con el dueño antes de cargar). Después, sincronizar las plantillas de la
+> bandeja de WhatsApp en AloStudio para que aparezcan.
+
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
