@@ -20,10 +20,13 @@ export function SidebarNav({
   accountId,
   onNavigate,
   collapsed = false,
+  hiddenKeys = [],
 }: {
   accountId: string;
   onNavigate?: () => void;
   collapsed?: boolean;
+  /** Items this account has nothing for (WhatsApp without a WhatsApp inbox). */
+  hiddenKeys?: string[];
 }) {
   const pathname = usePathname() ?? "";
   const activeKey = activeNavItemKey(pathname, accountId);
@@ -51,7 +54,7 @@ export function SidebarNav({
             ) : null}
             {group.keys.map((key) => {
               const item = BY_KEY.get(key);
-              if (!item) return null;
+              if (!item || hiddenKeys.includes(key)) return null;
               const href = navHref(accountId, item.segment);
               const active = activeKey === item.key;
               const Icon = item.icon;

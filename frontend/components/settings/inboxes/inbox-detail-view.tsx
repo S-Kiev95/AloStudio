@@ -22,7 +22,6 @@ import {
 
 import { HandoffAssigneePanel } from "./handoff-assignee-panel";
 import { InboxMembersPanel } from "./inbox-members-panel";
-import { WhatsappTemplatesPanel } from "./whatsapp-templates-panel";
 import { useT } from "@/lib/i18n/provider";
 
 export function InboxDetailView({
@@ -164,7 +163,16 @@ export function InboxDetailView({
             <CardTitle className="text-base">Plantillas de WhatsApp</CardTitle>
           </CardHeader>
           <CardContent>
-            <WhatsappTemplatesPanel accountId={accountId} inboxId={inboxId} />
+            <p className="text-sm text-fg-muted">
+              Se crean, editan y revisan en la sección{" "}
+              <Link
+                href={`/accounts/${accountId}/whatsapp?inbox=${inboxId}`}
+                className="text-lit underline-offset-2 hover:underline"
+              >
+                WhatsApp
+              </Link>
+              , con la vista previa de cómo le llega al contacto.
+            </p>
           </CardContent>
         </Card>
       ) : null}

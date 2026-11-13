@@ -24,6 +24,10 @@ vi.mock("@/lib/realtime/use-cable", () => ({
   useCable: () => {},
 }));
 
+vi.mock("@/lib/api/inboxes", () => ({
+  useHasWhatsappInbox: () => true,
+}));
+
 vi.mock("./notification-bell", () => ({
   NotificationBell: () => <div data-testid="notification-bell" />,
 }));
@@ -57,6 +61,7 @@ describe("Navigation and CRM tabs", () => {
       "Bandeja",
       "CRM",
       "Instagram",
+      "WhatsApp",
       "Help Center",
       "Campañas",
       "Reportes",
@@ -73,6 +78,18 @@ describe("Navigation and CRM tabs", () => {
     const agentLink = screen.getByRole("link", { name: "Agente" });
     expect(agentLink).toHaveAttribute("href", "/accounts/1/agent");
     expect(agentLink).toHaveAttribute("aria-current", "page");
+  });
+
+  it("shows WhatsApp only when the account has a WhatsApp inbox", () => {
+    mockPathname = "/accounts/1";
+    const { unmount } = render(<SidebarNav accountId="1" hiddenKeys={["whatsapp"]} />);
+    expect(screen.queryByRole("link", { name: "WhatsApp" })).toBeNull();
+    unmount();
+    render(<SidebarNav accountId="1" />);
+    expect(screen.getByRole("link", { name: "WhatsApp" })).toHaveAttribute(
+      "href",
+      "/accounts/1/whatsapp",
+    );
   });
 
   it("activates Medios and Estadísticas without marking Calendario", () => {

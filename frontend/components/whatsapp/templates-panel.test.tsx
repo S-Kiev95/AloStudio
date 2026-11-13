@@ -22,7 +22,7 @@ import {
 import { ROLE_ADMINISTRATOR, ROLE_AGENT } from "@/lib/api/account";
 import type { WhatsappTemplateFull } from "@/lib/api/whatsapp-templates";
 
-import { WhatsappTemplatesPanel } from "./whatsapp-templates-panel";
+import { WhatsappTemplatesPanel } from "./templates-panel";
 
 let currentRole = ROLE_ADMINISTRATOR;
 let templatesStore: WhatsappTemplateFull[] = [];

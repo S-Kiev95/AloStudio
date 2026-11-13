@@ -307,7 +307,10 @@ function parseTemplateComponents(tpl: WhatsappTemplateFull): TemplateEditorDraft
   return draft;
 }
 
-/** WhatsApp bubble preview shared between the settings editor and the inbox composer. */
+/** How the contact sees the template in WhatsApp: a received bubble with the
+ *  buttons attached under it. `framed` puts it in a chat (top bar with the
+ *  business name and the wallpaper) for the editor; the composer shows the
+ *  bubble alone. Colors are WhatsApp's own, light and dark. */
 export function WhatsappTemplatePreview({
   header,
   headerValues,
@@ -315,6 +318,8 @@ export function WhatsappTemplatePreview({
   bodyValues,
   footer,
   buttons,
+  businessName,
+  framed = false,
 }: {
   header?: string | null;
   headerValues?: Record<string, string>;
@@ -327,6 +332,8 @@ export function WhatsappTemplatePreview({
     url?: string;
     phone_number?: string;
   }>;
+  businessName?: string;
+  framed?: boolean;
 }) {
   const renderedHeader = header?.trim()
     ? renderTemplateText(header.trim(), headerValues ?? {})
@@ -335,38 +342,81 @@ export function WhatsappTemplatePreview({
   const trimmedFooter = footer?.trim() || null;
   const visibleButtons = (buttons ?? []).filter((b) => b.text.trim().length > 0);
 
-  return (
-    <div data-testid="whatsapp-template-preview" className="space-y-1.5">
-      <div className="rounded-xl rounded-tr-sm border border-glass bg-[#dcf8c6] px-3.5 py-2.5 text-[#111b21] shadow-sm dark:bg-[#005c4b] dark:text-[#e9edef]">
+  const bubble = (
+    <div className="relative w-full max-w-[300px] rounded-lg rounded-tl-none bg-white text-[#111b21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] dark:bg-[#202c33] dark:text-[#e9edef]">
+      <span
+        aria-hidden
+        className="absolute -left-2 top-0 h-0 w-0 border-l-[8px] border-t-[8px] border-l-transparent border-t-white dark:border-t-[#202c33]"
+      />
+      <div className="px-2.5 pb-1.5 pt-2">
         {renderedHeader ? (
-          <p className="mb-1 text-sm font-bold">{renderedHeader}</p>
+          <p className="mb-1 text-[15px] font-bold leading-5">{renderedHeader}</p>
         ) : null}
-        <p className="whitespace-pre-wrap break-words text-sm">
+        <p
+          className={cn(
+            "whitespace-pre-wrap break-words text-[14px] leading-[19px]",
+            !renderedBody && "italic text-[#667781] dark:text-[#8696a0]",
+          )}
+        >
           {renderedBody || "Escribí el cuerpo de la plantilla…"}
         </p>
         {trimmedFooter ? (
-          <p className="mt-1.5 text-xs text-fg-muted">{trimmedFooter}</p>
+          <p className="mt-1 text-[13px] leading-[17px] text-[#667781] dark:text-[#8696a0]">
+            {trimmedFooter}
+          </p>
         ) : null}
+        <p className="mt-0.5 text-right text-[11px] leading-none text-[#667781] dark:text-[#8696a0]">
+          10:24
+        </p>
       </div>
-      {visibleButtons.length > 0 ? (
-        <div className="space-y-1">
-          {visibleButtons.map((btn, idx) => (
-            <div
-              key={idx}
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-glass bg-surface px-3 py-1.5 text-xs font-medium text-lit"
-            >
-              {btn.type === "URL" ? (
-                <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              ) : btn.type === "PHONE_NUMBER" ? (
-                <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              ) : (
-                <Reply className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              )}
-              <span className="truncate">{btn.text}</span>
-            </div>
-          ))}
+      {visibleButtons.map((btn, idx) => (
+        <div
+          key={idx}
+          className="flex items-center justify-center gap-1.5 border-t border-[#e9edef] px-3 py-2 text-[14px] font-medium text-[#027eb5] dark:border-[#2a3942] dark:text-[#53bdeb]"
+        >
+          {btn.type === "URL" ? (
+            <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
+          ) : btn.type === "PHONE_NUMBER" ? (
+            <Phone className="h-4 w-4 shrink-0" aria-hidden />
+          ) : (
+            <Reply className="h-4 w-4 shrink-0" aria-hidden />
+          )}
+          <span className="truncate">{btn.text}</span>
         </div>
-      ) : null}
+      ))}
+    </div>
+  );
+
+  if (!framed) {
+    return <div data-testid="whatsapp-template-preview">{bubble}</div>;
+  }
+
+  const name = businessName?.trim() || "Tu empresa";
+  return (
+    <div
+      data-testid="whatsapp-template-preview"
+      className="overflow-hidden rounded-2xl border border-glass shadow-lg"
+    >
+      <div className="flex items-center gap-2.5 bg-[#008069] px-3 py-2.5 text-white dark:bg-[#202c33] dark:text-[#e9edef]">
+        <span
+          aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#dfe5e7] text-sm font-semibold text-[#54656f]"
+        >
+          {name.charAt(0).toUpperCase()}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-[15px] font-medium leading-5">{name}</p>
+          <p className="text-[12px] leading-4 text-[#d9fdd3] dark:text-[#8696a0]">
+            Cuenta de empresa
+          </p>
+        </div>
+      </div>
+      <div className="flex min-h-[360px] flex-col items-start bg-[#efeae2] px-4 py-4 dark:bg-[#0b141a]">
+        <span className="mb-3 self-center rounded-md bg-white px-2.5 py-1 text-[11px] font-medium uppercase text-[#54656f] shadow-sm dark:bg-[#182229] dark:text-[#8696a0]">
+          Hoy
+        </span>
+        {bubble}
+      </div>
     </div>
   );
 }
@@ -374,9 +424,12 @@ export function WhatsappTemplatePreview({
 export function WhatsappTemplatesPanel({
   accountId,
   inboxId,
+  inboxName,
 }: {
   accountId: string;
   inboxId: number;
+  /** Shown as the business name in the preview's chat bar. */
+  inboxName?: string;
 }) {
   const isAdmin = useIsAccountAdmin(accountId);
   const templatesQ = useAllWhatsappTemplates(accountId, inboxId);
@@ -642,9 +695,9 @@ export function WhatsappTemplatesPanel({
         <div
           role="dialog"
           aria-label={editing ? "Editar plantilla" : "Nueva plantilla"}
-          className="rounded-xl border border-glass bg-surface-2 p-4"
+          className="rounded-xl border border-glass bg-surface-2 p-5 sm:p-6"
         >
-          <div className="mb-3 flex items-center justify-between border-b border-glass pb-2">
+          <div className="mb-5 flex items-center justify-between border-b border-glass pb-3">
             <h3 className="text-sm font-semibold text-fg">
               {editing ? `Editar plantilla: ${editing.name}` : "Nueva plantilla"}
             </h3>
@@ -660,16 +713,16 @@ export function WhatsappTemplatesPanel({
 
           <form
             onSubmit={(e) => void handleSave(e)}
-            className="grid gap-4 lg:grid-cols-[1fr_260px]"
+            className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]"
           >
-            <div className="space-y-3">
+            <div className="space-y-5">
               {editorError ? (
                 <p role="alert" className="text-sm text-danger">
                   {editorError}
                 </p>
               ) : null}
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                 <div className="space-y-1">
                   <Label htmlFor="wa-tpl-name">
                     Nombre
@@ -714,37 +767,39 @@ export function WhatsappTemplatesPanel({
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="wa-tpl-category">
+              <fieldset className="space-y-1.5">
+                <legend className="mb-1.5 text-sm font-medium text-fg">
                   Categoría
-                </Label>
-                <select
-                  id="wa-tpl-category"
-                  className={selectClassName()}
-                  value={category}
-                  onChange={(e) =>
-                    setCategory(e.target.value as WhatsappTemplateCategory)
-                  }
-                >
+                </legend>
+                <div className="grid gap-2 sm:grid-cols-3">
                   {CATEGORY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <ul className="space-y-0.5 text-xs text-fg-muted">
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <li
+                    <label
                       key={opt.value}
                       className={cn(
-                        category === opt.value && "font-medium text-fg",
+                        "flex cursor-pointer flex-col gap-1 rounded-lg border px-3 py-2.5 transition-colors",
+                        category === opt.value
+                          ? "border-neon bg-focused"
+                          : "border-glass bg-surface hover:bg-hover-glass",
                       )}
                     >
-                      <strong>{opt.label}:</strong> {opt.description}
-                    </li>
+                      <span className="flex items-center gap-2 text-sm font-medium text-fg">
+                        <input
+                          type="radio"
+                          name="wa-tpl-category"
+                          value={opt.value}
+                          checked={category === opt.value}
+                          onChange={() => setCategory(opt.value)}
+                          className="accent-[currentColor]"
+                        />
+                        {opt.label}
+                      </span>
+                      <span className="text-xs leading-snug text-fg-muted">
+                        {opt.description}
+                      </span>
+                    </label>
                   ))}
-                </ul>
-              </div>
+                </div>
+              </fieldset>
 
               <div className="space-y-1.5">
                 <Label htmlFor="wa-tpl-header">Encabezado (opcional)</Label>
@@ -786,7 +841,7 @@ export function WhatsappTemplatesPanel({
                 </div>
                 <Textarea
                   id="wa-tpl-body"
-                  rows={4}
+                  rows={6}
                   value={bodyText}
                   onChange={(e) => setBodyText(e.target.value)}
                   placeholder="Hola {{1}}, te esperamos el {{2}}."
@@ -980,9 +1035,13 @@ export function WhatsappTemplatesPanel({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-fg-muted">Vista previa</p>
+            <div className="space-y-2 lg:sticky lg:top-4 lg:self-start">
+              <p className="text-xs font-medium text-fg-muted">
+                Vista previa: así lo ve el contacto
+              </p>
               <WhatsappTemplatePreview
+                framed
+                businessName={inboxName}
                 header={headerText}
                 headerValues={{ "1": headerExample }}
                 body={bodyText}

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   WhatsappTemplatePreview,
   renderTemplateText,
-} from "@/components/settings/inboxes/whatsapp-templates-panel";
+} from "@/components/whatsapp/templates-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

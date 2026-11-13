@@ -15,6 +15,7 @@ import {
   MegaphoneIcon,
   PeopleIcon,
   StatsIcon,
+  WhatsappNavIcon,
 } from "./app-icons";
 
 export type NavItem = {
@@ -67,6 +68,7 @@ export const NAV_ITEMS: NavItem[] = [
     matchSegments: ["contacts", "companies", "opportunities", "tasks", "products", "agenda"],
   },
   { key: "instagram", label: "nav.instagram", icon: InstagramNavIcon, segment: "instagram" },
+  { key: "whatsapp", label: "nav.whatsapp", icon: WhatsappNavIcon, segment: "whatsapp" },
   {
     key: "help-center",
     label: "nav.helpCenter",
@@ -98,6 +100,7 @@ export const NAV_GROUPS: NavGroup[] = [
       "conversations",
       "crm",
       "instagram",
+      "whatsapp",
       "help-center",
       "campaigns",
       "reports",

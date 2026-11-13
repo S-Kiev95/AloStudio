@@ -18,6 +18,7 @@ export const core = {
     conversations: "Bandeja",
     crm: "CRM",
     instagram: "Instagram",
+    whatsapp: "WhatsApp",
     helpCenter: "Help Center",
     campaigns: "Campañas",
     reports: "Reportes",
