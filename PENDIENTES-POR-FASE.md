@@ -100,16 +100,16 @@ anota en esta sección y lo decide el dueño.
 | F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; resto para más adelante |
 | F3 Redes que faltan | B | Sin empezar |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
-| F5 WhatsApp (plantillas, envíos, número, perfil, QR) | A | En develop (2026-11-13); falta CTC |
+| F5 WhatsApp (plantillas, envíos, número, perfil, QR) | A | En CTC (2026-11-13) |
 | F6 Gastos por uso | A | Sin empezar |
 | F7 Llamadas y voz | B | Sin empezar |
-| F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado; faltan audios e imágenes |
+| F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
-| F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta (falta WhatsApp, agente A) |
+| F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en develop: 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
-| F14 Foto del contacto | B | Hecha (2026-11-12), en develop; falta probarla con Meta real |
+| F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 
 ### Reglas para no pisarse
