@@ -64,7 +64,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: "nav.crm",
     icon: PeopleIcon,
     segment: "contacts",
-    matchSegments: ["contacts", "opportunities", "tasks", "products", "agenda"],
+    matchSegments: ["contacts", "companies", "opportunities", "tasks", "products", "agenda"],
   },
   { key: "instagram", label: "nav.instagram", icon: InstagramNavIcon, segment: "instagram" },
   {

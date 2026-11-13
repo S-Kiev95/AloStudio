@@ -19,12 +19,15 @@ export function ContactPicker({
   value,
   onChange,
   locked = false,
+  pickLabel,
 }: {
   accountId: string;
   inputId: string;
   value: PickedContact | null;
   onChange: (contact: PickedContact | null) => void;
   locked?: boolean;
+  /** The button that opens the search, when nothing is picked. */
+  pickLabel?: string;
 }) {
   const t = useT();
   const [picking, setPicking] = useState(false);
@@ -59,7 +62,7 @@ export function ContactPicker({
   if (!picking) {
     return (
       <Button type="button" size="sm" variant="secondary" onClick={() => setPicking(true)}>
-        {t("opportunities.pickContact")}
+        {pickLabel ?? t("opportunities.pickContact")}
       </Button>
     );
   }

@@ -71,7 +71,7 @@ anota en esta sección y lo decide el dueño.
 | F8 Búsqueda en conversaciones viejas | A | Sin empezar |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
-| F11 CRM (Krayin) | B | Oportunidades y tareas hechas (2026-11-13); siguen empresas y origen del contacto |
+| F11 CRM (Krayin) | B | Oportunidades, tareas y empresas hechas (2026-11-13); sigue el origen del contacto |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en develop: 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en develop; falta probarla con Meta real |
@@ -230,7 +230,14 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
   por correo y push, según Ajustes → Notificaciones), una sola vez: lo
   revisa el tick de 5 minutos del worker. Tipo de aviso nuevo
   `crm_activity_due` (10).
-- **Sigue:** empresas; origen del contacto.
+- **Empresas — hecho el 2026-11-13:** nombre, web, correo, teléfono,
+  dirección, identificación fiscal y notas. CRM → Empresas lista y busca;
+  la ficha de cada empresa muestra sus personas (se agregan y quitan ahí) y
+  las oportunidades de esas personas. La ficha del contacto muestra su
+  empresa y permite asignarla o crear una nueva en el momento. Usa la
+  columna `contacts.company_id` que ya existía (sin clave foránea); la
+  migración limpió sus valores viejos, que no apuntaban a nada.
+- **Sigue:** origen del contacto.
 - Pendiente para más adelante: abrir una oportunidad desde la bandeja
   (el campo `conversation_id` ya existe) y presupuestos.
 

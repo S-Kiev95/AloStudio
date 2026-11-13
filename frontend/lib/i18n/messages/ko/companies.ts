@@ -1,0 +1,30 @@
+import type { companies as es } from "../es/companies";
+import type { Strings } from "../types";
+
+export const companies: Strings<typeof es> = {
+  pageTitle: "회사",
+  new: "새 회사",
+  create: "회사 만들기",
+  company: "회사",
+  assign: "회사 지정",
+  createNamed: "\"{name}\" 만들기",
+  back: "회사 목록으로 돌아가기",
+  details: "회사 정보",
+  people: "구성원",
+  peopleOne: "{count}명",
+  peopleMany: "{count}명",
+  noPeople: "아직 이 회사에 구성원이 없습니다.",
+  removePerson: "{name} 님을 회사에서 제거",
+  noOpportunities: "이 회사 구성원에게는 영업 기회가 없습니다.",
+  nameRequired: "이름은 필수입니다.",
+  saveFailed: "회사를 저장하지 못했습니다.",
+  loadFailed: "회사를 불러오지 못했습니다.",
+  deleteConfirm: "\"{name}\" 회사를 삭제할까요? 구성원은 회사 없음으로 남습니다.",
+  empty: "아직 회사가 없습니다.",
+  noneFound: "회사를 찾지 못했습니다.",
+  search: "회사 검색",
+  website: "웹사이트",
+  taxId: "사업자 등록 번호",
+  address: "주소",
+  addPerson: "구성원 추가",
+};

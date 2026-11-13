@@ -1,0 +1,30 @@
+import type { companies as es } from "../es/companies";
+import type { Strings } from "../types";
+
+export const companies: Strings<typeof es> = {
+  pageTitle: "会社",
+  new: "新しい会社",
+  create: "会社を作成",
+  company: "会社",
+  assign: "会社を設定",
+  createNamed: "「{name}」を作成",
+  back: "会社一覧に戻る",
+  details: "会社の情報",
+  people: "担当者",
+  peopleOne: "{count} 人",
+  peopleMany: "{count} 人",
+  noPeople: "この会社にはまだ担当者がいません。",
+  removePerson: "{name} を会社から外す",
+  noOpportunities: "この会社の担当者には商談がありません。",
+  nameRequired: "名前は必須です。",
+  saveFailed: "会社を保存できませんでした。",
+  loadFailed: "会社を読み込めませんでした。",
+  deleteConfirm: "会社「{name}」を削除しますか？担当者は会社なしになります。",
+  empty: "会社はまだありません。",
+  noneFound: "会社が見つかりませんでした。",
+  search: "会社を検索",
+  website: "Web サイト",
+  taxId: "法人番号",
+  address: "住所",
+  addPerson: "担当者を追加",
+};

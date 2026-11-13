@@ -9,6 +9,7 @@
 import type { Strings } from "../types";
 
 import { core } from "./core";
+import { companies } from "./companies";
 import { activities } from "./activities";
 import { opportunities } from "./opportunities";
 import { igCapabilities } from "./igCapabilities";
@@ -61,6 +62,7 @@ import { conversations } from "./conversations";
 
 export const es = {
   ...core,
+  companies,
   activities,
   opportunities,
   igCapabilities,
