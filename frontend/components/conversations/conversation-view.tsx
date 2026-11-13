@@ -462,7 +462,13 @@ export function ConversationView({
             />
           </div>
         ) : (
-          <MessageComposer accountId={accountId} displayId={displayId} />
+          <MessageComposer
+            accountId={accountId}
+            displayId={displayId}
+            inboxId={conv.data?.inbox_id}
+            channel={conv.data?.meta?.channel}
+            canReply={conv.data?.can_reply}
+          />
         )}
       </div>
 

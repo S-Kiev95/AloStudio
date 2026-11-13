@@ -298,7 +298,7 @@ describe("ConversationView — abierta desde una búsqueda (F8)", () => {
 describe("ConversationView — buscar dentro del chat (F8)", () => {
   it("busca sólo en esta conversación y abre el chat en el mensaje elegido", async () => {
     mockReplace.mockClear();
-    let asked: URLSearchParams | null = null;
+    let asked = null as URLSearchParams | null;
     server.use(
       http.get("*/api/v1/accounts/1/search/messages", ({ request }) => {
         asked = new URL(request.url).searchParams;

@@ -1,15 +1,23 @@
 "use client";
 
-import { Lock, Paperclip, Send, Zap, X } from "lucide-react";
+import { FileText, Lock, Paperclip, Send, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  WhatsappTemplatePreview,
+  renderTemplateText,
+} from "@/components/settings/inboxes/whatsapp-templates-panel";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCannedResponses } from "@/lib/api/canned-responses";
-import { useSendMessage } from "@/lib/api/conversations";
+import { useConversation, useSendMessage } from "@/lib/api/conversations";
 import { uploadAttachment } from "@/lib/api/uploads";
-import { cn } from "@/lib/utils";
+import { useWhatsappTemplates } from "@/lib/api/whatsapp-templates";
 import { useT } from "@/lib/i18n/provider";
+import { cn } from "@/lib/utils";
 
 type PendingAttachment = {
   key: string;
@@ -24,17 +32,29 @@ type PendingAttachment = {
 const MAX_ATTACHMENTS = 15;
 const MAX_TEXTAREA_HEIGHT_PX = 144; // ~6 lines
 
+const WHATSAPP_24H_NOTICE =
+  "Pasaron 24 h desde el último mensaje del contacto. Solo podés mandar una plantilla.";
+
 export function MessageComposer({
   accountId,
   displayId,
+  inboxId: inboxIdProp,
+  channel: channelProp,
+  canReply: canReplyProp,
 }: {
   accountId: string;
   displayId: number;
+  inboxId?: number | null;
+  channel?: string | null;
+  canReply?: boolean;
 }) {
   const t = useT();
   const [content, setContent] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [selectedTemplateName, setSelectedTemplateName] = useState("");
+  const [templateVars, setTemplateVars] = useState<Record<string, string>>({});
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(false);
@@ -44,6 +64,28 @@ export function MessageComposer({
   const keyRef = useRef(0);
   const send = useSendMessage(accountId, displayId);
   const canned = useCannedResponses(accountId);
+  const conv = useConversation(accountId, displayId);
+
+  const channel = channelProp ?? conv.data?.meta?.channel ?? null;
+  const inboxId = inboxIdProp ?? conv.data?.inbox_id ?? null;
+  const canReply = canReplyProp ?? conv.data?.can_reply ?? true;
+  const isWhatsapp = channel === "Channel::Whatsapp";
+  const windowClosed = isWhatsapp && !canReply;
+
+  const templatesQ = useWhatsappTemplates(
+    accountId,
+    inboxId,
+    isWhatsapp && templateOpen,
+  );
+  const approvedTemplates = templatesQ.data?.templates ?? [];
+  const selectedTemplate = approvedTemplates.find(
+    (tpl) => tpl.name === selectedTemplateName,
+  );
+  const canSendTemplate =
+    Boolean(selectedTemplate) &&
+    (selectedTemplate?.variables ?? []).every((n) =>
+      Boolean((templateVars[String(n)] ?? "").trim()),
+    );
 
   // One line that grows with the text, like the agent composer.
   useEffect(() => {
@@ -133,7 +175,10 @@ export function MessageComposer({
       }),
     );
     const ok = results
-      .filter((r): r is PromiseFulfilledResult<PendingAttachment> => r.status === "fulfilled")
+      .filter(
+        (r): r is PromiseFulfilledResult<PendingAttachment> =>
+          r.status === "fulfilled",
+      )
       .map((r) => r.value);
     if (ok.length > 0) setAttachments((prev) => [...prev, ...ok]);
     if (ok.length < files.length) setUploadError(true);
@@ -149,6 +194,7 @@ export function MessageComposer({
   }
 
   function submit() {
+    if (windowClosed && !isPrivate) return;
     const text = content.trim();
     if ((!text && attachments.length === 0) || uploading) return;
     // The thread shows it right away (and keeps it if it fails), so the box
@@ -170,6 +216,30 @@ export function MessageComposer({
     );
     setAttachments([]);
     textareaRef.current?.focus();
+  }
+
+  function submitTemplate() {
+    if (!selectedTemplate || !canSendTemplate) return;
+    const bodyParams: Record<string, string> = {};
+    for (const n of selectedTemplate.variables) {
+      bodyParams[String(n)] = (templateVars[String(n)] ?? "").trim();
+    }
+    const renderedContent = renderTemplateText(
+      selectedTemplate.body_text ?? selectedTemplate.name,
+      bodyParams,
+    );
+    send.mutate({
+      content: renderedContent,
+      isPrivate: false,
+      templateParams: {
+        name: selectedTemplate.name,
+        language: selectedTemplate.language ?? "es",
+        processed_params: { body: bodyParams },
+      },
+    });
+    setTemplateOpen(false);
+    setSelectedTemplateName("");
+    setTemplateVars({});
   }
 
   return (
@@ -205,6 +275,109 @@ export function MessageComposer({
         </ul>
       ) : null}
 
+      {isWhatsapp && templateOpen ? (
+        <div
+          role="region"
+          aria-label="Selector de plantilla de WhatsApp"
+          className="mb-3 space-y-3 rounded-lg border border-glass bg-surface-2 p-3"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-fg">
+              Enviar plantilla de WhatsApp
+            </span>
+            <button
+              type="button"
+              aria-label="Cerrar selector de plantilla"
+              onClick={() => setTemplateOpen(false)}
+              className="rounded p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </div>
+
+          {templatesQ.isLoading ? (
+            <p className="text-xs text-fg-muted">Cargando plantillas…</p>
+          ) : approvedTemplates.length === 0 ? (
+            <p className="text-xs text-fg-muted">
+              No hay plantillas aprobadas en esta bandeja.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label htmlFor="composer-wa-template">Elegir plantilla</Label>
+                  <select
+                    id="composer-wa-template"
+                    className={selectClassName("sm")}
+                    value={selectedTemplateName}
+                    onChange={(e) => {
+                      setSelectedTemplateName(e.target.value);
+                      setTemplateVars({});
+                    }}
+                  >
+                    <option value="">Elegí una plantilla…</option>
+                    {approvedTemplates.map((tpl) => (
+                      <option
+                        key={`${tpl.name}:${tpl.language ?? ""}`}
+                        value={tpl.name}
+                      >
+                        {tpl.name} ({tpl.language ?? "es"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {(selectedTemplate?.variables ?? []).map((n) => (
+                  <div key={n} className="space-y-1">
+                    <Label htmlFor={`composer-wa-var-${n}`}>
+                      {`Variable {{${n}}}`}
+                    </Label>
+                    <Input
+                      id={`composer-wa-var-${n}`}
+                      value={templateVars[String(n)] ?? ""}
+                      onChange={(e) =>
+                        setTemplateVars((prev) => ({
+                          ...prev,
+                          [String(n)]: e.target.value,
+                        }))
+                      }
+                      placeholder={`Valor para {{${n}}}`}
+                    />
+                  </div>
+                ))}
+
+                <p className="text-[11px] text-fg-muted">
+                  Meta cobra cada plantilla que entrega.
+                </p>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={submitTemplate}
+                    disabled={!canSendTemplate}
+                  >
+                    Enviar
+                  </Button>
+                </div>
+              </div>
+
+              {selectedTemplate ? (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-fg-muted">
+                    Vista previa
+                  </p>
+                  <WhatsappTemplatePreview
+                    body={selectedTemplate.body_text ?? ""}
+                    bodyValues={templateVars}
+                  />
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {attachments.length > 0 ? (
         <div className="mb-2 flex flex-wrap gap-2">
           {attachments.map((att) =>
@@ -222,7 +395,9 @@ export function MessageComposer({
                 <button
                   type="button"
                   onClick={() => removeAttachment(att.key)}
-                  aria-label={t("conversations.composer.removeAttachment", { name: att.name })}
+                  aria-label={t("conversations.composer.removeAttachment", {
+                    name: att.name,
+                  })}
                   className="absolute right-1 top-1 rounded-full bg-backdrop p-0.5 text-white hover:opacity-90"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden />
@@ -243,7 +418,9 @@ export function MessageComposer({
                 <button
                   type="button"
                   onClick={() => removeAttachment(att.key)}
-                  aria-label={t("conversations.composer.removeAttachment", { name: att.name })}
+                  aria-label={t("conversations.composer.removeAttachment", {
+                    name: att.name,
+                  })}
                   className="rounded-sm p-0.5 text-fg-muted hover:text-danger"
                 >
                   <X className="h-3 w-3" aria-hidden />
@@ -254,9 +431,16 @@ export function MessageComposer({
         </div>
       ) : null}
 
+      {windowClosed && !isPrivate ? (
+        <p className="mb-2 rounded-md border border-warning bg-surface-2 px-3 py-1.5 text-xs text-warning">
+          {WHATSAPP_24H_NOTICE}
+        </p>
+      ) : null}
+
       <Textarea
         ref={textareaRef}
         value={content}
+        disabled={windowClosed && !isPrivate}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={(e) => {
           // Enter sends, or takes the first quick reply while they are
@@ -278,9 +462,15 @@ export function MessageComposer({
         placeholder={
           isPrivate
             ? t("conversations.composer.notePlaceholder")
-            : t("conversations.composer.replyPlaceholder")
+            : windowClosed
+              ? WHATSAPP_24H_NOTICE
+              : t("conversations.composer.replyPlaceholder")
         }
-        aria-label={isPrivate ? t("conversations.composer.privateNote") : t("conversations.composer.reply")}
+        aria-label={
+          isPrivate
+            ? t("conversations.composer.privateNote")
+            : t("conversations.composer.reply")
+        }
         className={cn("overflow-y-hidden", isPrivate && "border-warning")}
       />
 
@@ -317,6 +507,25 @@ export function MessageComposer({
           {t("conversations.composer.quickReplies")}
         </button>
 
+        {isWhatsapp ? (
+          <button
+            type="button"
+            onClick={() => setTemplateOpen((v) => !v)}
+            aria-expanded={templateOpen}
+            data-highlighted={windowClosed ? "true" : undefined}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1.5 text-xs font-medium transition-colors",
+              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
+              templateOpen || windowClosed
+                ? "border-neon bg-focused font-semibold text-lit ring-1 ring-neon"
+                : "border-glass bg-field text-fg-muted hover:bg-hover-glass hover:text-fg",
+            )}
+          >
+            <FileText className="h-3.5 w-3.5" aria-hidden />
+            Plantilla
+          </button>
+        ) : null}
+
         <input
           ref={fileRef}
           type="file"
@@ -338,22 +547,28 @@ export function MessageComposer({
           <Paperclip className="h-3.5 w-3.5" aria-hidden />
         </Button>
 
-        <Button
-          type="button"
-          variant={isPrivate ? "ghost" : "primary"}
-          size="icon"
-          onClick={submit}
-          disabled={uploading || (!content.trim() && attachments.length === 0)}
-          aria-label={t("actions.send")}
-          title={t("actions.send")}
-          className={cn(
-            "ml-auto h-8 w-8 rounded-full p-0",
-            isPrivate &&
-              "border border-warning bg-warning text-white hover:bg-warning hover:opacity-90 dark:text-bg",
-          )}
-        >
-          <Send className="h-4 w-4" aria-hidden />
-        </Button>
+        {!templateOpen ? (
+          <Button
+            type="button"
+            variant={isPrivate ? "ghost" : "primary"}
+            size="icon"
+            onClick={submit}
+            disabled={
+              uploading ||
+              (windowClosed && !isPrivate) ||
+              (!content.trim() && attachments.length === 0)
+            }
+            aria-label={t("actions.send")}
+            title={t("actions.send")}
+            className={cn(
+              "ml-auto h-8 w-8 rounded-full p-0",
+              isPrivate &&
+                "border border-warning bg-warning text-white hover:bg-warning hover:opacity-90 dark:text-bg",
+            )}
+          >
+            <Send className="h-4 w-4" aria-hidden />
+          </Button>
+        ) : null}
       </div>
 
       {uploadError ? (

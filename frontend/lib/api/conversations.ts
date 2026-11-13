@@ -86,6 +86,9 @@ export type Conversation = {
   timestamp: number;
   last_activity_at: number;
   created_at: number;
+  /** False on WhatsApp when more than 24 h elapsed since the contact's last
+   *  message: only an approved template may be sent. */
+  can_reply?: boolean;
   ad_referral?: AdReferral | null;
   /** ``mail_subject`` on an email conversation — the subject the whole
    *  thread hangs off, which is per-thread and not per-message. */
@@ -320,6 +323,14 @@ export function useMessageSearch(
 // ---------------------------------------------------------------------------
 export type OutgoingAttachment = { external_url: string; file_type: string };
 
+export type MessageTemplateParams = {
+  name: string;
+  language?: string | null;
+  processed_params?: {
+    body?: Record<string, string>;
+  };
+};
+
 export type SendMessageInput = {
   content?: string;
   isPrivate?: boolean;
@@ -328,6 +339,8 @@ export type SendMessageInput = {
    *  concept of copying a third party on a reply. */
   ccEmails?: string;
   bccEmails?: string;
+  /** WhatsApp template parameters when sending an approved template. */
+  templateParams?: MessageTemplateParams;
 };
 
 export type PendingMessage = {
@@ -361,6 +374,7 @@ export function useSendMessage(accountId: string, displayId: number) {
           attachments: input.attachments,
           cc_emails: input.ccEmails || undefined,
           bcc_emails: input.bccEmails || undefined,
+          template_params: input.templateParams || undefined,
         }),
       }),
     onSuccess: async (message) => {

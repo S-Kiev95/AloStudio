@@ -22,6 +22,7 @@ import {
 
 import { HandoffAssigneePanel } from "./handoff-assignee-panel";
 import { InboxMembersPanel } from "./inbox-members-panel";
+import { WhatsappTemplatesPanel } from "./whatsapp-templates-panel";
 import { useT } from "@/lib/i18n/provider";
 
 export function InboxDetailView({
@@ -156,6 +157,17 @@ export function InboxDetailView({
           />
         </CardContent>
       </Card>
+
+      {inbox.channel_type === "Channel::Whatsapp" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Plantillas de WhatsApp</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <WhatsappTemplatesPanel accountId={accountId} inboxId={inboxId} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {inbox.channel_type === "Channel::Email" ? (
         <Card>
