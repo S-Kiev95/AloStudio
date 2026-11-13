@@ -76,7 +76,7 @@ anota en esta sección y lo decide el dueño.
 | F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; resto para más adelante |
 | F3 Redes que faltan | B | Sin empezar |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
-| F5 Plantillas de WhatsApp | A | Sin empezar |
+| F5 Plantillas de WhatsApp | A | En develop (2026-11-13); falta CTC |
 | F6 Gastos por uso | A | Sin empezar |
 | F7 Llamadas y voz | B | Sin empezar |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado; faltan audios e imágenes |
@@ -187,9 +187,15 @@ dentro de la rama.
 
 ## F5. Plantillas de WhatsApp
 
-- Pantalla para listar, crear, editar y borrar plantillas, con vista previa
-  y aviso de cambios de estado; mandar plantillas desde la Bandeja pasadas
-  las 24 h.
+- Hecho y en develop (2026-11-13): Ajustes → Bandejas → una bandeja de
+  WhatsApp → "Plantillas de WhatsApp" (listar con estado y motivo de
+  rechazo, crear, editar y borrar en Meta, vista previa); botón "Plantilla"
+  en la Bandeja; `can_reply` es false pasadas 24 h del último mensaje del
+  contacto y entonces solo se manda plantilla. El webhook
+  `message_template_status_update` / `template_category_update` actualiza
+  el estado solo (campos suscriptos en la app de Meta de CTC).
+- Pendiente: pasarlo a CTC cuando el dueño lo pida; encabezados con
+  imagen, video o documento (hay que subir el archivo a Meta antes).
 
 ## F6. Gastos por uso
 
