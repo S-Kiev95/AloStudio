@@ -293,12 +293,20 @@ export type MessageSearch = {
   meta: { page: number; has_more: boolean };
 };
 
-export function useMessageSearch(accountId: string, q: string, page = 1) {
+/** Across the account, or inside one conversation (`conversationId` is the
+ *  display id) — the in-chat search box. */
+export function useMessageSearch(
+  accountId: string,
+  q: string,
+  page = 1,
+  conversationId?: number,
+) {
   const trimmed = q.trim();
   return useQuery({
-    queryKey: ["message-search", accountId, trimmed, page],
+    queryKey: ["message-search", accountId, trimmed, page, conversationId ?? null],
     queryFn: () => {
       const sp = new URLSearchParams({ q: trimmed, page: String(page) });
+      if (conversationId) sp.set("conversation_id", String(conversationId));
       return apiFetch<MessageSearch>(
         `/api/v1/accounts/${accountId}/search/messages?${sp}`,
       );

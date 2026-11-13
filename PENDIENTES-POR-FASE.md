@@ -225,10 +225,11 @@ dentro de la rama.
   equipo) en todos los endpoints de una conversación; las acciones masivas
   saltean las que el agente no puede ver.
 
+- Buscador dentro del chat: lupa en el encabezado de la conversación, busca
+  sólo ahí (texto y significado) y abre el chat en el mensaje elegido.
+
 **Falta:**
 
-- Buscador dentro del chat abierto (el backend ya lo resuelve con
-  `conversation_id`; falta la pantalla).
 - Audios e imágenes. El servicio carga EmbeddingGemma 2 *sólo texto* (~2 GB);
   el modelo completo con imagen y audio pide ~4,4 GB. Medir en staging con
   notas de voz e imágenes antes de decidir: imágenes con Gemma; audios con
