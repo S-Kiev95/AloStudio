@@ -22,6 +22,7 @@ import {
 
 import { HandoffAssigneePanel } from "./handoff-assignee-panel";
 import { InboxMembersPanel } from "./inbox-members-panel";
+import { useT } from "@/lib/i18n/provider";
 
 export function InboxDetailView({
   accountId,
@@ -30,6 +31,7 @@ export function InboxDetailView({
   accountId: string;
   inboxId: number;
 }) {
+  const t = useT();
   const { data: inbox, isLoading, isError } = useInbox(accountId, inboxId);
   const update = useUpdateInbox(accountId);
   const del = useDeleteInbox(accountId);
@@ -49,35 +51,35 @@ export function InboxDetailView({
     setError(null);
     setSaved(false);
     if (!name.trim()) {
-      setError("El nombre es obligatorio.");
+      setError(t("profile.nameRequired"));
       return;
     }
     try {
       await update.mutateAsync({ id: inboxId, patch: { name: name.trim() } });
       setSaved(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo guardar.");
+      setError(err instanceof ApiError ? err.message : t("settingsInboxes.saveFailed"));
     }
   }
 
   async function onDelete() {
-    if (!window.confirm(`¿Eliminar la bandeja "${inbox?.name}"?`)) return;
+    if (!window.confirm(t("settingsInboxes.deleteConfirm", { name: inbox?.name ?? "" }))) return;
     setError(null);
     try {
       await del.mutateAsync(inboxId);
       router.push(listHref);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo eliminar.");
+      setError(err instanceof ApiError ? err.message : t("actions.deleteFailed"));
     }
   }
 
   if (isLoading) {
-    return <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>;
+    return <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>;
   }
   if (isError || !inbox) {
     return (
       <p role="alert" className="p-8 text-center text-sm text-danger">
-        No se pudo cargar la bandeja.
+        {t("settingsInboxes.loadFailed")}
       </p>
     );
   }
@@ -90,7 +92,7 @@ export function InboxDetailView({
           className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Bandejas
+          {t("settingsInboxes.inboxes")}
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <h2 className="text-xl font-semibold text-fg">{inbox.name}</h2>
@@ -102,12 +104,12 @@ export function InboxDetailView({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">General</CardTitle>
+          <CardTitle className="text-base">{t("settingsInboxes.general")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={saveName} className="space-y-3">
             <label className="block space-y-1">
-              <span className="text-sm font-medium text-fg">Nombre</span>
+              <span className="text-sm font-medium text-fg">{t("profile.name")}</span>
               <Input
                 value={name}
                 onChange={(e) => {
@@ -123,10 +125,10 @@ export function InboxDetailView({
             ) : null}
             <div className="flex items-center gap-2">
               <Button type="submit" size="sm" loading={update.isPending}>
-                Guardar
+                {t("actions.save")}
               </Button>
               {saved ? (
-                <span className="text-xs text-success">Guardado ✓</span>
+                <span className="text-xs text-success">{t("settingsInboxes.savedCheck")}</span>
               ) : null}
             </div>
           </form>
@@ -135,7 +137,7 @@ export function InboxDetailView({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Agentes</CardTitle>
+          <CardTitle className="text-base">{t("settings.items.agents")}</CardTitle>
         </CardHeader>
         <CardContent>
           <InboxMembersPanel accountId={accountId} inboxId={inboxId} />
@@ -144,7 +146,7 @@ export function InboxDetailView({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Cuando el bot deriva</CardTitle>
+          <CardTitle className="text-base">{t("settingsInboxes.whenBotHandsOff")}</CardTitle>
         </CardHeader>
         <CardContent>
           <HandoffAssigneePanel
@@ -155,13 +157,32 @@ export function InboxDetailView({
         </CardContent>
       </Card>
 
+      {inbox.channel_type === "Channel::Whatsapp" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Plantillas de WhatsApp</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-fg-muted">
+              Se crean, editan y revisan en la sección{" "}
+              <Link
+                href={`/accounts/${accountId}/whatsapp?inbox=${inboxId}`}
+                className="text-lit underline-offset-2 hover:underline"
+              >
+                WhatsApp
+              </Link>
+              , con la vista previa de cómo le llega al contacto.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {inbox.channel_type === "Channel::Email" ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Servidor de correo</CardTitle>
+            <CardTitle className="text-base">{t("settingsInboxes.mailServer")}</CardTitle>
             <p className="mt-1 text-sm text-fg-muted">
-              Los datos de tu proveedor. Hasta que estén cargados, esta
-              casilla no recibe ni envía.
+              {t("settingsInboxes.mailServerHint")}
             </p>
           </CardHeader>
           <CardContent>
@@ -173,10 +194,11 @@ export function InboxDetailView({
       {inbox.channel_type === "Channel::Email" ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Firma y logo</CardTitle>
+            <CardTitle className="text-base">{t("settingsInboxes.signatureAndLogo")}</CardTitle>
             <p className="mt-1 text-sm text-fg-muted">
-              Con lo que se firma cada respuesta enviada desde{" "}
-              {inbox.email ?? "esta casilla"}.
+              {t("settingsInboxes.signedFrom", {
+                from: inbox.email ?? t("settingsInboxes.thisMailbox"),
+              })}
             </p>
           </CardHeader>
           <CardContent>
@@ -188,10 +210,9 @@ export function InboxDetailView({
       {inbox.channel_type === "Channel::Email" ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Plantilla del correo</CardTitle>
+            <CardTitle className="text-base">{t("settingsInboxes.mailTemplate")}</CardTitle>
             <p className="mt-1 text-sm text-fg-muted">
-              El HTML con el que sale cada respuesta. Si lo dejás vacío se
-              usa el diseño que trae AloStudio.
+              {t("settingsInboxes.mailTemplateHint")}
             </p>
           </CardHeader>
           <CardContent>
@@ -205,13 +226,13 @@ export function InboxDetailView({
       inbox.webhook_verify_token ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Webhook</CardTitle>
+            <CardTitle className="text-base">{t("settingsInboxes.webhook")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-xs text-fg-muted">
-              Pegá estos valores en la configuración del proveedor (Meta,
-              Telegram, etc.) para recibir los mensajes.
+              {t("settingsInboxes.webhookHint")}
             </p>
+            {/* i18n-ignore-start: the provider names these fields in English */}
             {inbox.callback_webhook_url ? (
               <CodeRow label="Callback URL" value={inbox.callback_webhook_url} />
             ) : null}
@@ -221,6 +242,7 @@ export function InboxDetailView({
             {inbox.inbox_identifier ? (
               <CodeRow label="Inbox identifier" value={inbox.inbox_identifier} />
             ) : null}
+            {/* i18n-ignore-end */}
           </CardContent>
         </Card>
       ) : null}
@@ -228,9 +250,9 @@ export function InboxDetailView({
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
           <div>
-            <p className="text-sm font-medium text-fg">Eliminar bandeja</p>
+            <p className="text-sm font-medium text-fg">{t("settingsInboxes.deleteInbox")}</p>
             <p className="text-xs text-fg-muted">
-              Borra el canal. Las conversaciones existentes quedan sin bandeja.
+              {t("settingsInboxes.deleteInboxHint")}
             </p>
           </div>
           <Button
@@ -240,7 +262,7 @@ export function InboxDetailView({
             loading={del.isPending}
           >
             <Trash2 className="h-4 w-4" aria-hidden />
-            Eliminar
+            {t("actions.delete")}
           </Button>
         </CardContent>
       </Card>
@@ -249,6 +271,7 @@ export function InboxDetailView({
 }
 
 function CodeRow({ label, value }: { label: string; value: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   return (
     <div className="space-y-1">
@@ -259,8 +282,8 @@ function CodeRow({ label, value }: { label: string; value: string }) {
         </code>
         <button
           type="button"
-          aria-label={`Copiar ${label}`}
-          title="Copiar"
+          aria-label={t("settingsInboxes.copyNamed", { label })}
+          title={t("settingsMcp.copy")}
           onClick={() => {
             void navigator.clipboard.writeText(value);
             setCopied(true);

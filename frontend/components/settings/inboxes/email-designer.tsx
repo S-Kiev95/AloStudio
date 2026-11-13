@@ -6,6 +6,7 @@ import {
   type TemplateDesign,
   renderDesign,
 } from "@/lib/inboxes/email-template-design";
+import { useT } from "@/lib/i18n/provider";
 
 /** The controls a non-technical author gets instead of HTML.
  *
@@ -23,6 +24,7 @@ export function EmailDesigner({
   logoUrl: string;
   signature: string;
 }) {
+  const t = useT();
   function set<K extends keyof TemplateDesign>(
     key: K,
     value: TemplateDesign[K],
@@ -34,79 +36,79 @@ export function EmailDesigner({
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="d-title">Título del encabezado</Label>
+          <Label htmlFor="d-title">{t("settingsInboxes.headerTitle")}</Label>
           <Input
             id="d-title"
             value={design.headerTitle}
             onChange={(e) => set("headerTitle", e.target.value)}
-            placeholder="Instituto Ejemplo"
+            placeholder={t("settingsInboxes.exampleOrg")}
           />
           <p className="text-xs text-fg-muted">
-            Vacío y sin logo, el correo sale sin encabezado.
+            {t("settingsInboxes.headerTitleHint")}
           </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Swatch
             id="d-header"
-            label="Color del encabezado"
+            label={t("settingsInboxes.headerColor")}
             value={design.headerColor}
             onChange={(v) => set("headerColor", v)}
           />
           <Swatch
             id="d-headertext"
-            label="Texto del encabezado"
+            label={t("settingsInboxes.headerText")}
             value={design.headerTextColor}
             onChange={(v) => set("headerTextColor", v)}
           />
           <Swatch
             id="d-page"
-            label="Fondo del correo"
+            label={t("settingsInboxes.mailBackground")}
             value={design.pageColor}
             onChange={(v) => set("pageColor", v)}
           />
           <Swatch
             id="d-body"
-            label="Fondo del texto"
+            label={t("settingsInboxes.textBackground")}
             value={design.bodyColor}
             onChange={(v) => set("bodyColor", v)}
           />
         </div>
 
         <Toggle
-          label="Mostrar el logo"
+          label={t("settingsInboxes.showLogo")}
           checked={design.showLogo}
           onChange={(v) => set("showLogo", v)}
           hint={
             logoUrl
               ? undefined
-              : "Todavía no cargaste un logo en Firma y logo."
+              : t("settingsInboxes.noLogoYet")
           }
         />
         <Toggle
-          label="Mostrar la firma del agente"
+          label={t("settingsInboxes.showAgentSignature")}
           checked={design.showAgentSignature}
           onChange={(v) => set("showAgentSignature", v)}
-          hint="La que cada persona configura en Mi perfil."
+          hint={t("settingsInboxes.showAgentSignatureHint")}
         />
         <Toggle
-          label="Mostrar la firma de la casilla"
+          label={t("settingsInboxes.showInboxSignature")}
           checked={design.showSignature}
           onChange={(v) => set("showSignature", v)}
           hint={
             signature.trim()
               ? undefined
-              : "Todavía no cargaste una firma en Firma y logo."
+              : t("settingsInboxes.noSignatureYet")
           }
         />
 
         <div className="space-y-1.5">
-          <Label htmlFor="d-note">Nota al pie</Label>
+          <Label htmlFor="d-note">{t("settingsInboxes.footerNote")}</Label>
           <Input
             id="d-note"
             value={design.footerNote}
             onChange={(e) => set("footerNote", e.target.value)}
-            placeholder="Este correo se envió desde nuestro sistema de soporte."
+            placeholder={t("settingsInboxes.footerNotePlaceholder")}
           />
         </div>
       </div>
@@ -184,6 +186,7 @@ function DesignPreview({
   logoUrl: string;
   signature: string;
 }) {
+  const t = useT();
   const html = renderDesign(design)
     .replace(
       "{{firma_agente}}",
@@ -208,7 +211,7 @@ function DesignPreview({
 
   return (
     <div className="space-y-1.5">
-      <Label>Cómo se ve</Label>
+      <Label>{t("settingsInboxes.preview")}</Label>
       <div
         className="overflow-hidden rounded-lg border border-border"
         // The generated markup, not app markup: this is the only place the

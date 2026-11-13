@@ -10,6 +10,7 @@ import {
   type NotificationType,
   useUpdateNotificationSettings,
 } from "@/lib/api/notifications";
+import { useT } from "@/lib/i18n/provider";
 
 const HANDOFF: NotificationType = "conversation_bot_handoff";
 
@@ -25,6 +26,7 @@ export function WhatsappNotice({
   accountId: string;
   settings: NotificationSettings;
 }) {
+  const t = useT();
   const update = useUpdateNotificationSettings(accountId);
   const [enabled, setEnabled] = useState(false);
   const [number, setNumber] = useState("");
@@ -40,7 +42,7 @@ export function WhatsappNotice({
     setError(null);
     setSaved(false);
     if (enabled && number.trim() === "") {
-      setError("Poné tu número para recibir el aviso.");
+      setError(t("settingsNotif.whatsappNumberRequired"));
       return;
     }
     try {
@@ -52,7 +54,7 @@ export function WhatsappNotice({
     } catch (e) {
       setError(
         (e as { message?: string })?.message ??
-          "No se pudo guardar el aviso por WhatsApp.",
+          t("settingsNotif.whatsappSaveFailed"),
       );
     }
   }
@@ -60,9 +62,7 @@ export function WhatsappNotice({
   return (
     <div className="space-y-4">
       <p className="text-sm text-fg-muted">
-        Cuando el bot derive una conversación a una persona, te llega un
-        WhatsApp desde el número de la cuenta. Sirve para enterarte aunque no
-        tengas AloStudio abierto.
+        {t("settingsNotif.whatsappIntro")}
       </p>
       {error ? (
         <p role="alert" className="text-sm text-danger">
@@ -70,7 +70,7 @@ export function WhatsappNotice({
         </p>
       ) : null}
       {saved ? (
-        <p className="text-sm text-success">Aviso por WhatsApp guardado.</p>
+        <p className="text-sm text-success">{t("settingsNotif.whatsappSaved")}</p>
       ) : null}
       <label className="flex cursor-pointer items-center gap-2.5 text-sm text-fg">
         <input
@@ -82,10 +82,10 @@ export function WhatsappNotice({
           }}
           className="h-4 w-4 cursor-pointer rounded border-glass accent-neon"
         />
-        Avisarme por WhatsApp cuando el bot derive una conversación
+        {t("settingsNotif.whatsappToggle")}
       </label>
       <div className="space-y-1.5">
-        <Label htmlFor="whatsapp-notice-number">Tu número de WhatsApp</Label>
+        <Label htmlFor="whatsapp-notice-number">{t("settingsNotif.whatsappNumber")}</Label>
         <Input
           id="whatsapp-notice-number"
           inputMode="tel"
@@ -99,11 +99,11 @@ export function WhatsappNotice({
           className="max-w-xs"
         />
         <p className="text-xs text-fg-muted">
-          Con el código de país y sin el 0 inicial (Uruguay: 598).
+          {t("settingsNotif.whatsappNumberHint")}
         </p>
       </div>
       <Button onClick={submit} loading={update.isPending}>
-        Guardar aviso
+        {t("settingsNotif.whatsappSave")}
       </Button>
     </div>
   );

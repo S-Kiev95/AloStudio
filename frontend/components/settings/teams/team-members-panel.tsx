@@ -9,6 +9,7 @@ import {
   useSetTeamMembers,
   useTeamMembers,
 } from "@/lib/api/teams";
+import { useT } from "@/lib/i18n/provider";
 
 export function TeamMembersPanel({
   accountId,
@@ -17,6 +18,7 @@ export function TeamMembersPanel({
   accountId: string;
   teamId: number;
 }) {
+  const t = useT();
   const members = useTeamMembers(accountId, teamId);
   const agents = useAgents(accountId);
   const setMembers = useSetTeamMembers(accountId, teamId);
@@ -42,7 +44,7 @@ export function TeamMembersPanel({
       setPicking(false);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo agregar el miembro.",
+        (e as { message?: string })?.message ?? t("settingsTeams.addMemberFailed"),
       );
     }
   }
@@ -54,7 +56,7 @@ export function TeamMembersPanel({
       await setMembers.mutateAsync(next);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo quitar al miembro.",
+        (e as { message?: string })?.message ?? t("settingsTeams.removeMemberFailed"),
       );
     }
   }
@@ -62,7 +64,7 @@ export function TeamMembersPanel({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-fg">Miembros</h3>
+        <h3 className="text-sm font-semibold text-fg">{t("settingsTeams.members")}</h3>
         {!picking ? (
           <Button
             size="sm"
@@ -71,7 +73,7 @@ export function TeamMembersPanel({
             disabled={available.length === 0}
           >
             <Plus className="h-4 w-4" aria-hidden />
-            Agregar miembro
+            {t("settingsTeams.addMember")}
           </Button>
         ) : null}
       </div>
@@ -86,11 +88,11 @@ export function TeamMembersPanel({
         <div className="space-y-2 rounded-md border border-border bg-surface-2 p-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium uppercase text-fg-muted">
-              Agentes disponibles
+              {t("settingsTeams.availableAgents")}
             </p>
             <button
               type="button"
-              aria-label="Cerrar"
+              aria-label={t("actions.close")}
               onClick={() => setPicking(false)}
               className="rounded-md p-1 text-fg-muted hover:bg-surface"
             >
@@ -99,7 +101,7 @@ export function TeamMembersPanel({
           </div>
           {available.length === 0 ? (
             <p className="text-sm text-fg-muted">
-              Todos los agentes ya son miembros de este equipo.
+              {t("settingsTeams.allMembers")}
             </p>
           ) : (
             <ul className="divide-y divide-border rounded-md border border-border bg-surface">
@@ -120,7 +122,7 @@ export function TeamMembersPanel({
                     onClick={() => add(a.id)}
                     loading={setMembers.isPending}
                   >
-                    Agregar
+                    {t("instagram.add")}
                   </Button>
                 </li>
               ))}
@@ -130,13 +132,13 @@ export function TeamMembersPanel({
       ) : null}
 
       {members.isLoading ? (
-        <p className="text-sm text-fg-muted">Cargando miembros…</p>
+        <p className="text-sm text-fg-muted">{t("settingsTeams.loadingMembers")}</p>
       ) : members.isError ? (
         <p role="alert" className="text-sm text-danger">
-          No se pudieron cargar los miembros.
+          {t("settingsTeams.membersLoadFailed")}
         </p>
       ) : (members.data?.length ?? 0) === 0 ? (
-        <p className="text-sm text-fg-muted">El equipo no tiene miembros.</p>
+        <p className="text-sm text-fg-muted">{t("settingsTeams.noMembers")}</p>
       ) : (
         <ul className="divide-y divide-border rounded-md border border-border bg-surface">
           {members.data?.map((m) => (
@@ -149,10 +151,10 @@ export function TeamMembersPanel({
               </div>
               <button
                 type="button"
-                aria-label={`Quitar a ${m.name}`}
-                title="Quitar del equipo"
+                aria-label={t("settingsAgents.removeNamed", { name: m.name })}
+                title={t("settingsTeams.removeFromTeam")}
                 onClick={() => {
-                  if (window.confirm(`¿Quitar a ${m.name} del equipo?`)) {
+                  if (window.confirm(t("settingsTeams.removeConfirm", { name: m.name }))) {
                     void remove(m.id);
                   }
                 }}

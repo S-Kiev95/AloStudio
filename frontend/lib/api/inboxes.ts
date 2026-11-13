@@ -121,6 +121,13 @@ export function useInboxes(accountId: string) {
   });
 }
 
+/** Whether the account has at least one WhatsApp inbox (the sidebar shows
+ *  the WhatsApp section only then). */
+export function useHasWhatsappInbox(accountId: string): boolean {
+  const { data } = useInboxes(accountId);
+  return (data ?? []).some((inbox) => inbox.channel_type === "Channel::Whatsapp");
+}
+
 export function useInbox(accountId: string, id: number) {
   return useQuery({
     queryKey: ["inboxes", accountId, id],
@@ -262,6 +269,7 @@ export function useSetInboxMembers(accountId: string) {
 
 /** Map the Ruby `channel_type` class name to a short, human label. */
 export function channelLabel(channelType: string): string {
+  // i18n-ignore-start: product names
   const map: Record<string, string> = {
     "Channel::Telegram": "Telegram",
     "Channel::Whatsapp": "WhatsApp",
@@ -273,5 +281,6 @@ export function channelLabel(channelType: string): string {
     "Channel::FacebookPage": "Facebook",
     "Channel::Instagram": "Instagram",
   };
+  // i18n-ignore-end
   return map[channelType] ?? channelType.replace("Channel::", "");
 }

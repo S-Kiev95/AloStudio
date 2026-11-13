@@ -18,22 +18,25 @@ import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { useInboxPanels } from "./inbox-shell";
+import { useLocale, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
+import type { Translate } from "@/lib/i18n/translate";
 
-const STATUS_BADGE: Record<string, { label: string; className: string }> = {
+const STATUS_BADGE: Record<string, { label: MessageKey; className: string }> = {
   open: {
-    label: "Abierta",
+    label: "conversations.status.open",
     className: "border border-success bg-surface-2 text-success",
   },
   pending: {
-    label: "Pendiente",
+    label: "conversations.status.pending",
     className: "border border-warning bg-surface-2 text-warning",
   },
   resolved: {
-    label: "Resuelta",
+    label: "conversations.status.resolved",
     className: "border border-glass bg-surface-2 text-fg-muted",
   },
   snoozed: {
-    label: "Pospuesta",
+    label: "conversations.status.snoozed",
     className: "border border-glass bg-surface-2 text-fg-muted",
   },
 };
@@ -47,13 +50,14 @@ function ContactPanelFrame({
   onToggleCollapse: () => void;
   children: ReactNode;
 }) {
+  const t = useT();
   const toggleLabel = collapsed
-    ? "Expandir panel de contacto"
-    : "Colapsar panel de contacto";
+    ? t("conversations.contact.expand")
+    : t("conversations.contact.collapse");
 
   return (
     <aside
-      aria-label="Contacto"
+      aria-label={t("conversations.contact.title")}
       data-testid="inbox-contact-panel"
       data-collapsed={collapsed ? "true" : "false"}
       className={cn(
@@ -115,6 +119,8 @@ export function ContactPanel({
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
+  const locale = useLocale();
+  const t = useT();
   const { contactCollapsed, toggleContactCollapsed } = useInboxPanels();
   const collapsed = collapsedProp ?? contactCollapsed;
   const onToggleCollapse = onToggleCollapseProp ?? toggleContactCollapsed;
@@ -131,7 +137,7 @@ export function ContactPanel({
         onToggleCollapse={onToggleCollapse}
       >
         <p className="text-sm text-fg-muted">
-          Sin contacto asociado a esta conversación.
+          {t("conversations.contact.none")}
         </p>
       </ContactPanelFrame>
     );
@@ -143,7 +149,7 @@ export function ContactPanel({
         collapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
       >
-        <p className="text-sm text-fg-muted">Cargando contacto…</p>
+        <p className="text-sm text-fg-muted">{t("conversations.contact.loading")}</p>
       </ContactPanelFrame>
     );
   }
@@ -155,7 +161,7 @@ export function ContactPanel({
         onToggleCollapse={onToggleCollapse}
       >
         <p role="alert" className="text-sm text-danger">
-          No se pudo cargar el contacto.
+          {t("conversations.contact.loadFailed")}
         </p>
       </ContactPanelFrame>
     );
@@ -166,7 +172,7 @@ export function ContactPanel({
     c.name?.trim() ||
     c.email?.trim() ||
     c.phone_number?.trim() ||
-    `Contacto #${c.id}`;
+    t("conversations.contact.fallbackName", { id: c.id });
 
   const statusMeta = conversationStatus
     ? STATUS_BADGE[conversationStatus]
@@ -179,7 +185,7 @@ export function ContactPanel({
   const customEntries = Object.entries(customMap).map(([key, val]) => ({
     key,
     label: attrNameByKey.get(key) ?? key,
-    value: formatCustom(val),
+    value: formatCustom(val, t),
   }));
 
   return (
@@ -190,7 +196,7 @@ export function ContactPanel({
       <div className="space-y-5 pb-4">
         {/* Identity */}
         <div className="flex flex-col items-center text-center">
-          <Avatar name={displayName} size="xl" />
+          <Avatar name={displayName} src={c.thumbnail} size="xl" />
           <p className="mt-3 max-w-full truncate text-base font-semibold text-fg">
             {displayName}
           </p>
@@ -202,12 +208,12 @@ export function ContactPanel({
                   statusMeta.className,
                 )}
               >
-                {statusMeta.label}
+                {t(statusMeta.label)}
               </span>
             ) : null}
             {c.blocked ? (
               <span className="rounded-pill border border-danger bg-surface-2 px-2 py-0.5 text-[10px] font-medium uppercase text-danger">
-                Bloqueado
+                {t("conversations.contact.blocked")}
               </span>
             ) : null}
           </div>
@@ -215,7 +221,7 @@ export function ContactPanel({
             href={`/accounts/${accountId}/contacts/${c.id}`}
             className="mt-2 inline-flex items-center gap-1 text-xs text-info hover:underline"
           >
-            Ver perfil completo
+            {t("conversations.contact.fullProfile")}
             <ExternalLink className="h-3 w-3" aria-hidden />
           </Link>
         </div>
@@ -224,7 +230,7 @@ export function ContactPanel({
         <div className="space-y-3 border-t border-glass pt-4 text-sm">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wide text-fg-muted">
-              Email
+              {t("common.email")}
             </p>
             {c.email ? (
               <a
@@ -239,7 +245,7 @@ export function ContactPanel({
           </div>
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wide text-fg-muted">
-              Teléfono
+              {t("profile.phone")}
             </p>
             <p className="mt-0.5 truncate font-numeric tabular-nums text-fg">
               {c.phone_number || "—"}
@@ -251,7 +257,7 @@ export function ContactPanel({
         {customEntries.length > 0 ? (
           <div className="border-t border-glass pt-4">
             <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-fg-muted">
-              Atributos personalizados
+              {t("conversations.contact.customAttributes")}
             </h3>
             <dl className="space-y-2 text-xs">
               {customEntries.map((entry) => (
@@ -269,12 +275,12 @@ export function ContactPanel({
         {/* Recent notes */}
         <div className="border-t border-glass pt-4">
           <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-fg-muted">
-            Notas recientes
+            {t("conversations.contact.recentNotes")}
           </h3>
           {notes.isLoading ? (
-            <p className="text-xs text-fg-muted">Cargando…</p>
+            <p className="text-xs text-fg-muted">{t("common.loading")}</p>
           ) : !notes.data?.length ? (
-            <p className="text-xs text-fg-muted">Sin notas.</p>
+            <p className="text-xs text-fg-muted">{t("conversations.contact.noNotes")}</p>
           ) : (
             <ul className="space-y-1.5">
               {notes.data.slice(0, 3).map((n) => (
@@ -284,8 +290,8 @@ export function ContactPanel({
                 >
                   <p className="line-clamp-3 text-fg">{n.content}</p>
                   <p className="mt-0.5 text-fg-muted">
-                    {n.user?.name ?? "Sistema"}
-                    {n.created_at ? ` · ${relativeTime(n.created_at)}` : ""}
+                    {n.user?.name ?? t("conversations.contact.system")}
+                    {n.created_at ? ` · ${relativeTime(n.created_at, locale)}` : ""}
                   </p>
                 </li>
               ))}
@@ -313,6 +319,7 @@ function OtherConversations({
   contactId: number;
   currentDisplayId: number;
 }) {
+  const t = useT();
   // Best-effort: the conversation list endpoint takes no contact filter
   // in the current backend port, so we reuse the open-conversations cache
   // already populated by the left-hand list without triggering extra fetches
@@ -333,7 +340,7 @@ function OtherConversations({
   return (
     <div className="border-t border-glass pt-4">
       <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-fg-muted">
-        Otras conversaciones
+        {t("conversations.contact.otherConversations")}
       </h3>
       <ul className="divide-y divide-glass rounded-md border border-glass bg-surface-2">
         {others.slice(0, 5).map((c) => (
@@ -359,9 +366,9 @@ function OtherConversations({
   );
 }
 
-function formatCustom(value: unknown): string {
+function formatCustom(value: unknown, t: Translate): string {
   if (value === null || value === undefined) return "—";
-  if (typeof value === "boolean") return value ? "Sí" : "No";
+  if (typeof value === "boolean") return value ? t("actions.yes") : t("actions.no");
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }

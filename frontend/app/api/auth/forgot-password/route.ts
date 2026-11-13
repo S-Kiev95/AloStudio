@@ -9,7 +9,7 @@ export async function POST(req: Request): Promise<Response> {
   };
   if (!email) {
     return NextResponse.json(
-      { errors: ["El email es obligatorio."] },
+      { errors: ["El email es obligatorio."], code: "missing_fields" },
       { status: 422 },
     );
   }
@@ -23,7 +23,7 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json(body, { status: res.ok ? 200 : res.status });
   } catch {
     return NextResponse.json(
-      { errors: ["No se pudo contactar el servidor."] },
+      { errors: ["No se pudo contactar el servidor."], code: "server_unreachable" },
       { status: 502 },
     );
   }

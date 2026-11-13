@@ -13,9 +13,12 @@ from fastmcp import FastMCP
 
 def register_all(mcp: FastMCP) -> None:
     """Register every tool module on the server."""
+    from app.mcp.tools.admin import register as register_admin
     from app.mcp.tools.appointments import register as register_appointments
+    from app.mcp.tools.campaigns import register as register_campaigns
     from app.mcp.tools.contacts import register as register_contacts
     from app.mcp.tools.conversations import register as register_conversations
+    from app.mcp.tools.crm import register as register_crm
     from app.mcp.tools.health import register as register_health
     from app.mcp.tools.instagram import register as register_instagram
     from app.mcp.tools.messages import register as register_messages
@@ -30,6 +33,9 @@ def register_all(mcp: FastMCP) -> None:
     register_instagram(mcp)
     register_appointments(mcp)
     register_publishing(mcp)
+    register_campaigns(mcp)
+    register_admin(mcp)
+    register_crm(mcp)
 
 
 __all__ = ["register_all"]

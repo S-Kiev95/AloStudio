@@ -8,28 +8,30 @@ import {
 
 import type { AppointmentStatus } from "@/lib/api/appointments";
 import { cn } from "@/lib/utils";
+import type { MessageKey } from "@/lib/i18n/translate";
+import { useT } from "@/lib/i18n/provider";
 
 export const APPOINTMENT_STATUS_META: Record<
   AppointmentStatus,
-  { label: string; icon: LucideIcon; className: string }
+  { label: MessageKey; icon: LucideIcon; className: string }
 > = {
   scheduled: {
-    label: "Programada",
+    label: "agenda.status.scheduled",
     icon: Clock,
     className: "bg-warning/10 text-warning",
   },
   confirmed: {
-    label: "Confirmada",
+    label: "agenda.status.confirmed",
     icon: CheckCircle2,
     className: "bg-info/10 text-info",
   },
   done: {
-    label: "Realizada",
+    label: "agenda.status.done",
     icon: CheckCheck,
     className: "bg-success/10 text-success",
   },
   cancelled: {
-    label: "Cancelada",
+    label: "agenda.status.cancelled",
     icon: XCircle,
     className: "bg-danger/10 text-danger",
   },
@@ -37,12 +39,12 @@ export const APPOINTMENT_STATUS_META: Record<
 
 export const APPOINTMENT_STATUS_OPTIONS: {
   value: AppointmentStatus;
-  label: string;
+  label: MessageKey;
 }[] = [
-  { value: "scheduled", label: "Programada" },
-  { value: "confirmed", label: "Confirmada" },
-  { value: "done", label: "Realizada" },
-  { value: "cancelled", label: "Cancelada" },
+  { value: "scheduled", label: "agenda.status.scheduled" },
+  { value: "confirmed", label: "agenda.status.confirmed" },
+  { value: "done", label: "agenda.status.done" },
+  { value: "cancelled", label: "agenda.status.cancelled" },
 ];
 
 export function AppointmentStatusBadge({
@@ -52,6 +54,7 @@ export function AppointmentStatusBadge({
   status: AppointmentStatus;
   className?: string;
 }) {
+  const t = useT();
   const meta =
     APPOINTMENT_STATUS_META[status] ?? APPOINTMENT_STATUS_META.scheduled;
   const Icon = meta.icon;
@@ -64,7 +67,7 @@ export function AppointmentStatusBadge({
       )}
     >
       <Icon className="h-3 w-3 shrink-0" aria-hidden />
-      {meta.label}
+      {t(meta.label)}
     </span>
   );
 }

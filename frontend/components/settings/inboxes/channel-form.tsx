@@ -13,6 +13,8 @@ import { type ChannelPayload, useCreateInbox } from "@/lib/api/inboxes";
 import { channelDef, type ChannelDef } from "@/lib/inboxes/channel-catalog";
 
 import { FacebookPageConnect } from "./facebook-page-connect";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 export function ChannelForm({
   accountId,
@@ -21,6 +23,9 @@ export function ChannelForm({
   accountId: string;
   channel: string;
 }) {
+  const t = useT();
+  // Catalog texts are keys, or product names t() hands back unchanged.
+  const tx = (text: string) => t(text as MessageKey);
   const def = channelDef(channel);
   const router = useRouter();
   const create = useCreateInbox(accountId);
@@ -33,9 +38,9 @@ export function ChannelForm({
   if (!def) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-danger">Canal desconocido: {channel}</p>
+        <p className="text-sm text-danger">{t("settingsInboxes.unknownChannel")} {channel}</p>
         <Link href={`${inboxesHref}/new`} className={buttonVariants({ size: "sm" })}>
-          Elegir un canal
+          {t("settingsInboxes.pickChannel")}
         </Link>
       </div>
     );
@@ -49,12 +54,12 @@ export function ChannelForm({
     e.preventDefault();
     setError(null);
     if (!name.trim()) {
-      setError("El nombre de la bandeja es obligatorio.");
+      setError(t("settingsInboxes.nameRequired"));
       return;
     }
     for (const f of def!.fields) {
       if (f.required && !values[f.name]?.trim()) {
-        setError(`Falta el campo: ${f.label}`);
+        setError(t("settingsInboxes.fieldMissing", { field: tx(f.label) }));
         return;
       }
     }
@@ -68,7 +73,7 @@ export function ChannelForm({
       router.push(`${inboxesHref}/${created.id}`);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "No se pudo crear el canal.",
+        err instanceof ApiError ? err.message : t("settingsInboxes.createFailed"),
       );
     }
   }
@@ -81,9 +86,9 @@ export function ChannelForm({
           className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Cambiar canal
+          {t("settingsInboxes.changeChannel")}
         </Link>
-        <h2 className="mt-2 text-xl font-medium text-fg">{def.label}</h2>
+        <h2 className="mt-2 text-xl font-medium text-fg">{tx(def.label)}</h2>
         <p className="text-sm text-fg-muted">{def.blurb}</p>
       </div>
 
@@ -93,16 +98,21 @@ export function ChannelForm({
         onSubmit={submit}
         className="space-y-4 rounded-md border border-glass bg-surface p-5"
       >
-        <Field label="Nombre de la bandeja" required>
+        <Field label={t("settingsInboxes.inboxName")} required>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Mi canal"
+            placeholder={t("settingsInboxes.inboxNamePlaceholder")}
           />
         </Field>
 
         {def.fields.map((f) => (
-          <Field key={f.name} label={f.label} required={f.required} help={f.help}>
+          <Field
+            key={f.name}
+            label={tx(f.label)}
+            required={f.required}
+            help={f.help ? tx(f.help) : undefined}
+          >
             {f.type === "checkbox" ? (
               <label className="flex items-center gap-2 text-sm text-fg">
                 <input
@@ -113,7 +123,7 @@ export function ChannelForm({
                   }
                   className="h-4 w-4 rounded border-glass accent-neon"
                 />
-                Activar
+                {t("settingsNotif.enable")}
               </label>
             ) : f.type === "select" ? (
               <select
@@ -132,7 +142,7 @@ export function ChannelForm({
                 type={f.type === "password" ? "password" : "text"}
                 value={values[f.name] ?? ""}
                 onChange={(e) => setField(f.name, e.target.value)}
-                placeholder={f.placeholder}
+                placeholder={f.placeholder ? tx(f.placeholder) : undefined}
                 // Chrome filled the saved AloStudio login into "Usuario
                 // IMAP" and the password to match, which reached the
                 // server as a mailbox that could not authenticate.
@@ -153,10 +163,10 @@ export function ChannelForm({
             href={inboxesHref}
             className={buttonVariants({ variant: "secondary", size: "sm" })}
           >
-            Cancelar
+            {t("actions.cancel")}
           </Link>
           <Button type="submit" size="sm" loading={create.isPending}>
-            Crear canal
+            {t("settingsInboxes.createChannel")}
           </Button>
         </div>
       </form>

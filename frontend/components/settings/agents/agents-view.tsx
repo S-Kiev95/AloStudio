@@ -21,8 +21,11 @@ import {
   useRemoveAgent,
   useUpdateAgent,
 } from "@/lib/api/agents-admin";
+import { useT } from "@/lib/i18n/provider";
+import { rich } from "@/lib/i18n/rich";
 
 export function AgentsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = useAgents(accountId);
   const invite = useInviteAgent(accountId);
 
@@ -37,7 +40,7 @@ export function AgentsView({ accountId }: { accountId: string }) {
     setInviteError(null);
     setLastInvited(null);
     if (!email.trim() || !name.trim()) {
-      return setInviteError("El nombre y el email son obligatorios.");
+      return setInviteError(t("settingsAgents.nameEmailRequired"));
     }
     try {
       await invite.mutateAsync({
@@ -53,7 +56,7 @@ export function AgentsView({ accountId }: { accountId: string }) {
     } catch (e) {
       setInviteError(
         (e as { message?: string })?.message ??
-          "No se pudo enviar la invitación.",
+          t("settingsAgents.inviteFailed"),
       );
     }
   }
@@ -61,26 +64,27 @@ export function AgentsView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-medium text-fg">Agentes</h2>
+        <h2 className="text-xl font-medium text-fg">{t("conversations.reports.agents")}</h2>
         {!showInvite ? (
           <Button size="sm" onClick={() => setShowInvite(true)}>
             <Plus className="h-4 w-4" aria-hidden />
-            Invitar agente
+            {t("settingsAgents.invite")}
           </Button>
         ) : null}
       </div>
 
       {lastInvited ? (
         <p className="rounded-md border border-success/30 bg-success/5 px-3 py-2 text-sm text-success">
-          Le mandamos una invitación a <strong>{lastInvited}</strong>. El
-          enlace caduca cuando establezca su contraseña.
+          {rich(t("settingsAgents.invited"), {
+            email: <strong>{lastInvited}</strong>,
+          })}
         </p>
       ) : null}
 
       {showInvite ? (
         <Card>
           <CardHeader>
-            <CardTitle>Invitar agente</CardTitle>
+            <CardTitle>{t("settingsAgents.invite")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -92,7 +96,7 @@ export function AgentsView({ accountId }: { accountId: string }) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="i-name" required>
-                    Nombre
+                    {t("profile.name")}
                   </Label>
                   <Input
                     id="i-name"
@@ -102,7 +106,7 @@ export function AgentsView({ accountId }: { accountId: string }) {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="i-email" required>
-                    Email
+                    {t("common.email")}
                   </Label>
                   <Input
                     id="i-email"
@@ -113,24 +117,23 @@ export function AgentsView({ accountId }: { accountId: string }) {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="i-role">Rol</Label>
+                <Label htmlFor="i-role">{t("settingsAgents.role")}</Label>
                 <select
                   id="i-role"
                   className={selectClassName()}
                   value={role}
                   onChange={(e) => setRole(e.target.value as AgentRole)}
                 >
-                  <option value="agent">Agente</option>
-                  <option value="administrator">Administrador</option>
+                  <option value="agent">{t("settingsAgents.roles.agent")}</option>
+                  <option value="administrator">{t("settingsAgents.roles.administrator")}</option>
                 </select>
               </div>
               <p className="text-xs text-fg-muted">
-                Le va a llegar un email con un enlace para establecer su
-                contraseña.
+                {t("settingsAgents.inviteNote")}
               </p>
               <div className="flex gap-2">
                 <Button onClick={submitInvite} loading={invite.isPending}>
-                  Enviar invitación
+                  {t("settingsAgents.sendInvite")}
                 </Button>
                 <Button
                   variant="ghost"
@@ -140,7 +143,7 @@ export function AgentsView({ accountId }: { accountId: string }) {
                   }}
                   disabled={invite.isPending}
                 >
-                  Cancelar
+                  {t("actions.cancel")}
                 </Button>
               </div>
             </div>
@@ -150,14 +153,14 @@ export function AgentsView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los agentes.
+            {t("settingsAgents.loadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay agentes en esta cuenta todavía.
+            {t("settingsAgents.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -178,6 +181,7 @@ function AgentRow({
   accountId: string;
   agent: Agent;
 }) {
+  const t = useT();
   const update = useUpdateAgent(accountId);
   const remove = useRemoveAgent(accountId);
   const [error, setError] = useState<string | null>(null);
@@ -195,19 +199,19 @@ function AgentRow({
       });
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo cambiar el rol.",
+        (e as { message?: string })?.message ?? t("settingsAgents.roleFailed"),
       );
     }
   }
 
   async function onRemove() {
-    if (!window.confirm(`¿Quitar a ${agent.name} de la cuenta?`)) return;
+    if (!window.confirm(t("settingsAgents.removeConfirm", { name: agent.name }))) return;
     setError(null);
     try {
       await remove.mutateAsync(agent.id);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo eliminar.",
+        (e as { message?: string })?.message ?? t("actions.deleteFailed"),
       );
     }
   }
@@ -220,7 +224,7 @@ function AgentRow({
           {agent.name}
           {agent.confirmed === false ? (
             <span className="ml-2 rounded-sm bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-warning">
-              Pendiente
+              {t("conversations.status.pending")}
             </span>
           ) : null}
         </p>
@@ -237,19 +241,19 @@ function AgentRow({
         ) : null}
       </div>
       <select
-        aria-label="Rol"
+        aria-label={t("settingsAgents.role")}
         value={currentRole}
         onChange={(e) => changeRole(e.target.value as AgentRole)}
         disabled={update.isPending}
         className={selectClassName("sm")}
       >
-        <option value="agent">{ROLE_LABEL.agent}</option>
-        <option value="administrator">{ROLE_LABEL.administrator}</option>
+        <option value="agent">{t(ROLE_LABEL.agent)}</option>
+        <option value="administrator">{t(ROLE_LABEL.administrator)}</option>
       </select>
       <button
         type="button"
-        aria-label={`Quitar a ${agent.name}`}
-        title="Quitar de la cuenta"
+        aria-label={t("settingsAgents.removeNamed", { name: agent.name })}
+        title={t("settingsAgents.removeFromAccount")}
         onClick={onRemove}
         disabled={remove.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

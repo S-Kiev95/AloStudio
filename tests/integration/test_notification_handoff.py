@@ -43,7 +43,7 @@ from app.domains.notifications.service import (
     get_or_create_settings,
 )
 from app.domains.teams import models as _teams  # noqa: F401  (mapper)
-from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser
+from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser, User
 from app.main import app
 
 pytestmark = pytest.mark.integration
@@ -364,3 +364,31 @@ async def test_whatsapp_notice_needs_the_approved_template(db_session, sent):
         db_session, notification_id=notification.id
     )
     assert sent == []
+
+
+async def test_whatsapp_notice_uses_the_recipients_language_when_approved(db_session, sent):
+    """F13: the variant in the profile's language if Meta approved it."""
+    portuguese = {**_TEMPLATE, "language": "pt_BR"}
+    notification, _ = await _handoff_notification(
+        db_session, "-wa-pt", templates=[_TEMPLATE, portuguese], opted_in=True
+    )
+    user = await db_session.get(User, notification.user_id)
+    user.ui_settings = {"locale": "pt"}
+    db_session.add(user)
+    await db_session.flush()
+
+    assert await wa_notice.send_notification_whatsapp(db_session, notification_id=notification.id)
+    assert sent[0]["template_info"]["lang_code"] == "pt_BR"
+
+
+async def test_whatsapp_notice_falls_back_to_spanish(db_session, sent):
+    notification, _ = await _handoff_notification(
+        db_session, "-wa-fr", templates=[_TEMPLATE], opted_in=True
+    )
+    user = await db_session.get(User, notification.user_id)
+    user.ui_settings = {"locale": "fr"}
+    db_session.add(user)
+    await db_session.flush()
+
+    assert await wa_notice.send_notification_whatsapp(db_session, notification_id=notification.id)
+    assert sent[0]["template_info"]["lang_code"] == "es"

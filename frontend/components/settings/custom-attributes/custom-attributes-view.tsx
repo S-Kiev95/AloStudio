@@ -19,18 +19,21 @@ import {
 import { cn } from "@/lib/utils";
 
 import { CustomAttributeForm } from "./custom-attribute-form";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const MODEL_FILTERS: { value: AttributeModel | undefined; label: string }[] = [
-  { value: undefined, label: "Todos" },
-  { value: "conversation_attribute", label: "Conversaciones" },
-  { value: "contact_attribute", label: "Contactos" },
+const MODEL_FILTERS: { value: AttributeModel | undefined; label: MessageKey }[] = [
+  { value: undefined, label: "helpCenter.filters.all" },
+  { value: "conversation_attribute", label: "conversations.tabs.conversations" },
+  { value: "contact_attribute", label: "conversations.reports.contacts" },
 ];
 
-const TYPE_LABEL: Record<string, string> = Object.fromEntries(
-  ATTRIBUTE_DISPLAY_TYPES.map((t) => [t.value, t.label]),
+const TYPE_LABEL: Record<string, MessageKey> = Object.fromEntries(
+  ATTRIBUTE_DISPLAY_TYPES.map((dt) => [dt.value, dt.label]),
 );
 
 export function CustomAttributesView({ accountId }: { accountId: string }) {
+  const t = useT();
   const [model, setModel] = useState<AttributeModel | undefined>(undefined);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<CustomAttribute | null>(null);
@@ -54,12 +57,12 @@ export function CustomAttributesView({ accountId }: { accountId: string }) {
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-medium text-fg">
-          Atributos personalizados
+          {t("settings.items.custom_attributes")}
         </h2>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
-            Nuevo atributo
+            {t("settingsAttrs.new")}
           </Button>
         ) : null}
       </div>
@@ -67,7 +70,7 @@ export function CustomAttributesView({ accountId }: { accountId: string }) {
       {creating ? (
         <Card>
           <CardHeader>
-            <CardTitle>Nuevo atributo</CardTitle>
+            <CardTitle>{t("settingsAttrs.new")}</CardTitle>
           </CardHeader>
           <CardContent>
             <CustomAttributeForm
@@ -82,7 +85,7 @@ export function CustomAttributesView({ accountId }: { accountId: string }) {
       {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>Editar atributo</CardTitle>
+            <CardTitle>{t("settingsAttrs.edit")}</CardTitle>
           </CardHeader>
           <CardContent>
             <CustomAttributeForm
@@ -97,22 +100,22 @@ export function CustomAttributesView({ accountId }: { accountId: string }) {
 
       <SegmentedControl
         size="sm"
-        ariaLabel="Modelo"
+        ariaLabel={t("settingsAttrs.model")}
         value={model}
         onValueChange={setModel}
-        options={MODEL_FILTERS}
+        options={MODEL_FILTERS.map((o) => ({ ...o, label: t(o.label) }))}
       />
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los atributos.
+            {t("settingsAttrs.loadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay atributos definidos todavía.
+            {t("settingsAttrs.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -143,17 +146,18 @@ function AttrRow({
   attribute: CustomAttribute;
   onEdit: () => void;
 }) {
+  const t = useT();
   const del = useDeleteCustomAttribute(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(`¿Eliminar "${attribute.attribute_display_name}"?`))
+    if (!window.confirm(t("settingsAttrs.deleteConfirm", { name: attribute.attribute_display_name })))
       return;
     setError(null);
     try {
       await del.mutateAsync(attribute.id);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((e as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
@@ -165,8 +169,9 @@ function AttrRow({
         </p>
         <p className="text-xs text-fg-muted">
           <code>{attribute.attribute_key}</code> ·{" "}
-          {TYPE_LABEL[attribute.attribute_display_type] ??
-            attribute.attribute_display_type}
+          {TYPE_LABEL[attribute.attribute_display_type]
+            ? t(TYPE_LABEL[attribute.attribute_display_type])
+            : attribute.attribute_display_type}
           {attribute.attribute_description
             ? ` · ${attribute.attribute_description}`
             : ""}
@@ -186,13 +191,13 @@ function AttrRow({
         )}
       >
         {attribute.attribute_model === "conversation_attribute"
-          ? "Conversaciones"
-          : "Contactos"}
+          ? t("conversations.tabs.conversations")
+          : t("conversations.reports.contacts")}
       </span>
       <button
         type="button"
-        aria-label="Editar"
-        title="Editar"
+        aria-label={t("actions.edit")}
+        title={t("actions.edit")}
         onClick={onEdit}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -200,8 +205,8 @@ function AttrRow({
       </button>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

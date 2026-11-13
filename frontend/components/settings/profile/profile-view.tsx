@@ -10,10 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useProfile, useUpdateProfile } from "@/lib/api/profile";
 import { uploadAttachment } from "@/lib/api/uploads";
+import { useT } from "@/lib/i18n/provider";
+
+import { LanguageCard } from "./language-card";
 
 export function ProfileView() {
   const profile = useProfile();
   const update = useUpdateProfile();
+  const t = useT();
 
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -56,7 +60,7 @@ export function ProfileView() {
       setSaved(true);
     } catch (err) {
       setError(
-        (err as { message?: string })?.message ?? "No se pudo subir la foto.",
+        (err as { message?: string })?.message ?? t("profile.uploadFailed"),
       );
     } finally {
       setUploadingAvatar(false);
@@ -71,7 +75,7 @@ export function ProfileView() {
       setAvatarUrl(null);
     } catch (err) {
       setError(
-        (err as { message?: string })?.message ?? "No se pudo quitar la foto.",
+        (err as { message?: string })?.message ?? t("profile.removeFailed"),
       );
     } finally {
       setUploadingAvatar(false);
@@ -81,7 +85,7 @@ export function ProfileView() {
   async function submit() {
     setError(null);
     setSaved(false);
-    if (!name.trim()) return setError("El nombre es obligatorio.");
+    if (!name.trim()) return setError(t("profile.nameRequired"));
     try {
       await update.mutateAsync({
         name: name.trim(),
@@ -93,25 +97,25 @@ export function ProfileView() {
       setSaved(true);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo actualizar el perfil.",
+        (e as { message?: string })?.message ?? t("profile.updateFailed"),
       );
     }
   }
 
   return (
     <div className="max-w-2xl space-y-4">
-      <h2 className="text-xl font-medium text-fg">Mi perfil</h2>
+      <h2 className="text-xl font-medium text-fg">{t("profile.title")}</h2>
 
       <Card>
         <CardHeader>
-          <CardTitle>Datos personales</CardTitle>
+          <CardTitle>{t("profile.personal")}</CardTitle>
         </CardHeader>
         <CardContent>
           {profile.isLoading ? (
-            <p className="text-sm text-fg-muted">Cargando…</p>
+            <p className="text-sm text-fg-muted">{t("common.loading")}</p>
           ) : profile.isError ? (
             <p role="alert" className="text-sm text-danger">
-              No se pudo cargar el perfil.
+              {t("profile.loadFailed")}
             </p>
           ) : (
             <div className="space-y-4">
@@ -121,7 +125,7 @@ export function ProfileView() {
                 </p>
               ) : null}
               {saved ? (
-                <p className="text-sm text-success">Cambios guardados.</p>
+                <p className="text-sm text-success">{t("common.changesSaved")}</p>
               ) : null}
 
               <div className="flex items-center gap-4">
@@ -130,7 +134,7 @@ export function ProfileView() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={avatarUrl}
-                      alt="Foto de perfil"
+                      alt={t("profile.photoAlt")}
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -144,7 +148,7 @@ export function ProfileView() {
                     accept="image/*"
                     onChange={onPickAvatar}
                     className="hidden"
-                    aria-label="Subir foto de perfil"
+                    aria-label={t("profile.uploadPhoto")}
                   />
                   <Button
                     type="button"
@@ -154,7 +158,7 @@ export function ProfileView() {
                     loading={uploadingAvatar}
                     disabled={accountId === undefined}
                   >
-                    Cambiar foto
+                    {t("profile.changePhoto")}
                   </Button>
                   {avatarUrl ? (
                     <Button
@@ -164,7 +168,7 @@ export function ProfileView() {
                       onClick={removeAvatar}
                       disabled={uploadingAvatar}
                     >
-                      Quitar
+                      {t("common.remove")}
                     </Button>
                   ) : null}
                 </div>
@@ -173,7 +177,7 @@ export function ProfileView() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="p-name" required>
-                    Nombre
+                    {t("profile.name")}
                   </Label>
                   <Input
                     id="p-name"
@@ -182,7 +186,7 @@ export function ProfileView() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="p-display">Nombre visible</Label>
+                  <Label htmlFor="p-display">{t("profile.displayName")}</Label>
                   <Input
                     id="p-display"
                     value={displayName}
@@ -193,7 +197,7 @@ export function ProfileView() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="p-email">Email</Label>
+                <Label htmlFor="p-email">{t("common.email")}</Label>
                 <Input
                   id="p-email"
                   type="email"
@@ -201,12 +205,12 @@ export function ProfileView() {
                   onChange={(e) => setEmail(e.target.value)}
                 />
                 <p className="text-xs text-fg-muted">
-                  Al cambiar el email vas a tener que confirmar el nuevo.
+                  {t("profile.emailChangeNote")}
                 </p>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="p-phone">Teléfono</Label>
+                <Label htmlFor="p-phone">{t("profile.phone")}</Label>
                 <Input
                   id="p-phone"
                   type="tel"
@@ -217,25 +221,27 @@ export function ProfileView() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="p-sig">Firma de mensaje</Label>
+                <Label htmlFor="p-sig">{t("profile.signature")}</Label>
                 <Textarea
                   id="p-sig"
                   rows={3}
                   value={signature}
                   onChange={(e) => setSignature(e.target.value)}
-                  placeholder="Aparece al final de tus respuestas en conversaciones."
+                  placeholder={t("profile.signaturePlaceholder")}
                 />
               </div>
 
               <div>
                 <Button onClick={submit} loading={update.isPending}>
-                  Guardar cambios
+                  {t("common.saveChanges")}
                 </Button>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <LanguageCard />
     </div>
   );
 }

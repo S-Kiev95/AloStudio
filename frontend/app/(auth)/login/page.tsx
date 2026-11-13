@@ -11,10 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { messageFromBody } from "@/lib/api/errors";
 import { safeNextPath } from "@/lib/auth/next-path";
-import { type LoginInput, loginSchema } from "@/lib/auth/schemas";
+import { errorKey, type LoginInput, loginSchema } from "@/lib/auth/schemas";
+import { useT } from "@/lib/i18n/provider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useT();
   const [formError, setFormError] = useState<string | null>(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
 
@@ -45,7 +47,7 @@ export default function LoginPage() {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setFormError(messageFromBody(body, "No se pudo iniciar sesión."));
+      setFormError(messageFromBody(body, t("auth.login.failed")));
       return;
     }
     // Back to where the session ran out (or the OAuth consent), if it is
@@ -63,10 +65,10 @@ export default function LoginPage() {
     <div className="space-y-6">
       <div>
         <div className="neon-sign">
-          <h1 className="text-[28px] leading-[1.2]">Iniciar sesión</h1>
+          <h1 className="text-[28px] leading-[1.2]">{t("auth.login.title")}</h1>
         </div>
         <p className="mt-1.5 text-sm text-fg-muted">
-          Accedé a tu cuenta de AloStudio.
+          {t("auth.login.subtitle")}
         </p>
       </div>
 
@@ -83,11 +85,11 @@ export default function LoginPage() {
               <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
               <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
             </svg>
-            Entrar con Google
+            {t("auth.login.google")}
           </a>
           <div className="flex items-center gap-3 text-xs text-fg-muted">
             <span className="h-px flex-1 bg-glass" />
-            o con tu correo
+            {t("auth.login.orEmail")}
             <span className="h-px flex-1 bg-glass" />
           </div>
         </div>
@@ -105,7 +107,7 @@ export default function LoginPage() {
 
         <div className="space-y-1.5">
           <Label htmlFor="email" required>
-            Email
+            {t("common.email")}
           </Label>
           <Input
             id="email"
@@ -117,14 +119,14 @@ export default function LoginPage() {
           />
           {errors.email ? (
             <p id="email-error" role="alert" className="text-sm text-danger">
-              {errors.email.message}
+              {t(errorKey(errors.email.message))}
             </p>
           ) : null}
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="password" required>
-            Contraseña
+            {t("common.password")}
           </Label>
           <Input
             id="password"
@@ -136,20 +138,20 @@ export default function LoginPage() {
           />
           {errors.password ? (
             <p id="password-error" role="alert" className="text-sm text-danger">
-              {errors.password.message}
+              {t(errorKey(errors.password.message))}
             </p>
           ) : null}
         </div>
 
         <Button type="submit" className="w-full" loading={isSubmitting}>
-          Entrar
+          {t("auth.login.submit")}
         </Button>
 
         <Link
           href="/forgot-password"
           className="block pt-1 text-center text-sm text-info hover:underline"
         >
-          ¿Olvidaste tu contraseña?
+          {t("auth.login.forgot")}
         </Link>
       </form>
     </div>

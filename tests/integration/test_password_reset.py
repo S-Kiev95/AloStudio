@@ -150,7 +150,7 @@ async def test_apply_reset_rejects_bad_token(client, seeded_user):
     assert resp.status_code == 422
     # Body matches Ruby ``render json: {message: ..., redirect_url: ...}``
     # exactly — no FastAPI ``detail`` wrapper.
-    assert resp.json() == {"message": "Invalid token", "redirect_url": "/"}
+    assert resp.json() == {"message": "Invalid token", "redirect_url": "/", "code": "invalid_token"}
 
 
 async def test_apply_reset_rejects_confirmation_mismatch(client, db_session, seeded_user):

@@ -4,6 +4,7 @@ import { AlertTriangle } from "lucide-react";
 import { useEffect } from "react";
 
 import { FallbackPanel } from "@/components/system/fallback-panel";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * Root error boundary. Catches anything thrown during render that no
@@ -18,6 +19,7 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useT();
   useEffect(() => {
     console.error("AloStudio uncaught error", error);
   }, [error]);
@@ -27,10 +29,10 @@ export default function GlobalError({
       <div className="flex min-h-dvh items-center justify-center p-6">
         <FallbackPanel
           icon={AlertTriangle}
-          title="Algo salió mal"
-          description="Tuvimos un problema cargando esta página. Probá recargar."
-          primary={{ label: "Reintentar", onClick: reset }}
-          secondary={{ label: "Ir al inicio", href: "/" }}
+          title={t("errors.pageTitle")}
+          description={t("errors.pageBody")}
+          primary={{ label: t("actions.retry"), onClick: reset }}
+          secondary={{ label: t("errors.goHome"), href: "/" }}
         />
       </div>
     </div>

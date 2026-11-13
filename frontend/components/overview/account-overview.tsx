@@ -29,45 +29,47 @@ import {
 } from "@/lib/api/reports";
 
 import { NetworkOrbit } from "./network-orbit";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 const LIVE: {
   key: keyof LiveMetrics;
-  label: string;
+  label: MessageKey;
   icon: IconComponent;
 }[] = [
-  { key: "open", label: "Abiertas", icon: InboxIcon },
-  { key: "unattended", label: "Sin atender", icon: ClockIcon },
-  { key: "unassigned", label: "Sin asignar", icon: UnassignedIcon },
-  { key: "pending", label: "Pendientes", icon: HourglassIcon },
+  { key: "open", label: "overview.live.open", icon: InboxIcon },
+  { key: "unattended", label: "overview.live.unattended", icon: ClockIcon },
+  { key: "unassigned", label: "overview.live.unassigned", icon: UnassignedIcon },
+  { key: "pending", label: "overview.live.pending", icon: HourglassIcon },
 ];
 
 const ACTIONS: {
-  label: string;
-  desc: string;
+  label: MessageKey;
+  desc: MessageKey;
   icon: IconComponent;
   segment: string;
 }[] = [
   {
-    label: "Conversaciones",
-    desc: "Bandeja de entrada",
+    label: "overview.shortcut.conversations",
+    desc: "overview.shortcut.conversationsDesc",
     icon: MessagesIcon,
     segment: "conversations",
   },
   {
-    label: "Instagram",
-    desc: "DMs, posts y comentarios",
+    label: "nav.instagram",
+    desc: "overview.shortcut.instagramDesc",
     icon: InstagramNavIcon,
     segment: "instagram",
   },
   {
-    label: "Campañas",
-    desc: "Envíos y plantillas",
+    label: "overview.shortcut.campaigns",
+    desc: "overview.shortcut.campaignsDesc",
     icon: MegaphoneIcon,
     segment: "campaigns",
   },
   {
-    label: "Reportes",
-    desc: "Métricas y exportes",
+    label: "overview.shortcut.reports",
+    desc: "overview.shortcut.reportsDesc",
     icon: BarsIcon,
     segment: "reports",
   },
@@ -90,6 +92,8 @@ function LiveCard({
   value: number | undefined;
   loading: boolean;
 }) {
+  const intlTag = useIntlTag();
+  const t = useT();
   const Icon = def.icon;
   return (
     <Card className="flex items-center gap-3.5 p-4">
@@ -101,9 +105,9 @@ function LiveCard({
       </span>
       <div className="min-w-0">
         <p className="font-numeric text-2xl font-semibold leading-none tabular-nums text-fg">
-          {loading ? "—" : (value ?? 0).toLocaleString()}
+          {loading ? "—" : (value ?? 0).toLocaleString(intlTag)}
         </p>
-        <p className="mt-1.5 truncate text-xs text-fg-muted">{def.label}</p>
+        <p className="mt-1.5 truncate text-xs text-fg-muted">{t(def.label)}</p>
       </div>
     </Card>
   );
@@ -116,6 +120,7 @@ function ActionRow({
   accountId: string;
   action: (typeof ACTIONS)[number];
 }) {
+  const t = useT();
   const Icon = action.icon;
   return (
     <Link
@@ -126,8 +131,8 @@ function ActionRow({
         <Icon className="h-5 w-5" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-fg">{action.label}</p>
-        <p className="truncate text-xs text-fg-muted">{action.desc}</p>
+        <p className="text-sm font-medium text-fg">{t(action.label)}</p>
+        <p className="truncate text-xs text-fg-muted">{t(action.desc)}</p>
       </div>
       <ArrowRight
         className="h-4 w-4 shrink-0 text-fg-muted opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
@@ -143,12 +148,14 @@ function ActionRow({
  * client-side because the metrics are live queries.
  */
 export function AccountOverview({ accountId }: { accountId: string }) {
+  const intlTag = useIntlTag();
+  const t = useT();
   const shell = useContext(PageSignContext);
   useEffect(() => {
     if (!shell) return;
-    shell.setSignTitle("Inicio");
+    shell.setSignTitle(t("nav.home"));
     return () => shell.setSignTitle(null);
-  }, [shell]);
+  }, [shell, t]);
 
   // Memoized so the window doesn't drift every render and thrash the queries.
   const range = useMemo(() => rangeForDays(7), []);
@@ -161,24 +168,23 @@ export function AccountOverview({ accountId }: { accountId: string }) {
       <section className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_auto] lg:gap-8">
         <div className="min-w-0">
           <h2 className="neon-sign text-[34px] leading-[1.2] sm:text-[42px]">
-            Bienvenido
+            {t("overview.welcome")}
           </h2>
           <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-fg-muted">
-            Todos tus canales, conversaciones y turnos en un solo lugar. Así
-            están las cosas ahora y en los últimos 7 días.
+            {t("overview.intro")}
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Link
               href={`/accounts/${accountId}/conversations`}
               className={buttonVariants({ variant: "primary" })}
             >
-              Abrir bandeja
+              {t("overview.openInbox")}
             </Link>
             <Link
               href={`/accounts/${accountId}/publications`}
               className={buttonVariants({ variant: "secondary" })}
             >
-              Ir al calendario
+              {t("overview.goCalendar")}
             </Link>
           </div>
         </div>
@@ -187,7 +193,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
       </section>
 
       <section className="space-y-3">
-        <SectionLabel>Ahora mismo</SectionLabel>
+        <SectionLabel>{t("overview.rightNow")}</SectionLabel>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {LIVE.map((def) => (
             <LiveCard
@@ -201,7 +207,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
       </section>
 
       <section className="space-y-3">
-        <SectionLabel>Últimos 7 días</SectionLabel>
+        <SectionLabel>{t("overview.last7")}</SectionLabel>
         {summary.isLoading ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -212,7 +218,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
           <SummaryCards data={summary.data} />
         ) : (
           <Card className="p-4 text-sm text-fg-muted">
-            No pudimos cargar las métricas del período.
+            {t("overview.metricsFailed")}
           </Card>
         )}
       </section>
@@ -221,11 +227,11 @@ export function AccountOverview({ accountId }: { accountId: string }) {
         <Card className="p-5 lg:col-span-2">
           <div className="mb-4 flex items-start justify-between">
             <div>
-              <p className="text-sm font-medium text-fg">Conversaciones</p>
-              <p className="text-xs text-fg-muted">Últimos 7 días</p>
+              <p className="text-sm font-medium text-fg">{t("overview.conversations")}</p>
+              <p className="text-xs text-fg-muted">{t("overview.last7")}</p>
             </div>
             <p className="font-numeric text-2xl font-semibold tabular-nums text-fg">
-              {summary.data?.conversations_count?.toLocaleString() ?? "—"}
+              {summary.data?.conversations_count?.toLocaleString(intlTag) ?? "—"}
             </p>
           </div>
           {series.isLoading ? (
@@ -233,13 +239,13 @@ export function AccountOverview({ accountId }: { accountId: string }) {
           ) : (
             <MetricChart
               data={series.data ?? []}
-              formatValue={(v) => v.toLocaleString()}
+              formatValue={(v) => v.toLocaleString(intlTag)}
             />
           )}
         </Card>
 
         <Card className="p-5">
-          <p className="mb-3 text-sm font-medium text-fg">Accesos rápidos</p>
+          <p className="mb-3 text-sm font-medium text-fg">{t("overview.shortcuts")}</p>
           <div className="flex flex-col gap-1">
             {ACTIONS.map((action) => (
               <ActionRow

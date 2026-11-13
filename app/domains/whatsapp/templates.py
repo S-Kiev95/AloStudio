@@ -33,12 +33,15 @@ Deferred to later phases:
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
+from app.core.errors import ChatwootHTTPException
 from app.domains.conversations.models import Message
 from app.domains.inboxes.models import (
     WHATSAPP_PROVIDER_360DIALOG,
@@ -69,6 +72,9 @@ log = logging.getLogger(__name__)
 # them in sync with the reference so a real Graph call validates
 # against the same Meta-side schema.
 _BUSINESS_API_VERSION = "v14.0"
+# What the sync keeps of each template: enough to send it, and for the
+# management screen its state and why Meta rejected it.
+_TEMPLATE_FIELDS = "id,name,language,status,category,components,rejected_reason,quality_score"
 
 
 # ---------------------------------------------------------------------------
@@ -341,6 +347,7 @@ async def _fetch_cloud_templates(
         f"{_cloud_api_base()}/{_BUSINESS_API_VERSION}/"
         f"{business_account_id}/message_templates"
         f"?access_token={api_key}"
+        f"&fields={_TEMPLATE_FIELDS}"
     )
     out: list[dict[str, Any]] = []
     pages_walked = 0
@@ -420,7 +427,222 @@ async def _fetch_360dialog_templates(
     return []
 
 
+# ---------------------------------------------------------------------------
+# Manage templates (F5): create, edit and delete on Meta
+# ---------------------------------------------------------------------------
+TEMPLATE_CATEGORIES = ("MARKETING", "UTILITY", "AUTHENTICATION")
+_TEMPLATE_NAME_RE = re.compile(r"^[a-z0-9_]{1,512}$")
+
+
+def _unprocessable(message: str) -> ChatwootHTTPException:
+    return ChatwootHTTPException(status_code=422, detail={"message": message})
+
+
+def _waba(channel: WhatsappChannel) -> tuple[str, str]:
+    """``(business_account_id, api_key)`` of a Cloud channel, or 422."""
+    cfg = channel.provider_config if isinstance(channel.provider_config, dict) else {}
+    waba, token = cfg.get("business_account_id"), cfg.get("api_key")
+    if channel.provider != WHATSAPP_PROVIDER_CLOUD or not waba or not token:
+        raise _unprocessable(
+            "Las plantillas se administran solo en bandejas de WhatsApp Cloud "
+            "conectadas a una cuenta de WhatsApp Business."
+        )
+    return str(waba), str(token)
+
+
+async def _graph_call(
+    channel: WhatsappChannel,
+    method: str,
+    path: str,
+    *,
+    params: dict[str, Any] | None = None,
+    json: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Call the Graph API with the channel's token; Meta's own message on
+    failure (it explains what is wrong with the template)."""
+    _, token = _waba(channel)
+    url = f"{_cloud_api_base()}/{get_settings().meta_graph_api_version}/{path}"
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.request(
+                method,
+                url,
+                params=params,
+                json=json,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+    except httpx.HTTPError as exc:
+        raise _unprocessable("Meta no respondió. Probá de nuevo en un rato.") from exc
+    try:
+        body = resp.json()
+    except ValueError:
+        body = {}
+    if resp.status_code >= 400 or not isinstance(body, dict):
+        error = body.get("error") if isinstance(body, dict) else None
+        detail = None
+        if isinstance(error, dict):
+            detail = error.get("error_user_msg") or error.get("message")
+        log.warning(
+            "whatsapp.templates.api_error channel_id=%s path=%s status=%s body=%s",
+            channel.id,
+            path,
+            resp.status_code,
+            resp.text[:300],
+        )
+        raise _unprocessable(detail or "Meta rechazó el pedido.")
+    return body
+
+
+def _check_components(components: Any) -> list[dict[str, Any]]:
+    if not isinstance(components, list) or not all(isinstance(c, dict) for c in components):
+        raise _unprocessable("components tiene que ser una lista de objetos.")
+    if not any(str(c.get("type", "")).upper() == "BODY" for c in components):
+        raise _unprocessable("La plantilla necesita un cuerpo (BODY).")
+    return components
+
+
+async def create_template(
+    session: AsyncSession, *, channel: WhatsappChannel, payload: dict[str, Any]
+) -> dict[str, Any]:
+    """Submit a new template to Meta for review, then refresh the cache.
+    Returns Meta's answer (``id``, ``status``, ``category``)."""
+    waba, _ = _waba(channel)
+    name = str(payload.get("name") or "").strip()
+    if not _TEMPLATE_NAME_RE.match(name):
+        raise _unprocessable(
+            "El nombre va en minúsculas, sin espacios: letras, números y guiones bajos."
+        )
+    category = str(payload.get("category") or "").upper()
+    if category not in TEMPLATE_CATEGORIES:
+        raise _unprocessable("La categoría es MARKETING, UTILITY o AUTHENTICATION.")
+    language = str(payload.get("language") or "").strip()
+    if not language:
+        raise _unprocessable("Falta el idioma (por ejemplo es o es_AR).")
+    body = await _graph_call(
+        channel,
+        "POST",
+        f"{waba}/message_templates",
+        json={
+            "name": name,
+            "category": category,
+            "language": language,
+            "components": _check_components(payload.get("components")),
+        },
+    )
+    await sync_templates(session, channel=channel)
+    return body
+
+
+async def edit_template(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    template_id: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Change an existing template's components (and category). Meta sends
+    it back to review; an approved one can be edited a few times a day."""
+    _waba(channel)
+    body: dict[str, Any] = {"components": _check_components(payload.get("components"))}
+    category = payload.get("category")
+    if category:
+        if str(category).upper() not in TEMPLATE_CATEGORIES:
+            raise _unprocessable("La categoría es MARKETING, UTILITY o AUTHENTICATION.")
+        body["category"] = str(category).upper()
+    result = await _graph_call(channel, "POST", template_id, json=body)
+    await sync_templates(session, channel=channel)
+    return result
+
+
+async def delete_template(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    name: str,
+    template_id: str | None = None,
+) -> None:
+    """Delete a template on Meta (one language when ``template_id`` is given,
+    every language of ``name`` otherwise) and drop it from the cache."""
+    waba, _ = _waba(channel)
+    params: dict[str, Any] = {"name": name}
+    if template_id:
+        params["hsm_id"] = template_id
+    await _graph_call(channel, "DELETE", f"{waba}/message_templates", params=params)
+    channel.message_templates = [
+        t
+        for t in channel.message_templates or []
+        if not (
+            isinstance(t, dict)
+            and t.get("name") == name
+            and (not template_id or str(t.get("id")) == str(template_id))
+        )
+    ]
+    session.add(channel)
+    await session.flush()
+
+
+async def apply_template_update(
+    session: AsyncSession, *, channel: WhatsappChannel, field: str, value: dict[str, Any]
+) -> int:
+    """Webhook ``message_template_status_update`` / ``template_category_update``:
+    update the cached template on every Cloud channel of the same WhatsApp
+    Business Account. Returns how many channels changed."""
+    from sqlmodel import select
+
+    template_id = str(value.get("message_template_id") or "")
+    if not template_id:
+        return 0
+    cfg = channel.provider_config if isinstance(channel.provider_config, dict) else {}
+    waba = cfg.get("business_account_id")
+    channels = [channel]
+    if waba:
+        table = WhatsappChannel.__table__  # type: ignore[attr-defined]
+        channels = list(
+            (
+                await session.exec(
+                    select(WhatsappChannel).where(
+                        WhatsappChannel.account_id == channel.account_id,
+                        WhatsappChannel.provider == WHATSAPP_PROVIDER_CLOUD,
+                        table.c.provider_config["business_account_id"].astext == str(waba),
+                    )
+                )
+            ).all()
+        ) or [channel]
+    changed = 0
+    for ch in channels:
+        templates = [dict(t) for t in ch.message_templates or [] if isinstance(t, dict)]
+        hit = False
+        for tpl in templates:
+            if str(tpl.get("id")) != template_id:
+                continue
+            hit = True
+            if field == "message_template_status_update" and value.get("event"):
+                tpl["status"] = str(value["event"]).upper()
+                reason = value.get("reason")
+                tpl["rejected_reason"] = reason if reason and reason != "NONE" else None
+            elif field == "template_category_update" and value.get("new_category"):
+                tpl["category"] = str(value["new_category"]).upper()
+        if hit:
+            ch.message_templates = templates
+            session.add(ch)
+            changed += 1
+    if changed:
+        await session.flush()
+    log.info(
+        "whatsapp.templates.webhook field=%s template_id=%s channels=%s",
+        field,
+        template_id,
+        changed,
+    )
+    return changed
+
+
 __all__ = [
+    "TEMPLATE_CATEGORIES",
+    "apply_template_update",
+    "create_template",
+    "delete_template",
+    "edit_template",
     "send_template_message",
     "sync_templates",
     "template_body_parameters",

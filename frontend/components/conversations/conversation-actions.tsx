@@ -15,14 +15,16 @@ import {
 import { useExecuteMacro, useMacros } from "@/lib/api/macros";
 import { useTeams } from "@/lib/api/teams";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 const PRIORITIES: Priority[] = ["none", "low", "medium", "high", "urgent"];
-const PRIORITY_LABEL: Record<Priority, string> = {
-  none: "Sin prioridad",
-  low: "Baja",
-  medium: "Media",
-  high: "Alta",
-  urgent: "Urgente",
+const PRIORITY_LABEL: Record<Priority, MessageKey> = {
+  none: "conversations.priority.none",
+  low: "conversations.priority.low",
+  medium: "conversations.priority.medium",
+  high: "conversations.priority.high",
+  urgent: "conversations.priority.urgent",
 };
 
 const selectClass = selectClassName("sm");
@@ -47,6 +49,7 @@ export function ConversationActions({
   teamId?: number | null;
   labels: string[];
 }) {
+  const t = useT();
   const agents = useAgents(accountId);
   const teams = useTeams(accountId);
   const accountLabels = useLabels(accountId);
@@ -94,7 +97,7 @@ export function ConversationActions({
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-glass px-4 py-2">
       <label className="flex items-center gap-1.5 text-xs text-fg-muted">
-        Asignado
+        {t("conversations.actions.assigned")}
         <select
           className={selectClass}
           value={assigneeId ?? ""}
@@ -102,9 +105,9 @@ export function ConversationActions({
             assign.mutate(e.target.value ? Number(e.target.value) : null)
           }
           disabled={assign.isPending || agents.isLoading}
-          aria-label="Asignar agente"
+          aria-label={t("conversations.actions.assignAgent")}
         >
-          <option value="">Sin asignar</option>
+          <option value="">{t("conversations.actions.unassigned")}</option>
           {agents.data?.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -114,7 +117,7 @@ export function ConversationActions({
       </label>
 
       <label className="flex items-center gap-1.5 text-xs text-fg-muted">
-        Equipo
+        {t("conversations.actions.team")}
         <select
           className={selectClass}
           value={teamId ?? ""}
@@ -122,10 +125,10 @@ export function ConversationActions({
             assignTeam.mutate(e.target.value ? Number(e.target.value) : null)
           }
           disabled={assignTeam.isPending || teams.isLoading}
-          aria-label="Equipo"
+          aria-label={t("conversations.actions.team")}
         >
           <option value="">
-            {teamList.length === 0 ? "Sin equipos" : "Sin equipo"}
+            {teamList.length === 0 ? t("conversations.actions.noTeams") : t("conversations.actions.noTeam")}
           </option>
           {teamList.map((t) => (
             <option key={t.id} value={t.id}>
@@ -143,7 +146,7 @@ export function ConversationActions({
             type="button"
             onClick={() => toggleLabel(title)}
             disabled={setLabels.isPending}
-            title="Quitar etiqueta"
+            title={t("conversations.actions.removeLabel")}
             className="inline-flex items-center gap-1 rounded-pill border border-neon bg-focused px-2.5 py-0.5 text-xs font-medium text-lit transition-colors hover:bg-hover-glass"
           >
             <Tag className="h-3 w-3" aria-hidden />
@@ -157,18 +160,18 @@ export function ConversationActions({
           className="inline-flex items-center gap-1 rounded-pill border border-glass bg-field px-2.5 py-1 text-xs font-medium text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
         >
           <Plus className="h-3 w-3" aria-hidden />
-          Etiqueta
+          {t("conversations.actions.label")}
         </button>
 
         {labelMenuOpen ? (
           <div
             role="menu"
-            aria-label="Etiquetas disponibles"
+            aria-label={t("conversations.actions.availableLabels")}
             className="absolute left-0 top-full z-20 mt-1 min-w-[11rem] rounded-md border border-glass bg-surface-2 p-1.5 shadow-menu"
           >
             {!accountLabels.data?.length ? (
               <p className="px-2 py-1.5 text-xs text-fg-muted">
-                No hay etiquetas creadas.
+                {t("conversations.actions.noLabels")}
               </p>
             ) : (
               <ul className="max-h-48 overflow-y-auto">
@@ -202,17 +205,17 @@ export function ConversationActions({
       </div>
 
       <label className="ml-auto flex items-center gap-1.5 text-xs text-fg-muted">
-        Prioridad
+        {t("conversations.actions.priority")}
         <select
           className={selectClass}
           value={(priority as Priority) ?? "none"}
           onChange={(e) => setPriority.mutate(e.target.value as Priority)}
           disabled={setPriority.isPending}
-          aria-label="Prioridad"
+          aria-label={t("conversations.actions.priority")}
         >
           {PRIORITIES.map((p) => (
             <option key={p} value={p}>
-              {PRIORITY_LABEL[p]}
+              {t(PRIORITY_LABEL[p])}
             </option>
           ))}
         </select>
@@ -220,7 +223,7 @@ export function ConversationActions({
 
       {macros.data?.length ? (
         <label className="flex items-center gap-1.5 text-xs text-fg-muted">
-          Macro
+          {t("conversations.actions.macro")}
           <select
             className={selectClass}
             value=""
@@ -231,9 +234,9 @@ export function ConversationActions({
               e.currentTarget.value = "";
             }}
             disabled={execMacro.isPending}
-            aria-label="Correr macro"
+            aria-label={t("conversations.actions.runMacro")}
           >
-            <option value="">Correr macro…</option>
+            <option value="">{t("conversations.actions.runMacroPlaceholder")}</option>
             {macros.data.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}

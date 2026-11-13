@@ -41,6 +41,8 @@ export type ProfileUpdateInput = {
   avatar_url?: string | null;
   message_signature?: string | null;
   phone_number?: string | null;
+  /** Replaces the whole hash on the backend: send it merged. */
+  ui_settings?: Record<string, unknown>;
 };
 
 export type ChangePasswordInput = {
@@ -105,4 +107,23 @@ export function useChangePassword() {
     },
     onSuccess: () => invalidate(qc),
   });
+}
+
+/**
+ * Save `locale` in the profile's `ui_settings` unless it already has one.
+ * Best effort: a failure only means mail keeps coming in Spanish.
+ */
+export async function saveLocaleIfMissing(locale: string): Promise<void> {
+  try {
+    const res = await apiFetch<ProfileResponse>("/api/v1/profile");
+    const ui = res.data.ui_settings ?? {};
+    if (typeof ui.locale === "string" && ui.locale) return;
+    // The backend replaces ui_settings whole: keep what else is there.
+    await apiFetch<ProfileResponse>("/api/v1/profile", {
+      method: "PUT",
+      body: JSON.stringify({ profile: { ui_settings: { ...ui, locale } } }),
+    });
+  } catch {
+    // Nothing to tell the user: the app itself is already in their language.
+  }
 }

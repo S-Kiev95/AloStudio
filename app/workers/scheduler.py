@@ -121,11 +121,10 @@ async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) ->
     if inbox is None:
         return 0
 
+    from app.domains.campaigns.service import resolve_audience_contact_ids
+
     sent = 0
-    for entry in campaign.audience or []:
-        if not isinstance(entry, dict) or entry.get("type") != "Contact":
-            continue
-        contact_id = entry.get("id")
+    for contact_id in await resolve_audience_contact_ids(session, campaign=campaign):
         try:
             contact = (
                 await session.exec(
@@ -150,7 +149,10 @@ async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) ->
                     session=session, contact=contact, inbox=inbox
                 ).perform()
             conv = await build_campaign_conversation(
-                session, campaign=campaign, contact_inbox=contact_inbox
+                session,
+                campaign=campaign,
+                contact_inbox=contact_inbox,
+                reuse_existing=True,
             )
             if conv is not None:
                 sent += 1
@@ -238,19 +240,34 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         publications_fired = await fire_due_publications(pub_session)
         await pub_session.commit()
 
+    # CRM tasks that fell due (F11): the notification row is committed
+    # before its mail and push jobs are enqueued, since they read it back.
+    from app.domains.crm.activities import remind_due_activities
+    from app.domains.notifications.mailer import enqueue_notification_email
+    from app.domains.notifications.push import enqueue_notification_push
+
+    async with sessionmaker() as crm_session:
+        reminders = await remind_due_activities(crm_session)
+        await crm_session.commit()
+    for notification_id in reminders:
+        await enqueue_notification_email(notification_id)
+        await enqueue_notification_push(notification_id)
+
     log.info(
         "scheduler.tick.done campaigns_fired=%s conversations_reopened=%s "
-        "instagram_posts_fired=%s publications_fired=%s",
+        "instagram_posts_fired=%s publications_fired=%s crm_reminders=%s",
         campaigns_fired,
         conversations_reopened,
         len(ig_fired),
         len(publications_fired),
+        len(reminders),
     )
     return {
         "campaigns_fired": campaigns_fired,
         "conversations_reopened": conversations_reopened,
         "instagram_posts_fired": len(ig_fired),
         "publications_fired": len(publications_fired),
+        "crm_reminders": len(reminders),
     }
 
 
@@ -342,6 +359,10 @@ class WorkerSettings:
         )
         from app.domains.portals.embeddings import reindex_article_task
         from app.workers.business_agent import release_to_ai_task
+        from app.workers.contact_avatars import (
+            refresh_contact_avatar_task,
+            refresh_stale_avatars_task,
+        )
         from app.workers.deliver_webhook import (
             MAX_ATTEMPTS as WEBHOOK_MAX_ATTEMPTS,
         )
@@ -352,6 +373,7 @@ class WorkerSettings:
         from app.workers.instagram_autoreply import (
             send_comment_autoreply_task,
         )
+        from app.workers.meta_catalog import sync_meta_catalog_task
         from app.workers.publishing import (
             JOB_TIMEOUT_SECONDS as PUBLICATION_JOB_TIMEOUT_SECONDS,
         )
@@ -392,6 +414,13 @@ class WorkerSettings:
             # Cron, below. Registered here because ARQ resolves a cron job
             # against the function list.
             fetch_imap_inboxes_task,
+            # Enqueued a few seconds after a new Instagram or Messenger
+            # contact writes; the daily refresh below is a cron.
+            refresh_contact_avatar_task,
+            refresh_stale_avatars_task,
+            # Enqueued a few seconds after a product changes, for accounts
+            # linked to a Meta catalogue (F11).
+            sync_meta_catalog_task,
         ]
 
     # ARQ reads these off the class, so they're class-level by contract, not
@@ -411,7 +440,9 @@ class WorkerSettings:
         from arq.connections import RedisSettings
         from arq.cron import cron
 
+        from app.workers.contact_avatars import refresh_stale_avatars_task
         from app.workers.email_poll import fetch_imap_inboxes_task
+        from app.workers.message_embeddings import embed_messages_task
         from app.workers.publishing import (
             METRICS_JOB_TIMEOUT_SECONDS,
             snapshot_publishing_channels_task,
@@ -461,6 +492,18 @@ class WorkerSettings:
             cron(
                 fetch_imap_inboxes_task,
                 minute=set(range(1, 60, 2)),
+            ),
+            # Message vectors for meaning-based search (F8): every three
+            # minutes, off the 5-minute tick and the mail poll. A no-op
+            # until the local embedding service is configured.
+            cron(embed_messages_task, minute=set(range(2, 60, 3))),
+            # Contact profile pictures, once a day: Meta's links expire and
+            # people change their picture. Early UTC, off the other jobs.
+            cron(
+                refresh_stale_avatars_task,
+                hour={4},
+                minute={23},
+                timeout=METRICS_JOB_TIMEOUT_SECONDS,
             ),
         ]
 

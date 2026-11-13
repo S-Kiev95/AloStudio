@@ -237,6 +237,10 @@ async def create_conversation(
     await session.flush()
     # ``display_id`` + ``uuid`` are server-assigned; refresh to pull them.
     await session.refresh(conv)
+    # The contact's origin (F11): their first conversation sets it.
+    from app.domains.crm.origin import stamp_from_conversation
+
+    await stamp_from_conversation(session, conv, inbox.channel_type)
 
     await dispatcher.dispatch(session, CONVERSATION_CREATED, conversation=conv)
     # Mirror Rails' ``after_save :run_auto_assignment`` — skipped when

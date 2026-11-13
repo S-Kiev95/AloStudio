@@ -31,24 +31,26 @@ import {
   renderBlocks,
 } from "@/lib/inboxes/email-blocks";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const ADDABLE: { type: Block["type"]; label: string; icon: typeof Type }[] = [
-  { type: "text", label: "Texto", icon: Type },
-  { type: "image", label: "Imagen", icon: ImageIcon },
-  { type: "button", label: "Botón", icon: MousePointerClick },
-  { type: "divider", label: "Separador", icon: Minus },
-  { type: "spacer", label: "Espacio", icon: ArrowDown },
-  { type: "signature", label: "Firma", icon: PenLine },
+const ADDABLE: { type: Block["type"]; icon: typeof Type }[] = [
+  { type: "text", icon: Type },
+  { type: "image", icon: ImageIcon },
+  { type: "button", icon: MousePointerClick },
+  { type: "divider", icon: Minus },
+  { type: "spacer", icon: ArrowDown },
+  { type: "signature", icon: PenLine },
 ];
 
-const BLOCK_NAMES: Record<Block["type"], string> = {
-  text: "Texto",
-  image: "Imagen",
-  button: "Botón",
-  divider: "Separador",
-  spacer: "Espacio",
-  content: "El mensaje del agente",
-  signature: "Firma",
+const BLOCK_NAMES: Record<Block["type"], MessageKey> = {
+  text: "settingsEmailTpl.blocks.text",
+  image: "settingsEmailTpl.blocks.image",
+  button: "settingsEmailTpl.blocks.button",
+  divider: "settingsEmailTpl.blocks.divider",
+  spacer: "settingsEmailTpl.blocks.spacer",
+  content: "settingsEmailTpl.blocks.content",
+  signature: "settingsEmailTpl.blocks.signature",
 };
 
 /**
@@ -67,6 +69,7 @@ export function BlockEditor({
   doc: BlockDocument;
   onChange: (next: BlockDocument) => void;
 }) {
+  const t = useT();
   const [selected, setSelected] = useState<string | null>(null);
 
   function setBlocks(blocks: Block[]) {
@@ -128,24 +131,24 @@ export function BlockEditor({
                     className="flex-1 text-left text-sm font-medium text-fg"
                     aria-expanded={selected === block.id}
                   >
-                    {BLOCK_NAMES[block.type]}
+                    {t(BLOCK_NAMES[block.type])}
                   </button>
                   <IconButton
-                    label={`Subir ${BLOCK_NAMES[block.type]}`}
+                    label={t("settingsEmailTpl.moveUp", { block: t(BLOCK_NAMES[block.type]) })}
                     onClick={() => move(block.id, -1)}
                     disabled={i === 0}
                   >
                     <ArrowUp className="h-3.5 w-3.5" aria-hidden />
                   </IconButton>
                   <IconButton
-                    label={`Bajar ${BLOCK_NAMES[block.type]}`}
+                    label={t("settingsEmailTpl.moveDown", { block: t(BLOCK_NAMES[block.type]) })}
                     onClick={() => move(block.id, 1)}
                     disabled={i === doc.blocks.length - 1}
                   >
                     <ArrowDown className="h-3.5 w-3.5" aria-hidden />
                   </IconButton>
                   <IconButton
-                    label={`Eliminar ${BLOCK_NAMES[block.type]}`}
+                    label={t("settingsEmailTpl.removeBlock", { block: t(BLOCK_NAMES[block.type]) })}
                     onClick={() => remove(block.id)}
                   >
                     <Trash2 className="h-3.5 w-3.5 text-danger" aria-hidden />
@@ -167,7 +170,7 @@ export function BlockEditor({
         </ul>
 
         <div className="flex flex-wrap gap-2">
-          {ADDABLE.map(({ type, label, icon: Icon }) => (
+          {ADDABLE.map(({ type, icon: Icon }) => (
             <Button
               key={type}
               type="button"
@@ -176,22 +179,20 @@ export function BlockEditor({
               onClick={() => add(type)}
             >
               <Icon className="h-4 w-4" aria-hidden />
-              {label}
+              {t(BLOCK_NAMES[type])}
             </Button>
           ))}
         </div>
 
         {!doc.blocks.some((b) => b.type === "content") ? (
           <p role="alert" className="text-xs text-warning">
-            Falta el bloque «El mensaje del agente». Lo agregamos al final
-            igual al generar el HTML, porque sin él el correo sale vacío —
-            pero conviene ponerlo donde querés que aparezca.
+            {t("settingsEmailTpl.missingContentBlock")}
             <button
               type="button"
               onClick={() => add("content")}
               className="ml-1 underline"
             >
-              Agregarlo
+              {t("settingsEmailTpl.addIt")}
             </button>
           </p>
         ) : null}
@@ -199,7 +200,7 @@ export function BlockEditor({
 
       {/* ---- what it becomes ---- */}
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-fg-muted">Vista previa</p>
+        <p className="text-xs font-medium text-fg-muted">{t("settingsEmailTpl.preview")}</p>
         <div
           className="overflow-auto rounded-md border border-glass bg-white"
           // The preview is the generator's own output, so the two can
@@ -212,8 +213,7 @@ export function BlockEditor({
           }}
         />
         <p className="text-xs text-fg-muted">
-          Esto es el navegador. Gmail y Outlook renderizan distinto —
-          mandate una prueba antes de darla por buena.
+          {t("settingsEmailTpl.previewNote")}
         </p>
       </div>
     </div>
@@ -251,22 +251,23 @@ function PageControls({
   page: BlockDocument["page"];
   onChange: (p: BlockDocument["page"]) => void;
 }) {
+  const t = useT();
   return (
     <div className="grid grid-cols-2 gap-3 rounded-md border border-glass p-3">
       <ColorField
         id="page-bg"
-        label="Fondo"
+        label={t("settingsEmailTpl.background")}
         value={page.pageColor}
         onChange={(v) => onChange({ ...page, pageColor: v })}
       />
       <ColorField
         id="body-bg"
-        label="Tarjeta"
+        label={t("settingsEmailTpl.card")}
         value={page.bodyColor}
         onChange={(v) => onChange({ ...page, bodyColor: v })}
       />
       <div className="col-span-2 space-y-1.5">
-        <Label htmlFor="page-width">Ancho: {page.width}px</Label>
+        <Label htmlFor="page-width">{t("settingsEmailTpl.widthPx", { n: page.width })}</Label>
         <input
           id="page-width"
           type="range"
@@ -291,6 +292,7 @@ function BlockFields({
   block: Block;
   onChange: (patch: Partial<Block>) => void;
 }) {
+  const t = useT();
   switch (block.type) {
     case "text":
       return <TextFields block={block} onChange={onChange} />;
@@ -308,7 +310,7 @@ function BlockFields({
       return (
         <ColorField
           id={`divider-${block.id}`}
-          label="Color"
+          label={t("settingsEmailTpl.color")}
           value={block.color}
           onChange={(v) => onChange({ color: v } as Partial<Block>)}
         />
@@ -316,8 +318,7 @@ function BlockFields({
     case "content":
       return (
         <p className="text-xs text-fg-muted">
-          Acá se inserta lo que escriba el agente al responder. No tiene
-          ajustes: su tipografía y color salen de los de la plantilla.
+          {t("settingsEmailTpl.contentBlockHint")}
         </p>
       );
   }
@@ -330,10 +331,11 @@ function TextFields({
   block: TextBlock;
   onChange: (patch: Partial<Block>) => void;
 }) {
+  const t = useT();
   return (
     <>
       <div className="space-y-1.5">
-        <Label htmlFor={`text-${block.id}`}>Texto</Label>
+        <Label htmlFor={`text-${block.id}`}>{t("settingsEmailTpl.blocks.text")}</Label>
         <Textarea
           id={`text-${block.id}`}
           rows={3}
@@ -349,13 +351,13 @@ function TextFields({
         />
         <ColorField
           id={`color-${block.id}`}
-          label="Color"
+          label={t("settingsEmailTpl.color")}
           value={block.color}
           onChange={(v) => onChange({ color: v } as Partial<Block>)}
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor={`size-${block.id}`}>Tamaño: {block.fontSize}px</Label>
+        <Label htmlFor={`size-${block.id}`}>{t("settingsEmailTpl.sizePx", { n: block.fontSize })}</Label>
         <input
           id={`size-${block.id}`}
           type="range"
@@ -375,7 +377,7 @@ function TextFields({
           onChange={(e) => onChange({ bold: e.target.checked } as Partial<Block>)}
           className="h-4 w-4 rounded border-glass accent-neon"
         />
-        Negrita
+        {t("settingsEmailTpl.bold")}
       </label>
     </>
   );
@@ -390,6 +392,7 @@ function ImageFields({
   block: ImageBlock;
   onChange: (patch: Partial<Block>) => void;
 }) {
+  const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null as string | null);
@@ -408,11 +411,11 @@ function ImageFields({
       );
       const json = (await res.json()) as { url?: string; message?: string };
       if (!res.ok || !json.url) {
-        throw new Error(json.message ?? "No se pudo subir la imagen.");
+        throw new Error(json.message ?? t("settingsEmailTpl.imageUploadFailed"));
       }
       onChange({ src: json.url } as Partial<Block>);
     } catch (err) {
-      setError((err as { message?: string })?.message ?? "No se pudo subir.");
+      setError((err as { message?: string })?.message ?? t("settingsEmailTpl.uploadFailed"));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -428,7 +431,7 @@ function ImageFields({
           accept="image/*"
           onChange={upload}
           className="hidden"
-          aria-label="Subir imagen"
+          aria-label={t("settingsEmailTpl.uploadImage")}
         />
         <Button
           type="button"
@@ -438,10 +441,10 @@ function ImageFields({
           loading={uploading}
         >
           <Upload className="h-4 w-4" aria-hidden />
-          Subir imagen
+          {t("settingsEmailTpl.uploadImage")}
         </Button>
         {block.src ? (
-          <span className="text-xs text-success">Imagen cargada</span>
+          <span className="text-xs text-success">{t("settingsEmailTpl.imageLoaded")}</span>
         ) : null}
       </div>
       {error ? (
@@ -451,7 +454,7 @@ function ImageFields({
       ) : null}
 
       <div className="space-y-1.5">
-        <Label htmlFor={`src-${block.id}`}>o pegá una dirección</Label>
+        <Label htmlFor={`src-${block.id}`}>{t("settingsEmailTpl.orPasteUrl")}</Label>
         <Input
           id={`src-${block.id}`}
           value={block.src}
@@ -460,19 +463,18 @@ function ImageFields({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor={`alt-${block.id}`}>Texto alternativo</Label>
+        <Label htmlFor={`alt-${block.id}`}>{t("settingsEmailTpl.altText")}</Label>
         <Input
           id={`alt-${block.id}`}
           value={block.alt}
           onChange={(e) => onChange({ alt: e.target.value } as Partial<Block>)}
         />
         <p className="text-xs text-fg-muted">
-          Es lo que se lee cuando el cliente de correo bloquea las
-          imágenes, que es lo que hacen casi todos por defecto.
+          {t("settingsEmailTpl.altTextHint")}
         </p>
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor={`w-${block.id}`}>Ancho: {block.widthPct}%</Label>
+        <Label htmlFor={`w-${block.id}`}>{t("settingsEmailTpl.widthPct", { n: block.widthPct })}</Label>
         <input
           id={`w-${block.id}`}
           type="range"
@@ -492,7 +494,7 @@ function ImageFields({
         onChange={(v) => onChange({ align: v } as Partial<Block>)}
       />
       <div className="space-y-1.5">
-        <Label htmlFor={`href-${block.id}`}>Enlace (opcional)</Label>
+        <Label htmlFor={`href-${block.id}`}>{t("settingsEmailTpl.linkOptional")}</Label>
         <Input
           id={`href-${block.id}`}
           value={block.href}
@@ -511,10 +513,11 @@ function ButtonFields({
   block: ButtonBlock;
   onChange: (patch: Partial<Block>) => void;
 }) {
+  const t = useT();
   return (
     <>
       <div className="space-y-1.5">
-        <Label htmlFor={`label-${block.id}`}>Texto del botón</Label>
+        <Label htmlFor={`label-${block.id}`}>{t("settingsEmailTpl.buttonText")}</Label>
         <Input
           id={`label-${block.id}`}
           value={block.label}
@@ -522,7 +525,7 @@ function ButtonFields({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor={`bhref-${block.id}`}>Enlace</Label>
+        <Label htmlFor={`bhref-${block.id}`}>{t("settingsEmailTpl.link")}</Label>
         <Input
           id={`bhref-${block.id}`}
           value={block.href}
@@ -533,13 +536,13 @@ function ButtonFields({
       <div className="grid grid-cols-2 gap-3">
         <ColorField
           id={`bbg-${block.id}`}
-          label="Fondo"
+          label={t("settingsEmailTpl.background")}
           value={block.background}
           onChange={(v) => onChange({ background: v } as Partial<Block>)}
         />
         <ColorField
           id={`bfg-${block.id}`}
-          label="Texto"
+          label={t("settingsEmailTpl.blocks.text")}
           value={block.color}
           onChange={(v) => onChange({ color: v } as Partial<Block>)}
         />
@@ -560,9 +563,10 @@ function SpacerFields({
   block: SpacerBlock;
   onChange: (patch: Partial<Block>) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={`h-${block.id}`}>Alto: {block.height}px</Label>
+      <Label htmlFor={`h-${block.id}`}>{t("settingsEmailTpl.heightPx", { n: block.height })}</Label>
       <input
         id={`h-${block.id}`}
         type="range"
@@ -586,6 +590,7 @@ function SignatureFields({
   block: SignatureBlock;
   onChange: (patch: Partial<Block>) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-2">
       <label className="flex items-center gap-2 text-sm">
@@ -597,7 +602,7 @@ function SignatureFields({
           }
           className="h-4 w-4 rounded border-glass accent-neon"
         />
-        Firma de quien responde
+        {t("settingsEmailTpl.replierSignature")}
       </label>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -608,7 +613,7 @@ function SignatureFields({
           }
           className="h-4 w-4 rounded border-glass accent-neon"
         />
-        Firma de la casilla
+        {t("settingsEmailTpl.mailboxSignature")}
       </label>
     </div>
   );
@@ -623,18 +628,19 @@ function AlignField({
   value: Align;
   onChange: (v: Align) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>Alineación</Label>
+      <Label htmlFor={id}>{t("settingsEmailTpl.alignment")}</Label>
       <select
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value as Align)}
         className={cn(selectClassName("sm"), "w-full")}
       >
-        <option value="left">Izquierda</option>
-        <option value="center">Centro</option>
-        <option value="right">Derecha</option>
+        <option value="left">{t("settingsEmailTpl.left")}</option>
+        <option value="center">{t("settingsEmailTpl.center")}</option>
+        <option value="right">{t("settingsEmailTpl.right")}</option>
       </select>
     </div>
   );

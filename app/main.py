@@ -47,6 +47,8 @@ from app.domains.conversations.router import (
     participants_router as conversations_participants_router,
 )
 from app.domains.conversations.router import router as conversations_router
+from app.domains.conversations.search_router import router as message_search_router
+from app.domains.crm.router import router as crm_router
 from app.domains.csat.public_router import router as csat_public_router
 from app.domains.csat.router import router as csat_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
@@ -114,6 +116,9 @@ from app.domains.uploads.router import router as uploads_router
 from app.domains.users.router import router as profile_router
 from app.domains.web_widget.router import router as web_widget_router
 from app.domains.webhooks.router import router as outbound_webhooks_router
+from app.domains.whatsapp.business_router import (
+    router as whatsapp_business_router,
+)
 from app.domains.whatsapp.router import router as whatsapp_webhook_router
 from app.domains.whatsapp.templates_router import (
     router as whatsapp_templates_router,
@@ -211,6 +216,8 @@ def create_app() -> FastAPI:
     # update/destroy). A participant must be an assignable agent of the
     # conversation's inbox (inbox member or account admin).
     app.include_router(conversations_participants_router)
+    # F8: search by message, with the hit highlighted and a way to jump to it.
+    app.include_router(message_search_router)
     app.include_router(bulk_actions_router)
     app.include_router(custom_attributes_router)
     # Saved views (``custom_filters``). Per-user named filter-DSL views;
@@ -297,6 +304,7 @@ def create_app() -> FastAPI:
     # WhatsApp template listing + sync — the campaign composer picks an
     # approved template + fills its {{n}} variables.
     app.include_router(whatsapp_templates_router)
+    app.include_router(whatsapp_business_router)
     # Facebook Messenger webhook (Phase 5d). ``/webhooks/fb_messenger``
     # — installation-wide verify token via ``settings.fb_verify_token``
     # (env var FB_VERIFY_TOKEN), single endpoint shared across every
@@ -326,6 +334,8 @@ def create_app() -> FastAPI:
     # posts/stories link to products for AI/CRM context.
     app.include_router(products_router)
     app.include_router(appointments_router)
+    # Sales pipeline: pipelines, stages, opportunities (F11).
+    app.include_router(crm_router)
     # Multi-network publishing: one publication, many channels, each
     # published by its network adapter.
     app.include_router(publishing_router)

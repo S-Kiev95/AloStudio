@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { selectClassName } from "@/components/ui/select";
 import { useTestSendEmailTemplate } from "@/lib/api/email-templates";
 import { useInboxes } from "@/lib/api/inboxes";
+import { useT } from "@/lib/i18n/provider";
 
 const EMAIL_CHANNEL = "Channel::Email";
 
@@ -32,6 +33,7 @@ export function TestSendBox({
   templateId: number;
   disabled?: boolean;
 }) {
+  const t = useT();
   const inboxes = useInboxes(accountId);
   const send = useTestSendEmailTemplate(accountId);
   const [to, setTo] = useState("");
@@ -56,7 +58,7 @@ export function TestSendBox({
       setResult(res.message);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo enviar la prueba.",
+        (e as { message?: string })?.message ?? t("settingsEmailTpl.testFailed"),
       );
     }
   }
@@ -64,8 +66,7 @@ export function TestSendBox({
   if (mailboxes.length === 0) {
     return (
       <p className="text-xs text-fg-muted">
-        Para mandarte una prueba hace falta al menos una casilla de correo
-        con envío (SMTP) configurado.
+        {t("settingsEmailTpl.testNeedsSmtp")}
       </p>
     );
   }
@@ -73,16 +74,15 @@ export function TestSendBox({
   return (
     <div className="space-y-3 rounded-md border border-glass p-3">
       <div>
-        <p className="text-sm font-medium text-fg">Enviarte una prueba</p>
+        <p className="text-sm font-medium text-fg">{t("settingsEmailTpl.testTitle")}</p>
         <p className="mt-0.5 text-xs text-fg-muted">
-          La vista previa de arriba es el navegador. Gmail y Outlook
-          renderizan distinto — mandate la plantilla y miratela ahí.
+          {t("settingsEmailTpl.testHint")}
         </p>
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-[10rem] flex-1 space-y-1.5">
-          <Label htmlFor="test-inbox">Enviar desde</Label>
+          <Label htmlFor="test-inbox">{t("settingsEmailTpl.sendFrom")}</Label>
           <select
             id="test-inbox"
             value={chosen}
@@ -97,7 +97,7 @@ export function TestSendBox({
           </select>
         </div>
         <div className="min-w-[12rem] flex-1 space-y-1.5">
-          <Label htmlFor="test-to">Enviar a</Label>
+          <Label htmlFor="test-to">{t("settingsEmailTpl.sendTo")}</Label>
           <Input
             id="test-to"
             type="email"
@@ -112,7 +112,7 @@ export function TestSendBox({
           disabled={disabled || !to.includes("@") || !chosen}
         >
           <Send className="h-4 w-4" aria-hidden />
-          Enviar prueba
+          {t("settingsEmailTpl.sendTest")}
         </Button>
       </div>
 
@@ -128,8 +128,7 @@ export function TestSendBox({
       ) : null}
       {disabled ? (
         <p className="text-xs text-fg-muted">
-          Guardá los cambios antes de mandar la prueba: se envía la
-          plantilla guardada, no la que estás editando.
+          {t("settingsEmailTpl.testSaveFirst")}
         </p>
       ) : null}
     </div>

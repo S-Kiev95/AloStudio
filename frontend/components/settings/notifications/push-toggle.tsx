@@ -10,6 +10,7 @@ import {
   unsubscribeFromPush,
   useVapidKey,
 } from "@/lib/api/push";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * Enable / disable browser web-push for the current device. Registers the
@@ -17,6 +18,7 @@ import {
  * backend; hides itself when the browser or the server can't do push.
  */
 export function PushToggle() {
+  const t = useT();
   const vapid = useVapidKey();
   const [subscribed, setSubscribed] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,14 +39,14 @@ export function PushToggle() {
   if (!supported) {
     return (
       <p className="text-sm text-fg-muted">
-        Este navegador no admite notificaciones push.
+        {t("settingsNotif.pushUnsupported")}
       </p>
     );
   }
   if (vapid.data && !vapid.data.enabled) {
     return (
       <p className="text-sm text-fg-muted">
-        Las notificaciones push no están configuradas en el servidor.
+        {t("settingsNotif.pushNotConfigured")}
       </p>
     );
   }
@@ -63,7 +65,7 @@ export function PushToggle() {
     } catch (e) {
       setError(
         (e as { message?: string })?.message ??
-          "No se pudo cambiar la suscripción.",
+          t("settingsNotif.pushFailed"),
       );
     } finally {
       setBusy(false);
@@ -75,11 +77,10 @@ export function PushToggle() {
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm font-medium text-fg">
-            Notificaciones push del navegador
+            {t("settingsNotif.pushTitle")}
           </p>
           <p className="text-xs text-fg-muted">
-            Recibí avisos en este dispositivo aunque no tengas la pestaña
-            abierta.
+            {t("settingsNotif.pushHint")}
           </p>
         </div>
         <Button
@@ -89,7 +90,7 @@ export function PushToggle() {
           loading={busy}
           disabled={subscribed === null}
         >
-          {subscribed ? "Desactivar" : "Activar"}
+          {subscribed ? t("settingsNotif.disable") : t("settingsNotif.enable")}
         </Button>
       </div>
       {error ? (

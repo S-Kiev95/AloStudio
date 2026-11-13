@@ -18,17 +18,20 @@ import {
   useUpdatePublicationSignature,
 } from "@/lib/api/publications";
 import { cn } from "@/lib/utils";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 
 const SIGNATURE_MAX_CHARS = 2000;
 
-function formatSignatureDate(iso: string | null): string | null {
+function formatSignatureDate(iso: string | null, intlTag: string): string | null {
   if (!iso) return null;
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return null;
-  return new Date(ms).toLocaleDateString();
+  return new Date(ms).toLocaleDateString(intlTag);
 }
 
 export function SignaturesView({ accountId }: { accountId: string }) {
+  const intlTag = useIntlTag();
+  const t = useT();
   const isAdmin = useIsAccountAdmin(accountId);
   const signaturesQuery = usePublicationSignatures(accountId);
   const createMutation = useCreatePublicationSignature(accountId);
@@ -106,7 +109,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
 
     if (Array.from(content.trim()).length < 1) {
       setDialogError({
-        message: "Escribí el texto de la firma.",
+        message: t("settingsSignatures.textRequired"),
         errors: [],
       });
       return;
@@ -114,7 +117,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
 
     if (codePointLength > SIGNATURE_MAX_CHARS) {
       setDialogError({
-        message: `La firma no puede superar los ${SIGNATURE_MAX_CHARS} caracteres.`,
+        message: t("settingsSignatures.tooLong", { max: SIGNATURE_MAX_CHARS }),
         errors: [],
       });
       return;
@@ -135,7 +138,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
       closeDialog();
     } catch (err) {
       setDialogError(
-        parsePublicationError(err, "No se pudo guardar la firma."),
+        parsePublicationError(err, t("settingsSignatures.saveFailed")),
       );
     }
   }
@@ -149,7 +152,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
       });
     } catch (err) {
       setPageError(
-        parsePublicationError(err, "No se pudo actualizar la firma."),
+        parsePublicationError(err, t("settingsSignatures.updateFailed")),
       );
     }
   }
@@ -159,7 +162,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
     try {
       await deleteMutation.mutateAsync(sig.id);
     } catch (err) {
-      setPageError(parsePublicationError(err, "No se pudo borrar la firma."));
+      setPageError(parsePublicationError(err, t("settingsSignatures.deleteFailed")));
     }
   }
 
@@ -168,10 +171,9 @@ export function SignaturesView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xl font-medium text-fg">Firmas</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settingsSignatures.title")}</h2>
         <p className="text-sm text-fg-muted">
-          Podés agregar firmas a tu cuenta para reutilizarlas en tus
-          publicaciones o sumar una automáticamente a cada publicación nueva.
+          {t("settingsSignatures.intro")}
         </p>
       </div>
 
@@ -179,7 +181,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
         <div className="rounded-xl border border-glass bg-surface-1 p-5">
           <Button type="button" onClick={openCreate}>
             <Plus className="h-4 w-4" aria-hidden />
-            Agregar firma
+            {t("settingsSignatures.add")}
           </Button>
         </div>
       ) : null}
@@ -191,20 +193,21 @@ export function SignaturesView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-xl border border-glass bg-surface">
         {signaturesQuery.isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : signaturesQuery.isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar las firmas.
+            {t("settingsSignatures.loadFailed")}
           </p>
         ) : signatures.length === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay firmas todavía.
+            {t("settingsSignatures.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
             {signatures.map((sig) => {
               const dateLabel = formatSignatureDate(
                 sig.updated_at ?? sig.created_at,
+                intlTag,
               );
               return (
                 <li
@@ -223,7 +226,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
                         {sig.auto_add ? (
                           <span className="inline-flex items-center gap-1 rounded-sm border border-neon bg-focused px-2 py-0.5 font-medium text-lit">
                             <Check className="h-3 w-3" aria-hidden />
-                            Automática
+                            {t("settingsSignatures.auto")}
                           </span>
                         ) : null}
                         {dateLabel ? (
@@ -244,12 +247,12 @@ export function SignaturesView({ accountId }: { accountId: string }) {
                         disabled={updateMutation.isPending}
                         onClick={() => void handleToggleAutoAdd(sig)}
                       >
-                        {sig.auto_add ? "Quitar automática" : "Hacer automática"}
+                        {sig.auto_add ? t("settingsSignatures.unsetAuto") : t("settingsSignatures.setAuto")}
                       </Button>
                       <button
                         type="button"
-                        aria-label="Editar firma"
-                        title="Editar firma"
+                        aria-label={t("settingsSignatures.edit")}
+                        title={t("settingsSignatures.edit")}
                         onClick={() => openEdit(sig)}
                         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
@@ -257,8 +260,8 @@ export function SignaturesView({ accountId }: { accountId: string }) {
                       </button>
                       <button
                         type="button"
-                        aria-label="Borrar firma"
-                        title="Borrar firma"
+                        aria-label={t("settingsSignatures.delete")}
+                        title={t("settingsSignatures.delete")}
                         disabled={deleteMutation.isPending}
                         onClick={() => void handleDelete(sig)}
                         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -287,11 +290,11 @@ export function SignaturesView({ accountId }: { accountId: string }) {
                 id="signature-dialog-title"
                 className="text-lg font-medium text-fg"
               >
-                {editing ? "Editar firma" : "Agregar firma"}
+                {editing ? t("settingsSignatures.edit") : t("settingsSignatures.add")}
               </h3>
               <button
                 type="button"
-                aria-label="Cerrar diálogo"
+                aria-label={t("actions.closeDialog")}
                 onClick={closeDialog}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
               >
@@ -309,7 +312,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="signature-content" required>
-                  Texto de la firma
+                  {t("settingsSignatures.text")}
                 </Label>
                 <span
                   className={cn(
@@ -327,7 +330,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
                 rows={4}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Ej: Consultanos por mensaje directo o en nuestra web."
+                placeholder={t("settingsSignatures.textPlaceholder")}
                 aria-invalid={codePointLength > SIGNATURE_MAX_CHARS}
               />
             </div>
@@ -339,7 +342,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
                 onChange={(e) => setAutoAdd(e.target.checked)}
                 className="h-4 w-4 rounded border-glass bg-field accent-primary"
               />
-              <span>¿Agregar sola a cada publicación nueva?</span>
+              <span>{t("settingsSignatures.autoQuestion")}</span>
             </label>
 
             <div className="flex items-center justify-end gap-2 border-t border-glass pt-3">
@@ -349,10 +352,10 @@ export function SignaturesView({ accountId }: { accountId: string }) {
                 onClick={closeDialog}
                 disabled={isSubmitting}
               >
-                Cancelar
+                {t("actions.cancel")}
               </Button>
               <Button type="submit" loading={isSubmitting}>
-                {editing ? "Guardar cambios" : "Guardar firma"}
+                {editing ? t("common.saveChanges") : t("settingsSignatures.save")}
               </Button>
             </div>
           </form>

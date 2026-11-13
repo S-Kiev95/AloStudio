@@ -98,4 +98,7 @@ def process_template_params(
     }
 
 
-__all__ = ["process_template_params"]
+# Public name for callers outside this module (the MCP template tools).
+find_approved_template = _find_template
+
+__all__ = ["find_approved_template", "process_template_params"]

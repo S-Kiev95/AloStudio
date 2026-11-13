@@ -1,0 +1,26 @@
+export const overview = {
+  live: {
+    open: "Abiertas",
+    unattended: "Sin atender",
+    unassigned: "Sin asignar",
+    pending: "Pendientes",
+  },
+  shortcut: {
+    conversations: "Conversaciones",
+    conversationsDesc: "Bandeja de entrada",
+    instagramDesc: "DMs, posts y comentarios",
+    campaigns: "Campañas",
+    campaignsDesc: "Envíos y plantillas",
+    reports: "Reportes",
+    reportsDesc: "Métricas y exportes",
+  },
+  welcome: "Bienvenido",
+  intro: "Todos tus canales, conversaciones y turnos en un solo lugar. Así están las cosas ahora y en los últimos 7 días.",
+  openInbox: "Abrir bandeja",
+  goCalendar: "Ir al calendario",
+  rightNow: "Ahora mismo",
+  last7: "Últimos 7 días",
+  metricsFailed: "No pudimos cargar las métricas del período.",
+  conversations: "Conversaciones",
+  shortcuts: "Accesos rápidos",
+};

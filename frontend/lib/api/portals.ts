@@ -1,3 +1,4 @@
+import type { MessageKey } from "@/lib/i18n/translate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
@@ -7,10 +8,10 @@ import { apiFetch } from "./fetcher";
 // ---------------------------------------------------------------------------
 export type ArticleStatus = "draft" | "published" | "archived";
 
-export const ARTICLE_STATUSES: { value: ArticleStatus; label: string }[] = [
-  { value: "draft", label: "Borrador" },
-  { value: "published", label: "Publicado" },
-  { value: "archived", label: "Archivado" },
+export const ARTICLE_STATUSES: { value: ArticleStatus; label: MessageKey }[] = [
+  { value: "draft", label: "helpCenter.status.draft" },
+  { value: "published", label: "helpCenter.status.published" },
+  { value: "archived", label: "helpCenter.status.archived" },
 ];
 
 export type Portal = {

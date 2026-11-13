@@ -15,8 +15,10 @@ import {
 } from "@/lib/api/canned-responses";
 
 import { CannedResponseForm } from "./canned-response-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function CannedResponsesView({ accountId }: { accountId: string }) {
+  const t = useT();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
@@ -48,11 +50,11 @@ export function CannedResponsesView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-medium text-fg">Respuestas predefinidas</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.canned_responses")}</h2>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
-            Nueva respuesta
+            {t("settingsCanned.new")}
           </Button>
         ) : null}
       </div>
@@ -64,16 +66,16 @@ export function CannedResponsesView({ accountId }: { accountId: string }) {
         />
         <input
           type="search"
-          aria-label="Buscar respuestas"
+          aria-label={t("settingsCanned.search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por atajo o contenido…"
+          placeholder={t("settingsCanned.searchPlaceholder")}
           className="glass-field h-11 w-full rounded-control border border-glass bg-field pl-9 pr-9 text-sm text-fg placeholder:text-fg-muted"
         />
         {search ? (
           <button
             type="button"
-            aria-label="Limpiar búsqueda"
+            aria-label={t("conversations.list.clearSearch")}
             onClick={() => setSearch("")}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
           >
@@ -85,7 +87,7 @@ export function CannedResponsesView({ accountId }: { accountId: string }) {
       {creating ? (
         <Card>
           <CardHeader>
-            <CardTitle>Nueva respuesta</CardTitle>
+            <CardTitle>{t("settingsCanned.new")}</CardTitle>
           </CardHeader>
           <CardContent>
             <CannedResponseForm
@@ -100,7 +102,7 @@ export function CannedResponsesView({ accountId }: { accountId: string }) {
       {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>Editar respuesta</CardTitle>
+            <CardTitle>{t("settingsCanned.edit")}</CardTitle>
           </CardHeader>
           <CardContent>
             <CannedResponseForm
@@ -115,16 +117,16 @@ export function CannedResponsesView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar las respuestas.
+            {t("settingsCanned.loadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
             {debouncedSearch
-              ? "No se encontraron respuestas."
-              : "No hay respuestas todavía."}
+              ? t("settingsCanned.noneFound")
+              : t("settingsCanned.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -155,16 +157,17 @@ function CannedRow({
   canned: CannedResponse;
   onEdit: () => void;
 }) {
+  const t = useT();
   const del = useDeleteCannedResponse(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(`¿Eliminar "/${canned.short_code}"?`)) return;
+    if (!window.confirm(t("settingsCanned.deleteConfirm", { code: canned.short_code }))) return;
     setError(null);
     try {
       await del.mutateAsync(canned.id);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((e as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
@@ -183,8 +186,8 @@ function CannedRow({
       </div>
       <button
         type="button"
-        aria-label="Editar"
-        title="Editar"
+        aria-label={t("actions.edit")}
+        title={t("actions.edit")}
         onClick={onEdit}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -192,8 +195,8 @@ function CannedRow({
       </button>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

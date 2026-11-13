@@ -67,6 +67,9 @@ import {
   TikTokConsent,
   TikTokTargetSettings,
 } from "./tiktok-target-settings";
+import { INTL_TAGS } from "@/lib/i18n/config";
+import { useLocale, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 type SelectedMediaItem = {
   media_id?: number;
@@ -90,11 +93,11 @@ const IG_POST_TYPES: { value: InstagramPostType; label: string }[] = [
   { value: "story", label: "Story" },
 ];
 
-const MEDIA_PICKER_FILTERS: { value: MediaKind | undefined; label: string }[] =
+const MEDIA_PICKER_FILTERS: { value: MediaKind | undefined; label: MessageKey }[] =
   [
-    { value: undefined, label: "Todo" },
-    { value: "image", label: "Imágenes" },
-    { value: "video", label: "Videos" },
+    { value: undefined, label: "publications.media.filters.all" },
+    { value: "image", label: "publications.media.filters.images" },
+    { value: "video", label: "publications.media.filters.videos" },
   ];
 
 function normalizePostType(raw?: string): InstagramPostType {
@@ -133,6 +136,8 @@ export function PublicationEditorDialog({
   defaultScheduledFor?: Date | null;
   onOpenDetail?: (publication: Publication) => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const isSetMode = mode === "set";
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -157,7 +162,7 @@ export function PublicationEditorDialog({
   const [selectedMedia, setSelectedMedia] = useState<SelectedMediaItem[]>([]);
   const [whenMode, setWhenMode] = useState<WhenMode>("now");
   const [scheduledFor, setScheduledFor] = useState("");
-  const scheduledHint = describeScheduledFor(scheduledFor);
+  const scheduledHint = describeScheduledFor(scheduledFor, undefined, locale);
 
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryKind, setLibraryKind] = useState<MediaKind | undefined>(
@@ -396,7 +401,7 @@ export function PublicationEditorDialog({
     setSelectedChannelIds(nextIds);
     setChannelConfigs(nextConfigs);
     setSetsOpen(false);
-    setSetFeedback(`Set "${pubSet.name}" aplicado.`);
+    setSetFeedback(t("publications.editor.setApplied", { name: pubSet.name }));
   }
 
   function appendSignature(sigContent: string) {
@@ -465,7 +470,7 @@ export function PublicationEditorDialog({
         ]);
       }
     } catch (err) {
-      setApiError(parsePublicationError(err, "No se pudo subir el archivo."));
+      setApiError(parsePublicationError(err, t("publications.media.uploadFailed")));
     }
   }
 
@@ -514,12 +519,12 @@ export function PublicationEditorDialog({
 
   const ruleProblems = useMemo(
     () => [
-      ...validatePublicationTargets(content, selectedMedia, ruleTargets),
+      ...validatePublicationTargets(content, selectedMedia, ruleTargets, t),
       ...selectedChannels.flatMap((ch) =>
         panelProblems[ch.id] ? [panelProblems[ch.id]] : [],
       ),
     ],
-    [content, selectedMedia, ruleTargets, selectedChannels, panelProblems],
+    [content, selectedMedia, ruleTargets, selectedChannels, panelProblems, t],
   );
 
   const xLinkChannels = xChannelsWithLink(content, ruleTargets);
@@ -533,7 +538,7 @@ export function PublicationEditorDialog({
       Boolean(t?.disclose && !t.brand_organic && !t.brand_content)
     );
   })
-    ? "Indicá si el contenido de TikTok promociona tu marca, a un tercero o ambos."
+    ? t("publications.editor.tiktokDisclosure")
     : null;
 
   function buildTargetsPayload(): TargetIn[] {
@@ -565,12 +570,12 @@ export function PublicationEditorDialog({
     setSetFeedback(null);
     const trimmedName = setName.trim();
     if (!trimmedName) {
-      setApiError({ message: "Indicá un nombre para el set.", errors: [] });
+      setApiError({ message: t("publications.editor.setNameRequired"), errors: [] });
       return;
     }
     if (selectedChannels.length === 0) {
       setApiError({
-        message: "Elegí al menos un canal antes de guardar el set.",
+        message: t("publications.editor.setNeedsChannel"),
         errors: [],
       });
       return;
@@ -585,9 +590,9 @@ export function PublicationEditorDialog({
       });
       setSavingSetOpen(false);
       setSetName("");
-      setSetFeedback(`Set "${saved.name}" guardado.`);
+      setSetFeedback(t("publications.editor.setSaved", { name: saved.name }));
     } catch (err) {
-      setApiError(parsePublicationError(err, "No se pudo guardar el set."));
+      setApiError(parsePublicationError(err, t("publications.editor.setSaveFailed")));
     }
   }
 
@@ -595,12 +600,12 @@ export function PublicationEditorDialog({
     setApiError(null);
     const trimmedName = setName.trim();
     if (!trimmedName) {
-      setApiError({ message: "Indicá un nombre para el set.", errors: [] });
+      setApiError({ message: t("publications.editor.setNameRequired"), errors: [] });
       return;
     }
     if (selectedChannels.length === 0) {
       setApiError({
-        message: "Elegí al menos un canal antes de guardar el set.",
+        message: t("publications.editor.setNeedsChannel"),
         errors: [],
       });
       return;
@@ -624,7 +629,7 @@ export function PublicationEditorDialog({
       }
       onClose();
     } catch (err) {
-      setApiError(parsePublicationError(err, "No se pudo guardar el set."));
+      setApiError(parsePublicationError(err, t("publications.editor.setSaveFailed")));
     }
   }
 
@@ -641,13 +646,13 @@ export function PublicationEditorDialog({
       const parsed = fromDatetimeLocalInput(scheduledFor);
       if (!parsed && !asDraft) {
         setApiError({
-          message: "Indicá una fecha y hora válidas para programar.",
+          message: t("publications.editor.invalidSchedule"),
           errors: [],
         });
         return;
       }
       if (parsed && !asDraft && new Date(parsed).getTime() < Date.now() - 60_000) {
-        const when = new Date(parsed).toLocaleString("es", {
+        const when = new Date(parsed).toLocaleString(INTL_TAGS[locale], {
           day: "2-digit",
           month: "2-digit",
           hour: "2-digit",
@@ -655,7 +660,7 @@ export function PublicationEditorDialog({
           hour12: false,
         });
         setApiError({
-          message: `Elegiste el ${when}, que ya pasó. Elegí una fecha y hora futuras.`,
+          message: t("publications.editor.pastSchedule", { when }),
           errors: [],
         });
         return;
@@ -685,7 +690,7 @@ export function PublicationEditorDialog({
       onClose();
     } catch (err) {
       setApiError(
-        parsePublicationError(err, "No se pudo guardar la publicación."),
+        parsePublicationError(err, t("publications.editor.saveFailed")),
       );
     }
   }
@@ -699,11 +704,11 @@ export function PublicationEditorDialog({
 
   const dialogTitle = isSetMode
     ? initialSet
-      ? "Editar set"
-      : "Agregar set"
+      ? t("publications.editor.editSet")
+      : t("publications.editor.addSet")
     : initial
-      ? "Editar publicación"
-      : "Nueva publicación";
+      ? t("publications.editor.editTitle")
+      : t("publications.newPublication");
 
   return (
     <dialog
@@ -733,7 +738,7 @@ export function PublicationEditorDialog({
                 onClick={() => onOpenDetail(initial)}
               >
                 <Eye className="h-4 w-4" aria-hidden />
-                Ver
+                {t("publications.editor.view")}
               </Button>
             ) : null}
 
@@ -750,12 +755,12 @@ export function PublicationEditorDialog({
                   }}
                 >
                   <FolderOpen className="h-4 w-4" aria-hidden />
-                  Usar set
+                  {t("publications.editor.useSet")}
                 </Button>
                 {setsOpen ? (
                   <div
                     role="menu"
-                    aria-label="Sets guardados"
+                    aria-label={t("publications.editor.savedSets")}
                     className="absolute right-0 z-30 mt-1.5 w-60 overflow-hidden rounded-md border border-glass bg-surface-2 py-1 shadow-menu"
                   >
                     {sets.map((s) => (
@@ -785,13 +790,13 @@ export function PublicationEditorDialog({
                 }}
               >
                 <Bookmark className="h-4 w-4" aria-hidden />
-                Guardar como set
+                {t("publications.editor.saveAsSet")}
               </Button>
             ) : null}
 
             <button
               type="button"
-              aria-label="Cerrar diálogo"
+              aria-label={t("actions.closeDialog")}
               onClick={onClose}
               className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
             >
@@ -805,13 +810,13 @@ export function PublicationEditorDialog({
           <div className="flex flex-wrap items-end gap-2 rounded-md border border-glass bg-surface-2 p-3">
             <div className="min-w-[200px] flex-1 space-y-1">
               <Label htmlFor="pub-set-name" required>
-                Nombre del set
+                {t("publications.editor.setName")}
               </Label>
               <Input
                 id="pub-set-name"
                 value={setName}
                 onChange={(e) => setSetName(e.target.value)}
-                placeholder="Ej: Lanzamiento semanal"
+                placeholder={t("publications.editor.setNamePlaceholder")}
               />
             </div>
             <Button
@@ -820,7 +825,7 @@ export function PublicationEditorDialog({
               loading={createSetMutation.isPending}
               onClick={() => void handleSaveSet()}
             >
-              Guardar set
+              {t("publications.editor.saveSet")}
             </Button>
             <Button
               type="button"
@@ -828,7 +833,7 @@ export function PublicationEditorDialog({
               variant="ghost"
               onClick={() => setSavingSetOpen(false)}
             >
-              Cancelar
+              {t("actions.cancel")}
             </Button>
           </div>
         ) : null}
@@ -853,25 +858,24 @@ export function PublicationEditorDialog({
         {isSetMode ? (
           <div className="space-y-1.5">
             <Label htmlFor="pub-editor-set-name" required>
-              Nombre del set
+              {t("publications.editor.setName")}
             </Label>
             <Input
               id="pub-editor-set-name"
               value={setName}
               maxLength={120}
               onChange={(e) => setSetName(e.target.value)}
-              placeholder="Ej: Lanzamiento semanal"
+              placeholder={t("publications.editor.setNamePlaceholder")}
             />
           </div>
         ) : null}
 
         {/* Canales */}
         <div className="space-y-2">
-          <Label required>Canales</Label>
+          <Label required>{t("conversations.tabs.channels")}</Label>
           {activeChannels.length === 0 ? (
             <p className="rounded-md border border-glass bg-field px-3 py-2.5 text-xs text-fg-muted">
-              No hay canales activos disponibles. Conectá o reconectá un canal
-              en el calendario.
+              {t("publications.editor.noActiveChannels")}
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -907,7 +911,7 @@ export function PublicationEditorDialog({
         {/* Texto compartido + Firma + Contador */}
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Label htmlFor="pub-content">Texto</Label>
+            <Label htmlFor="pub-content">{t("publications.editor.text")}</Label>
             <div className="flex items-center gap-3">
               <div className="relative">
                 <button
@@ -917,17 +921,17 @@ export function PublicationEditorDialog({
                   className="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-medium text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                 >
                   <FileSignature className="h-3.5 w-3.5" aria-hidden />
-                  Firma
+                  {t("publications.editor.signature")}
                 </button>
                 {signaturesOpen ? (
                   <div
                     role="menu"
-                    aria-label="Firmas disponibles"
+                    aria-label={t("publications.editor.availableSignatures")}
                     className="absolute right-0 z-30 mt-1 w-64 overflow-hidden rounded-md border border-glass bg-surface-2 py-1 shadow-menu"
                   >
                     {signatures.length === 0 ? (
                       <p className="px-3 py-2 text-xs text-fg-muted">
-                        No hay firmas configuradas.
+                        {t("publications.editor.noSignatures")}
                       </p>
                     ) : (
                       signatures.map((sig) => (
@@ -943,7 +947,7 @@ export function PublicationEditorDialog({
                           </span>
                           {sig.auto_add ? (
                             <span className="text-[10px] text-lit">
-                              Automática
+                              {t("publications.editor.automatic")}
                             </span>
                           ) : null}
                         </button>
@@ -977,21 +981,23 @@ export function PublicationEditorDialog({
               autoSigAppliedRef.current = true;
               setContent(e.target.value);
             }}
-            placeholder="Escribí el contenido de la publicación…"
+            placeholder={t("publications.editor.contentPlaceholder")}
           />
         </div>
 
         {/* Medios */}
         <div className="space-y-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Label>Medios ({selectedMedia.length})</Label>
+            <Label>
+              {t("publications.editor.mediaCount", { count: selectedMedia.length })}
+            </Label>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
                 multiple
                 accept="image/*,video/*"
-                aria-label="Subir archivo nuevo"
+                aria-label={t("publications.editor.uploadNewFile")}
                 className="hidden"
                 tabIndex={-1}
                 onChange={(e) => {
@@ -1006,7 +1012,7 @@ export function PublicationEditorDialog({
                 onClick={() => setLibraryOpen((o) => !o)}
               >
                 <Images className="h-4 w-4" aria-hidden />
-                {libraryOpen ? "Cerrar biblioteca" : "Elegir de la biblioteca"}
+                {libraryOpen ? t("publications.editor.closeLibrary") : t("publications.editor.pickFromLibrary")}
               </Button>
               <Button
                 type="button"
@@ -1016,7 +1022,7 @@ export function PublicationEditorDialog({
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="h-4 w-4" aria-hidden />
-                {uploadMediaMutation.isPending ? "Subiendo…" : "Subir nuevo"}
+                {uploadMediaMutation.isPending ? t("publications.media.uploading") : t("publications.editor.uploadNew")}
               </Button>
             </div>
           </div>
@@ -1052,18 +1058,18 @@ export function PublicationEditorDialog({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-fg">
                       {m.filename ||
-                        (m.type === "video" ? "Video" : "Imagen") +
+                        (m.type === "video" ? t("publications.media.video") : t("publications.media.image")) +
                           (m.media_id ? ` #${m.media_id}` : "")}
                     </p>
                     <p className="text-[11px] uppercase text-fg-muted">
-                      {m.type === "video" ? "Video" : "Imagen"}
+                      {m.type === "video" ? t("publications.media.video") : t("publications.media.image")}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      aria-label={`Mover medio ${idx + 1} antes`}
-                      title="Mover antes"
+                      aria-label={t("publications.editor.moveMediaBefore", { n: idx + 1 })}
+                      title={t("publications.editor.moveBefore")}
                       disabled={idx === 0}
                       onClick={() => moveMedia(idx, -1)}
                       className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-35"
@@ -1072,8 +1078,8 @@ export function PublicationEditorDialog({
                     </button>
                     <button
                       type="button"
-                      aria-label={`Mover medio ${idx + 1} después`}
-                      title="Mover después"
+                      aria-label={t("publications.editor.moveMediaAfter", { n: idx + 1 })}
+                      title={t("publications.editor.moveAfter")}
                       disabled={idx === selectedMedia.length - 1}
                       onClick={() => moveMedia(idx, 1)}
                       className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-35"
@@ -1082,8 +1088,8 @@ export function PublicationEditorDialog({
                     </button>
                     <button
                       type="button"
-                      aria-label={`Quitar medio ${idx + 1}`}
-                      title="Quitar"
+                      aria-label={t("publications.editor.removeMedia", { n: idx + 1 })}
+                      title={t("common.remove")}
                       onClick={() => removeMedia(idx)}
                       className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-fg-muted hover:bg-hover-glass hover:text-danger"
                     >
@@ -1100,24 +1106,27 @@ export function PublicationEditorDialog({
             <div className="space-y-3 rounded-md border border-glass bg-surface-2 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-medium text-fg">
-                  Biblioteca de medios
+                  {t("publications.editor.mediaLibrary")}
                 </span>
                 <SegmentedControl
-                  ariaLabel="Filtrar biblioteca"
+                  ariaLabel={t("publications.editor.filterLibrary")}
                   size="sm"
                   value={libraryKind}
                   onValueChange={setLibraryKind}
-                  options={MEDIA_PICKER_FILTERS}
+                  options={MEDIA_PICKER_FILTERS.map((o) => ({
+                    ...o,
+                    label: t(o.label),
+                  }))}
                 />
               </div>
 
               {libraryQuery.isLoading ? (
                 <p className="py-6 text-center text-xs text-fg-muted">
-                  Cargando biblioteca…
+                  {t("publications.editor.loadingLibrary")}
                 </p>
               ) : libraryItems.length === 0 ? (
                 <p className="py-6 text-center text-xs text-fg-muted">
-                  No hay medios en la biblioteca.
+                  {t("publications.editor.emptyLibrary")}
                 </p>
               ) : (
                 <div className="grid max-h-56 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-5">
@@ -1125,12 +1134,14 @@ export function PublicationEditorDialog({
                     const picked = selectedMedia.some(
                       (m) => m.media_id === asset.id,
                     );
-                    const label = asset.filename || `Medio #${asset.id}`;
+                    const label =
+                      asset.filename ||
+                      t("publications.editor.mediaNumber", { id: asset.id });
                     return (
                       <button
                         key={asset.id}
                         type="button"
-                        aria-label={`Elegir ${label}`}
+                        aria-label={t("publications.editor.pick", { name: label })}
                         aria-pressed={picked}
                         onClick={() => toggleLibraryAsset(asset)}
                         className={cn(
@@ -1178,7 +1189,7 @@ export function PublicationEditorDialog({
                     loading={libraryQuery.isFetchingNextPage}
                     onClick={() => libraryQuery.fetchNextPage()}
                   >
-                    Cargar más
+                    {t("publications.media.loadMore")}
                   </Button>
                 </div>
               ) : null}
@@ -1189,7 +1200,7 @@ export function PublicationEditorDialog({
         {/* Por canal */}
         {selectedChannels.length > 0 ? (
           <div className="space-y-2.5">
-            <Label>Ajustes por canal</Label>
+            <Label>{t("publications.editor.perChannel")}</Label>
             <div className="space-y-2.5">
               {selectedChannels.map((ch) => {
                 const cfg = configFor(ch.id);
@@ -1213,7 +1224,7 @@ export function PublicationEditorDialog({
                       <div className="flex flex-wrap items-center gap-2">
                         {ch.network === "instagram" ? (
                           <SegmentedControl
-                            ariaLabel={`Tipo en ${name}`}
+                            ariaLabel={t("publications.editor.typeIn", { name })}
                             size="sm"
                             value={cfg.postType}
                             onValueChange={(next) =>
@@ -1242,7 +1253,7 @@ export function PublicationEditorDialog({
                               : "border-glass bg-field text-fg-muted hover:bg-hover-glass hover:text-fg",
                           )}
                         >
-                          Personalizar texto para este canal
+                          {t("publications.editor.customizeText")}
                         </button>
                       </div>
                     </div>
@@ -1273,7 +1284,7 @@ export function PublicationEditorDialog({
 
                     {ch.network === "instagram" && cfg.postType === "story" ? (
                       <p className="text-xs text-fg-muted">
-                        En Instagram Story el texto no se muestra.
+                        {t("publications.editor.storyNoText")}
                       </p>
                     ) : null}
 
@@ -1281,7 +1292,7 @@ export function PublicationEditorDialog({
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-xs text-fg-muted">
                           <Label htmlFor={`override-${ch.id}`}>
-                            Texto para {name}
+                            {t("publications.editor.textFor", { name })}
                           </Label>
                           {ownLimit !== null ? (
                             <span
@@ -1315,22 +1326,22 @@ export function PublicationEditorDialog({
         {/* Cuándo (publication mode only) */}
         {!isSetMode ? (
           <div className="space-y-2">
-            <Label>Cuándo</Label>
+            <Label>{t("publications.editor.when")}</Label>
             <div className="flex flex-wrap items-center gap-3">
               <SegmentedControl
-                ariaLabel="Cuándo publicar"
+                ariaLabel={t("publications.editor.whenLabel")}
                 size="sm"
                 value={whenMode}
                 onValueChange={setWhenMode}
                 options={[
-                  { value: "now" as WhenMode, label: "Publicar ahora" },
-                  { value: "schedule" as WhenMode, label: "Programar" },
+                  { value: "now" as WhenMode, label: t("publications.editor.publishNow") },
+                  { value: "schedule" as WhenMode, label: t("publications.editor.schedule") },
                 ]}
               />
               {whenMode === "schedule" ? (
                 <Input
                   id="pub-scheduled-for"
-                  aria-label="Fecha y hora de publicación"
+                  aria-label={t("publications.editor.scheduleAt")}
                   type="datetime-local"
                   value={scheduledFor}
                   // The picker then offers only times from now on.
@@ -1356,7 +1367,7 @@ export function PublicationEditorDialog({
         {/* Vista previa simple por canal */}
         {selectedChannels.length > 0 ? (
           <div className="space-y-2">
-            <Label>Vista previa</Label>
+            <Label>{t("publications.editor.preview")}</Label>
             <div className="grid gap-2.5 sm:grid-cols-2">
               {selectedChannels.map((ch) => {
                 const cfg = configFor(ch.id);
@@ -1403,14 +1414,14 @@ export function PublicationEditorDialog({
                     ) : null}
                     {isStory ? (
                       <p className="italic text-fg-muted">
-                        Story (sin texto visible)
+                        {t("publications.editor.storyNoVisibleText")}
                       </p>
                     ) : previewText.trim() ? (
                       <p className="line-clamp-4 whitespace-pre-wrap break-words text-fg">
                         {previewText}
                       </p>
                     ) : (
-                      <p className="italic text-fg-muted">Sin texto</p>
+                      <p className="italic text-fg-muted">{t("publications.noText")}</p>
                     )}
                   </div>
                 );
@@ -1430,7 +1441,7 @@ export function PublicationEditorDialog({
                 : "border-warning text-warning",
             )}
           >
-            <p className="font-medium">Revisá las reglas de cada red:</p>
+            <p className="font-medium">{t("publications.editor.checkRules")}</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-5">
               {ruleProblems.map((prob, idx) => (
                 <li key={idx}>{prob}</li>
@@ -1444,9 +1455,9 @@ export function PublicationEditorDialog({
             role="status"
             className="rounded-md border border-glass bg-surface-2 px-3 py-2 text-xs text-fg-muted"
           >
-            {xLinkChannels.join(", ")} (X): esta publicación lleva un link. X
-            cobra bastante más por publicar con link (unos 0,20 USD contra
-            0,015 USD sin link).
+            {t("publications.editor.xLinkCost", {
+              channels: xLinkChannels.join(", "),
+            })}
           </p>
         ) : null}
 
@@ -1466,7 +1477,7 @@ export function PublicationEditorDialog({
             onClick={onClose}
             disabled={isSubmitting}
           >
-            Cancelar
+            {t("actions.cancel")}
           </Button>
           {isSetMode ? (
             <Button
@@ -1474,7 +1485,7 @@ export function PublicationEditorDialog({
               loading={isSubmitting}
               onClick={() => void submitSetMode()}
             >
-              Guardar set
+              {t("publications.editor.saveSet")}
             </Button>
           ) : (
             <>
@@ -1484,7 +1495,7 @@ export function PublicationEditorDialog({
                 loading={isSubmitting}
                 onClick={() => void submitPublication(true)}
               >
-                Guardar borrador
+                {t("publications.editor.saveDraft")}
               </Button>
               {/* A disabled button gets no hover events: the wrapper carries
                   the reason. */}
@@ -1495,7 +1506,7 @@ export function PublicationEditorDialog({
                   disabled={disclosureBlock !== null}
                   onClick={() => void submitPublication(false)}
                 >
-                  {whenMode === "schedule" ? "Programar" : "Publicar ahora"}
+                  {whenMode === "schedule" ? t("publications.editor.schedule") : t("publications.editor.publishNow")}
                 </Button>
               </span>
             </>

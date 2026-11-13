@@ -6,34 +6,36 @@ import { Card } from "@/components/ui/card";
 import type { ReportSummary, ReportSummaryWithPrev } from "@/lib/api/reports";
 import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 type CardDef = {
   key: keyof ReportSummary;
-  label: string;
+  label: MessageKey;
   kind: "count" | "duration";
   lowerIsBetter?: boolean;
 };
 
 const CARDS: CardDef[] = [
-  { key: "conversations_count", label: "Conversaciones", kind: "count" },
-  { key: "incoming_messages_count", label: "Mensajes entrantes", kind: "count" },
-  { key: "outgoing_messages_count", label: "Mensajes salientes", kind: "count" },
-  { key: "resolutions_count", label: "Resoluciones", kind: "count" },
+  { key: "conversations_count", label: "reports.cards.conversations", kind: "count" },
+  { key: "incoming_messages_count", label: "reports.cards.incoming", kind: "count" },
+  { key: "outgoing_messages_count", label: "reports.cards.outgoing", kind: "count" },
+  { key: "resolutions_count", label: "reports.cards.resolutions", kind: "count" },
   {
     key: "avg_first_response_time",
-    label: "Primera respuesta (prom.)",
+    label: "reports.cards.firstResponse",
     kind: "duration",
     lowerIsBetter: true,
   },
   {
     key: "avg_resolution_time",
-    label: "Resolución (prom.)",
+    label: "reports.cards.resolution",
     kind: "duration",
     lowerIsBetter: true,
   },
   {
     key: "reply_time",
-    label: "Respuesta (prom.)",
+    label: "reports.cards.reply",
     kind: "duration",
     lowerIsBetter: true,
   },
@@ -63,10 +65,12 @@ function SummaryCard({
   current: number;
   previous: number;
 }) {
+  const intlTag = useIntlTag();
+  const t = useT();
   const value =
     def.kind === "duration"
       ? formatDuration(current)
-      : current.toLocaleString();
+      : current.toLocaleString(intlTag);
 
   const pct =
     previous > 0 ? ((current - previous) / previous) * 100 : null;
@@ -74,7 +78,7 @@ function SummaryCard({
   return (
     <Card className="p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
-        {def.label}
+        {t(def.label)}
       </p>
       <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">{value}</p>
       <Delta pct={pct} lowerIsBetter={def.lowerIsBetter} />
@@ -89,11 +93,12 @@ function Delta({
   pct: number | null;
   lowerIsBetter?: boolean;
 }) {
+  const t = useT();
   if (pct === null || !Number.isFinite(pct)) {
-    return <p className="mt-1 text-xs text-fg-muted">sin período previo</p>;
+    return <p className="mt-1 text-xs text-fg-muted">{t("reports.cards.noPrevious")}</p>;
   }
   if (Math.round(pct) === 0) {
-    return <p className="mt-1 text-xs text-fg-muted">sin cambios</p>;
+    return <p className="mt-1 text-xs text-fg-muted">{t("reports.cards.noChange")}</p>;
   }
   const up = pct > 0;
   const good = lowerIsBetter ? !up : up;
@@ -109,7 +114,7 @@ function Delta({
       <span className="font-numeric tabular-nums">
         {Math.abs(Math.round(pct))}%
       </span>
-      <span className="font-normal text-fg-muted">vs. período previo</span>
+      <span className="font-normal text-fg-muted">{t("reports.cards.vsPrevious")}</span>
     </p>
   );
 }

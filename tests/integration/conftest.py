@@ -79,3 +79,16 @@ async def db_session() -> AsyncIterator[AsyncSession]:
                 await trans.rollback()
     finally:
         await engine.dispose()
+
+
+@pytest.fixture
+async def no_other_accounts(db_session: AsyncSession) -> AsyncSession:
+    """For tests about "the installation's first account": drop the accounts
+    other tests left committed (the MCP tests commit, and a failed cleanup
+    leaves rows behind), inside this test's transaction. Every reference to
+    ``accounts`` cascades, and the rollback at teardown brings them back, so
+    nothing outside the test changes."""
+    from sqlalchemy import text
+
+    await db_session.exec(text("DELETE FROM accounts"))  # type: ignore[call-overload]
+    return db_session

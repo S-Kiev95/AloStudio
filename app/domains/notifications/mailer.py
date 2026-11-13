@@ -23,6 +23,7 @@ import aiosmtplib
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
+from app.core.i18n import CATALOGS, DEFAULT_LOCALE, mail_text, t, user_locale
 from app.domains.conversations.models import Conversation
 from app.domains.notifications.models import (
     Notification,
@@ -33,25 +34,9 @@ from app.domains.users.models import User
 
 log = logging.getLogger(__name__)
 
-# Per-type subject + one-line lead. ``{n}`` is the conversation display id.
-_SUBJECTS: dict[str, str] = {
-    "conversation_creation": "Nueva conversación #{n}",
-    "conversation_assignment": "Se te asignó la conversación #{n}",
-    "assigned_conversation_new_message": "Nuevo mensaje en la conversación #{n}",
-    "conversation_bot_handoff": "La conversación #{n} pide atención de una persona",
-}
-_LEADS: dict[str, str] = {
-    "conversation_creation": (
-        "Se creó una nueva conversación en una bandeja de la que sos miembro."
-    ),
-    "conversation_assignment": "Se te asignó una conversación.",
-    "assigned_conversation_new_message": (
-        "Recibiste un nuevo mensaje en una conversación asignada a vos."
-    ),
-    "conversation_bot_handoff": (
-        "El bot derivó una conversación al equipo: alguien tiene que responderla."
-    ),
-}
+# Per-type subject + one-line lead live in ``app.core.i18n``
+# (``notif.subject.<type>`` / ``notif.lead.<type>``); ``{n}`` is the
+# conversation display id. Types without their own text get the default.
 
 
 def build_notification_email(
@@ -64,11 +49,22 @@ def build_notification_email(
     settings = get_settings()
     type_str = notification_type_to_str(notification.notification_type)
     display_id = conversation.display_id if conversation is not None else 0
-    subject = _SUBJECTS.get(type_str, "Nueva notificación").format(n=display_id)
-    lead = _LEADS.get(type_str, "Tenés una nueva notificación en AloStudio.")
+    locale = user_locale(user)
+    subject_key = f"notif.subject.{type_str}"
+    if subject_key not in CATALOGS[DEFAULT_LOCALE]:
+        subject_key = "notif.subject.default"
+    lead_key = f"notif.lead.{type_str}"
+    if lead_key not in CATALOGS[DEFAULT_LOCALE]:
+        lead_key = "notif.lead.default"
+    title = str((notification.meta or {}).get("title", ""))
+    subject = t(locale, subject_key, n=display_id, title=title)
+    lead = t(locale, lead_key, title=title)
+    base = f"{settings.app_base_url.rstrip('/')}/accounts/{notification.account_id}"
+    # A CRM task links to the task list; everything else to its conversation.
     link = (
-        f"{settings.app_base_url.rstrip('/')}"
-        f"/accounts/{notification.account_id}/conversations/{display_id}"
+        f"{base}/tasks"
+        if notification.primary_actor_type == "CrmActivity"
+        else f"{base}/conversations/{display_id}"
     )
     greeting = user.name or user.email or ""
     msg = EmailMessage()
@@ -76,19 +72,7 @@ def build_notification_email(
     msg["To"] = user.email or ""
     msg["Subject"] = subject
     msg.set_content(
-        f"""Hola {greeting},
-
-{lead}
-
-Verla acá:
-
-    {link}
-
-Podés ajustar qué notificaciones recibís por email desde
-Ajustes → Notificaciones.
-
-— AloStudio
-""",
+        mail_text(locale, name=greeting, body=t(locale, "notif.body", lead=lead, link=link))
     )
     return msg
 

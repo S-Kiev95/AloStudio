@@ -8,8 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type MacroInput, useCreateMacro } from "@/lib/api/macros";
 
 import { MacroForm } from "./macro-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function MacroNewView({ accountId }: { accountId: string }) {
+  const t = useT();
   const router = useRouter();
   const create = useCreateMacro(accountId);
 
@@ -25,11 +27,11 @@ export function MacroNewView({ accountId }: { accountId: string }) {
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver a macros
+        {t("settingsMacros.back")}
       </Link>
       <Card>
         <CardHeader>
-          <CardTitle>Nuevo macro</CardTitle>
+          <CardTitle>{t("settingsMacros.new")}</CardTitle>
         </CardHeader>
         <CardContent>
           <MacroForm

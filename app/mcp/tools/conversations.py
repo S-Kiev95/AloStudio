@@ -23,6 +23,8 @@ from fastmcp import FastMCP
 from sqlmodel import select
 
 from app.core.errors import ChatwootHTTPException
+from app.domains.contacts.models import Contact, ContactInbox
+from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.events import (
     CONVERSATION_UPDATED,
     dispatcher,
@@ -36,12 +38,27 @@ from app.domains.conversations.models import (
     message_type_to_str,
 )
 from app.domains.conversations.service import (
+    ConversationBuilderParams,
+    MessageBuilderParams,
+    create_message,
     toggle_priority,
     toggle_status,
     update_assignee,
     update_labels,
     update_team,
 )
+from app.domains.conversations.service import (
+    create_conversation as build_conversation,
+)
+from app.domains.inboxes.models import (
+    CHANNEL_TYPE_API,
+    CHANNEL_TYPE_EMAIL,
+    CHANNEL_TYPE_WEB_WIDGET,
+    CHANNEL_TYPE_WHATSAPP,
+    Inbox,
+)
+from app.domains.macros import service as macro_service
+from app.domains.teams.models import Team
 from app.mcp.context import current_mcp_context
 from app.mcp.permissions import requires
 
@@ -104,6 +121,48 @@ def _present_msg(msg: Message) -> dict[str, Any]:
 # ===========================================================================
 # Tools
 # ===========================================================================
+# Channels where AloStudio can write first: the address comes from the
+# contact itself. Everywhere else (Instagram, Messenger, Telegram, SMS) the
+# platform only lets a business answer someone who wrote before.
+_STARTABLE = frozenset(
+    {CHANNEL_TYPE_API, CHANNEL_TYPE_WEB_WIDGET, CHANNEL_TYPE_EMAIL}
+)
+
+
+async def _contact_inbox_for(contact: Contact, inbox: Inbox) -> ContactInbox:
+    """The contact's address in this inbox: the existing one if they wrote
+    before, else a new one where the channel allows writing first."""
+    ctx = current_mcp_context()
+    existing = (
+        await ctx.session.exec(
+            select(ContactInbox).where(
+                ContactInbox.contact_id == contact.id,
+                ContactInbox.inbox_id == inbox.id,
+            )
+        )
+    ).first()
+    if existing is not None:
+        return existing
+    source_id: str | None = None
+    if inbox.channel_type == CHANNEL_TYPE_WHATSAPP:
+        digits = "".join(ch for ch in contact.phone_number or "" if ch.isdigit())
+        if not digits:
+            raise ValueError(
+                "the contact has no phone number; set it with update_contact first"
+            )
+        source_id = digits
+    elif inbox.channel_type not in _STARTABLE:
+        raise ValueError(
+            "this channel only allows answering a contact who wrote first; "
+            "this contact has no conversation in that inbox"
+        )
+    if inbox.channel_type == CHANNEL_TYPE_EMAIL and not contact.email:
+        raise ValueError("the contact has no email; set it with update_contact first")
+    return await ContactInboxBuilder(
+        session=ctx.session, contact=contact, inbox=inbox, source_id=source_id
+    ).perform()
+
+
 def register(mcp: FastMCP) -> None:
     @mcp.tool(name="list_conversations")
     @requires("read")
@@ -242,6 +301,102 @@ def register(mcp: FastMCP) -> None:
             ctx.session, conversation=conv, priority=priority_arg
         )
         return _present_conv(conv)
+
+    @mcp.tool(name="create_conversation")
+    @requires("write")
+    async def create_conversation(
+        inbox_id: int,
+        contact_id: int,
+        message: str | None = None,
+        assignee_id: int | None = None,
+        team_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Start a conversation with a contact in an inbox (list_inboxes,
+        list_contacts), optionally with a first message and an assignee or
+        team (list_agents, list_teams).
+
+        On WhatsApp, Meta refuses free text when the contact has not
+        written in the last 24 h: start without ``message`` and send an
+        approved template with send_whatsapp_template."""
+        ctx = current_mcp_context()
+        inbox = await ctx.session.get(Inbox, inbox_id)
+        if inbox is None or inbox.account_id != ctx.account.id:
+            raise ValueError(f"inbox {inbox_id} not found in this account")
+        contact = await ctx.session.get(Contact, contact_id)
+        if contact is None or contact.account_id != ctx.account.id:
+            raise ValueError(f"contact {contact_id} not found in this account")
+        if team_id is not None:
+            team = await ctx.session.get(Team, team_id)
+            if team is None or team.account_id != ctx.account.id:
+                raise ValueError(f"team {team_id} not found in this account")
+
+        contact_inbox = await _contact_inbox_for(contact, inbox)
+        conv = await build_conversation(
+            ctx.session,
+            contact_inbox=contact_inbox,
+            params=ConversationBuilderParams(),
+        )
+        if assignee_id is not None and (
+            await update_assignee(
+                ctx.session, conversation=conv, assignee_id=assignee_id
+            )
+            is None
+        ):
+            raise ValueError(f"agent {assignee_id} not found in this account")
+        if team_id is not None:
+            await update_team(ctx.session, conversation=conv, team_id=team_id)
+        if message and message.strip():
+            await create_message(
+                ctx.session,
+                conversation=conv,
+                params=MessageBuilderParams(
+                    content=message, message_type="outgoing"
+                ),
+                user_id=ctx.user.id,
+            )
+        return _present_conv(conv)
+
+    @mcp.tool(name="list_macros")
+    @requires("read")
+    async def list_macros() -> dict[str, Any]:
+        """Macros the token's user can run: the account's shared ones plus
+        their own. Each is a saved list of actions (assign, label, send a
+        message…) for execute_macro."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None and ctx.user.id is not None
+        rows = await macro_service.list_macros_for_user(
+            ctx.session, account_id=ctx.account.id, user_id=ctx.user.id
+        )
+        return {
+            "macros": [
+                {"id": m.id, "name": m.name, "actions": m.actions or []} for m in rows
+            ]
+        }
+
+    @mcp.tool(name="execute_macro")
+    @requires("write")
+    async def execute_macro(macro_id: int, conversation_ids: list[int]) -> dict[str, Any]:
+        """Run a macro (list_macros) on one or more conversations of the
+        account. Conversations of other accounts are skipped."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None and ctx.user.id is not None
+        macro = await macro_service.fetch_macro_visible_to_user(
+            ctx.session,
+            account_id=ctx.account.id,
+            macro_id=macro_id,
+            user_id=ctx.user.id,
+        )
+        if macro is None or not await macro_service.can_user_execute_macro(
+            ctx.session, macro=macro, user_id=ctx.user.id
+        ):
+            raise ValueError(f"macro {macro_id} not found for this user")
+        ran = await macro_service.execute_macro_on_conversations(
+            ctx.session,
+            macro=macro,
+            conversation_ids=conversation_ids,
+            user_id=ctx.user.id,
+        )
+        return {"macro_id": macro.id, "conversations": ran}
 
     @mcp.tool(name="assign_agent")
     @requires("write")

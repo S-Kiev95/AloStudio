@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,37 +28,50 @@ function hueFor(seed: string): string {
 }
 
 const SIZES = {
+  xs: "h-5 w-5 text-[9px]",
   sm: "h-8 w-8 text-xs",
   md: "h-9 w-9 text-sm",
   lg: "h-11 w-11 text-base",
   xl: "h-16 w-16 text-lg",
 } as const;
 
-function initialsFor(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
-  }
-  return (parts[0]?.charAt(0) || "?").toUpperCase();
+/** First letter (or digit) of the first and last word. Symbols and asides
+ *  in brackets don't count, so "Lucía Pereira (demo)" gives "LP", not "L(". */
+export function initialsFor(name: string): string {
+  const withoutAsides = name.replace(/[([{][^)\]}]*[)\]}]/g, " ");
+  const firsts = (withoutAsides.trim() ? withoutAsides : name)
+    .split(/\s+/)
+    .map((word) => word.match(/[\p{L}\p{N}]/u)?.[0])
+    .filter((c): c is string => Boolean(c));
+  if (firsts.length === 0) return "?";
+  const pair =
+    firsts.length >= 2 ? firsts[0] + firsts[firsts.length - 1] : firsts[0];
+  return pair.toLocaleUpperCase();
 }
 
 export function Avatar({
   name,
+  src,
   size = "md",
   className,
 }: {
   name: string;
+  /** Profile picture; the initials show without one or if it fails to load. */
+  src?: string | null;
   size?: keyof typeof SIZES;
   className?: string;
 }) {
   const trimmed = name.trim();
   const initial = initialsFor(trimmed);
   const hue = hueFor(trimmed || "?");
+  // Remembers which picture failed, so a new one gets its own try.
+  const [failed, setFailed] = useState<string | null>(null);
+  const showImage = Boolean(src) && failed !== src;
   return (
     <span
       aria-hidden
       className={cn(
-        "grid shrink-0 place-items-center rounded-full font-medium ring-1 ring-inset ring-glass",
+        "relative grid shrink-0 place-items-center overflow-hidden rounded-full font-medium ring-1 ring-inset ring-glass",
         SIZES[size],
         className,
       )}
@@ -64,6 +81,19 @@ export function Avatar({
       }}
     >
       {initial}
+      {showImage ? (
+        // A plain img: the picture comes through the authenticated proxy,
+        // which next/image's optimizer can't reach with the session.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src!}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(src!)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : null}
     </span>
   );
 }

@@ -27,23 +27,25 @@ import { AgentComposer } from "./agent-composer";
 import { useAgentShell } from "./agent-shell";
 import { formatLocalClock } from "./agent-time";
 import { PendingActionCard } from "./pending-action-card";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const WRITE_SUGGESTION =
-  "Armá una publicación para mañana a las 10 en todos mis canales";
+const WRITE_SUGGESTION: MessageKey =
+  "agent.suggestions.write";
 
 const READ_SUGGESTIONS = [
-  "¿Qué tengo programado esta semana?",
-  "¿Cómo les fue a mis publicaciones del último mes?",
+  "agent.suggestions.week",
+  "agent.suggestions.lastMonth",
 ] as const;
 
-const UNCONFIGURED_NOTICE =
-  "El agente todavía no está configurado. Un operador de la instalación tiene que cargar la clave de OpenAI en Ajustes → Instalación → Inteligencia artificial.";
+const UNCONFIGURED_NOTICE: MessageKey =
+  "agent.unconfigured";
 
-const READ_ONLY_NOTICE =
-  "Podés consultar publicaciones y estadísticas. Crear o borrar publicaciones lo hace un administrador.";
+const READ_ONLY_NOTICE: MessageKey =
+  "agent.readOnly";
 
-const EMPTY_GREETING =
-  "Hola, soy el agente de AloStudio. Puedo armar y programar publicaciones en tus canales, revisar tu calendario y contarte cómo les fueron tus posts.";
+const EMPTY_GREETING: MessageKey =
+  "agent.greeting";
 
 function ToolStatusIcon({ status }: { status: AgentToolItem["status"] }) {
   switch (status) {
@@ -65,6 +67,7 @@ function ToolActivityRow({
   accountId: string;
   item: AgentToolItem;
 }) {
+  const t = useT();
   return (
     <div className="my-1 flex flex-col gap-0.5 py-0.5 text-xs">
       <div className="flex flex-wrap items-center gap-1.5 text-fg-muted">
@@ -75,7 +78,7 @@ function ToolActivityRow({
             href={`/accounts/${accountId}/publications?publication=${item.publication_id}`}
             className="font-medium text-info hover:underline"
           >
-            Ver en el calendario
+            {t("agent.seeInCalendar")}
           </Link>
         ) : null}
       </div>
@@ -140,6 +143,7 @@ export function AgentChatView({
   accountId: string;
   threadId: number | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const shell = useAgentShell();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -278,13 +282,13 @@ export function AgentChatView({
 
   const headerTitle =
     effectiveThreadId === null
-      ? "Nuevo chat"
+      ? t("agent.newChat")
       : (threadQuery.data?.title ??
-        (threadQuery.isLoading ? "Cargando…" : "Chat"));
+        (threadQuery.isLoading ? t("common.loading") : t("agent.chat")));
 
   const suggestions = statusQuery.data?.can_write
-    ? [WRITE_SUGGESTION, ...READ_SUGGESTIONS]
-    : [...READ_SUGGESTIONS];
+    ? [t(WRITE_SUGGESTION), ...READ_SUGGESTIONS.map((s) => t(s))]
+    : READ_SUGGESTIONS.map((s) => t(s));
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -299,7 +303,7 @@ export function AgentChatView({
             className="md:hidden"
           >
             <MessageSquare className="h-4 w-4" aria-hidden />
-            Chats
+            {t("agent.chats")}
           </Button>
         ) : null}
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-fg">
@@ -313,7 +317,7 @@ export function AgentChatView({
           role="note"
           className="shrink-0 border-b border-glass bg-surface-2 px-4 py-2 text-xs text-fg-muted"
         >
-          {READ_ONLY_NOTICE}
+          {t(READ_ONLY_NOTICE)}
         </div>
       ) : null}
 
@@ -323,7 +327,7 @@ export function AgentChatView({
           role="status"
           className="shrink-0 border-b border-glass bg-surface-2 px-4 py-2 text-xs text-warning"
         >
-          {UNCONFIGURED_NOTICE}
+          {t(UNCONFIGURED_NOTICE)}
         </div>
       ) : null}
 
@@ -335,14 +339,14 @@ export function AgentChatView({
         {effectiveThreadId === null && optimisticUserMessage === null ? (
           statusQuery.isLoading ? (
             <div className="flex flex-1 items-center justify-center p-6">
-              <p className="text-sm text-fg-muted">Cargando…</p>
+              <p className="text-sm text-fg-muted">{t("common.loading")}</p>
             </div>
           ) : statusQuery.isError ? (
             <div className="flex flex-1 items-center justify-center p-6">
               <p role="alert" className="max-w-md text-center text-sm text-danger">
                 {getAgentErrorMessage(
                   statusQuery.error,
-                  "No se pudo consultar el estado del agente.",
+                  t("agent.statusFailed"),
                 )}
               </p>
             </div>
@@ -352,7 +356,7 @@ export function AgentChatView({
                 role="status"
                 className="max-w-md rounded-md border border-glass bg-surface-2 p-5 text-center text-sm text-fg-muted"
               >
-                {UNCONFIGURED_NOTICE}
+                {t(UNCONFIGURED_NOTICE)}
               </div>
             </div>
           ) : (
@@ -362,7 +366,7 @@ export function AgentChatView({
                   <Sparkles className="h-4 w-4" aria-hidden />
                 </span>
                 <p className="text-sm leading-relaxed text-fg">
-                  {EMPTY_GREETING}
+                  {t(EMPTY_GREETING)}
                 </p>
               </div>
 
@@ -384,21 +388,21 @@ export function AgentChatView({
         ) : invalidThreadParam ? (
           <div className="flex flex-1 items-center justify-center p-6">
             <p role="alert" className="text-sm text-danger">
-              No se encontró este chat.
+              {t("agent.chatNotFound")}
             </p>
           </div>
         ) : effectiveThreadId !== null && threadQuery.isLoading ? (
           <div className="flex flex-1 items-center justify-center p-6">
-            <p className="text-sm text-fg-muted">Cargando…</p>
+            <p className="text-sm text-fg-muted">{t("common.loading")}</p>
           </div>
         ) : effectiveThreadId !== null && threadQuery.isError ? (
           <div className="flex flex-1 items-center justify-center p-6">
             <p role="alert" className="text-sm text-danger">
               {isAgentErrorStatus(threadQuery.error, 404)
-                ? "No se encontró este chat."
+                ? t("agent.chatNotFound")
                 : getAgentErrorMessage(
                     threadQuery.error,
-                    "No se pudo cargar el chat.",
+                    t("agent.chatLoadFailed"),
                   )}
             </p>
           </div>
@@ -423,7 +427,7 @@ export function AgentChatView({
                 </div>
                 <div className="flex flex-col items-start">
                   <div className="max-w-[80%] min-w-0 rounded-panel rounded-bl-sm border border-glass bg-surface-2 px-3.5 py-2 text-sm text-fg-muted">
-                    <p className="animate-pulse">Pensando…</p>
+                    <p className="animate-pulse">{t("agent.thinking")}</p>
                   </div>
                 </div>
               </>

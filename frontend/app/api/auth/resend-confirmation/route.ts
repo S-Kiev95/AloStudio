@@ -9,7 +9,7 @@ export async function POST(req: Request): Promise<Response> {
   };
   if (!email) {
     return NextResponse.json(
-      { errors: ["El email es obligatorio."] },
+      { errors: ["El email es obligatorio."], code: "missing_fields" },
       { status: 422 },
     );
   }

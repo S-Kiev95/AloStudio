@@ -5,24 +5,26 @@ import Link from "next/link";
 
 import { type IntegrationApp, useIntegrationApps } from "@/lib/api/integrations";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 export function IntegrationsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = useIntegrationApps(accountId);
 
   return (
     <div className="max-w-3xl space-y-4">
-      <h2 className="text-xl font-medium text-fg">Integraciones</h2>
+      <h2 className="text-xl font-medium text-fg">{t("settings.items.integrations")}</h2>
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar las integraciones.
+            {t("settingsIntegrations.listLoadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay integraciones disponibles.
+            {t("settingsIntegrations.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -43,6 +45,7 @@ function AppRow({
   accountId: string;
   app: IntegrationApp;
 }) {
+  const t = useT();
   const connected = app.hooks.length > 0;
   return (
     <li>
@@ -70,10 +73,15 @@ function AppRow({
           )}
         >
           {connected
-            ? `${app.hooks.length} conectado${app.hooks.length === 1 ? "" : "s"}`
+            ? t(
+                app.hooks.length === 1
+                  ? "settingsIntegrations.connectedOne"
+                  : "settingsIntegrations.connectedMany",
+                { count: app.hooks.length },
+              )
             : app.enabled
-              ? "Disponible"
-              : "Inactiva"}
+              ? t("settingsIntegrations.available")
+              : t("campaigns.inactive")}
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
       </Link>

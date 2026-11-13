@@ -40,7 +40,7 @@ import {
   groupPublicationsByLocalDay,
   publicationPreviewWords,
   publicationTimestamp,
-  SHORT_WEEKDAYS,
+  shortWeekdayNames,
   startOfLocalDay,
   startOfWeekMonday,
 } from "./calendar-utils";
@@ -52,6 +52,7 @@ import {
   PUBLICATION_STATE_FILTERS,
   PublicationStateBadge,
 } from "./publication-state-badge";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 type DisplayMode = "calendar" | "list";
 
@@ -65,6 +66,8 @@ export function CalendarView({
   accountId: string;
   now?: Date;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const isAdmin = useIsAccountAdmin(accountId);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -206,10 +209,13 @@ export function CalendarView({
         : undefined;
     const netName = networkLabel(connectSuccess.network);
     if (matched) {
-      return `Canal ${channelDisplayName(matched)} (${netName}) conectado correctamente.`;
+      return t("publications.channels.connectedNamed", {
+        name: channelDisplayName(matched),
+        network: netName,
+      });
     }
-    return `Canal de ${netName} conectado correctamente.`;
-  }, [connectSuccess, channels]);
+    return t("publications.channels.connected", { network: netName });
+  }, [connectSuccess, channels, t]);
 
   function shiftCursor(direction: -1 | 1) {
     setCursor((prev) => {
@@ -249,7 +255,7 @@ export function CalendarView({
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Calendario" />
+      <PageHeader title={t("nav.calendar")} />
 
       {/* Connection callback banners */}
       {connectedBannerText ? (
@@ -260,7 +266,7 @@ export function CalendarView({
           <span>{connectedBannerText}</span>
           <button
             type="button"
-            aria-label="Cerrar aviso"
+            aria-label={t("publications.closeNotice")}
             onClick={() => setConnectSuccess(null)}
             className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-success/10"
           >
@@ -277,7 +283,7 @@ export function CalendarView({
           <span>{connectError}</span>
           <button
             type="button"
-            aria-label="Cerrar aviso"
+            aria-label={t("publications.closeNotice")}
             onClick={() => setConnectError(null)}
             className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-danger/10"
           >
@@ -291,10 +297,10 @@ export function CalendarView({
           role="alert"
           className="flex items-center justify-between gap-2 rounded-md border border-danger bg-surface-2 px-3 py-2 text-sm text-danger"
         >
-          <span>No se pudo cargar la publicación solicitada.</span>
+          <span>{t("publications.loadRequestedFailed")}</span>
           <button
             type="button"
-            aria-label="Cerrar aviso"
+            aria-label={t("publications.closeNotice")}
             onClick={clearUrlPublication}
             className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-hover-glass"
           >
@@ -312,18 +318,18 @@ export function CalendarView({
               <div className="inline-flex items-center rounded-control border border-glass bg-field p-0.5">
                 <button
                   type="button"
-                  aria-label="Período anterior"
+                  aria-label={t("publications.calendar.prevPeriod")}
                   onClick={() => shiftCursor(-1)}
                   className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                 >
                   <ChevronLeft className="h-4 w-4" aria-hidden />
                 </button>
                 <span className="px-3 font-numeric text-sm font-medium tabular-nums text-fg">
-                  {formatCalendarRangeLabel(period, cursor)}
+                  {formatCalendarRangeLabel(period, cursor, locale)}
                 </span>
                 <button
                   type="button"
-                  aria-label="Período siguiente"
+                  aria-label={t("publications.calendar.nextPeriod")}
                   onClick={() => shiftCursor(1)}
                   className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                 >
@@ -337,13 +343,13 @@ export function CalendarView({
                 variant="simple"
                 onClick={goToday}
               >
-                Hoy
+                {t("agenda.today")}
               </Button>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <SegmentedControl
-                ariaLabel="Rango del calendario"
+                ariaLabel={t("publications.calendar.range")}
                 size="sm"
                 value={period}
                 onValueChange={(next) => {
@@ -353,14 +359,14 @@ export function CalendarView({
                   }
                 }}
                 options={[
-                  { value: "day" as CalendarPeriod, label: "Día" },
-                  { value: "week" as CalendarPeriod, label: "Semana" },
-                  { value: "month" as CalendarPeriod, label: "Mes" },
+                  { value: "day" as CalendarPeriod, label: t("publications.calendar.day") },
+                  { value: "week" as CalendarPeriod, label: t("agenda.week") },
+                  { value: "month" as CalendarPeriod, label: t("publications.calendar.month") },
                 ]}
               />
 
               <SegmentedControl
-                ariaLabel="Modo de vista"
+                ariaLabel={t("agenda.viewMode")}
                 size="sm"
                 value={displayMode}
                 onValueChange={setDisplayMode}
@@ -370,7 +376,7 @@ export function CalendarView({
                     label: (
                       <>
                         <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-                        Calendario
+                        {t("nav.calendar")}
                       </>
                     ),
                   },
@@ -379,7 +385,7 @@ export function CalendarView({
                     label: (
                       <>
                         <List className="h-3.5 w-3.5" aria-hidden />
-                        Lista
+                        {t("agenda.list")}
                       </>
                     ),
                   },
@@ -389,7 +395,7 @@ export function CalendarView({
               {isAdmin ? (
                 <Button size="sm" onClick={() => openNewPublication()}>
                   <Plus className="h-4 w-4" aria-hidden />
-                  Nueva publicación
+                  {t("publications.newPublication")}
                 </Button>
               ) : null}
             </div>
@@ -398,25 +404,28 @@ export function CalendarView({
           {/* State filter in List mode */}
           {displayMode === "list" ? (
             <SegmentedControl
-              ariaLabel="Filtrar por estado"
+              ariaLabel={t("agenda.filterByStatus")}
               size="sm"
               value={stateFilter}
               onValueChange={setStateFilter}
-              options={PUBLICATION_STATE_FILTERS}
+              options={PUBLICATION_STATE_FILTERS.map((o) => ({
+                ...o,
+                label: t(o.label),
+              }))}
             />
           ) : null}
 
           {/* Body */}
           {publicationsQuery.isLoading ? (
             <div className="rounded-md border border-glass bg-surface p-10 text-center text-sm text-fg-muted">
-              Cargando publicaciones…
+              {t("publications.calendar.loading")}
             </div>
           ) : publicationsQuery.isError ? (
             <div
               role="alert"
               className="rounded-md border border-glass bg-surface p-10 text-center text-sm text-danger"
             >
-              No se pudieron cargar las publicaciones.
+              {t("publications.calendar.loadFailed")}
             </div>
           ) : displayMode === "list" ? (
             <PublicationsListView
@@ -458,6 +467,8 @@ export function CalendarView({
                 bounds.start,
                 period === "day" ? 1 : 7,
                 publications,
+                undefined,
+                locale,
               )}
               todayKey={todayKey}
               now={now}
@@ -547,6 +558,7 @@ function PublicationCard({
   compact?: boolean;
   showTime?: boolean;
 }) {
+  const t = useT();
   const firstMedia = publication.media[0];
   const uniqueNetworks = Array.from(
     new Set(publication.targets.map((t) => t.channel.network)),
@@ -612,7 +624,7 @@ function PublicationCard({
           <PublicationStateBadge state={publication.state} />
         </div>
         <p className="line-clamp-2 break-words text-fg">
-          {publicationPreviewWords(publication)}
+          {publicationPreviewWords(publication, 10, t("publications.noText"))}
         </p>
       </div>
     </button>
@@ -636,6 +648,7 @@ function HourlyCalendarGrid({
   onCreateAtSlot: (dayDate: Date, hour: number) => void;
   onSelectPublication: (pub: Publication) => void;
 }) {
+  const t = useT();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const nowPct = (nowMinutes / 1440) * 100;
 
@@ -769,7 +782,11 @@ function HourlyCalendarGrid({
                       {isAdmin && slotItems.length > 0 ? (
                         <button
                           type="button"
-                          aria-label={`Nueva publicación el ${col.longName} ${col.dayNumber} a las ${formatHourLabel(hour)}`}
+                          aria-label={t("publications.calendar.newAt", {
+                            day: col.longName,
+                            date: col.dayNumber,
+                            time: formatHourLabel(hour),
+                          })}
                           onClick={(e) => {
                             e.stopPropagation();
                             onCreateAtSlot(col.date, hour);
@@ -777,7 +794,7 @@ function HourlyCalendarGrid({
                           className="flex w-full items-center justify-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium text-fg-muted hover:bg-hover-glass hover:text-lit"
                         >
                           <Plus className="h-3 w-3" aria-hidden />
-                          Agregar
+                          {t("publications.calendar.add")}
                         </button>
                       ) : null}
                     </div>
@@ -813,7 +830,15 @@ function MonthGrid({
   onCreateOnDay: (date: Date) => void;
   onSelectPublication: (pub: Publication) => void;
 }) {
-  const cells = buildDayColumns(startDate, 42, publications, referenceMonth);
+  const t = useT();
+  const locale = useLocale();
+  const cells = buildDayColumns(
+    startDate,
+    42,
+    publications,
+    referenceMonth,
+    locale,
+  );
 
   return (
     <div
@@ -825,7 +850,7 @@ function MonthGrid({
           data-testid="calendar-month-headers"
           className="grid grid-cols-7 border-b border-glass bg-surface-2"
         >
-          {SHORT_WEEKDAYS.map((wd) => (
+          {shortWeekdayNames(locale).map((wd) => (
             <div
               key={wd}
               className="border-l border-glass px-2 py-2 text-center text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted first:border-l-0"
@@ -891,7 +916,7 @@ function MonthGrid({
                       }}
                       className="w-full rounded-sm px-1.5 py-0.5 text-left font-numeric text-[11px] font-medium tabular-nums text-lit hover:bg-hover-glass"
                     >
-                      +{overflowCount} más
+                      {t("publications.calendar.more", { count: overflowCount })}
                     </button>
                   ) : null}
                 </div>
@@ -911,12 +936,14 @@ function PublicationsListView({
   publications: Publication[];
   onSelectPublication: (pub: Publication) => void;
 }) {
-  const groups = groupPublicationsByLocalDay(publications);
+  const t = useT();
+  const locale = useLocale();
+  const groups = groupPublicationsByLocalDay(publications, locale);
 
   if (groups.length === 0) {
     return (
       <div className="rounded-md border border-glass bg-surface p-10 text-center text-sm text-fg-muted">
-        No hay publicaciones en este período.
+        {t("publications.calendar.empty")}
       </div>
     );
   }

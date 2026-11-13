@@ -10,38 +10,41 @@ import { relativeTime } from "@/lib/time";
 
 import { PostThumb } from "./post-media";
 import { StateBadge } from "./state-badge";
+import { INTL_TAGS } from "@/lib/i18n/config";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 const STATE_TABS = [
-  { value: undefined, label: "Todas" },
-  { value: "pending", label: "Pendientes" },
-  { value: "published", label: "Publicadas" },
-  { value: "failed", label: "Fallidas" },
+  { value: undefined, label: "instagram.list.all" },
+  { value: "pending", label: "instagram.list.pending" },
+  { value: "published", label: "instagram.list.published" },
+  { value: "failed", label: "instagram.list.failed" },
 ] as const;
 
 export function PostList({ accountId }: { accountId: string }) {
+  const t = useT();
   const [state, setState] = useState<string | undefined>(undefined);
   const { data, isLoading, isError } = useInstagramPosts(accountId, { state });
 
   return (
     <div className="space-y-3">
       <SegmentedControl
-        ariaLabel="Filtrar publicaciones"
+        ariaLabel={t("instagram.list.filter")}
         size="sm"
         value={state}
         onValueChange={setState}
-        options={STATE_TABS}
+        options={STATE_TABS.map((o) => ({ ...o, label: t(o.label) }))}
       />
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar las publicaciones.
+            {t("publications.calendar.loadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay publicaciones todavía.
+            {t("instagram.list.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -56,12 +59,18 @@ export function PostList({ accountId }: { accountId: string }) {
 }
 
 function PostRow({ accountId, post }: { accountId: string; post: InstagramPost }) {
+  const t = useT();
+  const locale = useLocale();
   const when =
     post.state === "published" && post.published_at
-      ? `Publicado ${new Date(post.published_at).toLocaleString()}`
+      ? t("instagram.list.publishedAt", {
+          when: new Date(post.published_at).toLocaleString(INTL_TAGS[locale]),
+        })
       : post.scheduled_for
-        ? `Programado ${new Date(post.scheduled_for).toLocaleString()}`
-        : `Creado ${relativeTime(post.created_at)}`;
+        ? t("instagram.list.scheduledAt", {
+            when: new Date(post.scheduled_for).toLocaleString(INTL_TAGS[locale]),
+          })
+        : t("instagram.list.createdAt", { when: relativeTime(post.created_at, locale) });
 
   return (
     <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-hover-glass">
@@ -73,7 +82,7 @@ function PostRow({ accountId, post }: { accountId: string; post: InstagramPost }
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-fg">
             {post.caption?.trim() || (
-              <span className="text-fg-muted">(sin caption)</span>
+              <span className="text-fg-muted">{t("instagram.list.noCaption")}</span>
             )}
           </p>
           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-fg-muted">
@@ -94,7 +103,7 @@ function PostRow({ accountId, post }: { accountId: string; post: InstagramPost }
           href={post.ig_permalink}
           target="_blank"
           rel="noreferrer"
-          aria-label="Ver en Instagram"
+          aria-label={t("instagram.post.viewOnInstagram")}
           className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg"
         >
           <ExternalLink className="h-4 w-4" aria-hidden />

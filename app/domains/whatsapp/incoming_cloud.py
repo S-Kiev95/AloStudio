@@ -120,6 +120,9 @@ _STATUS_MAP: dict[str, int] = {
 # ---------------------------------------------------------------------------
 # Payload accessors
 # ---------------------------------------------------------------------------
+_TEMPLATE_FIELDS = frozenset({"message_template_status_update", "template_category_update"})
+
+
 def _changes(payload: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
     """Every ``(field, value)`` in a Cloud webhook payload.
 
@@ -371,6 +374,16 @@ async def process_cloud_webhook(
     out: list[Message] = []
     changes = _changes(payload)
     for field, value in changes:
+        if field in _TEMPLATE_FIELDS:
+            # Meta approved, rejected or paused a template, or changed its
+            # category: keep the cached copy in step (F5). These changes are
+            # about the business account, not about a number.
+            from app.domains.whatsapp.templates import apply_template_update
+
+            await apply_template_update(
+                session, channel=channel, field=field, value=value
+            )
+            continue
         if field not in ("messages", "messaging_handovers", "standby"):
             continue
         if not _for_channel(value, channel):
@@ -666,6 +679,9 @@ async def _process_value(
         # conversation is already attributed when listeners fan out.
         if stamp_conversation(conversation, parse_whatsapp_referral(msg)):
             session.add(conversation)
+            from app.domains.crm.origin import stamp_from_referral
+
+            await stamp_from_referral(session, conversation)
 
         body = _message_text(msg)
         attachments, media_caption = await _build_media_attachments(

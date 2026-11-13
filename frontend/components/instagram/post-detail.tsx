@@ -21,6 +21,7 @@ import { CommentsPanel } from "./comments-panel";
 import { PostAutoreplyRules } from "./post-autoreply-rules";
 import { PostMediaPreview } from "./post-media";
 import { StateBadge } from "./state-badge";
+import { useIntlTag, useLocale, useT } from "@/lib/i18n/provider";
 
 export function PostDetail({
   accountId,
@@ -29,15 +30,16 @@ export function PostDetail({
   accountId: string;
   postId: number;
 }) {
+  const t = useT();
   const { data: post, isLoading, isError } = useInstagramPost(accountId, postId);
 
   if (isLoading) {
-    return <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>;
+    return <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>;
   }
   if (isError || !post) {
     return (
       <p role="alert" className="p-8 text-center text-sm text-danger">
-        No se pudo cargar la publicación.
+        {t("instagram.post.loadFailed")}
       </p>
     );
   }
@@ -51,7 +53,7 @@ export function PostDetail({
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver a publicaciones
+        {t("instagram.post.back")}
       </Link>
 
       <Card>
@@ -74,7 +76,7 @@ export function PostDetail({
           {post.caption?.trim() ? (
             <div>
               <p className="mb-1 text-xs font-medium uppercase text-fg-muted">
-                Caption
+                {t("instagram.caption")}
               </p>
               <p className="whitespace-pre-wrap break-words text-sm text-fg">
                 {post.caption}
@@ -87,10 +89,10 @@ export function PostDetail({
               role="alert"
               className="rounded-md border border-danger/30 bg-danger/5 p-3 text-sm text-danger"
             >
-              <p className="font-medium">Error al publicar</p>
+              <p className="font-medium">{t("instagram.post.publishError")}</p>
               <p>{post.error_message}</p>
               {post.error_code ? (
-                <p className="mt-1 text-xs opacity-80">Código: {post.error_code}</p>
+                <p className="mt-1 text-xs opacity-80">{t("instagram.post.code")} {post.error_code}</p>
               ) : null}
             </div>
           ) : null}
@@ -105,7 +107,7 @@ export function PostDetail({
 
       <Card>
         <CardHeader>
-          <CardTitle>Respuestas automáticas</CardTitle>
+          <CardTitle>{t("instagram.tabs.autoreplies")}</CardTitle>
         </CardHeader>
         <CardContent>
           <PostAutoreplyRules accountId={accountId} postId={postId} />
@@ -114,7 +116,7 @@ export function PostDetail({
 
       <Card>
         <CardHeader>
-          <CardTitle>Comentarios</CardTitle>
+          <CardTitle>{t("publications.metrics.comments")}</CardTitle>
         </CardHeader>
         <CardContent>
           <CommentsPanel
@@ -129,21 +131,24 @@ export function PostDetail({
 }
 
 function PostMeta({ post }: { post: InstagramPost }) {
+  const intlTag = useIntlTag();
+  const locale = useLocale();
+  const t = useT();
   const rows: { label: string; value: React.ReactNode }[] = [];
 
   if (post.published_at) {
     rows.push({
-      label: "Publicado",
-      value: new Date(post.published_at).toLocaleString(),
+      label: t("instagram.post.published"),
+      value: new Date(post.published_at).toLocaleString(intlTag),
     });
   }
   if (post.scheduled_for) {
     rows.push({
-      label: "Programado",
-      value: new Date(post.scheduled_for).toLocaleString(),
+      label: t("instagram.post.scheduled"),
+      value: new Date(post.scheduled_for).toLocaleString(intlTag),
     });
   }
-  rows.push({ label: "Creado", value: relativeTime(post.created_at) });
+  rows.push({ label: t("contacts.filters.attr.created"), value: relativeTime(post.created_at, locale) });
   if (post.ig_media_id) {
     rows.push({ label: "Media ID", value: post.ig_media_id });
   }
@@ -158,7 +163,7 @@ function PostMeta({ post }: { post: InstagramPost }) {
       ))}
       {post.ig_permalink ? (
         <div className="flex gap-2 sm:col-span-2">
-          <dt className="shrink-0 text-fg-muted">Enlace:</dt>
+          <dt className="shrink-0 text-fg-muted">{t("instagram.post.link")}</dt>
           <dd className="min-w-0">
             <a
               href={post.ig_permalink}
@@ -166,7 +171,7 @@ function PostMeta({ post }: { post: InstagramPost }) {
               rel="noreferrer"
               className="inline-flex items-center gap-1 truncate text-info hover:underline"
             >
-              Ver en Instagram
+              {t("instagram.post.viewOnInstagram")}
               <ExternalLink className="h-3 w-3" aria-hidden />
             </a>
           </dd>
@@ -177,10 +182,11 @@ function PostMeta({ post }: { post: InstagramPost }) {
 }
 
 function ProductList({ products }: { products: Product[] }) {
+  const t = useT();
   return (
     <div>
       <p className="mb-1 text-xs font-medium uppercase text-fg-muted">
-        Productos vinculados
+        {t("instagram.linkedProducts")}
       </p>
       <div className="flex flex-wrap gap-1.5">
         {products.map((p) => (
@@ -200,10 +206,11 @@ function ProductList({ products }: { products: Product[] }) {
 }
 
 function ContainerList({ containers }: { containers: Container[] }) {
+  const t = useT();
   return (
     <div>
       <p className="mb-1 text-xs font-medium uppercase text-fg-muted">
-        Contenedores
+        {t("instagram.post.containers")}
       </p>
       <ul className="space-y-1 text-xs text-fg-muted">
         {containers
@@ -214,7 +221,7 @@ function ContainerList({ containers }: { containers: Container[] }) {
               <span className="font-mono">#{c.position}</span>
               <span>{c.ig_container_id}</span>
               <span className="text-fg">{c.status_code}</span>
-              {c.poll_count ? <span>({c.poll_count} chequeos)</span> : null}
+              {c.poll_count ? <span>{t("instagram.post.checks", { count: c.poll_count })}</span> : null}
             </li>
           ))}
       </ul>
@@ -229,6 +236,7 @@ function DeletePostButton({
   accountId: string;
   post: InstagramPost;
 }) {
+  const t = useT();
   const router = useRouter();
   const del = useDeletePost(accountId);
   const settings = useChannelSettings(accountId, post.channel_instagram_id);
@@ -242,21 +250,20 @@ function DeletePostButton({
   if (settings.data && !settings.data.can_delete_media) {
     return (
       <p className="max-w-xs text-right text-xs text-fg-muted">
-        Esta cuenta está conectada por Instagram Login, que no permite
-        borrar publicaciones por API. Borrala desde la app de Instagram.
+        {t("instagram.post.cannotDelete")}
       </p>
     );
   }
 
   async function onDelete() {
-    if (!window.confirm("¿Eliminar esta publicación de Instagram?")) return;
+    if (!window.confirm(t("instagram.post.deleteConfirm"))) return;
     setError(null);
     try {
       await del.mutateAsync(post.id);
       router.push(`/accounts/${accountId}/instagram/posts`);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo eliminar la publicación.",
+        (e as { message?: string })?.message ?? t("instagram.post.deleteFailed"),
       );
     }
   }
@@ -271,7 +278,7 @@ function DeletePostButton({
         className="text-danger hover:bg-danger/10"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
-        Eliminar
+        {t("actions.delete")}
       </Button>
       {error ? (
         <p role="alert" className="max-w-xs text-right text-xs text-danger">

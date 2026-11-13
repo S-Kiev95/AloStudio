@@ -8,6 +8,8 @@ import {
   DashboardShell,
   SIDEBAR_COLLAPSED_STORAGE_KEY,
 } from "./dashboard-shell";
+import { createTranslate } from "@/lib/i18n/translate";
+
 import { activeNavItemKey, NAV_ITEMS } from "./nav";
 import { SidebarNav } from "./sidebar-nav";
 
@@ -22,6 +24,10 @@ vi.mock("@/lib/realtime/use-cable", () => ({
   useCable: () => {},
 }));
 
+vi.mock("@/lib/api/inboxes", () => ({
+  useHasWhatsappInbox: () => true,
+}));
+
 vi.mock("./notification-bell", () => ({
   NotificationBell: () => <div data-testid="notification-bell" />,
 }));
@@ -34,6 +40,7 @@ const MOCK_PROFILE: Profile = {
   pubsubToken: "tok",
   activeAccountId: 1,
   accounts: [{ id: 1, name: "AloStudio Demo", role: "administrator" }],
+  locale: null,
 };
 
 afterEach(() => {
@@ -44,7 +51,8 @@ afterEach(() => {
 
 describe("Navigation and CRM tabs", () => {
   it("lists main sidebar items in the expected order with Agente right after Calendario", () => {
-    expect(NAV_ITEMS.map((i) => i.label)).toEqual([
+    const t = createTranslate("es");
+    expect(NAV_ITEMS.map((i) => t(i.label))).toEqual([
       "Inicio",
       "Calendario",
       "Agente",
@@ -53,6 +61,7 @@ describe("Navigation and CRM tabs", () => {
       "Bandeja",
       "CRM",
       "Instagram",
+      "WhatsApp",
       "Help Center",
       "Campañas",
       "Reportes",
@@ -69,6 +78,18 @@ describe("Navigation and CRM tabs", () => {
     const agentLink = screen.getByRole("link", { name: "Agente" });
     expect(agentLink).toHaveAttribute("href", "/accounts/1/agent");
     expect(agentLink).toHaveAttribute("aria-current", "page");
+  });
+
+  it("shows WhatsApp only when the account has a WhatsApp inbox", () => {
+    mockPathname = "/accounts/1";
+    const { unmount } = render(<SidebarNav accountId="1" hiddenKeys={["whatsapp"]} />);
+    expect(screen.queryByRole("link", { name: "WhatsApp" })).toBeNull();
+    unmount();
+    render(<SidebarNav accountId="1" />);
+    expect(screen.getByRole("link", { name: "WhatsApp" })).toHaveAttribute(
+      "href",
+      "/accounts/1/whatsapp",
+    );
   });
 
   it("activates Medios and Estadísticas without marking Calendario", () => {
@@ -144,8 +165,9 @@ describe("Navigation and CRM tabs", () => {
     // Todos los ítems del menú (incluido Ajustes) siguen accesibles con title y el activo se distingue
     const nav = screen.getByRole("navigation", { name: "Principal" });
     for (const item of NAV_ITEMS) {
-      const link = within(nav).getByRole("link", { name: item.label });
-      expect(link).toHaveAttribute("title", item.label);
+      const label = createTranslate("es")(item.label);
+      const link = within(nav).getByRole("link", { name: label });
+      expect(link).toHaveAttribute("title", label);
       expect(link).toHaveTextContent("");
     }
     expect(

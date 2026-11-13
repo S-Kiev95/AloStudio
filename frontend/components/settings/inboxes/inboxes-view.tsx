@@ -28,6 +28,7 @@ import {
   useInboxes,
 } from "@/lib/api/inboxes";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 const CHANNEL_ICON: Record<string, IconComponent> = {
   "Channel::Telegram": Telegram,
@@ -42,6 +43,7 @@ const CHANNEL_ICON: Record<string, IconComponent> = {
 };
 
 export function InboxesView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data: inboxes, isLoading, isError } = useInboxes(accountId);
   const newHref = `/accounts/${accountId}/settings/inboxes/new`;
 
@@ -49,31 +51,31 @@ export function InboxesView({ accountId }: { accountId: string }) {
     <div className="max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-medium text-fg">Bandejas de entrada</h2>
-          <p className="text-sm text-fg-muted">Canales conectados a tu cuenta.</p>
+          <h2 className="text-xl font-medium text-fg">{t("settings.items.inboxes")}</h2>
+          <p className="text-sm text-fg-muted">{t("settingsInboxes.subtitle")}</p>
         </div>
         <Link href={newHref} className={buttonVariants({ size: "sm" })}>
           <Plus className="h-4 w-4" aria-hidden />
-          Agregar canal
+          {t("settingsInboxes.addChannel")}
         </Link>
       </div>
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar las bandejas.
+            {t("settingsHours.inboxesLoadFailed")}
           </p>
         ) : (inboxes?.length ?? 0) === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-sm text-fg-muted">No hay canales todavía.</p>
+            <p className="text-sm text-fg-muted">{t("settingsInboxes.empty")}</p>
             <Link
               href={newHref}
               className={cn(buttonVariants({ size: "sm" }), "mt-3")}
             >
               <Plus className="h-4 w-4" aria-hidden />
-              Agregar el primero
+              {t("settingsInboxes.addFirst")}
             </Link>
           </div>
         ) : (
@@ -95,17 +97,18 @@ function InboxRow({
   accountId: string;
   inbox: Inbox;
 }) {
+  const t = useT();
   const del = useDeleteInbox(accountId);
   const [error, setError] = useState<string | null>(null);
   const Icon = CHANNEL_ICON[inbox.channel_type] ?? Webhook;
 
   async function onDelete() {
-    if (!window.confirm(`¿Eliminar la bandeja "${inbox.name}"?`)) return;
+    if (!window.confirm(t("settingsInboxes.deleteConfirm", { name: inbox.name }))) return;
     setError(null);
     try {
       await del.mutateAsync(inbox.id);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((e as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
@@ -132,8 +135,8 @@ function InboxRow({
       </Link>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

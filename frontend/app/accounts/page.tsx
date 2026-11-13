@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { FloatingLogos } from "@/components/brand/floating-logos";
 import { AUTH_HEADERS } from "@/lib/auth/cookies";
 import { getAuthTokens } from "@/lib/auth/session";
+import { getT } from "@/lib/i18n/server";
 
 const BACKEND = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8000";
 
@@ -12,6 +13,7 @@ const BACKEND = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8000";
  * switcher lands in F.2.
  */
 export default async function AccountsIndex() {
+  const t = await getT();
   const tokens = await getAuthTokens();
   if (!tokens) redirect("/login");
 
@@ -49,10 +51,10 @@ export default async function AccountsIndex() {
         className="glass-panel relative z-10 w-full max-w-md rounded-panel bg-surface p-8"
       >
         <div className="neon-sign">
-          <h1 className="text-[28px] leading-[1.2]">Sin cuentas</h1>
+          <h1 className="text-[28px] leading-[1.2]">{t("errors.noAccountsTitle")}</h1>
         </div>
         <p className="mt-2 text-sm text-fg-muted">
-          Tu usuario no tiene cuentas asociadas todavía.
+          {t("errors.noAccountsBody")}
         </p>
       </div>
     </main>

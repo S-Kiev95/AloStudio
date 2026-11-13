@@ -169,7 +169,11 @@ async def test_duplicate_team_name_422(client, seeded):
         headers=admin_h,
     )
     assert resp.status_code == 422
-    assert resp.json() == {"message": "Name has already been taken"}
+    assert resp.json() == {
+        "message": "Name has already been taken",
+        "code": "taken",
+        "field": "name",
+    }
 
 
 async def test_create_with_allow_auto_assign_false(client, seeded):
@@ -248,7 +252,7 @@ async def test_show_team_404_when_not_in_account(client, seeded):
         headers=admin_h,
     )
     assert resp.status_code == 404
-    assert resp.json() == {"error": "Resource could not be found"}
+    assert resp.json() == {"error": "Resource could not be found", "code": "not_found"}
 
 
 # ---------------------------------------------------------------------------

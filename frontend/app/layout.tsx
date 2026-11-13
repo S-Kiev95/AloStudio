@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geologica, Neonderthaw, Tilt_Neon } from "next/font/google";
 
+import { getLocale } from "@/lib/i18n/server";
+import { createTranslate } from "@/lib/i18n/translate";
+
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -33,12 +36,14 @@ export const metadata: Metadata = {
   description: "AloStudio dashboard",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
+  const t = createTranslate(locale);
   return (
     <html
-      lang="es"
+      lang={locale}
       className={`${geologica.variable} ${tiltNeon.variable} ${neonderthaw.variable}`}
       suppressHydrationWarning
     >
@@ -48,9 +53,9 @@ export default function RootLayout({
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-control focus:bg-primary focus:px-3 focus:py-1.5 focus:text-sm focus:font-medium focus:text-primary-fg"
         >
-          Saltar al contenido
+          {t("shell.skipToContent")}
         </a>
-        <Providers>{children}</Providers>
+        <Providers locale={locale}>{children}</Providers>
       </body>
     </html>
   );

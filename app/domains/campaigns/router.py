@@ -31,6 +31,7 @@ from app.domains.campaigns.presenters import present_campaign
 from app.domains.campaigns.schemas import CampaignEnvelope
 from app.domains.campaigns.service import (
     campaign_analytics,
+    campaign_recipients,
     create_campaign,
     destroy_campaign,
     fetch_campaign_by_display_id,
@@ -109,6 +110,20 @@ async def campaign_analytics_endpoint(
         session, account_id=ctx.account.id, display_id=display_id
     )
     return await campaign_analytics(session, campaign=campaign)
+
+
+@router.get("/{display_id}/recipients")
+async def campaign_recipients_endpoint(
+    display_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Who the campaign reached and how each delivery went."""
+    assert ctx.account.id is not None
+    campaign = await _find(
+        session, account_id=ctx.account.id, display_id=display_id
+    )
+    return {"recipients": await campaign_recipients(session, campaign=campaign)}
 
 
 @router.patch("/{display_id}")
