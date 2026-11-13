@@ -365,3 +365,40 @@ export function useSetContactCompany(accountId: string) {
     onSuccess: () => invalidateCompanies(qc, accountId),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Contact origin: how each person first came (F11)
+// ---------------------------------------------------------------------------
+/** Set automatically by the first conversation. */
+export const AUTO_ORIGIN_SOURCES = ["channel", "ad", "post", "shortlink"] as const;
+/** For what the system cannot see; set by hand. */
+export const MANUAL_ORIGIN_SOURCES = ["referral", "event", "walk_in", "phone", "website", "other"] as const;
+export const ORIGIN_SOURCES = [...AUTO_ORIGIN_SOURCES, ...MANUAL_ORIGIN_SOURCES] as const;
+export type OriginSource = (typeof ORIGIN_SOURCES)[number];
+export const ORIGIN_CHANNELS = ["whatsapp", "instagram", "facebook", "web", "email", "telegram", "sms", "api"] as const;
+export type OriginChannel = (typeof ORIGIN_CHANNELS)[number];
+
+export type ContactOrigin = {
+  source: OriginSource;
+  channel: OriginChannel | null;
+  /** The ad's title, or a note typed by hand. */
+  detail: string | null;
+  ad_id: string | null;
+  conversation_id: number | null;
+  at: number | null;
+};
+
+export function useSetContactOrigin(accountId: string, contactId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { source: OriginSource | null; channel?: OriginChannel | null; detail?: string | null }) =>
+      apiFetch<{ origin: ContactOrigin | null }>(`${base(accountId)}/contacts/${contactId}/origin`, {
+        method: "PUT",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["contact", accountId, contactId] });
+      void qc.invalidateQueries({ queryKey: ["contacts", accountId] });
+    },
+  });
+}

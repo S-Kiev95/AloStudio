@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { Agent } from "./account";
 import type { FilterCondition } from "./conversations";
+import type { ContactOrigin } from "./crm";
 import { apiFetch } from "./fetcher";
 
 /** Slim inbox shape returned by contactable_inboxes. */
@@ -31,6 +32,8 @@ export type Contact = {
   last_activity_at?: number | null;
   created_at?: number | null;
   contact_inboxes?: ContactInbox[];
+  /** How the person first came (F11); null until known. */
+  origin?: ContactOrigin | null;
 };
 
 export type ContactsPage = {

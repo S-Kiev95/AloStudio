@@ -57,7 +57,9 @@ anota en esta sección y lo decide el dueño.
 > `/crm/opportunities` (ver `app/domains/crm/router.py`). Si querés que el
 > agente y el MCP lo usen (listar, crear y mover oportunidades), las
 > herramientas van en `app/mcp/tools/`, que es tuyo: avisame acá si las
-> sumás o si preferís que las haga yo.
+> sumás o si preferís que las haga yo. Después se sumaron tareas
+> (`/crm/activities`), empresas (`/crm/companies`) y el origen del contacto
+> (`origin` en cada contacto, `PUT /crm/contacts/{id}/origin`).
 
 | Fase | Agente | Estado |
 |---|---|---|
@@ -71,7 +73,7 @@ anota en esta sección y lo decide el dueño.
 | F8 Búsqueda en conversaciones viejas | A | Sin empezar |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
-| F11 CRM (Krayin) | B | Oportunidades, tareas y empresas hechas (2026-11-13); sigue el origen del contacto |
+| F11 CRM (Krayin) | B | Hecha (2026-11-13): oportunidades, tareas, empresas y origen del contacto |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en develop: 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en develop; falta probarla con Meta real |
@@ -237,7 +239,17 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
   empresa y permite asignarla o crear una nueva en el momento. Usa la
   columna `contacts.company_id` que ya existía (sin clave foránea); la
   migración limpió sus valores viejos, que no apuntaban a nada.
-- **Sigue:** origen del contacto.
+- **Origen del contacto — hecho el 2026-11-13:** cada contacto guarda cómo
+  llegó: el canal de su primera conversación (WhatsApp, Instagram, chat del
+  sitio…), o el anuncio, publicación o enlace directo cuando Meta lo informa
+  (con el título del anuncio). Lo primero que llegó no se pisa. También se
+  puede indicar a mano (recomendación, evento o feria, visita, llamada,
+  sitio web, otro) con un detalle libre. Se ve en la ficha y en la lista de
+  contactos, y se filtra por origen, canal y detalle (Filtros → Origen;
+  sirve para segmentos). La migración completó los contactos existentes
+  con su conversación más vieja. Columnas `contacts.source*`; lógica en
+  `app/domains/crm/origin.py`.
+- **F11 terminada** con las cuatro partes elegidas.
 - Pendiente para más adelante: abrir una oportunidad desde la bandeja
   (el campo `conversation_id` ya existe) y presupuestos.
 
