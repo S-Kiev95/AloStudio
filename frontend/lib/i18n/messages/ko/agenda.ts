@@ -61,4 +61,5 @@ export const agenda: Strings<typeof es> = {
   statusOf: "{title} 상태",
   editItem: "{title} 편집",
   deleteItem: "{title} 삭제",
+  newAt: "{day} {date}일 {time}에 새 예약",
 };
