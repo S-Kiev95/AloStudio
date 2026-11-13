@@ -226,3 +226,42 @@ async def test_the_route_needs_a_session(client, seeded):
         f"/api/v1/accounts/{account.id}/contacts/{contact.id}/avatar"
     )
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Uploaded by hand (F11)
+# ---------------------------------------------------------------------------
+@respx.mock
+async def test_a_picture_uploaded_by_hand_wins_over_meta(client, db_session, seeded):
+    account, contact, headers = seeded
+    put = respx.put(url__startswith=_store()).mock(return_value=httpx.Response(200))
+    respx.route(host="test").pass_through()
+    url = f"/api/v1/accounts/{account.id}/contacts/{contact.id}/avatar"
+
+    resp = await client.post(
+        url, files={"file": ("foto.png", b"\x89PNGdata", "image/png")}, headers=headers
+    )
+    assert resp.status_code == 200, resp.text
+    assert put.calls.last.request.content == b"\x89PNGdata"
+    assert resp.json()["payload"]["thumbnail"].startswith(f"/api/backend{url}?v=")
+
+    # The daily refresh leaves it alone: Meta isn't even asked.
+    graph = _mock_graph(_CDN)
+    assert await avatar.refresh_avatar(db_session, contact) is False
+    assert not graph.called
+
+    removed = await client.delete(url, headers=headers)
+    assert removed.json()["payload"]["thumbnail"] == ""
+    assert not avatar.needs_first_fetch(contact)
+
+
+@respx.mock
+async def test_an_upload_that_is_not_a_picture_is_refused(client, seeded):
+    account, contact, headers = seeded
+    respx.route(host="test").pass_through()
+    resp = await client.post(
+        f"/api/v1/accounts/{account.id}/contacts/{contact.id}/avatar",
+        files={"file": ("doc.pdf", b"%PDF", "application/pdf")},
+        headers=headers,
+    )
+    assert resp.status_code == 422

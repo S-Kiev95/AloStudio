@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, GitMerge, Mail, Phone, User as UserIcon } from "lucide-react";
+import { ArrowLeft, GitMerge, Mail, Phone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -20,6 +20,7 @@ import {
 } from "@/lib/api/contacts";
 
 import { ContactForm } from "./contact-form";
+import { ContactPhoto } from "./contact-photo";
 import { ContactableInboxesPanel } from "./contactable-inboxes-panel";
 import { MergeDialog } from "./merge-dialog";
 import { NotesPanel } from "./notes-panel";
@@ -74,9 +75,11 @@ export function ContactDetailView({
       ) : (
         <>
           <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-focused text-lit">
-              <UserIcon className="h-5 w-5" aria-hidden />
-            </span>
+            <ContactPhoto
+              accountId={accountId}
+              contact={contact}
+              name={contact.name?.trim() || contact.email?.trim() || contact.phone_number?.trim() || "?"}
+            />
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-xl font-medium text-fg">
                 {contact.name?.trim() ||

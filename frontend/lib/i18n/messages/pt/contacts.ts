@@ -83,4 +83,10 @@ export const contacts: Strings<typeof es> = {
   pageOfOne: "Página {n} de {pages} · {count} contato",
   pageOfMany: "Página {n} de {pages} · {count} contatos",
   deleteConfirm: "Excluir o contato \"{name}\"?",
+  photo: {
+    change: "Trocar foto",
+    remove: "Remover foto",
+    invalid: "A foto precisa ser JPG, PNG, WebP ou GIF de até 2 MB.",
+    failed: "Não foi possível salvar a foto.",
+  },
 };

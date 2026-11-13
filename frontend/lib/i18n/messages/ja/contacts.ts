@@ -83,4 +83,10 @@ export const contacts: Strings<typeof es> = {
   pageOfOne: "{pages} ページ中 {n} ページ · 連絡先 {count} 件",
   pageOfMany: "{pages} ページ中 {n} ページ · 連絡先 {count} 件",
   deleteConfirm: "連絡先「{name}」を削除しますか？",
+  photo: {
+    change: "写真を変更",
+    remove: "写真を削除",
+    invalid: "写真は 2 MB 以下の JPG、PNG、WebP、GIF にしてください。",
+    failed: "写真を保存できませんでした。",
+  },
 };
