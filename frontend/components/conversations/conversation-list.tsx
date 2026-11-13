@@ -814,10 +814,21 @@ function MessageHitRow({
             </span>
           ) : null}
         </div>
-        {hit.private ? (
-          <span className="mt-1 inline-block rounded-pill bg-surface-2 px-1.5 py-0.5 text-[10px] text-fg-muted">
-            {t("conversations.list.privateNote")}
-          </span>
+        {hit.private || hit.match === "meaning" ? (
+          <div className="mt-1 flex gap-1">
+            {hit.match === "meaning" ? (
+              // Found by what it is about, with none of the words typed —
+              // without the label it reads like a wrong result.
+              <span className="rounded-pill bg-primary/15 px-1.5 py-0.5 text-[10px] text-fg">
+                {t("conversations.list.related")}
+              </span>
+            ) : null}
+            {hit.private ? (
+              <span className="rounded-pill bg-surface-2 px-1.5 py-0.5 text-[10px] text-fg-muted">
+                {t("conversations.list.privateNote")}
+              </span>
+            ) : null}
+          </div>
         ) : null}
         <p className="mt-0.5 line-clamp-3 text-sm text-fg-muted">
           <Highlighted text={hit.snippet} spans={hit.highlights} />

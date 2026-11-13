@@ -136,6 +136,7 @@ export const conversations: Strings<typeof es> = {
     cameFrom: "유입 경로: {source}",
     anAd: "광고",
     privateNote: "비공개 메모",
+    related: "관련",
   },
   participants: {
     addFailed: "추가하지 못했습니다.",

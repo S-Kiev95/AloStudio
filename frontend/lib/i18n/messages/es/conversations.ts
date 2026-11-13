@@ -133,6 +133,7 @@ export const conversations = {
     cameFrom: "Vino de {source}",
     anAd: "un anuncio",
     privateNote: "Nota privada",
+    related: "Relacionado",
   },
   participants: {
     addFailed: "No se pudo agregar.",
