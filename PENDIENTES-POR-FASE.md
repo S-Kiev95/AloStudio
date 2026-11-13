@@ -86,7 +86,7 @@ anota en esta sección y lo decide el dueño.
 | F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; resto para más adelante |
 | F3 Redes que faltan | B | Sin empezar |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
-| F5 Plantillas de WhatsApp | A | En develop (2026-11-13); falta CTC |
+| F5 WhatsApp (plantillas, envíos, número, perfil, QR) | A | En develop (2026-11-13); falta CTC |
 | F6 Gastos por uso | A | Sin empezar |
 | F7 Llamadas y voz | B | Sin empezar |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado; faltan audios e imágenes |
@@ -195,17 +195,35 @@ dentro de la rama.
 - Adjuntos desde la biblioteca de medios (`media_id`) en `send_message`:
   hoy solo URLs públicas.
 
-## F5. Plantillas de WhatsApp
+## F5. WhatsApp (plantillas y sección propia)
 
-- Hecho y en develop (2026-11-13): Ajustes → Bandejas → una bandeja de
-  WhatsApp → "Plantillas de WhatsApp" (listar con estado y motivo de
-  rechazo, crear, editar y borrar en Meta, vista previa); botón "Plantilla"
-  en la Bandeja; `can_reply` es false pasadas 24 h del último mensaje del
-  contacto y entonces solo se manda plantilla. El webhook
-  `message_template_status_update` / `template_category_update` actualiza
-  el estado solo (campos suscriptos en la app de Meta de CTC).
-- Pendiente: pasarlo a CTC cuando el dueño lo pida; encabezados con
-  imagen, video o documento (hay que subir el archivo a Meta antes).
+- Hecho y en develop (2026-11-13): sección **WhatsApp** en el menú (solo si
+  la cuenta tiene una bandeja de WhatsApp; `components/whatsapp/`), con un
+  selector de número y cinco pestañas:
+  - **Plantillas:** listar con estado y motivo de rechazo, crear, editar y
+    borrar en Meta, vista previa como chat de WhatsApp. El webhook
+    `message_template_status_update` / `template_category_update` actualiza
+    el estado solo (campos suscriptos en la app de Meta de CTC).
+  - **Envíos masivos:** campañas `one_off` de ese número con una plantilla
+    aprobada; público por etiquetas (contactos con conversaciones de esas
+    etiquetas) o todos los contactos del número; ahora o programado;
+    `{nombre}` / `{primer_nombre}` en las variables; resultados por contacto
+    (`GET /campaigns/{id}/recipients`). Arreglado de paso: el público por
+    etiqueta no se expandía (no le llegaba a nadie) y un contacto con una
+    conversación previa quedaba afuera; ahora el envío va a su última
+    conversación, una sola vez por campaña.
+  - **Número:** conexión, calidad, límite diario y estado del nombre (Graph
+    del `phone_number_id`).
+  - **Perfil de empresa:** info, descripción, rubro, dirección, correo, webs
+    y foto (subida reanudable de Meta, usa `META_APP_ID`), con vista previa.
+  - **Link y QR:** link wa.me con mensaje y los QR de Meta (`message_qrdls`).
+  En la Bandeja: botón "Plantilla" y `can_reply` false pasadas 24 h del
+  último mensaje del contacto (solo se manda plantilla).
+- Pendiente: pasarlo a CTC cuando el dueño lo pida; textos de la sección sin
+  traducir (solo español); encabezados con imagen, video o documento;
+  avisos cuando Meta baja la calidad del número (webhooks
+  `phone_number_quality_update` y `account_update`, hay que suscribirlos);
+  ritmo de envío según el límite diario en envíos grandes.
 
 ## F6. Gastos por uso
 

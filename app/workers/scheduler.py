@@ -121,11 +121,10 @@ async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) ->
     if inbox is None:
         return 0
 
+    from app.domains.campaigns.service import resolve_audience_contact_ids
+
     sent = 0
-    for entry in campaign.audience or []:
-        if not isinstance(entry, dict) or entry.get("type") != "Contact":
-            continue
-        contact_id = entry.get("id")
+    for contact_id in await resolve_audience_contact_ids(session, campaign=campaign):
         try:
             contact = (
                 await session.exec(
@@ -150,7 +149,10 @@ async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) ->
                     session=session, contact=contact, inbox=inbox
                 ).perform()
             conv = await build_campaign_conversation(
-                session, campaign=campaign, contact_inbox=contact_inbox
+                session,
+                campaign=campaign,
+                contact_inbox=contact_inbox,
+                reuse_existing=True,
             )
             if conv is not None:
                 sent += 1

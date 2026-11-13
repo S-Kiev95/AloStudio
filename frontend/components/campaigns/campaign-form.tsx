@@ -76,8 +76,7 @@ export function CampaignForm({
   const [audienceLabels, setAudienceLabels] = useState<Set<number>>(
     new Set(
       (initial?.audience ?? [])
-        .filter((a) => a.type === "Label")
-        .map((a) => a.id),
+        .flatMap((a) => (a.type === "Label" ? [a.id] : []))
     ),
   );
   const [error, setError] = useState<string | null>(null);
