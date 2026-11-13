@@ -121,11 +121,10 @@ async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) ->
     if inbox is None:
         return 0
 
+    from app.domains.campaigns.service import resolve_audience_contact_ids
+
     sent = 0
-    for entry in campaign.audience or []:
-        if not isinstance(entry, dict) or entry.get("type") != "Contact":
-            continue
-        contact_id = entry.get("id")
+    for contact_id in await resolve_audience_contact_ids(session, campaign=campaign):
         try:
             contact = (
                 await session.exec(
@@ -150,7 +149,10 @@ async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) ->
                     session=session, contact=contact, inbox=inbox
                 ).perform()
             conv = await build_campaign_conversation(
-                session, campaign=campaign, contact_inbox=contact_inbox
+                session,
+                campaign=campaign,
+                contact_inbox=contact_inbox,
+                reuse_existing=True,
             )
             if conv is not None:
                 sent += 1
@@ -440,6 +442,7 @@ class WorkerSettings:
 
         from app.workers.contact_avatars import refresh_stale_avatars_task
         from app.workers.email_poll import fetch_imap_inboxes_task
+        from app.workers.message_embeddings import embed_messages_task
         from app.workers.publishing import (
             METRICS_JOB_TIMEOUT_SECONDS,
             snapshot_publishing_channels_task,
@@ -490,6 +493,10 @@ class WorkerSettings:
                 fetch_imap_inboxes_task,
                 minute=set(range(1, 60, 2)),
             ),
+            # Message vectors for meaning-based search (F8): every three
+            # minutes, off the 5-minute tick and the mail poll. A no-op
+            # until the local embedding service is configured.
+            cron(embed_messages_task, minute=set(range(2, 60, 3))),
             # Contact profile pictures, once a day: Meta's links expire and
             # people change their picture. Early UTC, off the other jobs.
             cron(

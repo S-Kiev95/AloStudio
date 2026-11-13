@@ -21,6 +21,7 @@ export const core: Strings<typeof es> = {
     conversations: "Caixa de entrada",
     crm: "CRM",
     instagram: "Instagram",
+    whatsapp: "WhatsApp",
     helpCenter: "Central de ajuda",
     campaigns: "Campanhas",
     reports: "Relatórios",

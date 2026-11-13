@@ -121,6 +121,13 @@ export function useInboxes(accountId: string) {
   });
 }
 
+/** Whether the account has at least one WhatsApp inbox (the sidebar shows
+ *  the WhatsApp section only then). */
+export function useHasWhatsappInbox(accountId: string): boolean {
+  const { data } = useInboxes(accountId);
+  return (data ?? []).some((inbox) => inbox.channel_type === "Channel::Whatsapp");
+}
+
 export function useInbox(accountId: string, id: number) {
   return useQuery({
     queryKey: ["inboxes", accountId, id],

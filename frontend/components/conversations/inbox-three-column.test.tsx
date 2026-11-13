@@ -297,7 +297,7 @@ describe("Bandeja en tres columnas y pestañas", () => {
     expect(await screen.findByText("Camila Pérez")).toBeInTheDocument();
     expect(screen.getByText("Martín Gómez")).toBeInTheDocument();
     // Prove the search input keeps its DOM state across conversation switches (never unmounted!)
-    const searchInput = screen.getByPlaceholderText("Buscar conversaciones…");
+    const searchInput = screen.getByPlaceholderText("Buscar en los mensajes…");
     expect(conversationsListHits).toBe(1);
 
     // Open conversation #42: list + conversation + contact panel all render together.
@@ -315,7 +315,7 @@ describe("Bandeja en tres columnas y pestañas", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText("camila@ejemplo.com")).toBeInTheDocument();
     expect(screen.getByText("+5491122334455")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Buscar conversaciones…")).toBe(searchInput);
+    expect(screen.getByPlaceholderText("Buscar en los mensajes…")).toBe(searchInput);
 
     const activeLink42 = screen
       .getAllByRole("link")
@@ -337,7 +337,7 @@ describe("Bandeja en tres columnas y pestañas", () => {
       await screen.findByText("Perfecto, paso mañana por el local"),
     ).toBeInTheDocument();
     expect(await screen.findByText("martin@ejemplo.com")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Buscar conversaciones…")).toBe(searchInput);
+    expect(screen.getByPlaceholderText("Buscar en los mensajes…")).toBe(searchInput);
 
     const activeLink43 = screen
       .getAllByRole("link")

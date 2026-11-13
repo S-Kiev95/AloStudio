@@ -225,3 +225,144 @@ describe("MessageComposer attachments", () => {
     expect(box.style.overflowY).toBe("auto");
   });
 });
+
+describe("MessageComposer plantillas de WhatsApp", () => {
+  it("muestra el botón Plantilla solo en bandejas de WhatsApp", () => {
+    const { unmount } = wrap(
+      <MessageComposer
+        accountId="1"
+        displayId={1}
+        inboxId={3}
+        channel="Channel::Telegram"
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Plantilla" }),
+    ).not.toBeInTheDocument();
+    unmount();
+
+    wrap(
+      <MessageComposer
+        accountId="1"
+        displayId={1}
+        inboxId={3}
+        channel="Channel::Whatsapp"
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Plantilla" }),
+    ).toBeInTheDocument();
+  });
+
+  it("abre el selector de plantillas, reemplaza variables en la vista previa y envía con template_params", async () => {
+    const sent: unknown[] = [];
+    const server = setupServer(
+      http.get("*/canned_responses", () => HttpResponse.json([])),
+      http.get("*/inboxes/5/whatsapp/templates", () =>
+        HttpResponse.json({
+          templates: [
+            {
+              name: "confirmacion_turno",
+              language: "es",
+              status: "APPROVED",
+              category: "UTILITY",
+              body_text: "Hola {{1}}, te esperamos el {{2}}.",
+              variables: [1, 2],
+            },
+          ],
+          last_updated: 1763050000,
+        }),
+      ),
+      http.post("*/conversations/1/messages", async ({ request }) => {
+        sent.push(await request.json());
+        return HttpResponse.json({ id: 10 });
+      }),
+    );
+    server.listen({ onUnhandledRequest: "bypass" });
+    try {
+      wrap(
+        <MessageComposer
+          accountId="1"
+          displayId={1}
+          inboxId={5}
+          channel="Channel::Whatsapp"
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Plantilla" }));
+
+      expect(
+        await screen.findByText("Meta cobra cada plantilla que entrega."),
+      ).toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText("Elegir plantilla"), {
+        target: { value: "confirmacion_turno" },
+      });
+
+      const sendBtn = screen.getByRole("button", { name: "Enviar" });
+      expect(sendBtn).toBeDisabled();
+
+      fireEvent.change(screen.getByLabelText("Variable {{1}}"), {
+        target: { value: "Ana" },
+      });
+      fireEvent.change(screen.getByLabelText("Variable {{2}}"), {
+        target: { value: "martes 10:00" },
+      });
+
+      expect(
+        screen.getByText("Hola Ana, te esperamos el martes 10:00."),
+      ).toBeInTheDocument();
+      expect(sendBtn).not.toBeDisabled();
+
+      fireEvent.click(sendBtn);
+
+      await waitFor(() => expect(sent).toHaveLength(1));
+      expect(sent[0]).toEqual({
+        content: "Hola Ana, te esperamos el martes 10:00.",
+        message_type: "outgoing",
+        private: false,
+        template_params: {
+          name: "confirmacion_turno",
+          language: "es",
+          processed_params: {
+            body: {
+              "1": "Ana",
+              "2": "martes 10:00",
+            },
+          },
+        },
+      });
+    } finally {
+      server.close();
+    }
+  });
+
+  it("muestra el aviso de 24 h y destaca el botón Plantilla cuando can_reply es false", () => {
+    wrap(
+      <MessageComposer
+        accountId="1"
+        displayId={1}
+        inboxId={5}
+        channel="Channel::Whatsapp"
+        canReply={false}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "Pasaron 24 h desde el último mensaje del contacto. Solo podés mandar una plantilla.",
+      ),
+    ).toBeInTheDocument();
+
+    const box = screen.getByLabelText("Respuesta");
+    expect(box).toBeDisabled();
+    expect(box).toHaveAttribute(
+      "placeholder",
+      "Pasaron 24 h desde el último mensaje del contacto. Solo podés mandar una plantilla.",
+    );
+
+    const templateBtn = screen.getByRole("button", { name: "Plantilla" });
+    expect(templateBtn).toHaveAttribute("data-highlighted", "true");
+    expect(templateBtn).toHaveClass("border-neon");
+  });
+});

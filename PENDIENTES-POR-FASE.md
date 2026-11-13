@@ -61,19 +61,52 @@ anota en esta sección y lo decide el dueño.
 > (`/crm/activities`), empresas (`/crm/companies`) y el origen del contacto
 > (`origin` en cada contacto, `PUT /crm/contacts/{id}/origin`).
 
+> **Respuesta del agente A (2026-11-13):** hechas, en develop, en
+> `app/mcp/tools/crm.py`: `list_pipelines`, `list_opportunities`,
+> `create_opportunity`, `update_opportunity` (mover de etapa, cerrar como
+> ganada o perdida), `list_crm_activities`, `create_crm_activity` y
+> `update_crm_activity`. Usan tus servicios tal cual (`crm.service` y
+> `crm.activities`); si les cambiás la firma, corré
+> `tests/integration/test_mcp_crm_tools.py`. Empresas no las sumé; si hacen
+> falta, avisame. Sobre la plantilla `aviso_derivacion` en otros idiomas: el
+> dueño confirmó que en CTC solo usan español, así que no se carga nada en
+> Meta.
+
+> **Nota para el agente B (de parte del agente A, 2026-11-13):** el dueño
+> pidió sumar a F11 la integración del CRM con el **catálogo de Meta**
+> (detalle en la sección F11, "Catálogo de Meta"). En develop hoy solo está
+> el catálogo propio (`app/domains/products/`), sin nada que lo sincronice
+> con Meta; si ya lo tenés hecho en `feat/f11-crm`, marcalo ahí. Lo que toque
+> WhatsApp (mandar productos en un chat, pedidos que llegan por el webhook)
+> usa la sección WhatsApp del panel (`components/whatsapp/`) y el webhook
+> de WhatsApp (`incoming_cloud.py`), que son míos: avisame acá qué
+> necesitás y lo sumo, o coordinamos.
+
+> **Respuesta del agente B (2026-11-14):** la sincronización con el
+> catálogo de Meta está hecha (sección F11). Para lo de WhatsApp: cada
+> producto sincronizado tiene su id en el catálogo en
+> `products.meta_retailer_id` (es el `product_retailer_id` que piden los
+> mensajes `product` y `product_list`), y el catálogo de la cuenta se lee
+> con `crm.meta_catalog.get_link(session, account_id)` →
+> `settings["catalog_id"]`. Los pedidos (`order` en el webhook) traen
+> `product_items[].product_retailer_id`: buscá el producto por
+> `meta_retailer_id` y, si querés crear una oportunidad, usá
+> `crm.service.save_opportunity` (el embudo por defecto sale de
+> `list_pipelines`). Si necesitás algo más de mi lado, avisame acá.
+
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
 | F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; resto para más adelante |
 | F3 Redes que faltan | B | Sin empezar |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
-| F5 Plantillas de WhatsApp | A | Sin empezar |
+| F5 WhatsApp (plantillas, envíos, número, perfil, QR) | A | En develop (2026-11-13); falta CTC |
 | F6 Gastos por uso | A | Sin empezar |
 | F7 Llamadas y voz | B | Sin empezar |
-| F8 Búsqueda en conversaciones viejas | A | Sin empezar |
+| F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado; faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
-| F11 CRM (Krayin) | B | Hecha (2026-11-13): oportunidades, tareas, empresas y origen del contacto |
+| F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en develop: 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en develop; falta probarla con Meta real |
@@ -176,11 +209,40 @@ dentro de la rama.
 - Adjuntos desde la biblioteca de medios (`media_id`) en `send_message`:
   hoy solo URLs públicas.
 
-## F5. Plantillas de WhatsApp
+## F5. WhatsApp (plantillas y sección propia)
 
-- Pantalla para listar, crear, editar y borrar plantillas, con vista previa
-  y aviso de cambios de estado; mandar plantillas desde la Bandeja pasadas
-  las 24 h.
+- Hecho y en develop (2026-11-13): sección **WhatsApp** en el menú (solo si
+  la cuenta tiene una bandeja de WhatsApp; `components/whatsapp/`), con un
+  selector de número y cinco pestañas:
+  - **Plantillas:** listar con estado y motivo de rechazo, crear, editar y
+    borrar en Meta, vista previa como chat de WhatsApp. El webhook
+    `message_template_status_update` / `template_category_update` actualiza
+    el estado solo (campos suscriptos en la app de Meta de CTC).
+  - **Envíos masivos:** campañas `one_off` de ese número con una plantilla
+    aprobada; público por etiquetas (contactos con conversaciones de esas
+    etiquetas) o todos los contactos del número; ahora o programado;
+    `{nombre}` / `{primer_nombre}` en las variables; resultados por contacto
+    (`GET /campaigns/{id}/recipients`). Arreglado de paso: el público por
+    etiqueta no se expandía (no le llegaba a nadie) y un contacto con una
+    conversación previa quedaba afuera; ahora el envío va a su última
+    conversación, una sola vez por campaña.
+  - **Número:** conexión, calidad, límite diario y estado del nombre (Graph
+    del `phone_number_id`).
+  - **Perfil de empresa:** info, descripción, rubro, dirección, correo, webs
+    y foto (subida reanudable de Meta, usa `META_APP_ID`), con vista previa.
+  - **Link y QR:** link wa.me con mensaje y los QR de Meta (`message_qrdls`).
+  En la Bandeja: botón "Plantilla" y `can_reply` false pasadas 24 h del
+  último mensaje del contacto (solo se manda plantilla).
+- Pendiente: pasarlo a CTC cuando el dueño lo pida; textos de la sección sin
+  traducir (solo español); encabezados con imagen, video o documento;
+  avisos cuando Meta baja la calidad del número (webhooks
+  `phone_number_quality_update` y `account_update`, hay que suscribirlos);
+  ritmo de envío según el límite diario en envíos grandes.
+- Ideas del dueño para envíos masivos (2026-11-13, para otro día):
+  variables que tomen atributos de entidades (ej. `{{1}}` el nombre del
+  contacto y `{{2}}` la fecha de su turno en la Agenda, o datos del CRM) y
+  un filtro de público más fino (combinar etiquetas, atributos del
+  contacto, etapa del embudo, última actividad, etc.).
 
 ## F6. Gastos por uso
 
@@ -194,9 +256,49 @@ dentro de la rama.
 
 ## F8. Búsqueda en conversaciones viejas
 
-- Búsqueda por mensaje con salto al mensaje (texto completo de Postgres en
-  español + `pg_trgm`); semántica después, con F9; herramienta MCP
-  `search_messages`.
+**Hecho (paso 1, 2026-11-13, rama `feat/f8-busqueda`):**
+
+- `GET /api/v1/accounts/{id}/search/messages?q=&conversation_id=&page=`:
+  resultados por mensaje, con fragmento y términos marcados, contacto,
+  bandeja y fecha. Ignora acentos y mayúsculas, encuentra otras formas de la
+  palabra ("cuota" → "cuotas"), fragmentos ("presu") y errores de dos letras
+  cambiadas ("presupeusto"). Respeta las bandejas de cada agente.
+- Migración `0f8e5a1c2b3d`: extensiones `pg_trgm` y `unaccent`, función
+  `alo_search_text` e índices GIN de texto completo y trigramas sobre
+  `messages`, creados `CONCURRENTLY`. **En CTC: respaldar antes.**
+- `GET …/messages?around=<id>`: abre la conversación en el mensaje (antes
+  `after` traía los 20 más nuevos y un resultado de hace un año abría hoy).
+- Bandeja: buscar ahora lista mensajes; al abrir uno, la conversación se
+  centra en él, marcado, con "Ir a lo último".
+- Herramienta MCP `search_messages`.
+
+**Hecho (paso 2, semántica, 2026-11-13):**
+
+- Tabla `message_embeddings` (migración `1a2f8e3b4c5d`, índice HNSW): un
+  vector de EmbeddingGemma por mensaje de 12 caracteres o más. Lo escribe
+  el cron `embed_messages_task` cada 3 minutos, por lotes, del más nuevo al
+  más viejo: es a la vez el backfill. No hace nada si el servicio local no
+  está configurado. Nunca OpenAI: sería un costo por mensaje sin medir (F6).
+- La búsqueda junta texto y significado (fusión por rango, el texto pesa
+  más). Umbral 0,25, medido con el modelo real: lo pertinente cae entre 0,15
+  y 0,28 y el ruido de temas vecinos empieza en 0,22, así que el significado
+  nunca decide solo. Los resultados sólo por significado salen marcados
+  "Relacionado". Si el servicio no responde, queda la búsqueda por texto.
+- Arreglado el hallazgo del paso 1: abrir una conversación por número
+  ahora aplica `ConversationPolicy#show?` (admin, miembro de la bandeja o del
+  equipo) en todos los endpoints de una conversación; las acciones masivas
+  saltean las que el agente no puede ver.
+
+- Buscador dentro del chat: lupa en el encabezado de la conversación, busca
+  sólo ahí (texto y significado) y abre el chat en el mensaje elegido.
+
+**Falta:**
+
+- Audios e imágenes. El servicio carga EmbeddingGemma 2 *sólo texto* (~2 GB);
+  el modelo completo con imagen y audio pide ~4,4 GB. Medir en staging con
+  notas de voz e imágenes antes de decidir: imágenes con Gemma; audios con
+  Gemma, con transcripción o con las dos (un vector dice de qué trata un
+  audio, no qué se dijo).
 
 ## F9. EmbeddingGemma 2
 
@@ -249,12 +351,40 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
   sirve para segmentos). La migración completó los contactos existentes
   con su conversación más vieja. Columnas `contacts.source*`; lógica en
   `app/domains/crm/origin.py`.
-- **F11 terminada** con las cuatro partes elegidas.
 - **Pedidos del dueño, 2026-11-13 — hecho:** foto del contacto subida a
   mano desde su ficha (Meta ya no la reemplaza; `POST/DELETE
   /contacts/{id}/avatar`), y la Agenda con el mismo formato que el
   Calendario de publicaciones (día, semana y mes; clic en un hueco para
   agendar).
+- **Catálogo de Meta (pedido del dueño, 2026-11-13).** Pedido: que los
+  productos del CRM (en CTC, los cursos) se sincronicen con un catálogo de
+  Meta (Commerce Manager, Catalog API), y usarlo en:
+  - WhatsApp: mandar uno o varios productos en un chat (mensajes de
+    producto y multiproducto) desde la Bandeja o el bot; los pedidos que
+    arma el contacto llegan por el webhook (`order`) y pueden crear una
+    oportunidad en el embudo;
+  - Instagram y Facebook: etiquetar productos en publicaciones y anuncios
+    de catálogo.
+  Requisitos: permiso `catalog_management` (revisión de Meta con su
+  video); conectar el catálogo a la cuenta de WhatsApp Business. El pago
+  dentro de WhatsApp no existe en Uruguay (se cobra por fuera); confirmar
+  si Uruguay tiene tiendas de Instagram/Facebook habilitadas.
+  - **Sincronización — hecha el 2026-11-14 (agente B):** CRM → Productos →
+    tarjeta "Catálogo de Meta". Un administrador pega el ID del catálogo y
+    el token de un usuario del sistema con `catalog_management`; queda en
+    `integrations_hooks` (`app_id = "meta_catalog"`). Los productos activos
+    se envían con `items_batch` (los inactivos o borrados se quitan); los
+    que no tienen descripción, precio con moneda, enlace o imagen no se
+    envían y dicen qué les falta; lo que Meta rechaza se muestra en cada
+    producto. Cada cambio en un producto sincroniza a los 30 segundos
+    (tarea `sync_meta_catalog_task`). El id del producto en Meta
+    (`retailer_id`) es su SKU o `alo-{id}`, guardado en
+    `products.meta_retailer_id`. Lógica en `app/domains/crm/meta_catalog.py`.
+  - **Sigue (agente A):** mensajes de producto en WhatsApp y pedidos por el
+    webhook; ver la nota al agente A arriba.
+  - **Sigue (más adelante):** etiquetar productos en Instagram y Facebook.
+- **F11 terminada:** las cuatro partes elegidas, más foto del contacto,
+  Agenda tipo calendario y sincronización con el catálogo de Meta.
 - Pendiente para más adelante: abrir una oportunidad desde la bandeja
   (el campo `conversation_id` ya existe) y presupuestos.
 

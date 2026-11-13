@@ -7,9 +7,11 @@ import {
   ChevronUp,
   Megaphone,
   RotateCcw,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { AiHandoff, describeThreadControl } from "./ai-handoff";
+import { ChatSearch } from "./chat-search";
 import { ContactPanel } from "./contact-panel";
 import { ConversationActions } from "./conversation-actions";
 import { ConversationParticipants } from "./conversation-participants";
@@ -117,7 +120,25 @@ export function ConversationView({
     toggleDetailsCollapsed,
   } = useInboxPanels();
   const conv = useConversation(accountId, displayId);
-  const messages = useMessages(accountId, displayId);
+  // F8: a search hit opens the thread *at* that message (`?message=`).
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const aroundId = Number(searchParams.get("message")) || undefined;
+  const messages = useMessages(accountId, displayId, aroundId);
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => setSearchOpen(false), [displayId]);
+  function openAt(messageId: number) {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set("message", String(messageId));
+    router.replace(`${pathname}?${sp}`);
+  }
+  function jumpToLatest() {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.delete("message");
+    const rest = sp.toString();
+    router.replace(rest ? `${pathname}?${rest}` : pathname);
+  }
   const pending = usePendingMessages(accountId, displayId);
   const toggle = useToggleStatus(accountId, displayId);
   const del = useDeleteMessage(accountId, displayId);
@@ -161,8 +182,20 @@ export function ConversationView({
   const sentCount = useRef(0);
   const newestId = messages.data?.payload.at(-1)?.id;
   useEffect(() => {
-    followNewest.current = true;
-  }, [displayId]);
+    // Opened at a search hit: stay there instead of sliding to the bottom.
+    followNewest.current = !aroundId;
+  }, [displayId, aroundId]);
+  useEffect(() => {
+    if (!aroundId || !messages.data) return;
+    threadRef.current
+      ?.querySelector(`[data-message-id="${aroundId}"]`)
+      ?.scrollIntoView({ block: "center" });
+  }, [aroundId, messages.data]);
+  // Sending from an old window means wanting the present back.
+  useEffect(() => {
+    if (aroundId && pending.length > 0) jumpToLatest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending.length]);
   useEffect(() => {
     if (pending.length > sentCount.current) followNewest.current = true;
     sentCount.current = pending.length;
@@ -266,6 +299,16 @@ export function ConversationView({
           </Button>
           <button
             type="button"
+            onClick={() => setSearchOpen((open) => !open)}
+            aria-expanded={searchOpen}
+            aria-label={t("conversations.view.searchInChat")}
+            title={t("conversations.view.searchInChat")}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
+          >
+            <Search className="h-4 w-4" aria-hidden />
+          </button>
+          <button
+            type="button"
             onClick={toggleDetailsCollapsed}
             aria-expanded={!detailsCollapsed}
             aria-label={detailsToggleLabel}
@@ -322,6 +365,28 @@ export function ConversationView({
           ) : null}
         </div>
 
+        {searchOpen ? (
+          <ChatSearch
+            accountId={accountId}
+            displayId={displayId}
+            onPick={openAt}
+            onClose={() => setSearchOpen(false)}
+          />
+        ) : null}
+
+        {aroundId ? (
+          <div className="flex shrink-0 items-center gap-2 border-b border-glass bg-surface-2 px-4 py-1.5 text-xs text-fg-muted">
+            <span>{t("conversations.view.olderMessage")}</span>
+            <button
+              type="button"
+              onClick={jumpToLatest}
+              className="ml-auto rounded-md px-1.5 py-0.5 font-medium text-fg hover:bg-hover-glass"
+            >
+              {t("conversations.view.jumpToLatest")}
+            </button>
+          </div>
+        ) : null}
+
         {/* Thread */}
         <div
           ref={threadRef}
@@ -359,12 +424,20 @@ export function ConversationView({
                   defaultOpen={i === all.length - 1}
                 />
               ) : (
-                <MessageBubble
+                <div
                   key={m.id}
-                  message={m}
-                  contactName={conv.data?.meta?.sender?.name}
-                  onDelete={handleDelete}
-                />
+                  data-message-id={m.id}
+                  className={cn(
+                    m.id === aroundId &&
+                      "rounded-lg ring-2 ring-primary/60 ring-offset-2 ring-offset-bg",
+                  )}
+                >
+                  <MessageBubble
+                    message={m}
+                    contactName={conv.data?.meta?.sender?.name}
+                    onDelete={handleDelete}
+                  />
+                </div>
               ),
             )
           )}
@@ -389,7 +462,13 @@ export function ConversationView({
             />
           </div>
         ) : (
-          <MessageComposer accountId={accountId} displayId={displayId} />
+          <MessageComposer
+            accountId={accountId}
+            displayId={displayId}
+            inboxId={conv.data?.inbox_id}
+            channel={conv.data?.meta?.channel}
+            canReply={conv.data?.can_reply}
+          />
         )}
       </div>
 

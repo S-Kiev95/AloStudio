@@ -157,6 +157,26 @@ export function InboxDetailView({
         </CardContent>
       </Card>
 
+      {inbox.channel_type === "Channel::Whatsapp" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Plantillas de WhatsApp</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-fg-muted">
+              Se crean, editan y revisan en la sección{" "}
+              <Link
+                href={`/accounts/${accountId}/whatsapp?inbox=${inboxId}`}
+                className="text-lit underline-offset-2 hover:underline"
+              >
+                WhatsApp
+              </Link>
+              , con la vista previa de cómo le llega al contacto.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {inbox.channel_type === "Channel::Email" ? (
         <Card>
           <CardHeader>

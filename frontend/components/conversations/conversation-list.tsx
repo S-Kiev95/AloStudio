@@ -13,8 +13,9 @@ import {
   type FilterCondition,
   useBulkAction,
   useConversations,
+  type MessageSearchHit,
   useFilterConversations,
-  useSearchConversations,
+  useMessageSearch,
 } from "@/lib/api/conversations";
 import {
   type CustomView,
@@ -28,6 +29,7 @@ import { cn } from "@/lib/utils";
 
 import { ChannelBadge, channelLabel } from "./channel-badge";
 import { ConversationFilters } from "./conversation-filters";
+import { Highlighted } from "./highlighted";
 import { PanelLeftClose, useInboxPanels } from "./inbox-shell";
 import { useLocale, useT } from "@/lib/i18n/provider";
 
@@ -107,7 +109,9 @@ export function ConversationList({ accountId }: { accountId: string }) {
     channelType,
     page,
   });
-  const searchQ = useSearchConversations(accountId, trimmed, page);
+  // F8: search answers with messages — the line, not the conversation.
+  const searchQ = useMessageSearch(accountId, trimmed, page);
+  const hits = searchQ.data?.payload ?? [];
   const filterQ = useFilterConversations(
     accountId,
     filtering ? filters : [],
@@ -116,13 +120,13 @@ export function ConversationList({ accountId }: { accountId: string }) {
   const active = searching ? searchQ : filtering ? filterQ : indexQ;
 
   const items: Conversation[] = searching
-    ? (searchQ.data?.payload ?? [])
+    ? []
     : filtering
       ? (filterQ.data?.payload ?? [])
       : (indexQ.data?.data.payload ?? []);
 
   const meta = searching
-    ? searchQ.data?.meta
+    ? undefined // message hits have no per-assignee counts
     : filtering
       ? filterQ.data?.meta
       : indexQ.data?.data.meta;
@@ -554,11 +558,27 @@ export function ConversationList({ accountId }: { accountId: string }) {
           <p role="alert" className="p-6 text-center text-sm text-danger">
             {t("conversations.list.loadFailed")}
           </p>
+        ) : searching ? (
+          hits.length === 0 ? (
+            <p className="p-6 text-center text-sm text-fg-muted">
+              {t("conversations.list.noResults", { query: trimmed })}
+            </p>
+          ) : (
+            <ul className="divide-y divide-glass">
+              {hits.map((hit) => (
+                <MessageHitRow
+                  key={hit.message_id}
+                  accountId={accountId}
+                  hit={hit}
+                  queryString={queryString}
+                  active={activeConversationId === hit.conversation_id}
+                />
+              ))}
+            </ul>
+          )
         ) : items.length === 0 ? (
           <p className="p-6 text-center text-sm text-fg-muted">
-            {searching
-              ? t("conversations.list.noResults", { query: trimmed })
-              : filtering
+            {filtering
                 ? t("conversations.list.noMatches")
                 : t("conversations.list.emptyFilter")}
           </p>
@@ -580,7 +600,8 @@ export function ConversationList({ accountId }: { accountId: string }) {
       </div>
 
       {/* Compact pagination */}
-      {page > 1 || items.length >= PER_PAGE ? (
+      {page > 1 ||
+      (searching ? searchQ.data?.meta.has_more : items.length >= PER_PAGE) ? (
         <div className="flex shrink-0 items-center justify-between border-t border-glass px-3 py-2">
           <FilterButton
             active={false}
@@ -597,7 +618,9 @@ export function ConversationList({ accountId }: { accountId: string }) {
           </span>
           <FilterButton
             active={false}
-            disabled={items.length < PER_PAGE}
+            disabled={
+              searching ? !searchQ.data?.meta.has_more : items.length < PER_PAGE
+            }
             onClick={() => {
               setParams({ page: String(page + 1) }, true);
               clearSelected();
@@ -749,6 +772,68 @@ function ConversationRow({
             ) : null}
           </div>
         </div>
+      </Link>
+    </li>
+  );
+}
+
+/** One search hit: the matching line with the words marked, who and when.
+ *  Opens the conversation *at* the message (`?message=`), keeping the list's
+ *  own query so the results stay on the left. */
+function MessageHitRow({
+  accountId,
+  hit,
+  queryString,
+  active,
+}: {
+  accountId: string;
+  hit: MessageSearchHit;
+  queryString: string;
+  active: boolean;
+}) {
+  const locale = useLocale();
+  const t = useT();
+  const sp = new URLSearchParams(queryString);
+  sp.set("message", String(hit.message_id));
+  const name =
+    hit.contact.name ??
+    t("conversations.list.fallbackName", { id: hit.conversation_id });
+
+  return (
+    <li className={cn(active && "bg-hover-glass")}>
+      <Link
+        href={`/accounts/${accountId}/conversations/${hit.conversation_id}?${sp}`}
+        aria-current={active ? "page" : undefined}
+        className="block px-3 py-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neon"
+      >
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="truncate font-medium text-fg">{name}</span>
+          <span className="truncate text-fg-muted">· {hit.inbox.name}</span>
+          {hit.created_at ? (
+            <span className="ml-auto shrink-0 font-numeric tabular-nums text-fg-muted">
+              {shortDate(hit.created_at, locale)}
+            </span>
+          ) : null}
+        </div>
+        {hit.private || hit.match === "meaning" ? (
+          <div className="mt-1 flex gap-1">
+            {hit.match === "meaning" ? (
+              // Found by what it is about, with none of the words typed —
+              // without the label it reads like a wrong result.
+              <span className="rounded-pill bg-primary/15 px-1.5 py-0.5 text-[10px] text-fg">
+                {t("conversations.list.related")}
+              </span>
+            ) : null}
+            {hit.private ? (
+              <span className="rounded-pill bg-surface-2 px-1.5 py-0.5 text-[10px] text-fg-muted">
+                {t("conversations.list.privateNote")}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        <p className="mt-0.5 line-clamp-3 text-sm text-fg-muted">
+          <Highlighted text={hit.snippet} spans={hit.highlights} />
+        </p>
       </Link>
     </li>
   );

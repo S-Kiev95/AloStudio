@@ -20,6 +20,7 @@ export const core: Strings<typeof es> = {
     conversations: "받은편지함",
     crm: "CRM",
     instagram: "Instagram",
+    whatsapp: "WhatsApp",
     helpCenter: "도움말 센터",
     campaigns: "캠페인",
     reports: "보고서",

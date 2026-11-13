@@ -82,6 +82,15 @@ client as that message, through `requires`.
     into the media library (outbound guard, size limits)
   * `get_publishing_analytics(from?, to?, channel_id?)` — read
 
+### CRM sales pipeline
+
+  * `list_pipelines()`, `list_opportunities(pipeline_id?, contact_id?,
+    owner_id?, status?, query?)`, `list_crm_activities(...)` — read
+  * `create_opportunity(title, ...)`, `update_opportunity(opportunity_id,
+    stage_id?, ...)` (moving to a won/lost stage closes it) — write
+  * `create_crm_activity(title, kind?, due_at?, ...)`,
+    `update_crm_activity(activity_id, done?, ...)` — write
+
 ### Campaigns
 
   * `list_campaigns()`, `get_campaign_result(campaign_id)` — read

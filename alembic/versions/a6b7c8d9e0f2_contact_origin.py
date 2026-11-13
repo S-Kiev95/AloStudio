@@ -6,7 +6,7 @@ channel of their oldest conversation, or the ad/post/short link Meta
 reported on it.
 
 Revision ID: a6b7c8d9e0f2
-Revises: f5a6b7c8d9e1
+Revises: 1a2f8e3b4c5d
 Create Date: 2026-11-13 21:00:00.000000
 """
 
@@ -19,7 +19,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "a6b7c8d9e0f2"
-down_revision: str | None = "f5a6b7c8d9e1"
+down_revision: str | None = "1a2f8e3b4c5d"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

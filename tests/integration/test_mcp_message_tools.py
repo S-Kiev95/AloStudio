@@ -309,3 +309,33 @@ async def test_send_message_cross_account_404(mcp_session):
                 "send_message",
                 {"conversation_id": conv_b.id, "content": "x"},
             )
+
+
+# ---------------------------------------------------------------------------
+# search_messages (F8)
+# ---------------------------------------------------------------------------
+async def test_search_messages_finds_the_message_and_its_conversation(mcp_session):
+    _owner, token, conv = await _seed(mcp_session, suffix="-se")
+    for text in ("hola", "¿se puede pagar en tres cuotas?", "gracias"):
+        await create_message(
+            mcp_session,
+            conversation=conv,
+            params=MessageBuilderParams(content=text, message_type="incoming"),
+            user_id=None,
+        )
+    await mcp_session.commit()
+    os.environ["MCP_BEARER_TOKEN"] = token
+
+    async with Client(build_server()) as client:
+        body = _body(await client.call_tool("search_messages", {"query": "cuota"}))
+        [hit] = body["messages"]
+        assert hit["snippet"] == "¿se puede pagar en tres cuotas?"
+        assert body["has_more"] is False
+
+        # Inside one conversation, by the internal id the other tools use.
+        inside = _body(
+            await client.call_tool(
+                "search_messages", {"query": "cuota", "conversation_id": conv.id}
+            )
+        )
+        assert [m["snippet"] for m in inside["messages"]] == [hit["snippet"]]

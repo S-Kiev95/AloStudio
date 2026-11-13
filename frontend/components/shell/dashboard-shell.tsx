@@ -13,6 +13,7 @@ import {
 
 import { NeonWordmark } from "@/components/brand/neon-wordmark";
 import type { Profile } from "@/lib/auth/profile";
+import { useHasWhatsappInbox } from "@/lib/api/inboxes";
 import { saveLocaleIfMissing } from "@/lib/api/profile";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { useLocale, useSwitchLocale, useT } from "@/lib/i18n/provider";
@@ -140,6 +141,8 @@ export function DashboardShell({
 
   const signCtx = useMemo(() => ({ setSignTitle: setCustomSign }), []);
   const t = useT();
+  const hasWhatsapp = useHasWhatsappInbox(accountId);
+  const hiddenNavKeys = hasWhatsapp ? [] : ["whatsapp"];
   const signTitle = customSign ?? t(resolveDefaultSign(pathname, accountId));
   const homeHref = navHref(accountId, "");
   const toggleLabel = sidebarCollapsed
@@ -167,7 +170,11 @@ export function DashboardShell({
           >
             <Brand href={homeHref} collapsed={sidebarCollapsed} />
           </div>
-          <SidebarNav accountId={accountId} collapsed={sidebarCollapsed} />
+          <SidebarNav
+            accountId={accountId}
+            collapsed={sidebarCollapsed}
+            hiddenKeys={hiddenNavKeys}
+          />
           <div className="border-t border-glass px-[10px] pb-3 pt-2">
             <button
               type="button"
@@ -216,6 +223,7 @@ export function DashboardShell({
               </div>
               <SidebarNav
                 accountId={accountId}
+                hiddenKeys={hiddenNavKeys}
                 onNavigate={() => setMobileOpen(false)}
               />
             </aside>
