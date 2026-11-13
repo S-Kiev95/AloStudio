@@ -63,6 +63,7 @@ export const core: Strings<typeof es> = {
       sla_missed_next_response: "SLA : réponse suivante en retard",
       sla_missed_resolution: "SLA : résolution en retard",
       conversation_bot_handoff: "Le bot a transféré une conversation à l’équipe",
+      crm_activity_due: "Une tâche du CRM est échue",
     },
   },
   validation: {

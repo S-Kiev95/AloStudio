@@ -59,6 +59,7 @@ export const core = {
       sla_missed_next_response: "SLA: siguiente respuesta vencida",
       sla_missed_resolution: "SLA: resolución vencida",
       conversation_bot_handoff: "El bot derivó una conversación al equipo",
+      crm_activity_due: "Venció una tarea del CRM",
     },
   },
   validation: {

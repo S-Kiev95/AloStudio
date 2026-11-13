@@ -166,3 +166,98 @@ export function daysIdle(o: Opportunity, now: number = Date.now()): number {
   if (!since) return 0;
   return Math.floor((now / 1000 - since) / 86_400);
 }
+
+// ---------------------------------------------------------------------------
+// Activities and tasks
+// ---------------------------------------------------------------------------
+export type ActivityKind = "task" | "call" | "meeting" | "email";
+export type ActivityStatus = "pending" | "overdue" | "done";
+
+export type Activity = {
+  id: number;
+  kind: ActivityKind;
+  title: string;
+  description: string | null;
+  /** unix seconds */
+  due_at: number | null;
+  done_at: number | null;
+  owner_id: number | null;
+  contact_id: number | null;
+  opportunity_id: number | null;
+  created_at: number | null;
+  contact: { id: number; name: string | null; avatar_url: string | null } | null;
+  opportunity: { id: number; title: string } | null;
+  owner: { id: number; name: string } | null;
+};
+
+export type ActivityInput = {
+  kind?: ActivityKind;
+  title?: string;
+  description?: string | null;
+  /** ISO 8601 */
+  due_at?: string | null;
+  owner_id?: number | null;
+  contact_id?: number | null;
+  opportunity_id?: number | null;
+  done?: boolean;
+};
+
+export type ActivityFilters = {
+  owner_id?: number;
+  contact_id?: number;
+  opportunity_id?: number;
+  status?: ActivityStatus;
+};
+
+export function useActivities(accountId: string, filters: ActivityFilters = {}) {
+  return useQuery({
+    queryKey: ["crm-activities", accountId, filters],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      for (const [k, v] of Object.entries(filters)) {
+        if (v !== undefined) sp.set(k, String(v));
+      }
+      const qs = sp.toString();
+      return apiFetch<Activity[]>(`${base(accountId)}/activities${qs ? `?${qs}` : ""}`);
+    },
+  });
+}
+
+function invalidateActivities(qc: ReturnType<typeof useQueryClient>, accountId: string) {
+  qc.invalidateQueries({ queryKey: ["crm-activities", accountId] });
+}
+
+export function useCreateActivity(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ActivityInput) =>
+      apiFetch<Activity>(`${base(accountId)}/activities`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => invalidateActivities(qc, accountId),
+  });
+}
+
+export function useUpdateActivity(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; patch: ActivityInput }) =>
+      apiFetch<Activity>(`${base(accountId)}/activities/${input.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input.patch),
+      }),
+    onSuccess: () => invalidateActivities(qc, accountId),
+  });
+}
+
+export function useDeleteActivity(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Record<string, never>>(`${base(accountId)}/activities/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => invalidateActivities(qc, accountId),
+  });
+}

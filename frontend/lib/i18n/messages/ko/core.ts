@@ -61,6 +61,7 @@ export const core: Strings<typeof es> = {
       sla_missed_next_response: "SLA: 다음 응답 기한 초과",
       sla_missed_resolution: "SLA: 해결 기한 초과",
       conversation_bot_handoff: "봇이 대화를 팀에 넘겼습니다",
+      crm_activity_due: "CRM 작업의 기한이 되었습니다",
     },
   },
   validation: {

@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   NOTIFICATION_TYPE_LABELS,
+  notificationHref,
   type NotificationType,
   useDeleteNotification,
   useMarkAllNotificationsRead,
@@ -102,10 +103,7 @@ export function NotificationsPage({ accountId }: { accountId: string }) {
                   (n.notification_type in NOTIFICATION_TYPE_LABELS
                     ? t(`notifications.types.${n.notification_type as NotificationType}`)
                     : t("notifications.fallback"));
-                const href =
-                  n.primary_actor?.display_id != null
-                    ? `/accounts/${accountId}/conversations/${n.primary_actor.display_id}`
-                    : undefined;
+                const href = notificationHref(n, accountId);
                 return (
                   <li
                     key={n.id}
