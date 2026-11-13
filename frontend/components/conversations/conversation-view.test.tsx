@@ -294,3 +294,50 @@ describe("ConversationView — abierta desde una búsqueda (F8)", () => {
     }
   });
 });
+
+describe("ConversationView — buscar dentro del chat (F8)", () => {
+  it("busca sólo en esta conversación y abre el chat en el mensaje elegido", async () => {
+    mockReplace.mockClear();
+    let asked: URLSearchParams | null = null;
+    server.use(
+      http.get("*/api/v1/accounts/1/search/messages", ({ request }) => {
+        asked = new URL(request.url).searchParams;
+        return HttpResponse.json({
+          payload: [
+            {
+              message_id: 555,
+              conversation_id: 18,
+              created_at: 1_700_000_000,
+              message_type: "incoming",
+              private: false,
+              snippet: "¿puedo pagarlo en 3 veces?",
+              highlights: [],
+              match: "meaning",
+              contact: { id: 55, name: "Lucía Fernández" },
+              inbox: { id: 2, name: "WhatsApp" },
+            },
+          ],
+          meta: { page: 1, has_more: false },
+        });
+      }),
+    );
+    renderView();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Buscar en esta conversación" }),
+    );
+    fireEvent.change(screen.getByPlaceholderText("Buscar en este chat…"), {
+      target: { value: "financiación" },
+    });
+
+    const hit = await screen.findByText("¿puedo pagarlo en 3 veces?");
+    expect(asked?.get("conversation_id")).toBe("18");
+    expect(asked?.get("q")).toBe("financiación");
+    expect(screen.getByText("Relacionado")).toBeInTheDocument();
+
+    fireEvent.click(hit);
+    expect(mockReplace).toHaveBeenCalledWith(
+      "/accounts/1/conversations/18?message=555",
+    );
+  });
+});

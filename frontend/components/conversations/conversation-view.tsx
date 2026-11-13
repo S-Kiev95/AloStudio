@@ -7,10 +7,11 @@ import {
   ChevronUp,
   Megaphone,
   RotateCcw,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { AiHandoff, describeThreadControl } from "./ai-handoff";
+import { ChatSearch } from "./chat-search";
 import { ContactPanel } from "./contact-panel";
 import { ConversationActions } from "./conversation-actions";
 import { ConversationParticipants } from "./conversation-participants";
@@ -124,6 +126,13 @@ export function ConversationView({
   const pathname = usePathname();
   const aroundId = Number(searchParams.get("message")) || undefined;
   const messages = useMessages(accountId, displayId, aroundId);
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => setSearchOpen(false), [displayId]);
+  function openAt(messageId: number) {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set("message", String(messageId));
+    router.replace(`${pathname}?${sp}`);
+  }
   function jumpToLatest() {
     const sp = new URLSearchParams(searchParams.toString());
     sp.delete("message");
@@ -290,6 +299,16 @@ export function ConversationView({
           </Button>
           <button
             type="button"
+            onClick={() => setSearchOpen((open) => !open)}
+            aria-expanded={searchOpen}
+            aria-label={t("conversations.view.searchInChat")}
+            title={t("conversations.view.searchInChat")}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
+          >
+            <Search className="h-4 w-4" aria-hidden />
+          </button>
+          <button
+            type="button"
             onClick={toggleDetailsCollapsed}
             aria-expanded={!detailsCollapsed}
             aria-label={detailsToggleLabel}
@@ -345,6 +364,15 @@ export function ConversationView({
             </>
           ) : null}
         </div>
+
+        {searchOpen ? (
+          <ChatSearch
+            accountId={accountId}
+            displayId={displayId}
+            onPick={openAt}
+            onClose={() => setSearchOpen(false)}
+          />
+        ) : null}
 
         {aroundId ? (
           <div className="flex shrink-0 items-center gap-2 border-b border-glass bg-surface-2 px-4 py-1.5 text-xs text-fg-muted">
