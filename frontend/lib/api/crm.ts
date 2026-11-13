@@ -402,3 +402,63 @@ export function useSetContactOrigin(accountId: string, contactId: number) {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Meta catalogue: products → Commerce Manager (F11)
+// ---------------------------------------------------------------------------
+export type MetaCatalogSync = {
+  at: number;
+  /** False when Meta was still checking the batch after a few seconds. */
+  validated: boolean;
+  sent: number;
+  removed: number;
+  skipped: number;
+  failed: number;
+};
+
+export type MetaCatalog =
+  | { connected: false }
+  | {
+      connected: true;
+      catalog_id: string;
+      catalog_name: string | null;
+      last_sync: MetaCatalogSync | null;
+    };
+
+const catalogKey = (accountId: string) => ["meta-catalog", accountId] as const;
+
+export function useMetaCatalog(accountId: string) {
+  return useQuery({
+    queryKey: catalogKey(accountId),
+    queryFn: () => apiFetch<MetaCatalog>(`${base(accountId)}/meta-catalog`),
+  });
+}
+
+export function useMetaCatalogActions(accountId: string) {
+  const qc = useQueryClient();
+  const done = (data: MetaCatalog) => {
+    qc.setQueryData(catalogKey(accountId), data);
+    void qc.invalidateQueries({ queryKey: ["products", accountId] });
+  };
+  const connect = useMutation({
+    mutationFn: (input: { catalog_id: string; access_token?: string }) =>
+      apiFetch<MetaCatalog>(`${base(accountId)}/meta-catalog`, {
+        method: "PUT",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: done,
+  });
+  const disconnect = useMutation({
+    mutationFn: () => apiFetch<MetaCatalog>(`${base(accountId)}/meta-catalog`, { method: "DELETE" }),
+    onSuccess: done,
+  });
+  const sync = useMutation({
+    mutationFn: () =>
+      apiFetch<MetaCatalog & { result: Omit<MetaCatalogSync, "at" | "validated"> }>(
+        `${base(accountId)}/meta-catalog/sync`,
+        { method: "POST" },
+      ),
+    onSuccess: done,
+  });
+  return { connect, disconnect, sync };
+}

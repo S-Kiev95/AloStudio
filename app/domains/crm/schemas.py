@@ -81,3 +81,11 @@ __all__ = [
     "OpportunityBody",
     "PipelineBody",
 ]
+
+
+class MetaCatalogBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    catalog_id: str = Field(min_length=1, max_length=40)
+    # Left out to keep the stored one (changing only the catalogue).
+    access_token: str | None = Field(default=None, max_length=1000)

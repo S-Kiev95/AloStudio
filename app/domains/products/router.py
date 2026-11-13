@@ -21,6 +21,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
+from app.domains.crm import meta_catalog
 from app.domains.products import service as svc
 from app.domains.products.models import Product
 from app.domains.products.presenters import present_product
@@ -73,6 +74,7 @@ async def create_product_endpoint(
         account_id=ctx.account.id,
         payload=payload.model_dump(exclude_unset=True),
     )
+    await meta_catalog.product_changed(session, row)
     return present_product(row)
 
 
@@ -97,6 +99,7 @@ async def update_product_endpoint(
     updated = await svc.update_product(
         session, product=row, payload=payload.model_dump(exclude_unset=True)
     )
+    await meta_catalog.product_changed(session, updated)
     return present_product(updated)
 
 
@@ -107,6 +110,7 @@ async def delete_product_endpoint(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     row = await _find_product(session, ctx, product_id)
+    await meta_catalog.product_changed(session, row, deleted=True)
     await svc.delete_product(session, product=row)
     return {}
 
