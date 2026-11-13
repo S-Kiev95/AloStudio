@@ -108,7 +108,7 @@ anota en esta sección y lo decide el dueño.
 | F10 Jev y Laya | B | Sin empezar |
 | F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
-| F13 Multi-idioma | B | Hecha (2026-11-12), en develop: 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
+| F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 
