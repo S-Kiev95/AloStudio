@@ -47,6 +47,7 @@ from app.domains.conversations.router import (
     participants_router as conversations_participants_router,
 )
 from app.domains.conversations.router import router as conversations_router
+from app.domains.crm.router import router as crm_router
 from app.domains.csat.public_router import router as csat_public_router
 from app.domains.csat.router import router as csat_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
@@ -326,6 +327,8 @@ def create_app() -> FastAPI:
     # posts/stories link to products for AI/CRM context.
     app.include_router(products_router)
     app.include_router(appointments_router)
+    # Sales pipeline: pipelines, stages, opportunities (F11).
+    app.include_router(crm_router)
     # Multi-network publishing: one publication, many channels, each
     # published by its network adapter.
     app.include_router(publishing_router)
