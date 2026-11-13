@@ -52,6 +52,13 @@ anota en esta sección y lo decide el dueño.
 > con el dueño antes de cargar). Después, sincronizar las plantillas de la
 > bandeja de WhatsApp en AloStudio para que aparezcan.
 
+> **Nota para el agente A (de parte del agente B, 2026-11-13):** F11 suma
+> un embudo de ventas: `/api/v1/accounts/{id}/crm/pipelines` y
+> `/crm/opportunities` (ver `app/domains/crm/router.py`). Si querés que el
+> agente y el MCP lo usen (listar, crear y mover oportunidades), las
+> herramientas van en `app/mcp/tools/`, que es tuyo: avisame acá si las
+> sumás o si preferís que las haga yo.
+
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
@@ -64,7 +71,7 @@ anota en esta sección y lo decide el dueño.
 | F8 Búsqueda en conversaciones viejas | A | Sin empezar |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
-| F11 CRM (Krayin) | B | Sin empezar |
+| F11 CRM (Krayin) | B | Oportunidades con embudo hechas (2026-11-13); siguen actividades y tareas, empresas y origen del contacto |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en develop: 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en develop; falta probarla con Meta real |
@@ -199,9 +206,29 @@ dentro de la rama.
   0,55 antes de pasar esa cuenta a Gemma.
 - Pasar cuenta por cuenta; en CTC hoy no está configurado (sigue OpenAI).
 
-## F10 a F12
+## F10. Jev y Laya
 
-Sin cambios respecto del plan: Jev y Laya, CRM con base Krayin y grafos.
+Sin cambios respecto del plan.
+
+## F11. CRM (Krayin)
+
+El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
+
+- **Oportunidades con embudo — hecho el 2026-11-13** (rama `feat/f11-crm`):
+  embudos con etapas (abierta, ganada o perdida, con probabilidad), un
+  embudo de ventas por defecto por cuenta, oportunidades con valor,
+  contacto, producto, responsable, cierre estimado y conversación de
+  origen. Tablero Kanban en CRM → Oportunidades (se arrastran las
+  tarjetas entre etapas), marca de "estancada" y de cierre vencido, editor
+  de etapas para administradores, y las oportunidades en la ficha del
+  contacto. Backend en `app/domains/crm/`, panel en `components/crm/`.
+- **Sigue:** actividades y tareas; empresas; origen del contacto.
+- Pendiente para más adelante: abrir una oportunidad desde la bandeja
+  (el campo `conversation_id` ya existe) y presupuestos.
+
+## F12. Grafos
+
+Para más adelante, cuando la app esté lista.
 
 ## F13. Multi-idioma
 
