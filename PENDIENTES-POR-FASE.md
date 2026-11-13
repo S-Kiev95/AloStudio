@@ -224,6 +224,11 @@ dentro de la rama.
   avisos cuando Meta baja la calidad del número (webhooks
   `phone_number_quality_update` y `account_update`, hay que suscribirlos);
   ritmo de envío según el límite diario en envíos grandes.
+- Ideas del dueño para envíos masivos (2026-11-13, para otro día):
+  variables que tomen atributos de entidades (ej. `{{1}}` el nombre del
+  contacto y `{{2}}` la fecha de su turno en la Agenda, o datos del CRM) y
+  un filtro de público más fino (combinar etiquetas, atributos del
+  contacto, etapa del embudo, última actividad, etc.).
 
 ## F6. Gastos por uso
 
