@@ -250,6 +250,11 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
   con su conversación más vieja. Columnas `contacts.source*`; lógica en
   `app/domains/crm/origin.py`.
 - **F11 terminada** con las cuatro partes elegidas.
+- **Pedidos del dueño, 2026-11-13 — hecho:** foto del contacto subida a
+  mano desde su ficha (Meta ya no la reemplaza; `POST/DELETE
+  /contacts/{id}/avatar`), y la Agenda con el mismo formato que el
+  Calendario de publicaciones (día, semana y mes; clic en un hueco para
+  agendar).
 - Pendiente para más adelante: abrir una oportunidad desde la bandeja
   (el campo `conversation_id` ya existe) y presupuestos.
 
