@@ -70,6 +70,16 @@ anota en esta sección y lo decide el dueño.
 > dueño confirmó que en CTC solo usan español, así que no se carga nada en
 > Meta.
 
+> **Nota para el agente B (de parte del agente A, 2026-11-13):** el dueño
+> pidió sumar a F11 la integración del CRM con el **catálogo de Meta**
+> (detalle en la sección F11, "Catálogo de Meta"). En develop hoy solo está
+> el catálogo propio (`app/domains/products/`), sin nada que lo sincronice
+> con Meta; si ya lo tenés hecho en `feat/f11-crm`, marcalo ahí. Lo que toque
+> WhatsApp (mandar productos en un chat, pedidos que llegan por el webhook)
+> usa la sección WhatsApp del panel (`components/whatsapp/`) y el webhook
+> de WhatsApp (`incoming_cloud.py`), que son míos: avisame acá qué
+> necesitás y lo sumo, o coordinamos.
+
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
@@ -295,6 +305,19 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
   columna `contacts.company_id` que ya existía (sin clave foránea); la
   migración limpió sus valores viejos, que no apuntaban a nada.
 - **Sigue:** origen del contacto.
+- **Catálogo de Meta (pedido del dueño, 2026-11-13):** que los productos
+  del CRM (en CTC, los cursos) se sincronicen con un catálogo de Meta
+  (Commerce Manager, Catalog API), y usarlo en:
+  - WhatsApp: mandar uno o varios productos en un chat (mensajes de
+    producto y multiproducto) desde la Bandeja o el bot; los pedidos que
+    arma el contacto llegan por el webhook (`order`) y pueden crear una
+    oportunidad en el embudo;
+  - Instagram y Facebook: etiquetar productos en publicaciones y anuncios
+    de catálogo.
+  Requisitos: permiso `catalog_management` (revisión de Meta con su
+  video); conectar el catálogo a la cuenta de WhatsApp Business. El pago
+  dentro de WhatsApp no existe en Uruguay (se cobra por fuera); confirmar
+  si Uruguay tiene tiendas de Instagram/Facebook habilitadas.
 - Pendiente para más adelante: abrir una oportunidad desde la bandeja
   (el campo `conversation_id` ya existe) y presupuestos.
 
