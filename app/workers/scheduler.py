@@ -371,6 +371,7 @@ class WorkerSettings:
         from app.workers.instagram_autoreply import (
             send_comment_autoreply_task,
         )
+        from app.workers.meta_catalog import sync_meta_catalog_task
         from app.workers.publishing import (
             JOB_TIMEOUT_SECONDS as PUBLICATION_JOB_TIMEOUT_SECONDS,
         )
@@ -415,6 +416,9 @@ class WorkerSettings:
             # contact writes; the daily refresh below is a cron.
             refresh_contact_avatar_task,
             refresh_stale_avatars_task,
+            # Enqueued a few seconds after a product changes, for accounts
+            # linked to a Meta catalogue (F11).
+            sync_meta_catalog_task,
         ]
 
     # ARQ reads these off the class, so they're class-level by contract, not
