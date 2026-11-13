@@ -78,7 +78,7 @@ def _product(account_id: int, name: str, **extra) -> Product:
 async def test_connecting_checks_the_catalogue_and_keeps_the_token(client, seeded):
     _, headers, base = seeded
     respx.route(host="test").pass_through()
-    respx.get(url__regex=GRAPH + r"123456$").mock(
+    respx.get(url__regex=GRAPH + r"123456(\?|$)").mock(
         return_value=httpx.Response(200, json={"id": "123456", "name": "Cursos CTC"})
     )
     res = await client.put(
@@ -93,7 +93,7 @@ async def test_connecting_checks_the_catalogue_and_keeps_the_token(client, seede
     }
     assert "EAAsecret" not in res.text
 
-    respx.get(url__regex=GRAPH + r"999$").mock(
+    respx.get(url__regex=GRAPH + r"999(\?|$)").mock(
         return_value=httpx.Response(
             400, json={"error": {"code": 190, "message": "Invalid OAuth access token"}}
         )
@@ -111,7 +111,7 @@ async def test_sync_sends_complete_products_and_says_what_is_missing(
 ):
     account, headers, base = seeded
     respx.route(host="test").pass_through()
-    respx.get(url__regex=GRAPH + r"123456$").mock(
+    respx.get(url__regex=GRAPH + r"123456(\?|$)").mock(
         return_value=httpx.Response(200, json={"id": "123456", "name": "Cursos CTC"})
     )
     await client.put(base, json={"catalog_id": "123456", "access_token": "EAA"}, headers=headers)
@@ -123,7 +123,7 @@ async def test_sync_sends_complete_products_and_says_what_is_missing(
     db_session.add_all([ready, refused, no_image, retired])
     await db_session.flush()
 
-    batch = respx.post(url__regex=GRAPH + r"123456/items_batch$").mock(
+    batch = respx.post(url__regex=GRAPH + r"123456/items_batch(\?|$)").mock(
         return_value=httpx.Response(200, json={"handles": ["h1"]})
     )
     respx.get(url__regex=GRAPH + r"123456/check_batch_request_status").mock(
@@ -172,7 +172,7 @@ async def test_sync_sends_complete_products_and_says_what_is_missing(
 async def test_a_deleted_product_is_removed_on_the_next_sync(client, db_session, seeded):
     account, headers, base = seeded
     respx.route(host="test").pass_through()
-    respx.get(url__regex=GRAPH + r"123456$").mock(
+    respx.get(url__regex=GRAPH + r"123456(\?|$)").mock(
         return_value=httpx.Response(200, json={"id": "123456", "name": "Cursos CTC"})
     )
     await client.put(base, json={"catalog_id": "123456", "access_token": "EAA"}, headers=headers)
@@ -187,7 +187,7 @@ async def test_a_deleted_product_is_removed_on_the_next_sync(client, db_session,
     hook = await meta_catalog.get_link(db_session, account.id)
     assert hook is not None and hook.settings["pending_removals"] == ["BYE-1"]
 
-    batch = respx.post(url__regex=GRAPH + r"123456/items_batch$").mock(
+    batch = respx.post(url__regex=GRAPH + r"123456/items_batch(\?|$)").mock(
         return_value=httpx.Response(200, json={"handles": []})
     )
     await client.post(f"{base}/sync", headers=headers)
