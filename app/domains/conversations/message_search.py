@@ -26,6 +26,7 @@ kind of thing an agent wants to find again.
 
 from __future__ import annotations
 
+import logging
 import unicodedata
 from datetime import datetime
 from typing import Any
@@ -34,7 +35,15 @@ from sqlalchemy import Float, cast, func, literal, literal_column, or_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.embeddings import (
+    MODEL_GEMMA,
+    TASK_QUERY,
+    EmbeddingServiceError,
+    embed_gemma_one,
+    gemma_enabled,
+)
 from app.domains.contacts.models import Contact
+from app.domains.conversations.message_embeddings import MessageEmbedding
 from app.domains.conversations.models import (
     MESSAGE_TYPE_INCOMING,
     MESSAGE_TYPE_OUTGOING,
@@ -45,6 +54,8 @@ from app.domains.conversations.models import (
 from app.domains.conversations.permission import apply_permission_scope
 from app.domains.inboxes.models import Inbox
 
+log = logging.getLogger(__name__)
+
 PER_PAGE = 20
 MAX_QUERY = 200
 TYPO_MIN_LENGTH = 4
@@ -54,6 +65,16 @@ TYPO_MIN_LENGTH = 4
 # this query only, inside its transaction.
 TYPO_THRESHOLD = "0.5"
 SNIPPET_BEFORE = 60
+# Candidates taken from each side before fusing. Pages are cut from the
+# fused list, so deep pages end where the candidates do — enough to find a
+# conversation, which is what this is for.
+CANDIDATES = 100
+# Meaning (F8, step 2). Cosine distance with EmbeddingGemma, measured on
+# Spanish customer messages: what answers the query sits at 0.15-0.28.
+MEANING_MAX_DISTANCE = 0.25
+MEANING_MIN_LENGTH = 4
+MEANING_WEIGHT = 0.8
+RRF_K = 60
 SNIPPET_LENGTH = 220
 
 _SPANISH = literal_column("'spanish'::regconfig")
@@ -80,24 +101,172 @@ async def search_messages(
     per_page: int = PER_PAGE,
 ) -> dict[str, Any]:
     q = q.strip()[:MAX_QUERY]
+    page = max(page, 1)
     if not q:
         return {"payload": [], "meta": {"page": page, "has_more": False}}
 
+    async def scoped(*columns: Any) -> Any:
+        stmt = (
+            select(*columns)
+            .join(Conversation, Conversation.id == Message.conversation_id)
+            .where(
+                Message.account_id == account_id,
+                Conversation.account_id == account_id,
+                Message.message_type.in_(  # type: ignore[attr-defined]
+                    [MESSAGE_TYPE_INCOMING, MESSAGE_TYPE_OUTGOING]
+                ),
+                Message.content.is_not(None),  # type: ignore[union-attr]
+            )
+        )
+        if conversation_display_id is not None:
+            stmt = stmt.where(Conversation.display_id == conversation_display_id)
+        if current_user_id is not None:
+            # ``None`` is the MCP case: a token acts for the account, the
+            # same way ``list_messages`` reads any conversation in it.
+            stmt = await apply_permission_scope(
+                stmt,
+                session=session,
+                account_id=account_id,
+                current_user_id=current_user_id,
+            )
+        return stmt
+
+    text_ids = await _text_candidates(session, await scoped(Message.id), q)
+    meaning_ids = await _meaning_candidates(
+        session, await scoped(Message.id), q, account_id
+    )
+    fused = fuse(text_ids, meaning_ids)
+
+    offset = (page - 1) * per_page
+    window = fused[offset : offset + per_page]
+    has_more = len(fused) > offset + per_page
+    rows = await _details(session, [message_id for message_id, _ in window])
+    terms = _terms(q)
+
+    payload = []
+    for message_id, match in window:
+        row = rows.get(message_id)
+        if row is None:
+            continue
+        text, created_at, message_type, private, display_id, contact, inbox = row
+        snippet, highlights = make_snippet(text or "", terms)
+        payload.append(
+            {
+                "message_id": message_id,
+                "conversation_id": display_id,
+                "created_at": _unix(created_at),
+                "message_type": message_type_to_str(message_type),
+                "private": bool(private),
+                "snippet": snippet,
+                "highlights": highlights,
+                # "text": the words are there. "meaning": found by what it is
+                # about, with no word in common — the UI calls it related.
+                # "both": the two agree, which puts it first.
+                "match": match,
+                "contact": contact,
+                "inbox": inbox,
+            }
+        )
+    return {"payload": payload, "meta": {"page": page, "has_more": has_more}}
+
+
+async def _text_candidates(session: AsyncSession, stmt: Any, q: str) -> list[int]:
     content = _norm_sql(Message.content)
     q_norm = _norm_sql(literal(q))
     tsvector = func.to_tsvector(_SPANISH, content)
     tsquery = func.websearch_to_tsquery(_SPANISH, q_norm)
-
     matches = [
         tsvector.op("@@")(tsquery),
         content.like(func.concat("%", _norm_sql(literal(_escape_like(q))), "%")),
     ]
     if len(q) >= TYPO_MIN_LENGTH:
         matches.append(content.op("%>")(q_norm))
+        await session.exec(
+            select(
+                func.set_config(
+                    "pg_trgm.word_similarity_threshold", TYPO_THRESHOLD, True
+                )
+            )
+        )
+    stmt = (
+        stmt.where(or_(*matches))
+        .order_by(
+            func.ts_rank(tsvector, tsquery).desc(),
+            cast(func.word_similarity(q_norm, content), Float).desc(),
+            Message.created_at.desc(),  # type: ignore[attr-defined]
+        )
+        .limit(CANDIDATES)
+    )
+    return list((await session.exec(stmt)).all())
 
-    rank = func.ts_rank(tsvector, tsquery)
-    similarity = cast(func.word_similarity(q_norm, content), Float)
 
+async def _meaning_candidates(
+    session: AsyncSession, stmt: Any, q: str, account_id: int
+) -> list[int]:
+    """Messages about the same thing, nearest first — or nothing.
+
+    Nothing when the local model is not configured, when the query is too
+    short to carry a topic, or when the service does not answer: the text
+    results stand on their own, and a search must never fail because the
+    embedding service is restarting.
+    """
+    if len(q) < MEANING_MIN_LENGTH or not gemma_enabled():
+        return []
+    try:
+        vector = await embed_gemma_one(q, task=TASK_QUERY)
+    except EmbeddingServiceError as exc:
+        log.warning("search.meaning.unavailable err=%s", exc)
+        return []
+    distance = MessageEmbedding.embedding.cosine_distance(vector)  # type: ignore[attr-defined]
+    # HNSW looks at ``ef_search`` neighbours and *then* applies the WHERE.
+    # With the account, inbox and permission filters on top, the default 40
+    # would routinely come back with a handful; the iterative scan keeps
+    # walking the graph until the filtered LIMIT is met (pgvector 0.8).
+    for name, value in (
+        ("hnsw.ef_search", "200"),
+        ("hnsw.iterative_scan", "relaxed_order"),
+    ):
+        await session.exec(select(func.set_config(name, value, True)))
+    stmt = (
+        stmt.join(MessageEmbedding, MessageEmbedding.message_id == Message.id)
+        .where(
+            MessageEmbedding.account_id == account_id,
+            MessageEmbedding.model == MODEL_GEMMA,
+            distance <= MEANING_MAX_DISTANCE,
+        )
+        .order_by(distance)
+        .limit(CANDIDATES)
+    )
+    return list((await session.exec(stmt)).all())
+
+
+def fuse(text_ids: list[int], meaning_ids: list[int]) -> list[tuple[int, str]]:
+    """Reciprocal rank fusion of the two lists, text weighted above meaning.
+
+    Distance alone could not separate a related message from a neighbouring
+    topic (measured: relevant 0.15-0.28, noise from 0.22), so meaning never
+    ranks on its own score: it adds to the text rank, and a message both
+    lists agree on rises to the top. Text weighs more because a message
+    that has the words is the surer answer.
+    """
+    scores: dict[int, float] = {}
+    found: dict[int, set[str]] = {}
+    lists = ((1.0, "text", text_ids), (MEANING_WEIGHT, "meaning", meaning_ids))
+    for weight, kind, ids in lists:
+        for rank, message_id in enumerate(ids):
+            scores[message_id] = scores.get(message_id, 0.0) + weight / (
+                RRF_K + rank + 1
+            )
+            found.setdefault(message_id, set()).add(kind)
+    ordered = sorted(scores, key=lambda m: scores[m], reverse=True)
+    return [
+        (m, "both" if len(found[m]) == 2 else next(iter(found[m]))) for m in ordered
+    ]
+
+
+async def _details(session: AsyncSession, ids: list[int]) -> dict[int, tuple]:
+    if not ids:
+        return {}
     stmt = (
         select(
             Message.id,
@@ -114,78 +283,21 @@ async def search_messages(
         .join(Conversation, Conversation.id == Message.conversation_id)
         .join(Inbox, Inbox.id == Conversation.inbox_id)
         .outerjoin(Contact, Contact.id == Conversation.contact_id)
-        .where(
-            Message.account_id == account_id,
-            Conversation.account_id == account_id,
-            Message.message_type.in_(  # type: ignore[attr-defined]
-                [MESSAGE_TYPE_INCOMING, MESSAGE_TYPE_OUTGOING]
-            ),
-            Message.content.is_not(None),  # type: ignore[union-attr]
-            or_(*matches),
-        )
+        .where(Message.id.in_(ids))  # type: ignore[union-attr]
     )
-    if conversation_display_id is not None:
-        stmt = stmt.where(Conversation.display_id == conversation_display_id)
-    if current_user_id is not None:
-        # ``None`` is the MCP case: a token acts for the account, the same
-        # way ``list_messages`` reads any conversation in it.
-        stmt = await apply_permission_scope(
-            stmt,
-            session=session,
-            account_id=account_id,
-            current_user_id=current_user_id,
+    out: dict[int, tuple] = {}
+    for row in (await session.exec(stmt)).all():
+        mid, text, created, mtype, private, display_id, cid, cname, iid, iname = row
+        out[mid] = (
+            text,
+            created,
+            mtype,
+            private,
+            display_id,
+            {"id": cid, "name": cname},
+            {"id": iid, "name": iname},
         )
-    stmt = (
-        stmt.order_by(
-            rank.desc(),
-            similarity.desc(),
-            Message.created_at.desc(),  # type: ignore[attr-defined]
-        )
-        .offset((max(page, 1) - 1) * per_page)
-        .limit(per_page + 1)
-    )
-
-    if len(q) >= TYPO_MIN_LENGTH:
-        await session.exec(
-            select(
-                func.set_config(
-                    "pg_trgm.word_similarity_threshold", TYPO_THRESHOLD, True
-                )
-            )
-        )
-    rows = list((await session.exec(stmt)).all())
-    has_more = len(rows) > per_page
-    rows = rows[:per_page]
-    terms = _terms(q)
-
-    payload = []
-    for (
-        message_id,
-        text,
-        created_at,
-        message_type,
-        private,
-        display_id,
-        contact_id,
-        contact_name,
-        inbox_id,
-        inbox_name,
-    ) in rows:
-        snippet, highlights = make_snippet(text or "", terms)
-        payload.append(
-            {
-                "message_id": message_id,
-                "conversation_id": display_id,
-                "created_at": _unix(created_at),
-                "message_type": message_type_to_str(message_type),
-                "private": bool(private),
-                "snippet": snippet,
-                "highlights": highlights,
-                "contact": {"id": contact_id, "name": contact_name},
-                "inbox": {"id": inbox_id, "name": inbox_name},
-            }
-        )
-    return {"payload": payload, "meta": {"page": page, "has_more": has_more}}
+    return out
 
 
 # ---------------------------------------------------------------------------

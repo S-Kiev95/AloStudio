@@ -68,7 +68,7 @@ anota en esta sección y lo decide el dueño.
 | F5 Plantillas de WhatsApp | A | Sin empezar |
 | F6 Gastos por uso | A | Sin empezar |
 | F7 Llamadas y voz | B | Sin empezar |
-| F8 Búsqueda en conversaciones viejas | A | Paso 1 hecho (2026-11-13), en develop: por mensaje, sin IA; falta la semántica (con F9) |
+| F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado; faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
 | F11 CRM (Krayin) | B | Oportunidades, tareas y empresas hechas (2026-11-13); sigue el origen del contacto |
@@ -208,14 +208,32 @@ dentro de la rama.
   centra en él, marcado, con "Ir a lo último".
 - Herramienta MCP `search_messages`.
 
+**Hecho (paso 2, semántica, 2026-11-13):**
+
+- Tabla `message_embeddings` (migración `1a2f8e3b4c5d`, índice HNSW): un
+  vector de EmbeddingGemma por mensaje de 12 caracteres o más. Lo escribe
+  el cron `embed_messages_task` cada 3 minutos, por lotes, del más nuevo al
+  más viejo: es a la vez el backfill. No hace nada si el servicio local no
+  está configurado. Nunca OpenAI: sería un costo por mensaje sin medir (F6).
+- La búsqueda junta texto y significado (fusión por rango, el texto pesa
+  más). Umbral 0,25, medido con el modelo real: lo pertinente cae entre 0,15
+  y 0,28 y el ruido de temas vecinos empieza en 0,22, así que el significado
+  nunca decide solo. Los resultados sólo por significado salen marcados
+  "Relacionado". Si el servicio no responde, queda la búsqueda por texto.
+- Arreglado el hallazgo del paso 1: abrir una conversación por número
+  ahora aplica `ConversationPolicy#show?` (admin, miembro de la bandeja o del
+  equipo) en todos los endpoints de una conversación; las acciones masivas
+  saltean las que el agente no puede ver.
+
 **Falta:**
 
-- Semántica (con F9): "lo que hablamos del pago en cuotas" sin esas
-  palabras. Vectores por mensaje o por bloques, combinados con esto.
-- Visto de paso, sin tocar: `GET /conversations/{id}/messages` no chequea
-  que un agente pertenezca a la bandeja de esa conversación — cualquier
-  miembro de la cuenta lee cualquier conversación por su número. La
-  búsqueda sí filtra; el endpoint de mensajes no.
+- Buscador dentro del chat abierto (el backend ya lo resuelve con
+  `conversation_id`; falta la pantalla).
+- Audios e imágenes. El servicio carga EmbeddingGemma 2 *sólo texto* (~2 GB);
+  el modelo completo con imagen y audio pide ~4,4 GB. Medir en staging con
+  notas de voz e imágenes antes de decidir: imágenes con Gemma; audios con
+  Gemma, con transcripción o con las dos (un vector dice de qué trata un
+  audio, no qué se dijo).
 
 ## F9. EmbeddingGemma 2
 

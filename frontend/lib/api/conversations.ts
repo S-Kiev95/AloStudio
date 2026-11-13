@@ -281,6 +281,9 @@ export type MessageSearchHit = {
   snippet: string;
   /** `[start, end)` offsets into `snippet`, in its own characters. */
   highlights: [number, number][];
+  /** How it was found: the words are there (`text`), it is about the same
+   *  thing without sharing them (`meaning`), or both — which ranks first. */
+  match: "text" | "meaning" | "both";
   contact: { id: number | null; name: string | null };
   inbox: { id: number; name: string };
 };

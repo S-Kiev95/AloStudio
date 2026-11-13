@@ -68,6 +68,7 @@ from app.domains.conversations.participants import (
     remove_participants,
     set_participants,
 )
+from app.domains.conversations.permission import can_view_conversation
 from app.domains.conversations.presenters import (
     present_conversation_create,
     present_conversation_show,
@@ -151,7 +152,7 @@ def _parse_iso(value: str | None, *, field: str) -> datetime | None:
 async def _load_conversation_by_display_id(
     session: AsyncSession,
     *,
-    account_id: int,
+    ctx: AccountContext,
     display_id: int,
     options: tuple[Any, ...] = (),
 ) -> Conversation:
@@ -162,7 +163,15 @@ async def _load_conversation_by_display_id(
     default load pulls the conversation's whole graph — fine for an
     endpoint that presents all of it, expensive for one that needs two
     fields. Passing nothing keeps the previous behaviour exactly.
+
+    Takes the whole context, not an account id, so no caller can load a
+    conversation without the viewer being checked against it — the
+    ``authorize @conversation, :show?`` every Chatwoot conversation
+    controller runs. A conversation the caller cannot see answers like an
+    admin-only panel does: 401 with ``code: not_authorized``, which the
+    browser shows as a denial instead of signing the agent out.
     """
+    account_id = ctx.account.id
     stmt = select(Conversation).where(
         Conversation.account_id == account_id,
         Conversation.display_id == display_id,
@@ -174,6 +183,19 @@ async def _load_conversation_by_display_id(
         raise ChatwootHTTPException(
             status_code=404,
             detail={"error": "Resource could not be found"},
+        )
+    if not await can_view_conversation(
+        session,
+        account_id=account_id,  # type: ignore[arg-type]
+        user_id=ctx.user.id,  # type: ignore[arg-type]
+        conversation=conv,
+    ):
+        raise ChatwootHTTPException(
+            status_code=401,
+            detail={
+                "error": "You are not authorized to do this action",
+                "code": "not_authorized",
+            },
         )
     return conv
 
@@ -584,7 +606,7 @@ async def show_conversation(
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     return present_conversation_show(conv)
 
@@ -604,7 +626,7 @@ async def update_conversation(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     if payload.priority is not None:
         await toggle_priority(session, conversation=conv, priority=payload.priority)
@@ -626,7 +648,7 @@ async def toggle_status_endpoint(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     snoozed_until = _parse_iso(payload.snoozed_until, field="snoozed_until")
     await toggle_status(
@@ -648,7 +670,7 @@ async def toggle_priority_endpoint(
     """``POST /conversations/:id/toggle_priority`` — Rails returns ``head :ok``."""
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     await toggle_priority(session, conversation=conv, priority=payload.priority)
     return Response(status_code=status.HTTP_200_OK)
@@ -670,7 +692,7 @@ async def mute_conversation(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     await mute_conversation_with_activity(session, conversation=conv)
     return Response(status_code=status.HTTP_200_OK)
@@ -685,7 +707,7 @@ async def unmute_conversation(
     """``POST /conversations/:id/unmute`` — Rails returns ``head :ok``."""
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     await unmute_conversation_with_activity(session, conversation=conv)
     return Response(status_code=status.HTTP_200_OK)
@@ -703,7 +725,7 @@ async def set_custom_attributes(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     await update_custom_attributes(
         session,
@@ -731,7 +753,7 @@ async def thread_control(
 
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     if payload.action == "take":
         await take_over(session, conversation=conv, user_name=ctx.user.name)
@@ -762,7 +784,7 @@ async def create_assignment(
 
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
 
     if "assignee_id" in payload:
@@ -836,7 +858,7 @@ async def toggle_typing_status(
 
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     typing_status = payload.get("typing_status")
     is_private = bool(payload.get("is_private", False))
@@ -882,7 +904,7 @@ async def list_attachments(
 
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
 
     count_stmt = (
@@ -969,7 +991,7 @@ async def list_labels(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     return {"payload": _parse_label_csv(conv.cached_label_list)}
 
@@ -989,7 +1011,7 @@ async def set_labels(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     raw = payload.get("labels") or []
     if not isinstance(raw, list):
@@ -1019,7 +1041,7 @@ async def update_last_seen_endpoint(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     now = datetime.now(tz=None)
     conv.agent_last_seen_at = now
@@ -1046,7 +1068,7 @@ async def mark_unread(
 
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=display_id
+        session, ctx=ctx, display_id=display_id
     )
     stmt = (
         select(Message)
@@ -1101,7 +1123,7 @@ async def index_messages(
     # most of them before a single message was read.
     conv = await _load_conversation_by_display_id(
         session,
-        account_id=ctx.account.id,
+        ctx=ctx,
         display_id=conversation_id,
         options=(
             lazyload("*"),
@@ -1199,7 +1221,7 @@ async def create_message_endpoint(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=conversation_id
+        session, ctx=ctx, display_id=conversation_id
     )
     msg_params = MessageBuilderParams(
         content=payload.content,
@@ -1254,7 +1276,7 @@ async def destroy_message(
 
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=conversation_id
+        session, ctx=ctx, display_id=conversation_id
     )
     stmt = select(Message).where(
         Message.id == message_id, Message.conversation_id == conv.id
@@ -1305,7 +1327,7 @@ async def update_message(
 
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=conversation_id
+        session, ctx=ctx, display_id=conversation_id
     )
     if conv.inbox is None or conv.inbox.channel_type != CHANNEL_TYPE_API:
         raise ChatwootHTTPException(
@@ -1402,7 +1424,7 @@ async def show_participants(
     """``GET .../participants`` — the conversation's watcher list."""
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=conversation_id
+        session, ctx=ctx, display_id=conversation_id
     )
     assert conv.id is not None
     return await _participants_payload(
@@ -1420,7 +1442,7 @@ async def create_participants(
     """``POST .../participants`` — add ``user_ids``; renders the full list."""
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=conversation_id
+        session, ctx=ctx, display_id=conversation_id
     )
     assert conv.id is not None
     await add_participants(
@@ -1441,7 +1463,7 @@ async def update_participants(
     """``PATCH .../participants`` — reconcile the set to exactly ``user_ids``."""
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=conversation_id
+        session, ctx=ctx, display_id=conversation_id
     )
     assert conv.id is not None
     await set_participants(
@@ -1462,7 +1484,7 @@ async def destroy_participants(
     """``DELETE .../participants`` — remove ``user_ids`` → Rails ``head :ok``."""
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, account_id=ctx.account.id, display_id=conversation_id
+        session, ctx=ctx, display_id=conversation_id
     )
     assert conv.id is not None
     await remove_participants(
