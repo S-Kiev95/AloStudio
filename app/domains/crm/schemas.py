@@ -33,7 +33,6 @@ class OpportunityBody(BaseModel):
     position: float | None = None
 
 
-__all__ = ["ActivityBody", "OpportunityBody", "PipelineBody"]
 
 
 class ActivityBody(BaseModel):
@@ -47,3 +46,30 @@ class ActivityBody(BaseModel):
     contact_id: int | None = None
     opportunity_id: int | None = None
     done: bool | None = None
+
+
+class CompanyBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    name: str | None = None
+    website: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    tax_id: str | None = Field(default=None, max_length=64)
+    notes: str | None = None
+
+
+class CompanyContactBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    contact_id: int
+
+
+__all__ = [
+    "ActivityBody",
+    "CompanyBody",
+    "CompanyContactBody",
+    "OpportunityBody",
+    "PipelineBody",
+]

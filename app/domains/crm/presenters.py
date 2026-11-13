@@ -11,7 +11,13 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.contacts.models import Contact
-from app.domains.crm.models import CrmActivity, CrmOpportunity, CrmPipeline, CrmStage
+from app.domains.crm.models import (
+    CrmActivity,
+    CrmCompany,
+    CrmOpportunity,
+    CrmPipeline,
+    CrmStage,
+)
 from app.domains.products.models import Product
 from app.domains.users.models import User
 
@@ -106,7 +112,6 @@ async def present_opportunities(
     return out
 
 
-__all__ = ["present_activities", "present_opportunities", "present_pipeline", "present_stage"]
 
 
 async def present_activities(
@@ -149,3 +154,38 @@ async def present_activities(
             }
         )
     return out
+
+
+def present_company(company: CrmCompany, contacts_count: int = 0) -> dict[str, Any]:
+    return {
+        "id": company.id,
+        "name": company.name,
+        "website": company.website,
+        "email": company.email,
+        "phone": company.phone,
+        "address": company.address,
+        "tax_id": company.tax_id,
+        "notes": company.notes,
+        "contacts_count": contacts_count,
+        "created_at": _ts(company.created_at),
+    }
+
+
+def present_company_contact(contact: Contact) -> dict[str, Any]:
+    return {
+        "id": contact.id,
+        "name": contact.name,
+        "email": contact.email,
+        "phone_number": contact.phone_number,
+        "avatar_url": contact.avatar_url,
+    }
+
+
+__all__ = [
+    "present_activities",
+    "present_company",
+    "present_company_contact",
+    "present_opportunities",
+    "present_pipeline",
+    "present_stage",
+]

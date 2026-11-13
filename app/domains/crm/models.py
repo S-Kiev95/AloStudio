@@ -242,6 +242,32 @@ class CrmActivity(TimestampMixin, table=True):
     )
 
 
+class CrmCompany(TimestampMixin, table=True):
+    """An organization the account sells to; its people are contacts whose
+    ``contacts.company_id`` points here (Krayin's ``organizations``). That
+    column predates this table and carries no foreign key, so deleting a
+    company clears it by hand (``companies.delete_company``)."""
+
+    __tablename__ = "crm_companies"
+    __table_args__ = (Index("index_crm_companies_on_account_id", "account_id"),)
+
+    id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+        )
+    )
+    name: str = Field(sa_column=Column(String, nullable=False))
+    website: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    email: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    phone: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    address: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    tax_id: str | None = Field(default=None, sa_column=Column(String(64), nullable=True))
+    notes: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+
+
 __all__ = [
     "ACTIVITY_KINDS",
     "STAGE_KINDS",
@@ -249,6 +275,7 @@ __all__ = [
     "STAGE_OPEN",
     "STAGE_WON",
     "CrmActivity",
+    "CrmCompany",
     "CrmOpportunity",
     "CrmPipeline",
     "CrmStage",
