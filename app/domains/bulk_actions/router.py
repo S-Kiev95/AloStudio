@@ -24,6 +24,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context
 from app.domains.conversations.models import Conversation
+from app.domains.conversations.permission import can_view_conversation
 from app.domains.conversations.service import (
     toggle_status,
     update_assignee,
@@ -101,6 +102,16 @@ async def create_bulk_action(
             )
         ).first()
         if conv is None:
+            continue
+        # Same policy as opening the conversation: an agent's bulk action
+        # skips conversations outside their inboxes and teams, exactly as
+        # it skips ids that do not exist.
+        if not await can_view_conversation(
+            session,
+            account_id=ctx.account.id,  # type: ignore[arg-type]
+            user_id=ctx.user.id,  # type: ignore[arg-type]
+            conversation=conv,
+        ):
             continue
         if new_status:
             await toggle_status(session, conversation=conv, status=str(new_status))
