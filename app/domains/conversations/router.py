@@ -1079,6 +1079,13 @@ async def index_messages(
     session: Annotated[AsyncSession, Depends(get_session)],
     before: int | None = Query(None, description="Message.id cursor (returns older messages)"),
     after: int | None = Query(None, description="Message.id cursor (returns newer messages)"),
+    around: int | None = Query(
+        None,
+        description=(
+            "Message.id to open the conversation at: returns that message "
+            "with the ones just before and after it (F8, jump from search)"
+        ),
+    ),
 ) -> dict[str, Any]:
     """``GET /conversations/:conv_id/messages``.
 
@@ -1102,6 +1109,12 @@ async def index_messages(
             selectinload(Conversation.assignee),
         ),
     )
+    if around is not None:
+        return present_messages_index(
+            await _messages_around(session, conversation_id=conv.id, message_id=around),
+            conversation=conv,
+        )
+
     filters = [Message.conversation_id == conv.id]
     if before is not None:
         filters.append(Message.id < before)  # type: ignore[operator]
@@ -1128,6 +1141,47 @@ async def index_messages(
     rows = list((await session.exec(stmt)).all())
     rows.reverse()  # Rails returns oldest-first in the payload.
     return present_messages_index(rows, conversation=conv)
+
+
+AROUND_EACH_SIDE = 15
+
+
+async def _messages_around(
+    session: AsyncSession, *, conversation_id: int, message_id: int
+) -> list[Message]:
+    """The message plus up to fifteen on each side, oldest first.
+
+    ``after`` cannot do this: it returns the *newest* twenty after the
+    cursor, so opening a search hit from a year ago landed at today. Ordered
+    by id, which is creation order here, so the two halves meet exactly at
+    the target. A ``message_id`` from another conversation simply returns
+    the messages around that id in this one — nothing leaks across.
+    """
+    base = (
+        select(Message)
+        .where(Message.conversation_id == conversation_id)
+        .options(lazyload("*"), selectinload(Message.attachments))
+    )
+    older = list(
+        (
+            await session.exec(
+                base.where(Message.id <= message_id)  # type: ignore[operator]
+                .order_by(Message.id.desc())  # type: ignore[union-attr]
+                .limit(AROUND_EACH_SIDE + 1)
+            )
+        ).all()
+    )
+    newer = list(
+        (
+            await session.exec(
+                base.where(Message.id > message_id)  # type: ignore[operator]
+                .order_by(Message.id.asc())  # type: ignore[union-attr]
+                .limit(AROUND_EACH_SIDE)
+            )
+        ).all()
+    )
+    older.reverse()
+    return older + newer
 
 
 @messages_router.post("", status_code=status.HTTP_200_OK)

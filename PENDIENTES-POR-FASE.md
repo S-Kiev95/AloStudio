@@ -68,7 +68,7 @@ anota en esta sección y lo decide el dueño.
 | F5 Plantillas de WhatsApp | A | Sin empezar |
 | F6 Gastos por uso | A | Sin empezar |
 | F7 Llamadas y voz | B | Sin empezar |
-| F8 Búsqueda en conversaciones viejas | A | Sin empezar |
+| F8 Búsqueda en conversaciones viejas | A | Paso 1 hecho (2026-11-13), en develop: por mensaje, sin IA; falta la semántica (con F9) |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
 | F11 CRM (Krayin) | B | Oportunidades, tareas y empresas hechas (2026-11-13); sigue el origen del contacto |
@@ -192,9 +192,30 @@ dentro de la rama.
 
 ## F8. Búsqueda en conversaciones viejas
 
-- Búsqueda por mensaje con salto al mensaje (texto completo de Postgres en
-  español + `pg_trgm`); semántica después, con F9; herramienta MCP
-  `search_messages`.
+**Hecho (paso 1, 2026-11-13, rama `feat/f8-busqueda`):**
+
+- `GET /api/v1/accounts/{id}/search/messages?q=&conversation_id=&page=`:
+  resultados por mensaje, con fragmento y términos marcados, contacto,
+  bandeja y fecha. Ignora acentos y mayúsculas, encuentra otras formas de la
+  palabra ("cuota" → "cuotas"), fragmentos ("presu") y errores de dos letras
+  cambiadas ("presupeusto"). Respeta las bandejas de cada agente.
+- Migración `0f8e5a1c2b3d`: extensiones `pg_trgm` y `unaccent`, función
+  `alo_search_text` e índices GIN de texto completo y trigramas sobre
+  `messages`, creados `CONCURRENTLY`. **En CTC: respaldar antes.**
+- `GET …/messages?around=<id>`: abre la conversación en el mensaje (antes
+  `after` traía los 20 más nuevos y un resultado de hace un año abría hoy).
+- Bandeja: buscar ahora lista mensajes; al abrir uno, la conversación se
+  centra en él, marcado, con "Ir a lo último".
+- Herramienta MCP `search_messages`.
+
+**Falta:**
+
+- Semántica (con F9): "lo que hablamos del pago en cuotas" sin esas
+  palabras. Vectores por mensaje o por bloques, combinados con esto.
+- Visto de paso, sin tocar: `GET /conversations/{id}/messages` no chequea
+  que un agente pertenezca a la bandeja de esa conversación — cualquier
+  miembro de la cuenta lee cualquier conversación por su número. La
+  búsqueda sí filtra; el endpoint de mensajes no.
 
 ## F9. EmbeddingGemma 2
 

@@ -10,9 +10,18 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 
 import { ConversationView } from "./conversation-view";
+
+let mockViewParams = new URLSearchParams();
+const mockReplace = vi.fn();
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => mockViewParams,
+  useRouter: () => ({ push: vi.fn(), replace: mockReplace }),
+  usePathname: () => "/accounts/1/conversations/18",
+}));
 import { INBOX_DETAILS_COLLAPSED_KEY } from "./inbox-shell";
 
 const baseConversation = {
@@ -221,5 +230,67 @@ describe("ConversationView — bloque de detalles plegable", () => {
     expect(screen.getByTestId("collapsed-ai-summary")).toHaveTextContent(
       "Responde la IA de Meta",
     );
+  });
+});
+
+describe("ConversationView — abierta desde una búsqueda (F8)", () => {
+  it("pide la ventana alrededor del mensaje, lo marca y ofrece volver a lo último", async () => {
+    mockViewParams = new URLSearchParams("q=envio&message=777");
+    // jsdom has no layout, so no scrollIntoView; record the call instead.
+    const scrolled: Element[] = [];
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+    let requested = "";
+    server.use(
+      http.get(
+        "*/api/v1/accounts/:accountId/conversations/18/messages",
+        ({ request }) => {
+          requested = new URL(request.url).search;
+          return HttpResponse.json({
+            meta: {},
+            payload: [
+              {
+                id: 776,
+                content: "antes",
+                message_type: 0,
+                created_at: 1_700_000_000,
+                attachments: [],
+                content_attributes: {},
+              },
+              {
+                id: 777,
+                content: "el envío sale mañana",
+                message_type: 1,
+                created_at: 1_700_000_100,
+                attachments: [],
+                content_attributes: {},
+              },
+            ],
+          });
+        },
+      ),
+    );
+    try {
+      renderView();
+      expect(
+        await screen.findByText("Estás viendo un mensaje anterior."),
+      ).toBeInTheDocument();
+      const target = (await screen.findByText("el envío sale mañana")).closest(
+        "[data-message-id]",
+      );
+      expect(target).toHaveAttribute("data-message-id", "777");
+      expect(target?.className).toContain("ring-2");
+      expect(requested).toBe("?around=777");
+      expect(scrolled).toContain(target);
+
+      fireEvent.click(screen.getByRole("button", { name: "Ir a lo último" }));
+      // Drops only `message`; the search stays for the list on the left.
+      expect(mockReplace).toHaveBeenCalledWith(
+        "/accounts/1/conversations/18?q=envio",
+      );
+    } finally {
+      mockViewParams = new URLSearchParams();
+    }
   });
 });

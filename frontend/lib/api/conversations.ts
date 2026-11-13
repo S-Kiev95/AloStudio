@@ -247,12 +247,60 @@ export function useConversation(accountId: string, displayId: number) {
   });
 }
 
-export function useMessages(accountId: string, displayId: number) {
+/** The thread. With `around`, the window around one message instead of the
+ *  newest ones — how a search result opens the conversation at the hit.
+ *  That window does not poll: it is a place in the past, and new messages
+ *  arriving would not land in it anyway. The normal key stays exactly
+ *  `["messages", accountId, displayId]`, which sending writes to. */
+export function useMessages(
+  accountId: string,
+  displayId: number,
+  around?: number,
+) {
   return useQuery({
-    queryKey: ["messages", accountId, displayId],
+    queryKey: around
+      ? ["messages", accountId, displayId, "around", around]
+      : ["messages", accountId, displayId],
     queryFn: () =>
-      apiFetch<MessagesIndex>(`${base(accountId)}/${displayId}/messages`),
-    refetchInterval: 15_000, // light polling until realtime (F.3 follow-up)
+      apiFetch<MessagesIndex>(
+        `${base(accountId)}/${displayId}/messages${around ? `?around=${around}` : ""}`,
+      ),
+    refetchInterval: around ? false : 15_000, // light polling until realtime (F.3 follow-up)
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Search by message (F8) — `GET /search/messages`
+// ---------------------------------------------------------------------------
+export type MessageSearchHit = {
+  message_id: number;
+  conversation_id: number; // display_id
+  created_at: number | null;
+  message_type: string;
+  private: boolean;
+  snippet: string;
+  /** `[start, end)` offsets into `snippet`, in its own characters. */
+  highlights: [number, number][];
+  contact: { id: number | null; name: string | null };
+  inbox: { id: number; name: string };
+};
+
+export type MessageSearch = {
+  payload: MessageSearchHit[];
+  meta: { page: number; has_more: boolean };
+};
+
+export function useMessageSearch(accountId: string, q: string, page = 1) {
+  const trimmed = q.trim();
+  return useQuery({
+    queryKey: ["message-search", accountId, trimmed, page],
+    queryFn: () => {
+      const sp = new URLSearchParams({ q: trimmed, page: String(page) });
+      return apiFetch<MessageSearch>(
+        `/api/v1/accounts/${accountId}/search/messages?${sp}`,
+      );
+    },
+    enabled: trimmed.length > 0,
   });
 }
 

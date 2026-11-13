@@ -47,6 +47,7 @@ from app.domains.conversations.router import (
     participants_router as conversations_participants_router,
 )
 from app.domains.conversations.router import router as conversations_router
+from app.domains.conversations.search_router import router as message_search_router
 from app.domains.crm.router import router as crm_router
 from app.domains.csat.public_router import router as csat_public_router
 from app.domains.csat.router import router as csat_router
@@ -212,6 +213,8 @@ def create_app() -> FastAPI:
     # update/destroy). A participant must be an assignable agent of the
     # conversation's inbox (inbox member or account admin).
     app.include_router(conversations_participants_router)
+    # F8: search by message, with the hit highlighted and a way to jump to it.
+    app.include_router(message_search_router)
     app.include_router(bulk_actions_router)
     app.include_router(custom_attributes_router)
     # Saved views (``custom_filters``). Per-user named filter-DSL views;

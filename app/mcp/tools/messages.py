@@ -22,6 +22,7 @@ from typing import Any
 from fastmcp import FastMCP
 from sqlmodel import select
 
+from app.domains.conversations.message_search import search_messages
 from app.domains.conversations.models import (
     Conversation,
     Message,
@@ -146,6 +147,40 @@ def register(mcp: FastMCP) -> None:
             "conversation_id": conv.id,
             "messages": [_present(m) for m in rows],
         }
+
+    @mcp.tool(name="search_messages")
+    @requires("read")
+    async def search_messages_tool(
+        query: str,
+        conversation_id: int | None = None,
+        page: int = 1,
+    ) -> dict[str, Any]:
+        """Find messages by what they say, across every conversation or
+        inside one.
+
+        Accents and capitals are ignored, a word finds its other forms
+        ("cuota" finds "cuotas"), a fragment is enough, and a typo of two
+        swapped letters still matches. Accepts quotes for an exact phrase
+        and ``-palabra`` to exclude one. Returns the matching messages with
+        a snippet, the conversation, contact and date — 20 per page; ask
+        for the next ``page`` while ``has_more`` is true. Then use
+        ``list_messages`` on the conversation for the full context.
+        ``conversation_id`` is the internal id, as everywhere in these
+        tools.
+        """
+        ctx = current_mcp_context()
+        display_id = None
+        if conversation_id is not None:
+            display_id = (await _find_conv(conversation_id)).display_id
+        result = await search_messages(
+            ctx.session,
+            account_id=ctx.account.id,
+            current_user_id=None,
+            q=query,
+            conversation_display_id=display_id,
+            page=max(page, 1),
+        )
+        return {"messages": result["payload"], **result["meta"]}
 
     @mcp.tool(name="show_message")
     @requires("read")

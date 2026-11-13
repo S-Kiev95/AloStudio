@@ -16,8 +16,9 @@ import { ConversationList } from "./conversation-list";
 
 // The list drives its state off the URL; stub the App Router hooks so the
 // component renders outside a Next.js router (empty params → defaults).
+let mockParams = new URLSearchParams();
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockParams,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => "/accounts/1/conversations",
 }));
@@ -98,6 +99,44 @@ describe("ConversationList", () => {
         ["WhatsApp", "Channel::Whatsapp"],
       ]),
     );
+  });
+
+  it("searching lists the matching messages, with the words marked", async () => {
+    // F8: the answer is the line that matched, not the conversation.
+    mockParams = new URLSearchParams("q=envio");
+    server.use(
+      http.get("*/api/v1/accounts/1/search/messages", ({ request }) => {
+        expect(new URL(request.url).searchParams.get("q")).toBe("envio");
+        return HttpResponse.json({
+          payload: [
+            {
+              message_id: 901,
+              conversation_id: 42,
+              created_at: 1_700_000_000,
+              message_type: "incoming",
+              private: false,
+              snippet: "¿Hacen Envío al interior?",
+              highlights: [[7, 12]],
+              contact: { id: 1, name: "Diana" },
+              inbox: { id: 1, name: "Ventas" },
+            },
+          ],
+          meta: { page: 1, has_more: false },
+        });
+      }),
+    );
+    try {
+      renderWithQuery(<ConversationList accountId="1" />);
+      const mark = await screen.findByText("Envío");
+      expect(mark.tagName).toBe("MARK");
+      // Opens the conversation at that message, keeping the search.
+      expect(mark.closest("a")).toHaveAttribute(
+        "href",
+        "/accounts/1/conversations/42?q=envio&message=901",
+      );
+    } finally {
+      mockParams = new URLSearchParams();
+    }
   });
 
   it("renders conversations returned by the API", async () => {
