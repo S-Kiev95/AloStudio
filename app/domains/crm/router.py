@@ -35,8 +35,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
+from app.domains.contacts.models import Contact
 from app.domains.crm import activities as act
 from app.domains.crm import companies as comp
+from app.domains.crm import origin as org
 from app.domains.crm import service as svc
 from app.domains.crm.models import CrmActivity, CrmCompany, CrmOpportunity, CrmPipeline
 from app.domains.crm.presenters import (
@@ -50,6 +52,7 @@ from app.domains.crm.schemas import (
     ActivityBody,
     CompanyBody,
     CompanyContactBody,
+    ContactOriginBody,
     OpportunityBody,
     PipelineBody,
 )
@@ -409,6 +412,26 @@ async def remove_company_contact(
         session, account_id=_account_id(ctx), contact_id=contact_id, company=None
     )
     return {}
+
+
+@router.put("/contacts/{contact_id}/origin")
+async def set_contact_origin(
+    contact_id: Annotated[int, Path()],
+    body: ContactOriginBody,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Set (or clear, with ``source: null``) how a contact first came."""
+    contact = await session.get(Contact, contact_id)
+    if contact is None or contact.account_id != _account_id(ctx):
+        raise ChatwootHTTPException(status_code=404, detail=_NOT_FOUND)
+    try:
+        org.set_origin(contact, source=body.source, channel=body.channel, detail=body.detail)
+    except ValueError as exc:
+        raise ChatwootHTTPException(status_code=422, detail={"message": str(exc)}) from exc
+    session.add(contact)
+    await session.flush()
+    return {"origin": org.present_origin(contact)}
 
 
 __all__ = ["router"]

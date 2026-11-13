@@ -66,6 +66,14 @@ class CompanyContactBody(BaseModel):
     contact_id: int
 
 
+class ContactOriginBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    source: str | None = None
+    channel: str | None = None
+    detail: str | None = Field(default=None, max_length=255)
+
+
 __all__ = [
     "ActivityBody",
     "CompanyBody",
