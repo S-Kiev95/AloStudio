@@ -102,7 +102,7 @@ anota en esta sección y lo decide el dueño.
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En develop (2026-11-14): WhatsApp (costo de Meta) e IA; falta CTC |
-| F7 Llamadas y voz | B | Investigada (2026-11-14); esperando que el dueño elija el primer paso |
+| F7 Llamadas y voz | B | Paso 1 hecho (2026-11-14) en `feat/f7-voz`: recibir llamadas de WhatsApp en el panel; falta probar con Meta real |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
@@ -303,9 +303,38 @@ dentro de la rama.
 - **Propuesta:** 1) recibir llamadas en la Bandeja; 2) llamar desde la
   conversación; 3) agente de voz (LiveKit). Lives: lo útil son los
   comentarios de vivos de Instagram en la Bandeja.
-- **Agente A:** el paso 1 toca `incoming_cloud.py` (campo `calls` del
-  webhook) y `components/whatsapp/`. Coordinamos antes de empezar.
-- Esperando que el dueño elija por dónde seguir.
+- **Paso 1, recibir llamadas — hecho el 2026-11-14 (rama `feat/f7-voz`):**
+  - Tabla `calls` (migración `d9e0f1a2b3c5`) y dominio `app/domains/calls/`:
+    el webhook `calls` de Meta (`connect` con la oferta WebRTC del cliente,
+    `terminate` con el final y la duración) crea la llamada y un mensaje
+    `voice_call` en la conversación del contacto (forma de Chatwoot:
+    `content_attributes.data.status` ringing / in-progress / completed /
+    no-answer / failed).
+  - Suena en el panel de los agentes de la bandeja y de los administradores
+    (evento `call.updated` por el cable), con tono. El primero que atiende
+    se la queda (los demás reciben 409 `calls.taken`); el navegador arma la
+    respuesta WebRTC y el backend la manda a Meta en dos pasos
+    (`pre_accept`, `accept`). El micrófono queda mudo hasta que Meta
+    confirma. Silenciar, colgar, aviso al cerrar la pestaña.
+  - Ajustes → Bandejas → (WhatsApp) → «Llamadas de WhatsApp»: activar,
+    mostrar el botón de llamar y limitar al horario de la bandeja (se manda
+    a Meta en `/{phone_number_id}/settings`).
+  - Las llamadas cuyo final no llegó se cierran en el tick de 5 minutos.
+  - Probado de punta a punta en local con un Meta simulado (tres llamadas
+    WebRTC reales entre dos pestañas, audio en los dos sentidos). **Falta
+    probarlo con Meta real.**
+- **Para usarlo en un número:** suscribir el campo `calls` del webhook de
+  WhatsApp en la app de Meta (el conector de Meta lo puede hacer, con
+  confirmación) y activar las llamadas en Ajustes → Bandejas. Meta lo
+  permite con límite de 2.000 o más (CTC tiene `TIER_2K`).
+- **Nota para el agente A:** toqué `incoming_cloud.py` en un solo lugar
+  (el campo `calls` va a `app.domains.calls.whatsapp.process_calls_value`)
+  y uso `_find_or_create_contact` / `_find_or_create_conversation` de ese
+  archivo para que la llamada caiga en la misma conversación que los
+  mensajes. No toqué `components/whatsapp/`: la tarjeta de ajustes está en
+  `components/calls/` y se monta desde `settings/inboxes/inbox-detail-view`.
+- **Sigue:** paso 2, llamar desde la conversación (cuesta por minuto y pide
+  permiso del cliente); paso 3, agente de voz.
 
 ## F8. Búsqueda en conversaciones viejas
 
