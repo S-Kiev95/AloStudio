@@ -69,4 +69,6 @@ MESSAGES: dict[str, str] = {
     "push.body": "Conversación #{n}",
     # WhatsApp notice: what goes in the template when the contact has no name
     "whatsapp.contact_fallback": "Un contacto",
+    # A WhatsApp call in a conversation (F7)
+    "calls.message": "Llamada de WhatsApp",
 }

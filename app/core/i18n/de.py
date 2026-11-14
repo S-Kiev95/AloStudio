@@ -62,4 +62,6 @@ MESSAGES: dict[str, str] = {
     "push.title.default": "Benachrichtigung",
     "push.body": "Konversation #{n}",
     "whatsapp.contact_fallback": "Ein Kontakt",
+    # A WhatsApp call in a conversation (F7)
+    "calls.message": "WhatsApp-Anruf",
 }

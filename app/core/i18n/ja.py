@@ -60,4 +60,6 @@ MESSAGES: dict[str, str] = {
     "push.title.default": "通知",
     "push.body": "会話 #{n}",
     "whatsapp.contact_fallback": "連絡先",
+    # A WhatsApp call in a conversation (F7)
+    "calls.message": "WhatsApp通話",
 }
