@@ -13,6 +13,7 @@ import {
 import { clockTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { useLocale, useT } from "@/lib/i18n/provider";
+import { CommerceMessage, isCommerceMessage } from "@/components/whatsapp/commerce-message";
 
 type Attachment = NonNullable<Message["attachments"]>[number];
 
@@ -401,7 +402,9 @@ export function MessageBubble({
             </p>
           ) : (
             <>
-              {message.content ? (
+              {isCommerceMessage(message) ? (
+                <CommerceMessage message={message} />
+              ) : message.content ? (
                 <p className="whitespace-pre-wrap break-words">
                   {message.content}
                 </p>

@@ -687,6 +687,16 @@ async def _process_value(
         attachments, media_caption = await _build_media_attachments(
             channel=channel, msg=msg, msg_type=str(msg_type)
         )
+        # A cart sent from the catalogue: items matched to our products.
+        order_attrs: dict[str, Any] | None = None
+        if msg_type == "order":
+            from app.domains.whatsapp.catalog import order_from_message
+
+            order = await order_from_message(
+                session, account_id=channel.account_id, msg=msg
+            )
+            if order is not None:
+                body, order_attrs = order
         try:
             # A savepoint, so losing the race below rolls back only this
             # insert and the session stays usable for the request's commit.
@@ -701,6 +711,7 @@ async def _process_value(
                         message_type="incoming",
                         source_id=str(wamid),
                         attachments=attachments or None,
+                        content_attributes=order_attrs,
                     ),
                     user_id=None,
                 )
@@ -717,6 +728,12 @@ async def _process_value(
                 "whatsapp.inbound.create_message_failed wamid=%s", wamid
             )
             continue
+        if order_attrs is not None:
+            from app.domains.whatsapp.catalog import open_opportunity_for_order
+
+            await open_opportunity_for_order(
+                session, message=inserted, conversation=conversation
+            )
         out.append(inserted)
 
     return out

@@ -1314,6 +1314,29 @@ async def _maybe_send_outbound_whatsapp(
             )
 
     try:
+        # Products from the Meta catalogue go out as an interactive message.
+        products = (message.content_attributes or {}).get("whatsapp_products")
+        if (
+            isinstance(products, dict)
+            and not template_params
+            and channel.provider == WHATSAPP_PROVIDER_CLOUD
+        ):
+            from app.domains.whatsapp.catalog import interactive_for
+            from app.domains.whatsapp.cloud_provider import (
+                send_interactive_message_cloud,
+            )
+
+            interactive = interactive_for(products)
+            if interactive is not None:
+                await send_interactive_message_cloud(
+                    session,
+                    channel=channel,
+                    message=message,
+                    to_phone=to_phone,
+                    interactive=interactive,
+                )
+                return
+
         if template_params:
             from app.domains.whatsapp.template_processor import (
                 process_template_params,

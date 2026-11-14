@@ -9,6 +9,7 @@ import { useInbox, useInboxes } from "@/lib/api/inboxes";
 
 import { BroadcastsPanel } from "./broadcasts-panel";
 import { BusinessProfilePanel } from "./business-profile-panel";
+import { CatalogPanel } from "./catalog-panel";
 import { LinkQrPanel } from "./link-qr-panel";
 import { NumberStatusPanel } from "./number-status-panel";
 import { WhatsappTemplatesPanel } from "./templates-panel";
@@ -18,6 +19,7 @@ export const WHATSAPP_CHANNEL_TYPE = "Channel::Whatsapp";
 const TABS = [
   { key: "plantillas", label: "Plantillas" },
   { key: "envios", label: "Envíos masivos" },
+  { key: "catalogo", label: "Catálogo" },
   { key: "numero", label: "Número" },
   { key: "perfil", label: "Perfil de empresa" },
   { key: "link", label: "Link y QR" },
@@ -48,7 +50,7 @@ export function WhatsappSection({ accountId }: { accountId: string }) {
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title="WhatsApp"
-        description="Plantillas, envíos masivos, estado del número, perfil de empresa y links de cada número de WhatsApp."
+        description="Plantillas, envíos masivos, catálogo, estado del número, perfil de empresa y links de cada número de WhatsApp."
       />
 
       {inboxesQ.isLoading ? (
@@ -105,6 +107,8 @@ export function WhatsappSection({ accountId }: { accountId: string }) {
                 inboxId={current.id}
                 inboxName={current.name}
               />
+            ) : tab === "catalogo" ? (
+              <CatalogPanel accountId={accountId} inboxId={current.id} />
             ) : tab === "numero" ? (
               <NumberStatusPanel accountId={accountId} inboxId={current.id} />
             ) : tab === "perfil" ? (

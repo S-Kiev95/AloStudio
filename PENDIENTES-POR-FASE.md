@@ -231,6 +231,17 @@ dentro de la rama.
   - **Perfil de empresa:** info, descripción, rubro, dirección, correo, webs
     y foto (subida reanudable de Meta, usa `META_APP_ID`), con vista previa.
   - **Link y QR:** link wa.me con mensaje y los QR de Meta (`message_qrdls`).
+  - **Catálogo (2026-11-14):** pasos para dejarlo andando: catálogo de la
+    cuenta (lo conecta F11 en CRM → Productos), conectarlo a la cuenta de
+    WhatsApp Business del número (`POST {waba}/product_catalogs`) y
+    mostrarlo en el perfil / activar el carrito
+    (`whatsapp_commerce_settings`).
+  En la Bandeja, botón **Productos** (dentro de las 24 h): uno sale como
+  tarjeta (`interactive.product`), varios como lista para armar un pedido
+  (`product_list`, hasta 30). Los pedidos (`order`) se guardan con los
+  productos y el total y abren una oportunidad en el embudo por defecto.
+  Herramientas MCP `list_catalog_products` y `send_whatsapp_products`.
+  Código en `app/domains/whatsapp/catalog.py` y `catalog_router.py`.
   En la Bandeja: botón "Plantilla" y `can_reply` false pasadas 24 h del
   último mensaje del contacto (solo se manda plantilla).
 - Pendiente: pasarlo a CTC cuando el dueño lo pida; textos de la sección sin
@@ -380,8 +391,9 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     (tarea `sync_meta_catalog_task`). El id del producto en Meta
     (`retailer_id`) es su SKU o `alo-{id}`, guardado en
     `products.meta_retailer_id`. Lógica en `app/domains/crm/meta_catalog.py`.
-  - **Sigue (agente A):** mensajes de producto en WhatsApp y pedidos por el
-    webhook; ver la nota al agente A arriba.
+  - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
+    Productos en la Bandeja, pedidos por el webhook que abren una
+    oportunidad y pestaña Catálogo en la sección WhatsApp (ver F5).
   - **Sigue (más adelante):** etiquetar productos en Instagram y Facebook.
 - **F11 terminada:** las cuatro partes elegidas, más foto del contacto,
   Agenda tipo calendario y sincronización con el catálogo de Meta.
