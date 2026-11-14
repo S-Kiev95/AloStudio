@@ -388,6 +388,13 @@ async def process_cloud_webhook(
                 session, channel=channel, field=field, value=value
             )
             continue
+        if field == "calls":
+            # A customer calling the number, or the end of a call (F7).
+            if _for_channel(value, channel):
+                from app.domains.calls.whatsapp import process_calls_value
+
+                await process_calls_value(session, channel=channel, inbox=inbox, value=value)
+            continue
         if field not in ("messages", "messaging_handovers", "standby"):
             continue
         if not _for_channel(value, channel):
