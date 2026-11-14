@@ -53,7 +53,9 @@ from app.domains.portals.models import (
     Article,
     ArticleEmbedding,
     Category,
+    Portal,
 )
+from app.domains.usage.ai import ai_usage
 
 log = logging.getLogger(__name__)
 
@@ -155,6 +157,12 @@ async def _reindex_article_openai(session: AsyncSession, *, article_id: int) -> 
     if article is None:
         return 0
 
+    with ai_usage(session, article.account_id, "help_center"):
+        return await _reindex_article_openai_terms(session, article=article)
+
+
+async def _reindex_article_openai_terms(session: AsyncSession, *, article: Article) -> int:
+    article_id = article.id
     try:
         terms = await generate_search_terms(
             title=article.title or "",
@@ -251,7 +259,9 @@ async def vector_search(
         query_vector = await embed_gemma_one(query, task=TASK_QUERY)
         column = ArticleEmbedding.embedding_gemma
     else:
-        query_vector = await embed_text(query)
+        portal = await session.get(Portal, portal_id)
+        with ai_usage(session, portal.account_id if portal else None, "help_center"):
+            query_vector = await embed_text(query)
         column = ArticleEmbedding.embedding
     if not query_vector:
         return []

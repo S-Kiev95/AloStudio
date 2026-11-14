@@ -113,6 +113,7 @@ from app.domains.uploads.public_router import (
     verification_router as public_media_verification_router,
 )
 from app.domains.uploads.router import router as uploads_router
+from app.domains.usage.router import router as usage_router
 from app.domains.users.router import router as profile_router
 from app.domains.web_widget.router import router as web_widget_router
 from app.domains.webhooks.router import router as outbound_webhooks_router
@@ -307,6 +308,7 @@ def create_app() -> FastAPI:
     app.include_router(whatsapp_templates_router)
     app.include_router(whatsapp_business_router)
     app.include_router(whatsapp_catalog_router)
+    app.include_router(usage_router)
     # Facebook Messenger webhook (Phase 5d). ``/webhooks/fb_messenger``
     # — installation-wide verify token via ``settings.fb_verify_token``
     # (env var FB_VERIFY_TOKEN), single endpoint shared across every

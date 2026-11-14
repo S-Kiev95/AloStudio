@@ -352,6 +352,10 @@ async def _process_status(
             msg.content_attributes = ca
     session.add(msg)
     await session.flush()
+    if status.get("pricing"):
+        from app.domains.usage.whatsapp import record_message_pricing
+
+        await record_message_pricing(session, message=msg, status=status)
     return msg
 
 

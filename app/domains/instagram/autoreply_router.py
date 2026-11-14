@@ -52,6 +52,7 @@ from app.domains.instagram.post_autoreply_models import (
     MIN_MATCH_DISTANCE_GEMMA,
     InstagramPostAutoreply,
 )
+from app.domains.usage.ai import ai_usage
 
 log = logging.getLogger(__name__)
 
@@ -117,6 +118,13 @@ async def _embed_or_none(text: str) -> list[float] | None:
     except Exception:
         log.exception("instagram.autoreply.embed_on_save_failed")
         return None
+
+
+async def _embed_for(
+    session: AsyncSession, ctx: AccountContext, text: str
+) -> list[float] | None:
+    with ai_usage(session, ctx.account.id, "instagram_autoreply"):
+        return await _embed_or_none(text)
 
 
 async def _embed_gemma_or_none(text: str) -> list[float] | None:
@@ -227,7 +235,7 @@ async def create_reply_entry(
         trigger=payload.trigger.strip(),
         reply=payload.reply.strip(),
         enabled=payload.enabled,
-        embedding=await _embed_or_none(payload.trigger),
+        embedding=await _embed_for(session, ctx, payload.trigger),
         embedding_gemma=await _embed_gemma_or_none(payload.trigger),
     )
     session.add(row)
@@ -253,7 +261,7 @@ async def update_reply_entry(
     # not embed at all — re-saving is the documented way to fix that, so it
     # has to actually retry.
     if trigger != row.trigger or row.embedding is None:
-        row.embedding = await _embed_or_none(trigger)
+        row.embedding = await _embed_for(session, ctx, trigger)
     if trigger != row.trigger or row.embedding_gemma is None:
         row.embedding_gemma = await _embed_gemma_or_none(trigger)
     row.trigger = trigger

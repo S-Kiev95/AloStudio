@@ -296,6 +296,25 @@ async def sync_ad_insights_task(ctx: dict[str, Any]) -> dict[str, int]:
     return {"ad_insight_rows": rows}
 
 
+async def sync_whatsapp_costs_task(ctx: dict[str, Any]) -> dict[str, int]:
+    """What Meta charged each WhatsApp number in the last days (F6), from
+    ``pricing_analytics``. Several times a day: Meta's figures settle late."""
+    from app.domains.usage.whatsapp import sync_recent_costs
+
+    engine = _engine_from_ctx(ctx)
+    sessionmaker = async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+    async with sessionmaker() as session:
+        rows = await sync_recent_costs(session)
+        await session.commit()
+    log.info("scheduler.whatsapp_costs.done rows=%s", rows)
+    return {"whatsapp_cost_rows": rows}
+
+
 def _engine_from_ctx(ctx: dict[str, Any]) -> AsyncEngine:
     engine = ctx.get("engine")
     if engine is None:
@@ -505,6 +524,13 @@ class WorkerSettings:
                 minute={23},
                 timeout=METRICS_JOB_TIMEOUT_SECONDS,
             ),
+            # WhatsApp spend from Meta (F6), every six hours, off the hour.
+            cron(
+                sync_whatsapp_costs_task,
+                hour={1, 7, 13, 19},
+                minute={41},
+                timeout=METRICS_JOB_TIMEOUT_SECONDS,
+            ),
         ]
 
 
@@ -513,5 +539,6 @@ __all__ = [
     "fire_due_oneoff_campaigns",
     "reopen_snoozed_conversations",
     "sync_ad_insights_task",
+    "sync_whatsapp_costs_task",
     "tick_5min",
 ]

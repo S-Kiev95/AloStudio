@@ -101,7 +101,7 @@ anota en esta sección y lo decide el dueño.
 | F3 Redes que faltan | B | Sin empezar |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
-| F6 Gastos por uso | A | Sin empezar |
+| F6 Gastos por uso | A | En develop (2026-11-14): WhatsApp (costo de Meta) e IA; falta CTC |
 | F7 Llamadas y voz | B | Sin empezar |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
@@ -111,6 +111,7 @@ anota en esta sección y lo decide el dueño.
 | F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
+| F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
 
 ### Reglas para no pisarse
 
@@ -266,8 +267,30 @@ dentro de la rama.
 
 ## F6. Gastos por uso
 
-- Guardar el `pricing` de los estados de WhatsApp, tabla de precios por
-  categoría y país, uso de IA por cuenta; mostrarlo en Estadísticas.
+- **Hecho el 2026-11-14, en develop:** Estadísticas → pestaña **Gastos**
+  (solo administradores), mes a mes:
+  - **WhatsApp:** lo que Meta cobra, tomado de `pricing_analytics` de la
+    cuenta de WhatsApp Business (volumen y costo por día, categoría, tipo y
+    país, en la moneda de la cuenta). Tabla `whatsapp_cost_days`; el worker
+    lo trae cada 6 h (últimos 3 días) y el botón "Actualizar desde Meta"
+    trae el mes elegido. No guardamos tabla de precios: Meta publica la
+    tarifa como PDF/CSV y la cambia cada trimestre.
+  - **Por mensaje:** el objeto `pricing` del webhook de estados queda en
+    `usage_records` (una fila por WAMID, con número y campaña).
+  - **Por envío masivo:** mensajes cobrados de cada campaña × costo promedio
+    que Meta reportó en el mes para esa categoría (estimado).
+  - **IA:** cada llamada a OpenAI con sus tokens y costo estimado con los
+    precios públicos (tabla en `app/domains/usage/ai.py`, revisada el
+    2026-11-14: gpt-5.4-mini, gpt-4o, text-embedding-3-small). Se registra
+    lo que pasa por `app/core/llm.py` dentro de `ai_usage(...)`: agente,
+    respuestas automáticas de Instagram y Help Center. Gemma es local (no
+    cuesta).
+- Pendiente: pasarlo a CTC; Meta Business Agent (CTC lo usa) se cobra
+  aparte y tiene su propia API (Business Agent Usage Insights); desde el
+  2026-10-01 los mensajes de servicio se cobran pasados 1.000 por número al
+  mes (ya entran en el costo de Meta). Cuando se sumen X, SMS o llamadas
+  (F3, F7), registrar su consumo en `usage_records`. Revisar la tabla de
+  precios de OpenAI cuando cambie el modelo.
 
 ## F7. Llamadas y voz
 

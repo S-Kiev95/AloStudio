@@ -4,6 +4,7 @@ import { core } from "./core";
 import { companies } from "./companies";
 import { activities } from "./activities";
 import { metaCatalog } from "./metaCatalog";
+import { usage } from "./usage";
 import { opportunities } from "./opportunities";
 import { origin } from "./origin";
 import { igCapabilities } from "./igCapabilities";
@@ -59,6 +60,7 @@ export const de: Messages = {
   companies,
   activities,
   metaCatalog,
+  usage,
 
   opportunities,
 
