@@ -8,6 +8,10 @@
   * ``POST .../whatsapp/qr``                 — create one (admin).
   * ``POST .../whatsapp/qr/{code}``          — change its message (admin).
   * ``DELETE .../whatsapp/qr/{code}``        — delete it (admin).
+  * ``GET  .../whatsapp/commerce``           — catalogue and cart settings.
+  * ``POST .../whatsapp/commerce``           — change them (admin).
+  * ``POST .../whatsapp/commerce/link``      — link the account's catalogue
+    to the WhatsApp Business Account (admin).
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ from app.domains.whatsapp.business import (
     update_profile,
     update_profile_photo,
 )
+from app.domains.whatsapp.catalog import commerce_status, link_catalog, update_commerce
 from app.domains.whatsapp.templates_router import _whatsapp_channel
 
 router = APIRouter(
@@ -46,6 +51,13 @@ class ProfileBody(BaseModel):
     email: str | None = None
     websites: list[str] | None = None
     vertical: str | None = None
+
+
+class CommerceBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    is_catalog_visible: bool | None = None
+    is_cart_enabled: bool | None = None
 
 
 class QrBody(BaseModel):
@@ -145,6 +157,40 @@ async def qr_delete_endpoint(
 ) -> dict[str, Any]:
     channel = await _channel(session, ctx, inbox_id)
     return {"qr_codes": await delete_qr_code(channel, code=code)}
+
+
+@router.get("/commerce")
+async def commerce_endpoint(
+    inbox_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    return await commerce_status(session, await _channel(session, ctx, inbox_id))
+
+
+@router.post("/commerce")
+async def update_commerce_endpoint(
+    inbox_id: Annotated[int, Path()],
+    body: CommerceBody,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    channel = await _channel(session, ctx, inbox_id)
+    return await update_commerce(
+        session,
+        channel,
+        is_catalog_visible=body.is_catalog_visible,
+        is_cart_enabled=body.is_cart_enabled,
+    )
+
+
+@router.post("/commerce/link")
+async def link_catalog_endpoint(
+    inbox_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    return await link_catalog(session, await _channel(session, ctx, inbox_id))
 
 
 __all__ = ["router"]

@@ -49,6 +49,10 @@ client as that message, through `requires`.
   * `list_whatsapp_templates(inbox_id)` — read, approved ones only
   * `send_whatsapp_template(conversation_id, name, language, body_params?)`
     — write; the way to write after WhatsApp's 24 h window
+  * `list_catalog_products()` — read, products of the Meta catalogue that
+    can be sent
+  * `send_whatsapp_products(conversation_id, product_ids, body?, header?)`
+    — write; one product card or a list (up to 30), within the 24 h window
   * `add_private_note(conversation_id, content)` — write
 
 ### Contacts — read + write

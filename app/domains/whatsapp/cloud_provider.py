@@ -130,7 +130,45 @@ async def send_text_message_cloud(
     ctx = _reply_context(message)
     if ctx is not None:
         body["context"] = ctx
+    return await _post_message(session, channel=channel, message=message, body=body)
 
+
+async def send_interactive_message_cloud(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    message: Message,
+    to_phone: str,
+    interactive: dict[str, Any],
+) -> bool:
+    """Send an ``interactive`` message (products from the catalogue, …).
+    Same result contract as :func:`send_text_message_cloud`."""
+    cfg = channel.provider_config or {}
+    if not isinstance(cfg, dict) or not cfg.get("api_key") or not cfg.get(
+        "phone_number_id"
+    ):
+        log.warning(
+            "whatsapp.send.skip reason=missing_provider_config channel_id=%s",
+            channel.id,
+        )
+        return False
+    body: dict[str, Any] = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to_phone,
+        "type": "interactive",
+        "interactive": interactive,
+    }
+    return await _post_message(session, channel=channel, message=message, body=body)
+
+
+async def _post_message(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    message: Message,
+    body: dict[str, Any],
+) -> bool:
     url = f"{_phone_id_path(channel)}/messages"
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:

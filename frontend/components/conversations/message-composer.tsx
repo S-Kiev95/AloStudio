@@ -1,12 +1,13 @@
 "use client";
 
-import { FileText, Lock, Paperclip, Send, X, Zap } from "lucide-react";
+import { FileText, Lock, Paperclip, Send, ShoppingBag, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import {
   WhatsappTemplatePreview,
   renderTemplateText,
 } from "@/components/whatsapp/templates-panel";
+import { ProductPicker } from "@/components/whatsapp/product-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,6 +54,7 @@ export function MessageComposer({
   const [isPrivate, setIsPrivate] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
   const [selectedTemplateName, setSelectedTemplateName] = useState("");
   const [templateVars, setTemplateVars] = useState<Record<string, string>>({});
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
@@ -273,6 +275,14 @@ export function MessageComposer({
             ))
           )}
         </ul>
+      ) : null}
+
+      {isWhatsapp && productsOpen && !windowClosed ? (
+        <ProductPicker
+          accountId={accountId}
+          displayId={displayId}
+          onClose={() => setProductsOpen(false)}
+        />
       ) : null}
 
       {isWhatsapp && templateOpen ? (
@@ -523,6 +533,27 @@ export function MessageComposer({
           >
             <FileText className="h-3.5 w-3.5" aria-hidden />
             Plantilla
+          </button>
+        ) : null}
+
+        {isWhatsapp && !windowClosed ? (
+          <button
+            type="button"
+            onClick={() => {
+              setProductsOpen((v) => !v);
+              setTemplateOpen(false);
+            }}
+            aria-expanded={productsOpen}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1.5 text-xs font-medium transition-colors",
+              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
+              productsOpen
+                ? "border-neon bg-focused text-lit"
+                : "border-glass bg-field text-fg-muted hover:bg-hover-glass hover:text-fg",
+            )}
+          >
+            <ShoppingBag className="h-3.5 w-3.5" aria-hidden />
+            Productos
           </button>
         ) : null}
 

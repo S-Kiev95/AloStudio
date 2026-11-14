@@ -297,6 +297,68 @@ def register(mcp: FastMCP) -> None:
         )
         return _present(msg)
 
+    @mcp.tool(name="list_catalog_products")
+    @requires("read")
+    async def list_catalog_products() -> dict[str, Any]:
+        """Products of the account's Meta catalogue that can be sent on
+        WhatsApp (send_whatsapp_products): id, name, price, image and link."""
+        from app.domains.whatsapp.catalog import (
+            catalog_id_for,
+            present_product,
+            sendable_products,
+        )
+
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        return {
+            "catalog_id": await catalog_id_for(ctx.session, ctx.account.id),
+            "products": [
+                present_product(p) for p in await sendable_products(ctx.session, ctx.account.id)
+            ],
+        }
+
+    @mcp.tool(name="send_whatsapp_products")
+    @requires("write")
+    async def send_whatsapp_products(
+        conversation_id: int,
+        product_ids: list[int],
+        body: str | None = None,
+        header: str | None = None,
+    ) -> dict[str, Any]:
+        """Send catalogue products (list_catalog_products) on a WhatsApp
+        conversation: one shows as a product card, several (up to 30) as a
+        list the contact can add to a cart and order. ``header`` titles a
+        list. Only within 24 h of the contact's last message."""
+        from app.domains.conversations.router import _whatsapp_window_open
+        from app.domains.whatsapp.catalog import build_products_message
+
+        conv = await _find_conv(conversation_id)
+        await _whatsapp_channel(conv.inbox_id)
+        ctx = current_mcp_context()
+        if not await _whatsapp_window_open(ctx.session, conv):
+            raise ValueError(
+                "more than 24 h since the contact's last message; send a template instead"
+            )
+        assert ctx.account.id is not None
+        content, attrs = await build_products_message(
+            ctx.session,
+            account_id=ctx.account.id,
+            product_ids=product_ids,
+            body=body,
+            header=header,
+        )
+        msg = await create_message(
+            ctx.session,
+            conversation=conv,
+            params=MessageBuilderParams(
+                content=content,
+                message_type="outgoing",
+                content_attributes=attrs,
+            ),
+            user_id=ctx.user.id,
+        )
+        return _present(msg)
+
     @mcp.tool(name="add_private_note")
     @requires("write")
     async def add_private_note(

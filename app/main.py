@@ -119,6 +119,7 @@ from app.domains.webhooks.router import router as outbound_webhooks_router
 from app.domains.whatsapp.business_router import (
     router as whatsapp_business_router,
 )
+from app.domains.whatsapp.catalog_router import router as whatsapp_catalog_router
 from app.domains.whatsapp.router import router as whatsapp_webhook_router
 from app.domains.whatsapp.templates_router import (
     router as whatsapp_templates_router,
@@ -305,6 +306,7 @@ def create_app() -> FastAPI:
     # approved template + fills its {{n}} variables.
     app.include_router(whatsapp_templates_router)
     app.include_router(whatsapp_business_router)
+    app.include_router(whatsapp_catalog_router)
     # Facebook Messenger webhook (Phase 5d). ``/webhooks/fb_messenger``
     # — installation-wide verify token via ``settings.fb_verify_token``
     # (env var FB_VERIFY_TOKEN), single endpoint shared across every
