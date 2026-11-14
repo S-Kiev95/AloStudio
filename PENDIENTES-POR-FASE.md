@@ -102,7 +102,7 @@ anota en esta sección y lo decide el dueño.
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En develop (2026-11-14): WhatsApp (costo de Meta) e IA; falta CTC |
-| F7 Llamadas y voz | B | Sin empezar |
+| F7 Llamadas y voz | B | Investigada (2026-11-14); esperando que el dueño elija el primer paso |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
@@ -294,8 +294,18 @@ dentro de la rama.
 
 ## F7. Llamadas y voz
 
-- Revisar requisitos y costo de las llamadas de WhatsApp; investigar lives;
-  agentes de voz después.
+- **Investigación hecha el 2026-11-14 (agente B):** detalle en
+  `docs/experimentos/f7-llamadas-y-voz.md`. El número de CTC cumple los
+  requisitos (Cloud API, límite de 2.000, calidad verde); faltan activar
+  las llamadas en el número y suscribir el webhook `calls`. Recibir
+  llamadas es gratis; llamar cuesta por minuto y pide permiso del cliente.
+  El agente atiende desde el navegador (WebRTC), sin servidor de audio.
+- **Propuesta:** 1) recibir llamadas en la Bandeja; 2) llamar desde la
+  conversación; 3) agente de voz (LiveKit). Lives: lo útil son los
+  comentarios de vivos de Instagram en la Bandeja.
+- **Agente A:** el paso 1 toca `incoming_cloud.py` (campo `calls` del
+  webhook) y `components/whatsapp/`. Coordinamos antes de empezar.
+- Esperando que el dueño elija por dónde seguir.
 
 ## F8. Búsqueda en conversaciones viejas
 
