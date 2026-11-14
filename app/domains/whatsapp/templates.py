@@ -444,8 +444,8 @@ def _waba(channel: WhatsappChannel) -> tuple[str, str]:
     waba, token = cfg.get("business_account_id"), cfg.get("api_key")
     if channel.provider != WHATSAPP_PROVIDER_CLOUD or not waba or not token:
         raise _unprocessable(
-            "Las plantillas se administran solo en bandejas de WhatsApp Cloud "
-            "conectadas a una cuenta de WhatsApp Business."
+            "Esta bandeja no es de WhatsApp Cloud o no está conectada a una "
+            "cuenta de WhatsApp Business."
         )
     return str(waba), str(token)
 
