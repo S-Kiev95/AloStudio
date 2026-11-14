@@ -247,8 +247,9 @@ dentro de la rama.
 - Instagram Login: el botón se oculta si la instalación no tiene
   `META_INSTAGRAM_APP_ID` / `_SECRET` (`GET .../instagram_channels/connect/options`);
   las apps nuevas de Meta, como AloStudio CTC, ya no lo ofrecen (2026-11-14).
-- CTC (2026-11-14): para usar el catálogo falta agregar `catalog_management`
-  a la app AloStudio CTC, crear el catálogo con los cursos reales en el
+- CTC (2026-11-14): `catalog_management` ya está en la app AloStudio CTC
+  ("Listo para la prueba"). Si el director lo quiere (lo decide el lunes
+  2026-11-16): crear el catálogo con los cursos reales en el
   portfolio CTC Salto, darle el catálogo al usuario del sistema y pegar
   ID + token en CRM → Productos. En develop se probó entero con el catálogo
   "AloStudio develop (prueba)" (1416439070648332, portfolio Skiev Dev).
