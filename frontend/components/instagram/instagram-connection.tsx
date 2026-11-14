@@ -6,7 +6,11 @@ import { useEffect, useState } from "react";
 import { Facebook, Instagram } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { startOAuth, useInstagramInboxes } from "@/lib/api/instagram";
+import {
+  startOAuth,
+  useInstagramConnectOptions,
+  useInstagramInboxes,
+} from "@/lib/api/instagram";
 
 import type { ConnectFlow } from "@/lib/inboxes/instagram-capabilities";
 
@@ -37,6 +41,7 @@ function outcomeMessage(
 export function InstagramConnection({ accountId }: { accountId: string }) {
   const t = useT();
   const inboxes = useInstagramInboxes(accountId);
+  const connectOptions = useInstagramConnectOptions(accountId);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -143,14 +148,18 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
               <Facebook mono className="h-4 w-4" aria-hidden />
               Facebook Login
             </Button>
-            <Button
-              variant="ghost"
-              className="btn-instagram-brand text-white hover:bg-transparent hover:text-white"
-              onClick={() => setPendingFlow("instagram")}
-            >
-              <Instagram mono className="h-4 w-4" aria-hidden />
-              Instagram Login
-            </Button>
+            {/* Hidden when this installation's Meta app has no Instagram
+                Login (newer apps only offer the Facebook-login setup). */}
+            {connectOptions.data?.instagram_login ? (
+              <Button
+                variant="ghost"
+                className="btn-instagram-brand text-white hover:bg-transparent hover:text-white"
+                onClick={() => setPendingFlow("instagram")}
+              >
+                <Instagram mono className="h-4 w-4" aria-hidden />
+                Instagram Login
+              </Button>
+            ) : null}
           </div>
           <p className="text-xs text-fg-muted">
             {t("instagram.connect.beforeMeta")}

@@ -100,7 +100,7 @@ anota en esta sección y lo decide el dueño.
 | F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; resto para más adelante |
 | F3 Redes que faltan | B | Sin empezar |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
-| F5 WhatsApp (plantillas, envíos, número, perfil, QR) | A | En CTC (2026-11-13) |
+| F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | Sin empezar |
 | F7 Llamadas y voz | B | Sin empezar |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
@@ -244,7 +244,15 @@ dentro de la rama.
   Código en `app/domains/whatsapp/catalog.py` y `catalog_router.py`.
   En la Bandeja: botón "Plantilla" y `can_reply` false pasadas 24 h del
   último mensaje del contacto (solo se manda plantilla).
-- Pendiente: pasarlo a CTC cuando el dueño lo pida; textos de la sección sin
+- Instagram Login: el botón se oculta si la instalación no tiene
+  `META_INSTAGRAM_APP_ID` / `_SECRET` (`GET .../instagram_channels/connect/options`);
+  las apps nuevas de Meta, como AloStudio CTC, ya no lo ofrecen (2026-11-14).
+- CTC (2026-11-14): para usar el catálogo falta agregar `catalog_management`
+  a la app AloStudio CTC, crear el catálogo con los cursos reales en el
+  portfolio CTC Salto, darle el catálogo al usuario del sistema y pegar
+  ID + token en CRM → Productos. En develop se probó entero con el catálogo
+  "AloStudio develop (prueba)" (1416439070648332, portfolio Skiev Dev).
+- Pendiente: textos de la sección sin
   traducir (solo español); encabezados con imagen, video o documento;
   avisos cuando Meta baja la calidad del número (webhooks
   `phone_number_quality_update` y `account_update`, hay que suscribirlos);

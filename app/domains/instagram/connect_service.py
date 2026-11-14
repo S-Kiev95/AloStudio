@@ -276,6 +276,20 @@ def _missing_settings(*named: tuple[str, str]) -> list[str]:
     return [name for name, value in named if not value]
 
 
+def connect_options() -> dict[str, bool]:
+    """Whether each OAuth flow has the settings it needs. Instagram Login
+    needs its own Instagram app id and secret, which newer Meta apps no
+    longer offer (they only have the Facebook-login setup)."""
+    settings = get_settings()
+    redirect = bool(settings.meta_oauth_redirect_uri)
+    return {
+        "facebook_login": bool(settings.meta_app_id and settings.meta_app_secret and redirect),
+        "instagram_login": bool(
+            settings.meta_instagram_app_id and settings.meta_instagram_app_secret and redirect
+        ),
+    }
+
+
 def start_facebook_oauth(account_id: int) -> str:
     """Build the Facebook Login dialog URL (with signed state) the admin
     is redirected to. 422 if Meta OAuth isn't configured."""

@@ -55,6 +55,15 @@ async def connect_manual_endpoint(
     )
 
 
+@router.get("/connect/options")
+async def connect_options(
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+) -> dict[str, bool]:
+    """Which connect buttons work on this installation: the panel hides a
+    flow whose Meta app settings are missing (no secrets, only yes/no)."""
+    return connect_service.connect_options()
+
+
 @router.get("/connect/start")
 async def connect_start(
     ctx: Annotated[AccountContext, Depends(require_admin)],
