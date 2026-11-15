@@ -209,10 +209,26 @@ cliente. Rama `feat/multitenant`; no se mergea hasta tener F2 completo.
 - Tests de la rama: base aparte `alostudio_test_mt` (la de develop va
   adelantada en migraciones).
 
+### Planes (decididos 2026-11-15, creados en Polar **sandbox**)
+
+Organización sandbox: `S Kiev` (`17fc0826-cf00-4bcb-a5db-5c1c26a53bed`).
+Todos recurrentes mensuales, en USD, precio fijo.
+
+| Plan | Precio | Prueba | Incluye | Producto | Precio (price id) |
+|---|---|---|---|---|---|
+| Basic | USD 10/mes | 30 días | Redes de Meta (Facebook, Instagram, WhatsApp, Messenger) | `552e7618-e08e-47e6-995b-8049bc827722` | `e139fc26-37a0-49a7-a3e4-661af6c4c7a5` |
+| Pro | USD 25/mes | 30 días | Basic + resto de las redes | `cb6b25c0-813f-486c-80b7-5d19341f09dd` | `1aed31d0-33e4-4d8b-8e6e-6377db37fbda` |
+| Max | USD 50/mes | sin prueba | Pro + llamadas de WhatsApp; tope de consumo USD 40/mes | `ab94ac2c-ab4f-4004-a184-f81ec4aee352` | `839dbfc0-5502-4f4c-8599-6be2cc96b54e` |
+
+- Metadata de cada producto (para leer el plan sin depender del nombre):
+  `plan` (`basic` / `pro` / `max`), `channels` (`meta` / `all`); Max suma
+  `whatsapp_calls: true` y `usage_cap_usd_cents: 4000`.
+- Tope de Max: más adelante se amplía con **paquetes de crédito** (productos
+  de pago único en Polar); todavía no creados.
+- Son IDs de sandbox: en producción hay que crearlos de nuevo y cambian.
+
 ### Falta
 
-- **Decisiones del dueño:** planes y precios (se crean en Polar), moneda,
-  si hay prueba gratis y cuántos días.
 - Bloquear el uso cuando la suscripción no da acceso (en multitenant):
   pantalla "elegí un plan" y la API con 402, sin borrar datos.
 - Pantallas (Argon): elegir plan al registrarse, Ajustes → Facturación
