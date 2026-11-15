@@ -16,6 +16,7 @@ export const settingsInstall: Strings<typeof es> = {
   resetToServer: "サーバーの値に戻す",
   fromEnv: "サーバーのファイル (.env) から読み込み",
   groups: {
+    calls: "通話",
     meta: "Meta (Facebook と Instagram)",
     mail: "送信メール",
     publishing: "投稿先ネットワーク",
@@ -25,6 +26,10 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "人工知能",
   },
   items: {
+    CALL_RECORDING_ALLOWED: {
+      title: "通話の録音を許可",
+      description: "各アカウントの管理者が受信箱のWhatsApp通話を録音・文字起こしできるようにします。Metaは録音前に双方へ知らせ、音声を7日間保管します。AloStudioはそれを自身のストレージにコピーします。",
+    },
     META_APP_ID: {
       title: "Facebook アプリ ID",
       description: "Facebook ログインのフローで AloStudio を Meta に識別させます。クライアントごとではなく、インストール全体で 1 つです。",

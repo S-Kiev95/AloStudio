@@ -13,6 +13,7 @@ export const settingsInstall = {
   resetToServer: "volver al valor del servidor",
   fromEnv: "viene del archivo del servidor (.env)",
   groups: {
+    calls: "Llamadas",
     meta: "Meta (Facebook e Instagram)",
     mail: "Correo saliente",
     publishing: "Redes para publicar",
@@ -22,6 +23,10 @@ export const settingsInstall = {
     ai: "Inteligencia artificial",
   },
   items: {
+    CALL_RECORDING_ALLOWED: {
+      title: "Permitir grabar llamadas",
+      description: "Habilita que los administradores de cada cuenta graben y transcriban las llamadas de WhatsApp de sus bandejas. Meta avisa a las dos partes antes de grabar y guarda el audio 7 días; AloStudio lo copia en su almacenamiento.",
+    },
     META_APP_ID: {
       title: "App ID de Facebook",
       description: "Identifica a AloStudio ante Meta en el flujo de Facebook Login. Es uno solo para toda la instalación, no uno por cliente.",

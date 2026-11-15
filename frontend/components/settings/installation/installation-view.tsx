@@ -33,6 +33,7 @@ const GROUP_KEYS: Record<string, string> = {
   Webhooks: "webhooks",
   Marca: "brand",
   "Inteligencia artificial": "ai",
+  Llamadas: "calls",
 };
 // i18n-ignore-end
 
