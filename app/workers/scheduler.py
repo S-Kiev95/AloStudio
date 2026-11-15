@@ -448,8 +448,10 @@ class WorkerSettings:
             refresh_contact_avatar_task,
             refresh_stale_avatars_task,
             # Enqueued a few seconds after a product changes, for accounts
-            # linked to a Meta catalogue (F11).
-            sync_meta_catalog_task,
+            # linked to a Meta catalogue (F11). Keeps no result: ARQ refuses a
+            # job id while its result lives (an hour by default), so every
+            # change in the hour after a sync was dropped.
+            func(sync_meta_catalog_task, keep_result=0),
         ]
 
     # ARQ reads these off the class, so they're class-level by contract, not
