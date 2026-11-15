@@ -227,6 +227,15 @@ Todos recurrentes mensuales, en USD, precio fijo.
   de pago único en Polar); todavía no creados.
 - Son IDs de sandbox: en producción hay que crearlos de nuevo y cambian.
 
+### Sandbox primero, producción después (dueño, 2026-11-15)
+
+Todo F2 se termina y se prueba de punta a punta contra Polar **sandbox**:
+registro, elegir plan, checkout, prueba gratis de 30 días, renovación,
+pago rechazado (bloqueo sin borrar datos), portal y cancelación, con el
+webhook apuntando al servidor de prueba. Recién con eso probado se pasa a
+producción: crear los tres productos en Polar producción, token y webhook
+nuevos, `POLAR_SERVER=production` y actualizar los IDs acá.
+
 ### Falta
 
 - Bloquear el uso cuando la suscripción no da acceso (en multitenant):
