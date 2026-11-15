@@ -50,11 +50,17 @@ function gathered(pc: RTCPeerConnection): Promise<void> {
   });
 }
 
-/** Ask for the microphone and build the answer to the caller's offer. */
-export async function answerOffer(
-  offerSdp: string,
-  speaker: HTMLAudioElement,
-): Promise<CallAudio> {
+type Line = {
+  pc: RTCPeerConnection;
+  stream: MediaStream;
+  mic: MediaStreamTrack | undefined;
+  /** Everything a call needs once the descriptions are set. */
+  controls: Omit<CallAudio, "answerSdp">;
+};
+
+/** The microphone and a peer connection that plays the other side. The
+ *  microphone stays silent until :func:`startSending`. */
+async function openLine(speaker: HTMLAudioElement): Promise<Line> {
   let stream: MediaStream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -64,6 +70,7 @@ export async function answerOffer(
     throw new MicrophoneBlocked();
   }
   const mic = stream.getAudioTracks()[0];
+  if (mic) mic.enabled = false;
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   let muted = false;
   let live = false;
@@ -83,27 +90,7 @@ export async function answerOffer(
     }
   };
 
-  try {
-    // Offer first, then the microphone: it then rides the offered audio
-    // line instead of asking for a new one.
-    await pc.setRemoteDescription({ type: "offer", sdp: offerSdp });
-    if (mic) {
-      mic.enabled = false;
-      pc.addTrack(mic, stream);
-    }
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await gathered(pc);
-  } catch (err) {
-    stream.getTracks().forEach((track) => track.stop());
-    pc.close();
-    throw err;
-  }
-
-  const answerSdp = pc.localDescription?.sdp ?? "";
-
-  return {
-    answerSdp,
+  const controls: Omit<CallAudio, "answerSdp"> = {
     waitConnected: (timeoutMs) =>
       new Promise((resolve) => {
         if (pc.connectionState === "connected") return resolve(true);
@@ -136,6 +123,58 @@ export async function answerOffer(
       stream.getTracks().forEach((track) => track.stop());
       pc.close();
       speaker.srcObject = null;
+    },
+  };
+  return { pc, stream, mic, controls };
+}
+
+/** Ask for the microphone and build the answer to the caller's offer. */
+export async function answerOffer(
+  offerSdp: string,
+  speaker: HTMLAudioElement,
+): Promise<CallAudio> {
+  const { pc, stream, mic, controls } = await openLine(speaker);
+  try {
+    // Offer first, then the microphone: it then rides the offered audio
+    // line instead of asking for a new one.
+    await pc.setRemoteDescription({ type: "offer", sdp: offerSdp });
+    if (mic) pc.addTrack(mic, stream);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await gathered(pc);
+  } catch (err) {
+    controls.close();
+    throw err;
+  }
+  return { ...controls, answerSdp: pc.localDescription?.sdp ?? "" };
+}
+
+/** A call we make: the offer for Meta, and where the customer's answer goes
+ *  when it arrives. */
+export type OutgoingAudio = Omit<CallAudio, "answerSdp"> & {
+  offerSdp: string;
+  applyAnswer: (sdp: string) => Promise<void>;
+};
+
+export async function placeCall(speaker: HTMLAudioElement): Promise<OutgoingAudio> {
+  const { pc, stream, mic, controls } = await openLine(speaker);
+  try {
+    if (mic) pc.addTrack(mic, stream);
+    else pc.addTransceiver("audio", { direction: "recvonly" });
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await gathered(pc);
+  } catch (err) {
+    controls.close();
+    throw err;
+  }
+  return {
+    ...controls,
+    offerSdp: pc.localDescription?.sdp ?? "",
+    applyAnswer: async (sdp) => {
+      if (pc.signalingState === "have-local-offer") {
+        await pc.setRemoteDescription({ type: "answer", sdp });
+      }
     },
   };
 }

@@ -10,6 +10,14 @@ Route map, under ``/api/v1/accounts/{account_id}/calls``:
     wins, the rest get 409) and open the audio path
   * ``POST /{id}/accept``            — ``{sdp}`` (the same answer): start it
   * ``POST /{id}/hangup``            — end it
+  * ``GET  /permission?conversation_id=`` — may the business call this
+    customer (Meta keeps it): ``status``, ``can_call``, ``can_request``
+  * ``POST /permission_request``     — ``{conversation_id, text?}``: ask them
+    in the chat
+  * ``POST /``                       — ``{conversation_id, sdp}``: call them
+    with the browser's offer; the answer comes back as ``sdp_answer``
+
+``conversation_id`` is the number the panel shows (``display_id``).
 
 Errors carry ``code`` (``calls.taken``, ``calls.over``, ``calls.not_yours``,
 ``calls.not_connected``, ``calls.unreachable``, ``calls.refused``,
@@ -43,14 +51,19 @@ from app.domains.calls.models import (
     CALL_IN_PROGRESS,
     CALL_MISSED,
     CALL_RINGING,
+    DIRECTION_OUTBOUND,
     FINAL_STATUSES,
     PURPOSE_MAX,
     Call,
     CallInboxSettings,
 )
+from app.domains.contacts.models import Contact
 from app.domains.inboxes.models import CHANNEL_TYPE_WHATSAPP, Inbox, WhatsappChannel
 
 router = APIRouter(prefix="/api/v1/accounts/{account_id}/calls", tags=["calls"])
+
+# Refusals about the request or the customer (422), not about Meta failing.
+_OUR_SIDE = ("not_connected", "no_hours", "no_phone", "no_permission", "limit", "window")
 
 _NOT_FOUND = {"error": "Resource could not be found"}
 
@@ -59,6 +72,16 @@ class AnswerBody(BaseModel):
     # The browser's WebRTC answer; Meta wants the complete one (with the
     # candidates), not trickled.
     sdp: str = Field(min_length=10, max_length=20000)
+
+
+class CallBody(BaseModel):
+    conversation_id: int
+    sdp: str = Field(min_length=10, max_length=20000)
+
+
+class PermissionRequestBody(BaseModel):
+    conversation_id: int
+    text: str | None = Field(default=None, max_length=1024)
 
 
 class SettingsBody(BaseModel):
@@ -91,7 +114,7 @@ def _fail(status_code: int, code: str, message: str | None = None) -> ChatwootHT
 
 
 def _meta_fail(exc: whatsapp.CallError) -> ChatwootHTTPException:
-    status = 422 if exc.code in ("not_connected", "no_hours") else 502
+    status = 422 if exc.code in _OUR_SIDE else 502
     return _fail(status, exc.code, exc.detail)
 
 
@@ -221,6 +244,77 @@ async def update_settings(
 # ---------------------------------------------------------------------------
 # One call
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Calling a customer
+# ---------------------------------------------------------------------------
+async def _conversation_and_contact(
+    session: AsyncSession, ctx: AccountContext, display_id: int
+) -> tuple[Any, Contact]:
+    from app.domains.conversations.router import _load_conversation_by_display_id
+
+    conversation = await _load_conversation_by_display_id(session, ctx=ctx, display_id=display_id)
+    contact = await session.get(Contact, conversation.contact_id) if conversation.contact_id else None
+    if contact is None:
+        raise _fail(422, "no_phone")
+    return conversation, contact
+
+
+@router.get("/permission")
+async def show_permission(
+    conversation_id: int,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    conversation, contact = await _conversation_and_contact(session, ctx, conversation_id)
+    try:
+        return await whatsapp.permission_state(session, conversation=conversation, contact=contact)
+    except whatsapp.CallError as exc:
+        raise _meta_fail(exc) from exc
+
+
+@router.post("/permission_request")
+async def create_permission_request(
+    body: PermissionRequestBody,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    conversation, contact = await _conversation_and_contact(session, ctx, body.conversation_id)
+    text = (body.text or "").strip() or calls.default_permission_text()
+    try:
+        message = await whatsapp.request_permission(
+            session,
+            conversation=conversation,
+            contact=contact,
+            agent_id=_user_id(ctx),
+            text=text,
+        )
+    except whatsapp.CallError as exc:
+        raise _meta_fail(exc) from exc
+    return {"message_id": message.id}
+
+
+@router.post("", status_code=201)
+async def create_call(
+    body: CallBody,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    conversation, contact = await _conversation_and_contact(session, ctx, body.conversation_id)
+    plan = await calls.recording_plan_for_inbox(session, conversation.inbox_id)
+    try:
+        call = await whatsapp.start_call(
+            session,
+            conversation=conversation,
+            contact=contact,
+            agent_id=_user_id(ctx),
+            sdp=body.sdp,
+            plan=plan,
+        )
+    except whatsapp.CallError as exc:
+        raise _meta_fail(exc) from exc
+    return await calls.present_call(session, call)
+
+
 @router.get("/{call_id}")
 async def show_call(
     call_id: Annotated[int, Path()],
@@ -234,6 +328,9 @@ async def show_call(
         call.status == CALL_CONNECTING and call.answered_by_id == _user_id(ctx)
     ):
         out["sdp_offer"] = call.sdp_offer
+    # The customer's answer only matters to the agent who is calling.
+    if call.direction == DIRECTION_OUTBOUND and call.answered_by_id == _user_id(ctx):
+        out["sdp_answer"] = call.sdp_answer
     return out
 
 

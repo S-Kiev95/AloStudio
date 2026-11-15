@@ -13,6 +13,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { CallButton } from "@/components/calls/call-button";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -172,6 +173,7 @@ export function ConversationView({
   // the wrong shape for it: subject, recipients, long bodies, and a
   // thread you scan rather than scroll.
   const isEmail = conv.data?.meta?.channel === "Channel::Email";
+  const isWhatsapp = conv.data?.meta?.channel === "Channel::Whatsapp";
   const subject = conv.data?.additional_attributes?.mail_subject ?? null;
 
   // The chat follows the newest message, unless the agent scrolled up to
@@ -297,6 +299,14 @@ export function ConversationView({
               </>
             )}
           </Button>
+          {isWhatsapp ? (
+            <CallButton
+              accountId={accountId}
+              conversationId={displayId}
+              contactName={contactName}
+              thumbnail={conv.data?.meta?.sender?.thumbnail}
+            />
+          ) : null}
           <button
             type="button"
             onClick={() => setSearchOpen((open) => !open)}

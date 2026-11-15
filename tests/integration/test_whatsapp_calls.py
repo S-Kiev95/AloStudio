@@ -25,7 +25,10 @@ from app.domains.contacts.models import Contact
 from app.domains.conversations.models import (
     CONTENT_TYPE_VOICE_CALL,
     FILE_TYPE_AUDIO,
+    MESSAGE_TYPE_INCOMING,
+    MESSAGE_TYPE_OUTGOING,
     Attachment,
+    Conversation,
     Message,
 )
 from app.domains.inboxes.models import WHATSAPP_PROVIDER_CLOUD, InboxMember
@@ -726,3 +729,249 @@ async def test_a_copy_that_failed_is_retried_later(db_session, seeded, monkeypat
     assert attempts == ["rec-9", "rec-9"]
     assert call.recording_attachment_id is not None
     assert call.recording_media_id is None
+
+
+# ---------------------------------------------------------------------------
+# Calling a customer
+# ---------------------------------------------------------------------------
+async def _conversation(db_session, seeded) -> Conversation:
+    """A conversation with the customer, made by a call that went unanswered."""
+    call = await _ring(db_session, seeded, call_id="wacid.IN1")
+    await process_cloud_webhook(
+        db_session, channel=seeded["channel"], inbox=seeded["inbox"], payload=_terminate("wacid.IN1")
+    )
+    conversation = await db_session.get(Conversation, call.conversation_id)
+    assert conversation is not None
+    return conversation
+
+
+def _status_payload(call_id: str, status: str) -> dict[str, Any]:
+    payload = _calls_payload({})
+    value = payload["entry"][0]["changes"][0]["value"]
+    value.pop("calls")
+    value["statuses"] = [
+        {
+            "id": call_id,
+            "timestamp": "1763140400",
+            "type": "call",
+            "status": status,
+            "recipient_id": "59891234567",
+        }
+    ]
+    return payload
+
+
+@respx.mock
+async def test_whether_the_customer_lets_us_call_comes_from_meta(client, db_session, seeded):
+    respx.route(host="test").pass_through()
+    asked = respx.get(url__regex=GRAPH + r"p1/call_permissions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "messaging_product": "whatsapp",
+                "permission": {"status": "temporary", "expiration_time": 1763740000},
+                "actions": [
+                    {"action_name": "send_call_permission_request", "can_perform_action": False},
+                    {"action_name": "start_call", "can_perform_action": True},
+                ],
+            },
+        )
+    )
+    conversation = await _conversation(db_session, seeded)
+    agent_h = await _headers(db_session, seeded["agent"])
+
+    resp = await client.get(
+        f"{seeded['base']}/permission", params={"conversation_id": conversation.display_id}, headers=agent_h
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {
+        "status": "temporary",
+        "expires_at": 1763740000,
+        "can_call": True,
+        "can_request": False,
+    }
+    assert asked.calls.last.request.url.params["user_wa_id"] == "59891234567"
+
+
+@respx.mock
+async def test_asking_permission_goes_through_meta_and_shows_in_the_chat(client, db_session, seeded):
+    respx.route(host="test").pass_through()
+    sent = respx.post(url__regex=GRAPH + r"p1/messages(\?|$)").mock(
+        return_value=httpx.Response(
+            200, json={"messaging_product": "whatsapp", "messages": [{"id": "wamid.PERM1"}]}
+        )
+    )
+    conversation = await _conversation(db_session, seeded)
+    agent_h = await _headers(db_session, seeded["agent"])
+
+    resp = await client.post(
+        f"{seeded['base']}/permission_request",
+        json={"conversation_id": conversation.display_id},
+        headers=agent_h,
+    )
+    assert resp.status_code == 200, resp.text
+    assert sent.call_count == 1, "sent once: the reply cascade must not send it again"
+    body = json.loads(sent.calls.last.request.content)
+    assert body["to"] == "59891234567"
+    assert body["interactive"]["type"] == "call_permission_request"
+    assert body["interactive"]["action"] == {"name": "call_permission_request"}
+    assert body["interactive"]["body"]["text"].startswith("¿Te podemos llamar")
+    message = await db_session.get(Message, resp.json()["message_id"])
+    assert message.message_type == MESSAGE_TYPE_OUTGOING
+    assert message.source_id == "wamid.PERM1"
+    assert message.content_attributes["call_permission_request"] is True
+
+
+async def test_the_customers_answer_becomes_a_message(db_session, seeded):
+    conversation = await _conversation(db_session, seeded)
+    payload = _calls_payload({})
+    change = payload["entry"][0]["changes"][0]
+    change["field"] = "messages"
+    change["value"].pop("calls")
+    change["value"]["messages"] = [
+        {
+            "from": "59891234567",
+            "id": "wamid.REPLY1",
+            "timestamp": "1763140500",
+            "type": "interactive",
+            "context": {"id": "wamid.PERM1"},
+            "interactive": {
+                "type": "call_permission_reply",
+                "call_permission_reply": {
+                    "response": "accept",
+                    "is_permanent": False,
+                    "expiration_timestamp": "1763745300",
+                    "response_source": "user_action",
+                },
+            },
+        }
+    ]
+    await process_cloud_webhook(
+        db_session, channel=seeded["channel"], inbox=seeded["inbox"], payload=payload
+    )
+    message = (
+        await db_session.exec(select(Message).where(Message.source_id == "wamid.REPLY1"))
+    ).first()
+    assert message is not None
+    assert message.conversation_id == conversation.id
+    assert message.message_type == MESSAGE_TYPE_INCOMING
+    assert message.content == "Aceptó que lo llamen por WhatsApp (por 7 días)"
+    assert message.content_attributes["call_permission"] == {
+        "response": "accept",
+        "permanent": False,
+        "automatic": False,
+        "expires_at": 1763745300,
+    }
+
+
+@respx.mock
+async def test_calling_a_customer_from_the_panel(client, db_session, seeded):
+    respx.route(host="test").pass_through()
+    meta = respx.post(url__regex=GRAPH + r"p1/calls(\?|$)").mock(
+        return_value=httpx.Response(
+            200, json={"messaging_product": "whatsapp", "calls": [{"id": "wacid.OUT1"}]}
+        )
+    )
+    texted = respx.post(url__regex=GRAPH + r"p1/messages(\?|$)").mock(
+        return_value=httpx.Response(200, json={"messages": [{"id": "wamid.X"}]})
+    )
+    conversation = await _conversation(db_session, seeded)
+    agent_h = await _headers(db_session, seeded["agent"])
+    admin_h = await _headers(db_session, seeded["admin"])
+
+    resp = await client.post(
+        seeded["base"], json={"conversation_id": conversation.display_id, "sdp": OFFER}, headers=agent_h
+    )
+    assert resp.status_code == 201, resp.text
+    placed = resp.json()
+    assert placed["direction"] == "outbound"
+    assert placed["status"] == "ringing"
+    assert placed["answered_by"]["name"] == "Sofía"
+    assert placed["can_answer"] is False
+    asked = json.loads(meta.calls.last.request.content)
+    assert asked == {
+        "messaging_product": "whatsapp",
+        "to": "59891234567",
+        "action": "connect",
+        "session": {"sdp_type": "offer", "sdp": OFFER},
+    }
+    assert texted.call_count == 0, "the call bubble must not be texted to the customer"
+    call = await calls_service.by_provider_id(db_session, "wacid.OUT1")
+    bubble = await db_session.get(Message, call.message_id)
+    assert bubble.message_type == MESSAGE_TYPE_OUTGOING
+    assert bubble.content_attributes["data"]["call_direction"] == "outbound"
+
+    # Nobody else can "take" a call an agent is placing.
+    taken = await client.post(f"{seeded['base']}/{call.id}/pre_accept", json={"sdp": ANSWER}, headers=admin_h)
+    assert taken.status_code == 409
+
+    connect = _calls_payload(
+        {
+            "id": "wacid.OUT1",
+            "to": "59891234567",
+            "from": "59899000111",
+            "event": "connect",
+            "timestamp": "1763140600",
+            "direction": "BUSINESS_INITIATED",
+            "session": {"sdp_type": "answer", "sdp": ANSWER},
+        }
+    )
+    await process_cloud_webhook(db_session, channel=seeded["channel"], inbox=seeded["inbox"], payload=connect)
+    mine = (await client.get(f"{seeded['base']}/{call.id}", headers=agent_h)).json()
+    assert mine["sdp_answer"] == ANSWER
+    theirs = (await client.get(f"{seeded['base']}/{call.id}", headers=admin_h)).json()
+    assert "sdp_answer" not in theirs
+
+    await process_cloud_webhook(
+        db_session, channel=seeded["channel"], inbox=seeded["inbox"], payload=_status_payload("wacid.OUT1", "ACCEPTED")
+    )
+    await db_session.refresh(call)
+    assert call.status == "in_progress"
+    assert call.answered_at is not None
+
+    await process_cloud_webhook(
+        db_session,
+        channel=seeded["channel"],
+        inbox=seeded["inbox"],
+        payload=_terminate("wacid.OUT1", direction="BUSINESS_INITIATED", duration=30, start_time="1763140610"),
+    )
+    await db_session.refresh(call)
+    assert call.status == "completed"
+    assert call.duration_seconds == 30
+
+
+@respx.mock
+async def test_a_call_the_customer_rejects_is_missed(client, db_session, seeded):
+    respx.route(host="test").pass_through()
+    respx.post(url__regex=GRAPH + r"p1/calls(\?|$)").mock(
+        return_value=httpx.Response(200, json={"calls": [{"id": "wacid.OUT2"}]})
+    )
+    conversation = await _conversation(db_session, seeded)
+    agent_h = await _headers(db_session, seeded["agent"])
+    await client.post(
+        seeded["base"], json={"conversation_id": conversation.display_id, "sdp": OFFER}, headers=agent_h
+    )
+    await process_cloud_webhook(
+        db_session, channel=seeded["channel"], inbox=seeded["inbox"], payload=_status_payload("wacid.OUT2", "REJECTED")
+    )
+    call = await calls_service.by_provider_id(db_session, "wacid.OUT2")
+    assert call.status == "missed"
+    assert call.end_reason == "rejected"
+
+
+@respx.mock
+async def test_calling_without_permission_says_so(client, db_session, seeded):
+    respx.route(host="test").pass_through()
+    respx.post(url__regex=GRAPH + r"p1/calls(\?|$)").mock(
+        return_value=httpx.Response(
+            400, json={"error": {"code": 138006, "message": "No approved call permission"}}
+        )
+    )
+    conversation = await _conversation(db_session, seeded)
+    agent_h = await _headers(db_session, seeded["agent"])
+    resp = await client.post(
+        seeded["base"], json={"conversation_id": conversation.display_id, "sdp": OFFER}, headers=agent_h
+    )
+    assert resp.status_code == 422
+    assert resp.json()["code"] == "calls.no_permission"
+    assert await calls_service.by_provider_id(db_session, "wacid.OUT3") is None

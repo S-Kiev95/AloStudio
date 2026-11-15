@@ -1,6 +1,14 @@
 "use client";
 
-import { ChevronDown, Phone, PhoneIncoming, PhoneMissed } from "lucide-react";
+import {
+  ChevronDown,
+  Phone,
+  PhoneCall,
+  PhoneIncoming,
+  PhoneMissed,
+  PhoneOff,
+  PhoneOutgoing,
+} from "lucide-react";
 import { useState } from "react";
 
 import type { Message } from "@/lib/api/conversations";
@@ -10,6 +18,7 @@ import { cn } from "@/lib/utils";
 /** The state of a call as the conversation keeps it (Chatwoot's names). */
 type CallData = {
   status?: string;
+  call_direction?: "inbound" | "outbound";
   duration?: number | null;
   answered_by?: { id: number; name: string } | null;
   /** "pending" while Meta prepares it, "ready" once it is in AloStudio. */
@@ -37,9 +46,12 @@ function length(seconds: number): string {
 export function useVoiceCallPreview(): (message: Message) => string {
   const t = useT();
   return (message) => {
-    const status = callData(message).status;
-    if (status === "no-answer" || status === "failed") return t("calls.bubble.missed");
-    return t("calls.bubble.incoming");
+    const data = callData(message);
+    const missed = data.status === "no-answer" || data.status === "failed";
+    if (data.call_direction === "outbound") {
+      return missed ? t("calls.bubble.notAnswered") : t("calls.bubble.outgoing");
+    }
+    return missed ? t("calls.bubble.missed") : t("calls.bubble.incoming");
   };
 }
 
@@ -51,32 +63,55 @@ export function VoiceCallMessage({ message }: { message: Message }) {
   const missed = status === "no-answer" || status === "failed";
   const ringing = status === "ringing";
   const live = status === "in-progress";
+  const outbound = data.call_direction === "outbound";
+  const agent = data.answered_by?.name;
 
-  const title = missed
-    ? t("calls.bubble.missed")
-    : live
-      ? t("calls.bubble.inProgress")
-      : ringing
-        ? t("calls.bubble.ringing")
-        : t("calls.bubble.incoming");
+  let title: string;
   let detail: string;
-  if (missed) {
-    detail = status === "failed" ? t("calls.bubble.failed") : t("calls.bubble.noAnswer");
-  } else if (ringing) {
-    detail = t("calls.bubble.notAnsweredYet");
-  } else if (data.answered_by?.name) {
-    detail =
-      !live && typeof data.duration === "number"
-        ? t("calls.bubble.answeredFor", {
-            name: data.answered_by.name,
-            length: length(data.duration),
-          })
-        : t("calls.bubble.answeredBy", { name: data.answered_by.name });
+  if (outbound) {
+    // A call an agent made: answered_by is who called.
+    title = missed
+      ? t("calls.bubble.notAnswered")
+      : live
+        ? t("calls.bubble.inProgress")
+        : ringing
+          ? t("calls.bubble.calling")
+          : t("calls.bubble.outgoing");
+    if (missed && status === "failed") detail = t("calls.bubble.failed");
+    else if (agent && !live && !ringing && !missed && typeof data.duration === "number") {
+      detail = t("calls.bubble.calledFor", { name: agent, length: length(data.duration) });
+    } else detail = agent ? t("calls.bubble.calledBy", { name: agent }) : t("calls.bubble.ended");
   } else {
-    detail = t("calls.bubble.ended");
+    title = missed
+      ? t("calls.bubble.missed")
+      : live
+        ? t("calls.bubble.inProgress")
+        : ringing
+          ? t("calls.bubble.ringing")
+          : t("calls.bubble.incoming");
+    if (missed) {
+      detail = status === "failed" ? t("calls.bubble.failed") : t("calls.bubble.noAnswer");
+    } else if (ringing) {
+      detail = t("calls.bubble.notAnsweredYet");
+    } else if (agent) {
+      detail =
+        !live && typeof data.duration === "number"
+          ? t("calls.bubble.answeredFor", { name: agent, length: length(data.duration) })
+          : t("calls.bubble.answeredBy", { name: agent });
+    } else {
+      detail = t("calls.bubble.ended");
+    }
   }
 
-  const Icon = missed ? PhoneMissed : live ? Phone : PhoneIncoming;
+  const Icon = missed
+    ? outbound
+      ? PhoneOff
+      : PhoneMissed
+    : live
+      ? Phone
+      : outbound
+        ? PhoneOutgoing
+        : PhoneIncoming;
   const pending =
     data.recording === "pending" || data.transcription === "pending"
       ? t("calls.bubble.processing")
@@ -146,5 +181,55 @@ function Transcript({
         </dl>
       ) : null}
     </div>
+  );
+}
+
+/** The permission to call: the business asking, or the customer's answer. */
+type PermissionData = {
+  response?: "accept" | "reject";
+  permanent?: boolean;
+  automatic?: boolean;
+};
+
+export function isCallPermissionMessage(message: Message): boolean {
+  const attrs = message.content_attributes ?? {};
+  return attrs.call_permission_request === true || typeof attrs.call_permission === "object";
+}
+
+/** Shown in the chat in the reader's language, whatever text was stored. */
+export function CallPermissionNote({ message }: { message: Message }) {
+  const t = useT();
+  const attrs = message.content_attributes ?? {};
+  if (attrs.call_permission_request === true) {
+    return (
+      <span className="flex flex-col gap-1">
+        <span className="flex items-center gap-1.5 text-xs font-medium opacity-85">
+          <PhoneCall className="h-3.5 w-3.5" aria-hidden />
+          {t("calls.bubble.permissionRequest")}
+        </span>
+        {message.content ? (
+          <span className="whitespace-pre-wrap break-words">{message.content}</span>
+        ) : null}
+      </span>
+    );
+  }
+  const data = (attrs.call_permission ?? {}) as PermissionData;
+  const text =
+    data.response !== "accept"
+      ? t("calls.bubble.permissionRejected")
+      : data.permanent
+        ? t("calls.bubble.permissionAlways")
+        : data.automatic
+          ? t("calls.bubble.permissionByCalling")
+          : t("calls.bubble.permissionAccepted");
+  return (
+    <span className="flex items-center gap-1.5">
+      {data.response === "accept" ? (
+        <PhoneCall className="h-4 w-4 shrink-0 text-success" aria-hidden />
+      ) : (
+        <PhoneOff className="h-4 w-4 shrink-0 text-danger" aria-hidden />
+      )}
+      <span>{text}</span>
+    </span>
   );
 }

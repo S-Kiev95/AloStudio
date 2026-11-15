@@ -13,7 +13,12 @@ import {
 import { clockTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { useLocale, useT } from "@/lib/i18n/provider";
-import { isVoiceCallMessage, VoiceCallMessage } from "@/components/calls/voice-call-message";
+import {
+  CallPermissionNote,
+  isCallPermissionMessage,
+  isVoiceCallMessage,
+  VoiceCallMessage,
+} from "@/components/calls/voice-call-message";
 import { CommerceMessage, isCommerceMessage } from "@/components/whatsapp/commerce-message";
 
 type Attachment = NonNullable<Message["attachments"]>[number];
@@ -405,6 +410,8 @@ export function MessageBubble({
             <>
               {isVoiceCallMessage(message) ? (
                 <VoiceCallMessage message={message} />
+              ) : isCallPermissionMessage(message) ? (
+                <CallPermissionNote message={message} />
               ) : isCommerceMessage(message) ? (
                 <CommerceMessage message={message} />
               ) : message.content ? (

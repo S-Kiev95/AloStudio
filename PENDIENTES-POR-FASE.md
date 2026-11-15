@@ -102,7 +102,7 @@ anota en esta sección y lo decide el dueño.
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En develop (2026-11-14): WhatsApp (costo de Meta) e IA; falta CTC |
-| F7 Llamadas y voz | B | Paso 1 en develop (2026-11-15): recibir llamadas de WhatsApp en el panel, probado con Meta real; grabación y transcripción que habilita el operador (falta probarlas con Meta real) |
+| F7 Llamadas y voz | B | Recibir llamadas en develop y probado con Meta real; grabación y transcripción que habilita el operador; llamar desde AloStudio con permiso del cliente en `feat/f7-voz` (2026-11-15, falta Meta real) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
@@ -354,8 +354,34 @@ dentro de la rama.
   archivo para que la llamada caiga en la misma conversación que los
   mensajes. No toqué `components/whatsapp/`: la tarjeta de ajustes está en
   `components/calls/` y se monta desde `settings/inboxes/inbox-detail-view`.
-- **Sigue:** paso 2, llamar desde la conversación (cuesta por minuto y pide
-  permiso del cliente); paso 3, agente de voz.
+  Para el paso 2 sumé otro enganche chico en `_process_value`: un mensaje
+  `interactive` de tipo `call_permission_reply` toma su texto y atributos de
+  `app.domains.calls.whatsapp.permission_reply` (variable `call_attrs`, aparte
+  de `order_attrs`).
+- **Paso 2, llamar desde AloStudio — hecho el 2026-11-15 (rama `feat/f7-voz`):**
+  - Botón de teléfono en la cabecera de las conversaciones de WhatsApp. Le
+    pregunta a Meta si el cliente deja que lo llamen (`GET
+    /{phone_number_id}/call_permissions`): si deja, «Llamar ahora»; si no,
+    «Pedir permiso para llamar» manda el mensaje interactivo
+    `call_permission_request` (texto editable) y queda en el chat; la
+    respuesta del cliente llega como mensaje («Aceptó que lo llamen por
+    WhatsApp (por 7 días)», «siempre», o «no quiere»).
+  - La llamada sale del navegador del agente (oferta WebRTC → `connect`);
+    Meta devuelve la respuesta del cliente en el webhook `connect`
+    (`sdp_answer`, migración `f1a2b3c4d5e7`) y avisa `RINGING` / `ACCEPTED` /
+    `REJECTED`. El micrófono se prende cuando el cliente atiende. La
+    burbuja dice «Llamada saliente · Llamó Sofía · 0:42» o «No atendió».
+  - «Permitir devolver llamadas» en la tarjeta de llamadas: quien llama al
+    número deja que lo llamen de vuelta 7 días (permiso automático de Meta).
+  - Límites de Meta: un pedido de permiso por día y dos por semana; si no
+    atiende 4 llamadas seguidas se pierde el permiso; hasta 100 llamadas
+    conectadas por día por número. Fuera de las 24 h el pedido necesita una
+    plantilla (todavía no está; Meta responde y el panel lo explica).
+  - Costo: por minuto según el país del cliente (va en F6).
+  - Probado en local con el Meta simulado (pedido, aceptación, llamada con
+    audio en los dos sentidos, colgar). **Falta probarlo con Meta real.**
+- **Sigue:** plantilla para pedir permiso fuera de las 24 h; paso 3, agente
+  de voz.
 
 ## F8. Búsqueda en conversaciones viejas
 

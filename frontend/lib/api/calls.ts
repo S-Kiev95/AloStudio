@@ -41,6 +41,8 @@ export type Call = {
   duration_seconds: number | null;
   /** Only on GET /calls/:id, for the browser that answers. */
   sdp_offer?: string | null;
+  /** Only for the agent placing a call: the customer's side of the audio. */
+  sdp_answer?: string | null;
 };
 
 export const ACTIVE_CALL_STATUSES: readonly CallStatus[] = [
@@ -92,12 +94,13 @@ export function callKey(accountId: string, id: number) {
 
 /** One call, kept current while I am on it: the cable writes every change
  *  here, and the poll catches an end whose event got lost. */
-export function useCall(accountId: string, id: number | null) {
+export function useCall(accountId: string, id: number | null, fast = false) {
   return useQuery({
     queryKey: callKey(accountId, id ?? 0),
     queryFn: () => apiFetch<Call>(`${base(accountId)}/${id}`),
     enabled: id !== null,
-    refetchInterval: 10_000,
+    // While my call rings out, its answer and pickup are what I wait for.
+    refetchInterval: fast ? 1_000 : 10_000,
   });
 }
 
@@ -114,6 +117,12 @@ export function callApi(accountId: string) {
     preAccept: (id: number, sdp: string) => post(id, "pre_accept", sdp),
     accept: (id: number, sdp: string) => post(id, "accept", sdp),
     hangup: (id: number) => post(id, "hangup"),
+    /** Ring the customer of this conversation with the browser's offer. */
+    place: (conversationId: number, sdp: string) =>
+      apiFetch<Call>(base(accountId), {
+        method: "POST",
+        body: JSON.stringify({ conversation_id: conversationId, sdp }),
+      }),
     /** For when the page is closing: the request outlives it. */
     hangupOnUnload: (id: number) => {
       const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "/api/backend";
@@ -193,5 +202,48 @@ export function useSaveCallSettings(accountId: string, inboxId: number) {
         body: JSON.stringify(input),
       }),
     onSuccess: (saved) => qc.setQueryData(settingsKey(accountId, inboxId), saved),
+  });
+}
+
+
+/** Whether the customer lets the business call them (Meta keeps it). */
+export type CallPermission = {
+  status: "no_permission" | "temporary" | "permanent";
+  /** Unix seconds; only for a temporary permission. */
+  expires_at: number | null;
+  can_call: boolean;
+  can_request: boolean;
+};
+
+export function useCallPermission(
+  accountId: string,
+  conversationId: number,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["calls", accountId, "permission", conversationId] as const,
+    queryFn: () =>
+      apiFetch<CallPermission>(
+        `${base(accountId)}/permission?conversation_id=${conversationId}`,
+      ),
+    enabled,
+    retry: false,
+    staleTime: 0,
+  });
+}
+
+/** Ask the customer, in the chat, whether the business may call them. */
+export function useRequestCallPermission(accountId: string, conversationId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (text?: string) =>
+      apiFetch<{ message_id: number }>(`${base(accountId)}/permission_request`, {
+        method: "POST",
+        body: JSON.stringify({ conversation_id: conversationId, text: text || undefined }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["messages", accountId] });
+      qc.invalidateQueries({ queryKey: ["calls", accountId, "permission", conversationId] });
+    },
   });
 }

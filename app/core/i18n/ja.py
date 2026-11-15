@@ -67,4 +67,10 @@ MESSAGES: dict[str, str] = {
     # Who said what, in a call's transcript
     "calls.speaker.business": "担当者",
     "calls.speaker.customer": "顧客",
+    # Asking a customer whether the business may call them (F7)
+    "calls.permission.request": "お問い合わせの件でWhatsAppからお電話してもよろしいですか?",
+    "calls.permission.accepted": "WhatsAppでの電話を許可しました(7日間)",
+    "calls.permission.accepted_always": "WhatsAppでの電話を許可しました(常に)",
+    "calls.permission.accepted_by_calling": "電話をかけたことで、7日間の折り返しを許可しました",
+    "calls.permission.rejected": "WhatsAppでの電話を希望していません",
 }
