@@ -4,7 +4,7 @@ Lista viva: qué falta de cada fase de `PLAN.fases-futuras.md`. Se actualiza
 al cerrar cada trabajo. El detalle de cada fase está en ese plan; acá solo
 el estado y lo que queda.
 
-Última actualización: 2026-11-12.
+Última actualización: 2026-11-15.
 
 ## Reparto entre los dos agentes
 
@@ -132,7 +132,7 @@ anota en esta sección y lo decide el dueño.
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
-| F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; resto para más adelante |
+| F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; paso 3 (Polar) con backend y planes en sandbox (2026-11-15). Todo se prueba en sandbox antes de pasar a producción |
 | F3 Redes que faltan | B | Sin empezar |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
@@ -195,9 +195,17 @@ dentro de la rama.
 - Al borrar una bandeja conectada por Embedded Signup, desuscribir la app
   de esa cuenta de WhatsApp Business.
 - Captcha en el registro, si el límite por IP no alcanza.
-- **Paso 3, facturación:** elegir proveedor de cobro, moneda, planes y sus
-  límites (decisiones del dueño). El webhook de pagos no puede tirar
-  excepciones.
+- **Paso 3, facturación con Polar:** backend hecho; planes Basic (USD 10,
+  30 días de prueba), Pro (USD 25, 30 días) y Max (USD 50, sin prueba, tope
+  de consumo USD 40/mes) creados en Polar sandbox, IDs en
+  `PLAN.multitenant.md`. Falta: bloqueo sin suscripción (402), pantallas de
+  plan y facturación, topes por plan, webhook de Polar sandbox y paquetes de
+  crédito para Max. El webhook de pagos no puede tirar excepciones.
+- **Sandbox primero, producción después (dueño, 2026-11-15):** todo F2 se
+  termina y se prueba de punta a punta en Polar sandbox (alta, checkout,
+  prueba gratis, renovación, falta de pago, portal). Recién con eso probado
+  se pasa a producción: crear los productos de nuevo en Polar producción
+  (los IDs cambian), token y webhook de producción y `POLAR_SERVER=production`.
 - **Paso 4:** límites de uso por cuenta en el worker y la API.
 - **Paso 5:** panel interno de cuentas, métricas por cliente, borrado y
   exportación de los datos de una cuenta.
