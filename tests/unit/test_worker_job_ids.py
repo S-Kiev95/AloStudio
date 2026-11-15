@@ -8,7 +8,7 @@ from arq.worker import Function
 from app.workers.scheduler import WorkerSettings
 
 
-@pytest.mark.parametrize("name", ["sync_meta_catalog_task"])
+@pytest.mark.parametrize("name", ["sync_meta_catalog_task", "decide_conversation_task"])
 def test_a_job_that_folds_bursts_can_run_again_right_after(name: str) -> None:
     jobs = {f.name: f for f in WorkerSettings._functions() if isinstance(f, Function)}
     assert jobs[name].keep_result_s == 0
