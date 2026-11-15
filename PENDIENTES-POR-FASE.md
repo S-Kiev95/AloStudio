@@ -462,6 +462,14 @@ dentro de la rama.
 - Revisar con el dueño la regla de autorespuesta de Instagram con umbral
   0,55 antes de pasar esa cuenta a Gemma.
 - Pasar cuenta por cuenta; en CTC hoy no está configurado (sigue OpenAI).
+- **Revisión del 2026-11-15:** la sombra no juntó datos. En develop, 0
+  comentarios de Instagram por reglas y 0 artículos de Help Center en la
+  semana; en CTC tampoco hay uso (0 reglas, 0 artículos, 5 comentarios en 30
+  días). Sin tráfico real, la decisión queda con la medición offline que ya
+  dio a Gemma por encima de OpenAI. Propuesta: pasar las cuentas de develop
+  a Gemma ya (gratis, local) y en CTC instalar el servicio (hay 5,4 GB
+  libres de 8) recién cuando empiecen a usar respuestas automáticas o el
+  Help Center. La búsqueda de la Bandeja (F8) ya usa Gemma.
 
 ## F10. Jev y Laya
 
