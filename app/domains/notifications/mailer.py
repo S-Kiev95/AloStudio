@@ -64,6 +64,8 @@ def build_notification_email(
     link = (
         f"{base}/tasks"
         if notification.primary_actor_type == "CrmActivity"
+        else f"{base}/publications/analytics/costs"
+        if notification.primary_actor_type == "UsageLimit"
         else f"{base}/conversations/{display_id}"
     )
     greeting = user.name or user.email or ""

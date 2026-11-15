@@ -29,6 +29,7 @@ MESSAGES: dict[str, str] = {
     "notif.subject.assigned_conversation_new_message": "Neue Nachricht in Konversation #{n}",
     "notif.subject.conversation_bot_handoff": "Konversation #{n} braucht eine Person",
     "notif.subject.crm_activity_due": "Die Aufgabe „{title}“ ist fällig",
+    "notif.subject.usage_limit": "Ausgabenlimit: {title}",
     "notif.subject.default": "Neue Benachrichtigung",
     "notif.lead.conversation_creation": (
         "In einem Posteingang, in dem du Mitglied bist, wurde eine neue Konversation erstellt."
@@ -41,6 +42,7 @@ MESSAGES: dict[str, str] = {
         "Der Bot hat eine Konversation ans Team übergeben: Jemand muss antworten."
     ),
     "notif.lead.crm_activity_due": "Eine Aufgabe, für die du verantwortlich bist, ist fällig: {title}.",
+    "notif.lead.usage_limit": "Ein monatliches Ausgabenlimit wurde erreicht: {title}. Bei 100 % stoppen WhatsApp-Vorlagen oder die KI bis zum nächsten Monat oder bis du das Limit erhöhst.",
     "notif.lead.default": "Du hast eine neue Benachrichtigung bei AloStudio.",
     "notif.body": (
         "{lead}\n\n"
@@ -59,6 +61,7 @@ MESSAGES: dict[str, str] = {
     "push.title.sla_missed_resolution": "SLA verfehlt",
     "push.title.conversation_bot_handoff": "Eine Person wird gebraucht",
     "push.title.crm_activity_due": "Aufgabe fällig",
+    "push.title.usage_limit": "Ausgabenlimit",
     "push.title.default": "Benachrichtigung",
     "push.body": "Konversation #{n}",
     "whatsapp.contact_fallback": "Ein Kontakt",

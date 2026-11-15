@@ -61,6 +61,7 @@ export const core = {
       sla_missed_resolution: "SLA: resolución vencida",
       conversation_bot_handoff: "El bot derivó una conversación al equipo",
       crm_activity_due: "Venció una tarea del CRM",
+      usage_limit: "Se llegó a un tope de gasto",
     },
   },
   validation: {

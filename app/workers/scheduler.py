@@ -253,6 +253,16 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         await enqueue_notification_email(notification_id)
         await enqueue_notification_push(notification_id)
 
+    # Spend caps (F6): admins hear about 80 % and 100 %, once per month.
+    from app.domains.usage.limits import notify_limits
+
+    async with sessionmaker() as usage_session:
+        cap_alerts = await notify_limits(usage_session)
+        await usage_session.commit()
+    for notification_id in cap_alerts:
+        await enqueue_notification_email(notification_id)
+        await enqueue_notification_push(notification_id)
+
     # Calls (F7): close the ones whose end never reached us, and copy
     # recordings and transcripts a first attempt could not.
     from app.domains.calls.tick import run as calls_tick

@@ -61,6 +61,11 @@ def _push_payload(
         body = str((notification.meta or {}).get("title", ""))
         base = get_settings().app_base_url.rstrip("/")
         url = f"{base}/accounts/{notification.account_id}/tasks"
+    elif notification.primary_actor_type == "UsageLimit":
+        # A spend cap: how far it got, and the Gastos page.
+        body = str((notification.meta or {}).get("title", ""))
+        base = get_settings().app_base_url.rstrip("/")
+        url = f"{base}/accounts/{notification.account_id}/publications/analytics/costs"
     return json.dumps(
         {"title": title, "body": body, "url": url}, ensure_ascii=False
     ).encode("utf-8")

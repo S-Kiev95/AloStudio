@@ -1338,6 +1338,24 @@ async def _maybe_send_outbound_whatsapp(
                 return
 
         if template_params:
+            from app.domains.usage.limits import limit_reached
+
+            if await limit_reached(session, message.account_id, "whatsapp"):
+                # Over the month's WhatsApp spend cap (F6): the template
+                # isn't sent; the message shows why.
+                from app.domains.conversations.models import MESSAGE_STATUS_FAILED
+
+                attrs = dict(message.content_attributes or {})
+                attrs["external_error"] = (
+                    "Se llegó al tope mensual de gasto de WhatsApp "
+                    "(Estadísticas → Gastos)."
+                )
+                message.content_attributes = attrs
+                message.status = MESSAGE_STATUS_FAILED
+                session.add(message)
+                await session.flush()
+                return
+
             from app.domains.whatsapp.template_processor import (
                 process_template_params,
             )

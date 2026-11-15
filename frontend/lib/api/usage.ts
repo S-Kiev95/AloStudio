@@ -71,6 +71,37 @@ export function useSyncWhatsappCosts(accountId: string, month: string) {
   });
 }
 
+export type UsageLimitKind = "whatsapp" | "ai";
+
+export type UsageLimit = {
+  kind: UsageLimitKind;
+  monthly_limit: number | null;
+  spent: number;
+  percent: number | null;
+  reached: boolean;
+};
+
+export function useUsageLimits(accountId: string) {
+  return useQuery({
+    queryKey: ["usage-limits", accountId],
+    queryFn: async () =>
+      (await apiFetch<{ limits: UsageLimit[] }>(`${base(accountId)}/limits`)).limits,
+    retry: false,
+  });
+}
+
+export function useSetUsageLimit(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { kind: UsageLimitKind; monthlyLimit: number | null }) =>
+      apiFetch<{ limits: UsageLimit[] }>(`${base(accountId)}/limits/${input.kind}`, {
+        method: "PUT",
+        body: JSON.stringify({ monthly_limit: input.monthlyLimit }),
+      }),
+    onSuccess: (data) => qc.setQueryData(["usage-limits", accountId], data.limits),
+  });
+}
+
 /** `2026-11` → `2026-10` / `2026-12`. */
 export function shiftMonth(month: string, delta: number): string {
   const [y, m] = month.split("-").map(Number);

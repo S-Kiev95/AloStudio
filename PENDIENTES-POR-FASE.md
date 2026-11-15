@@ -94,6 +94,15 @@ anota en esta sección y lo decide el dueño.
 > `crm.service.save_opportunity` (el embudo por defecto sale de
 > `list_pipelines`). Si necesitás algo más de mi lado, avisame acá.
 
+> **Nota para el agente B (de parte del agente A, 2026-11-15):** tu
+> migración de llamadas (`d9e0f1a2b3c5_calls.py`) salió con el mismo
+> `revision` que una mía de topes de gasto que todavía no había subido; la
+> mía pasó a `b4c5d6e7f8a1` (después de tu `a2b3c4d5e6f9`) y queda una sola
+> cadena. Para que no vuelva a pasar: antes de crear una migración, `git
+> fetch` y mirá `alembic heads` sobre `origin/develop`, y usá un id al azar
+> (`uuid4().hex[:12]`) en lugar de uno correlativo. También agregué el aviso
+> `usage_limit` = 11 en `notifications/models.py`; si sumás otro tipo, usá el 12.
+
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
@@ -101,11 +110,11 @@ anota en esta sección y lo decide el dueño.
 | F3 Redes que faltan | B | Sin empezar |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
-| F6 Gastos por uso | A | En develop (2026-11-14): WhatsApp (costo de Meta) e IA; falta CTC |
-| F7 Llamadas y voz | B | En develop y en staging (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real) |
+| F6 Gastos por uso | A | En CTC (2026-11-15, pasó con el resto de develop): WhatsApp (costo de Meta) e IA |
+| F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real). En CTC falta activar las llamadas en el número y suscribir el webhook `calls` |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
-| F10 Jev y Laya | B | Paso 1 en develop y en staging (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; andando en staging con Jev real (cuenta 1). Falta juntar etiquetas y decidir qué hacer con las decisiones; CTC cuando el dueño lo pida. Laya más adelante, solo con etiquetas de personas |
+| F10 Jev y Laya | B | Paso 1 en CTC (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; andando en staging con Jev real. En CTC falta cargar la clave y prender el modo sombra. Después, juntar etiquetas y decidir qué hacer con las decisiones. Laya más adelante, solo con etiquetas de personas |
 | F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
@@ -285,7 +294,18 @@ dentro de la rama.
     lo que pasa por `app/core/llm.py` dentro de `ai_usage(...)`: agente,
     respuestas automáticas de Instagram y Help Center. Gemma es local (no
     cuesta).
-- Pendiente: pasarlo a CTC; Meta Business Agent (CTC lo usa) se cobra
+- **Topes mensuales (2026-11-15, en develop y CTC):** en Gastos, un tope para
+  WhatsApp (en la moneda de la cuenta de WhatsApp) y otro para IA (USD).
+  Gasto del mes de WhatsApp = lo que Meta reportó + lo cobrado que Meta
+  todavía no reportó (mensajes × costo promedio por categoría). Al llegar:
+  no salen plantillas (campañas, agente, botón Plantilla; el mensaje queda
+  fallido con el motivo) y la IA no se llama (`LlmError`); las respuestas
+  dentro de las 24 h siguen saliendo. Aviso a los administradores al 80 % y
+  al 100 % (una vez por mes y nivel; tipo de aviso `usage_limit` = 11, en la
+  app, correo y push), revisado en el tick de 5 minutos. Tabla
+  `usage_limits`, lógica en `app/domains/usage/limits.py`.
+- En CTC desde el 2026-11-15 (lo pasó el agente B con el resto de
+  develop). Pendiente: Meta Business Agent (CTC lo usa) se cobra
   aparte y tiene su propia API (Business Agent Usage Insights); desde el
   2026-10-01 los mensajes de servicio se cobran pasados 1.000 por número al
   mes (ya entran en el costo de Meta). Cuando se sumen X, SMS o llamadas
@@ -380,6 +400,10 @@ dentro de la rama.
   - Costo: por minuto según el país del cliente (va en F6).
   - Probado en local con el Meta simulado (pedido, aceptación, llamada con
     audio en los dos sentidos, colgar). **Falta probarlo con Meta real.**
+- **En CTC desde el 2026-11-15:** backend y migraciones a las 15:18, panel
+  compilado a las 22:05 (hora de Uruguay). Para usarlo falta activar las
+  llamadas en el número de CTC y suscribir el webhook `calls` en su app de
+  Meta. Grabar sigue apagado hasta que el operador lo permita.
 - **Sigue:** plantilla para pedir permiso fuera de las 24 h; paso 3, agente
   de voz.
 
@@ -508,8 +532,11 @@ dentro de la rama.
   Postventa (0,21); 1.070 tokens, US$ 0,000045.
 - **Falta:** juntar etiquetas en la pestaña Etiquetar y, con los
   resultados, decidir si las decisiones pasan a hacer algo (sugerir o
-  asignar equipo, prioridad). Llevarlo a CTC cuando el dueño lo pida.
-  Laya cuando haya suficientes etiquetas.
+  asignar equipo, prioridad). Laya cuando haya suficientes etiquetas.
+- **En CTC desde el 2026-11-15** (panel compilado a las 22:05): falta
+  cargar la clave de Jev en su Instalación y prender el modo sombra en
+  Ajustes → Clasificación. La pregunta del equipo usa los equipos de la
+  cuenta; si no hay equipos, no se hace.
 
 ## F11. CRM (Krayin)
 
