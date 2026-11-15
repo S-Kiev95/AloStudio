@@ -31,6 +31,8 @@ from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
 from app.domains.auth.sso import router as auth_sso_router
 from app.domains.automation.router import router as automation_rules_router
+from app.domains.billing.router import router as billing_router
+from app.domains.billing.router import webhook_router as billing_webhook_router
 from app.domains.bulk_actions.router import router as bulk_actions_router
 from app.domains.campaigns.router import router as campaigns_router
 from app.domains.canned_responses.router import router as canned_responses_router
@@ -297,6 +299,8 @@ def create_app() -> FastAPI:
     # — verify-token handshake (GET) + payload receive (POST). Auth
     # is per-channel via ``provider_config['webhook_verify_token']``.
     app.include_router(whatsapp_webhook_router)
+    app.include_router(billing_router)
+    app.include_router(billing_webhook_router)
     # WhatsApp template listing + sync — the campaign composer picks an
     # approved template + fills its {{n}} variables.
     app.include_router(whatsapp_templates_router)

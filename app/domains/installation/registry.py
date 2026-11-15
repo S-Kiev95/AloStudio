@@ -44,6 +44,7 @@ ACCESS_GROUP = "Acceso"
 PUBLISHING_GROUP = "Redes para publicar"
 MAIL_GROUP = "Correo saliente"
 AI_GROUP = "Inteligencia artificial"
+BILLING_GROUP = "Cobros (Polar)"
 
 CONFIG_SPECS: tuple[ConfigSpec, ...] = (
     # --- Facebook Login (Messenger + the full Instagram API) -----------
@@ -407,6 +408,41 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "gpt-5.4-mini (rápido y barato) o gpt-5.5 (más capaz)."
         ),
         group=AI_GROUP,
+    ),
+)
+
+CONFIG_SPECS = (
+    *CONFIG_SPECS,
+    ConfigSpec(
+        name="POLAR_ACCESS_TOKEN",
+        setting="polar_access_token",
+        title="Token de Polar",
+        description=(
+            "Token de organización de Polar (polar.sh → Settings → Developers), "
+            "con permisos de checkouts, productos, clientes y suscripciones."
+        ),
+        group=BILLING_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="POLAR_WEBHOOK_SECRET",
+        setting="polar_webhook_secret",
+        title="Secreto del webhook de Polar",
+        description=(
+            "El whsec_… del webhook que apunta a https://<dominio>/webhooks/polar "
+            "(eventos de suscripciones y pedidos)."
+        ),
+        group=BILLING_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="POLAR_SERVER",
+        setting="polar_server",
+        title="Entorno de Polar",
+        description="sandbox para probar, production para cobrar de verdad.",
+        group=BILLING_GROUP,
     ),
 )
 

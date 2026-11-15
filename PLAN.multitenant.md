@@ -181,3 +181,46 @@ de Meta y formularios manuales de Meta ocultos en multitenant.
 - **Entrar con cuentas de otros servicios:** además del email, Facebook, X
   y los demás que se decidan. Google ya existe (`app/domains/auth/google.py`):
   revisar que en multitenant cree la cuenta con el mismo flujo del registro.
+
+## Paso 3. Facturación con Polar (2026-11-15, en curso)
+
+El dueño eligió **Polar** (polar.sh): cobra como Merchant of Record
+(se ocupa de impuestos e IVA de cada país), suscripciones y portal del
+cliente. Rama `feat/multitenant`; no se mergea hasta tener F2 completo.
+
+### Backend (hecho, tests en `tests/integration/test_billing_polar.py`)
+
+- Ajustes → Instalación, grupo "Cobros (Polar)": `POLAR_ACCESS_TOKEN`,
+  `POLAR_WEBHOOK_SECRET`, `POLAR_SERVER` (`sandbox` / `production`).
+- Los planes son los **productos recurrentes de Polar** (se leen de Polar,
+  no se cargan acá). `GET /accounts/{id}/billing/plans`.
+- `POST /accounts/{id}/billing/checkout {product_id}`: enlace de pago de
+  Polar con `external_customer_id` y `metadata.account_id` = la cuenta.
+- `POST /accounts/{id}/billing/portal`: portal de Polar (tarjeta,
+  facturas, cancelar). `GET /accounts/{id}/billing`: plan, estado y si da
+  acceso (`active` o `trialing`).
+- Webhook `POST /webhooks/polar`: firma Standard Webhooks (secretos
+  nuevos y viejos de Polar), rechaza repeticiones de más de 5 minutos,
+  guarda cada evento por `webhook-id` (un reintento no se aplica dos veces)
+  y **nunca tira error**: si algo falla queda en `billing_events.error` y
+  responde 202. Los `subscription.*` actualizan `account_subscriptions`.
+- Tablas `account_subscriptions` y `billing_events` (migración
+  `7e3c9a1f5b2d`).
+- Tests de la rama: base aparte `alostudio_test_mt` (la de develop va
+  adelantada en migraciones).
+
+### Falta
+
+- **Decisiones del dueño:** planes y precios (se crean en Polar), moneda,
+  si hay prueba gratis y cuántos días.
+- Bloquear el uso cuando la suscripción no da acceso (en multitenant):
+  pantalla "elegí un plan" y la API con 402, sin borrar datos.
+- Pantallas (Argon): elegir plan al registrarse, Ajustes → Facturación
+  con estado, botón al portal.
+- Topes por plan (F6 ya mide WhatsApp e IA): pasar los topes según plan.
+- Del lado de Polar (dueño): crear la organización, los productos, el
+  token y el webhook a `https://<dominio>/webhooks/polar` con los eventos
+  de suscripción. Probar todo primero en sandbox.
+- Al mergear F2 con develop: resolver conflictos en pantallas (login,
+  conexión de Instagram, formulario de bandejas) y reordenar la migración
+  después de la última de develop.

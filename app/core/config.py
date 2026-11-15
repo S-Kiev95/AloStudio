@@ -191,6 +191,11 @@ class Settings(BaseSettings):
     # Verify token of the app-level WhatsApp webhook (``/webhooks/whatsapp``),
     # where Embedded Signup points every connected number.
     whatsapp_verify_token: str = ""
+    # F2 paso 3: subscriptions charged through Polar (Merchant of Record).
+    # ``polar_server`` is ``sandbox`` while testing, ``production`` live.
+    polar_access_token: str = ""
+    polar_webhook_secret: str = ""
+    polar_server: str = "sandbox"
     # Outbound requests to user-supplied URLs (webhooks, bot endpoints,
     # attachment fetches) refuse loopback, private, link-local and
     # carrier-grade (Tailscale) addresses. Local development pointing a
