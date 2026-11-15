@@ -102,7 +102,7 @@ anota en esta sección y lo decide el dueño.
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En develop (2026-11-14): WhatsApp (costo de Meta) e IA; falta CTC |
-| F7 Llamadas y voz | B | Paso 1 hecho en `feat/f7-voz`: recibir llamadas de WhatsApp en el panel, con grabación y transcripción (2026-11-15) que habilita el operador; falta probar con Meta real |
+| F7 Llamadas y voz | B | Paso 1 en develop (2026-11-15): recibir llamadas de WhatsApp en el panel, probado con Meta real; grabación y transcripción que habilita el operador (falta probarlas con Meta real) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
@@ -321,8 +321,11 @@ dentro de la rama.
     a Meta en `/{phone_number_id}/settings`).
   - Las llamadas cuyo final no llegó se cierran en el tick de 5 minutos.
   - Probado de punta a punta en local con un Meta simulado (tres llamadas
-    WebRTC reales entre dos pestañas, audio en los dos sentidos). **Falta
-    probarlo con Meta real.**
+    WebRTC reales entre dos pestañas, audio en los dos sentidos).
+  - **Probado con Meta real el 2026-11-15 en staging** (número de prueba de
+    Meta): el dueño llamó desde su WhatsApp, sonó en el panel, se atendió
+    desde el navegador y se escucharon los dos; Meta cerró la llamada con su
+    duración. La grabación no estaba prendida en esa prueba.
 - **Grabación y transcripción — hecho el 2026-11-15 (misma rama):**
   - Interruptor del operador en Ajustes → Instalación → Llamadas
     («Permitir grabar llamadas», `CALL_RECORDING_ALLOWED`, apagado por
