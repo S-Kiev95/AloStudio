@@ -29,6 +29,7 @@ MESSAGES: dict[str, str] = {
     "notif.subject.assigned_conversation_new_message": "会話 #{n} に新しいメッセージ",
     "notif.subject.conversation_bot_handoff": "会話 #{n} に担当者の対応が必要です",
     "notif.subject.crm_activity_due": "タスク「{title}」の期限が来ました",
+    "notif.subject.usage_limit": "支出上限: {title}",
     "notif.subject.default": "新しい通知",
     "notif.lead.conversation_creation": "あなたがメンバーの受信箱で新しい会話が作成されました。",
     "notif.lead.conversation_assignment": "会話が割り当てられました。",
@@ -39,6 +40,7 @@ MESSAGES: dict[str, str] = {
         "ボットが会話をチームに引き継ぎました。誰かが返信する必要があります。"
     ),
     "notif.lead.crm_activity_due": "担当しているタスクの期限が来ました: {title}。",
+    "notif.lead.usage_limit": "月間の支出上限に達しました: {title}。100% になると、翌月または上限を引き上げるまで WhatsApp テンプレートまたは AI が停止します。",
     "notif.lead.default": "AloStudio に新しい通知があります。",
     "notif.body": (
         "{lead}\n\n"
@@ -57,6 +59,7 @@ MESSAGES: dict[str, str] = {
     "push.title.sla_missed_resolution": "SLA 未達",
     "push.title.conversation_bot_handoff": "担当者の対応が必要です",
     "push.title.crm_activity_due": "タスクの期限",
+    "push.title.usage_limit": "支出上限",
     "push.title.default": "通知",
     "push.body": "会話 #{n}",
     "whatsapp.contact_fallback": "連絡先",

@@ -285,6 +285,16 @@ dentro de la rama.
     lo que pasa por `app/core/llm.py` dentro de `ai_usage(...)`: agente,
     respuestas automáticas de Instagram y Help Center. Gemma es local (no
     cuesta).
+- **Topes mensuales (2026-11-14, en develop):** en Gastos, un tope para
+  WhatsApp (en la moneda de la cuenta de WhatsApp) y otro para IA (USD).
+  Gasto del mes de WhatsApp = lo que Meta reportó + lo cobrado que Meta
+  todavía no reportó (mensajes × costo promedio por categoría). Al llegar:
+  no salen plantillas (campañas, agente, botón Plantilla; el mensaje queda
+  fallido con el motivo) y la IA no se llama (`LlmError`); las respuestas
+  dentro de las 24 h siguen saliendo. Aviso a los administradores al 80 % y
+  al 100 % (una vez por mes y nivel; tipo de aviso `usage_limit` = 11, en la
+  app, correo y push), revisado en el tick de 5 minutos. Tabla
+  `usage_limits`, lógica en `app/domains/usage/limits.py`.
 - Pendiente: pasarlo a CTC; Meta Business Agent (CTC lo usa) se cobra
   aparte y tiene su propia API (Business Agent Usage Insights); desde el
   2026-10-01 los mensajes de servicio se cobran pasados 1.000 por número al

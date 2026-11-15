@@ -307,3 +307,122 @@ async def test_month_summary_with_meta_costs_and_campaigns(client, db_session):
 
     bad = await client.get(base, params={"month": "noviembre"}, headers=headers)
     assert bad.status_code == 422
+
+
+async def _spend_whatsapp(db_session, owner, inbox, cost: str) -> None:
+    from datetime import UTC, datetime
+
+    from app.domains.usage.models import WhatsappCostDay
+
+    db_session.add(
+        WhatsappCostDay(
+            account_id=owner.account.id,
+            inbox_id=inbox.id,
+            day=datetime.now(UTC).date(),
+            pricing_category="MARKETING",
+            pricing_type="REGULAR",
+            country="UY",
+            volume=100,
+            cost=Decimal(cost),
+            currency="USD",
+            synced_at=datetime.now(UTC),
+        )
+    )
+    await db_session.flush()
+
+
+async def test_limits_endpoint_and_template_stops_at_the_cap(client, db_session):
+    owner, inbox, channel, headers = await _seed(db_session, "-cap")
+    base = f"/api/v1/accounts/{owner.account.id}/usage/limits"
+    await _spend_whatsapp(db_session, owner, inbox, "9.50")
+
+    resp = await client.put(f"{base}/whatsapp", json={"monthly_limit": 10}, headers=headers)
+    assert resp.status_code == 200, resp.text
+    wa = next(x for x in resp.json()["limits"] if x["kind"] == "whatsapp")
+    assert wa == {
+        "kind": "whatsapp",
+        "monthly_limit": 10.0,
+        "spent": 9.5,
+        "percent": 95.0,
+        "reached": False,
+    }
+    assert (await client.put(f"{base}/sms", json={"monthly_limit": 1}, headers=headers)).status_code == 404
+    assert (await client.put(f"{base}/ai", json={"monthly_limit": -1}, headers=headers)).status_code == 422
+
+    # Lower the cap under what was spent: the next template doesn't go out.
+    await client.put(f"{base}/whatsapp", json={"monthly_limit": 5}, headers=headers)
+    channel.message_templates = [
+        {
+            "name": "promo",
+            "language": "es",
+            "status": "APPROVED",
+            "category": "MARKETING",
+            "components": [{"type": "BODY", "text": "Hola"}],
+        }
+    ]
+    db_session.add(channel)
+    contact = Contact(account_id=owner.account.id, name="Ana", phone_number="+59899555000")
+    db_session.add(contact)
+    await db_session.flush()
+    ci = await ContactInboxBuilder(
+        session=db_session, contact=contact, inbox=inbox, source_id="+59899555000"
+    ).perform()
+    conv = await create_conversation(db_session, contact_inbox=ci, params=ConversationBuilderParams())
+    from app.domains.conversations.models import MESSAGE_STATUS_FAILED
+    from app.domains.conversations.service import MessageBuilderParams, create_message
+
+    with respx.mock(assert_all_called=False) as mock:
+        send = mock.post(url__regex=r"https://graph\.facebook\.com/.*/messages").mock(
+            return_value=httpx.Response(200, json={"messages": [{"id": "wamid.x"}]})
+        )
+        msg = await create_message(
+            db_session,
+            conversation=conv,
+            params=MessageBuilderParams(
+                content="Hola",
+                message_type="outgoing",
+                template_params={"name": "promo", "language": "es", "processed_params": {}},
+            ),
+            user_id=owner.user.id,
+        )
+    assert not send.called
+    assert msg.status == MESSAGE_STATUS_FAILED
+    assert "tope mensual" in msg.content_attributes["external_error"]
+
+
+async def test_ai_stops_at_the_cap(db_session):
+    from app.domains.usage.ai import record_ai_call
+    from app.domains.usage.limits import set_limit
+
+    owner, _, _, _ = await _seed(db_session, "-aicap")
+    with ai_usage(db_session, owner.account.id, "agent"):
+        record_ai_call("gpt-4o", {"prompt_tokens": 1_000_000})  # USD 2.50
+    await db_session.flush()
+    await set_limit(db_session, owner.account.id, "ai", 2)
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.post("https://api.openai.com/v1/chat/completions")
+        with ai_usage(db_session, owner.account.id, "agent"), pytest.raises(llm.LlmError):
+            await llm.chat_completion(messages=[{"role": "user", "content": "x"}])
+        assert not route.called
+
+
+async def test_admins_are_told_once_per_level(db_session):
+    from app.domains.notifications.models import NOTIFICATION_TYPE_USAGE_LIMIT, Notification
+    from app.domains.usage.limits import notify_limits, set_limit
+
+    owner, inbox, _, _ = await _seed(db_session, "-alert")
+    await set_limit(db_session, owner.account.id, "whatsapp", 10)
+    await _spend_whatsapp(db_session, owner, inbox, "8.20")
+    first = await notify_limits(db_session)
+    again = await notify_limits(db_session)
+    rows = (
+        await db_session.exec(
+            select(Notification).where(
+                Notification.account_id == owner.account.id,
+                Notification.notification_type == NOTIFICATION_TYPE_USAGE_LIMIT,
+            )
+        )
+    ).all()
+    assert len(first) == 1
+    assert again == []
+    assert rows[0].meta["level"] == 80

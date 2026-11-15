@@ -29,6 +29,7 @@ MESSAGES: dict[str, str] = {
     "notif.subject.assigned_conversation_new_message": "대화 #{n}에 새 메시지",
     "notif.subject.conversation_bot_handoff": "대화 #{n}에 사람의 응대가 필요합니다",
     "notif.subject.crm_activity_due": "\"{title}\" 작업의 기한이 되었습니다",
+    "notif.subject.usage_limit": "지출 한도: {title}",
     "notif.subject.default": "새 알림",
     "notif.lead.conversation_creation": "내가 속한 받은편지함에 새 대화가 생성되었습니다.",
     "notif.lead.conversation_assignment": "대화가 배정되었습니다.",
@@ -37,6 +38,7 @@ MESSAGES: dict[str, str] = {
         "봇이 대화를 팀에 넘겼습니다. 누군가 답장해야 합니다."
     ),
     "notif.lead.crm_activity_due": "담당 작업의 기한이 되었습니다: {title}.",
+    "notif.lead.usage_limit": "월간 지출 한도에 도달했습니다: {title}. 100%가 되면 다음 달까지 또는 한도를 올릴 때까지 WhatsApp 템플릿이나 AI가 멈춥니다.",
     "notif.lead.default": "AloStudio에 새 알림이 있습니다.",
     "notif.body": (
         "{lead}\n\n"
@@ -55,6 +57,7 @@ MESSAGES: dict[str, str] = {
     "push.title.sla_missed_resolution": "SLA 미준수",
     "push.title.conversation_bot_handoff": "사람의 응대가 필요합니다",
     "push.title.crm_activity_due": "작업 기한",
+    "push.title.usage_limit": "지출 한도",
     "push.title.default": "알림",
     "push.body": "대화 #{n}",
     "whatsapp.contact_fallback": "연락처",

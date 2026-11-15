@@ -29,6 +29,7 @@ MESSAGES: dict[str, str] = {
     "notif.subject.assigned_conversation_new_message": "New message in conversation #{n}",
     "notif.subject.conversation_bot_handoff": "Conversation #{n} needs a person",
     "notif.subject.crm_activity_due": "The task \"{title}\" is due",
+    "notif.subject.usage_limit": "Spend cap: {title}",
     "notif.subject.default": "New notification",
     "notif.lead.conversation_creation": "A new conversation was created in an inbox you belong to.",
     "notif.lead.conversation_assignment": "A conversation was assigned to you.",
@@ -39,6 +40,7 @@ MESSAGES: dict[str, str] = {
         "The bot handed a conversation to the team: someone needs to reply."
     ),
     "notif.lead.crm_activity_due": "A task you own is due: {title}.",
+    "notif.lead.usage_limit": "A monthly spend cap was reached: {title}. At 100 %, WhatsApp templates or the AI stop until next month or until you raise the cap.",
     "notif.lead.default": "You have a new notification on AloStudio.",
     "notif.body": (
         "{lead}\n\n"
@@ -57,6 +59,7 @@ MESSAGES: dict[str, str] = {
     "push.title.sla_missed_resolution": "SLA missed",
     "push.title.conversation_bot_handoff": "A person is needed",
     "push.title.crm_activity_due": "Task due",
+    "push.title.usage_limit": "Spend cap",
     "push.title.default": "Notification",
     "push.body": "Conversation #{n}",
     "whatsapp.contact_fallback": "A contact",

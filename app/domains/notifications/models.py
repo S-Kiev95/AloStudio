@@ -60,6 +60,8 @@ NOTIFICATION_TYPE_SLA_MISSED_RESOLUTION = 8
 NOTIFICATION_TYPE_CONVERSATION_BOT_HANDOFF = 9
 # AloStudio (F11): a CRM task or activity fell due; primary actor ``CrmActivity``.
 NOTIFICATION_TYPE_CRM_ACTIVITY_DUE = 10
+# AloStudio (F6): a monthly spend cap reached 80 % or 100 %; actor ``UsageLimit``.
+NOTIFICATION_TYPE_USAGE_LIMIT = 11
 
 _NOTIFICATION_TYPE_INT_TO_STR: dict[int, str] = {
     NOTIFICATION_TYPE_CONVERSATION_CREATION: "conversation_creation",
@@ -72,6 +74,7 @@ _NOTIFICATION_TYPE_INT_TO_STR: dict[int, str] = {
     NOTIFICATION_TYPE_SLA_MISSED_RESOLUTION: "sla_missed_resolution",
     NOTIFICATION_TYPE_CONVERSATION_BOT_HANDOFF: "conversation_bot_handoff",
     NOTIFICATION_TYPE_CRM_ACTIVITY_DUE: "crm_activity_due",
+    NOTIFICATION_TYPE_USAGE_LIMIT: "usage_limit",
 }
 _NOTIFICATION_TYPE_STR_TO_INT: dict[str, int] = {
     v: k for k, v in _NOTIFICATION_TYPE_INT_TO_STR.items()

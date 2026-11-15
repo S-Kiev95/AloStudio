@@ -16,7 +16,8 @@ export type NotificationType =
   | "sla_missed_next_response"
   | "sla_missed_resolution"
   | "conversation_bot_handoff"
-  | "crm_activity_due";
+  | "crm_activity_due"
+  | "usage_limit";
 
 export type NotificationActor = {
   id: number;
@@ -74,6 +75,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, MessageKey> = {
   sla_missed_resolution: "notifications.types.sla_missed_resolution",
   conversation_bot_handoff: "notifications.types.conversation_bot_handoff",
   crm_activity_due: "notifications.types.crm_activity_due",
+  usage_limit: "notifications.types.usage_limit",
 };
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
@@ -84,6 +86,7 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   "conversation_mention",
   "participating_conversation_new_message",
   "crm_activity_due",
+  "usage_limit",
 ];
 
 /** Where a notification leads: its conversation, or the task list for a CRM
@@ -93,6 +96,9 @@ export function notificationHref(
   accountId: string,
 ): string | undefined {
   if (n.primary_actor_type === "CrmActivity") return `/accounts/${accountId}/tasks`;
+  if (n.primary_actor_type === "UsageLimit") {
+    return `/accounts/${accountId}/publications/analytics/costs`;
+  }
   return n.primary_actor?.display_id != null
     ? `/accounts/${accountId}/conversations/${n.primary_actor.display_id}`
     : undefined;

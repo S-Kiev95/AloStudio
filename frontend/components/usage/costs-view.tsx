@@ -10,10 +10,14 @@ import { ApiError } from "@/lib/api/errors";
 import {
   currentMonth,
   shiftMonth,
+  type UsageLimit,
   type UsageSummary,
   useSyncWhatsappCosts,
+  useUsageLimits,
   useUsageSummary,
 } from "@/lib/api/usage";
+
+import { LimitEditor } from "./limit-editor";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 
@@ -53,13 +57,16 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 function Table({
   head,
   rows,
+  compact = false,
 }: {
   head: string[];
   rows: Array<Array<string | number>>;
+  /** Fits a narrow column (no minimum width, no sideways scroll). */
+  compact?: boolean;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[420px] text-left text-sm">
+    <div className={compact ? undefined : "overflow-x-auto"}>
+      <table className={compact ? "w-full text-left text-sm" : "w-full min-w-[420px] text-left text-sm"}>
         <thead className="text-xs text-fg-muted">
           <tr>
             {head.map((h, i) => (
@@ -92,7 +99,17 @@ function Table({
   );
 }
 
-function WhatsappCard({ data }: { data: UsageSummary["whatsapp"] }) {
+function WhatsappCard({
+  data,
+  accountId,
+  limit,
+  showLimit,
+}: {
+  data: UsageSummary["whatsapp"];
+  accountId: string;
+  limit: UsageLimit | undefined;
+  showLimit: boolean;
+}) {
   const t = useT();
   const money = useMoney();
   const tag = useIntlTag();
@@ -114,6 +131,14 @@ function WhatsappCard({ data }: { data: UsageSummary["whatsapp"] }) {
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
+        {showLimit ? (
+          <LimitEditor
+            accountId={accountId}
+            kind="whatsapp"
+            limit={limit}
+            currency={cur ?? "USD"}
+          />
+        ) : null}
         {empty ? (
           <p className="text-sm text-fg-muted">{t("usage.noWhatsapp")}</p>
         ) : (
@@ -121,6 +146,7 @@ function WhatsappCard({ data }: { data: UsageSummary["whatsapp"] }) {
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-fg">{t("usage.byNumber")}</h3>
               <Table
+                compact
                 head={["", t("usage.messages"), t("usage.cost")]}
                 rows={data.by_inbox.map((r) => [
                   r.name ?? `#${r.inbox_id}`,
@@ -132,6 +158,7 @@ function WhatsappCard({ data }: { data: UsageSummary["whatsapp"] }) {
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-fg">{t("usage.byCategory")}</h3>
               <Table
+                compact
                 head={["", t("usage.messages"), t("usage.cost")]}
                 rows={data.by_category.map((r) => [
                   category(r.category),
@@ -143,6 +170,7 @@ function WhatsappCard({ data }: { data: UsageSummary["whatsapp"] }) {
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-fg">{t("usage.byCountry")}</h3>
               <Table
+                compact
                 head={["", t("usage.messages"), t("usage.cost")]}
                 rows={data.by_country.map((r) => [
                   r.country,
@@ -164,6 +192,8 @@ export function CostsView({ accountId }: { accountId: string }) {
   const tag = useIntlTag();
   const [month, setMonth] = useState(() => currentMonth());
   const q = useUsageSummary(accountId, month);
+  const limitsQ = useUsageLimits(accountId);
+  const limitOf = (kind: "whatsapp" | "ai") => limitsQ.data?.find((l) => l.kind === kind);
   const sync = useSyncWhatsappCosts(accountId, month);
   const data = sync.data?.month === month ? { ...q.data, ...sync.data } : q.data;
   const label = new Date(`${month}-15T12:00:00Z`).toLocaleDateString(tag, {
@@ -264,7 +294,12 @@ export function CostsView({ accountId }: { accountId: string }) {
             />
           </div>
 
-          <WhatsappCard data={wa} />
+          <WhatsappCard
+            data={wa}
+            accountId={accountId}
+            limit={limitOf("whatsapp")}
+            showLimit={isCurrent}
+          />
 
           <Card>
             <CardHeader>
@@ -295,7 +330,15 @@ export function CostsView({ accountId }: { accountId: string }) {
                 {t("usage.aiHint", { date: data.ai.prices_checked_on })}
               </p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {isCurrent ? (
+                <LimitEditor
+                  accountId={accountId}
+                  kind="ai"
+                  limit={limitOf("ai")}
+                  currency="USD"
+                />
+              ) : null}
               {data.ai.items.length === 0 ? (
                 <p className="text-sm text-fg-muted">{t("usage.noAi")}</p>
               ) : (

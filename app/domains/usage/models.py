@@ -106,4 +106,27 @@ class WhatsappCostDay(SQLModel, table=True):
     synced_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
 
 
-__all__ = ["KIND_AI", "KIND_WHATSAPP", "UsageRecord", "WhatsappCostDay"]
+class UsageLimit(TimestampMixin, table=True):
+    """A monthly spend cap an administrator set for one kind of usage.
+    Reaching it stops what costs (WhatsApp templates, AI calls) until the
+    month ends or the cap goes up; admins are told at 80 % and 100 %."""
+
+    __tablename__ = "usage_limits"
+    __table_args__ = (UniqueConstraint("account_id", "kind", name="uniq_usage_limits_kind"),)
+
+    id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+        )
+    )
+    kind: str = Field(sa_column=Column(String(16), nullable=False))
+    monthly_limit: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    # Which month (AAAA-MM) and level (80/100) the admins were last told.
+    notified_month: str | None = Field(default=None, sa_column=Column(String(7), nullable=True))
+    notified_level: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+
+
+__all__ = ["KIND_AI", "KIND_WHATSAPP", "UsageLimit", "UsageRecord", "WhatsappCostDay"]

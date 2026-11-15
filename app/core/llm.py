@@ -75,6 +75,7 @@ async def embed_text(text: str) -> list[float]:
     """
     if not text or not text.strip():
         return []
+    await _check_budget()
     settings = get_settings()
     payload = {
         "model": settings.openai_embedding_model,
@@ -109,6 +110,7 @@ async def generate_search_terms(
     malformed/empty response rather than raising, so indexing a quirky
     article never hard-fails.
     """
+    await _check_budget()
     settings = get_settings()
     user_content = (
         f"title: {title} \n description: {description or ''} \n "
@@ -154,6 +156,7 @@ async def chat_completion(
     One tool call per step (``parallel_tool_calls: false``) so a write the
     user has to confirm never travels next to another call.
     """
+    await _check_budget()
     settings = get_settings()
     payload: dict[str, Any] = {
         "model": settings.openai_agent_model,
@@ -184,6 +187,14 @@ async def chat_completion(
     if not isinstance(message, dict):
         raise LlmError("chat completion returned no message")
     return message
+
+
+async def _check_budget() -> None:
+    """Spend cap (F6): the account's AI cap reached → no call."""
+    from app.domains.usage.ai import ai_budget_reached
+
+    if await ai_budget_reached():
+        raise LlmError("ai spend cap reached for this month")
 
 
 def _record(model: str, data: Any) -> None:

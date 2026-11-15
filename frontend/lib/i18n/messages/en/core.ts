@@ -65,6 +65,7 @@ export const core: Strings<typeof es> = {
       sla_missed_resolution: "SLA: resolution overdue",
       conversation_bot_handoff: "The bot handed a conversation to the team",
       crm_activity_due: "A CRM task is due",
+      usage_limit: "A spend cap was reached",
     },
   },
   validation: {

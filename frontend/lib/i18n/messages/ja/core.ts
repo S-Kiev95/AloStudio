@@ -63,6 +63,7 @@ export const core: Strings<typeof es> = {
       sla_missed_resolution: "SLA: 解決の期限切れ",
       conversation_bot_handoff: "ボットが会話をチームに引き継ぎました",
       crm_activity_due: "CRM のタスクの期限が来ました",
+      usage_limit: "支出上限に達しました",
     },
   },
   validation: {

@@ -71,6 +71,18 @@ def cost_of(
     return (total / Decimal(1_000_000)).quantize(Decimal("0.000001"))
 
 
+async def ai_budget_reached() -> bool:
+    """Whether the account of the current scope reached its AI spend cap.
+    False outside a scope or without a cap."""
+    scope = _scope.get()
+    if scope is None:
+        return False
+    from app.domains.usage.limits import limit_reached
+
+    session, account_id, _ = scope
+    return await limit_reached(session, account_id, KIND_AI)
+
+
 def record_ai_call(model: str, usage: Any) -> None:
     """Called by :mod:`app.core.llm` after each successful request with the
     response's ``usage`` block. No-op outside an :func:`ai_usage` scope;
@@ -107,4 +119,4 @@ def record_ai_call(model: str, usage: Any) -> None:
         log.exception("usage.ai.record_failed model=%s", model)
 
 
-__all__ = ["PRICES_CHECKED_ON", "ai_usage", "cost_of", "record_ai_call"]
+__all__ = ["PRICES_CHECKED_ON", "ai_budget_reached", "ai_usage", "cost_of", "record_ai_call"]
