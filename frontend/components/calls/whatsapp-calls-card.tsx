@@ -2,25 +2,38 @@
 
 import { PhoneCall } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import {
+  ANNOUNCEMENT_LANGUAGES,
   type CallSettingsInput,
+  PURPOSE_MAX,
   useCallSettings,
   useSaveCallSettings,
 } from "@/lib/api/calls";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 import { translateOr } from "@/lib/i18n/translate";
 
-const EMPTY: CallSettingsInput = {
+type Form = Required<CallSettingsInput>;
+
+const EMPTY: Form = {
   enabled: false,
   call_icon_visible: true,
   // Asking to be called back needs calling customers, the next step of F7.
   callback_requests: false,
   business_hours: false,
+  record: false,
+  transcribe: false,
+  purpose: "",
+  announcement_language: "es",
 };
+
+type Flag = "enabled" | "call_icon_visible" | "business_hours" | "record" | "transcribe";
 
 function problemKey(err: unknown): string {
   const code = (err as { body?: { code?: unknown } })?.body?.code;
@@ -39,6 +52,20 @@ function metaReason(err: unknown): string | null {
   return null;
 }
 
+/** "es_ES" → "español (España)", in the reader's language. */
+function useLanguageName(): (code: string) => string {
+  const tag = useIntlTag();
+  return useMemo(() => {
+    let names: Intl.DisplayNames | null = null;
+    try {
+      names = new Intl.DisplayNames([tag], { type: "language" });
+    } catch {
+      names = null;
+    }
+    return (code: string) => names?.of(code.replace("_", "-")) ?? code;
+  }, [tag]);
+}
+
 /** Ajustes → Bandejas → (WhatsApp): let customers call the number (F7). */
 export function WhatsappCallsCard({
   accountId,
@@ -48,34 +75,56 @@ export function WhatsappCallsCard({
   inboxId: number;
 }) {
   const t = useT();
+  const languageName = useLanguageName();
   const settings = useCallSettings(accountId, inboxId);
   const save = useSaveCallSettings(accountId, inboxId);
-  const [form, setForm] = useState<CallSettingsInput>(EMPTY);
+  const [form, setForm] = useState<Form>(EMPTY);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (!settings.data) return;
-    const { enabled, call_icon_visible, callback_requests, business_hours } = settings.data;
-    setForm({ enabled, call_icon_visible, callback_requests, business_hours });
+    const data = settings.data;
+    if (!data) return;
+    setForm({
+      enabled: data.enabled,
+      call_icon_visible: data.call_icon_visible,
+      callback_requests: data.callback_requests,
+      business_hours: data.business_hours,
+      record: data.record,
+      transcribe: data.transcribe,
+      purpose: data.purpose ?? "",
+      announcement_language: data.announcement_language || "es",
+    });
   }, [settings.data]);
 
-  function toggle(key: keyof CallSettingsInput) {
+  function toggle(key: Flag) {
     setSaved(false);
     setForm((f) => ({ ...f, [key]: !f[key] }));
   }
 
+  function change(key: "purpose" | "announcement_language", value: string) {
+    setSaved(false);
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  const loadError = settings.error;
+  const restrictions = settings.data?.restrictions ?? [];
+  const recordingAllowed = settings.data?.recording_allowed === true;
+  const capturing = form.record || form.transcribe;
+
   async function submit() {
     setSaved(false);
+    const { record, transcribe, purpose, announcement_language, ...number } = form;
     try {
-      await save.mutateAsync(form);
+      await save.mutateAsync(
+        recordingAllowed
+          ? { ...number, record, transcribe, purpose, announcement_language }
+          : number,
+      );
       setSaved(true);
     } catch {
       // shown below from save.error
     }
   }
-
-  const loadError = settings.error;
-  const restrictions = settings.data?.restrictions ?? [];
 
   return (
     <Card>
@@ -129,6 +178,64 @@ export function WhatsappCallsCard({
                 }
               />
             </fieldset>
+
+            <fieldset className="space-y-3 border-t border-glass pt-4">
+              <legend className="text-sm font-medium text-fg">
+                {t("calls.settings.recordingTitle")}
+              </legend>
+              {!recordingAllowed ? (
+                <p className="text-xs text-fg-muted">{t("calls.settings.recordingOff")}</p>
+              ) : (
+                <>
+                  <Toggle
+                    checked={form.record}
+                    onChange={() => toggle("record")}
+                    disabled={!form.enabled}
+                    label={t("calls.settings.record")}
+                    hint={t("calls.settings.recordHint")}
+                  />
+                  <Toggle
+                    checked={form.transcribe}
+                    onChange={() => toggle("transcribe")}
+                    disabled={!form.enabled}
+                    label={t("calls.settings.transcribe")}
+                    hint={t("calls.settings.transcribeHint")}
+                  />
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`call-purpose-${inboxId}`}>{t("calls.settings.purpose")}</Label>
+                    <Input
+                      id={`call-purpose-${inboxId}`}
+                      value={form.purpose}
+                      maxLength={PURPOSE_MAX}
+                      disabled={!form.enabled || !capturing}
+                      onChange={(e) => change("purpose", e.target.value)}
+                    />
+                    <p className="text-xs text-fg-muted">
+                      {t("calls.settings.purposeHint", {
+                        purpose: form.purpose || "…",
+                      })}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`call-language-${inboxId}`}>{t("calls.settings.language")}</Label>
+                    <Select
+                      id={`call-language-${inboxId}`}
+                      value={form.announcement_language}
+                      disabled={!form.enabled || !capturing}
+                      onChange={(e) => change("announcement_language", e.target.value)}
+                    >
+                      {ANNOUNCEMENT_LANGUAGES.map((code) => (
+                        <option key={code} value={code}>
+                          {languageName(code)}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <p className="text-xs text-fg-muted">{t("calls.settings.recordingLegal")}</p>
+                </>
+              )}
+            </fieldset>
+
             {restrictions.length > 0 ? (
               <p role="status" className="text-sm text-warning">
                 {t("calls.settings.restricted")}

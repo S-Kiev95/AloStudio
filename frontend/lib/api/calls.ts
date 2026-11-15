@@ -133,9 +133,44 @@ export type CallSettings = {
   callback_requests: boolean;
   business_hours: boolean;
   restrictions: Array<{ type?: string; reason?: string; expiration?: number }> | null;
+  /** The installation's operator allows recording (Ajustes → Instalación). */
+  recording_allowed: boolean;
+  record: boolean;
+  transcribe: boolean;
+  /** What Meta reads to both sides before recording. */
+  purpose: string;
+  announcement_language: string;
 };
 
-export type CallSettingsInput = Omit<CallSettings, "restrictions">;
+/** What the card sends. The recording fields are left out while the
+ *  installation does not allow recording (the backend keeps them as they are). */
+export type CallSettingsInput = {
+  enabled: boolean;
+  call_icon_visible: boolean;
+  callback_requests: boolean;
+  business_hours: boolean;
+  record?: boolean;
+  transcribe?: boolean;
+  purpose?: string;
+  announcement_language?: string;
+};
+
+/** Languages Meta can read the recording notice in. */
+export const ANNOUNCEMENT_LANGUAGES = [
+  "es",
+  "es_ES",
+  "en",
+  "pt",
+  "fr",
+  "de",
+  "it",
+  "nl",
+  "hi",
+  "kn",
+  "te",
+  "vi",
+] as const;
+export const PURPOSE_MAX = 250;
 
 function settingsKey(accountId: string, inboxId: number) {
   return ["calls", accountId, "settings", inboxId] as const;
