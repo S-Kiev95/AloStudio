@@ -253,11 +253,12 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         await enqueue_notification_email(notification_id)
         await enqueue_notification_push(notification_id)
 
-    # Calls whose end never reached us (F7): ringing ones become missed.
-    from app.domains.calls.service import expire_stale
+    # Calls (F7): close the ones whose end never reached us, and copy
+    # recordings and transcripts a first attempt could not.
+    from app.domains.calls.tick import run as calls_tick
 
     async with sessionmaker() as calls_session:
-        calls_closed = await expire_stale(calls_session)
+        calls_closed = (await calls_tick(calls_session))["closed"]
         await calls_session.commit()
 
     log.info(
