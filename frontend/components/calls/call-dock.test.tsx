@@ -16,14 +16,26 @@ const audio = {
 };
 const answerOffer = vi.fn(async () => audio);
 const stopRing = vi.fn();
+const outgoing = {
+  offerSdp: "OFFER-FROM-BROWSER",
+  applyAnswer: vi.fn(async () => undefined),
+  waitConnected: vi.fn(async () => true),
+  startSending: vi.fn(),
+  setMuted: vi.fn(),
+  onLost: vi.fn(),
+  close: vi.fn(),
+};
+const placeCall = vi.fn(async () => outgoing);
 
 vi.mock("./call-audio", () => ({
   answerOffer: (...args: unknown[]) => answerOffer(...(args as [])),
+  placeCall: (...args: unknown[]) => placeCall(...(args as [])),
   startRingtone: () => stopRing,
   MicrophoneBlocked: class extends Error {},
 }));
 
 import { CallDock } from "./call-dock";
+import { requestDial } from "./dialer";
 
 const ringing: Call = {
   id: 7,
@@ -46,9 +58,40 @@ const ringing: Call = {
 
 const steps: Array<{ step: string; body: unknown }> = [];
 let preAcceptStatus = 200;
+let placedBody: unknown = null;
+// What GET /calls/8 answers while my outgoing call rings: set by each test.
+let outboundState: Partial<Call> = { status: "ringing" };
+const placed: Call = {
+  ...({} as Call),
+  id: 8,
+  status: "ringing",
+  direction: "outbound",
+  provider: "whatsapp",
+  inbox_id: 3,
+  inbox_name: "WhatsApp CTC",
+  conversation_id: 40,
+  conversation_display_id: 12,
+  contact: { id: 9, name: "Lucía Pereira", phone_number: "+59891234567" },
+  from_number: "+59899000111",
+  answered_by: { id: 5, name: "Sofía" },
+  can_answer: false,
+  created_at: "2026-11-15T15:00:00Z",
+  answered_at: null,
+  ended_at: null,
+  duration_seconds: null,
+};
 
 const server = setupServer(
   http.get("*/calls/active", () => HttpResponse.json({ payload: [ringing] })),
+  http.post("*/api/v1/accounts/1/calls", async ({ request }) => {
+    placedBody = await request.json();
+    return HttpResponse.json(placed, { status: 201 });
+  }),
+  http.get("*/calls/8", () => HttpResponse.json({ ...placed, ...outboundState })),
+  http.post("*/calls/8/hangup", () => {
+    steps.push({ step: "hangup-8", body: null });
+    return HttpResponse.json({ ...placed, status: "missed" });
+  }),
   http.get("*/calls/7", () => HttpResponse.json({ ...ringing, sdp_offer: "OFFER-SDP" })),
   http.post("*/calls/7/:step", async ({ request, params }) => {
     const text = await request.text();
@@ -69,6 +112,8 @@ beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
 beforeEach(() => {
   steps.length = 0;
   preAcceptStatus = 200;
+  placedBody = null;
+  outboundState = { status: "ringing" };
   vi.clearAllMocks();
 });
 afterEach(() => server.resetHandlers());
@@ -141,5 +186,45 @@ describe("CallDock", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Ignorar" }));
     await waitFor(() => expect(screen.queryByText("Lucía Pereira")).not.toBeInTheDocument());
     expect(stopRing).toHaveBeenCalled();
+  });
+});
+
+describe("CallDock — calling a customer", () => {
+  it("places the call, applies the answer and goes live when they pick up", async () => {
+    renderDock();
+    await screen.findByText("Lucía Pereira"); // the incoming one in the list
+
+    requestDial({ conversationId: 12, contactName: "Lucía Pereira" });
+    expect(await screen.findByText("Llamando…")).toBeInTheDocument();
+    expect(placeCall).toHaveBeenCalled();
+    expect(placedBody).toEqual({ conversation_id: 12, sdp: "OFFER-FROM-BROWSER" });
+
+    outboundState = { status: "ringing", sdp_answer: "THEIR-ANSWER" };
+    await waitFor(() => expect(outgoing.applyAnswer).toHaveBeenCalledWith("THEIR-ANSWER"), {
+      timeout: 4000,
+    });
+    expect(outgoing.startSending).not.toHaveBeenCalled();
+
+    outboundState = { status: "in_progress", sdp_answer: "THEIR-ANSWER" };
+    await waitFor(() => expect(outgoing.startSending).toHaveBeenCalled(), { timeout: 4000 });
+    expect(await screen.findByText("0:00")).toBeInTheDocument();
+  });
+
+  it("says nobody answered when the call ends while ringing", async () => {
+    renderDock();
+    requestDial({ conversationId: 12, contactName: "Lucía Pereira" });
+    expect(await screen.findByText("Llamando…")).toBeInTheDocument();
+    outboundState = { status: "missed" };
+    expect(await screen.findByText("No atendió.", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(outgoing.close).toHaveBeenCalled();
+  });
+
+  it("hangs up a call that is still ringing", async () => {
+    renderDock();
+    requestDial({ conversationId: 12, contactName: "Lucía Pereira" });
+    expect(await screen.findByText("Llamando…")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Colgar/ }));
+    await waitFor(() => expect(steps.map((x) => x.step)).toContain("hangup-8"));
+    expect(outgoing.close).toHaveBeenCalled();
   });
 });

@@ -19,19 +19,34 @@ import { useT } from "@/lib/i18n/provider";
 import { translateOr } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
-import { answerOffer, type CallAudio, MicrophoneBlocked, startRingtone } from "./call-audio";
+import {
+  answerOffer,
+  type CallAudio,
+  MicrophoneBlocked,
+  type OutgoingAudio,
+  placeCall,
+  startRingtone,
+} from "./call-audio";
+import { type DialRequest, onDialRequest } from "./dialer";
 
 /** How long to wait for the audio path before confirming anyway. */
 const CONNECT_WAIT_MS = 5000;
 
 type Session = {
-  callId: number;
+  /** Unknown while a call we place is still being set up. */
+  callId: number | null;
   /** The call as last seen, so the card keeps its name whatever the list says. */
-  call: Call;
-  audio: CallAudio | null;
-  phase: "connecting" | "live";
+  call: Call | null;
+  direction: "inbound" | "outbound";
+  /** Who we are calling, before the call exists. */
+  label?: { name: string; thumbnail?: string | null };
+  audio: Omit<CallAudio, "answerSdp"> | null;
+  /** inbound: connecting → live. outbound: dialing → calling → live. */
+  phase: "connecting" | "dialing" | "calling" | "live";
   startedAt: number | null;
   muted: boolean;
+  /** The customer's answer is in the browser (outbound). */
+  answerApplied?: boolean;
 };
 
 function callerName(call: Call, fallback: string): string {
@@ -74,7 +89,8 @@ export function CallDock({ accountId }: { accountId: string }) {
   const sessionRef = useRef<Session | null>(null);
   const [ignored, setIgnored] = useState<number[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
-  const [ended, setEnded] = useState(false);
+  // "calls.ended" / "calls.notAnswered": a call just closed.
+  const [notice, setNotice] = useState<string | null>(null);
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -87,21 +103,27 @@ export function CallDock({ accountId }: { accountId: string }) {
   }, []);
 
   const finish = useCallback(
-    (endedNotice: boolean) => {
+    (closing: string | null) => {
       sessionRef.current?.audio?.close();
       update(null);
-      setEnded(endedNotice);
+      setNotice(closing);
     },
     [update],
   );
 
   // My call, watched on its own: the cable writes each change into it and a
-  // poll catches an end whose event got lost.
-  const { data: watched } = useCall(accountId, session?.phase === "live" ? session.callId : null);
+  // poll catches an end whose event got lost (fast while it rings out).
+  const watching = session && (session.phase === "live" || session.phase === "calling");
+  const { data: watched } = useCall(
+    accountId,
+    watching ? session.callId : null,
+    session?.phase === "calling",
+  );
   const mine =
     (watched && watched.id === session?.callId ? watched : undefined) ??
     calls.find((c) => c.id === session?.callId) ??
-    session?.call;
+    session?.call ??
+    undefined;
   const ringing = calls.filter(
     (c) => c.status === "ringing" && c.can_answer && !ignored.includes(c.id),
   );
@@ -115,11 +137,31 @@ export function CallDock({ accountId }: { accountId: string }) {
 
   // The call ended on the other side (or another tab hung up).
   useEffect(() => {
-    if (!session || session.phase !== "live" || !watched) return;
-    if (watched.id === session.callId && !ACTIVE_CALL_STATUSES.includes(watched.status)) {
-      finish(true);
+    if (!session || !watched || watched.id !== session.callId) return;
+    if (session.phase !== "live" && session.phase !== "calling") return;
+    if (!ACTIVE_CALL_STATUSES.includes(watched.status)) {
+      finish(session.phase === "calling" ? "calls.notAnswered" : "calls.ended");
     }
   }, [session, watched, finish]);
+
+  // A call we placed: the customer's answer, then the pickup.
+  useEffect(() => {
+    const current = sessionRef.current;
+    if (!current || current.direction !== "outbound" || !watched) return;
+    if (watched.id !== current.callId) return;
+    const audio = current.audio as OutgoingAudio | null;
+    if (!audio) return;
+    let next = current;
+    if (watched.sdp_answer && !current.answerApplied) {
+      next = { ...next, answerApplied: true };
+      void audio.applyAnswer(watched.sdp_answer).catch(() => undefined);
+    }
+    if (current.phase === "calling" && watched.status === "in_progress") {
+      audio.startSending();
+      next = { ...next, phase: "live", startedAt: Date.now(), call: watched };
+    }
+    if (next !== current) update(next);
+  }, [watched, update]);
 
   // The clock of the call.
   useEffect(() => {
@@ -137,7 +179,7 @@ export function CallDock({ accountId }: { accountId: string }) {
     };
     const leave = () => {
       const current = sessionRef.current;
-      if (current) api.current.hangupOnUnload(current.callId);
+      if (current?.callId) api.current.hangupOnUnload(current.callId);
     };
     window.addEventListener("beforeunload", warn);
     window.addEventListener("pagehide", leave);
@@ -149,21 +191,27 @@ export function CallDock({ accountId }: { accountId: string }) {
 
   // Notices go away on their own.
   useEffect(() => {
-    if (!problem && !ended) return;
+    if (!problem && !notice) return;
     const timer = setTimeout(() => {
       setProblem(null);
-      setEnded(false);
+      setNotice(null);
     }, 6000);
     return () => clearTimeout(timer);
-  }, [problem, ended]);
+  }, [problem, notice]);
 
   useEffect(() => () => sessionRef.current?.audio?.close(), []);
 
   async function answer(call: Call) {
     if (sessionRef.current || !speaker.current) return;
     setProblem(null);
-    setEnded(false);
-    const base = { callId: call.id, call, startedAt: null, muted: false } as const;
+    setNotice(null);
+    const base = {
+      callId: call.id,
+      call,
+      direction: "inbound",
+      startedAt: null,
+      muted: false,
+    } as const;
     update({ ...base, audio: null, phase: "connecting" });
     let audio: CallAudio | null = null;
     try {
@@ -177,7 +225,7 @@ export function CallDock({ accountId }: { accountId: string }) {
         const current = sessionRef.current;
         if (current?.callId === call.id) {
           void api.current.hangup(call.id).catch(() => undefined);
-          finish(true);
+          finish("calls.ended");
         }
       });
       await api.current.preAccept(call.id, audio.answerSdp);
@@ -193,11 +241,74 @@ export function CallDock({ accountId }: { accountId: string }) {
     }
   }
 
+  // Calling a customer, asked from anywhere (the conversation header).
+  const dial = useCallback(
+    async (request: DialRequest) => {
+      if (!speaker.current) return;
+      if (sessionRef.current) {
+        setProblem("calls.problems.busy");
+        return;
+      }
+      setProblem(null);
+      setNotice(null);
+      const start: Session = {
+        callId: null,
+        call: null,
+        direction: "outbound",
+        label: { name: request.contactName, thumbnail: request.thumbnail },
+        audio: null,
+        phase: "dialing",
+        startedAt: null,
+        muted: false,
+      };
+      update(start);
+      // Read through a function: the ref changes under us (hang-up), which
+      // TypeScript's narrowing cannot see.
+      const now = () => sessionRef.current;
+      let audio: OutgoingAudio | null = null;
+      try {
+        audio = await placeCall(speaker.current);
+        if (now() !== start) {
+          audio.close(); // hung up while the microphone was asked for
+          return;
+        }
+        const ready: Session = { ...start, audio };
+        update(ready);
+        const placed = await api.current.place(request.conversationId, audio.offerSdp);
+        if (now() !== ready) {
+          // Hung up before Meta answered: end the call it just placed.
+          void api.current.hangup(placed.id).catch(() => undefined);
+          return;
+        }
+        qc.setQueryData(callKey(accountId, placed.id), placed);
+        audio.onLost(() => {
+          const current = sessionRef.current;
+          if (current?.callId === placed.id) {
+            void api.current.hangup(placed.id).catch(() => undefined);
+            finish("calls.ended");
+          }
+        });
+        update({ ...ready, callId: placed.id, call: placed, phase: "calling" });
+      } catch (err) {
+        audio?.close();
+        const current = now();
+        if (current?.direction === "outbound" && !current.callId) {
+          update(null);
+        }
+        setProblem(problemKey(err));
+      }
+    },
+    [accountId, finish, qc, update],
+  );
+  const dialRef = useRef(dial);
+  dialRef.current = dial;
+  useEffect(() => onDialRequest((request) => void dialRef.current(request)), []);
+
   async function hangup() {
     const current = sessionRef.current;
     if (!current) return;
-    finish(false);
-    await api.current.hangup(current.callId).catch(() => undefined);
+    finish(null);
+    if (current.callId) await api.current.hangup(current.callId).catch(() => undefined);
   }
 
   function toggleMute() {
@@ -209,7 +320,7 @@ export function CallDock({ accountId }: { accountId: string }) {
   }
 
   const unknown = t("calls.unknownCaller");
-  const showPanel = Boolean(session) || otherRinging.length > 0 || problem || ended;
+  const showPanel = Boolean(session) || otherRinging.length > 0 || problem || notice;
 
   return (
     <>
@@ -285,9 +396,9 @@ export function CallDock({ accountId }: { accountId: string }) {
               {translateOr(t, problem, t("calls.problems.refused"))}
             </p>
           ) : null}
-          {ended && !session ? (
+          {notice && !session ? (
             <p className="glass-panel rounded-panel border border-glass bg-surface p-3 text-sm text-fg-muted shadow-lg">
-              {t("calls.ended")}
+              {translateOr(t, notice, t("calls.ended"))}
             </p>
           ) : null}
         </div>
@@ -312,7 +423,7 @@ function ActiveCallCard({
   onToggleMute: () => void;
 }) {
   const t = useT();
-  const name = call ? callerName(call, unknown) : unknown;
+  const name = call ? callerName(call, unknown) : (session.label?.name ?? unknown);
   const elapsed = session.startedAt
     ? Math.max(0, Math.floor((Date.now() - session.startedAt) / 1000))
     : 0;
@@ -327,7 +438,11 @@ function ActiveCallCard({
       className="glass-panel flex flex-col gap-3 rounded-panel border border-glass bg-surface p-3 shadow-lg"
     >
       <div className="flex items-center gap-3">
-        <Avatar name={name} src={call?.contact?.thumbnail} size="lg" />
+        <Avatar
+          name={name}
+          src={call?.contact?.thumbnail ?? session.label?.thumbnail ?? undefined}
+          size="lg"
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-fg">{name}</p>
           <p
@@ -336,7 +451,13 @@ function ActiveCallCard({
               session.phase === "live" ? "font-numeric tabular-nums text-success" : "text-fg-muted",
             )}
           >
-            {session.phase === "live" ? clock(elapsed) : t("calls.connecting")}
+            {session.phase === "live"
+              ? clock(elapsed)
+              : session.phase === "dialing"
+                ? t("calls.preparing")
+                : session.phase === "calling"
+                  ? t("calls.calling")
+                  : t("calls.connecting")}
           </p>
         </div>
         {href ? (

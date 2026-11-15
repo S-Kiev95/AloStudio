@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Message } from "@/lib/api/conversations";
 
-import { VoiceCallMessage } from "./voice-call-message";
+import { CallPermissionNote, VoiceCallMessage } from "./voice-call-message";
 
 function call(data: Record<string, unknown>): Message {
   return {
@@ -63,6 +63,51 @@ describe("VoiceCallMessage", () => {
     expect(screen.getByText("Quería anotarme al curso.")).toBeInTheDocument();
     expect(screen.getByText(/Cliente/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ocultar" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("shows a call the agent made", () => {
+    render(
+      <VoiceCallMessage
+        message={call({
+          call_direction: "outbound",
+          status: "completed",
+          duration: 42,
+          answered_by: { id: 2, name: "Sofía" },
+        })}
+      />,
+    );
+    expect(screen.getByText("Llamada saliente")).toBeInTheDocument();
+    expect(screen.getByText("Llamó Sofía · 0:42")).toBeInTheDocument();
+  });
+
+  it("shows a call the customer did not pick up", () => {
+    render(
+      <VoiceCallMessage
+        message={call({ call_direction: "outbound", status: "no-answer", answered_by: { id: 2, name: "Sofía" } })}
+      />,
+    );
+    expect(screen.getByText("No atendió")).toBeInTheDocument();
+  });
+
+  it("shows the permission request and the customer's answer in the reader's words", () => {
+    const base = call({});
+    const { rerender } = render(
+      <CallPermissionNote
+        message={{ ...base, content: "¿Te podemos llamar?", content_attributes: { call_permission_request: true } }}
+      />,
+    );
+    expect(screen.getByText("Pedido de permiso para llamar")).toBeInTheDocument();
+    expect(screen.getByText("¿Te podemos llamar?")).toBeInTheDocument();
+    rerender(
+      <CallPermissionNote
+        message={{
+          ...base,
+          content: "stored text",
+          content_attributes: { call_permission: { response: "accept", permanent: false, automatic: true } },
+        }}
+      />,
+    );
+    expect(screen.getByText("Al llamar, dejó que lo llamen de vuelta por 7 días")).toBeInTheDocument();
   });
 
   it("shows a missed call", () => {

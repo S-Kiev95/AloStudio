@@ -24,7 +24,6 @@ type Form = Required<CallSettingsInput>;
 const EMPTY: Form = {
   enabled: false,
   call_icon_visible: true,
-  // Asking to be called back needs calling customers, the next step of F7.
   callback_requests: false,
   business_hours: false,
   record: false,
@@ -33,7 +32,13 @@ const EMPTY: Form = {
   announcement_language: "es",
 };
 
-type Flag = "enabled" | "call_icon_visible" | "business_hours" | "record" | "transcribe";
+type Flag =
+  | "enabled"
+  | "call_icon_visible"
+  | "business_hours"
+  | "callback_requests"
+  | "record"
+  | "transcribe";
 
 function problemKey(err: unknown): string {
   const code = (err as { body?: { code?: unknown } })?.body?.code;
@@ -176,6 +181,13 @@ export function WhatsappCallsCard({
                     </Link>
                   </>
                 }
+              />
+              <Toggle
+                checked={form.callback_requests}
+                onChange={() => toggle("callback_requests")}
+                disabled={!form.enabled}
+                label={t("calls.settings.callback")}
+                hint={t("calls.settings.callbackHint")}
               />
             </fieldset>
 
