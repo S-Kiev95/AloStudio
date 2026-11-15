@@ -18,6 +18,7 @@ from sqlalchemy import update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.core.i18n import DEFAULT_LOCALE, t
 from app.core.realtime import get_broadcaster
 from app.domains.calls.models import (
@@ -30,10 +31,16 @@ from app.domains.calls.models import (
     CALL_RINGING,
     FINAL_STATUSES,
     Call,
+    CallInboxSettings,
 )
 from app.domains.contacts.avatar import contact_thumbnail
 from app.domains.contacts.models import Contact
-from app.domains.conversations.models import Conversation, Message
+from app.domains.conversations.models import (
+    FILE_TYPE_AUDIO,
+    Attachment,
+    Conversation,
+    Message,
+)
 from app.domains.conversations.permission import is_administrator
 from app.domains.conversations.service import MessageBuilderParams, create_message
 from app.domains.inboxes.models import Inbox, InboxMember
@@ -49,6 +56,8 @@ RINGING_TIMEOUT = timedelta(minutes=3)
 # A call in progress whose end never arrived (the agent closed the browser,
 # Meta's event got lost) is closed after this long.
 IN_PROGRESS_TIMEOUT = timedelta(hours=6)
+# How long Meta keeps a recording or transcript after announcing it.
+MEDIA_RETENTION = timedelta(days=7)
 
 # Our statuses in the message, with Chatwoot's names (``voice_call`` bubbles).
 _MESSAGE_STATUS = {
@@ -127,7 +136,19 @@ def _message_data(call: Call, answered_by: User | None) -> dict[str, Any]:
         ),
         "duration": call.duration_seconds,
         "meta": {"created_at": started, "ringing_at": started},
+        # "pending" while Meta prepares the file, "ready" once it is ours.
+        "recording": _media_state(call, call.recording_requested, call.recording_attachment_id),
+        "transcription": _media_state(call, call.transcription_requested, call.transcript),
+        "transcript": call.transcript or None,
     }
+
+
+def _media_state(call: Call, requested: bool, have: object) -> str | None:
+    if have:
+        return "ready"
+    if requested and call.answered_at is not None and call.status != CALL_FAILED:
+        return "pending"
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -346,17 +367,163 @@ async def release(session: AsyncSession, *, call: Call) -> None:
     await broadcast_call(session, call)
 
 
-async def mark_in_progress(session: AsyncSession, *, call: Call) -> None:
-    """Meta confirmed the answer. Unless the call ended meanwhile."""
+async def mark_in_progress(
+    session: AsyncSession, *, call: Call, record: bool = False, transcribe: bool = False
+) -> None:
+    """Meta confirmed the answer (recording / transcribing it if we asked).
+    Unless the call ended meanwhile."""
     await _lock(session, call)
     if call.status != CALL_CONNECTING:
         return
+    call.recording_requested = record
+    call.transcription_requested = transcribe
     call.status = CALL_IN_PROGRESS
     call.answered_at = _now()
     session.add(call)
     await session.flush()
     await _sync_message(session, call)
     await broadcast_call(session, call)
+
+
+# ---------------------------------------------------------------------------
+# Recording and transcription
+# ---------------------------------------------------------------------------
+def recording_allowed() -> bool:
+    """The installation's operator decides whether calls may be recorded."""
+    return bool(get_settings().call_recording_allowed)
+
+
+async def inbox_settings(session: AsyncSession, inbox_id: int) -> CallInboxSettings | None:
+    return await session.get(CallInboxSettings, inbox_id)
+
+
+async def recording_plan(session: AsyncSession, call: Call) -> CallInboxSettings | None:
+    """What to ask Meta for when this call is answered: the inbox's choice,
+    only while the installation allows recording."""
+    if not recording_allowed():
+        return None
+    plan = await inbox_settings(session, call.inbox_id)
+    if plan is None or not (plan.record or plan.transcribe):
+        return None
+    return plan
+
+
+def default_purpose() -> str:
+    return t(DEFAULT_LOCALE, "calls.default_purpose")
+
+
+async def media_announced(
+    session: AsyncSession, *, call: Call, kind: str, media_id: str
+) -> None:
+    """Meta has the recording or transcript ready; keep its id until we have
+    our copy (Meta deletes it after 7 days)."""
+    await _lock(session, call)
+    if kind == "recording":
+        if call.recording_attachment_id is not None:
+            return
+        call.recording_media_id = media_id
+        call.recording_available_at = _now()
+    else:
+        if call.transcript:
+            return
+        call.transcript_media_id = media_id
+        call.transcript_available_at = _now()
+    session.add(call)
+    await session.flush()
+
+
+async def attach_recording(
+    session: AsyncSession, *, call: Call, external_url: str, extension: str | None
+) -> None:
+    """Hang our copy of the audio off the call's message: it plays in the
+    conversation, behind the same access rules as any attachment."""
+    await _lock(session, call)
+    if call.recording_attachment_id is not None or call.message_id is None:
+        return
+    ext = (extension or "ogg").lstrip(".")
+    attachment = Attachment(
+        account_id=call.account_id,
+        message_id=call.message_id,
+        file_type=FILE_TYPE_AUDIO,
+        external_url=external_url,
+        extension=ext,
+        fallback_title=f"llamada-{call.id}.{ext}",
+        coordinates_lat=0.0,
+        coordinates_long=0.0,
+    )
+    session.add(attachment)
+    await session.flush()
+    call.recording_attachment_id = attachment.id
+    call.recording_media_id = None
+    session.add(call)
+    await session.flush()
+    await _sync_message(session, call)
+    await broadcast_call(session, call)
+
+
+async def save_transcript(
+    session: AsyncSession,
+    *,
+    call: Call,
+    segments: list[dict[str, Any]],
+    language: str | None,
+) -> None:
+    """Keep what was said, in the call and as the message's text: search
+    finds a call by its words, and the meaning index picks it up again."""
+    await _lock(session, call)
+    if call.transcript:
+        return
+    call.transcript = segments
+    call.transcript_language = (language or "")[:16] or None
+    call.transcript_media_id = None
+    session.add(call)
+    await session.flush()
+    if call.message_id is not None:
+        message = await session.get(Message, call.message_id)
+        if message is not None:
+            labels = {
+                "business": t(DEFAULT_LOCALE, "calls.speaker.business"),
+                "customer": t(DEFAULT_LOCALE, "calls.speaker.customer"),
+            }
+            lines = [f"{labels.get(s['speaker'], s['speaker'])}: {s['text']}" for s in segments]
+            text = t(DEFAULT_LOCALE, "calls.message")
+            if lines:
+                text = text + "\n\n" + "\n".join(lines)
+            message.content = text[:150_000]
+            message.processed_message_content = message.content
+            session.add(message)
+            await session.flush()
+            # The vector of "Llamada de WhatsApp" says nothing; drop it so the
+            # meaning index embeds what was said instead.
+            from app.domains.conversations.message_embeddings import MessageEmbedding
+
+            existing = await session.get(MessageEmbedding, message.id)
+            if existing is not None:
+                await session.delete(existing)
+                await session.flush()
+    await _sync_message(session, call)
+    await broadcast_call(session, call)
+
+
+async def pending_media(session: AsyncSession) -> list[Call]:
+    """Calls whose recording or transcript Meta announced and we have not
+    copied yet, still inside Meta's 7 days."""
+    since = _now() - MEDIA_RETENTION
+    rows = (
+        await session.exec(
+            select(Call).where(
+                (
+                    Call.recording_media_id.is_not(None)  # type: ignore[union-attr]
+                    & (Call.recording_available_at > since)  # type: ignore[operator]
+                )
+                | (
+                    Call.transcript_media_id.is_not(None)  # type: ignore[union-attr]
+                    & (Call.transcript_available_at > since)  # type: ignore[operator]
+                )
+            )
+        )
+    ).all()
+    return list(rows)
 
 
 # ---------------------------------------------------------------------------

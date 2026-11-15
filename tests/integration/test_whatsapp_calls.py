@@ -20,8 +20,14 @@ from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.calls import service as calls_service
 from app.domains.calls.models import Call
+from app.domains.calls.whatsapp import retry_pending_media
 from app.domains.contacts.models import Contact
-from app.domains.conversations.models import CONTENT_TYPE_VOICE_CALL, Message
+from app.domains.conversations.models import (
+    CONTENT_TYPE_VOICE_CALL,
+    FILE_TYPE_AUDIO,
+    Attachment,
+    Message,
+)
 from app.domains.inboxes.models import WHATSAPP_PROVIDER_CLOUD, InboxMember
 from app.domains.inboxes.service import InboxBuilder, InboxBuilderParams
 from app.domains.users.models import ACCOUNT_USER_ROLE_AGENT, AccountUser
@@ -515,7 +521,8 @@ async def test_turning_calls_on_with_the_inbox_hours(client, db_session, seeded)
         headers=admin_h,
     )
     assert resp.status_code == 200, resp.text
-    assert resp.json() == {
+    body = resp.json()
+    assert {k: body[k] for k in ("enabled", "call_icon_visible", "callback_requests", "business_hours", "restrictions")} == {
         "enabled": True,
         "call_icon_visible": True,
         "callback_requests": True,
@@ -550,3 +557,172 @@ async def test_agents_cannot_change_the_call_settings(client, db_session, seeded
         headers=agent_h,
     )
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Recording and transcription
+# ---------------------------------------------------------------------------
+def _meta_settings_mocks() -> None:
+    respx.post(url__regex=GRAPH + r"p1/settings(\?|$)").mock(
+        return_value=httpx.Response(200, json={"success": True})
+    )
+    respx.get(url__regex=GRAPH + r"p1/settings(\?|$)").mock(
+        return_value=httpx.Response(200, json={"calling": {"status": "ENABLED"}})
+    )
+
+
+def _media_payload(event: str, media_id: str) -> dict[str, Any]:
+    item: dict[str, Any] = {
+        "id": "wacid.ABC",
+        "from": "59891234567",
+        "event": event,
+        "timestamp": "1763140300",
+    }
+    if event == "call_recording_available":
+        item["call_recording"] = {"type": "audio", "audio": {"id": media_id}}
+    else:
+        item["call_transcript"] = {"document": {"id": media_id}}
+    return _calls_payload(item)
+
+
+@respx.mock
+async def test_recording_needs_the_operators_switch(client, db_session, seeded, monkeypatch):
+    respx.route(host="test").pass_through()
+    _meta_settings_mocks()
+    monkeypatch.setattr(calls_service, "recording_allowed", lambda: False)
+    admin_h = await _headers(db_session, seeded["admin"])
+
+    shown = await client.get(f"{seeded['base']}/settings/{seeded['inbox'].id}", headers=admin_h)
+    assert shown.json()["recording_allowed"] is False
+    resp = await client.put(
+        f"{seeded['base']}/settings/{seeded['inbox'].id}",
+        json={"enabled": True, "record": True},
+        headers=admin_h,
+    )
+    assert resp.status_code == 422
+    assert resp.json()["code"] == "calls.recording_not_allowed"
+
+
+@respx.mock
+async def test_an_inbox_that_records_gets_the_audio_and_the_transcript(
+    client, db_session, seeded, monkeypatch
+):
+    respx.route(host="test").pass_through()
+    _meta_settings_mocks()
+    meta = _mock_meta_calls()
+    monkeypatch.setattr(calls_service, "recording_allowed", lambda: True)
+    stored: list[str] = []
+
+    async def fake_store(channel, *, account_id, media_id):
+        stored.append(media_id)
+        return {"external_url": f"https://files.example.com/{media_id}.ogg", "extension": "ogg"}
+
+    async def fake_download(channel, media_id):
+        document = {
+            "transcript": {
+                "language": "es",
+                "segments": [
+                    {"speaker": "Business", "channel": 0, "text": "Hola, Instituto CTC."},
+                    {"speaker": "Customer", "channel": 1, "text": "Quería anotarme al curso de inglés."},
+                ],
+            }
+        }
+        return json.dumps(document).encode(), "application/json"
+
+    monkeypatch.setattr("app.domains.calls.whatsapp.download_and_store_media", fake_store)
+    monkeypatch.setattr("app.domains.calls.whatsapp._download_cloud_media", fake_download)
+    admin_h = await _headers(db_session, seeded["admin"])
+    agent_h = await _headers(db_session, seeded["agent"])
+
+    saved = await client.put(
+        f"{seeded['base']}/settings/{seeded['inbox'].id}",
+        json={
+            "enabled": True,
+            "record": True,
+            "transcribe": True,
+            "purpose": "seguimiento de tu inscripción",
+        },
+        headers=admin_h,
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["record"] is True
+    assert saved.json()["purpose"] == "seguimiento de tu inscripción"
+
+    call = await _ring(db_session, seeded)
+    await client.post(f"{seeded['base']}/{call.id}/pre_accept", json={"sdp": ANSWER}, headers=agent_h)
+    await client.post(f"{seeded['base']}/{call.id}/accept", json={"sdp": ANSWER}, headers=agent_h)
+    accepted = json.loads(meta.calls.last.request.content)
+    notice = {
+        "status": "ENABLED",
+        "purpose": "seguimiento de tu inscripción",
+        "announcement_language": "es",
+    }
+    assert accepted["recording"] == notice
+    assert accepted["transcription"] == notice
+    await db_session.refresh(call)
+    assert call.recording_requested and call.transcription_requested
+
+    await process_cloud_webhook(
+        db_session, channel=seeded["channel"], inbox=seeded["inbox"], payload=_terminate(duration=40)
+    )
+    message = await db_session.get(Message, call.message_id)
+    assert message.content_attributes["data"]["recording"] == "pending"
+
+    for event, media_id in (
+        ("call_recording_available", "rec-1"),
+        ("call_transcription_available", "doc-1"),
+    ):
+        await process_cloud_webhook(
+            db_session,
+            channel=seeded["channel"],
+            inbox=seeded["inbox"],
+            payload=_media_payload(event, media_id),
+        )
+    await db_session.refresh(call)
+    assert stored == ["rec-1"]
+    assert call.recording_attachment_id is not None
+    assert call.recording_media_id is None
+    assert [seg["speaker"] for seg in call.transcript] == ["business", "customer"]
+
+    attachments = (
+        await db_session.exec(select(Attachment).where(Attachment.message_id == call.message_id))
+    ).all()
+    assert [a.external_url for a in attachments] == ["https://files.example.com/rec-1.ogg"]
+    assert attachments[0].file_type == FILE_TYPE_AUDIO
+    await db_session.refresh(message)
+    data = message.content_attributes["data"]
+    assert data["recording"] == "ready"
+    assert data["transcription"] == "ready"
+    assert data["transcript"][1]["text"] == "Quería anotarme al curso de inglés."
+    assert "Cliente: Quería anotarme al curso de inglés." in message.content
+
+
+async def test_a_copy_that_failed_is_retried_later(db_session, seeded, monkeypatch):
+    call = await _ring(db_session, seeded)
+    attempts: list[str] = []
+
+    async def failing(channel, *, account_id, media_id):
+        attempts.append(media_id)
+        return None
+
+    monkeypatch.setattr("app.domains.calls.whatsapp.download_and_store_media", failing)
+    await process_cloud_webhook(
+        db_session,
+        channel=seeded["channel"],
+        inbox=seeded["inbox"],
+        payload=_media_payload("call_recording_available", "rec-9"),
+    )
+    await db_session.refresh(call)
+    assert call.recording_media_id == "rec-9"
+    assert call.recording_attachment_id is None
+
+    async def working(channel, *, account_id, media_id):
+        attempts.append(media_id)
+        return {"external_url": "https://files.example.com/rec-9.ogg", "extension": "ogg"}
+
+    monkeypatch.setattr("app.domains.calls.whatsapp.download_and_store_media", working)
+    assert await retry_pending_media(db_session) >= 1
+    await db_session.refresh(call)
+    assert attempts == ["rec-9", "rec-9"]
+    assert call.recording_attachment_id is not None
+    assert call.recording_media_id is None

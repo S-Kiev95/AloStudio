@@ -62,4 +62,9 @@ MESSAGES: dict[str, str] = {
     "whatsapp.contact_fallback": "連絡先",
     # A WhatsApp call in a conversation (F7)
     "calls.message": "WhatsApp通話",
+    # What Meta reads to both sides before recording a call (F7)
+    "calls.default_purpose": "品質管理とお問い合わせへの対応",
+    # Who said what, in a call's transcript
+    "calls.speaker.business": "担当者",
+    "calls.speaker.customer": "顧客",
 }

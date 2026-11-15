@@ -20,8 +20,20 @@ Statuses:
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlmodel import Field
 
 from app.core.base_model import TimestampMixin
@@ -38,6 +50,10 @@ FINAL_STATUSES = (CALL_COMPLETED, CALL_MISSED, CALL_FAILED)
 
 DIRECTION_INBOUND = "inbound"
 PROVIDER_WHATSAPP = "whatsapp"
+
+# Languages Meta can read the recording notice in (``announcement_language``).
+ANNOUNCEMENT_LANGUAGES = ("es", "es_ES", "en", "pt", "fr", "de", "it", "nl", "hi", "kn", "te", "vi")
+PURPOSE_MAX = 250
 
 
 class Call(TimestampMixin, table=True):
@@ -106,3 +122,61 @@ class Call(TimestampMixin, table=True):
     duration_seconds: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
     # Why it failed, as Meta put it (``code: message``), for whoever looks.
     end_reason: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+
+    # Recording and transcription, when the inbox asked Meta for them. Meta
+    # keeps the files 7 days after announcing them (``*_available_at``); the
+    # media id stays until our copy is made, so a failed copy is retried.
+    recording_requested: bool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default="false")
+    )
+    transcription_requested: bool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default="false")
+    )
+    recording_media_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    recording_available_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    recording_attachment_id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
+    )
+    transcript_media_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    transcript_available_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    # ``[{"speaker": "business"|"customer", "text": "…", "start": s}]``
+    transcript: list[dict[str, Any]] | None = Field(
+        default=None, sa_column=Column(JSON, nullable=True)
+    )
+    transcript_language: str | None = Field(
+        default=None, sa_column=Column(String(16), nullable=True)
+    )
+
+
+class CallInboxSettings(TimestampMixin, table=True):
+    """What an inbox does with its calls beyond answering them: record them,
+    transcribe them, and what the notice tells both sides. Only applies
+    while the installation allows recording (``call_recording_allowed``)."""
+
+    __tablename__ = "call_inbox_settings"
+
+    inbox_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("inboxes.id", ondelete="CASCADE"), primary_key=True
+        )
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+        )
+    )
+    record: bool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default="false")
+    )
+    transcribe: bool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default="false")
+    )
+    # Said to both sides before recording ("…será grabado con el siguiente fin: <purpose>").
+    purpose: str | None = Field(default=None, sa_column=Column(String(PURPOSE_MAX), nullable=True))
+    announcement_language: str = Field(
+        default="es", sa_column=Column(String(8), nullable=False, server_default="es")
+    )

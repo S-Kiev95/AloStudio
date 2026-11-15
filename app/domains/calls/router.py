@@ -13,8 +13,12 @@ Route map, under ``/api/v1/accounts/{account_id}/calls``:
 
 Errors carry ``code`` (``calls.taken``, ``calls.over``, ``calls.not_yours``,
 ``calls.not_connected``, ``calls.unreachable``, ``calls.refused``,
-``calls.no_hours``) for the panel to translate; ``message`` is Meta's reason
+``calls.no_hours``, ``calls.recording_not_allowed``, ``calls.purpose``,
+``calls.language``) for the panel to translate; ``message`` is Meta's reason
 when it gave one.
+
+Recording and transcription (settings ``record`` / ``transcribe``) only
+apply while the installation's operator allows it (``recording_allowed``).
 """
 
 from __future__ import annotations
@@ -32,6 +36,7 @@ from app.core.errors import ChatwootHTTPException
 from app.domains.calls import service as calls
 from app.domains.calls import whatsapp
 from app.domains.calls.models import (
+    ANNOUNCEMENT_LANGUAGES,
     CALL_COMPLETED,
     CALL_CONNECTING,
     CALL_FAILED,
@@ -39,7 +44,9 @@ from app.domains.calls.models import (
     CALL_MISSED,
     CALL_RINGING,
     FINAL_STATUSES,
+    PURPOSE_MAX,
     Call,
+    CallInboxSettings,
 )
 from app.domains.inboxes.models import CHANNEL_TYPE_WHATSAPP, Inbox, WhatsappChannel
 
@@ -59,6 +66,11 @@ class SettingsBody(BaseModel):
     call_icon_visible: bool = True
     callback_requests: bool = True
     business_hours: bool = False
+    # Recording (only while the installation allows it). Left out: unchanged.
+    record: bool | None = None
+    transcribe: bool | None = None
+    purpose: str | None = None
+    announcement_language: str | None = None
 
 
 def _account_id(ctx: AccountContext) -> int:
@@ -125,6 +137,48 @@ async def index_active(
 # ---------------------------------------------------------------------------
 # The number's settings
 # ---------------------------------------------------------------------------
+def _recording_out(row: CallInboxSettings | None) -> dict[str, Any]:
+    return {
+        "recording_allowed": calls.recording_allowed(),
+        "record": bool(row and row.record),
+        "transcribe": bool(row and row.transcribe),
+        "purpose": (row.purpose if row else None) or calls.default_purpose(),
+        "announcement_language": (row.announcement_language if row else None) or "es",
+    }
+
+
+async def _save_recording(
+    session: AsyncSession, *, inbox: Inbox, body: SettingsBody
+) -> CallInboxSettings | None:
+    row = await calls.inbox_settings(session, inbox.id)  # type: ignore[arg-type]
+    if body.record is None and body.transcribe is None and body.purpose is None and (
+        body.announcement_language is None
+    ):
+        return row
+    record = body.record if body.record is not None else bool(row and row.record)
+    transcribe = body.transcribe if body.transcribe is not None else bool(row and row.transcribe)
+    if (record or transcribe) and not calls.recording_allowed():
+        raise _fail(422, "recording_not_allowed")
+    purpose = (body.purpose if body.purpose is not None else (row.purpose if row else None)) or ""
+    purpose = purpose.strip()
+    if (record or transcribe) and not purpose:
+        purpose = calls.default_purpose()
+    if len(purpose) > PURPOSE_MAX:
+        raise _fail(422, "purpose")
+    language = body.announcement_language or (row.announcement_language if row else None) or "es"
+    if language not in ANNOUNCEMENT_LANGUAGES:
+        raise _fail(422, "language")
+    if row is None:
+        row = CallInboxSettings(inbox_id=inbox.id, account_id=inbox.account_id)
+    row.record = record
+    row.transcribe = transcribe
+    row.purpose = purpose or None
+    row.announcement_language = language
+    session.add(row)
+    await session.flush()
+    return row
+
+
 @router.get("/settings/{inbox_id}")
 async def show_settings(
     inbox_id: Annotated[int, Path()],
@@ -133,9 +187,10 @@ async def show_settings(
 ) -> dict[str, Any]:
     _, channel = await _whatsapp_inbox(session, ctx, inbox_id)
     try:
-        return await whatsapp.read_settings(channel)
+        meta = await whatsapp.read_settings(channel)
     except whatsapp.CallError as exc:
         raise _meta_fail(exc) from exc
+    return {**meta, **_recording_out(await calls.inbox_settings(session, inbox_id))}
 
 
 @router.put("/settings/{inbox_id}")
@@ -146,8 +201,10 @@ async def update_settings(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     inbox, channel = await _whatsapp_inbox(session, ctx, inbox_id)
+    # Ours first: a refusal here must not leave Meta half changed.
+    row = await _save_recording(session, inbox=inbox, body=body)
     try:
-        return await whatsapp.save_settings(
+        meta = await whatsapp.save_settings(
             session,
             channel=channel,
             inbox=inbox,
@@ -158,6 +215,7 @@ async def update_settings(
         )
     except whatsapp.CallError as exc:
         raise _meta_fail(exc) from exc
+    return {**meta, **_recording_out(row)}
 
 
 # ---------------------------------------------------------------------------
@@ -214,8 +272,9 @@ async def accept_call(
         return await calls.present_call(session, call)
     if call.status != CALL_CONNECTING:
         raise _fail(409, "over")
+    plan = await calls.recording_plan(session, call)
     try:
-        await whatsapp.accept(session, call=call, sdp=body.sdp)
+        await whatsapp.accept(session, call=call, sdp=body.sdp, plan=plan)
     except whatsapp.CallError as exc:
         # Meta already has this agent's answer: nobody else can take it.
         # Hang up rather than leave the customer waiting on silence.
@@ -223,7 +282,12 @@ async def accept_call(
             await whatsapp.terminate(session, call=call)
         await calls.finish(session, call=call, status=CALL_FAILED, reason=exc.detail or exc.code)
         raise _meta_fail(exc) from exc
-    await calls.mark_in_progress(session, call=call)
+    await calls.mark_in_progress(
+        session,
+        call=call,
+        record=bool(plan and plan.record),
+        transcribe=bool(plan and plan.transcribe),
+    )
     return await calls.present_call(session, call)
 
 

@@ -12,7 +12,9 @@ Docs: developers.facebook.com/docs/whatsapp/cloud-api/calling
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -29,10 +31,12 @@ from app.domains.calls.models import (
     CALL_MISSED,
     PROVIDER_WHATSAPP,
     Call,
+    CallInboxSettings,
 )
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.inboxes.models import WHATSAPP_PROVIDER_CLOUD, Inbox, WhatsappChannel
 from app.domains.whatsapp.cloud_provider import _api_base as _cloud_api_base
+from app.domains.whatsapp.media import _download_cloud_media, download_and_store_media
 
 log = logging.getLogger(__name__)
 
@@ -100,7 +104,12 @@ async def _graph(
 
 
 async def _call_action(
-    channel: WhatsappChannel, *, call: Call, action: str, sdp: str | None = None
+    channel: WhatsappChannel,
+    *,
+    call: Call,
+    action: str,
+    sdp: str | None = None,
+    extra: dict[str, Any] | None = None,
 ) -> None:
     body: dict[str, Any] = {
         "messaging_product": "whatsapp",
@@ -109,7 +118,27 @@ async def _call_action(
     }
     if sdp is not None:
         body["session"] = {"sdp_type": "answer", "sdp": sdp}
+    if extra:
+        body.update(extra)
     await _graph(channel, "POST", "calls", json=body)
+
+
+def media_request(plan: CallInboxSettings | None) -> dict[str, Any]:
+    """The ``recording`` / ``transcription`` objects for ``accept``. Meta
+    reads ``purpose`` to both sides before it starts recording."""
+    if plan is None:
+        return {}
+    notice = {
+        "status": "ENABLED",
+        "purpose": (plan.purpose or calls.default_purpose())[:250],
+        "announcement_language": plan.announcement_language or "es",
+    }
+    out: dict[str, Any] = {}
+    if plan.record:
+        out["recording"] = dict(notice)
+    if plan.transcribe:
+        out["transcription"] = dict(notice)
+    return out
 
 
 async def channel_for(session: AsyncSession, call: Call) -> WhatsappChannel:
@@ -124,8 +153,16 @@ async def pre_accept(session: AsyncSession, *, call: Call, sdp: str) -> None:
     await _call_action(await channel_for(session, call), call=call, action="pre_accept", sdp=sdp)
 
 
-async def accept(session: AsyncSession, *, call: Call, sdp: str) -> None:
-    await _call_action(await channel_for(session, call), call=call, action="accept", sdp=sdp)
+async def accept(
+    session: AsyncSession, *, call: Call, sdp: str, plan: CallInboxSettings | None = None
+) -> None:
+    await _call_action(
+        await channel_for(session, call),
+        call=call,
+        action="accept",
+        sdp=sdp,
+        extra=media_request(plan),
+    )
 
 
 async def terminate(session: AsyncSession, *, call: Call) -> None:
@@ -285,10 +322,123 @@ async def process_calls_value(
                     )
                 elif event == "terminate":
                     await _on_terminate(session, item=item, errors=errors or [])
+                elif event in ("call_recording_available", "call_transcription_available"):
+                    await _on_media(session, channel=channel, item=item)
         except Exception:
             log.exception(
                 "calls.whatsapp.event_failed event=%s call_id=%s", event, item.get("id")
             )
+
+
+# ---------------------------------------------------------------------------
+# Recording and transcript
+# ---------------------------------------------------------------------------
+async def _on_media(session: AsyncSession, *, channel: WhatsappChannel, item: dict[str, Any]) -> None:
+    """Meta finished a call's recording or transcript. Note it, then copy it
+    now; the tick retries if the copy fails (Meta keeps it 7 days)."""
+    call = await calls.by_provider_id(session, str(item.get("id") or ""))
+    if call is None:
+        return
+    if item.get("event") == "call_recording_available":
+        media = (item.get("call_recording") or {}).get("audio") or {}
+        kind = "recording"
+    else:
+        media = (item.get("call_transcript") or {}).get("document") or {}
+        kind = "transcript"
+    media_id = media.get("id") if isinstance(media, dict) else None
+    if not media_id:
+        return
+    await calls.media_announced(session, call=call, kind=kind, media_id=str(media_id))
+    await fetch_media(session, call=call, channel=channel)
+
+
+async def fetch_media(
+    session: AsyncSession, *, call: Call, channel: WhatsappChannel | None = None
+) -> None:
+    """Copy whatever of this call Meta has and we do not. Best effort: a
+    failure leaves the media id for the next try."""
+    channel = channel or await channel_for(session, call)
+    if call.recording_media_id:
+        stored = await download_and_store_media(
+            channel, account_id=call.account_id, media_id=call.recording_media_id
+        )
+        if stored is not None and stored.get("external_url"):
+            await calls.attach_recording(
+                session,
+                call=call,
+                external_url=str(stored["external_url"]),
+                extension=stored.get("extension"),
+            )
+        else:
+            log.warning("calls.whatsapp.recording_copy_failed call_id=%s", call.id)
+    if call.transcript_media_id:
+        downloaded = await _download_cloud_media(channel, call.transcript_media_id)
+        if downloaded is None:
+            log.warning("calls.whatsapp.transcript_copy_failed call_id=%s", call.id)
+            return
+        try:
+            document = json.loads(downloaded[0].decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            log.warning("calls.whatsapp.transcript_unreadable call_id=%s", call.id)
+            return
+        segments, language = parse_transcript(document)
+        await calls.save_transcript(session, call=call, segments=segments, language=language)
+
+
+async def retry_pending_media(session: AsyncSession) -> int:
+    """Run by the 5-minute tick: copies that failed when Meta announced them."""
+    done = 0
+    for call in await calls.pending_media(session):
+        try:
+            async with session.begin_nested():
+                await fetch_media(session, call=call)
+            done += 1
+        except Exception:
+            log.exception("calls.whatsapp.media_retry_failed call_id=%s", call.id)
+    return done
+
+
+_MARKER = re.compile(r"\[(Business|Customer)\]", re.IGNORECASE)
+
+
+def _speaker(raw: Any, channel_no: Any) -> str:
+    text = str(raw or "").lower()
+    if text.startswith("bus") or channel_no == 0:
+        return "business"
+    return "customer"
+
+
+def parse_transcript(document: Any) -> tuple[list[dict[str, Any]], str | None]:
+    """Meta's transcript JSON → ``[{speaker, text, start}]`` and its language.
+    ``speaker`` is ``business`` (the agent) or ``customer``."""
+    root = document.get("transcript") if isinstance(document, dict) else None
+    if not isinstance(root, dict):
+        root = document if isinstance(document, dict) else {}
+    language = root.get("language") if isinstance(root.get("language"), str) else None
+    out: list[dict[str, Any]] = []
+    raw_segments = root.get("segments")
+    for seg in raw_segments if isinstance(raw_segments, list) else []:
+        if not isinstance(seg, dict):
+            continue
+        text = str(seg.get("text") or "").strip()
+        if not text:
+            continue
+        start = seg.get("start")
+        out.append(
+            {
+                "speaker": _speaker(seg.get("speaker"), seg.get("channel")),
+                "text": text,
+                "start": float(start) if isinstance(start, int | float) else None,
+            }
+        )
+    if not out and isinstance(root.get("text"), str):
+        # Only the flat text: "[Business] Hola … [Customer] Buenas …"
+        parts = _MARKER.split(root["text"])
+        for who, said in zip(parts[1::2], parts[2::2], strict=False):
+            said = said.strip()
+            if said:
+                out.append({"speaker": _speaker(who, None), "text": said, "start": None})
+    return out, language
 
 
 # ---------------------------------------------------------------------------
@@ -381,9 +531,13 @@ __all__ = [
     "CallError",
     "accept",
     "channel_for",
+    "fetch_media",
+    "media_request",
+    "parse_transcript",
     "pre_accept",
     "process_calls_value",
     "read_settings",
+    "retry_pending_media",
     "save_settings",
     "terminate",
 ]
