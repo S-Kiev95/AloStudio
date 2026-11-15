@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { NeonWordmark } from "@/components/brand/neon-wordmark";
+import { CallDock } from "@/components/calls/call-dock";
 import type { Profile } from "@/lib/auth/profile";
 import { useHasWhatsappInbox } from "@/lib/api/inboxes";
 import { saveLocaleIfMissing } from "@/lib/api/profile";
@@ -271,6 +272,8 @@ export function DashboardShell({
           </main>
         </div>
       </div>
+      {/* WhatsApp calls ringing in my inboxes, and the one I am on (F7). */}
+      {hasWhatsapp ? <CallDock accountId={accountId} /> : null}
     </PageSignContext.Provider>
   );
 }

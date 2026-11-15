@@ -72,4 +72,17 @@ MESSAGES: dict[str, str] = {
     "push.body": "Conversación #{n}",
     # WhatsApp notice: what goes in the template when the contact has no name
     "whatsapp.contact_fallback": "Un contacto",
+    # A WhatsApp call in a conversation (F7)
+    "calls.message": "Llamada de WhatsApp",
+    # What Meta reads to both sides before recording a call (F7)
+    "calls.default_purpose": "control de calidad y seguimiento de tu consulta",
+    # Who said what, in a call's transcript
+    "calls.speaker.business": "Agente",
+    "calls.speaker.customer": "Cliente",
+    # Asking a customer whether the business may call them (F7)
+    "calls.permission.request": "¿Te podemos llamar por WhatsApp para ayudarte con tu consulta?",
+    "calls.permission.accepted": "Aceptó que lo llamen por WhatsApp (por 7 días)",
+    "calls.permission.accepted_always": "Aceptó que lo llamen por WhatsApp (siempre)",
+    "calls.permission.accepted_by_calling": "Al llamar, dejó que lo llamen de vuelta por 7 días",
+    "calls.permission.rejected": "No quiere que lo llamen por WhatsApp",
 }

@@ -172,6 +172,16 @@ class Settings(BaseSettings):
     # the ``X-Hub-Signature-256`` header must validate against
     # ``meta_app_secret`` or the POST 401s (fails closed if unset).
     meta_verify_webhook_signature: bool = False
+    # WhatsApp call recording and transcription (F7). Off unless the
+    # installation's operator turns it on: recording people has legal weight,
+    # so an account admin can only use it once the operator allowed it.
+    call_recording_allowed: bool = False
+    # Decisions service (F10): intent, sentiment, urgency and team of each
+    # conversation. TypeSafe's Jev today; a local Laya later answers the same
+    # ``POST /v1/systemone``, so switching is changing these three.
+    decisions_api_url: str = "https://api.typesafe.ai"
+    decisions_api_key: str = ""
+    decisions_model: str = "jev-latest"
     # Anonymous ``POST /api/v1/accounts``. OFF by default: when on, anyone
     # who can reach the URL gets a confirmed account and an administrator
     # session — no captcha, no email check. The operator turns it on from

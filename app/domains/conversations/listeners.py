@@ -453,6 +453,13 @@ async def broadcast_event(
         await fan_out_to_webhooks(session, name, **payload)
     except Exception:
         log.exception("webhook_listener.error event=%s", name)
+    # Decisions in shadow mode (F10): a customer's message schedules one.
+    from app.domains.decisions.listener import fan_out_to_decisions
+
+    try:
+        await fan_out_to_decisions(session, name, **payload)
+    except Exception:
+        log.exception("decisions_listener.error event=%s", name)
 
 
 __all__ = ["ActionCableListener", "broadcast_event"]

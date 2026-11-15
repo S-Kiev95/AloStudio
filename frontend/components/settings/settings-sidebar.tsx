@@ -70,6 +70,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     milestone: "F.9e",
     done: true,
   },
+  { segment: "decisions", label: "settings.items.decisions", milestone: "F10", done: true },
   { segment: "webhooks", label: "settings.items.webhooks", milestone: "F.9f", done: true },
   { segment: "agent_bots", label: "settings.items.agent_bots", milestone: "F.9f", done: true },
   {

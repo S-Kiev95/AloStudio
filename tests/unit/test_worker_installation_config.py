@@ -37,3 +37,28 @@ async def test_a_database_that_is_not_up_does_not_stop_the_worker(monkeypatch):
         raise ConnectionError("db down")
 
     await _start(monkeypatch, apply)
+
+
+@pytest.mark.asyncio
+async def test_each_job_picks_up_settings_saved_after_startup(monkeypatch):
+    # A key loaded from the dashboard while the worker runs must reach it
+    # without a restart.
+    calls = []
+
+    async def refresh(session):
+        calls.append(session)
+        return True
+
+    monkeypatch.setattr(service, "refresh_if_stale", refresh)
+    await WorkerSettings.on_job_start({"job_id": "x"})
+    await WorkerSettings.on_job_start({"job_id": "y"})
+    assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_failed_refresh_does_not_stop_the_job(monkeypatch):
+    async def refresh(session):
+        raise ConnectionError("db down")
+
+    monkeypatch.setattr(service, "refresh_if_stale", refresh)
+    await WorkerSettings.on_job_start({"job_id": "x"})

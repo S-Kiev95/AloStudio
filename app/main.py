@@ -32,6 +32,7 @@ from app.domains.auth.router import router as auth_router
 from app.domains.auth.sso import router as auth_sso_router
 from app.domains.automation.router import router as automation_rules_router
 from app.domains.bulk_actions.router import router as bulk_actions_router
+from app.domains.calls.router import router as calls_router
 from app.domains.campaigns.router import router as campaigns_router
 from app.domains.canned_responses.router import router as canned_responses_router
 from app.domains.contacts.router import actions_router as contact_actions_router
@@ -53,6 +54,7 @@ from app.domains.csat.public_router import router as csat_public_router
 from app.domains.csat.router import router as csat_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
 from app.domains.custom_views.router import router as custom_views_router
+from app.domains.decisions.router import router as decisions_router
 from app.domains.email.templates_router import router as email_templates_router
 from app.domains.facebook.connect_router import router as facebook_connect_router
 from app.domains.facebook.router import router as facebook_webhook_router
@@ -340,6 +342,10 @@ def create_app() -> FastAPI:
     app.include_router(appointments_router)
     # Sales pipeline: pipelines, stages, opportunities (F11).
     app.include_router(crm_router)
+    # Voice calls: WhatsApp calls answered from the browser (F7).
+    app.include_router(calls_router)
+    # Decisions about conversations, in shadow mode (F10).
+    app.include_router(decisions_router)
     # Multi-network publishing: one publication, many channels, each
     # published by its network adapter.
     app.include_router(publishing_router)

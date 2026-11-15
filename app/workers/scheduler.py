@@ -263,14 +263,23 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         await enqueue_notification_email(notification_id)
         await enqueue_notification_push(notification_id)
 
+    # Calls (F7): close the ones whose end never reached us, and copy
+    # recordings and transcripts a first attempt could not.
+    from app.domains.calls.tick import run as calls_tick
+
+    async with sessionmaker() as calls_session:
+        calls_closed = (await calls_tick(calls_session))["closed"]
+        await calls_session.commit()
+
     log.info(
         "scheduler.tick.done campaigns_fired=%s conversations_reopened=%s "
-        "instagram_posts_fired=%s publications_fired=%s crm_reminders=%s",
+        "instagram_posts_fired=%s publications_fired=%s crm_reminders=%s calls_closed=%s",
         campaigns_fired,
         conversations_reopened,
         len(ig_fired),
         len(publications_fired),
         len(reminders),
+        calls_closed,
     )
     return {
         "campaigns_fired": campaigns_fired,
@@ -278,6 +287,7 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         "instagram_posts_fired": len(ig_fired),
         "publications_fired": len(publications_fired),
         "crm_reminders": len(reminders),
+        "calls_closed": calls_closed,
     }
 
 
@@ -369,6 +379,22 @@ class WorkerSettings:
         )
 
     @staticmethod
+    async def on_job_start(ctx: dict[str, Any]) -> None:
+        # Settings saved from the dashboard after the worker started (a new
+        # API key, say) reach it here, re-read at most every
+        # REFRESH_INTERVAL_SECONDS. Before, only startup read them, so a key
+        # loaded from Ajustes → Instalación did nothing until a restart. When
+        # the settings are fresh this touches no connection at all.
+        try:
+            from app.core.db import get_session_factory
+            from app.domains.installation import service as installation
+
+            async with get_session_factory()() as session:
+                await installation.refresh_if_stale(session)
+        except Exception as exc:  # noqa: BLE001 - old settings beat a failed job
+            log.warning("installation_config.refresh_failed err=%s", type(exc).__name__)
+
+    @staticmethod
     async def on_shutdown(ctx: dict[str, Any]) -> None:
         engine = ctx.get("engine")
         if engine is not None:
@@ -392,6 +418,7 @@ class WorkerSettings:
             refresh_contact_avatar_task,
             refresh_stale_avatars_task,
         )
+        from app.workers.decisions import decide_conversation_task
         from app.workers.deliver_webhook import (
             MAX_ATTEMPTS as WEBHOOK_MAX_ATTEMPTS,
         )
@@ -448,8 +475,14 @@ class WorkerSettings:
             refresh_contact_avatar_task,
             refresh_stale_avatars_task,
             # Enqueued a few seconds after a product changes, for accounts
-            # linked to a Meta catalogue (F11).
-            sync_meta_catalog_task,
+            # linked to a Meta catalogue (F11). Keeps no result: ARQ refuses a
+            # job id while its result lives (an hour by default), so every
+            # change in the hour after a sync was dropped.
+            func(sync_meta_catalog_task, keep_result=0),
+            # Enqueued when a customer writes, for accounts deciding their
+            # conversations in shadow mode (F10). Keeps no result, same reason:
+            # the next message after a decision must schedule another.
+            func(decide_conversation_task, keep_result=0),
         ]
 
     # ARQ reads these off the class, so they're class-level by contract, not

@@ -101,11 +101,11 @@ anota en esta sección y lo decide el dueño.
 | F3 Redes que faltan | B | Sin empezar |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
-| F6 Gastos por uso | A | En develop (2026-11-14): WhatsApp (costo de Meta) e IA; falta CTC |
-| F7 Llamadas y voz | B | Sin empezar |
+| F6 Gastos por uso | A | En CTC (2026-11-15, pasó con el resto de develop): WhatsApp (costo de Meta) e IA |
+| F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real). En CTC falta activar las llamadas en el número y suscribir el webhook `calls` |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
-| F10 Jev y Laya | B | Sin empezar |
+| F10 Jev y Laya | B | Paso 1 en CTC (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; andando en staging con Jev real. En CTC falta cargar la clave y prender el modo sombra. Después, juntar etiquetas y decidir qué hacer con las decisiones. Laya más adelante, solo con etiquetas de personas |
 | F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
@@ -285,7 +285,7 @@ dentro de la rama.
     lo que pasa por `app/core/llm.py` dentro de `ai_usage(...)`: agente,
     respuestas automáticas de Instagram y Help Center. Gemma es local (no
     cuesta).
-- **Topes mensuales (2026-11-14, en develop):** en Gastos, un tope para
+- **Topes mensuales (2026-11-15, en develop; falta CTC):** en Gastos, un tope para
   WhatsApp (en la moneda de la cuenta de WhatsApp) y otro para IA (USD).
   Gasto del mes de WhatsApp = lo que Meta reportó + lo cobrado que Meta
   todavía no reportó (mensajes × costo promedio por categoría). Al llegar:
@@ -295,7 +295,8 @@ dentro de la rama.
   al 100 % (una vez por mes y nivel; tipo de aviso `usage_limit` = 11, en la
   app, correo y push), revisado en el tick de 5 minutos. Tabla
   `usage_limits`, lógica en `app/domains/usage/limits.py`.
-- Pendiente: pasarlo a CTC; Meta Business Agent (CTC lo usa) se cobra
+- En CTC desde el 2026-11-15 (lo pasó el agente B con el resto de
+  develop). Pendiente: Meta Business Agent (CTC lo usa) se cobra
   aparte y tiene su propia API (Business Agent Usage Insights); desde el
   2026-10-01 los mensajes de servicio se cobran pasados 1.000 por número al
   mes (ya entran en el costo de Meta). Cuando se sumen X, SMS o llamadas
@@ -304,8 +305,98 @@ dentro de la rama.
 
 ## F7. Llamadas y voz
 
-- Revisar requisitos y costo de las llamadas de WhatsApp; investigar lives;
-  agentes de voz después.
+- **Investigación hecha el 2026-11-14 (agente B):** detalle en
+  `docs/experimentos/f7-llamadas-y-voz.md`. El número de CTC cumple los
+  requisitos (Cloud API, límite de 2.000, calidad verde); faltan activar
+  las llamadas en el número y suscribir el webhook `calls`. Recibir
+  llamadas es gratis; llamar cuesta por minuto y pide permiso del cliente.
+  El agente atiende desde el navegador (WebRTC), sin servidor de audio.
+- **Propuesta:** 1) recibir llamadas en la Bandeja; 2) llamar desde la
+  conversación; 3) agente de voz (LiveKit). Lives: lo útil son los
+  comentarios de vivos de Instagram en la Bandeja.
+- **Paso 1, recibir llamadas — hecho el 2026-11-14 (rama `feat/f7-voz`):**
+  - Tabla `calls` (migración `d9e0f1a2b3c5`) y dominio `app/domains/calls/`:
+    el webhook `calls` de Meta (`connect` con la oferta WebRTC del cliente,
+    `terminate` con el final y la duración) crea la llamada y un mensaje
+    `voice_call` en la conversación del contacto (forma de Chatwoot:
+    `content_attributes.data.status` ringing / in-progress / completed /
+    no-answer / failed).
+  - Suena en el panel de los agentes de la bandeja y de los administradores
+    (evento `call.updated` por el cable), con tono. El primero que atiende
+    se la queda (los demás reciben 409 `calls.taken`); el navegador arma la
+    respuesta WebRTC y el backend la manda a Meta en dos pasos
+    (`pre_accept`, `accept`). El micrófono queda mudo hasta que Meta
+    confirma. Silenciar, colgar, aviso al cerrar la pestaña.
+  - Ajustes → Bandejas → (WhatsApp) → «Llamadas de WhatsApp»: activar,
+    mostrar el botón de llamar y limitar al horario de la bandeja (se manda
+    a Meta en `/{phone_number_id}/settings`).
+  - Las llamadas cuyo final no llegó se cierran en el tick de 5 minutos.
+  - Probado de punta a punta en local con un Meta simulado (tres llamadas
+    WebRTC reales entre dos pestañas, audio en los dos sentidos).
+  - **Probado con Meta real el 2026-11-15 en staging** (número de prueba de
+    Meta): el dueño llamó desde su WhatsApp, sonó en el panel, se atendió
+    desde el navegador y se escucharon los dos; Meta cerró la llamada con su
+    duración. La grabación no estaba prendida en esa prueba.
+- **Grabación y transcripción — hecho el 2026-11-15 (misma rama):**
+  - Interruptor del operador en Ajustes → Instalación → Llamadas
+    («Permitir grabar llamadas», `CALL_RECORDING_ALLOWED`, apagado por
+    defecto). Con eso prendido, cada bandeja de WhatsApp elige grabar y/o
+    transcribir, el motivo que Meta lee a las dos partes antes de grabar
+    («…será grabado con el siguiente fin: …», hasta 250 caracteres) y el
+    idioma del aviso. Tabla `call_inbox_settings` (migración `e0f1a2b3c4d6`).
+  - Lo pide el `accept` (objetos `recording` y `transcription`). Meta avisa
+    con `call_recording_available` / `call_transcription_available`; el audio
+    se copia a MinIO y queda como adjunto de audio en la burbuja de la
+    llamada (con reproductor); la transcripción queda separada por quién
+    habló («Ver lo que se habló») y como texto del mensaje, así la búsqueda
+    (F8) encuentra la llamada por lo que se dijo. Meta guarda los archivos 7
+    días: si la copia falla, el tick de 5 minutos la reintenta.
+  - Hoy grabar y transcribir es gratis; Meta anunció que lo va a cobrar más
+    adelante, con aviso (va en F6 cuando pase).
+  - Probado en local con el Meta simulado (llamada grabada, audio en la
+    burbuja, transcripción y búsqueda). **Falta probarlo con Meta real.**
+- **Para usarlo en un número:** suscribir el campo `calls` del webhook de
+  WhatsApp en la app de Meta (el conector de Meta lo puede hacer, con
+  confirmación) y activar las llamadas en Ajustes → Bandejas. Meta lo
+  permite con límite de 2.000 o más (CTC tiene `TIER_2K`).
+- **Nota para el agente A:** toqué `incoming_cloud.py` en un solo lugar
+  (el campo `calls` va a `app.domains.calls.whatsapp.process_calls_value`)
+  y uso `_find_or_create_contact` / `_find_or_create_conversation` de ese
+  archivo para que la llamada caiga en la misma conversación que los
+  mensajes. No toqué `components/whatsapp/`: la tarjeta de ajustes está en
+  `components/calls/` y se monta desde `settings/inboxes/inbox-detail-view`.
+  Para el paso 2 sumé otro enganche chico en `_process_value`: un mensaje
+  `interactive` de tipo `call_permission_reply` toma su texto y atributos de
+  `app.domains.calls.whatsapp.permission_reply` (variable `call_attrs`, aparte
+  de `order_attrs`).
+- **Paso 2, llamar desde AloStudio — hecho el 2026-11-15 (rama `feat/f7-voz`):**
+  - Botón de teléfono en la cabecera de las conversaciones de WhatsApp. Le
+    pregunta a Meta si el cliente deja que lo llamen (`GET
+    /{phone_number_id}/call_permissions`): si deja, «Llamar ahora»; si no,
+    «Pedir permiso para llamar» manda el mensaje interactivo
+    `call_permission_request` (texto editable) y queda en el chat; la
+    respuesta del cliente llega como mensaje («Aceptó que lo llamen por
+    WhatsApp (por 7 días)», «siempre», o «no quiere»).
+  - La llamada sale del navegador del agente (oferta WebRTC → `connect`);
+    Meta devuelve la respuesta del cliente en el webhook `connect`
+    (`sdp_answer`, migración `f1a2b3c4d5e7`) y avisa `RINGING` / `ACCEPTED` /
+    `REJECTED`. El micrófono se prende cuando el cliente atiende. La
+    burbuja dice «Llamada saliente · Llamó Sofía · 0:42» o «No atendió».
+  - «Permitir devolver llamadas» en la tarjeta de llamadas: quien llama al
+    número deja que lo llamen de vuelta 7 días (permiso automático de Meta).
+  - Límites de Meta: un pedido de permiso por día y dos por semana; si no
+    atiende 4 llamadas seguidas se pierde el permiso; hasta 100 llamadas
+    conectadas por día por número. Fuera de las 24 h el pedido necesita una
+    plantilla (todavía no está; Meta responde y el panel lo explica).
+  - Costo: por minuto según el país del cliente (va en F6).
+  - Probado en local con el Meta simulado (pedido, aceptación, llamada con
+    audio en los dos sentidos, colgar). **Falta probarlo con Meta real.**
+- **En CTC desde el 2026-11-15:** backend y migraciones a las 15:18, panel
+  compilado a las 22:05 (hora de Uruguay). Para usarlo falta activar las
+  llamadas en el número de CTC y suscribir el webhook `calls` en su app de
+  Meta. Grabar sigue apagado hasta que el operador lo permita.
+- **Sigue:** plantilla para pedir permiso fuera de las 24 h; paso 3, agente
+  de voz.
 
 ## F8. Búsqueda en conversaciones viejas
 
@@ -365,7 +456,78 @@ dentro de la rama.
 
 ## F10. Jev y Laya
 
-Sin cambios respecto del plan.
+- **Revisión antes de empezar (2026-11-15, agente B):**
+  - **Los términos de Jev prohíben el plan original.** El contrato de
+    TypeSafe (Master Customer Agreement, 2.3(b)) no deja usar el servicio ni
+    sus respuestas para «model distillation» ni para entrenar un modelo que
+    imite sus respuestas. Entrenar Laya con las decisiones de Jev queda
+    descartado. Las respuestas son del cliente y TypeSafe no entrena con
+    nuestros datos, pero puede guardarlos para telemetría y abuso.
+  - **Jev:** `POST /v1/systemone` (choice, score y noul con
+    probabilidades), USD 0,042 por millón de tokens de entrada (menos de un
+    centavo cada mil decisiones). No publica resultados en español.
+  - **Laya:** Apache 2.0, local, endpoint compatible con Jev. Sin entrenar
+    rinde poco (0,36 de acierto, por debajo de elegir siempre lo más
+    común); entrenada llega a 0,77. Hay checkpoint multilingüe (322M), CPU
+    200–460 ms por decisión. Se entrena en Kaggle (2×T4).
+  - **Ya tenemos** clasificación local con EmbeddingGemma (respuestas
+    automáticas de Instagram): sirve de línea base gratis.
+  - **Datos en CTC:** 29 conversaciones (desde el 6 de noviembre), 3 con
+    etiqueta, 2 con equipo, ninguna con prioridad. No alcanza para entrenar
+    nada todavía.
+- **Camino elegido por el dueño (2026-11-15):** Jev ahora, sin entrenar
+  Laya con sus respuestas; Laya aparte y más adelante, entrenada solo con
+  etiquetas de personas.
+- **Paso 1, Jev en modo sombra — hecho el 2026-11-15, en develop y en
+  staging:**
+  - **Ajustes → Clasificación** (solo administradores), tres pestañas:
+    - **Configuración:** prender el modo sombra y editar las preguntas
+      (intención, sentimiento, urgencia y equipo) con sus opciones. Las del
+      equipo salen de los equipos de la cuenta.
+    - **Etiquetar:** una persona lee la conversación y elige las respuestas
+      sin ver las del servicio. El equipo que asigna un agente también
+      cuenta como etiqueta.
+    - **Resultados:** cuántas veces coincide el servicio con las personas,
+      confianza promedio y costo del mes (también en Gastos por uso, IA).
+  - Cada mensaje de un cliente programa una decisión 45 s después; varios
+    mensajes seguidos se juntan en una. Al servicio le llegan los últimos
+    12 mensajes (hasta 6.000 caracteres) anonimizados: correos, enlaces,
+    números de 7 cifras o más, y los nombres del cliente y de la gente de
+    la cuenta.
+  - Las decisiones se guardan pero todavía no cambian nada que vea el
+    agente.
+  - Solo corre con el modo sombra prendido y el servicio configurado. Se
+    configura en Ajustes → Instalación → Inteligencia artificial
+    («Servicio de decisiones»: clave, dirección y modelo). Para pasar a
+    Laya alcanza con cambiar la dirección y el modelo.
+  - Las respuestas de Jev nunca se usan para entrenar: Laya se va a
+    entrenar con las etiquetas de personas.
+  - Código en `app/domains/decisions/` y en
+    `frontend/components/settings/decisions/`. Probado con un Jev falso
+    local, no con el real.
+  - De paso: el worker relee la configuración de Ajustes → Instalación
+    cada 20 s. Antes la leía solo al arrancar, así que una clave cargada
+    desde el panel no llegaba a las tareas hasta reiniciarlo.
+- **Para usarlo:** el dueño crea la cuenta en TypeSafe y carga la clave en
+  Ajustes → Instalación (nunca por chat). Después prende el modo sombra y
+  etiqueta conversaciones para ver cuánto acierta.
+- **Jev real (2026-11-15):** el dueño cargó la clave en staging. Una
+  prueba con una conversación inventada salió bien: `jev-1.14.0`, intención
+  `inscripcion` (0,98), sentimiento `positivo` (0,97), urgencia `media`
+  (0,77); 662 tokens de entrada, US$ 0,000028. La respuesta tiene la forma
+  que espera el código.
+- **De punta a punta en staging (2026-11-15):** el dueño prendió el modo
+  sombra en la cuenta 1. Un mensaje de cliente se clasificó 45 s después
+  en el worker, que tomó la clave sin reiniciarse: intención `reclamo`
+  (0,81), sentimiento `molesto` (0,85), urgencia `media` (0,55) y equipo
+  Postventa (0,21); 1.070 tokens, US$ 0,000045.
+- **Falta:** juntar etiquetas en la pestaña Etiquetar y, con los
+  resultados, decidir si las decisiones pasan a hacer algo (sugerir o
+  asignar equipo, prioridad). Laya cuando haya suficientes etiquetas.
+- **En CTC desde el 2026-11-15** (panel compilado a las 22:05): falta
+  cargar la clave de Jev en su Instalación y prender el modo sombra en
+  Ajustes → Clasificación. La pregunta del equipo usa los equipos de la
+  cuenta; si no hay equipos, no se hace.
 
 ## F11. CRM (Krayin)
 
@@ -433,6 +595,9 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     (tarea `sync_meta_catalog_task`). El id del producto en Meta
     (`retailer_id`) es su SKU o `alo-{id}`, guardado en
     `products.meta_retailer_id`. Lógica en `app/domains/crm/meta_catalog.py`.
+    **Arreglado el 2026-11-15** (en develop, todavía no en CTC): después de
+    una sincronización, los cambios de la hora siguiente se perdían (ARQ
+    no acepta el mismo id de trabajo mientras guarda su resultado).
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
     Productos en la Bandeja, pedidos por el webhook que abren una
     oportunidad y pestaña Catálogo en la sección WhatsApp (ver F5).

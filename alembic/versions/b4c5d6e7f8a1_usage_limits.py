@@ -1,7 +1,7 @@
 """usage: monthly spend caps per account (F6)
 
-Revision ID: d9e0f1a2b3c5
-Revises: c8d9e0f1a2b4
+Revision ID: b4c5d6e7f8a1
+Revises: a2b3c4d5e6f9
 Create Date: 2026-11-14 18:00:00.000000
 """
 
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "d9e0f1a2b3c5"
-down_revision: str | None = "c8d9e0f1a2b4"
+revision: str = "b4c5d6e7f8a1"
+down_revision: str | None = "a2b3c4d5e6f9"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -4,6 +4,8 @@ import { core } from "./core";
 import { companies } from "./companies";
 import { activities } from "./activities";
 import { metaCatalog } from "./metaCatalog";
+import { calls } from "./calls";
+import { decisions } from "./decisions";
 import { usage } from "./usage";
 import { opportunities } from "./opportunities";
 import { origin } from "./origin";
@@ -60,6 +62,8 @@ export const en: Messages = {
   companies,
   activities,
   metaCatalog,
+  calls,
+  decisions,
   usage,
 
   opportunities,
