@@ -23,6 +23,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
+from app.core.i18n import DEFAULT_LOCALE, t
 from app.domains.calls import service as calls
 from app.domains.calls.models import (
     CALL_COMPLETED,
@@ -33,8 +34,16 @@ from app.domains.calls.models import (
     Call,
     CallInboxSettings,
 )
+from app.domains.contacts.models import Contact
 from app.domains.contacts.service import ContactInboxBuilder
-from app.domains.inboxes.models import WHATSAPP_PROVIDER_CLOUD, Inbox, WhatsappChannel
+from app.domains.conversations.models import Message
+from app.domains.conversations.service import MessageBuilderParams, create_message
+from app.domains.inboxes.models import (
+    CHANNEL_TYPE_WHATSAPP,
+    WHATSAPP_PROVIDER_CLOUD,
+    Inbox,
+    WhatsappChannel,
+)
 from app.domains.whatsapp.cloud_provider import _api_base as _cloud_api_base
 from app.domains.whatsapp.media import _download_cloud_media, download_and_store_media
 
@@ -46,8 +55,10 @@ _DAYS = ("SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATU
 class CallError(Exception):
     """Something kept Meta from doing what we asked. ``code`` is what the
     panel translates: ``not_connected`` (no Cloud number or token),
-    ``unreachable`` (Meta did not answer), ``refused`` (Meta said no; its
-    reason is in ``detail``)."""
+    ``unreachable`` (Meta did not answer), ``no_permission`` (the customer
+    has not allowed calls), ``limit`` (Meta's call or request limits),
+    ``window`` (a free-form message outside the 24 hours), ``refused`` (Meta
+    said no; its reason is in ``detail``)."""
 
     def __init__(self, code: str, detail: str | None = None) -> None:
         super().__init__(code)
@@ -58,6 +69,13 @@ class CallError(Exception):
 # ---------------------------------------------------------------------------
 # Talking to Meta
 # ---------------------------------------------------------------------------
+# Meta's error codes the panel explains in its own words.
+_META_CODES: dict[Any, str] = {
+    138006: "no_permission",  # no call permission from the customer
+    138037: "limit",  # calls placed above the number's limit
+    138009: "limit",  # permission requests above the daily/weekly limit
+    131047: "window",  # free-form message more than 24 hours after theirs
+}
 def _credentials(channel: WhatsappChannel) -> tuple[str, str]:
     """``(phone_number_id, token)`` of a connected Cloud number."""
     cfg = channel.provider_config if isinstance(channel.provider_config, dict) else {}
@@ -99,7 +117,8 @@ async def _graph(
             resp.status_code,
             resp.text[:300],
         )
-        raise CallError("refused", str(detail) if detail else None)
+        meta_code = error.get("code") if isinstance(error, dict) else None
+        raise CallError(_META_CODES.get(meta_code, "refused"), str(detail) if detail else None)
     return body
 
 
@@ -207,8 +226,9 @@ async def _on_connect(
     call_id = item.get("id")
     if not call_id:
         return
-    if str(item.get("direction") or "USER_INITIATED") != "USER_INITIATED":
-        return  # calls we make: next step of F7
+    if str(item.get("direction") or "USER_INITIATED") == "BUSINESS_INITIATED":
+        await _on_outbound_connect(session, item=item)
+        return
     phone = _caller(item, contacts_block)
     if phone is None:
         log.info("calls.whatsapp.skip reason=no_caller call_id=%s", call_id)
@@ -306,6 +326,13 @@ async def process_calls_value(
     """One ``calls`` change of a Cloud webhook."""
     contacts_block = value.get("contacts") if isinstance(value.get("contacts"), list) else []
     errors = value.get("errors") if isinstance(value.get("errors"), list) else []
+    for status in value.get("statuses") or []:
+        if isinstance(status, dict) and status.get("type") == "call":
+            try:
+                async with session.begin_nested():
+                    await _on_call_status(session, status=status)
+            except Exception:
+                log.exception("calls.whatsapp.status_failed call_id=%s", status.get("id"))
     for item in value.get("calls") or []:
         if not isinstance(item, dict):
             continue
@@ -442,6 +469,226 @@ def parse_transcript(document: Any) -> tuple[list[dict[str, Any]], str | None]:
 
 
 # ---------------------------------------------------------------------------
+# Calls we make
+# ---------------------------------------------------------------------------
+def _digits(phone: str) -> str:
+    return "".join(ch for ch in phone if ch.isdigit())
+
+
+def _unix(value: Any) -> int | None:
+    """Meta sends times as Unix seconds, as a number or a string."""
+    text = str(value) if value is not None else ""
+    return int(text) if text.isdigit() else None
+
+
+async def _conversation_channel(
+    session: AsyncSession, conversation: Any
+) -> WhatsappChannel:
+    inbox = await session.get(Inbox, conversation.inbox_id)
+    if inbox is None or inbox.channel_type != CHANNEL_TYPE_WHATSAPP:
+        raise CallError("not_connected")
+    channel = await session.get(WhatsappChannel, inbox.channel_id)
+    if channel is None:
+        raise CallError("not_connected")
+    _credentials(channel)
+    return channel
+
+
+async def permission_state(
+    session: AsyncSession, *, conversation: Any, contact: Contact
+) -> dict[str, Any]:
+    """Whether this customer lets the business call them, as Meta keeps it:
+    ``status`` ``no_permission`` / ``temporary`` / ``permanent``, until when,
+    and whether a call or a permission request can go out now."""
+    channel = await _conversation_channel(session, conversation)
+    phone = _digits(contact.phone_number or "")
+    if not phone:
+        raise CallError("no_phone")
+    pnid, token = _credentials(channel)
+    url = f"{_cloud_api_base()}/{get_settings().meta_graph_api_version}/{pnid}/call_permissions"
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                url, params={"user_wa_id": phone}, headers={"Authorization": f"Bearer {token}"}
+            )
+    except httpx.HTTPError as exc:
+        raise CallError("unreachable") from exc
+    try:
+        body = resp.json()
+    except ValueError:
+        body = {}
+    if resp.status_code >= 400 or not isinstance(body, dict):
+        error = body.get("error") if isinstance(body, dict) else None
+        detail = error.get("message") if isinstance(error, dict) else None
+        meta_code = error.get("code") if isinstance(error, dict) else None
+        raise CallError(_META_CODES.get(meta_code, "refused"), detail)
+    raw_permission = body.get("permission")
+    permission: dict[str, Any] = raw_permission if isinstance(raw_permission, dict) else {}
+    actions = {
+        a.get("action_name"): a
+        for a in body.get("actions") or []
+        if isinstance(a, dict)
+    }
+
+    def allowed(name: str) -> bool:
+        action = actions.get(name)
+        return bool(action and action.get("can_perform_action"))
+
+    expiration = permission.get("expiration_time") or permission.get("expiration")
+    return {
+        "status": permission.get("status") or "no_permission",
+        "expires_at": _unix(expiration),
+        "can_call": allowed("start_call"),
+        "can_request": allowed("send_call_permission_request"),
+    }
+
+
+async def request_permission(
+    session: AsyncSession,
+    *,
+    conversation: Any,
+    contact: Contact,
+    agent_id: int,
+    text: str,
+) -> Message:
+    """Ask the customer, in the chat, whether the business may call them.
+    WhatsApp shows it with its own buttons; the answer comes back as a
+    message (:func:`permission_reply`)."""
+    channel = await _conversation_channel(session, conversation)
+    phone = _digits(contact.phone_number or "")
+    if not phone:
+        raise CallError("no_phone")
+    body = await _graph(
+        channel,
+        "POST",
+        "messages",
+        json={
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": phone,
+            "type": "interactive",
+            "interactive": {
+                "type": "call_permission_request",
+                "action": {"name": "call_permission_request"},
+                "body": {"text": text},
+            },
+        },
+    )
+    sent = body.get("messages") if isinstance(body.get("messages"), list) else []
+    wamid = sent[0].get("id") if sent and isinstance(sent[0], dict) else None
+    return await create_message(
+        session,
+        conversation=conversation,
+        params=MessageBuilderParams(
+            content=text,
+            message_type="outgoing",
+            # Sent already, through Meta; the reply cascade must not resend it.
+            content_attributes={"external_echo": True, "call_permission_request": True},
+            source_id=str(wamid) if wamid else None,
+        ),
+        user_id=agent_id,
+    )
+
+
+async def start_call(
+    session: AsyncSession,
+    *,
+    conversation: Any,
+    contact: Contact,
+    agent_id: int,
+    sdp: str,
+    plan: CallInboxSettings | None = None,
+) -> Call:
+    """Ring the customer with the offer the agent's browser made."""
+    channel = await _conversation_channel(session, conversation)
+    phone = _digits(contact.phone_number or "")
+    if not phone:
+        raise CallError("no_phone")
+    body = await _graph(
+        channel,
+        "POST",
+        "calls",
+        json={
+            "messaging_product": "whatsapp",
+            "to": phone,
+            "action": "connect",
+            "session": {"sdp_type": "offer", "sdp": sdp},
+            **media_request(plan),
+        },
+    )
+    placed = body.get("calls") if isinstance(body.get("calls"), list) else []
+    call_id = placed[0].get("id") if placed and isinstance(placed[0], dict) else None
+    if not call_id:
+        raise CallError("refused")
+    return await calls.start_outbound(
+        session,
+        conversation=conversation,
+        contact=contact,
+        agent_id=agent_id,
+        provider=PROVIDER_WHATSAPP,
+        provider_call_id=str(call_id),
+        from_number=channel.phone_number,
+        to_number=contact.phone_number,
+        record=bool(plan and plan.record),
+        transcribe=bool(plan and plan.transcribe),
+    )
+
+
+async def _on_outbound_connect(session: AsyncSession, *, item: dict[str, Any]) -> None:
+    call = await calls.by_provider_id(session, str(item.get("id") or ""))
+    if call is None:
+        return
+    session_block = item.get("session")
+    if isinstance(session_block, dict) and session_block.get("sdp_type") == "answer":
+        sdp = str(session_block.get("sdp") or "")
+        if sdp:
+            await calls.save_answer(session, call=call, sdp=sdp)
+
+
+async def _on_call_status(session: AsyncSession, *, status: dict[str, Any]) -> None:
+    """RINGING / ACCEPTED / REJECTED for a call we made."""
+    call = await calls.by_provider_id(session, str(status.get("id") or ""))
+    if call is None:
+        return
+    state = str(status.get("status") or "").upper()
+    if state == "ACCEPTED":
+        await calls.customer_answered(session, call=call)
+    elif state == "REJECTED":
+        await calls.finish(session, call=call, status=CALL_MISSED, reason="rejected")
+
+
+def permission_reply(message: dict[str, Any]) -> tuple[str, dict[str, Any]] | None:
+    """A customer's answer to "can we call you?" (or the permission WhatsApp
+    gives automatically when they call), as the text and attributes of the
+    message it becomes. ``None`` for any other interactive message."""
+    interactive = message.get("interactive")
+    if not isinstance(interactive, dict) or interactive.get("type") != "call_permission_reply":
+        return None
+    reply = interactive.get("call_permission_reply")
+    reply = reply if isinstance(reply, dict) else {}
+    accepted = str(reply.get("response") or "").lower() == "accept"
+    permanent = bool(reply.get("is_permanent"))
+    automatic = str(reply.get("response_source") or "") == "automatic"
+    expiration = reply.get("expiration_timestamp")
+    if not accepted:
+        key = "calls.permission.rejected"
+    elif permanent:
+        key = "calls.permission.accepted_always"
+    elif automatic:
+        key = "calls.permission.accepted_by_calling"
+    else:
+        key = "calls.permission.accepted"
+    return t(DEFAULT_LOCALE, key), {
+        "call_permission": {
+            "response": "accept" if accepted else "reject",
+            "permanent": permanent,
+            "automatic": automatic,
+            "expires_at": _unix(expiration),
+        }
+    }
+
+
+# ---------------------------------------------------------------------------
 # The number's call settings
 # ---------------------------------------------------------------------------
 def _hhmm(hour: int | None, minutes: int | None) -> str:
@@ -534,10 +781,14 @@ __all__ = [
     "fetch_media",
     "media_request",
     "parse_transcript",
+    "permission_reply",
+    "permission_state",
     "pre_accept",
     "process_calls_value",
     "read_settings",
+    "request_permission",
     "retry_pending_media",
     "save_settings",
+    "start_call",
     "terminate",
 ]

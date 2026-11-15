@@ -29,6 +29,8 @@ from app.domains.calls.models import (
     CALL_IN_PROGRESS,
     CALL_MISSED,
     CALL_RINGING,
+    DIRECTION_INBOUND,
+    DIRECTION_OUTBOUND,
     FINAL_STATUSES,
     Call,
     CallInboxSettings,
@@ -111,7 +113,11 @@ async def present_call(session: AsyncSession, call: Call) -> dict[str, Any]:
             if answered_by is not None
             else None
         ),
-        "can_answer": call.status == CALL_RINGING and bool(call.sdp_offer),
+        "can_answer": (
+            call.direction == DIRECTION_INBOUND
+            and call.status == CALL_RINGING
+            and bool(call.sdp_offer)
+        ),
         "created_at": call.created_at,
         "answered_at": call.answered_at,
         "ended_at": call.ended_at,
@@ -333,6 +339,94 @@ async def _lock(session: AsyncSession, call: Call) -> None:
 
 
 # ---------------------------------------------------------------------------
+# A call we make
+# ---------------------------------------------------------------------------
+async def start_outbound(
+    session: AsyncSession,
+    *,
+    conversation: Conversation,
+    contact: Contact,
+    agent_id: int,
+    provider: str,
+    provider_call_id: str,
+    from_number: str | None,
+    to_number: str | None,
+    record: bool = False,
+    transcribe: bool = False,
+) -> Call:
+    """Record a call an agent placed and put it in the conversation. The
+    agent is its ``answered_by`` from the start: it is their call."""
+    call = Call(
+        account_id=conversation.account_id,
+        inbox_id=conversation.inbox_id,
+        conversation_id=conversation.id,
+        contact_id=contact.id,
+        provider=provider,
+        provider_call_id=provider_call_id,
+        direction=DIRECTION_OUTBOUND,
+        status=CALL_RINGING,
+        from_number=from_number,
+        to_number=to_number,
+        answered_by_id=agent_id,
+        recording_requested=record,
+        transcription_requested=transcribe,
+    )
+    session.add(call)
+    await session.flush()
+    await session.refresh(call)
+    agent = await session.get(User, agent_id)
+    message = await create_message(
+        session,
+        conversation=conversation,
+        params=MessageBuilderParams(
+            content=t(DEFAULT_LOCALE, "calls.message"),
+            message_type="outgoing",
+            content_type="voice_call",
+            # Already "sent": the call itself went out through Meta. Without
+            # this the WhatsApp sender would text the customer the bubble.
+            content_attributes={"data": _message_data(call, agent), "external_echo": True},
+            source_id=provider_call_id,
+        ),
+        user_id=agent_id,
+    )
+    call.message_id = message.id
+    session.add(call)
+    await session.flush()
+    await broadcast_call(session, call)
+    log.info(
+        "calls.placed call_id=%s provider_call_id=%s conversation_id=%s",
+        call.id,
+        provider_call_id,
+        conversation.id,
+    )
+    return call
+
+
+async def save_answer(session: AsyncSession, *, call: Call, sdp: str) -> None:
+    """The customer's side of the audio path, for the agent's browser."""
+    await _lock(session, call)
+    if call.direction != DIRECTION_OUTBOUND or call.status in FINAL_STATUSES:
+        return
+    call.sdp_answer = sdp
+    session.add(call)
+    await session.flush()
+    await broadcast_call(session, call)
+
+
+async def customer_answered(session: AsyncSession, *, call: Call) -> None:
+    """The customer picked up a call we made."""
+    await _lock(session, call)
+    if call.direction != DIRECTION_OUTBOUND or call.status != CALL_RINGING:
+        return
+    call.status = CALL_IN_PROGRESS
+    call.answered_at = _now()
+    session.add(call)
+    await session.flush()
+    await _sync_message(session, call)
+    await broadcast_call(session, call)
+
+
+# ---------------------------------------------------------------------------
 # An agent answers
 # ---------------------------------------------------------------------------
 async def claim(session: AsyncSession, *, call: Call, user_id: int) -> bool:
@@ -341,7 +435,11 @@ async def claim(session: AsyncSession, *, call: Call, user_id: int) -> bool:
     update waits for the first to commit, then matches nothing)."""
     result = await session.exec(
         update(Call)  # type: ignore[call-overload]
-        .where(Call.id == call.id, Call.status == CALL_RINGING)  # type: ignore[arg-type]
+        .where(
+            Call.id == call.id,  # type: ignore[arg-type]
+            Call.status == CALL_RINGING,  # type: ignore[arg-type]
+            Call.direction == DIRECTION_INBOUND,  # type: ignore[arg-type]
+        )
         .values(status=CALL_CONNECTING, answered_by_id=user_id, updated_at=_now())
         .returning(Call.id)
     )
@@ -400,9 +498,15 @@ async def inbox_settings(session: AsyncSession, inbox_id: int) -> CallInboxSetti
 async def recording_plan(session: AsyncSession, call: Call) -> CallInboxSettings | None:
     """What to ask Meta for when this call is answered: the inbox's choice,
     only while the installation allows recording."""
+    return await recording_plan_for_inbox(session, call.inbox_id)
+
+
+async def recording_plan_for_inbox(
+    session: AsyncSession, inbox_id: int
+) -> CallInboxSettings | None:
     if not recording_allowed():
         return None
-    plan = await inbox_settings(session, call.inbox_id)
+    plan = await inbox_settings(session, inbox_id)
     if plan is None or not (plan.record or plan.transcribe):
         return None
     return plan
@@ -410,6 +514,11 @@ async def recording_plan(session: AsyncSession, call: Call) -> CallInboxSettings
 
 def default_purpose() -> str:
     return t(DEFAULT_LOCALE, "calls.default_purpose")
+
+
+def default_permission_text() -> str:
+    """What the customer reads above WhatsApp's own allow/deny buttons."""
+    return t(DEFAULT_LOCALE, "calls.permission.request")
 
 
 async def media_announced(
@@ -597,11 +706,14 @@ __all__ = [
     "by_provider_id",
     "can_see",
     "claim",
+    "customer_answered",
     "expire_stale",
     "finish",
     "get_call",
     "mark_in_progress",
     "present_call",
     "release",
+    "save_answer",
     "start_inbound",
+    "start_outbound",
 ]

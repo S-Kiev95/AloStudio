@@ -15,6 +15,11 @@ Statuses:
 * ``in_progress`` — Meta confirmed the answer; the audio flows.
 * ``completed`` / ``missed`` / ``failed`` — over. ``missed`` is a call that
   nobody answered.
+
+A call the business makes (``direction`` ``outbound``) starts ``ringing``
+with ``answered_by_id`` already set to the agent calling; the customer's
+WebRTC answer arrives in ``sdp_answer`` and the call is ``in_progress`` once
+they pick up. Making one needs the customer's permission (Meta keeps it).
 """
 
 from __future__ import annotations
@@ -49,6 +54,7 @@ ACTIVE_STATUSES = (CALL_RINGING, CALL_CONNECTING, CALL_IN_PROGRESS)
 FINAL_STATUSES = (CALL_COMPLETED, CALL_MISSED, CALL_FAILED)
 
 DIRECTION_INBOUND = "inbound"
+DIRECTION_OUTBOUND = "outbound"
 PROVIDER_WHATSAPP = "whatsapp"
 
 # Languages Meta can read the recording notice in (``announcement_language``).
@@ -109,6 +115,9 @@ class Call(TimestampMixin, table=True):
     # The caller's WebRTC offer, which the agent's browser answers. Only
     # useful while the call rings; cleared when it ends.
     sdp_offer: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    # For a call we make: the customer's answer, which the agent's browser
+    # applies to the offer it sent.
+    sdp_answer: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     answered_by_id: int | None = Field(
         default=None,
         sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
@@ -145,7 +154,7 @@ class Call(TimestampMixin, table=True):
     )
     # ``[{"speaker": "business"|"customer", "text": "…", "start": s}]``
     transcript: list[dict[str, Any]] | None = Field(
-        default=None, sa_column=Column(JSON, nullable=True)
+        default=None, sa_column=Column(JSON(none_as_null=True), nullable=True)
     )
     transcript_language: str | None = Field(
         default=None, sa_column=Column(String(16), nullable=True)

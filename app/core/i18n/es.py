@@ -76,4 +76,10 @@ MESSAGES: dict[str, str] = {
     # Who said what, in a call's transcript
     "calls.speaker.business": "Agente",
     "calls.speaker.customer": "Cliente",
+    # Asking a customer whether the business may call them (F7)
+    "calls.permission.request": "¿Te podemos llamar por WhatsApp para ayudarte con tu consulta?",
+    "calls.permission.accepted": "Aceptó que lo llamen por WhatsApp (por 7 días)",
+    "calls.permission.accepted_always": "Aceptó que lo llamen por WhatsApp (siempre)",
+    "calls.permission.accepted_by_calling": "Al llamar, dejó que lo llamen de vuelta por 7 días",
+    "calls.permission.rejected": "No quiere que lo llamen por WhatsApp",
 }

@@ -65,4 +65,10 @@ MESSAGES: dict[str, str] = {
     # Who said what, in a call's transcript
     "calls.speaker.business": "상담원",
     "calls.speaker.customer": "고객",
+    # Asking a customer whether the business may call them (F7)
+    "calls.permission.request": "문의하신 내용으로 WhatsApp으로 전화드려도 될까요?",
+    "calls.permission.accepted": "WhatsApp 통화를 허락했습니다(7일 동안)",
+    "calls.permission.accepted_always": "WhatsApp 통화를 허락했습니다(항상)",
+    "calls.permission.accepted_by_calling": "전화를 걸어 7일 동안 회신 통화를 허락했습니다",
+    "calls.permission.rejected": "WhatsApp 통화를 원하지 않습니다",
 }
