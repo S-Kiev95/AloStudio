@@ -369,6 +369,22 @@ class WorkerSettings:
         )
 
     @staticmethod
+    async def on_job_start(ctx: dict[str, Any]) -> None:
+        # Settings saved from the dashboard after the worker started (a new
+        # API key, say) reach it here, re-read at most every
+        # REFRESH_INTERVAL_SECONDS. Before, only startup read them, so a key
+        # loaded from Ajustes → Instalación did nothing until a restart. When
+        # the settings are fresh this touches no connection at all.
+        try:
+            from app.core.db import get_session_factory
+            from app.domains.installation import service as installation
+
+            async with get_session_factory()() as session:
+                await installation.refresh_if_stale(session)
+        except Exception as exc:  # noqa: BLE001 - old settings beat a failed job
+            log.warning("installation_config.refresh_failed err=%s", type(exc).__name__)
+
+    @staticmethod
     async def on_shutdown(ctx: dict[str, Any]) -> None:
         engine = ctx.get("engine")
         if engine is not None:
