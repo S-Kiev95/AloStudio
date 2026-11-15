@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
+import { WhatsappCallsCard } from "@/components/calls/whatsapp-calls-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -175,6 +176,10 @@ export function InboxDetailView({
             </p>
           </CardContent>
         </Card>
+      ) : null}
+
+      {inbox.channel_type === "Channel::Whatsapp" ? (
+        <WhatsappCallsCard accountId={accountId} inboxId={inboxId} />
       ) : null}
 
       {inbox.channel_type === "Channel::Email" ? (

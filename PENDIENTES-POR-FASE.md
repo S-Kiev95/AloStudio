@@ -102,7 +102,7 @@ anota en esta sección y lo decide el dueño.
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En develop (2026-11-14): WhatsApp (costo de Meta) e IA; falta CTC |
-| F7 Llamadas y voz | B | Sin empezar |
+| F7 Llamadas y voz | B | Paso 1 hecho en `feat/f7-voz`: recibir llamadas de WhatsApp en el panel, con grabación y transcripción (2026-11-15) que habilita el operador; falta probar con Meta real |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
@@ -294,8 +294,65 @@ dentro de la rama.
 
 ## F7. Llamadas y voz
 
-- Revisar requisitos y costo de las llamadas de WhatsApp; investigar lives;
-  agentes de voz después.
+- **Investigación hecha el 2026-11-14 (agente B):** detalle en
+  `docs/experimentos/f7-llamadas-y-voz.md`. El número de CTC cumple los
+  requisitos (Cloud API, límite de 2.000, calidad verde); faltan activar
+  las llamadas en el número y suscribir el webhook `calls`. Recibir
+  llamadas es gratis; llamar cuesta por minuto y pide permiso del cliente.
+  El agente atiende desde el navegador (WebRTC), sin servidor de audio.
+- **Propuesta:** 1) recibir llamadas en la Bandeja; 2) llamar desde la
+  conversación; 3) agente de voz (LiveKit). Lives: lo útil son los
+  comentarios de vivos de Instagram en la Bandeja.
+- **Paso 1, recibir llamadas — hecho el 2026-11-14 (rama `feat/f7-voz`):**
+  - Tabla `calls` (migración `d9e0f1a2b3c5`) y dominio `app/domains/calls/`:
+    el webhook `calls` de Meta (`connect` con la oferta WebRTC del cliente,
+    `terminate` con el final y la duración) crea la llamada y un mensaje
+    `voice_call` en la conversación del contacto (forma de Chatwoot:
+    `content_attributes.data.status` ringing / in-progress / completed /
+    no-answer / failed).
+  - Suena en el panel de los agentes de la bandeja y de los administradores
+    (evento `call.updated` por el cable), con tono. El primero que atiende
+    se la queda (los demás reciben 409 `calls.taken`); el navegador arma la
+    respuesta WebRTC y el backend la manda a Meta en dos pasos
+    (`pre_accept`, `accept`). El micrófono queda mudo hasta que Meta
+    confirma. Silenciar, colgar, aviso al cerrar la pestaña.
+  - Ajustes → Bandejas → (WhatsApp) → «Llamadas de WhatsApp»: activar,
+    mostrar el botón de llamar y limitar al horario de la bandeja (se manda
+    a Meta en `/{phone_number_id}/settings`).
+  - Las llamadas cuyo final no llegó se cierran en el tick de 5 minutos.
+  - Probado de punta a punta en local con un Meta simulado (tres llamadas
+    WebRTC reales entre dos pestañas, audio en los dos sentidos). **Falta
+    probarlo con Meta real.**
+- **Grabación y transcripción — hecho el 2026-11-15 (misma rama):**
+  - Interruptor del operador en Ajustes → Instalación → Llamadas
+    («Permitir grabar llamadas», `CALL_RECORDING_ALLOWED`, apagado por
+    defecto). Con eso prendido, cada bandeja de WhatsApp elige grabar y/o
+    transcribir, el motivo que Meta lee a las dos partes antes de grabar
+    («…será grabado con el siguiente fin: …», hasta 250 caracteres) y el
+    idioma del aviso. Tabla `call_inbox_settings` (migración `e0f1a2b3c4d6`).
+  - Lo pide el `accept` (objetos `recording` y `transcription`). Meta avisa
+    con `call_recording_available` / `call_transcription_available`; el audio
+    se copia a MinIO y queda como adjunto de audio en la burbuja de la
+    llamada (con reproductor); la transcripción queda separada por quién
+    habló («Ver lo que se habló») y como texto del mensaje, así la búsqueda
+    (F8) encuentra la llamada por lo que se dijo. Meta guarda los archivos 7
+    días: si la copia falla, el tick de 5 minutos la reintenta.
+  - Hoy grabar y transcribir es gratis; Meta anunció que lo va a cobrar más
+    adelante, con aviso (va en F6 cuando pase).
+  - Probado en local con el Meta simulado (llamada grabada, audio en la
+    burbuja, transcripción y búsqueda). **Falta probarlo con Meta real.**
+- **Para usarlo en un número:** suscribir el campo `calls` del webhook de
+  WhatsApp en la app de Meta (el conector de Meta lo puede hacer, con
+  confirmación) y activar las llamadas en Ajustes → Bandejas. Meta lo
+  permite con límite de 2.000 o más (CTC tiene `TIER_2K`).
+- **Nota para el agente A:** toqué `incoming_cloud.py` en un solo lugar
+  (el campo `calls` va a `app.domains.calls.whatsapp.process_calls_value`)
+  y uso `_find_or_create_contact` / `_find_or_create_conversation` de ese
+  archivo para que la llamada caiga en la misma conversación que los
+  mensajes. No toqué `components/whatsapp/`: la tarjeta de ajustes está en
+  `components/calls/` y se monta desde `settings/inboxes/inbox-detail-view`.
+- **Sigue:** paso 2, llamar desde la conversación (cuesta por minuto y pide
+  permiso del cliente); paso 3, agente de voz.
 
 ## F8. Búsqueda en conversaciones viejas
 

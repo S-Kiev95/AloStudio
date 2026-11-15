@@ -12,6 +12,7 @@ import { core } from "./core";
 import { companies } from "./companies";
 import { activities } from "./activities";
 import { metaCatalog } from "./metaCatalog";
+import { calls } from "./calls";
 import { usage } from "./usage";
 import { opportunities } from "./opportunities";
 import { origin } from "./origin";
@@ -68,6 +69,7 @@ export const es = {
   companies,
   activities,
   metaCatalog,
+  calls,
   usage,
 
   opportunities,

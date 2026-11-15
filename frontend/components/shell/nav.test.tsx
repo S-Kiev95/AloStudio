@@ -32,6 +32,10 @@ vi.mock("./notification-bell", () => ({
   NotificationBell: () => <div data-testid="notification-bell" />,
 }));
 
+vi.mock("@/components/calls/call-dock", () => ({
+  CallDock: () => <div data-testid="call-dock" />,
+}));
+
 const MOCK_PROFILE: Profile = {
   id: 1,
   name: "Ada Lovelace",

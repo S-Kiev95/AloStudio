@@ -253,14 +253,23 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         await enqueue_notification_email(notification_id)
         await enqueue_notification_push(notification_id)
 
+    # Calls (F7): close the ones whose end never reached us, and copy
+    # recordings and transcripts a first attempt could not.
+    from app.domains.calls.tick import run as calls_tick
+
+    async with sessionmaker() as calls_session:
+        calls_closed = (await calls_tick(calls_session))["closed"]
+        await calls_session.commit()
+
     log.info(
         "scheduler.tick.done campaigns_fired=%s conversations_reopened=%s "
-        "instagram_posts_fired=%s publications_fired=%s crm_reminders=%s",
+        "instagram_posts_fired=%s publications_fired=%s crm_reminders=%s calls_closed=%s",
         campaigns_fired,
         conversations_reopened,
         len(ig_fired),
         len(publications_fired),
         len(reminders),
+        calls_closed,
     )
     return {
         "campaigns_fired": campaigns_fired,
@@ -268,6 +277,7 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         "instagram_posts_fired": len(ig_fired),
         "publications_fired": len(publications_fired),
         "crm_reminders": len(reminders),
+        "calls_closed": calls_closed,
     }
 
 

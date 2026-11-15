@@ -16,6 +16,7 @@ export const settingsInstall: Strings<typeof es> = {
   resetToServer: "go back to the server value",
   fromEnv: "comes from the server file (.env)",
   groups: {
+    calls: "Calls",
     meta: "Meta (Facebook and Instagram)",
     mail: "Outgoing mail",
     publishing: "Publishing networks",
@@ -25,6 +26,10 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "Artificial intelligence",
   },
   items: {
+    CALL_RECORDING_ALLOWED: {
+      title: "Allow call recording",
+      description: "Lets each account's administrators record and transcribe their inboxes' WhatsApp calls. Meta tells both sides before recording and keeps the audio 7 days; AloStudio copies it to its own storage.",
+    },
     META_APP_ID: {
       title: "Facebook App ID",
       description: "Identifies AloStudio to Meta in the Facebook Login flow. There's one for the whole installation, not one per client.",

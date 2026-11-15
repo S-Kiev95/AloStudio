@@ -16,6 +16,7 @@ export const settingsInstall: Strings<typeof es> = {
   resetToServer: "서버 값으로 되돌리기",
   fromEnv: "서버 파일(.env)에서 가져옴",
   groups: {
+    calls: "통화",
     meta: "Meta (Facebook 및 Instagram)",
     mail: "발신 메일",
     publishing: "게시용 네트워크",
@@ -25,6 +26,10 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "인공지능",
   },
   items: {
+    CALL_RECORDING_ALLOWED: {
+      title: "통화 녹음 허용",
+      description: "각 계정의 관리자가 받은편지함의 WhatsApp 통화를 녹음하고 텍스트로 변환할 수 있게 합니다. Meta는 녹음 전에 양쪽에 알리고 오디오를 7일 동안 보관하며, AloStudio는 이를 자체 저장소에 복사합니다.",
+    },
     META_APP_ID: {
       title: "Facebook 앱 ID",
       description: "Facebook 로그인 절차에서 Meta에 AloStudio를 식별시킵니다. 고객마다가 아니라 설치 전체에 하나입니다.",

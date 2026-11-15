@@ -58,4 +58,11 @@ MESSAGES: dict[str, str] = {
     "push.title.default": "알림",
     "push.body": "대화 #{n}",
     "whatsapp.contact_fallback": "연락처",
+    # A WhatsApp call in a conversation (F7)
+    "calls.message": "WhatsApp 통화",
+    # What Meta reads to both sides before recording a call (F7)
+    "calls.default_purpose": "품질 관리 및 문의 후속 조치",
+    # Who said what, in a call's transcript
+    "calls.speaker.business": "상담원",
+    "calls.speaker.customer": "고객",
 }

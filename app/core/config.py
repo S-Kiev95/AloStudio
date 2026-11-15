@@ -172,6 +172,10 @@ class Settings(BaseSettings):
     # the ``X-Hub-Signature-256`` header must validate against
     # ``meta_app_secret`` or the POST 401s (fails closed if unset).
     meta_verify_webhook_signature: bool = False
+    # WhatsApp call recording and transcription (F7). Off unless the
+    # installation's operator turns it on: recording people has legal weight,
+    # so an account admin can only use it once the operator allowed it.
+    call_recording_allowed: bool = False
     # Anonymous ``POST /api/v1/accounts``. OFF by default: when on, anyone
     # who can reach the URL gets a confirmed account and an administrator
     # session — no captcha, no email check. The operator turns it on from

@@ -44,6 +44,7 @@ ACCESS_GROUP = "Acceso"
 PUBLISHING_GROUP = "Redes para publicar"
 MAIL_GROUP = "Correo saliente"
 AI_GROUP = "Inteligencia artificial"
+CALLS_GROUP = "Llamadas"
 
 CONFIG_SPECS: tuple[ConfigSpec, ...] = (
     # --- Facebook Login (Messenger + the full Instagram API) -----------
@@ -382,6 +383,20 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "gpt-5.4-mini (rápido y barato) o gpt-5.5 (más capaz)."
         ),
         group=AI_GROUP,
+    ),
+    # --- Calls -----------------------------------------------------------
+    ConfigSpec(
+        name="CALL_RECORDING_ALLOWED",
+        setting="call_recording_allowed",
+        title="Permitir grabar llamadas",
+        description=(
+            "Habilita que los administradores de cada cuenta graben y "
+            "transcriban las llamadas de WhatsApp. Meta avisa a las dos "
+            "partes antes de grabar y guarda el audio 7 días; AloStudio lo "
+            "copia en su almacenamiento."
+        ),
+        group=CALLS_GROUP,
+        kind="boolean",
     ),
 )
 
