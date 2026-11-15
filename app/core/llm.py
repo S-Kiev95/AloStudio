@@ -90,6 +90,7 @@ async def embed_text(text: str) -> list[float]:
             )
             resp.raise_for_status()
             data = resp.json()
+        _record(settings.openai_embedding_model, data)
         vector = data["data"][0]["embedding"]
         if not isinstance(vector, list):
             raise LlmError("embedding response had no vector")
@@ -130,6 +131,7 @@ async def generate_search_terms(
             )
             resp.raise_for_status()
             data = resp.json()
+        _record(settings.openai_chat_model, data)
         raw = data["choices"][0]["message"]["content"]
         parsed = json.loads(raw)
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
@@ -174,12 +176,24 @@ async def chat_completion(
                 raise LlmError(
                     f"chat completion failed: HTTP {resp.status_code} {_error_message(resp)}"
                 )
-            message = resp.json()["choices"][0]["message"]
+            data = resp.json()
+            _record(settings.openai_agent_model, data)
+            message = data["choices"][0]["message"]
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
         raise LlmError(f"chat completion failed: {exc}") from exc
     if not isinstance(message, dict):
         raise LlmError("chat completion returned no message")
     return message
+
+
+def _record(model: str, data: Any) -> None:
+    """Spend tracking (F6): the response's ``usage`` goes to the account
+    scope the caller opened, if any. The model OpenAI reports wins over the
+    configured alias."""
+    from app.domains.usage.ai import record_ai_call
+
+    if isinstance(data, dict):
+        record_ai_call(str(data.get("model") or model), data.get("usage"))
 
 
 def _error_message(resp: httpx.Response) -> str:

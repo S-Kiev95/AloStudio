@@ -48,6 +48,7 @@ from app.domains.instagram.post_autoreply_models import (
     MATCH_SEMANTIC,
     InstagramPostAutoreply,
 )
+from app.domains.usage.ai import ai_usage
 
 log = logging.getLogger(__name__)
 
@@ -137,7 +138,8 @@ async def _semantic_match(
     if not _model_enabled(model):
         return None, "embeddings_disabled", None, None
     try:
-        vector = await _embed_comment(model, text)
+        with ai_usage(session, account_id, "instagram_autoreply"):
+            vector = await _embed_comment(model, text)
     except Exception:
         # Embedding is a network call; if it fails we simply do not answer.
         # Silence is always a safe outcome here.

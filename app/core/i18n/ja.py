@@ -60,4 +60,17 @@ MESSAGES: dict[str, str] = {
     "push.title.default": "通知",
     "push.body": "会話 #{n}",
     "whatsapp.contact_fallback": "連絡先",
+    # A WhatsApp call in a conversation (F7)
+    "calls.message": "WhatsApp通話",
+    # What Meta reads to both sides before recording a call (F7)
+    "calls.default_purpose": "品質管理とお問い合わせへの対応",
+    # Who said what, in a call's transcript
+    "calls.speaker.business": "担当者",
+    "calls.speaker.customer": "顧客",
+    # Asking a customer whether the business may call them (F7)
+    "calls.permission.request": "お問い合わせの件でWhatsAppからお電話してもよろしいですか?",
+    "calls.permission.accepted": "WhatsAppでの電話を許可しました(7日間)",
+    "calls.permission.accepted_always": "WhatsAppでの電話を許可しました(常に)",
+    "calls.permission.accepted_by_calling": "電話をかけたことで、7日間の折り返しを許可しました",
+    "calls.permission.rejected": "WhatsAppでの電話を希望していません",
 }

@@ -127,6 +127,7 @@ export const core: Strings<typeof es> = {
       canned_responses: "저장된 답변",
       macros: "매크로",
       working_hours: "영업 시간",
+      decisions: "분류",
       custom_attributes: "사용자 지정 속성",
       automation: "자동화",
       webhooks: "웹훅",

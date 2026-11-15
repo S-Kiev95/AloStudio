@@ -13,6 +13,7 @@ export const settingsInstall = {
   resetToServer: "volver al valor del servidor",
   fromEnv: "viene del archivo del servidor (.env)",
   groups: {
+    calls: "Llamadas",
     meta: "Meta (Facebook e Instagram)",
     mail: "Correo saliente",
     publishing: "Redes para publicar",
@@ -22,6 +23,22 @@ export const settingsInstall = {
     ai: "Inteligencia artificial",
   },
   items: {
+    DECISIONS_API_KEY: {
+      title: "Servicio de decisiones: clave",
+      description: "Clasifica las conversaciones (intención, sentimiento, urgencia y equipo). La clave de TypeSafe (Jev) sale de su consola; con Laya local, la que le hayas puesto al servidor.",
+    },
+    DECISIONS_API_URL: {
+      title: "Servicio de decisiones: dirección",
+      description: "https://api.typesafe.ai para Jev. Para Laya, la dirección de su servidor local; responde lo mismo, así que no cambia nada más.",
+    },
+    DECISIONS_MODEL: {
+      title: "Servicio de decisiones: modelo",
+      description: "jev-latest para Jev, o el nombre del modelo de Laya.",
+    },
+    CALL_RECORDING_ALLOWED: {
+      title: "Permitir grabar llamadas",
+      description: "Habilita que los administradores de cada cuenta graben y transcriban las llamadas de WhatsApp de sus bandejas. Meta avisa a las dos partes antes de grabar y guarda el audio 7 días; AloStudio lo copia en su almacenamiento.",
+    },
     META_APP_ID: {
       title: "App ID de Facebook",
       description: "Identifica a AloStudio ante Meta en el flujo de Facebook Login. Es uno solo para toda la instalación, no uno por cliente.",

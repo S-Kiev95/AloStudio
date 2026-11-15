@@ -125,6 +125,7 @@ export const core = {
       canned_responses: "Respuestas predefinidas",
       macros: "Macros",
       working_hours: "Horarios laborales",
+      decisions: "Clasificación",
       custom_attributes: "Atributos personalizados",
       automation: "Automatización",
       webhooks: "Webhooks",

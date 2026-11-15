@@ -62,4 +62,17 @@ MESSAGES: dict[str, str] = {
     "push.title.default": "Benachrichtigung",
     "push.body": "Konversation #{n}",
     "whatsapp.contact_fallback": "Ein Kontakt",
+    # A WhatsApp call in a conversation (F7)
+    "calls.message": "WhatsApp-Anruf",
+    # What Meta reads to both sides before recording a call (F7)
+    "calls.default_purpose": "Qualitätssicherung und Nachverfolgung Ihres Anliegens",
+    # Who said what, in a call's transcript
+    "calls.speaker.business": "Agent",
+    "calls.speaker.customer": "Kunde",
+    # Asking a customer whether the business may call them (F7)
+    "calls.permission.request": "Dürfen wir Sie über WhatsApp anrufen, um Ihnen bei Ihrem Anliegen zu helfen?",
+    "calls.permission.accepted": "Hat zugestimmt, über WhatsApp angerufen zu werden (7 Tage)",
+    "calls.permission.accepted_always": "Hat zugestimmt, über WhatsApp angerufen zu werden (immer)",
+    "calls.permission.accepted_by_calling": "Hat mit dem Anruf einen Rückruf für 7 Tage erlaubt",
+    "calls.permission.rejected": "Möchte nicht über WhatsApp angerufen werden",
 }

@@ -16,6 +16,7 @@ export const settingsInstall: Strings<typeof es> = {
   resetToServer: "auf den Serverwert zurücksetzen",
   fromEnv: "stammt aus der Serverdatei (.env)",
   groups: {
+    calls: "Anrufe",
     meta: "Meta (Facebook und Instagram)",
     mail: "Ausgehende E-Mail",
     publishing: "Netzwerke zum Veröffentlichen",
@@ -25,6 +26,22 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "Künstliche Intelligenz",
   },
   items: {
+    DECISIONS_API_KEY: {
+      title: "Entscheidungsdienst: Schlüssel",
+      description: "Ordnet Unterhaltungen ein (Absicht, Stimmung, Dringlichkeit und Team). Der TypeSafe-Schlüssel (Jev) kommt aus seiner Konsole; bei lokalem Laya der, den du auf seinem Server gesetzt hast.",
+    },
+    DECISIONS_API_URL: {
+      title: "Entscheidungsdienst: Adresse",
+      description: "https://api.typesafe.ai für Jev. Für Laya die Adresse seines lokalen Servers; er antwortet gleich, also ändert sich sonst nichts.",
+    },
+    DECISIONS_MODEL: {
+      title: "Entscheidungsdienst: Modell",
+      description: "jev-latest für Jev oder der Name des Laya-Modells.",
+    },
+    CALL_RECORDING_ALLOWED: {
+      title: "Anrufaufzeichnung erlauben",
+      description: "Erlaubt den Administratoren jedes Kontos, die WhatsApp-Anrufe ihrer Posteingänge aufzuzeichnen und zu transkribieren. Meta informiert beide Seiten vor der Aufzeichnung und bewahrt das Audio 7 Tage auf; AloStudio kopiert es in den eigenen Speicher.",
+    },
     META_APP_ID: {
       title: "Facebook App ID",
       description: "Identifiziert AloStudio gegenüber Meta im Facebook-Login-Ablauf. Es gibt eine für die ganze Installation, nicht eine pro Kunde.",

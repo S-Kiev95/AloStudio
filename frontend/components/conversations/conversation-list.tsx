@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
+import { isVoiceCallMessage, useVoiceCallPreview } from "@/components/calls/voice-call-message";
 import { Avatar } from "@/components/ui/avatar";
 import { selectClassName } from "@/components/ui/select";
 import { useAgents, useLabels } from "@/lib/api/account";
@@ -685,10 +686,13 @@ function ConversationRow({
   const name =
     conv.meta?.sender?.name ??
     t("conversations.list.fallbackName", { id: conv.id });
+  const callPreview = useVoiceCallPreview();
+  const lastMessage =
+    conv.last_non_activity_message ?? conv.messages?.[conv.messages.length - 1];
   const last =
-    conv.last_non_activity_message?.content ??
-    conv.messages?.[conv.messages.length - 1]?.content ??
-    "";
+    lastMessage && isVoiceCallMessage(lastMessage)
+      ? callPreview(lastMessage)
+      : (lastMessage?.content ?? "");
   const unread = conv.unread_count > 0;
   const baseHref = `/accounts/${accountId}/conversations/${conv.id}`;
   const href = queryString ? `${baseHref}?${queryString}` : baseHref;

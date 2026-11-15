@@ -3,6 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
+import { type Call, upsertActiveCall } from "../api/calls";
 import { playNotificationSound } from "../notification-sound";
 import { createCable } from "./cable";
 
@@ -41,6 +42,14 @@ export function useCable({
         if (msg.event === "notification.created") {
           qc.invalidateQueries({ queryKey: ["notifications", accountId] });
           playNotificationSound();
+          return;
+        }
+        // A call rang, was taken or ended (F7): the event carries the call.
+        if (msg.event === "call.updated") {
+          const call = (msg.data as { call?: Call } | null)?.call;
+          if (call) upsertActiveCall(qc, accountId, call);
+          qc.invalidateQueries({ queryKey: ["messages", accountId] });
+          qc.invalidateQueries({ queryKey: ["conversations", accountId] });
           return;
         }
         qc.invalidateQueries({ queryKey: ["conversations", accountId] });

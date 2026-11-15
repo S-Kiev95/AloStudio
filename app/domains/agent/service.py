@@ -43,6 +43,7 @@ from app.domains.agent.models import (
     AgentMessage,
     AgentThread,
 )
+from app.domains.usage.ai import ai_usage
 from app.mcp.context import MCPContext, bind_mcp_context, reset_mcp_context
 
 log = logging.getLogger(__name__)
@@ -387,11 +388,12 @@ async def _run_model(
         messages = [{"role": "system", "content": _system_prompt(ctx, thread)}]
         messages += [m for m in (_as_openai(r) for r in rows) if m is not None]
         try:
-            reply = await llm.chat_completion(
-                messages=messages,
-                tools=tools,
-                tool_choice="none" if step == MAX_MODEL_CALLS - 1 else None,
-            )
+            with ai_usage(session, ctx.account.id, "agent"):
+                reply = await llm.chat_completion(
+                    messages=messages,
+                    tools=tools,
+                    tool_choice="none" if step == MAX_MODEL_CALLS - 1 else None,
+                )
         except llm.LlmError as exc:
             log.warning("agent: thread %s model call failed: %s", thread.id, exc)
             raise ChatwootHTTPException(
