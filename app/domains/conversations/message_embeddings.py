@@ -38,8 +38,8 @@ from app.domains.conversations.models import (
 log = logging.getLogger(__name__)
 
 MIN_LENGTH = 12
-MAX_CHARS = 2000  # a long email still has its topic near the top
-BATCH = 64
+MAX_CHARS = 1000  # a long email still has its topic near the top
+BATCH = 16
 
 
 class MessageEmbedding(SQLModel, table=True):

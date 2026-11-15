@@ -12,7 +12,7 @@ Environment=HF_HUB_DISABLE_PROGRESS_BARS=1
 Environment=TRANSFORMERS_VERBOSITY=error
 ExecStart=%h/AloStudio/.venv-embeddings/bin/python -m uvicorn app.embeddings_service.main:app --host 127.0.0.1 --port 8100
 # Medido: ~1.8 GB con el modelo cargado y pico de ~2.0 GB.
-MemoryMax=2560M
+MemoryMax=3072M
 CPUWeight=20
 Nice=10
 Restart=always
