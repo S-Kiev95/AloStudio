@@ -113,7 +113,7 @@ anota en esta sección y lo decide el dueño.
 | F6 Gastos por uso | A | En CTC (2026-11-15, pasó con el resto de develop): WhatsApp (costo de Meta) e IA |
 | F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real). En CTC falta activar las llamadas en el número y suscribir el webhook `calls` |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
-| F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
+| F9 EmbeddingGemma | A | Develop pasado a Gemma (2026-11-15); CTC sigue con OpenAI hasta que use autorespuestas o Help Center |
 | F10 Jev y Laya | B | Paso 1 en CTC (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; andando en staging con Jev real. En CTC falta cargar la clave y prender el modo sombra. Después, juntar etiquetas y decidir qué hacer con las decisiones. Laya más adelante, solo con etiquetas de personas |
 | F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
@@ -470,6 +470,11 @@ dentro de la rama.
   a Gemma ya (gratis, local) y en CTC instalar el servicio (hay 5,4 GB
   libres de 8) recién cuando empiecen a usar respuestas automáticas o el
   Help Center. La búsqueda de la Bandeja (F8) ya usa Gemma.
+- **Hecho el 2026-11-15:** las 6 cuentas de develop leen con Gemma
+  (`scripts/embeddings_gemma.py modelo <cuenta> gemma`). La sombra sigue
+  prendida (ahora compara contra OpenAI). La regla 3 de Demo Co (0,55 en
+  OpenAI) usa el umbral por defecto de Gemma, 0,15. Volver atrás: `modelo
+  <cuenta> openai`.
 
 ## F10. Jev y Laya
 
