@@ -445,9 +445,17 @@ dentro de la rama.
 - Buscador dentro del chat: lupa en el encabezado de la conversación, busca
   sólo ahí (texto y significado) y abre el chat en el mensaje elegido.
 
+- **Arreglado el 2026-11-15:** desde el 13/11 el servicio de Gemma de develop
+  se caía por memoria cada 3 minutos (lotes de 64 × 2000 caracteres) y había
+  0 vectores de mensajes. Ahora lotes de 16 (encode de a 4), 1000 caracteres
+  y `MemoryMax=3072M`: sin caídas, pico 2,0 GB, ~16 mensajes cada 3 minutos.
+  Al instalar el servicio en CTC, usar la unidad nueva.
+
 **Falta:**
 
-- Audios e imágenes. El servicio carga EmbeddingGemma 2 *sólo texto* (~2 GB);
+- Audios e imágenes. El dueño no quiere servicios pagos para esto
+  (2026-11-15): opciones gratis, Whisper local (transcribe, 1-2 GB más) o
+  Gemma completo (audio e imagen, ~4,4 GB). Probar Whisper local en develop. El servicio carga EmbeddingGemma 2 *sólo texto* (~2 GB);
   el modelo completo con imagen y audio pide ~4,4 GB. Medir en staging con
   notas de voz e imágenes antes de decidir: imágenes con Gemma; audios con
   Gemma, con transcripción o con las dos (un vector dice de qué trata un
