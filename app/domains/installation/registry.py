@@ -384,6 +384,36 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         ),
         group=AI_GROUP,
     ),
+    ConfigSpec(
+        name="DECISIONS_API_KEY",
+        setting="decisions_api_key",
+        title="Servicio de decisiones: clave",
+        description=(
+            "Clasifica las conversaciones (intención, sentimiento, urgencia y "
+            "equipo). La clave de TypeSafe (Jev) sale de su consola; con Laya "
+            "local, la que le hayas puesto al servidor."
+        ),
+        group=AI_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="DECISIONS_API_URL",
+        setting="decisions_api_url",
+        title="Servicio de decisiones: dirección",
+        description=(
+            "https://api.typesafe.ai para Jev. Para Laya, la dirección de su "
+            "servidor local; responde lo mismo, así que no cambia nada más."
+        ),
+        group=AI_GROUP,
+    ),
+    ConfigSpec(
+        name="DECISIONS_MODEL",
+        setting="decisions_model",
+        title="Servicio de decisiones: modelo",
+        description="jev-latest para Jev, o el nombre del modelo de Laya.",
+        group=AI_GROUP,
+    ),
     # --- Calls -----------------------------------------------------------
     ConfigSpec(
         name="CALL_RECORDING_ALLOWED",

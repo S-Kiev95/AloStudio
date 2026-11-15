@@ -392,6 +392,7 @@ class WorkerSettings:
             refresh_contact_avatar_task,
             refresh_stale_avatars_task,
         )
+        from app.workers.decisions import decide_conversation_task
         from app.workers.deliver_webhook import (
             MAX_ATTEMPTS as WEBHOOK_MAX_ATTEMPTS,
         )
@@ -448,8 +449,14 @@ class WorkerSettings:
             refresh_contact_avatar_task,
             refresh_stale_avatars_task,
             # Enqueued a few seconds after a product changes, for accounts
-            # linked to a Meta catalogue (F11).
-            sync_meta_catalog_task,
+            # linked to a Meta catalogue (F11). Keeps no result: ARQ refuses a
+            # job id while its result lives (an hour by default), so every
+            # change in the hour after a sync was dropped.
+            func(sync_meta_catalog_task, keep_result=0),
+            # Enqueued when a customer writes, for accounts deciding their
+            # conversations in shadow mode (F10). Keeps no result, same reason:
+            # the next message after a decision must schedule another.
+            func(decide_conversation_task, keep_result=0),
         ]
 
     # ARQ reads these off the class, so they're class-level by contract, not

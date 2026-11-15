@@ -102,10 +102,10 @@ anota en esta sección y lo decide el dueño.
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En develop (2026-11-14): WhatsApp (costo de Meta) e IA; falta CTC |
-| F7 Llamadas y voz | B | Recibir llamadas en develop y probado con Meta real; grabación y transcripción que habilita el operador; llamar desde AloStudio con permiso del cliente en `feat/f7-voz` (2026-11-15, falta Meta real) |
+| F7 Llamadas y voz | B | En develop y en staging (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
-| F10 Jev y Laya | B | Revisada (2026-11-15): los términos de Jev prohíben entrenar Laya con sus respuestas; esperando que el dueño elija el camino |
+| F10 Jev y Laya | B | Paso 1 hecho (2026-11-15) en `feat/f10-decisiones`: Jev en modo sombra, etiquetado a ciegas y resultados; falta la clave de TypeSafe y probarlo con Jev real. Laya más adelante, solo con etiquetas de personas |
 | F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
@@ -460,8 +460,42 @@ dentro de la rama.
   - **Datos en CTC:** 29 conversaciones (desde el 6 de noviembre), 3 con
     etiqueta, 2 con equipo, ninguna con prioridad. No alcanza para entrenar
     nada todavía.
-- **Esperando que el dueño elija el camino** (Jev sin entrenar Laya con
-  él, solo local, o esperar a que CTC tenga más volumen).
+- **Camino elegido por el dueño (2026-11-15):** Jev ahora, sin entrenar
+  Laya con sus respuestas; Laya aparte y más adelante, entrenada solo con
+  etiquetas de personas.
+- **Paso 1, Jev en modo sombra — hecho el 2026-11-15 (rama
+  `feat/f10-decisiones`):**
+  - **Ajustes → Clasificación** (solo administradores), tres pestañas:
+    - **Configuración:** prender el modo sombra y editar las preguntas
+      (intención, sentimiento, urgencia y equipo) con sus opciones. Las del
+      equipo salen de los equipos de la cuenta.
+    - **Etiquetar:** una persona lee la conversación y elige las respuestas
+      sin ver las del servicio. El equipo que asigna un agente también
+      cuenta como etiqueta.
+    - **Resultados:** cuántas veces coincide el servicio con las personas,
+      confianza promedio y costo del mes (también en Gastos por uso, IA).
+  - Cada mensaje de un cliente programa una decisión 45 s después; varios
+    mensajes seguidos se juntan en una. Al servicio le llegan los últimos
+    12 mensajes (hasta 6.000 caracteres) anonimizados: correos, enlaces,
+    números de 7 cifras o más, y los nombres del cliente y de la gente de
+    la cuenta.
+  - Las decisiones se guardan pero todavía no cambian nada que vea el
+    agente.
+  - Solo corre con el modo sombra prendido y el servicio configurado. Se
+    configura en Ajustes → Instalación → Inteligencia artificial
+    («Servicio de decisiones»: clave, dirección y modelo). Para pasar a
+    Laya alcanza con cambiar la dirección y el modelo.
+  - Las respuestas de Jev nunca se usan para entrenar: Laya se va a
+    entrenar con las etiquetas de personas.
+  - Código en `app/domains/decisions/` y en
+    `frontend/components/settings/decisions/`. Probado con un Jev falso
+    local, no con el real.
+- **Para usarlo:** el dueño crea la cuenta en TypeSafe y carga la clave en
+  Ajustes → Instalación (nunca por chat). Después prende el modo sombra y
+  etiqueta conversaciones para ver cuánto acierta.
+- **Falta:** probarlo con Jev real. Con los resultados, decidir si las
+  decisiones pasan a hacer algo (sugerir o asignar equipo, prioridad).
+  Laya cuando haya suficientes etiquetas.
 
 ## F11. CRM (Krayin)
 
@@ -529,6 +563,9 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     (tarea `sync_meta_catalog_task`). El id del producto en Meta
     (`retailer_id`) es su SKU o `alo-{id}`, guardado en
     `products.meta_retailer_id`. Lógica en `app/domains/crm/meta_catalog.py`.
+    **Arreglado el 2026-11-15** (rama `feat/f10-decisiones`): después de
+    una sincronización, los cambios de la hora siguiente se perdían (ARQ
+    no acepta el mismo id de trabajo mientras guarda su resultado).
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
     Productos en la Bandeja, pedidos por el webhook que abren una
     oportunidad y pestaña Catálogo en la sección WhatsApp (ver F5).

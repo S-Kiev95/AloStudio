@@ -127,6 +127,7 @@ export const core: Strings<typeof es> = {
       canned_responses: "定型返信",
       macros: "マクロ",
       working_hours: "営業時間",
+      decisions: "分類",
       custom_attributes: "カスタム属性",
       automation: "自動化",
       webhooks: "Webhook",

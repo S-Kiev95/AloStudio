@@ -129,6 +129,7 @@ export const core: Strings<typeof es> = {
       canned_responses: "Canned responses",
       macros: "Macros",
       working_hours: "Business hours",
+      decisions: "Classification",
       custom_attributes: "Custom attributes",
       automation: "Automation",
       webhooks: "Webhooks",
