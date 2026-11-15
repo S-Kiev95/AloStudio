@@ -105,7 +105,7 @@ anota en esta sección y lo decide el dueño.
 | F7 Llamadas y voz | B | Recibir llamadas en develop y probado con Meta real; grabación y transcripción que habilita el operador; llamar desde AloStudio con permiso del cliente en `feat/f7-voz` (2026-11-15, falta Meta real) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
-| F10 Jev y Laya | B | Sin empezar |
+| F10 Jev y Laya | B | Revisada (2026-11-15): los términos de Jev prohíben entrenar Laya con sus respuestas; esperando que el dueño elija el camino |
 | F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
@@ -441,7 +441,27 @@ dentro de la rama.
 
 ## F10. Jev y Laya
 
-Sin cambios respecto del plan.
+- **Revisión antes de empezar (2026-11-15, agente B):**
+  - **Los términos de Jev prohíben el plan original.** El contrato de
+    TypeSafe (Master Customer Agreement, 2.3(b)) no deja usar el servicio ni
+    sus respuestas para «model distillation» ni para entrenar un modelo que
+    imite sus respuestas. Entrenar Laya con las decisiones de Jev queda
+    descartado. Las respuestas son del cliente y TypeSafe no entrena con
+    nuestros datos, pero puede guardarlos para telemetría y abuso.
+  - **Jev:** `POST /v1/systemone` (choice, score y noul con
+    probabilidades), USD 0,042 por millón de tokens de entrada (menos de un
+    centavo cada mil decisiones). No publica resultados en español.
+  - **Laya:** Apache 2.0, local, endpoint compatible con Jev. Sin entrenar
+    rinde poco (0,36 de acierto, por debajo de elegir siempre lo más
+    común); entrenada llega a 0,77. Hay checkpoint multilingüe (322M), CPU
+    200–460 ms por decisión. Se entrena en Kaggle (2×T4).
+  - **Ya tenemos** clasificación local con EmbeddingGemma (respuestas
+    automáticas de Instagram): sirve de línea base gratis.
+  - **Datos en CTC:** 29 conversaciones (desde el 6 de noviembre), 3 con
+    etiqueta, 2 con equipo, ninguna con prioridad. No alcanza para entrenar
+    nada todavía.
+- **Esperando que el dueño elija el camino** (Jev sin entrenar Laya con
+  él, solo local, o esperar a que CTC tenga más volumen).
 
 ## F11. CRM (Krayin)
 
