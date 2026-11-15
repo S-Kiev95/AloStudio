@@ -105,7 +105,7 @@ anota en esta sección y lo decide el dueño.
 | F7 Llamadas y voz | B | En develop y en staging (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
-| F10 Jev y Laya | B | Paso 1 hecho (2026-11-15) en `feat/f10-decisiones`: Jev en modo sombra, etiquetado a ciegas y resultados; falta la clave de TypeSafe y probarlo con Jev real. Laya más adelante, solo con etiquetas de personas |
+| F10 Jev y Laya | B | Paso 1 en develop y en staging (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; falta cargar la clave de TypeSafe y probarlo con Jev real. Laya más adelante, solo con etiquetas de personas |
 | F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
@@ -463,8 +463,8 @@ dentro de la rama.
 - **Camino elegido por el dueño (2026-11-15):** Jev ahora, sin entrenar
   Laya con sus respuestas; Laya aparte y más adelante, entrenada solo con
   etiquetas de personas.
-- **Paso 1, Jev en modo sombra — hecho el 2026-11-15 (rama
-  `feat/f10-decisiones`):**
+- **Paso 1, Jev en modo sombra — hecho el 2026-11-15, en develop y en
+  staging:**
   - **Ajustes → Clasificación** (solo administradores), tres pestañas:
     - **Configuración:** prender el modo sombra y editar las preguntas
       (intención, sentimiento, urgencia y equipo) con sus opciones. Las del
@@ -490,6 +490,9 @@ dentro de la rama.
   - Código en `app/domains/decisions/` y en
     `frontend/components/settings/decisions/`. Probado con un Jev falso
     local, no con el real.
+  - De paso: el worker relee la configuración de Ajustes → Instalación
+    cada 20 s. Antes la leía solo al arrancar, así que una clave cargada
+    desde el panel no llegaba a las tareas hasta reiniciarlo.
 - **Para usarlo:** el dueño crea la cuenta en TypeSafe y carga la clave en
   Ajustes → Instalación (nunca por chat). Después prende el modo sombra y
   etiqueta conversaciones para ver cuánto acierta.
@@ -563,7 +566,7 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     (tarea `sync_meta_catalog_task`). El id del producto en Meta
     (`retailer_id`) es su SKU o `alo-{id}`, guardado en
     `products.meta_retailer_id`. Lógica en `app/domains/crm/meta_catalog.py`.
-    **Arreglado el 2026-11-15** (rama `feat/f10-decisiones`): después de
+    **Arreglado el 2026-11-15** (en develop, todavía no en CTC): después de
     una sincronización, los cambios de la hora siguiente se perdían (ARQ
     no acepta el mismo id de trabajo mientras guarda su resultado).
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
