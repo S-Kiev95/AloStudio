@@ -105,7 +105,7 @@ anota en esta sección y lo decide el dueño.
 | F7 Llamadas y voz | B | En develop y en staging (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
-| F10 Jev y Laya | B | Paso 1 en develop y en staging (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; falta cargar la clave de TypeSafe y probarlo con Jev real. Laya más adelante, solo con etiquetas de personas |
+| F10 Jev y Laya | B | Paso 1 en develop y en staging (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; clave de TypeSafe cargada en staging y Jev real responde bien; falta prender el modo sombra y verlo con mensajes reales. Laya más adelante, solo con etiquetas de personas |
 | F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
 | F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
@@ -496,9 +496,15 @@ dentro de la rama.
 - **Para usarlo:** el dueño crea la cuenta en TypeSafe y carga la clave en
   Ajustes → Instalación (nunca por chat). Después prende el modo sombra y
   etiqueta conversaciones para ver cuánto acierta.
-- **Falta:** probarlo con Jev real. Con los resultados, decidir si las
-  decisiones pasan a hacer algo (sugerir o asignar equipo, prioridad).
-  Laya cuando haya suficientes etiquetas.
+- **Jev real (2026-11-15):** el dueño cargó la clave en staging. Una
+  prueba con una conversación inventada salió bien: `jev-1.14.0`, intención
+  `inscripcion` (0,98), sentimiento `positivo` (0,97), urgencia `media`
+  (0,77); 662 tokens de entrada, US$ 0,000028. La respuesta tiene la forma
+  que espera el código.
+- **Falta:** prender el modo sombra en una cuenta de staging y verlo con
+  mensajes reales. Con los resultados, decidir si las decisiones pasan a
+  hacer algo (sugerir o asignar equipo, prioridad). Laya cuando haya
+  suficientes etiquetas.
 
 ## F11. CRM (Krayin)
 
