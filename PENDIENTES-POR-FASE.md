@@ -102,7 +102,7 @@ anota en esta sección y lo decide el dueño.
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En develop (2026-11-14): WhatsApp (costo de Meta) e IA; falta CTC |
-| F7 Llamadas y voz | B | Paso 1 hecho (2026-11-14) en `feat/f7-voz`: recibir llamadas de WhatsApp en el panel; falta probar con Meta real |
+| F7 Llamadas y voz | B | Paso 1 hecho en `feat/f7-voz`: recibir llamadas de WhatsApp en el panel, con grabación y transcripción (2026-11-15) que habilita el operador; falta probar con Meta real |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
 | F10 Jev y Laya | B | Sin empezar |
@@ -323,6 +323,24 @@ dentro de la rama.
   - Probado de punta a punta en local con un Meta simulado (tres llamadas
     WebRTC reales entre dos pestañas, audio en los dos sentidos). **Falta
     probarlo con Meta real.**
+- **Grabación y transcripción — hecho el 2026-11-15 (misma rama):**
+  - Interruptor del operador en Ajustes → Instalación → Llamadas
+    («Permitir grabar llamadas», `CALL_RECORDING_ALLOWED`, apagado por
+    defecto). Con eso prendido, cada bandeja de WhatsApp elige grabar y/o
+    transcribir, el motivo que Meta lee a las dos partes antes de grabar
+    («…será grabado con el siguiente fin: …», hasta 250 caracteres) y el
+    idioma del aviso. Tabla `call_inbox_settings` (migración `e0f1a2b3c4d6`).
+  - Lo pide el `accept` (objetos `recording` y `transcription`). Meta avisa
+    con `call_recording_available` / `call_transcription_available`; el audio
+    se copia a MinIO y queda como adjunto de audio en la burbuja de la
+    llamada (con reproductor); la transcripción queda separada por quién
+    habló («Ver lo que se habló») y como texto del mensaje, así la búsqueda
+    (F8) encuentra la llamada por lo que se dijo. Meta guarda los archivos 7
+    días: si la copia falla, el tick de 5 minutos la reintenta.
+  - Hoy grabar y transcribir es gratis; Meta anunció que lo va a cobrar más
+    adelante, con aviso (va en F6 cuando pase).
+  - Probado en local con el Meta simulado (llamada grabada, audio en la
+    burbuja, transcripción y búsqueda). **Falta probarlo con Meta real.**
 - **Para usarlo en un número:** suscribir el campo `calls` del webhook de
   WhatsApp en la app de Meta (el conector de Meta lo puede hacer, con
   confirmación) y activar las llamadas en Ajustes → Bandejas. Meta lo
