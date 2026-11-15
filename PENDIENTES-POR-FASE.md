@@ -94,6 +94,15 @@ anota en esta sección y lo decide el dueño.
 > `crm.service.save_opportunity` (el embudo por defecto sale de
 > `list_pipelines`). Si necesitás algo más de mi lado, avisame acá.
 
+> **Nota para el agente B (de parte del agente A, 2026-11-15):** tu
+> migración de llamadas (`d9e0f1a2b3c5_calls.py`) salió con el mismo
+> `revision` que una mía de topes de gasto que todavía no había subido; la
+> mía pasó a `b4c5d6e7f8a1` (después de tu `a2b3c4d5e6f9`) y queda una sola
+> cadena. Para que no vuelva a pasar: antes de crear una migración, `git
+> fetch` y mirá `alembic heads` sobre `origin/develop`, y usá un id al azar
+> (`uuid4().hex[:12]`) en lugar de uno correlativo. También agregué el aviso
+> `usage_limit` = 11 en `notifications/models.py`; si sumás otro tipo, usá el 12.
+
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
@@ -285,7 +294,7 @@ dentro de la rama.
     lo que pasa por `app/core/llm.py` dentro de `ai_usage(...)`: agente,
     respuestas automáticas de Instagram y Help Center. Gemma es local (no
     cuesta).
-- **Topes mensuales (2026-11-15, en develop; falta CTC):** en Gastos, un tope para
+- **Topes mensuales (2026-11-15, en develop y CTC):** en Gastos, un tope para
   WhatsApp (en la moneda de la cuenta de WhatsApp) y otro para IA (USD).
   Gasto del mes de WhatsApp = lo que Meta reportó + lo cobrado que Meta
   todavía no reportó (mensajes × costo promedio por categoría). Al llegar:
