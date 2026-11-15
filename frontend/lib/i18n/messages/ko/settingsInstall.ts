@@ -26,6 +26,18 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "인공지능",
   },
   items: {
+    DECISIONS_API_KEY: {
+      title: "판단 서비스: 키",
+      description: "대화를 분류합니다(의도, 감정, 긴급도, 팀). TypeSafe(Jev) 키는 콘솔에서 받습니다. 로컬 Laya라면 그 서버에 설정한 키입니다.",
+    },
+    DECISIONS_API_URL: {
+      title: "판단 서비스: 주소",
+      description: "Jev는 https://api.typesafe.ai. Laya는 로컬 서버 주소입니다. 응답이 같으므로 다른 것은 바뀌지 않습니다.",
+    },
+    DECISIONS_MODEL: {
+      title: "판단 서비스: 모델",
+      description: "Jev는 jev-latest, 또는 Laya 모델 이름.",
+    },
     CALL_RECORDING_ALLOWED: {
       title: "통화 녹음 허용",
       description: "각 계정의 관리자가 받은편지함의 WhatsApp 통화를 녹음하고 텍스트로 변환할 수 있게 합니다. Meta는 녹음 전에 양쪽에 알리고 오디오를 7일 동안 보관하며, AloStudio는 이를 자체 저장소에 복사합니다.",

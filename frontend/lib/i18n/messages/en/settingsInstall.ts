@@ -26,6 +26,18 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "Artificial intelligence",
   },
   items: {
+    DECISIONS_API_KEY: {
+      title: "Decisions service: key",
+      description: "Classifies conversations (intent, sentiment, urgency and team). TypeSafe's (Jev) key comes from its console; with a local Laya, the one you set on its server.",
+    },
+    DECISIONS_API_URL: {
+      title: "Decisions service: address",
+      description: "https://api.typesafe.ai for Jev. For Laya, its local server's address; it answers the same way, so nothing else changes.",
+    },
+    DECISIONS_MODEL: {
+      title: "Decisions service: model",
+      description: "jev-latest for Jev, or the name of the Laya model.",
+    },
     CALL_RECORDING_ALLOWED: {
       title: "Allow call recording",
       description: "Lets each account's administrators record and transcribe their inboxes' WhatsApp calls. Meta tells both sides before recording and keeps the audio 7 days; AloStudio copies it to its own storage.",

@@ -26,6 +26,18 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "人工知能",
   },
   items: {
+    DECISIONS_API_KEY: {
+      title: "判定サービス: キー",
+      description: "会話を分類します(意図・感情・緊急度・チーム)。TypeSafe(Jev)のキーはコンソールで取得します。ローカルのLayaなら、そのサーバーに設定したキーです。",
+    },
+    DECISIONS_API_URL: {
+      title: "判定サービス: アドレス",
+      description: "Jevは https://api.typesafe.ai。Layaはローカルサーバーのアドレスです。応答は同じなので、ほかは変わりません。",
+    },
+    DECISIONS_MODEL: {
+      title: "判定サービス: モデル",
+      description: "Jevは jev-latest、またはLayaのモデル名。",
+    },
     CALL_RECORDING_ALLOWED: {
       title: "通話の録音を許可",
       description: "各アカウントの管理者が受信箱のWhatsApp通話を録音・文字起こしできるようにします。Metaは録音前に双方へ知らせ、音声を7日間保管します。AloStudioはそれを自身のストレージにコピーします。",
