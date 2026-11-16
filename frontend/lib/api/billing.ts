@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { type QueryClient, useQuery } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
 
@@ -51,10 +51,29 @@ export function useBillingStatus(
     enabled,
     retry: false,
     // Back from Polar's checkout: its webhook may land a few seconds after
-    // the browser does, so ask again until the plan shows up.
+    // the browser does, so ask again until the plan shows up — for a
+    // minute at most, in case the webhook never comes.
     refetchInterval: (query) =>
-      untilPaid && query.state.data?.has_access === false ? 3_000 : false,
+      untilPaid &&
+      query.state.data?.has_access === false &&
+      query.state.dataUpdateCount < POLL_ATTEMPTS
+        ? 3_000
+        : false,
   });
+}
+
+const POLL_ATTEMPTS = 20;
+
+/** After a 402: the plan ran out mid-session, so the gate has to look
+ *  again. Only the account's status (not the plans), and only while it
+ *  still says the account has access. */
+export function refreshBillingStatus(qc: QueryClient): void {
+  for (const query of qc.getQueryCache().findAll({ queryKey: BILLING_KEY })) {
+    const data = query.state.data as BillingStatus | undefined;
+    if (query.queryKey.length === 2 && data?.has_access !== false) {
+      void qc.invalidateQueries({ queryKey: query.queryKey, exact: true });
+    }
+  }
 }
 
 export function useBillingPlans(accountId: string, enabled = true) {

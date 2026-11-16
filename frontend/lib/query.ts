@@ -1,6 +1,6 @@
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 
-import { BILLING_KEY } from "./api/billing";
+import { refreshBillingStatus } from "./api/billing";
 import { ApiError } from "./api/errors";
 
 /** A 402 means the account's plan ran out (F2 multitenant): ask for the
@@ -16,9 +16,7 @@ function isPaymentRequired(error: unknown): boolean {
  */
 export function makeQueryClient(): QueryClient {
   const onError = (error: unknown) => {
-    if (isPaymentRequired(error)) {
-      void client.invalidateQueries({ queryKey: BILLING_KEY });
-    }
+    if (isPaymentRequired(error)) refreshBillingStatus(client);
   };
   const client: QueryClient = new QueryClient({
     queryCache: new QueryCache({ onError }),

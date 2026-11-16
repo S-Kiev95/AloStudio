@@ -3,9 +3,9 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { ApiError } from "@/lib/api/errors";
-import { useBillingPlans, useBillingStatus } from "@/lib/api/billing";
+import { useBillingStatus } from "@/lib/api/billing";
 import { usePublicInstallation } from "@/lib/api/installation";
+import { useIsAccountAdmin } from "@/lib/api/profile";
 import { useT } from "@/lib/i18n/provider";
 
 import { PlanPicker } from "./plan-picker";
@@ -23,12 +23,22 @@ export function SubscriptionGate({
   accountId: string;
   children: ReactNode;
 }) {
+  const t = useT();
   const pathname = usePathname() ?? "";
-  const multitenant = Boolean(usePublicInstallation().data?.multitenant);
+  const installation = usePublicInstallation();
+  const multitenant = Boolean(installation.data?.multitenant);
   const status = useBillingStatus(accountId, { enabled: multitenant });
 
-  const onBilling = pathname.startsWith(`/accounts/${accountId}/settings/billing`);
-  if (!multitenant || onBilling || !status.data || status.data.has_access) {
+  const billingHref = `/accounts/${accountId}/settings/billing`;
+  if (pathname === billingHref || pathname.startsWith(`${billingHref}/`)) {
+    return <>{children}</>;
+  }
+  // Until we know, show nothing: the page would fire requests that a
+  // multitenant account without a plan answers 402.
+  if (installation.isLoading || (multitenant && status.isLoading)) {
+    return <p className="text-sm text-fg-muted">{t("common.loading")}</p>;
+  }
+  if (!multitenant || !status.data || status.data.has_access) {
     return <>{children}</>;
   }
   return <ChoosePlan accountId={accountId} />;
@@ -36,20 +46,17 @@ export function SubscriptionGate({
 
 function ChoosePlan({ accountId }: { accountId: string }) {
   const t = useT();
-  // Choosing a plan is admin-only: a 401 here means an agent.
-  const plans = useBillingPlans(accountId);
-  const notAdmin =
-    plans.error instanceof ApiError && plans.error.status === 401;
+  const isAdmin = useIsAccountAdmin(accountId);
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       <div className="space-y-1">
         <h2 className="text-xl font-medium text-fg">{t("billing.choose.title")}</h2>
         <p className="text-sm text-fg-muted">
-          {notAdmin ? t("billing.choose.notAdmin") : t("billing.choose.subtitle")}
+          {isAdmin ? t("billing.choose.subtitle") : t("billing.choose.notAdmin")}
         </p>
       </div>
-      {notAdmin ? null : <PlanPicker accountId={accountId} />}
+      {isAdmin ? <PlanPicker accountId={accountId} /> : null}
     </div>
   );
 }

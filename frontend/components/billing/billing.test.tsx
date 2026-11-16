@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
@@ -13,16 +13,21 @@ import {
   vi,
 } from "vitest";
 
+import { ROLE_ADMINISTRATOR } from "@/lib/api/account";
+
 import { BillingView } from "./billing-view";
 import { SubscriptionGate } from "./subscription-gate";
 
 let pathname = "/accounts/1/conversations";
 let searchParams = new URLSearchParams();
 
+const notFound = vi.fn();
+
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParams,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => pathname,
+  notFound: () => notFound(),
 }));
 
 const PLANS = [
@@ -41,14 +46,21 @@ function handlers({
     http.get("*/api/v1/installation/public", () =>
       HttpResponse.json({ signup_enabled: true, multitenant }),
     ),
+    http.get("*/api/v1/profile", () =>
+      HttpResponse.json({
+        data: {
+          id: 1,
+          name: "Admin",
+          email: "admin@alostudio.test",
+          accounts: [
+            { id: 1, name: "AloStudio", role: admin ? ROLE_ADMINISTRATOR : 0 },
+          ],
+        },
+      }),
+    ),
     http.get("*/api/v1/accounts/1/billing", () => HttpResponse.json(billing)),
     http.get("*/api/v1/accounts/1/billing/plans", () =>
-      admin
-        ? HttpResponse.json({ plans: PLANS })
-        : HttpResponse.json(
-            { error: "You are not authorized to do this action", code: "not_authorized" },
-            { status: 401 },
-          ),
+      HttpResponse.json({ plans: PLANS }),
     ),
   ];
 }
@@ -144,5 +156,12 @@ describe("BillingView", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/Recibimos el pago/);
     expect(await screen.findByRole("heading", { name: "Planes" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Administrar pago y facturas" })).toBeNull();
+  });
+
+  it("en una instalación propia no existe", async () => {
+    notFound.mockClear();
+    server.use(...handlers({ multitenant: false }));
+    renderWith(<BillingView accountId="1" />);
+    await waitFor(() => expect(notFound).toHaveBeenCalled());
   });
 });

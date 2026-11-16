@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { formatMoney } from "@/components/crm/money";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/errors";
 import { type BillingPlan, startCheckout, useBillingPlans } from "@/lib/api/billing";
 import { INTL_TAGS } from "@/lib/i18n/config";
@@ -49,7 +50,7 @@ export function PlanPicker({ accountId }: { accountId: string }) {
       {error ? (
         <p
           role="alert"
-          className="rounded-control border border-danger bg-surface-2 px-3 py-2 text-sm text-danger"
+          className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger"
         >
           {error}
         </p>
@@ -86,9 +87,9 @@ function PlanCard({
   const price =
     plan.amount === null ? null : formatMoney(plan.amount, plan.currency, INTL_TAGS[locale]);
   return (
-    <div className="flex h-full flex-col gap-3 rounded-md border border-glass bg-surface p-5">
+    <Card className="flex h-full flex-col gap-3 p-5">
       <div className="space-y-1">
-        <h3 className="text-lg font-medium text-fg">{plan.name}</h3>
+        <h4 className="text-lg font-medium text-fg">{plan.name}</h4>
         {price ? (
           <p className="text-sm text-fg">
             {plan.interval === "year"
@@ -116,6 +117,6 @@ function PlanCard({
       >
         {t("billing.plans.choose", { name: plan.name })}
       </Button>
-    </div>
+    </Card>
   );
 }

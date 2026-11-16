@@ -244,13 +244,15 @@ En los 7 idiomas (`messages/*/billing.ts`). Solo con `MULTITENANT=true`.
   nueva entra sin plan. Muestra los planes de Polar con precio y días de
   prueba (`trial_days`, nuevo en `/billing/plans`); elegir uno abre el
   checkout de Polar. Un agente no admin ve "pedile a un administrador".
-- **Cualquier 402** hace que se vuelva a pedir el estado (`lib/query.ts`),
+- **Cualquier 402** hace que se vuelva a pedir el estado, no los planes
+  (`lib/query.ts`),
   así la pantalla aparece aunque el plan venza a mitad de sesión; un 402 no
   se reintenta.
 - **Ajustes → Facturación** (`settings/billing`, en el menú solo en
   multitenant): plan, estado, renovación o fin de la prueba, botón al
   portal de Polar, y los planes mientras no haya uno activo. Al volver del
-  checkout (`?checkout_id=`) consulta cada 3 s hasta que llega el webhook.
+  checkout (`?checkout_id=`) consulta cada 3 s hasta que llega el webhook
+  (un minuto como máximo). En una instalación propia la página da 404.
 - `GET /billing` lo puede leer cualquier miembro (solo plan y estado);
   pagar y el portal siguen siendo de administradores.
 - Tests en `components/billing/billing.test.tsx`.

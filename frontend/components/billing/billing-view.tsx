@@ -1,7 +1,7 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { notFound, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +9,10 @@ import { ApiError } from "@/lib/api/errors";
 import {
   type BillingStatus,
   openBillingPortal,
-  useBillingPlans,
   useBillingStatus,
 } from "@/lib/api/billing";
+import { usePublicInstallation } from "@/lib/api/installation";
+import { useIsAccountAdmin } from "@/lib/api/profile";
 import { INTL_TAGS } from "@/lib/i18n/config";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
@@ -32,12 +33,26 @@ const STATUS_LABEL: Record<string, MessageKey> = {
  *  paid, Polar's portal, and the plans while there is no active one. */
 export function BillingView({ accountId }: { accountId: string }) {
   const t = useT();
-  // Polar sends the browser back here with `checkout_id`.
+  const installation = usePublicInstallation();
+  // Polar sends the browser back here with `checkout_id`; the status is
+  // asked again for a minute (see useBillingStatus), and so long the note.
   const returning = Boolean(useSearchParams().get("checkout_id"));
-  const status = useBillingStatus(accountId, { untilPaid: returning });
-  const waiting = returning && status.data?.has_access === false;
-  const plans = useBillingPlans(accountId);
-  const notAdmin = plans.error instanceof ApiError && plans.error.status === 401;
+  const [recent, setRecent] = useState(returning);
+  useEffect(() => {
+    if (!returning) return;
+    const timer = window.setTimeout(() => setRecent(false), 60_000);
+    return () => window.clearTimeout(timer);
+  }, [returning]);
+  const multitenant = Boolean(installation.data?.multitenant);
+  const status = useBillingStatus(accountId, {
+    enabled: multitenant,
+    untilPaid: returning,
+  });
+  const notAdmin = !useIsAccountAdmin(accountId);
+  const waiting = recent && status.data?.has_access === false;
+
+  // Paid plans only exist on a multitenant install.
+  if (installation.data && !multitenant) notFound();
 
   return (
     <div className="max-w-4xl space-y-4">
@@ -52,7 +67,7 @@ export function BillingView({ accountId }: { accountId: string }) {
         </p>
       ) : null}
 
-      {status.isLoading ? (
+      {installation.isLoading || status.isLoading ? (
         <p className="text-sm text-fg-muted">{t("common.loading")}</p>
       ) : status.isError || !status.data ? (
         <p role="alert" className="text-sm text-danger">
