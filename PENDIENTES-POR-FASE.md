@@ -103,6 +103,13 @@ anota en esta sección y lo decide el dueño.
 > (`uuid4().hex[:12]`) en lugar de uno correlativo. También agregué el aviso
 > `usage_limit` = 11 en `notifications/models.py`; si sumás otro tipo, usá el 12.
 
+> **CTC, asignación (2026-11-16, pedido del director):** todas las
+> conversaciones nuevas van a Sofía; Yamila sigue con acceso a las 4
+> bandejas. El "Responsable por defecto" de la bandeja ahora le gana al
+> reparto por turnos (`conversations/auto_assignment.py`), y las 4 bandejas
+> de CTC tienen a Sofía. La única conversación que tenía Yamila (#13)
+> pasó a Sofía.
+
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
