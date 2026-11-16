@@ -279,6 +279,7 @@ Todos recurrentes mensuales, en USD, precio fijo.
 ### Topes por plan (hecho 2026-11-16)
 
 Decisiones del dueño: correo, chat web y API vienen en todos los planes;
+(2026-11-16, con los créditos: el tope pasa a ser solo de IA, ver abajo);
 el tope suma IA y WhatsApp; Basic USD 5, Pro USD 15, Max USD 40.
 
 - **De dónde salen:** la metadata del producto de Polar se copia en
@@ -351,16 +352,102 @@ sandbox necesitan esperar el ciclo o una tarjeta de prueba que falle.
 El checkout de Polar no funciona dentro del navegador de la app de Claude
 (error de React de la página de Polar); en Chrome sí.
 
+### Créditos de IA (diseño, decidido con el dueño 2026-11-16; sin código)
+
+Para cuando el tope del plan no alcanza: el cliente carga saldo y la IA
+sigue andando después del tope.
+
+**Decisiones del dueño**
+
+- **Solo IA.** WhatsApp no entra en créditos ni en el tope del plan: con
+  Embedded Signup Meta se lo cobra directo al cliente, y contarlo acá era
+  cobrárselo dos veces. Al implementar, sacar WhatsApp de
+  `plan_month_spend` (queda solo IA; el tope de WhatsApp que el admin pone
+  en Gastos sigue igual). Los topes de USD 5 / 15 / 40 pasan a ser de IA.
+- **Monto libre desde USD 5.** El margen baja cuanto más carga:
+
+  | Carga (USD, sin impuestos) | Margen | Crédito que recibe |
+  |---|---|---|
+  | 5 a 49,99 | 50 % | la mitad (USD 5 → 2,50; 20 → 10) |
+  | 50 a 99,99 | 35 % | el 65 % (USD 50 → 32,50) |
+  | 100 o más | 25 % | el 75 % (USD 100 → 75; 200 → 150) |
+
+  Efecto escalón buscado: USD 50 da más que USD 49 (32,50 contra 24,50),
+  así que la pantalla tiene que mostrar "con USD 50 recibís 32,50" para
+  empujar al tramo siguiente.
+- **Sin vencimiento, para todos los planes.** El saldo queda aunque
+  cambie o se cancele el plan; se usa cuando vuelve a tener uno (sin
+  plan activo la cuenta igual está bloqueada con 402).
+
+**Números (a confirmar la comisión de Polar al implementar: hoy ~4 % +
+USD 0,40, más extra por tarjeta internacional)**
+
+| Carga | Crédito | Comisión Polar aprox. | Queda para AloStudio |
+|---|---|---|---|
+| 5 | 2,50 | 0,60 | 1,90 |
+| 20 | 10 | 1,20 | 8,80 |
+| 50 | 32,50 | 2,40 | 15,10 |
+| 100 | 75 | 4,40 | 20,60 |
+
+El crédito se descuenta al costo real de la IA (el `cost` estimado de
+cada `usage_records` de tipo `ai`, con los precios del proveedor), así
+que el margen de arriba es lo que queda limpio. Si cambian los precios
+del proveedor, se actualiza la tabla de precios de `usage/ai.py`, no los
+créditos.
+
+**En Polar**
+
+- Un producto de pago único "Créditos de IA" con precio libre
+  (`amount_type: custom`, mínimo 500 centavos, USD) y metadata
+  `{"kind": "ai_credits"}`.
+- El checkout lleva `metadata.account_id` y `external_customer_id`, como
+  el de los planes.
+- Se acredita con el webhook `order.paid` (hoy llega y se ignora): monto
+  `net_amount` (sin impuestos, que van al país del cliente). `order.refunded`
+  quita lo que quede sin usar de esa carga.
+
+**Cómo se guarda (sin descuentos por cada llamada)**
+
+- Tabla `credit_purchases`: cuenta, `order_id` de Polar (único, para que
+  un reintento no acredite dos veces), pagado, crédito, margen aplicado,
+  fecha, reembolsado.
+- El saldo no se descuenta en cada llamada a la IA (evita carreras y
+  escrituras por mensaje): se calcula.
+  - Exceso de un mes = lo que gastó en IA ese mes por encima del tope del
+    plan (0 si no lo pasó).
+  - Saldo = créditos comprados − suma de excesos de los meses desde la
+    primera compra.
+- `limit_reached(..., "ai")` corta solo si el mes pasó el tope **y** el
+  saldo llegó a 0. El tope que pone el admin en Gastos sigue cortando
+  igual (es su freno, aunque tenga saldo).
+
+**Pantallas**
+
+- Facturación: saldo de créditos, barra del mes (tope del plan + cuánto
+  del saldo se lleva usado), botón "Cargar créditos" con el monto y lo
+  que recibe, mostrando el tramo siguiente ("con USD 50 recibís 32,50").
+- Historial de cargas (monto, crédito, fecha) y el portal de Polar para
+  las facturas.
+- Avisos: al llegar al tope del plan ("seguís con tus créditos") y cuando
+  el saldo baja de USD 1 o se termina.
+
+**Riesgos**
+
+- Un cliente con saldo y un agente de IA en loop puede gastar todo el
+  saldo en un día: por eso el tope del admin en Gastos sigue valiendo
+  como freno, y conviene un aviso cuando un día gasta más que el promedio.
+- Saldo sin vencimiento es plata cobrada por servicio aún no prestado:
+  revisarlo con el contador (puede tener que contarse como pasivo).
+
 ### Falta
 
+- **Implementar los créditos** (diseño arriba), empezando por sacar
+  WhatsApp del tope del plan.
 - Avisos al 80 % y 100 % del tope del plan (hoy el worker avisa solo los
   topes que pone un admin en Gastos).
 - El control del tope suma 5 a 7 consultas por llamada a la IA y por envío
   de plantilla (solo multitenant). Si pesa, guardar el gasto del mes por
   unos minutos.
-- **Créditos** (ampliar el tope comprando paquetes): decidir antes si
-  WhatsApp entra, porque con Embedded Signup Meta le cobra directo al
-  cliente y se lo estaríamos cobrando dos veces.
 - Ocultar en la interfaz lo que el plan no incluye (hoy se ve y al usarlo
   responde "Tu plan no incluye esto").
 - Prueba gratis una sola vez: después de cancelar, los planes vuelven a
