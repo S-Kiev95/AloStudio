@@ -1065,7 +1065,7 @@ async def update_last_seen_endpoint(
     conv = await _load_conversation_by_display_id(
         session, ctx=ctx, display_id=display_id
     )
-    now = datetime.now(tz=None)
+    now = datetime.now(UTC)
     conv.agent_last_seen_at = now
     if conv.assignee_id == ctx.user.id:
         conv.assignee_last_seen_at = now

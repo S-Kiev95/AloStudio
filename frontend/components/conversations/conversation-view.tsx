@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import {
   type AdReferral,
   useConversation,
+  useMarkSeen,
   useDeleteMessage,
   useMessages,
   usePendingMessages,
@@ -183,6 +184,13 @@ export function ConversationView({
   const lastScrollTop = useRef(0);
   const sentCount = useRef(0);
   const newestId = messages.data?.payload.at(-1)?.id;
+  // Seen: on opening the thread and on every message that lands while it is
+  // open, so the list only counts what nobody has looked at.
+  const markSeen = useMarkSeen(accountId, displayId);
+  useEffect(() => {
+    if (newestId !== undefined) markSeen.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, displayId, newestId]);
   useEffect(() => {
     // Opened at a search hit: stay there instead of sliding to the bottom.
     followNewest.current = !aroundId;
