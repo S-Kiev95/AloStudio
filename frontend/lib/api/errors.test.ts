@@ -40,6 +40,20 @@ describe("messageFromBody", () => {
     ).toBe("No tenés permiso para hacer esto.");
   });
 
+  it("names the field for blank / taken, and follows the language cookie", () => {
+    const body = { message: "Phone number can't be blank", code: "blank", field: "phone_number" };
+    expect(messageFromBody(body, "fb")).toBe("Falta completar: Teléfono.");
+    document.cookie = "alo_locale=en; path=/";
+    try {
+      expect(messageFromBody(body, "fb")).toBe("Missing: Phone number.");
+      expect(
+        messageFromBody({ errors: ["Invalid login credentials."], code: "invalid_login" }, "fb"),
+      ).toBe("The email or password isn't correct.");
+    } finally {
+      document.cookie = "alo_locale=; path=/; max-age=0";
+    }
+  });
+
   it("leaves a code it has no wording for alone", () => {
     expect(
       messageFromBody({ error: "Something else", code: "some_other" }, "fb"),

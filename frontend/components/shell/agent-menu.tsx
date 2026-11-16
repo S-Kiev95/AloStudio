@@ -4,6 +4,7 @@ import { LogOut, UserCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { useT } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
 export function AgentMenu({
@@ -14,6 +15,7 @@ export function AgentMenu({
   email: string;
 }) {
   const router = useRouter();
+  const t = useT();
   const [loading, setLoading] = useState(false);
   const initials =
     name
@@ -39,7 +41,7 @@ export function AgentMenu({
           "after:absolute after:-inset-y-0.5 after:inset-x-0 after:content-['']",
           "hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
         )}
-        aria-label="Menú de usuario"
+        aria-label={t("shell.userMenu")}
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-focused text-xs font-medium text-lit ring-1 ring-inset ring-glass">
           {initials}
@@ -52,7 +54,7 @@ export function AgentMenu({
         <div className="border-b border-glass px-3 py-3">
           <p className="flex items-center gap-2 text-sm font-medium text-fg">
             <UserCircle2 className="h-4 w-4 text-fg-muted" aria-hidden />
-            <span className="truncate">{name || "Usuario"}</span>
+            <span className="truncate">{name || t("shell.user")}</span>
           </p>
           <p className="mt-0.5 truncate text-xs text-fg-muted">{email}</p>
         </div>
@@ -64,7 +66,7 @@ export function AgentMenu({
           className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger transition-colors hover:bg-hover-glass disabled:opacity-50"
         >
           <LogOut className="h-4 w-4" aria-hidden />
-          Cerrar sesión
+          {t("shell.logout")}
         </button>
       </div>
     </details>

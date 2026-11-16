@@ -154,3 +154,35 @@ async def test_someone_who_never_opened_the_settings_gets_the_defaults(
     sent = await send_notification_email(db_session, notification_id=notif.id)
     assert sent is True
     assert captured["msg"]["To"] == owner.user.email
+
+
+async def test_email_goes_in_the_recipients_language(db_session, monkeypatch):
+    """F13: the profile's language (``ui_settings.locale``) picks the mail's."""
+    owner, conv = await _seed(db_session, "-lang")
+    owner.user.ui_settings = {"locale": "en", "theme": "dark"}
+    db_session.add(owner.user)
+    notif = _make_notification(owner, conv)
+    db_session.add(notif)
+    db_session.add(
+        NotificationSetting(
+            account_id=owner.account.id,
+            user_id=owner.user.id,
+            email_subscriptions=["conversation_assignment"],
+            push_subscriptions=[],
+        )
+    )
+    await db_session.flush()
+
+    captured: dict = {}
+
+    async def fake_send(message, **kwargs):
+        captured["msg"] = message
+
+    monkeypatch.setattr(mailer_mod.aiosmtplib, "send", fake_send)
+
+    assert await send_notification_email(db_session, notification_id=notif.id) is True
+    msg = captured["msg"]
+    assert msg["Subject"] == f"Conversation #{conv.display_id} was assigned to you"
+    body = msg.get_content()
+    assert body.startswith("Hi Ana Agente,")
+    assert "Settings → Notifications" in body

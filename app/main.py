@@ -34,6 +34,7 @@ from app.domains.automation.router import router as automation_rules_router
 from app.domains.billing.router import router as billing_router
 from app.domains.billing.router import webhook_router as billing_webhook_router
 from app.domains.bulk_actions.router import router as bulk_actions_router
+from app.domains.calls.router import router as calls_router
 from app.domains.campaigns.router import router as campaigns_router
 from app.domains.canned_responses.router import router as canned_responses_router
 from app.domains.contacts.router import actions_router as contact_actions_router
@@ -49,10 +50,13 @@ from app.domains.conversations.router import (
     participants_router as conversations_participants_router,
 )
 from app.domains.conversations.router import router as conversations_router
+from app.domains.conversations.search_router import router as message_search_router
+from app.domains.crm.router import router as crm_router
 from app.domains.csat.public_router import router as csat_public_router
 from app.domains.csat.router import router as csat_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
 from app.domains.custom_views.router import router as custom_views_router
+from app.domains.decisions.router import router as decisions_router
 from app.domains.email.templates_router import router as email_templates_router
 from app.domains.facebook.connect_router import router as facebook_connect_router
 from app.domains.facebook.router import router as facebook_webhook_router
@@ -113,12 +117,17 @@ from app.domains.uploads.public_router import (
     verification_router as public_media_verification_router,
 )
 from app.domains.uploads.router import router as uploads_router
+from app.domains.usage.router import router as usage_router
 from app.domains.users.router import router as profile_router
 from app.domains.web_widget.router import router as web_widget_router
 from app.domains.webhooks.router import router as outbound_webhooks_router
 from app.domains.whatsapp.embedded_signup_router import (
     router as whatsapp_embedded_signup_router,
 )
+from app.domains.whatsapp.business_router import (
+    router as whatsapp_business_router,
+)
+from app.domains.whatsapp.catalog_router import router as whatsapp_catalog_router
 from app.domains.whatsapp.router import router as whatsapp_webhook_router
 from app.domains.whatsapp.templates_router import (
     router as whatsapp_templates_router,
@@ -216,6 +225,8 @@ def create_app() -> FastAPI:
     # update/destroy). A participant must be an assignable agent of the
     # conversation's inbox (inbox member or account admin).
     app.include_router(conversations_participants_router)
+    # F8: search by message, with the hit highlighted and a way to jump to it.
+    app.include_router(message_search_router)
     app.include_router(bulk_actions_router)
     app.include_router(custom_attributes_router)
     # Saved views (``custom_filters``). Per-user named filter-DSL views;
@@ -306,6 +317,9 @@ def create_app() -> FastAPI:
     app.include_router(whatsapp_templates_router)
     # WhatsApp Embedded Signup (F2): a client connects its own number.
     app.include_router(whatsapp_embedded_signup_router)
+    app.include_router(whatsapp_business_router)
+    app.include_router(whatsapp_catalog_router)
+    app.include_router(usage_router)
     # Facebook Messenger webhook (Phase 5d). ``/webhooks/fb_messenger``
     # — installation-wide verify token via ``settings.fb_verify_token``
     # (env var FB_VERIFY_TOKEN), single endpoint shared across every
@@ -335,6 +349,12 @@ def create_app() -> FastAPI:
     # posts/stories link to products for AI/CRM context.
     app.include_router(products_router)
     app.include_router(appointments_router)
+    # Sales pipeline: pipelines, stages, opportunities (F11).
+    app.include_router(crm_router)
+    # Voice calls: WhatsApp calls answered from the browser (F7).
+    app.include_router(calls_router)
+    # Decisions about conversations, in shadow mode (F10).
+    app.include_router(decisions_router)
     # Multi-network publishing: one publication, many channels, each
     # published by its network adapter.
     app.include_router(publishing_router)

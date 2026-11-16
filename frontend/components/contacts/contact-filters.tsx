@@ -7,15 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { selectClassName } from "@/components/ui/select";
 import type { FilterCondition, FilterOperator } from "@/lib/api/conversations";
+import { ORIGIN_CHANNELS, ORIGIN_SOURCES } from "@/lib/api/crm";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-type ValueKind = "text" | "date" | "bool";
+type ValueKind = "text" | "date" | "bool" | "choice";
 
 type AttrDef = {
   key: string;
-  label: string;
+  label: MessageKey;
   ops: FilterOperator[];
   value: ValueKind;
+  /** For `choice`: the codes offered and how each is named. */
+  choices?: readonly { value: string; label: MessageKey }[];
 };
 
 const TEXT_OPS: FilterOperator[] = [
@@ -33,27 +38,40 @@ const DATE_OPS: FilterOperator[] = [
   "equal_to",
 ];
 const BOOL_OPS: FilterOperator[] = ["equal_to"];
+const CHOICE_OPS: FilterOperator[] = ["equal_to", "not_equal_to", "is_present", "is_not_present"];
+
+const SOURCE_CHOICES = ORIGIN_SOURCES.map((s) => ({
+  value: s,
+  label: `origin.sources.${s}` as MessageKey,
+}));
+const CHANNEL_CHOICES = ORIGIN_CHANNELS.map((c) => ({
+  value: c,
+  label: `origin.channels.${c}` as MessageKey,
+}));
 
 const ATTRIBUTES: AttrDef[] = [
-  { key: "name", label: "Nombre", ops: TEXT_OPS, value: "text" },
-  { key: "email", label: "Email", ops: TEXT_OPS, value: "text" },
-  { key: "phone_number", label: "Teléfono", ops: TEXT_OPS, value: "text" },
-  { key: "identifier", label: "Identificador", ops: TEXT_OPS, value: "text" },
-  { key: "company_name", label: "Empresa", ops: TEXT_OPS, value: "text" },
-  { key: "blocked", label: "Bloqueado", ops: BOOL_OPS, value: "bool" },
-  { key: "created_at", label: "Creado", ops: DATE_OPS, value: "date" },
+  { key: "name", label: "contacts.filters.attr.name", ops: TEXT_OPS, value: "text" },
+  { key: "email", label: "contacts.filters.attr.email", ops: TEXT_OPS, value: "text" },
+  { key: "phone_number", label: "contacts.filters.attr.phone", ops: TEXT_OPS, value: "text" },
+  { key: "identifier", label: "contacts.filters.attr.identifier", ops: TEXT_OPS, value: "text" },
+  { key: "company_name", label: "contacts.filters.attr.company", ops: TEXT_OPS, value: "text" },
+  { key: "blocked", label: "contacts.filters.attr.blocked", ops: BOOL_OPS, value: "bool" },
+  { key: "created_at", label: "contacts.filters.attr.created", ops: DATE_OPS, value: "date" },
+  { key: "source", label: "contacts.filters.attr.source", ops: CHOICE_OPS, value: "choice", choices: SOURCE_CHOICES },
+  { key: "source_channel", label: "contacts.filters.attr.sourceChannel", ops: CHOICE_OPS, value: "choice", choices: CHANNEL_CHOICES },
+  { key: "source_detail", label: "contacts.filters.attr.sourceDetail", ops: TEXT_OPS, value: "text" },
 ];
 
-const OP_LABELS: Record<FilterOperator, string> = {
-  equal_to: "es",
-  not_equal_to: "no es",
-  contains: "contiene",
-  does_not_contain: "no contiene",
-  starts_with: "empieza con",
-  is_present: "tiene valor",
-  is_not_present: "sin valor",
-  is_greater_than: "después de",
-  is_less_than: "antes de",
+const OP_LABELS: Record<FilterOperator, MessageKey> = {
+  equal_to: "conversations.filters.op.equal_to",
+  not_equal_to: "conversations.filters.op.not_equal_to",
+  contains: "conversations.filters.op.contains",
+  does_not_contain: "conversations.filters.op.does_not_contain",
+  starts_with: "conversations.filters.op.starts_with",
+  is_present: "conversations.filters.op.is_present",
+  is_not_present: "conversations.filters.op.is_not_present",
+  is_greater_than: "conversations.filters.op.is_greater_than",
+  is_less_than: "conversations.filters.op.is_less_than",
 };
 
 const SELECT_CLS = selectClassName("sm");
@@ -104,6 +122,7 @@ export function ContactFilters({
     match: "AND" | "OR",
   ) => void;
 }) {
+  const t = useT();
   const [rows, setRows] = useState<DraftRow[]>(
     initial.length > 0 ? initial.map(toDraft) : [blankRow()],
   );
@@ -164,12 +183,12 @@ export function ContactFilters({
             <select
               value={row.attribute_key}
               onChange={(e) => changeAttribute(i, e.target.value)}
-              aria-label="Atributo"
+              aria-label={t("conversations.filters.attribute")}
               className={SELECT_CLS}
             >
               {ATTRIBUTES.map((a) => (
                 <option key={a.key} value={a.key}>
-                  {a.label}
+                  {t(a.label)}
                 </option>
               ))}
             </select>
@@ -180,12 +199,12 @@ export function ContactFilters({
                   filter_operator: e.target.value as FilterOperator,
                 })
               }
-              aria-label="Operador"
+              aria-label={t("conversations.filters.operator")}
               className={SELECT_CLS}
             >
               {def.ops.map((op) => (
                 <option key={op} value={op}>
-                  {OP_LABELS[op]}
+                  {t(OP_LABELS[op])}
                 </option>
               ))}
             </select>
@@ -200,7 +219,7 @@ export function ContactFilters({
               type="button"
               onClick={() => removeRow(i)}
               disabled={rows.length <= 1}
-              aria-label="Quitar condición"
+              aria-label={t("conversations.filters.removeCondition")}
               className="ml-auto rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-40"
             >
               <X className="h-4 w-4" aria-hidden />
@@ -215,18 +234,18 @@ export function ContactFilters({
           onClick={() => setRows((prev) => [...prev, blankRow()])}
           className="rounded-control border border-glass bg-field px-3 py-1.5 text-sm font-medium text-fg hover:bg-hover-glass"
         >
-          + Agregar condición
+          {t("conversations.filters.addCondition")}
         </button>
         {rows.length > 1 ? (
           <div className="flex items-center gap-1 text-xs text-fg-muted">
-            <span>Coincidir:</span>
+            <span>{t("conversations.filters.match")}</span>
             <button
               type="button"
               onClick={() => setMatch("AND")}
               aria-pressed={match === "AND"}
               className={matchCls(match === "AND")}
             >
-              Todas
+              {t("conversations.filters.matchAll")}
             </button>
             <button
               type="button"
@@ -234,7 +253,7 @@ export function ContactFilters({
               aria-pressed={match === "OR"}
               className={matchCls(match === "OR")}
             >
-              Cualquiera
+              {t("conversations.filters.matchAny")}
             </button>
           </div>
         ) : null}
@@ -242,10 +261,10 @@ export function ContactFilters({
 
       <div className="flex items-center gap-2 border-t border-glass pt-3">
         <Button type="button" size="sm" onClick={apply}>
-          Aplicar
+          {t("actions.apply")}
         </Button>
         <Button type="button" size="sm" variant="secondary" onClick={onCancel}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
         {initial.length > 0 ? (
           <button
@@ -253,7 +272,7 @@ export function ContactFilters({
             onClick={onClear}
             className="ml-auto rounded-md px-3 py-1.5 text-sm font-medium text-fg-muted hover:text-fg"
           >
-            Limpiar filtros
+            {t("conversations.filters.clear")}
           </button>
         ) : null}
       </div>
@@ -263,8 +282,8 @@ export function ContactFilters({
           type="text"
           value={saveName}
           onChange={(e) => setSaveName(e.target.value)}
-          placeholder="Guardar como segmento…"
-          aria-label="Nombre del segmento"
+          placeholder={t("contacts.filters.saveAsSegment")}
+          aria-label={t("contacts.filters.segmentName")}
           className={cn(SELECT_CLS, "min-w-[10rem] flex-1")}
         />
         <Button
@@ -274,7 +293,7 @@ export function ContactFilters({
           onClick={save}
           disabled={!saveName.trim() || buildConditions().length === 0}
         >
-          Guardar segmento
+          {t("contacts.filters.saveSegment")}
         </Button>
       </div>
     </div>
@@ -297,17 +316,35 @@ function ValueControl({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const t = useT();
+  if (def.value === "choice") {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={t("conversations.filters.value")}
+        className={SELECT_CLS}
+      >
+        <option value="">{t("actions.selectPlaceholder")}</option>
+        {def.choices?.map((c) => (
+          <option key={c.value} value={c.value}>
+            {t(c.label)}
+          </option>
+        ))}
+      </select>
+    );
+  }
   if (def.value === "bool") {
     return (
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        aria-label="Valor"
+        aria-label={t("conversations.filters.value")}
         className={SELECT_CLS}
       >
-        <option value="">Seleccionar…</option>
-        <option value="true">Sí</option>
-        <option value="false">No</option>
+        <option value="">{t("actions.selectPlaceholder")}</option>
+        <option value="true">{t("actions.yes")}</option>
+        <option value="false">{t("actions.no")}</option>
       </select>
     );
   }
@@ -316,7 +353,7 @@ function ValueControl({
       type={def.value === "date" ? "date" : "text"}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      aria-label="Valor"
+      aria-label={t("conversations.filters.value")}
       className="h-9 w-auto"
     />
   );

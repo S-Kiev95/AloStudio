@@ -12,10 +12,13 @@ import type {
   AssignmentPolicyInput,
   ConversationPriority,
 } from "@/lib/api/assignment-policies";
+import { useT } from "@/lib/i18n/provider";
+import { rich } from "@/lib/i18n/rich";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const PRIORITY_LABELS: Record<ConversationPriority, string> = {
-  earliest_created: "La creada primero",
-  longest_waiting: "La que más espera",
+const PRIORITY_LABELS: Record<ConversationPriority, MessageKey> = {
+  earliest_created: "settingsAssign.priority.earliest_created",
+  longest_waiting: "settingsAssign.priority.longest_waiting",
 };
 
 export function AssignmentPolicyForm({
@@ -29,6 +32,7 @@ export function AssignmentPolicyForm({
   onSubmit: (input: AssignmentPolicyInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
@@ -45,14 +49,14 @@ export function AssignmentPolicyForm({
 
   async function submit() {
     setError(null);
-    if (!name.trim()) return setError("El nombre es obligatorio.");
+    if (!name.trim()) return setError(t("profile.nameRequired"));
     const limitNum = Number(limit);
     const windowNum = Number(windowSecs);
     if (!Number.isInteger(limitNum) || limitNum <= 0) {
-      return setError("El límite debe ser un entero mayor que 0.");
+      return setError(t("settingsAssign.limitInvalid"));
     }
     if (!Number.isInteger(windowNum) || windowNum <= 0) {
-      return setError("La ventana debe ser un entero mayor que 0.");
+      return setError(t("settingsAssign.windowInvalid"));
     }
     try {
       await onSubmit({
@@ -66,7 +70,7 @@ export function AssignmentPolicyForm({
     } catch (e) {
       setError(
         (e as { message?: string })?.message ??
-          "No se pudo guardar la política.",
+          t("settingsAssign.saveFailed"),
       );
     }
   }
@@ -81,30 +85,30 @@ export function AssignmentPolicyForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="ap-name" required>
-          Nombre
+          {t("profile.name")}
         </Label>
         <Input
           id="ap-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Distribución equilibrada"
+          placeholder={t("settingsAssign.fairDistribution")}
           maxLength={255}
         />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="ap-description">Descripción</Label>
+        <Label htmlFor="ap-description">{t("products.description")}</Label>
         <Textarea
           id="ap-description"
           rows={2}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Opcional"
+          placeholder={t("settingsAssign.optional")}
         />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="ap-priority">Prioridad de conversación</Label>
+        <Label htmlFor="ap-priority">{t("settingsAssign.priorityLabel")}</Label>
         <select
           id="ap-priority"
           className={selectClassName()}
@@ -114,21 +118,21 @@ export function AssignmentPolicyForm({
           }
         >
           <option value="earliest_created">
-            {PRIORITY_LABELS.earliest_created}
+            {t(PRIORITY_LABELS.earliest_created)}
           </option>
           <option value="longest_waiting">
-            {PRIORITY_LABELS.longest_waiting}
+            {t(PRIORITY_LABELS.longest_waiting)}
           </option>
         </select>
         <p className="text-xs text-fg-muted">
-          Qué conversación en espera toma primero un agente disponible.
+          {t("settingsAssign.priorityHint")}
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="ap-limit" required>
-            Límite por agente
+            {t("settingsAssign.limitPerAgent")}
           </Label>
           <Input
             id="ap-limit"
@@ -140,7 +144,7 @@ export function AssignmentPolicyForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="ap-window" required>
-            Ventana (segundos)
+            {t("settingsAssign.windowSeconds")}
           </Label>
           <Input
             id="ap-window"
@@ -152,8 +156,10 @@ export function AssignmentPolicyForm({
         </div>
       </div>
       <p className="text-xs text-fg-muted">
-        Se asignan como máximo <strong>{limit || "?"}</strong> conversaciones a
-        cada agente cada <strong>{windowSecs || "?"}</strong> segundos.
+        {rich(t("settingsAssign.limitSentence"), {
+          limit: <strong>{limit || "?"}</strong>,
+          window: <strong>{windowSecs || "?"}</strong>,
+        })}
       </p>
 
       <label className="flex items-center gap-2 text-sm text-fg">
@@ -163,15 +169,15 @@ export function AssignmentPolicyForm({
           onChange={(e) => setEnabled(e.target.checked)}
           className="h-4 w-4 rounded border-glass accent-neon focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-        Política activa
+        {t("settingsAssign.active")}
       </label>
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear política"}
+          {initial ? t("common.saveChanges") : t("settingsAssign.create")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

@@ -23,6 +23,8 @@ import { AppForm } from "./app-form";
 import { ApprovedApps } from "./approved-apps";
 import { CopyField } from "./copy-field";
 import { CredentialsReveal } from "./credentials-reveal";
+import { useT } from "@/lib/i18n/provider";
+import { rich } from "@/lib/i18n/rich";
 
 type Revealed = { clientId: string; clientSecret?: string };
 
@@ -31,6 +33,7 @@ function errorMessage(e: unknown, fallback: string): string {
 }
 
 export function OAuthAppsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const profile = useProfile();
   const isAdmin = useIsAccountAdmin(accountId);
   const [tab, setTab] = useState<"apps" | "approved">("apps");
@@ -40,19 +43,19 @@ export function OAuthAppsView({ accountId }: { accountId: string }) {
   if (profile.isLoading) {
     return (
       <div className="max-w-3xl space-y-4">
-        <h2 className="text-xl font-medium text-fg">Apps OAuth</h2>
-        <p className="text-sm text-fg-muted">Cargando…</p>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.oauth_apps")}</h2>
+        <p className="text-sm text-fg-muted">{t("common.loading")}</p>
       </div>
     );
   }
 
   return (
     <div className="max-w-3xl space-y-4">
-      <h2 className="text-xl font-medium text-fg">Apps OAuth</h2>
+      <h2 className="text-xl font-medium text-fg">{t("settings.items.oauth_apps")}</h2>
       <Tabs value={current} onValueChange={(v) => setTab(v as "apps" | "approved")}>
         <TabsList>
-          {isAdmin ? <TabsTrigger value="apps">Apps</TabsTrigger> : null}
-          <TabsTrigger value="approved">Apps aprobadas</TabsTrigger>
+          {isAdmin ? <TabsTrigger value="apps">{t("settingsOauth.tabApps")}</TabsTrigger> : null}
+          <TabsTrigger value="approved">{t("settingsOauth.tabApproved")}</TabsTrigger>
         </TabsList>
       </Tabs>
       {current === "apps" ? (
@@ -65,6 +68,7 @@ export function OAuthAppsView({ accountId }: { accountId: string }) {
 }
 
 function AppsPanel({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = useOAuthApps(accountId);
   const create = useCreateOAuthApp(accountId);
   const update = useUpdateOAuthApp(accountId);
@@ -80,7 +84,7 @@ function AppsPanel({ accountId }: { accountId: string }) {
       setRevealed({ clientId: app.client_id, clientSecret: app.client_secret });
       setCreating(false);
     } catch (e) {
-      setFormError(errorMessage(e, "No se pudo crear la app."));
+      setFormError(errorMessage(e, t("settingsOauth.createFailed")));
     }
   }
 
@@ -94,7 +98,7 @@ function AppsPanel({ accountId }: { accountId: string }) {
       });
       setEditing(null);
     } catch (e) {
-      setFormError(errorMessage(e, "No se pudo guardar la app."));
+      setFormError(errorMessage(e, t("settingsOauth.saveFailed")));
     }
   }
 
@@ -102,9 +106,7 @@ function AppsPanel({ accountId }: { accountId: string }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-xl text-sm text-fg-muted">
-          Registrá una app para que otros usuarios de AloStudio la autoricen
-          sobre sus cuentas. La app recibe un token que funciona en el servidor
-          MCP de AloStudio, igual que uno de “API y MCP”.
+          {t("settingsOauth.intro")}
         </p>
         {!creating && !editing ? (
           <Button
@@ -115,7 +117,7 @@ function AppsPanel({ accountId }: { accountId: string }) {
             }}
           >
             <Plus className="h-4 w-4" aria-hidden />
-            Crear app OAuth
+            {t("settingsOauth.createApp")}
           </Button>
         ) : null}
       </div>
@@ -131,7 +133,7 @@ function AppsPanel({ accountId }: { accountId: string }) {
       {creating || editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>{editing ? "Editar app" : "Nueva app OAuth"}</CardTitle>
+            <CardTitle>{editing ? t("settingsOauth.editApp") : t("settingsOauth.newApp")}</CardTitle>
           </CardHeader>
           <CardContent>
             <AppForm
@@ -154,14 +156,14 @@ function AppsPanel({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar las apps.
+            {t("settingsOauth.loadFailed")}
           </p>
         ) : (data?.apps.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            Todavía no registraste ninguna app.
+            {t("settingsOauth.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -200,6 +202,7 @@ function AppRow({
   onEdit: () => void;
   onSecret: (secret: string) => void;
 }) {
+  const t = useT();
   const rotate = useRotateOAuthAppSecret(accountId);
   const del = useDeleteOAuthApp(accountId);
   const [error, setError] = useState<string | null>(null);
@@ -207,7 +210,7 @@ function AppRow({
   async function onRotate() {
     if (
       !window.confirm(
-        `¿Regenerar el secreto de "${app.name}"? La app va a fallar hasta que cargue el nuevo.`,
+        t("settingsOauth.rotateConfirm", { name: app.name }),
       )
     )
       return;
@@ -216,14 +219,14 @@ function AppRow({
       const rotated = await rotate.mutateAsync(app.id);
       if (rotated.client_secret) onSecret(rotated.client_secret);
     } catch (e) {
-      setError(errorMessage(e, "No se pudo regenerar el secreto."));
+      setError(errorMessage(e, t("settingsOauth.rotateFailed")));
     }
   }
 
   async function onDelete() {
     if (
       !window.confirm(
-        `¿Borrar la app "${app.name}"? Todos los que la autorizaron pierden el acceso.`,
+        t("settingsOauth.deleteConfirm", { name: app.name }),
       )
     )
       return;
@@ -231,7 +234,7 @@ function AppRow({
     try {
       await del.mutateAsync(app.id);
     } catch (e) {
-      setError(errorMessage(e, "No se pudo borrar la app."));
+      setError(errorMessage(e, t("settingsOauth.deleteFailed")));
     }
   }
 
@@ -247,10 +250,13 @@ function AppRow({
           <p className="truncate text-sm font-medium text-fg">{app.name}</p>
           <p className="text-xs text-fg-muted">
             {count === 0
-              ? "Nadie la autorizó todavía"
-              : count === 1
-                ? "1 autorización"
-                : `${count} autorizaciones`}
+              ? t("settingsOauth.noAuthorizations")
+              : t(
+                  count === 1
+                    ? "settingsOauth.authorizationsOne"
+                    : "settingsOauth.authorizationsMany",
+                  { count },
+                )}
           </p>
         </div>
         <span
@@ -261,13 +267,13 @@ function AppRow({
               : "border-warning bg-surface-2 text-warning",
           )}
         >
-          {app.confidential ? "Confidencial" : "Pública"}
+          {app.confidential ? t("settingsOauth.confidential") : t("settingsOauth.public")}
         </span>
         {app.confidential ? (
           <button
             type="button"
-            aria-label={`Regenerar secreto de ${app.name}`}
-            title="Regenerar secreto"
+            aria-label={t("settingsOauth.rotateSecretOf", { name: app.name })}
+            title={t("settingsOauth.rotateSecret")}
             onClick={() => void onRotate()}
             disabled={rotate.isPending}
             className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -277,8 +283,8 @@ function AppRow({
         ) : null}
         <button
           type="button"
-          aria-label={`Editar ${app.name}`}
-          title="Editar"
+          aria-label={t("settingsOauth.editOf", { name: app.name })}
+          title={t("actions.edit")}
           onClick={onEdit}
           className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -286,8 +292,8 @@ function AppRow({
         </button>
         <button
           type="button"
-          aria-label={`Borrar ${app.name}`}
-          title="Borrar"
+          aria-label={t("settingsOauth.deleteOf", { name: app.name })}
+          title={t("settingsOauth.delete")}
           onClick={() => void onDelete()}
           disabled={del.isPending}
           className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -296,9 +302,9 @@ function AppRow({
         </button>
       </div>
       <div className="grid gap-3 pl-12 sm:grid-cols-2">
-        <CopyField label="Client ID" value={app.client_id} />
+        <CopyField label="Client ID" value={app.client_id} /> {/* i18n-ignore */}
         <div className="min-w-0 space-y-1">
-          <p className="text-xs font-medium uppercase text-fg-muted">URL de retorno</p>
+          <p className="text-xs font-medium uppercase text-fg-muted">{t("settingsOauth.redirectUrl")}</p>
           {app.redirect_uris.map((uri) => (
             <p key={uri} className="truncate font-numeric text-xs text-fg">
               {uri}
@@ -317,35 +323,46 @@ function AppRow({
 
 /** How a developer connects an app ("Docs" in the old screen). */
 function ConnectGuide({ endpoints }: { endpoints: OAuthEndpoints }) {
+  const t = useT();
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Cómo conectar tu app</CardTitle>
+        <CardTitle>{t("settingsOauth.howTo")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <ol className="list-decimal space-y-1 pl-5 text-sm text-fg-muted">
+          {/* i18n-ignore-start: protocol names stay as they are */}
           <li>
-            Mandá al usuario a la URL de autorización con <code>client_id</code>,{" "}
-            <code>redirect_uri</code>, <code>scope</code> (<code>read</code> o{" "}
-            <code>write</code>), <code>state</code> y PKCE (
-            <code>code_challenge</code> con <code>S256</code>).
+            {rich(t("settingsOauth.step1"), {
+              client_id: <code>client_id</code>,
+              redirect_uri: <code>redirect_uri</code>,
+              scope: <code>scope</code>,
+              read: <code>read</code>,
+              write: <code>write</code>,
+              state: <code>state</code>,
+              code_challenge: <code>code_challenge</code>,
+              S256: <code>S256</code>,
+            })}
           </li>
           <li>
-            Cuando vuelve con <code>code</code>, cambialo por un token en la URL
-            de token (con el secreto, o con <code>code_verifier</code> si es
-            pública).
+            {rich(t("settingsOauth.step2"), {
+              code: <code>code</code>,
+              code_verifier: <code>code_verifier</code>,
+            })}
           </li>
           <li>
-            Llamá al servidor MCP con <code>Authorization: Bearer</code> y el
-            token. Dura una hora; renovalo con el refresh token.
+            {rich(t("settingsOauth.step3"), {
+              header: <code>Authorization: Bearer</code>,
+            })}
           </li>
+          {/* i18n-ignore-end */}
         </ol>
         <div className="grid gap-3 sm:grid-cols-2">
-          <CopyField label="Autorización" value={endpoints.authorization} />
-          <CopyField label="Token" value={endpoints.token} />
-          <CopyField label="Revocación" value={endpoints.revocation} />
-          <CopyField label="Servidor MCP" value={endpoints.mcp} />
-          <CopyField label="Metadatos" value={endpoints.metadata} />
+          <CopyField label={t("settingsOauth.ep.authorization")} value={endpoints.authorization} />
+          <CopyField label={t("settingsOauth.ep.token")} value={endpoints.token} />
+          <CopyField label={t("settingsOauth.ep.revocation")} value={endpoints.revocation} />
+          <CopyField label={t("settingsOauth.ep.mcp")} value={endpoints.mcp} />
+          <CopyField label={t("settingsOauth.ep.metadata")} value={endpoints.metadata} />
         </div>
       </CardContent>
     </Card>

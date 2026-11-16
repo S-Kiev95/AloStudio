@@ -165,7 +165,7 @@ async def test_non_member_account_returns_404(client, seeded):
     _, _, _, _, _, admin_h, _ = seeded
     resp = await client.get("/api/v1/accounts/999999/conversations", headers=admin_h)
     assert resp.status_code == 404
-    assert resp.json() == {"error": "Resource could not be found"}
+    assert resp.json() == {"error": "Resource could not be found", "code": "not_found"}
 
 
 # ---------------------------------------------------------------------------
@@ -337,7 +337,7 @@ async def test_show_unknown_display_id_404(client, seeded):
         headers=admin_h,
     )
     assert resp.status_code == 404
-    assert resp.json() == {"error": "Resource could not be found"}
+    assert resp.json() == {"error": "Resource could not be found", "code": "not_found"}
 
 
 async def test_update_priority_only(client, seeded, db_session):

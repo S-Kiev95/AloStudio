@@ -89,7 +89,9 @@ def load_sentence_transformer() -> Encoder:  # pragma: no cover - needs torch
     def encode(texts: Sequence[str]) -> list[list[float]]:
         vectors = model.encode(
             list(texts),
-            batch_size=16,
+            # Small batches: long messages in float32 blew past MemoryMax
+            # (OOM every 3 minutes in develop, 2026-11-13 to 15).
+            batch_size=4,
             normalize_embeddings=True,
             convert_to_numpy=True,
         )

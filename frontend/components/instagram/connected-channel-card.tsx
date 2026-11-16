@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 import { Instagram } from "@/components/ui/brand-icons";
 import { type Inbox, useChannelSettings } from "@/lib/api/instagram";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 /** One connected Instagram channel + its capabilities (login type). */
 export function ConnectedChannelCard({
@@ -14,6 +15,7 @@ export function ConnectedChannelCard({
   accountId: string;
   inbox: Inbox;
 }) {
+  const t = useT();
   const settings = useChannelSettings(accountId, inbox.channel_id);
 
   // No settings row (404) = legacy Phase-5e channel → treat as Facebook.
@@ -40,12 +42,12 @@ export function ConnectedChannelCard({
         )}
         title={
           canDelete
-            ? "Puede borrar publicaciones por API"
-            : "Instagram Login no permite borrar por API"
+            ? t("instagram.connect.canDelete")
+            : t("instagram.connect.cannotDelete")
         }
       >
         <Trash2 className="h-3 w-3" aria-hidden />
-        {canDelete ? "Borrado: sí" : "Borrado: no"}
+        {canDelete ? t("instagram.connect.deleteYes") : t("instagram.connect.deleteNo")}
       </span>
     </div>
   );

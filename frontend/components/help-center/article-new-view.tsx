@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/portals";
 
 import { ArticleForm } from "./article-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function ArticleNewView({
   accountId,
@@ -20,6 +21,7 @@ export function ArticleNewView({
   accountId: string;
   slug: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const categories = useCategories(accountId, slug);
   const create = useCreateArticle(accountId, slug);
@@ -38,11 +40,11 @@ export function ArticleNewView({
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver al portal
+        {t("helpCenter.backToPortal")}
       </Link>
       <Card>
         <CardHeader>
-          <CardTitle>Nuevo artículo</CardTitle>
+          <CardTitle>{t("helpCenter.newArticle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ArticleForm

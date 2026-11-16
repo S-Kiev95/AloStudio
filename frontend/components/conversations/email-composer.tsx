@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useSendMessage } from "@/lib/api/conversations";
+import { useT } from "@/lib/i18n/provider";
 
 /** Replying to an email, not sending a chat line.
  *
@@ -24,6 +25,7 @@ export function EmailComposer({
   displayId: number;
   replyTo?: string | null;
 }) {
+  const t = useT();
   const send = useSendMessage(accountId, displayId);
   const [content, setContent] = useState("");
   const [cc, setCc] = useState("");
@@ -46,7 +48,7 @@ export function EmailComposer({
       setBcc("");
       setShowCopies(false);
     } catch (err) {
-      setError((err as { message?: string })?.message ?? "No se pudo enviar.");
+      setError((err as { message?: string })?.message ?? t("conversations.composer.sendFailed"));
     }
   }
 
@@ -63,7 +65,10 @@ export function EmailComposer({
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
         <span>
-          Para: <span className="text-fg">{replyTo ?? "el contacto"}</span>
+          {t("conversations.email.to")}{" "}
+          <span className="text-fg">
+            {replyTo ?? t("conversations.email.theContact")}
+          </span>
         </span>
         {!showCopies ? (
           <button
@@ -71,7 +76,7 @@ export function EmailComposer({
             onClick={() => setShowCopies(true)}
             className="rounded-sm px-1.5 py-0.5 text-lit hover:bg-hover-glass"
           >
-            CC / CCO
+            {t("conversations.email.ccBcc")}
           </button>
         ) : null}
       </div>
@@ -79,16 +84,16 @@ export function EmailComposer({
       {showCopies ? (
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="space-y-1">
-            <Label htmlFor="cc">CC</Label>
+            <Label htmlFor="cc">{t("conversations.email.cc")}</Label>
             <Input
               id="cc"
               value={cc}
               onChange={(e) => setCc(e.target.value)}
-              placeholder="otra@persona.com, tercera@persona.com"
+              placeholder={t("conversations.email.ccPlaceholder")}
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="bcc">CCO</Label>
+            <Label htmlFor="bcc">{t("conversations.email.bcc")}</Label>
             <Input
               id="bcc"
               value={bcc}
@@ -100,22 +105,22 @@ export function EmailComposer({
       ) : null}
 
       <Textarea
-        aria-label="Tu respuesta"
+        aria-label={t("conversations.email.yourReply")}
         rows={5}
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder="Escribí tu respuesta…"
+        placeholder={t("conversations.email.replyPlaceholder")}
       />
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-fg-muted">
-          Se envía con la firma y el diseño de la casilla.
+          {t("conversations.email.signatureNote")}
         </p>
         <Button
           type="submit"
           size="icon"
-          aria-label="Enviar"
-          title="Enviar"
+          aria-label={t("actions.send")}
+          title={t("actions.send")}
           disabled={!content.trim() || send.isPending}
           className="h-8 w-8 shrink-0 rounded-full p-0"
         >

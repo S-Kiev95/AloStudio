@@ -7,6 +7,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { NeonWordmark } from "@/components/brand/neon-wordmark";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { messageFromBody } from "@/lib/api/errors";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * Google sends the browser back here with `code` and `state`. We hand them
@@ -14,6 +15,7 @@ import { messageFromBody } from "@/lib/api/errors";
  * administrator invited them, then send them to their account.
  */
 function GoogleExchange() {
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +28,7 @@ function GoogleExchange() {
     const code = params.get("code");
     const state = params.get("state");
     if (params.get("error") || !code || !state) {
-      setError("Se canceló el ingreso con Google.");
+      setError(t("authCallback.googleCancelled"));
       return;
     }
     (async () => {
@@ -37,18 +39,18 @@ function GoogleExchange() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(messageFromBody(body, "No se pudo entrar con Google."));
+        setError(messageFromBody(body, t("authCallback.googleFailed")));
         return;
       }
       router.push(body.accountId ? `/accounts/${body.accountId}` : "/accounts");
       router.refresh();
     })();
-  }, [params, router]);
+  }, [params, router, t]);
 
   return (
     <div className="space-y-5">
       <div className="neon-sign">
-        <h1 className="text-[28px] leading-[1.2]">Ingreso con Google</h1>
+        <h1 className="text-[28px] leading-[1.2]">{t("authCallback.googleTitle")}</h1>
       </div>
       {error ? (
         <div className="space-y-4">
@@ -62,11 +64,11 @@ function GoogleExchange() {
             href="/login"
             className="block text-center text-sm text-info hover:underline"
           >
-            Volver a iniciar sesión
+            {t("auth.forgot.backToLogin")}
           </Link>
         </div>
       ) : (
-        <p className="text-sm text-fg-muted">Iniciando sesión…</p>
+        <p className="text-sm text-fg-muted">{t("authCallback.signingIn")}</p>
       )}
     </div>
   );

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Product, ProductInput } from "@/lib/api/products";
+import { useT } from "@/lib/i18n/provider";
 
 export function ProductForm({
   initial,
@@ -19,6 +20,7 @@ export function ProductForm({
   onSubmit: (input: ProductInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [sku, setSku] = useState(initial?.sku ?? "");
@@ -33,11 +35,11 @@ export function ProductForm({
 
   async function submit() {
     setError(null);
-    if (!name.trim()) return setError("El nombre es obligatorio.");
+    if (!name.trim()) return setError(t("products.form.nameRequired"));
     let priceValue: number | null = null;
     if (price.trim()) {
       const n = Number(price);
-      if (Number.isNaN(n) || n < 0) return setError("El precio no es válido.");
+      if (Number.isNaN(n) || n < 0) return setError(t("products.form.priceInvalid"));
       priceValue = n;
     }
 
@@ -56,7 +58,7 @@ export function ProductForm({
       await onSubmit(input);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar el producto.",
+        (e as { message?: string })?.message ?? t("products.form.saveFailed"),
       );
     }
   }
@@ -71,7 +73,7 @@ export function ProductForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="p-name" required>
-          Nombre
+          {t("profile.name")}
         </Label>
         <Input
           id="p-name"
@@ -82,7 +84,7 @@ export function ProductForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="p-desc">Descripción</Label>
+        <Label htmlFor="p-desc">{t("products.form.description")}</Label>
         <Textarea
           id="p-desc"
           rows={3}
@@ -93,7 +95,7 @@ export function ProductForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label htmlFor="p-price">Precio</Label>
+          <Label htmlFor="p-price">{t("products.form.price")}</Label>
           <Input
             id="p-price"
             type="number"
@@ -104,7 +106,7 @@ export function ProductForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="p-currency">Moneda</Label>
+          <Label htmlFor="p-currency">{t("products.form.currency")}</Label>
           <Input
             id="p-currency"
             value={currency}
@@ -120,7 +122,7 @@ export function ProductForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="p-url">URL del producto</Label>
+        <Label htmlFor="p-url">{t("products.form.productUrl")}</Label>
         <Input
           id="p-url"
           type="url"
@@ -131,7 +133,7 @@ export function ProductForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="p-img">URL de imagen</Label>
+        <Label htmlFor="p-img">{t("products.form.imageUrl")}</Label>
         <Input
           id="p-img"
           type="url"
@@ -147,15 +149,15 @@ export function ProductForm({
           checked={enabled}
           onChange={(e) => setEnabled(e.target.checked)}
         />
-        Activo (visible en el catálogo)
+        {t("products.form.active")}
       </label>
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear producto"}
+          {initial ? t("common.saveChanges") : t("products.form.create")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

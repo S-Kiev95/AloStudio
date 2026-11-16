@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  NOTIFICATION_TYPE_LABELS,
   NOTIFICATION_TYPES,
   type NotificationType,
   useNotificationSettings,
@@ -16,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { PushToggle } from "./push-toggle";
 import { SoundToggle } from "./sound-toggle";
 import { WhatsappNotice } from "./whatsapp-notice";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * Per-user notification preferences. Two checkbox columns (email / push)
@@ -27,6 +27,7 @@ export function NotificationsSettingsView({
 }: {
   accountId: string;
 }) {
+  const t = useT();
   const settings = useNotificationSettings(accountId);
   const update = useUpdateNotificationSettings(accountId);
 
@@ -65,27 +66,24 @@ export function NotificationsSettingsView({
     } catch (e) {
       setError(
         (e as { message?: string })?.message ??
-          "No se pudieron guardar las preferencias.",
+          t("settingsNotif.saveFailed"),
       );
     }
   }
 
   return (
     <div className="max-w-2xl space-y-4">
-      <h2 className="text-xl font-medium text-fg">Notificaciones</h2>
+      <h2 className="text-xl font-medium text-fg">{t("settings.items.notifications")}</h2>
       <p className="text-sm text-fg-muted">
-        Elegí qué eventos te van a llegar por email o como notificación en la
-        app. La campanita del topbar muestra todas, independiente de esto.
+        {t("settingsNotif.intro")}
       </p>
       <p className="rounded-md border border-glass bg-surface-2 px-3 py-2 text-xs text-fg-muted">
-        El email se envía cuando activás un evento en la columna Email. Para
-        recibir push en este dispositivo, activalo abajo y marcá los eventos en
-        la columna Push. La campanita en la app funciona siempre.
+        {t("settingsNotif.channelsNote")}
       </p>
 
       <Card>
         <CardHeader>
-          <CardTitle>Este dispositivo</CardTitle>
+          <CardTitle>{t("settingsNotif.thisDevice")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <PushToggle />
@@ -95,14 +93,14 @@ export function NotificationsSettingsView({
 
       <Card>
         <CardHeader>
-          <CardTitle>Preferencias</CardTitle>
+          <CardTitle>{t("settingsNotif.preferences")}</CardTitle>
         </CardHeader>
         <CardContent>
           {settings.isLoading ? (
-            <p className="text-sm text-fg-muted">Cargando…</p>
+            <p className="text-sm text-fg-muted">{t("common.loading")}</p>
           ) : settings.isError ? (
             <p role="alert" className="text-sm text-danger">
-              No se pudieron cargar las preferencias.
+              {t("settingsNotif.loadFailed")}
             </p>
           ) : (
             <div className="space-y-4">
@@ -112,7 +110,7 @@ export function NotificationsSettingsView({
                 </p>
               ) : null}
               {saved ? (
-                <p className="text-sm text-success">Preferencias guardadas.</p>
+                <p className="text-sm text-success">{t("settingsNotif.saved")}</p>
               ) : null}
 
               <div className="overflow-hidden rounded-md border border-glass">
@@ -120,35 +118,35 @@ export function NotificationsSettingsView({
                   <thead className="bg-surface-2 text-[11px] uppercase tracking-[0.08em] text-fg-muted">
                     <tr>
                       <th className="px-3 py-2.5 text-left font-medium">
-                        Evento
+                        {t("settingsNotif.event")}
                       </th>
                       <th className="w-20 px-3 py-2.5 text-center font-medium">
-                        Email
+                        {t("common.email")}
                       </th>
                       <th className="w-20 px-3 py-2.5 text-center font-medium">
-                        En la app
+                        {t("settingsNotif.inApp")}
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {NOTIFICATION_TYPES.map((t) => (
+                    {NOTIFICATION_TYPES.map((type) => (
                       <tr
-                        key={t}
+                        key={type}
                         className={cn(
                           "border-t border-glass transition-colors",
                           "hover:bg-hover-glass",
                         )}
                       >
                         <td className="px-3 py-2.5 text-fg">
-                          {NOTIFICATION_TYPE_LABELS[t]}
+                          {t(`notifications.types.${type}`)}
                         </td>
                         <td className="px-3 py-2.5 text-center">
                           <label className="inline-flex cursor-pointer items-center">
                             <input
                               type="checkbox"
-                              aria-label={`Email — ${NOTIFICATION_TYPE_LABELS[t]}`}
-                              checked={email.has(t)}
-                              onChange={() => toggle(email, setEmail, t)}
+                              aria-label={t("settingsNotif.emailFor", { type: t(`notifications.types.${type}`) })}
+                              checked={email.has(type)}
+                              onChange={() => toggle(email, setEmail, type)}
                               className="h-4 w-4 cursor-pointer rounded border-glass accent-neon"
                             />
                           </label>
@@ -157,9 +155,9 @@ export function NotificationsSettingsView({
                           <label className="inline-flex cursor-pointer items-center">
                             <input
                               type="checkbox"
-                              aria-label={`En la app — ${NOTIFICATION_TYPE_LABELS[t]}`}
-                              checked={push.has(t)}
-                              onChange={() => toggle(push, setPush, t)}
+                              aria-label={t("settingsNotif.inAppFor", { type: t(`notifications.types.${type}`) })}
+                              checked={push.has(type)}
+                              onChange={() => toggle(push, setPush, type)}
                               className="h-4 w-4 cursor-pointer rounded border-glass accent-neon"
                             />
                           </label>
@@ -172,7 +170,7 @@ export function NotificationsSettingsView({
 
               <div>
                 <Button onClick={submit} loading={update.isPending}>
-                  Guardar cambios
+                  {t("common.saveChanges")}
                 </Button>
               </div>
             </div>
@@ -183,7 +181,7 @@ export function NotificationsSettingsView({
       {settings.data ? (
         <Card>
           <CardHeader>
-            <CardTitle>Aviso por WhatsApp</CardTitle>
+            <CardTitle>{t("settingsNotif.whatsappTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <WhatsappNotice accountId={accountId} settings={settings.data} />

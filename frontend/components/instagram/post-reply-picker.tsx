@@ -9,6 +9,7 @@ import {
   useSetReplyPicks,
 } from "@/lib/api/instagram-autoreply";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 /** Which of the account's prepared answers this publication offers.
  *
@@ -26,6 +27,7 @@ export function PostReplyPicker({
   accountId: string;
   postId: number;
 }) {
+  const t = useT();
   const list = useCommentReplies(accountId, { postId });
   const save = useSetReplyPicks(accountId, postId);
 
@@ -53,20 +55,19 @@ export function PostReplyPicker({
       await save.mutateAsync([...current]);
       setDraft(null);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo guardar.");
+      setError((e as { message?: string })?.message ?? t("instagram.saveFailed"));
     }
   }
 
   if (list.isLoading) {
-    return <p className="py-4 text-center text-sm text-fg-muted">Cargando…</p>;
+    return <p className="py-4 text-center text-sm text-fg-muted">{t("common.loading")}</p>;
   }
 
   const answers = list.data ?? [];
   if (answers.length === 0) {
     return (
       <p className="py-4 text-center text-sm text-fg-muted">
-        Todavía no cargaste respuestas preparadas. Cargalas en Instagram →
-        Respuestas automáticas y después elegí cuáles usa esta publicación.
+        {t("instagram.picker.empty")}
       </p>
     );
   }
@@ -81,8 +82,8 @@ export function PostReplyPicker({
 
       <p className="font-numeric text-xs tabular-nums text-fg-muted">
         {current.size === 0
-          ? `Sin elegir ninguna, esta publicación puede usar las ${answers.length}.`
-          : `Esta publicación usa ${current.size} de ${answers.length}.`}
+          ? t("instagram.picker.noneChosen", { total: answers.length })
+          : t("instagram.picker.usesSome", { n: current.size, total: answers.length })}
       </p>
 
       <ul className="divide-y divide-glass overflow-hidden rounded-md border border-glass">
@@ -122,7 +123,7 @@ export function PostReplyPicker({
                   {!r.indexed ? (
                     <span className="mt-1 flex items-center gap-1 text-xs text-warning">
                       <TriangleAlert className="h-3 w-3" aria-hidden />
-                      Sin indexar — no se va a usar aunque la elijas.
+                      {t("instagram.picker.notIndexed")}
                     </span>
                   ) : null}
                 </span>
@@ -135,10 +136,10 @@ export function PostReplyPicker({
       {dirty ? (
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={commit} loading={save.isPending}>
-            Guardar selección
+            {t("instagram.picker.save")}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
-            Descartar
+            {t("actions.discard")}
           </Button>
         </div>
       ) : null}

@@ -11,6 +11,7 @@ import {
   useSearchContacts,
 } from "@/lib/api/contacts";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * Confirmation dialog for merging two contacts. The ``base`` is the
@@ -35,6 +36,7 @@ export function MergeDialog({
   onClose: () => void;
   onMerged?: (mergedBase: Contact) => void;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDialogElement>(null);
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Contact | null>(null);
@@ -72,13 +74,13 @@ export function MergeDialog({
       onClose();
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo combinar los contactos.",
+        (e as { message?: string })?.message ?? t("contacts.mergeDialog.failed"),
       );
     }
   }
 
   const baseLabel =
-    base.name?.trim() || base.email?.trim() || `Contacto #${base.id}`;
+    base.name?.trim() || base.email?.trim() || t("conversations.contact.fallbackName", { id: base.id });
 
   // Filter out the base contact from the search results so users can't
   // try to merge a contact into itself.
@@ -96,17 +98,15 @@ export function MergeDialog({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-medium text-fg">
-              Combinar contactos
+              {t("contacts.mergeDialog.title")}
             </h2>
             <p className="mt-1 text-sm text-fg-muted">
-              Las conversaciones, notas y atributos del contacto elegido
-              pasan a <strong>{baseLabel}</strong>. Esta acción no se puede
-              deshacer.
+              {t("contacts.mergeDialog.description", { base: baseLabel })}
             </p>
           </div>
           <button
             type="button"
-            aria-label="Cerrar"
+            aria-label={t("actions.close")}
             onClick={onClose}
             className="rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
           >
@@ -122,22 +122,22 @@ export function MergeDialog({
               aria-hidden
             />
             <Input
-              aria-label="Buscar contacto a combinar"
+              aria-label={t("contacts.mergeDialog.searchLabel")}
               value={q}
               onChange={(e) => {
                 setQ(e.target.value);
                 setSelected(null);
               }}
-              placeholder="Buscar por nombre, email, teléfono…"
+              placeholder={t("contacts.mergeDialog.searchPlaceholder")}
               className="pl-9"
             />
           </div>
 
           {q.trim().length > 0 ? (
             search.isLoading ? (
-              <p className="text-sm text-fg-muted">Buscando…</p>
+              <p className="text-sm text-fg-muted">{t("contacts.mergeDialog.searching")}</p>
             ) : candidates.length === 0 ? (
-              <p className="text-sm text-fg-muted">Sin resultados.</p>
+              <p className="text-sm text-fg-muted">{t("contacts.mergeDialog.noResults")}</p>
             ) : (
               <ul className="max-h-48 divide-y divide-glass overflow-y-auto rounded-md border border-glass bg-surface">
                 {candidates.map((c) => {
@@ -145,7 +145,7 @@ export function MergeDialog({
                     c.name?.trim() ||
                     c.email?.trim() ||
                     c.phone_number?.trim() ||
-                    `Contacto #${c.id}`;
+                    t("conversations.contact.fallbackName", { id: c.id });
                   const sub = [c.email, c.phone_number]
                     .filter(Boolean)
                     .join(" · ");
@@ -181,16 +181,16 @@ export function MergeDialog({
             />
             <div>
               <p className="text-fg">
-                Vas a combinar{" "}
-                <strong>
-                  {selected.name?.trim() ||
+                {t("contacts.mergeDialog.confirmLine", {
+                  from:
+                    selected.name?.trim() ||
                     selected.email?.trim() ||
-                    `Contacto #${selected.id}`}
-                </strong>{" "}
-                en <strong>{baseLabel}</strong>.
+                    t("conversations.contact.fallbackName", { id: selected.id }),
+                  into: baseLabel,
+                })}
               </p>
               <p className="mt-1 text-xs text-fg-muted">
-                El segundo contacto se elimina al finalizar.
+                {t("contacts.mergeDialog.secondDeleted")}
               </p>
             </div>
           </div>
@@ -204,14 +204,14 @@ export function MergeDialog({
 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={merge.isPending}>
-            Cancelar
+            {t("actions.cancel")}
           </Button>
           <Button
             onClick={submit}
             loading={merge.isPending}
             disabled={!selected}
           >
-            Combinar contactos
+            {t("contacts.mergeDialog.title")}
           </Button>
         </div>
       </div>

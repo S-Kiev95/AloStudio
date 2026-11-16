@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/macros";
 
 import { MacroForm } from "./macro-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function MacroDetailView({
   accountId,
@@ -20,6 +21,7 @@ export function MacroDetailView({
   accountId: string;
   macroId: number;
 }) {
+  const t = useT();
   const router = useRouter();
   const { data: macro, isLoading, isError } = useMacro(accountId, macroId);
   const update = useUpdateMacro(accountId);
@@ -35,13 +37,13 @@ export function MacroDetailView({
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver a macros
+        {t("settingsMacros.back")}
       </Link>
       {isLoading ? (
-        <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+        <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
       ) : isError || !macro ? (
         <p role="alert" className="p-8 text-center text-sm text-danger">
-          No se pudo cargar el macro.
+          {t("settingsMacros.loadFailed")}
         </p>
       ) : (
         <Card>

@@ -8,12 +8,14 @@ these rows for context when answering questions about a post/story.
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    DateTime,
     ForeignKey,
     Index,
     Numeric,
@@ -75,6 +77,20 @@ class Product(TimestampMixin, table=True):
     )
     external_id: str | None = Field(
         default=None, sa_column=Column(String, nullable=True)
+    )
+
+    # ------- Meta catalogue sync (F11); see app/domains/crm/meta_catalog.py
+    # The id the item has in the catalogue (``retailer_id``), kept once sent
+    # so a later SKU change doesn't leave the old item behind.
+    meta_retailer_id: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    meta_synced_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    # Why Meta (or our own check) refused it, or None.
+    meta_sync_error: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
     )
 
 

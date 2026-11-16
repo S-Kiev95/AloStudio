@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useChangePassword } from "@/lib/api/profile";
+import { useT } from "@/lib/i18n/provider";
 
 export function SecurityView() {
+  const t = useT();
   const change = useChangePassword();
 
   const [current, setCurrent] = useState("");
@@ -21,13 +23,13 @@ export function SecurityView() {
     setError(null);
     setDone(false);
     if (!current || !next || !confirm) {
-      return setError("Completá los tres campos.");
+      return setError(t("settingsSecurity.fillAll"));
     }
     if (next.length < 8) {
-      return setError("La contraseña nueva tiene que tener al menos 8 caracteres.");
+      return setError(t("settingsSecurity.min8"));
     }
     if (next !== confirm) {
-      return setError("La confirmación no coincide con la contraseña nueva.");
+      return setError(t("settingsSecurity.mismatch"));
     }
     try {
       await change.mutateAsync({
@@ -41,18 +43,18 @@ export function SecurityView() {
       setConfirm("");
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo cambiar la contraseña.",
+        (e as { message?: string })?.message ?? t("settingsSecurity.changeFailed"),
       );
     }
   }
 
   return (
     <div className="max-w-2xl space-y-4">
-      <h2 className="text-xl font-medium text-fg">Seguridad</h2>
+      <h2 className="text-xl font-medium text-fg">{t("settings.items.security")}</h2>
 
       <Card>
         <CardHeader>
-          <CardTitle>Cambiar contraseña</CardTitle>
+          <CardTitle>{t("settingsSecurity.changePassword")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -63,13 +65,13 @@ export function SecurityView() {
             ) : null}
             {done ? (
               <p className="text-sm text-success">
-                Tu contraseña fue actualizada.
+                {t("settingsSecurity.updated")}
               </p>
             ) : null}
 
             <div className="space-y-1.5">
               <Label htmlFor="s-current" required>
-                Contraseña actual
+                {t("settingsSecurity.current")}
               </Label>
               <Input
                 id="s-current"
@@ -81,7 +83,7 @@ export function SecurityView() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="s-next" required>
-                Contraseña nueva
+                {t("settingsSecurity.new")}
               </Label>
               <Input
                 id="s-next"
@@ -91,12 +93,12 @@ export function SecurityView() {
                 onChange={(e) => setNext(e.target.value)}
               />
               <p className="text-xs text-fg-muted">
-                Mínimo 8 caracteres.
+                {t("settingsSecurity.min8Short")}
               </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="s-confirm" required>
-                Repetir contraseña nueva
+                {t("settingsSecurity.repeat")}
               </Label>
               <Input
                 id="s-confirm"
@@ -109,7 +111,7 @@ export function SecurityView() {
 
             <div>
               <Button onClick={submit} loading={change.isPending}>
-                Actualizar contraseña
+                {t("settingsSecurity.update")}
               </Button>
             </div>
           </div>

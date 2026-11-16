@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { getT } from "@/lib/i18n/server";
+
 import { ResetForm } from "./reset-form";
 
 /**
@@ -15,11 +17,12 @@ export default async function ResetPasswordPage({
   const sp = await searchParams;
   const raw = sp.reset_password_token ?? sp.token;
   const token = Array.isArray(raw) ? raw[0] : raw;
+  const t = await getT();
 
   return (
     <div className="space-y-6">
       <div className="neon-sign">
-        <h1 className="text-[28px] leading-[1.2]">Nueva contraseña</h1>
+        <h1 className="text-[28px] leading-[1.2]">{t("auth.reset.title")}</h1>
       </div>
 
       {token ? (
@@ -27,13 +30,13 @@ export default async function ResetPasswordPage({
       ) : (
         <div className="space-y-3">
           <p role="alert" className="text-sm text-danger">
-            Enlace inválido o incompleto.
+            {t("auth.reset.invalidLink")}
           </p>
           <Link
             href="/forgot-password"
             className="inline-block text-sm text-info hover:underline"
           >
-            Pedir un nuevo enlace
+            {t("auth.reset.requestNewLink")}
           </Link>
         </div>
       )}

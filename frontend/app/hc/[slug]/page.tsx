@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import type { Article, Category } from "@/lib/api/portals";
 import { fetchArticles, fetchCategories, fetchPortal } from "@/lib/hc/fetch";
+import { getT } from "@/lib/i18n/server";
 
 export const revalidate = 300;
 
@@ -12,6 +13,7 @@ export default async function PortalLandingPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  const t = await getT();
   const { slug } = await params;
   // Layout already 404s, but ensure the SSR data is here too.
   const portal = await fetchPortal(slug);
@@ -33,7 +35,7 @@ export default async function PortalLandingPage({
       {categories.length > 0 ? (
         <section>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-fg-muted">
-            Categorías
+            {t("hc.categories")}
           </h2>
           <ul className="grid gap-3 sm:grid-cols-2">
             {categories.map((c) => (
@@ -45,11 +47,11 @@ export default async function PortalLandingPage({
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-fg-muted">
-          Artículos recientes
+          {t("hc.recentArticles")}
         </h2>
         {articles.length === 0 ? (
           <p className="text-sm text-fg-muted">
-            Todavía no hay artículos publicados.
+            {t("hc.noArticles")}
           </p>
         ) : (
           <ul className="divide-y divide-border rounded-lg border border-border bg-surface">

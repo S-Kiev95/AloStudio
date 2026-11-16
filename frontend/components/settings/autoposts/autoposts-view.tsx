@@ -35,31 +35,42 @@ import {
   usePublicationChannels,
   useUpdatePublicationAutopost,
 } from "@/lib/api/publications";
+import { INTL_TAGS, type Locale } from "@/lib/i18n/config";
+import type { Translate } from "@/lib/i18n/translate";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { useIntlTag, useLocale, useT } from "@/lib/i18n/provider";
 
 type ChannelScope = "all" | "selected";
 
-function formatReviewedAgo(iso: string | null): string {
-  if (!iso) return "Sin revisar todavía";
+function formatReviewedAgo(
+  iso: string | null,
+  t: Translate,
+  locale: Locale,
+): string {
+  if (!iso) return t("settingsAutoposts.notReviewed");
   const ms = Date.parse(iso);
-  if (Number.isNaN(ms)) return "Sin revisar todavía";
-  const rel = relativeTime(Math.floor(ms / 1000));
-  if (!rel) return "Sin revisar todavía";
-  if (rel === "ahora" || rel.startsWith("hace ")) {
-    return `Revisado ${rel}`;
-  }
-  return `Revisado el ${rel}`;
+  if (Number.isNaN(ms)) return t("settingsAutoposts.notReviewed");
+  const rel = relativeTime(Math.floor(ms / 1000), locale);
+  if (!rel) return t("settingsAutoposts.notReviewed");
+  // Older than a week, relativeTime falls back to a plain date.
+  const isDate = rel === new Date(ms).toLocaleDateString(INTL_TAGS[locale]);
+  return t(isDate ? "settingsAutoposts.reviewedOn" : "settingsAutoposts.reviewedAgo", {
+    when: rel,
+  });
 }
 
-function formatPreviewDate(iso: string | null): string | null {
+function formatPreviewDate(iso: string | null, intlTag: string): string | null {
   if (!iso) return null;
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return null;
-  return new Date(ms).toLocaleDateString();
+  return new Date(ms).toLocaleDateString(intlTag);
 }
 
 export function AutopostsView({ accountId }: { accountId: string }) {
+  const intlTag = useIntlTag();
+  const t = useT();
+  const locale = useLocale();
   const isAdmin = useIsAccountAdmin(accountId);
   const autopostsQuery = usePublicationAutoposts(accountId);
   const channelsQuery = usePublicationChannels(accountId);
@@ -188,7 +199,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
     const trimmedUrl = feedUrl.trim();
     if (!trimmedUrl) {
       setPreviewError({
-        message: "Ingresá la URL del feed para probarlo.",
+        message: t("settingsAutoposts.urlToTest"),
         errors: [],
       });
       return;
@@ -199,7 +210,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
       setPreviewItems((res.items ?? []).slice(0, 5));
     } catch (err) {
       setPreviewError(
-        parsePublicationError(err, "No se pudo leer el feed indicado."),
+        parsePublicationError(err, t("settingsAutoposts.feedReadFailed")),
       );
     }
   }
@@ -215,7 +226,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
 
     if (!trimmedName) {
       setDialogError({
-        message: "Indicá un nombre para el auto post.",
+        message: t("settingsAutoposts.nameRequired"),
         errors: [],
       });
       return;
@@ -223,7 +234,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
 
     if (!trimmedUrl) {
       setDialogError({
-        message: "Indicá la URL del feed.",
+        message: t("settingsAutoposts.urlRequired"),
         errors: [],
       });
       return;
@@ -231,7 +242,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
 
     if (channelScope === "selected" && selectedChannelIds.length === 0) {
       setDialogError({
-        message: "Elegí al menos un canal o usá «Todos los canales».",
+        message: t("settingsAutoposts.channelsRequired"),
         errors: [],
       });
       return;
@@ -258,7 +269,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
       closeDialog();
     } catch (err) {
       setDialogError(
-        parsePublicationError(err, "No se pudo guardar el auto post."),
+        parsePublicationError(err, t("settingsAutoposts.saveFailed")),
       );
     }
   }
@@ -272,7 +283,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
       });
     } catch (err) {
       setPageError(
-        parsePublicationError(err, "No se pudo actualizar el auto post."),
+        parsePublicationError(err, t("settingsAutoposts.updateFailed")),
       );
     }
   }
@@ -283,7 +294,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
       await deleteMutation.mutateAsync(item.id);
     } catch (err) {
       setPageError(
-        parsePublicationError(err, "No se pudo borrar el auto post."),
+        parsePublicationError(err, t("settingsAutoposts.deleteFailed")),
       );
     }
   }
@@ -293,10 +304,9 @@ export function AutopostsView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xl font-medium text-fg">Auto post</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settingsAutoposts.title")}</h2>
         <p className="text-sm text-fg-muted">
-          Publicá o guardá como borrador automáticamente las nuevas entradas de
-          tus feeds RSS o Atom en tus redes sociales.
+          {t("settingsAutoposts.intro")}
         </p>
       </div>
 
@@ -304,7 +314,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
         <div className="rounded-xl border border-glass bg-surface-1 p-5">
           <Button type="button" onClick={openCreate}>
             <Plus className="h-4 w-4" aria-hidden />
-            Agregar auto post
+            {t("settingsAutoposts.add")}
           </Button>
         </div>
       ) : null}
@@ -316,14 +326,14 @@ export function AutopostsView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-xl border border-glass bg-surface">
         {autopostsQuery.isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : autopostsQuery.isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los auto posts.
+            {t("settingsAutoposts.loadFailed")}
           </p>
         ) : autoposts.length === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay feeds configurados todavía.
+            {t("settingsAutoposts.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -355,12 +365,12 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                                 : "border-glass bg-surface-2 text-fg-muted",
                             )}
                           >
-                            {item.active ? "Activo" : "Pausado"}
+                            {item.active ? t("settingsAutoposts.active") : t("settingsAutoposts.paused")}
                           </span>
                           <span className="rounded-sm border border-glass bg-focused px-2 py-0.5 text-xs text-lit">
                             {item.mode === "publish"
-                              ? "Publicar enseguida"
-                              : "Guardar como borrador"}
+                              ? t("settingsAutoposts.publishNow")
+                              : t("settingsAutoposts.saveDraft")}
                           </span>
                         </div>
 
@@ -370,11 +380,11 @@ export function AutopostsView({ accountId }: { accountId: string }) {
 
                         <div className="flex flex-wrap items-center gap-3 text-xs text-fg-muted">
                           <span className="font-numeric tabular-nums">
-                            {formatReviewedAgo(item.last_checked_at)}
+                            {formatReviewedAgo(item.last_checked_at, t, locale)}
                           </span>
                           <span>·</span>
                           {item.channel_ids.length === 0 ? (
-                            <span>Todos los canales</span>
+                            <span>{t("settingsAutoposts.allChannels")}</span>
                           ) : targetChannels.length > 0 ? (
                             <span className="inline-flex items-center gap-1.5">
                               {targetChannels.map((ch) => (
@@ -408,12 +418,12 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                           disabled={updateMutation.isPending}
                           onClick={() => void handleToggleActive(item)}
                         >
-                          {item.active ? "Pausar" : "Activar"}
+                          {item.active ? t("settingsAutoposts.pause") : t("settingsNotif.enable")}
                         </Button>
                         <button
                           type="button"
-                          aria-label="Editar auto post"
-                          title="Editar auto post"
+                          aria-label={t("settingsAutoposts.edit")}
+                          title={t("settingsAutoposts.edit")}
                           onClick={() => openEdit(item)}
                           className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
@@ -421,8 +431,8 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                         </button>
                         <button
                           type="button"
-                          aria-label="Borrar auto post"
-                          title="Borrar auto post"
+                          aria-label={t("settingsAutoposts.delete")}
+                          title={t("settingsAutoposts.delete")}
                           disabled={deleteMutation.isPending}
                           onClick={() => void handleDelete(item)}
                           className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -442,7 +452,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                         className="mt-0.5 h-3.5 w-3.5 shrink-0"
                         aria-hidden
                       />
-                      <span>Último error: {item.last_error}</span>
+                      <span>{t("settingsAutoposts.lastError", { error: item.last_error })}</span>
                     </div>
                   ) : null}
                 </li>
@@ -465,11 +475,11 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                 id="autopost-dialog-title"
                 className="text-lg font-medium text-fg"
               >
-                {editing ? "Editar auto post" : "Agregar auto post"}
+                {editing ? t("settingsAutoposts.edit") : t("settingsAutoposts.add")}
               </h3>
               <button
                 type="button"
-                aria-label="Cerrar diálogo"
+                aria-label={t("actions.closeDialog")}
                 onClick={closeDialog}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
               >
@@ -486,19 +496,19 @@ export function AutopostsView({ accountId }: { accountId: string }) {
 
             <div className="space-y-1.5">
               <Label htmlFor="autopost-name" required>
-                Nombre
+                {t("profile.name")}
               </Label>
               <Input
                 id="autopost-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ej: Blog de novedades"
+                placeholder={t("settingsAutoposts.namePlaceholder")}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="autopost-feed-url" required>
-                URL del feed
+                {t("settingsAutoposts.feedUrl")}
               </Label>
               <div className="flex flex-wrap items-center gap-2">
                 <Input
@@ -518,7 +528,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                   loading={previewMutation.isPending}
                   onClick={() => void handlePreview()}
                 >
-                  Probar
+                  {t("settingsNotif.test")}
                 </Button>
               </div>
 
@@ -530,16 +540,16 @@ export function AutopostsView({ accountId }: { accountId: string }) {
               {previewItems !== null ? (
                 <div className="rounded-md border border-glass bg-surface-2 p-3">
                   <p className="mb-2 text-xs font-medium text-fg-muted">
-                    Últimas entradas encontradas ({previewItems.length})
+                    {t("settingsAutoposts.latestEntries", { count: previewItems.length })}
                   </p>
                   {previewItems.length === 0 ? (
                     <p className="text-xs text-fg-muted">
-                      El feed no tiene entradas publicadas.
+                      {t("settingsAutoposts.feedEmpty")}
                     </p>
                   ) : (
                     <ul className="divide-y divide-glass">
                       {previewItems.map((entry, idx) => {
-                        const dateStr = formatPreviewDate(entry.published_at);
+                        const dateStr = formatPreviewDate(entry.published_at, intlTag);
                         return (
                           <li
                             key={`${entry.link}-${idx}`}
@@ -562,7 +572,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                                     rel="noreferrer"
                                     className="inline-flex items-center gap-1 text-lit hover:underline"
                                   >
-                                    Ver entrada
+                                    {t("settingsAutoposts.viewEntry")}
                                     <ExternalLink
                                       className="h-3 w-3"
                                       aria-hidden
@@ -590,29 +600,29 @@ export function AutopostsView({ accountId }: { accountId: string }) {
 
             <div className="space-y-1.5">
               <Label htmlFor="autopost-mode">
-                ¿Qué hacer con cada entrada nueva?
+                {t("settingsAutoposts.modeQuestion")}
               </Label>
               <Select
                 id="autopost-mode"
                 value={mode}
                 onChange={(e) => setMode(e.target.value as AutopostMode)}
               >
-                <option value="publish">Publicar enseguida</option>
-                <option value="draft">Guardar como borrador</option>
+                <option value="publish">{t("settingsAutoposts.publishNow")}</option>
+                <option value="draft">{t("settingsAutoposts.saveDraft")}</option>
               </Select>
             </div>
 
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label>Canales</Label>
+                <Label>{t("settingsAutoposts.channels")}</Label>
                 <SegmentedControl<ChannelScope>
-                  ariaLabel="Alcance de canales"
+                  ariaLabel={t("settingsAutoposts.channelScope")}
                   size="sm"
                   value={channelScope}
                   onValueChange={setChannelScope}
                   options={[
-                    { value: "all", label: "Todos los canales" },
-                    { value: "selected", label: "Algunos canales" },
+                    { value: "all", label: t("settingsAutoposts.allChannels") },
+                    { value: "selected", label: t("settingsAutoposts.someChannels") },
                   ]}
                 />
               </div>
@@ -620,7 +630,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
               {channelScope === "selected" ? (
                 activeChannels.length === 0 ? (
                   <p className="rounded-md border border-glass bg-field px-3 py-2 text-xs text-fg-muted">
-                    No hay canales activos conectados en esta cuenta.
+                    {t("settingsAutoposts.noActiveChannels")}
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
@@ -649,8 +659,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                 )
               ) : (
                 <p className="text-xs text-fg-muted">
-                  Se publicará en todos los canales activos conectados a la
-                  cuenta.
+                  {t("settingsAutoposts.allChannelsNote")}
                 </p>
               )}
             </div>
@@ -664,7 +673,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                   className="h-4 w-4 rounded border-glass bg-field accent-primary"
                 />
                 <span>
-                  Publicar también la última entrada que ya está en el feed
+                  {t("settingsAutoposts.publishLatest")}
                 </span>
               </label>
 
@@ -675,7 +684,7 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                   onChange={(e) => setActive(e.target.checked)}
                   className="h-4 w-4 rounded border-glass bg-field accent-primary"
                 />
-                <span>Activo</span>
+                <span>{t("settingsAutoposts.active")}</span>
               </label>
             </div>
 
@@ -686,10 +695,10 @@ export function AutopostsView({ accountId }: { accountId: string }) {
                 onClick={closeDialog}
                 disabled={isSubmitting}
               >
-                Cancelar
+                {t("actions.cancel")}
               </Button>
               <Button type="submit" loading={isSubmitting}>
-                {editing ? "Guardar cambios" : "Guardar auto post"}
+                {editing ? t("common.saveChanges") : t("settingsAutoposts.save")}
               </Button>
             </div>
           </form>

@@ -15,6 +15,10 @@ export type Product = {
   image_url: string | null;
   enabled: boolean;
   created_at: number | null;
+  /** Meta catalogue (F11): last time it went through, or why it did not
+   *  (`missing:description,price,…` or Meta's message). */
+  meta_synced_at?: number | null;
+  meta_sync_error?: string | null;
 };
 
 export type ProductInput = {

@@ -4,11 +4,6 @@ import { apiFetch } from "./fetcher";
 
 export type OAuthScope = "read" | "write";
 
-export const OAUTH_SCOPE_LABEL: Record<OAuthScope, string> = {
-  read: "Lectura",
-  write: "Lectura y escritura",
-};
-
 /** An account's registered app (no secret). */
 export type OAuthApp = {
   id: number;

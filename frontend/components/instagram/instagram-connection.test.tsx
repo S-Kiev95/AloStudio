@@ -32,6 +32,9 @@ const server = setupServer(
   http.get("*/api/v1/installation/public", () =>
     HttpResponse.json({ signup_enabled: false, multitenant: false }),
   ),
+  http.get("*/connect/options", () =>
+    HttpResponse.json({ facebook_login: true, instagram_login: true }),
+  ),
 );
 
 beforeAll(() => {
@@ -160,10 +163,22 @@ describe("InstagramConnection — antes de ir a Meta", () => {
     expect(screen.getByText(/no manda el texto/)).toBeInTheDocument();
   });
 
-  it("aplica el degradado de marca de Instagram y el mismo tamaño/forma que Facebook Login", () => {
+  it("oculta Instagram Login cuando la instalación no lo tiene configurado", async () => {
+    server.use(
+      http.get("*/connect/options", () =>
+        HttpResponse.json({ facebook_login: true, instagram_login: false }),
+      ),
+    );
+    renderConnection();
+    expect(await screen.findByRole("button", { name: /Facebook Login/ })).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByRole("button", { name: /Instagram Login/ })).toBeNull();
+  });
+
+  it("aplica el degradado de marca de Instagram y el mismo tamaño/forma que Facebook Login", async () => {
     renderConnection();
     const fbBtn = screen.getByRole("button", { name: /Facebook Login/ });
-    const igBtn = screen.getByRole("button", { name: /Instagram Login/ });
+    const igBtn = await screen.findByRole("button", { name: /Instagram Login/ });
 
     expect(fbBtn).toHaveClass("lit-tube-solid", "h-10", "px-6", "rounded-control");
     expect(igBtn).toHaveClass(

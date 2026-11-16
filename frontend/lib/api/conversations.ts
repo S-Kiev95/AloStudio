@@ -86,6 +86,9 @@ export type Conversation = {
   timestamp: number;
   last_activity_at: number;
   created_at: number;
+  /** False on WhatsApp when more than 24 h elapsed since the contact's last
+   *  message: only an approved template may be sent. */
+  can_reply?: boolean;
   ad_referral?: AdReferral | null;
   /** ``mail_subject`` on an email conversation — the subject the whole
    *  thread hangs off, which is per-thread and not per-message. */
@@ -247,12 +250,71 @@ export function useConversation(accountId: string, displayId: number) {
   });
 }
 
-export function useMessages(accountId: string, displayId: number) {
+/** The thread. With `around`, the window around one message instead of the
+ *  newest ones — how a search result opens the conversation at the hit.
+ *  That window does not poll: it is a place in the past, and new messages
+ *  arriving would not land in it anyway. The normal key stays exactly
+ *  `["messages", accountId, displayId]`, which sending writes to. */
+export function useMessages(
+  accountId: string,
+  displayId: number,
+  around?: number,
+) {
   return useQuery({
-    queryKey: ["messages", accountId, displayId],
+    queryKey: around
+      ? ["messages", accountId, displayId, "around", around]
+      : ["messages", accountId, displayId],
     queryFn: () =>
-      apiFetch<MessagesIndex>(`${base(accountId)}/${displayId}/messages`),
-    refetchInterval: 15_000, // light polling until realtime (F.3 follow-up)
+      apiFetch<MessagesIndex>(
+        `${base(accountId)}/${displayId}/messages${around ? `?around=${around}` : ""}`,
+      ),
+    refetchInterval: around ? false : 15_000, // light polling until realtime (F.3 follow-up)
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Search by message (F8) — `GET /search/messages`
+// ---------------------------------------------------------------------------
+export type MessageSearchHit = {
+  message_id: number;
+  conversation_id: number; // display_id
+  created_at: number | null;
+  message_type: string;
+  private: boolean;
+  snippet: string;
+  /** `[start, end)` offsets into `snippet`, in its own characters. */
+  highlights: [number, number][];
+  /** How it was found: the words are there (`text`), it is about the same
+   *  thing without sharing them (`meaning`), or both — which ranks first. */
+  match: "text" | "meaning" | "both";
+  contact: { id: number | null; name: string | null };
+  inbox: { id: number; name: string };
+};
+
+export type MessageSearch = {
+  payload: MessageSearchHit[];
+  meta: { page: number; has_more: boolean };
+};
+
+/** Across the account, or inside one conversation (`conversationId` is the
+ *  display id) — the in-chat search box. */
+export function useMessageSearch(
+  accountId: string,
+  q: string,
+  page = 1,
+  conversationId?: number,
+) {
+  const trimmed = q.trim();
+  return useQuery({
+    queryKey: ["message-search", accountId, trimmed, page, conversationId ?? null],
+    queryFn: () => {
+      const sp = new URLSearchParams({ q: trimmed, page: String(page) });
+      if (conversationId) sp.set("conversation_id", String(conversationId));
+      return apiFetch<MessageSearch>(
+        `/api/v1/accounts/${accountId}/search/messages?${sp}`,
+      );
+    },
+    enabled: trimmed.length > 0,
   });
 }
 
@@ -260,6 +322,14 @@ export function useMessages(accountId: string, displayId: number) {
 // Mutations
 // ---------------------------------------------------------------------------
 export type OutgoingAttachment = { external_url: string; file_type: string };
+
+export type MessageTemplateParams = {
+  name: string;
+  language?: string | null;
+  processed_params?: {
+    body?: Record<string, string>;
+  };
+};
 
 export type SendMessageInput = {
   content?: string;
@@ -269,6 +339,8 @@ export type SendMessageInput = {
    *  concept of copying a third party on a reply. */
   ccEmails?: string;
   bccEmails?: string;
+  /** WhatsApp template parameters when sending an approved template. */
+  templateParams?: MessageTemplateParams;
 };
 
 export type PendingMessage = {
@@ -302,6 +374,7 @@ export function useSendMessage(accountId: string, displayId: number) {
           attachments: input.attachments,
           cc_emails: input.ccEmails || undefined,
           bcc_emails: input.bccEmails || undefined,
+          template_params: input.templateParams || undefined,
         }),
       }),
     onSuccess: async (message) => {

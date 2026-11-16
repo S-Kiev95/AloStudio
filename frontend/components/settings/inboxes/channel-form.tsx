@@ -17,6 +17,8 @@ import { channelDef, type ChannelDef } from "@/lib/inboxes/channel-catalog";
 
 import { FacebookPageConnect } from "./facebook-page-connect";
 import { WhatsappEmbeddedSignup } from "./whatsapp-embedded-signup";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 const META_CHANNELS = new Set(["whatsapp", "facebook", "instagram"]);
 
@@ -27,6 +29,9 @@ export function ChannelForm({
   accountId: string;
   channel: string;
 }) {
+  const t = useT();
+  // Catalog texts are keys, or product names t() hands back unchanged.
+  const tx = (text: string) => t(text as MessageKey);
   const def = channelDef(channel);
   const router = useRouter();
   const create = useCreateInbox(accountId);
@@ -41,9 +46,9 @@ export function ChannelForm({
   if (!def) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-danger">Canal desconocido: {channel}</p>
+        <p className="text-sm text-danger">{t("settingsInboxes.unknownChannel")} {channel}</p>
         <Link href={`${inboxesHref}/new`} className={buttonVariants({ size: "sm" })}>
-          Elegir un canal
+          {t("settingsInboxes.pickChannel")}
         </Link>
       </div>
     );
@@ -57,12 +62,12 @@ export function ChannelForm({
     e.preventDefault();
     setError(null);
     if (!name.trim()) {
-      setError("El nombre de la bandeja es obligatorio.");
+      setError(t("settingsInboxes.nameRequired"));
       return;
     }
     for (const f of def!.fields) {
       if (f.required && !values[f.name]?.trim()) {
-        setError(`Falta el campo: ${f.label}`);
+        setError(t("settingsInboxes.fieldMissing", { field: tx(f.label) }));
         return;
       }
     }
@@ -76,7 +81,7 @@ export function ChannelForm({
       router.push(`${inboxesHref}/${created.id}`);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "No se pudo crear el canal.",
+        err instanceof ApiError ? err.message : t("settingsInboxes.createFailed"),
       );
     }
   }
@@ -89,9 +94,9 @@ export function ChannelForm({
           className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Cambiar canal
+          {t("settingsInboxes.changeChannel")}
         </Link>
-        <h2 className="mt-2 text-xl font-medium text-fg">{def.label}</h2>
+        <h2 className="mt-2 text-xl font-medium text-fg">{tx(def.label)}</h2>
         <p className="text-sm text-fg-muted">{def.blurb}</p>
       </div>
 
@@ -117,85 +122,85 @@ export function ChannelForm({
         />
       ) : null}
 
+      {/* A multitenant install connects Meta channels only through Meta's
+          own flows: no tokens pasted by hand. */}
       {!multitenant || !META_CHANNELS.has(channel) ? (
-        <form
-          onSubmit={submit}
-          className="space-y-4 rounded-md border border-glass bg-surface p-5"
-        >
-          <Field label="Nombre de la bandeja" required>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Mi canal"
-            />
-          </Field>
+      <form
+        onSubmit={submit}
+        className="space-y-4 rounded-md border border-glass bg-surface p-5"
+      >
+        <Field label={t("settingsInboxes.inboxName")} required>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("settingsInboxes.inboxNamePlaceholder")}
+          />
+        </Field>
 
-          {def.fields.map((f) => (
-            <Field
-              key={f.name}
-              label={f.label}
-              required={f.required}
-              help={f.help}
-            >
-              {f.type === "checkbox" ? (
-                <label className="flex items-center gap-2 text-sm text-fg">
-                  <input
-                    type="checkbox"
-                    checked={
-                      (values[f.name] ?? (f.default ? "true" : "")) === "true"
-                    }
-                    onChange={(e) =>
-                      setField(f.name, e.target.checked ? "true" : "")
-                    }
-                    className="h-4 w-4 rounded border-glass accent-neon"
-                  />
-                  Activar
-                </label>
-              ) : f.type === "select" ? (
-                <select
-                  value={values[f.name] ?? f.options?.[0]?.value ?? ""}
-                  onChange={(e) => setField(f.name, e.target.value)}
-                  className={selectClassName()}
-                >
-                  {f.options?.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <Input
-                  type={f.type === "password" ? "password" : "text"}
-                  value={values[f.name] ?? ""}
-                  onChange={(e) => setField(f.name, e.target.value)}
-                  placeholder={f.placeholder}
-                  // Chrome filled the saved AloStudio login into "Usuario
-                  // IMAP" and the password to match, which reached the
-                  // server as a mailbox that could not authenticate.
-                  autoComplete={f.type === "password" ? "new-password" : "off"}
+        {def.fields.map((f) => (
+          <Field
+            key={f.name}
+            label={tx(f.label)}
+            required={f.required}
+            help={f.help ? tx(f.help) : undefined}
+          >
+            {f.type === "checkbox" ? (
+              <label className="flex items-center gap-2 text-sm text-fg">
+                <input
+                  type="checkbox"
+                  checked={(values[f.name] ?? (f.default ? "true" : "")) === "true"}
+                  onChange={(e) =>
+                    setField(f.name, e.target.checked ? "true" : "")
+                  }
+                  className="h-4 w-4 rounded border-glass accent-neon"
                 />
-              )}
-            </Field>
-          ))}
+                {t("settingsNotif.enable")}
+              </label>
+            ) : f.type === "select" ? (
+              <select
+                value={values[f.name] ?? f.options?.[0]?.value ?? ""}
+                onChange={(e) => setField(f.name, e.target.value)}
+                className={selectClassName()}
+              >
+                {f.options?.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                type={f.type === "password" ? "password" : "text"}
+                value={values[f.name] ?? ""}
+                onChange={(e) => setField(f.name, e.target.value)}
+                placeholder={f.placeholder ? tx(f.placeholder) : undefined}
+                // Chrome filled the saved AloStudio login into "Usuario
+                // IMAP" and the password to match, which reached the
+                // server as a mailbox that could not authenticate.
+                autoComplete={f.type === "password" ? "new-password" : "off"}
+              />
+            )}
+          </Field>
+        ))}
 
-          {error ? (
-            <p role="alert" className="text-sm text-danger">
-              {error}
-            </p>
-          ) : null}
+        {error ? (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        ) : null}
 
-          <div className="flex justify-end gap-2">
-            <Link
-              href={inboxesHref}
-              className={buttonVariants({ variant: "secondary", size: "sm" })}
-            >
-              Cancelar
-            </Link>
-            <Button type="submit" size="sm" loading={create.isPending}>
-              Crear canal
-            </Button>
-          </div>
-        </form>
+        <div className="flex justify-end gap-2">
+          <Link
+            href={inboxesHref}
+            className={buttonVariants({ variant: "secondary", size: "sm" })}
+          >
+            {t("actions.cancel")}
+          </Link>
+          <Button type="submit" size="sm" loading={create.isPending}>
+            {t("settingsInboxes.createChannel")}
+          </Button>
+        </div>
+      </form>
       ) : null}
     </div>
   );
@@ -208,6 +213,7 @@ function InstagramOAuthConnect({
   accountId: string;
   showManualHint: boolean;
 }) {
+  const t = useT();
   const [starting, setStarting] = useState<"facebook" | "instagram" | null>(
     null,
   );
@@ -222,7 +228,7 @@ function InstagramOAuthConnect({
       setError(
         err instanceof ApiError
           ? err.message
-          : "No se pudo iniciar la conexión.",
+          : t("settingsInboxes.igConnectFailed"),
       );
       setStarting(null);
     }
@@ -240,7 +246,7 @@ function InstagramOAuthConnect({
       ) : null}
       <div className="space-y-2">
         <p className="text-sm text-fg-muted">
-          Conectá tu cuenta profesional de Instagram con Meta.
+          {t("settingsInboxes.igConnectBlurb")}
         </p>
         <div className="flex flex-wrap gap-3">
           <Button
@@ -267,7 +273,7 @@ function InstagramOAuthConnect({
       </div>
       {showManualHint ? (
         <p className="border-t border-glass pt-3 text-xs text-fg-muted">
-          También podés cargar los datos a mano en el formulario de abajo.
+          {t("settingsInboxes.fbManual")}
         </p>
       ) : null}
     </div>

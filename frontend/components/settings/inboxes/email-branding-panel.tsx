@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { type InboxDetail, useUpdateInbox } from "@/lib/api/inboxes";
+import { useT } from "@/lib/i18n/provider";
 
 /** What every reply from this mailbox signs with.
  *
@@ -24,6 +25,7 @@ export function EmailBrandingPanel({
   accountId: string;
   inbox: InboxDetail;
 }) {
+  const t = useT();
   const update = useUpdateInbox(accountId);
   const [signature, setSignature] = useState(inbox.signature ?? "");
   const [logoUrl, setLogoUrl] = useState(inbox.logo_url ?? "");
@@ -44,7 +46,7 @@ export function EmailBrandingPanel({
       });
       setSaved(true);
     } catch (err) {
-      setError((err as { message?: string })?.message ?? "No se pudo guardar.");
+      setError((err as { message?: string })?.message ?? t("settingsInboxes.saveFailed"));
     }
   }
 
@@ -57,7 +59,7 @@ export function EmailBrandingPanel({
       ) : null}
 
       <div className="space-y-1.5">
-        <Label htmlFor="signature">Firma</Label>
+        <Label htmlFor="signature">{t("settingsInboxes.signature")}</Label>
         <Textarea
           id="signature"
           rows={4}
@@ -67,16 +69,15 @@ export function EmailBrandingPanel({
             setSignature(e.target.value);
             setSaved(false);
           }}
-          placeholder={"Instituto Ejemplo\nAtención: 9 a 17 h\n(598) 4732 0000"}
+          placeholder={[t("settingsInboxes.exampleOrg"), t("settingsInboxes.exampleHours"), "(598) 4732 0000"].join("\n")}
         />
         <p className="text-xs text-fg-muted">
-          Va al pie de cada respuesta. Es texto, no HTML — se escribe tal
-          cual, con sus saltos de línea.
+          {t("settingsInboxes.signatureHint")}
         </p>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="logo">Logo</Label>
+        <Label htmlFor="logo">{t("settingsInboxes.logo")}</Label>
         <Input
           id="logo"
           type="url"
@@ -88,8 +89,7 @@ export function EmailBrandingPanel({
           placeholder="https://tusitio.com/logo.png"
         />
         <p className="text-xs text-fg-muted">
-          Tiene que ser una dirección pública: el correo se abre fuera de
-          AloStudio y el cliente de mail va a buscar la imagen por su cuenta.
+          {t("settingsInboxes.logoHint")}
         </p>
       </div>
 
@@ -97,11 +97,11 @@ export function EmailBrandingPanel({
 
       <div className="flex items-center gap-3">
         <Button type="submit" size="sm" loading={update.isPending} disabled={!dirty}>
-          Guardar
+          {t("actions.save")}
         </Button>
         {saved && !dirty ? (
           <span role="status" className="text-sm text-success">
-            Guardado
+            {t("settingsInboxes.saved")}
           </span>
         ) : null}
       </div>
@@ -118,13 +118,14 @@ function SignaturePreview({
   signature: string;
   logoUrl: string;
 }) {
+  const t = useT();
   const has = signature.trim().length > 0 || logoUrl.trim().length > 0;
   return (
     <div className="space-y-1.5">
-      <Label>Cómo se ve</Label>
+      <Label>{t("settingsInboxes.preview")}</Label>
       <div className="rounded-lg border border-border bg-[#f4f5f7] p-4">
         <div className="rounded-md bg-white p-4 text-[#1f2328]">
-          <p className="text-sm">Gracias por escribirnos, te confirmo enseguida.</p>
+          <p className="text-sm">{t("settingsInboxes.previewBody")}</p>
           {has ? (
             <>
               <hr className="my-4 border-t border-[#e5e7eb]" />
@@ -144,7 +145,7 @@ function SignaturePreview({
             </>
           ) : (
             <p className="mt-4 text-xs text-[#8a919b]">
-              Sin firma, la respuesta sale sola — como hasta ahora.
+              {t("settingsInboxes.noSignatureNote")}
             </p>
           )}
         </div>

@@ -162,6 +162,7 @@ async def test_confirmation_rejects_unknown_token(client, unconfirmed_user):
     assert resp.json() == {
         "message": "Invalid token",
         "redirect_url": "/",
+        "code": "invalid_token",
     }
 
 

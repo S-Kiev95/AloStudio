@@ -22,7 +22,7 @@ export async function POST(req: Request): Promise<Response> {
   };
   if (!email || !password) {
     return NextResponse.json(
-      { errors: ["Email and password are required."] },
+      { errors: ["Email and password are required."], code: "missing_fields" },
       { status: 422 },
     );
   }
@@ -42,7 +42,7 @@ export async function POST(req: Request): Promise<Response> {
     });
   } catch {
     return NextResponse.json(
-      { errors: ["No se pudo contactar el servidor."] },
+      { errors: ["No se pudo contactar el servidor."], code: "server_unreachable" },
       { status: 502 },
     );
   }
@@ -56,7 +56,7 @@ export async function POST(req: Request): Promise<Response> {
   const accountId = await persistSessionFromResponse(res, body);
   if (accountId === false) {
     return NextResponse.json(
-      { errors: ["El servidor no devolvió credenciales de sesión."] },
+      { errors: ["El servidor no devolvió credenciales de sesión."], code: "no_session" },
       { status: 502 },
     );
   }

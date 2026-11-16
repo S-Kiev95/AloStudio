@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 
 import { ChannelAvatar, channelDisplayName, NetworkIcon } from "./network-icon";
 import { PublicationErrorAlert } from "./publication-error-alert";
+import { useT } from "@/lib/i18n/provider";
 
 export function ChannelsPanel({
   accountId,
@@ -46,6 +47,7 @@ export function ChannelsPanel({
   selectedChannelId: number | undefined;
   onSelectChannel: (channelId: number | undefined) => void;
 }) {
+  const t = useT();
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [panelError, setPanelError] = useState<ParsedPublicationError | null>(
@@ -67,7 +69,7 @@ export function ChannelsPanel({
       window.location.href = authorize_url;
     } catch (err) {
       setPanelError(
-        parsePublicationError(err, "No se pudo iniciar la conexión."),
+        parsePublicationError(err, t("publications.channels.connectStartFailed")),
       );
     }
   }
@@ -97,7 +99,7 @@ export function ChannelsPanel({
 
   async function handleRemoveChannel(channel: Channel) {
     const name = channelDisplayName(channel);
-    if (!window.confirm(`¿Quitar el canal "${name}"?`)) return;
+    if (!window.confirm(t("publications.channels.removeConfirm", { name }))) return;
     setPanelError(null);
     try {
       await deleteChannelMutation.mutateAsync(channel.id);
@@ -105,20 +107,20 @@ export function ChannelsPanel({
         onSelectChannel(undefined);
       }
     } catch (err) {
-      setPanelError(parsePublicationError(err, "No se pudo quitar el canal."));
+      setPanelError(parsePublicationError(err, t("publications.channels.removeFailed")));
     }
   }
 
   if (collapsed) {
     return (
       <aside
-        aria-label="Canales"
+        aria-label={t("conversations.tabs.channels")}
         className="hidden lg:flex lg:w-12 lg:shrink-0 lg:flex-col lg:items-center lg:rounded-md lg:border lg:border-glass lg:bg-surface lg:py-3"
       >
         <button
           type="button"
-          aria-label="Expandir panel de canales"
-          title="Mostrar canales"
+          aria-label={t("publications.channels.expand")}
+          title={t("publications.channels.show")}
           onClick={() => setCollapsed(false)}
           className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
         >
@@ -141,13 +143,13 @@ export function ChannelsPanel({
         onClick={() => setMenuOpen((o) => !o)}
       >
         <Plus className="h-4 w-4" aria-hidden />
-        Agregar canal
+        {t("publications.channels.add")}
       </Button>
 
       {menuOpen ? (
         <div
           role="menu"
-          aria-label="Redes para conectar"
+          aria-label={t("publications.channels.networks")}
           className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-md border border-glass bg-surface-2 py-1 text-left shadow-menu"
         >
           {networks.map((opt) => (
@@ -170,7 +172,7 @@ export function ChannelsPanel({
               </span>
               {!opt.configured ? (
                 <span className="text-[11px] text-fg-muted">
-                  Falta configurar en Ajustes → Instalación
+                  {t("publications.channels.needsInstallation")}
                 </span>
               ) : null}
             </button>
@@ -184,10 +186,10 @@ export function ChannelsPanel({
           >
             <span className="flex items-center gap-2 font-medium">
               <Instagram className="h-3.5 w-3.5 text-[#E1306C]" aria-hidden />
-              Instagram o página de Facebook
+              {t("publications.channels.igOrFbPage")}
             </span>
             <span className="text-[11px] text-fg-muted">
-              Ajustes → Bandejas de entrada
+              {t("publications.channels.settingsInboxes")}
             </span>
           </Link>
         </div>
@@ -197,15 +199,15 @@ export function ChannelsPanel({
 
   return (
     <aside
-      aria-label="Canales"
+      aria-label={t("conversations.tabs.channels")}
       className="flex w-full flex-col gap-3 rounded-md border border-glass bg-surface p-4 lg:w-72 lg:shrink-0"
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-base font-medium text-fg">Canales</h2>
+        <h2 className="text-base font-medium text-fg">{t("conversations.tabs.channels")}</h2>
         <button
           type="button"
-          aria-label="Contraer panel de canales"
-          title="Contraer panel"
+          aria-label={t("publications.channels.collapse")}
+          title={t("publications.channels.collapseShort")}
           onClick={() => setCollapsed(true)}
           className="hidden h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon lg:inline-flex"
         >
@@ -222,20 +224,20 @@ export function ChannelsPanel({
 
       {selectedChannelId !== undefined ? (
         <div className="flex items-center justify-between rounded-sm bg-focused px-2.5 py-1 text-xs text-lit">
-          <span>Filtrando por canal</span>
+          <span>{t("publications.channels.filtering")}</span>
           <button
             type="button"
             onClick={() => onSelectChannel(undefined)}
             className="font-medium underline hover:no-underline"
           >
-            Ver todos
+            {t("publications.channels.seeAll")}
           </button>
         </div>
       ) : null}
 
       {isLoading ? (
         <p className="py-8 text-center text-xs text-fg-muted">
-          Cargando canales…
+          {t("publications.channels.loading")}
         </p>
       ) : channels.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
@@ -247,10 +249,9 @@ export function ChannelsPanel({
               <Instagram className="h-6 w-6" aria-hidden />
             </span>
           </div>
-          <p className="text-sm font-medium text-fg">Todavía no hay canales</p>
+          <p className="text-sm font-medium text-fg">{t("publications.channels.emptyTitle")}</p>
           <p className="mt-1 text-xs text-fg-muted">
-            Conectá tus cuentas sociales para programar, publicar y medir tus
-            contenidos en un solo lugar.
+            {t("publications.channels.emptyBody")}
           </p>
           {addChannelControl ? (
             <div className="mt-4 w-full">{addChannelControl}</div>
@@ -298,8 +299,8 @@ export function ChannelsPanel({
                   {isAdmin && ch.inbox_id === null ? (
                     <button
                       type="button"
-                      aria-label={`Quitar ${name}`}
-                      title="Quitar canal"
+                      aria-label={t("publications.channels.removeNamed", { name })}
+                      title={t("publications.channels.remove")}
                       disabled={deleteChannelMutation.isPending}
                       onClick={() => void handleRemoveChannel(ch)}
                       className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
@@ -313,7 +314,7 @@ export function ChannelsPanel({
                   <div className="mt-2 space-y-1.5 rounded-sm border border-warning/30 bg-warning/10 p-2 text-xs">
                     <div className="flex items-center gap-1.5 font-medium text-warning">
                       <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      <span>Requiere reconexión</span>
+                      <span>{t("publications.channels.needsReconnect")}</span>
                     </div>
                     {ch.status_message ? (
                       <p className="text-fg-muted">{ch.status_message}</p>
@@ -326,7 +327,7 @@ export function ChannelsPanel({
                           className="inline-flex items-center gap-1 font-medium text-lit underline hover:no-underline"
                         >
                           <RefreshCw className="h-3 w-3" aria-hidden />
-                          Volver a conectar
+                          {t("publications.channels.reconnect")}
                         </Link>
                       ) : (
                         <button
@@ -335,7 +336,7 @@ export function ChannelsPanel({
                           className="inline-flex items-center gap-1 font-medium text-lit underline hover:no-underline"
                         >
                           <RefreshCw className="h-3 w-3" aria-hidden />
-                          Volver a conectar
+                          {t("publications.channels.reconnect")}
                         </button>
                       )
                     ) : null}
@@ -365,6 +366,7 @@ function ConnectFormDialog({
   networkOption: NetworkOption | null;
   onClose: () => void;
 }) {
+  const t = useT();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<ParsedPublicationError | null>(null);
@@ -412,7 +414,7 @@ function ConnectFormDialog({
     for (const f of networkOption.fields) {
       if (!values[f.name]?.trim()) {
         setError({
-          message: `El campo "${f.label}" es obligatorio.`,
+          message: t("publications.channels.fieldRequired", { field: f.label }),
           errors: [],
         });
         return;
@@ -431,7 +433,7 @@ function ConnectFormDialog({
       });
       onClose();
     } catch (err) {
-      setError(parsePublicationError(err, "No se pudo conectar el canal."));
+      setError(parsePublicationError(err, t("publications.channels.connectFailed")));
     }
   }
 
@@ -449,11 +451,11 @@ function ConnectFormDialog({
             className="flex items-center gap-2 text-lg font-medium text-fg"
           >
             <NetworkIcon network={networkOption.network} />
-            Conectar {networkOption.label}
+            {t("publications.channels.connect")} {networkOption.label}
           </h2>
           <button
             type="button"
-            aria-label="Cerrar diálogo"
+            aria-label={t("actions.closeDialog")}
             onClick={onClose}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
           >
@@ -495,10 +497,10 @@ function ConnectFormDialog({
             onClick={onClose}
             disabled={connectMutation.isPending}
           >
-            Cancelar
+            {t("actions.cancel")}
           </Button>
           <Button type="submit" loading={connectMutation.isPending}>
-            Conectar
+            {t("publications.channels.connect")}
           </Button>
         </div>
       </form>

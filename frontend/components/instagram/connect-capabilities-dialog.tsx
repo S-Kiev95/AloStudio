@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { type ConnectFlow, flowById } from "@/lib/inboxes/instagram-capabilities";
 
 import { CapabilityList } from "./capability-list";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * What you get, shown before you commit to a way of connecting.
@@ -32,6 +33,7 @@ export function ConnectCapabilitiesDialog({
   onConfirm: (flowId: ConnectFlow["id"]) => void;
   pending?: boolean;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -56,13 +58,13 @@ export function ConnectCapabilitiesDialog({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 id="connect-caps-title" className="text-lg font-medium">
-              Conectar por {flow.title}
+              {t("instagram.connect.connectVia", { flow: flow.title })}
             </h2>
-            <p className="mt-1 text-sm text-fg-muted">{flow.summary}</p>
+            <p className="mt-1 text-sm text-fg-muted">{t(flow.summary)}</p>
           </div>
           <button
             type="button"
-            aria-label="Cerrar"
+            aria-label={t("actions.close")}
             onClick={onClose}
             className="rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
           >
@@ -73,7 +75,7 @@ export function ConnectCapabilitiesDialog({
         <CapabilityList capabilities={flow.capabilities} />
 
         <p className="rounded-md border border-glass bg-surface-2 px-3 py-2 text-xs text-fg-muted">
-          {flow.requirement}
+          {t(flow.requirement)}
         </p>
 
         {limitations.length > 0 ? (
@@ -83,18 +85,17 @@ export function ConnectCapabilitiesDialog({
           >
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>
-              Podés cambiar de método más adelante reconectando la misma
-              cuenta: se renueva el token y no se pierden conversaciones.
+              {t("instagram.connect.canSwitchLater")}
             </span>
           </p>
         ) : null}
 
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="secondary" onClick={onClose} disabled={pending}>
-            Cancelar
+            {t("actions.cancel")}
           </Button>
           <Button onClick={() => onConfirm(flow.id)} loading={pending}>
-            Continuar a Meta
+            {t("instagram.connect.continueToMeta")}
           </Button>
         </div>
       </div>

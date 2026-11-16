@@ -1,5 +1,7 @@
 import type { PostState } from "@/lib/api/instagram-posts";
 import { cn } from "@/lib/utils";
+import type { MessageKey } from "@/lib/i18n/translate";
+import { useT } from "@/lib/i18n/provider";
 
 const STYLES: Record<PostState, string> = {
   pending: "bg-warning/10 text-warning",
@@ -9,15 +11,16 @@ const STYLES: Record<PostState, string> = {
   deleted: "bg-surface-2 text-fg-muted",
 };
 
-const LABELS: Record<PostState, string> = {
-  pending: "Pendiente",
-  publishing: "Publicando",
-  published: "Publicado",
-  failed: "Falló",
-  deleted: "Eliminado",
+const LABELS: Record<PostState, MessageKey> = {
+  pending: "instagram.state.pending",
+  publishing: "instagram.state.publishing",
+  published: "instagram.state.published",
+  failed: "instagram.state.failed",
+  deleted: "instagram.state.deleted",
 };
 
 export function StateBadge({ state }: { state: PostState }) {
+  const t = useT();
   return (
     <span
       className={cn(
@@ -25,7 +28,7 @@ export function StateBadge({ state }: { state: PostState }) {
         STYLES[state] ?? "bg-surface-2 text-fg-muted",
       )}
     >
-      {LABELS[state] ?? state}
+      {LABELS[state] ? t(LABELS[state]) : state}
     </span>
   );
 }

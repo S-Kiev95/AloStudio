@@ -1,7 +1,7 @@
 """billing: subscriptions charged through Polar (F2 paso 3)
 
 Revision ID: 7e3c9a1f5b2d
-Revises: b1c2d3e4f5a7
+Revises: b4c5d6e7f8a1
 Create Date: 2026-11-15 22:00:00.000000
 """
 
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision: str = "7e3c9a1f5b2d"
-down_revision: str | None = "b1c2d3e4f5a7"
+down_revision: str | None = "b4c5d6e7f8a1"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

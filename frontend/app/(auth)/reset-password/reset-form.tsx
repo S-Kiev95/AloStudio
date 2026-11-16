@@ -9,10 +9,12 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type ResetInput, resetSchema } from "@/lib/auth/schemas";
+import { errorKey, type ResetInput, resetSchema } from "@/lib/auth/schemas";
+import { useT } from "@/lib/i18n/provider";
 
 export function ResetForm({ token }: { token: string }) {
   const router = useRouter();
+  const t = useT();
   const [formError, setFormError] = useState<string | null>(null);
   const [linkExpired, setLinkExpired] = useState(false);
   const {
@@ -38,11 +40,11 @@ export function ResetForm({ token }: { token: string }) {
       // The backend says only this, whether the link expired or was used.
       if (body?.message === "Invalid token") {
         setLinkExpired(true);
-        setFormError("Este enlace venció o ya se usó.");
+        setFormError(t("auth.reset.expired"));
         return;
       }
       setFormError(
-        body?.message ?? body?.errors?.[0] ?? "No se pudo restablecer.",
+        body?.message ?? body?.errors?.[0] ?? t("auth.reset.failed"),
       );
       return;
     }
@@ -62,7 +64,7 @@ export function ResetForm({ token }: { token: string }) {
             <>
               {" "}
               <Link href="/forgot-password" className="font-medium underline">
-                Pedir un nuevo enlace
+                {t("auth.reset.requestNewLink")}
               </Link>
             </>
           ) : null}
@@ -70,7 +72,7 @@ export function ResetForm({ token }: { token: string }) {
       ) : null}
       <div className="space-y-1.5">
         <Label htmlFor="password" required>
-          Nueva contraseña
+          {t("auth.reset.newPassword")}
         </Label>
         <Input
           id="password"
@@ -81,13 +83,13 @@ export function ResetForm({ token }: { token: string }) {
         />
         {errors.password ? (
           <p role="alert" className="text-sm text-danger">
-            {errors.password.message}
+            {t(errorKey(errors.password.message))}
           </p>
         ) : null}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="passwordConfirmation" required>
-          Repetir contraseña
+          {t("auth.reset.repeatPassword")}
         </Label>
         <Input
           id="passwordConfirmation"
@@ -98,12 +100,12 @@ export function ResetForm({ token }: { token: string }) {
         />
         {errors.passwordConfirmation ? (
           <p role="alert" className="text-sm text-danger">
-            {errors.passwordConfirmation.message}
+            {t(errorKey(errors.passwordConfirmation.message))}
           </p>
         ) : null}
       </div>
       <Button type="submit" className="w-full" loading={isSubmitting}>
-        Cambiar contraseña
+        {t("auth.reset.submit")}
       </Button>
     </form>
   );

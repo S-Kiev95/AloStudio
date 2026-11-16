@@ -10,6 +10,8 @@ import type {
   CannedResponse,
   CannedResponseInput,
 } from "@/lib/api/canned-responses";
+import { useT } from "@/lib/i18n/provider";
+import { rich } from "@/lib/i18n/rich";
 
 export function CannedResponseForm({
   initial,
@@ -22,14 +24,15 @@ export function CannedResponseForm({
   onSubmit: (input: CannedResponseInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [shortCode, setShortCode] = useState(initial?.short_code ?? "");
   const [content, setContent] = useState(initial?.content ?? "");
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
     setError(null);
-    if (!shortCode.trim()) return setError("El atajo es obligatorio.");
-    if (!content.trim()) return setError("El contenido es obligatorio.");
+    if (!shortCode.trim()) return setError(t("settingsCanned.shortCodeRequired"));
+    if (!content.trim()) return setError(t("settingsCanned.contentRequired"));
     try {
       await onSubmit({
         short_code: shortCode.trim(),
@@ -38,7 +41,7 @@ export function CannedResponseForm({
     } catch (e) {
       setError(
         (e as { message?: string })?.message ??
-          "No se pudo guardar la respuesta.",
+          t("settingsCanned.saveFailed"),
       );
     }
   }
@@ -53,7 +56,7 @@ export function CannedResponseForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="cr-code" required>
-          Atajo
+          {t("settingsCanned.shortCode")}
         </Label>
         <Input
           id="cr-code"
@@ -63,14 +66,15 @@ export function CannedResponseForm({
           maxLength={255}
         />
         <p className="text-xs text-fg-muted">
-          Escribí <code>/{shortCode.trim() || "atajo"}</code> en el editor para
-          insertar la respuesta.
+          {rich(t("settingsCanned.shortCodeHint"), {
+            code: <code>/{shortCode.trim() || t("settingsCanned.shortCodeExample")}</code>,
+          })}
         </p>
       </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="cr-content" required>
-          Contenido
+          {t("settingsCanned.content")}
         </Label>
         <Textarea
           id="cr-content"
@@ -82,10 +86,10 @@ export function CannedResponseForm({
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear respuesta"}
+          {initial ? t("common.saveChanges") : t("settingsCanned.create")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

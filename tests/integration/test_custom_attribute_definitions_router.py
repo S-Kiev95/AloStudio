@@ -278,4 +278,4 @@ async def test_show_not_found(client, seeded):
         headers=admin_h,
     )
     assert resp.status_code == 404
-    assert resp.json() == {"error": "Resource could not be found"}
+    assert resp.json() == {"error": "Resource could not be found", "code": "not_found"}

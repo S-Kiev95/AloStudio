@@ -35,7 +35,7 @@ export async function POST(req: Request): Promise<Response> {
   jar.delete(GOOGLE_NONCE_COOKIE);
   if (!code || !state || !nonce) {
     return NextResponse.json(
-      { errors: ["El ingreso con Google venció. Probá de nuevo."] },
+      { errors: ["El ingreso con Google venció. Probá de nuevo."], code: "google_expired" },
       { status: 422 },
     );
   }
@@ -49,7 +49,7 @@ export async function POST(req: Request): Promise<Response> {
     });
   } catch {
     return NextResponse.json(
-      { errors: ["No se pudo contactar el servidor."] },
+      { errors: ["No se pudo contactar el servidor."], code: "server_unreachable" },
       { status: 502 },
     );
   }
@@ -62,7 +62,7 @@ export async function POST(req: Request): Promise<Response> {
   const accountId = await persistSessionFromResponse(res, body);
   if (accountId === false) {
     return NextResponse.json(
-      { errors: ["El servidor no devolvió credenciales de sesión."] },
+      { errors: ["El servidor no devolvió credenciales de sesión."], code: "no_session" },
       { status: 502 },
     );
   }

@@ -150,7 +150,7 @@ async def test_messages_index_unknown_conversation_404(client, seeded):
         headers=admin_h,
     )
     assert resp.status_code == 404
-    assert resp.json() == {"error": "Resource could not be found"}
+    assert resp.json() == {"error": "Resource could not be found", "code": "not_found"}
 
 
 # ---------------------------------------------------------------------------
@@ -369,4 +369,4 @@ async def test_destroy_unknown_message_404(client, seeded):
         headers=admin_h,
     )
     assert resp.status_code == 404
-    assert resp.json() == {"error": "Resource could not be found"}
+    assert resp.json() == {"error": "Resource could not be found", "code": "not_found"}

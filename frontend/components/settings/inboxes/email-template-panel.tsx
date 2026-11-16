@@ -16,17 +16,20 @@ import {
 import { cn } from "@/lib/utils";
 
 import { EmailDesigner } from "./email-designer";
+import { useT } from "@/lib/i18n/provider";
+import { rich } from "@/lib/i18n/rich";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 const CONTENT = "{{contenido}}";
 
-const PLACEHOLDERS: { token: string; what: string }[] = [
-  { token: CONTENT, what: "el mensaje que escribe el agente (obligatorio)" },
-  { token: "{{firma}}", what: "la firma de esta casilla" },
+const PLACEHOLDERS: { token: string; what: MessageKey }[] = [
+  { token: CONTENT, what: "settingsInboxes.ph.content" },
+  { token: "{{firma}}", what: "settingsInboxes.ph.signature" },
   {
     token: "{{firma_agente}}",
-    what: "la firma de quien responde, de su perfil",
+    what: "settingsInboxes.ph.agentSignature",
   },
-  { token: "{{logo}}", what: "el logo, como imagen" },
+  { token: "{{logo}}", what: "settingsInboxes.ph.logo" },
 ];
 
 const EXAMPLE = `<div style="background:#003366;padding:24px;text-align:center">
@@ -54,6 +57,7 @@ export function EmailTemplatePanel({
   accountId: string;
   inbox: InboxDetail;
 }) {
+  const t = useT();
   const update = useUpdateInbox(accountId);
   const shared = useEmailTemplates(accountId);
   // Null = this mailbox renders with its own HTML, which is what every
@@ -100,7 +104,7 @@ export function EmailTemplatePanel({
       });
       setSaved(true);
     } catch (err) {
-      setError((err as { message?: string })?.message ?? "No se pudo guardar.");
+      setError((err as { message?: string })?.message ?? t("settingsInboxes.saveFailed"));
     }
   }
 
@@ -115,7 +119,7 @@ export function EmailTemplatePanel({
     } catch (err) {
       setSharedId(inbox.email_template_id ?? null);
       setLinkError(
-        (err as { message?: string })?.message ?? "No se pudo cambiar.",
+        (err as { message?: string })?.message ?? t("settingsInboxes.changeFailed"),
       );
     }
   }
@@ -127,7 +131,7 @@ export function EmailTemplatePanel({
     <div className="space-y-4">
       {templates.length > 0 ? (
         <div className="space-y-1.5 rounded-md border border-glass p-3">
-          <Label htmlFor="shared-template">Plantilla</Label>
+          <Label htmlFor="shared-template">{t("settingsInboxes.template")}</Label>
           <select
             id="shared-template"
             value={sharedId === null ? "" : String(sharedId)}
@@ -136,7 +140,7 @@ export function EmailTemplatePanel({
             }
             className={selectClassName()}
           >
-            <option value="">El diseño propio de esta casilla</option>
+            <option value="">{t("settingsInboxes.ownDesign")}</option>
             {templates.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
@@ -144,8 +148,7 @@ export function EmailTemplatePanel({
             ))}
           </select>
           <p className="text-xs text-fg-muted">
-            Una plantilla compartida la editás una vez y la usan todas las
-            casillas que la elijan.
+            {t("settingsInboxes.sharedTemplateHint")}
           </p>
           {linkError ? (
             <p role="alert" className="text-xs text-danger">
@@ -157,9 +160,7 @@ export function EmailTemplatePanel({
 
       {linked ? (
         <p className="rounded-md border border-glass bg-surface-2 px-3 py-2 text-sm text-fg-muted">
-          Esta casilla usa «{linked.name}». Para cambiar el diseño andá a
-          Ajustes → Plantillas de correo. Lo de abajo queda guardado y
-          vuelve a usarse si elegís «el diseño propio».
+          {t("settingsInboxes.linkedTemplate", { name: linked.name })}
         </p>
       ) : null}
 
@@ -173,7 +174,7 @@ export function EmailTemplatePanel({
       <div className="flex gap-1 rounded-control border border-glass bg-field p-1">
         {(
           [
-            ["design", "Diseñador"],
+            ["design", t("settingsInboxes.designer")],
             ["code", "HTML"],
           ] as const
         ).map(([value, label]) => (
@@ -216,7 +217,7 @@ export function EmailTemplatePanel({
       ) : (
       <>
       <div className="space-y-1.5">
-        <Label htmlFor="template">HTML de la plantilla</Label>
+        <Label htmlFor="template">{t("settingsInboxes.templateHtml")}</Label>
         <Textarea
           id="template"
           rows={12}
@@ -230,15 +231,16 @@ export function EmailTemplatePanel({
           placeholder={EXAMPLE}
         />
         <p className="text-xs text-fg-muted">
-          Vacío usa el diseño que trae AloStudio. Los estilos van en el
-          atributo <code>style</code> de cada elemento: Gmail y Outlook
-          descartan los bloques <code>&lt;style&gt;</code>.
+          {rich(t("settingsInboxes.htmlHint"), {
+            style: <code>style</code>, // i18n-ignore
+            styleTag: <code>&lt;style&gt;</code>, // i18n-ignore
+          })}
         </p>
       </div>
 
       <div className="rounded-md border border-glass p-3">
         <p className="mb-2 text-xs font-semibold text-fg">
-          Marcadores que podés usar
+          {t("settingsInboxes.placeholders")}
         </p>
         <ul className="space-y-1">
           {PLACEHOLDERS.map((p) => (
@@ -246,7 +248,7 @@ export function EmailTemplatePanel({
               <code className="rounded-sm bg-surface-2 px-1.5 py-0.5 text-lit">
                 {p.token}
               </code>
-              <span className="text-fg-muted">{p.what}</span>
+              <span className="text-fg-muted">{t(p.what)}</span>
             </li>
           ))}
         </ul>
@@ -257,8 +259,9 @@ export function EmailTemplatePanel({
           template would have sent an empty message". */}
       {missingContent ? (
         <p role="alert" className="text-sm text-warning">
-          Falta <code>{CONTENT}</code>. Sin eso, cada respuesta saldría sin
-          el mensaje.
+          {rich(t("settingsInboxes.missingContent"), {
+            token: <code>{CONTENT}</code>,
+          })}
         </p>
       ) : null}
       </>
@@ -271,7 +274,7 @@ export function EmailTemplatePanel({
           loading={update.isPending}
           disabled={mode === "code" && missingContent}
         >
-          Guardar plantilla
+          {t("settingsInboxes.saveTemplate")}
         </Button>
         {mode === "code" && html.trim() ? (
           <Button
@@ -283,7 +286,7 @@ export function EmailTemplatePanel({
               setSaved(false);
             }}
           >
-            Volver al diseño por defecto
+            {t("settingsInboxes.resetDesign")}
           </Button>
         ) : mode === "code" ? (
           <Button
@@ -292,12 +295,12 @@ export function EmailTemplatePanel({
             variant="ghost"
             onClick={() => setHtml(EXAMPLE)}
           >
-            Empezar desde un ejemplo
+            {t("settingsInboxes.startFromExample")}
           </Button>
         ) : null}
         {saved ? (
           <span role="status" className="text-sm text-success">
-            Guardada
+            {t("settingsInboxes.savedFem")}
           </span>
         ) : null}
       </div>

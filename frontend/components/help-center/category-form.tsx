@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Category, CategoryInput } from "@/lib/api/portals";
+import { useT } from "@/lib/i18n/provider";
 
 export function CategoryForm({
   initial,
@@ -19,6 +20,7 @@ export function CategoryForm({
   onSubmit: (input: CategoryInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [locale, setLocale] = useState(initial?.locale ?? "es");
@@ -28,7 +30,7 @@ export function CategoryForm({
 
   async function submit() {
     setError(null);
-    if (!name.trim()) return setError("El nombre es obligatorio.");
+    if (!name.trim()) return setError(t("products.form.nameRequired"));
     try {
       await onSubmit({
         name: name.trim(),
@@ -39,7 +41,7 @@ export function CategoryForm({
       });
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar la categoría.",
+        (e as { message?: string })?.message ?? t("helpCenter.categorySaveFailed"),
       );
     }
   }
@@ -55,7 +57,7 @@ export function CategoryForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="c-name" required>
-            Nombre
+            {t("profile.name")}
           </Label>
           <Input
             id="c-name"
@@ -77,7 +79,7 @@ export function CategoryForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="c-locale">Idioma</Label>
+          <Label htmlFor="c-locale">{t("auth.language")}</Label>
           <Input
             id="c-locale"
             value={locale ?? ""}
@@ -87,7 +89,7 @@ export function CategoryForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="c-icon">Icono (emoji)</Label>
+          <Label htmlFor="c-icon">{t("helpCenter.iconEmoji")}</Label>
           <Input
             id="c-icon"
             value={icon ?? ""}
@@ -98,7 +100,7 @@ export function CategoryForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="c-desc">Descripción</Label>
+        <Label htmlFor="c-desc">{t("products.form.description")}</Label>
         <Textarea
           id="c-desc"
           rows={2}
@@ -109,10 +111,10 @@ export function CategoryForm({
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear categoría"}
+          {initial ? t("common.saveChanges") : t("helpCenter.createCategory")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

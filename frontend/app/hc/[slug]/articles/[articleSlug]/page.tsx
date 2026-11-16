@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { Markdown } from "@/components/help-center-public/markdown";
 import { fetchArticle, fetchCategories, fetchPortal } from "@/lib/hc/fetch";
+import { getT } from "@/lib/i18n/server";
 
 export const revalidate = 300;
 
@@ -34,6 +35,7 @@ export default async function ArticlePage({
 }: {
   params: Promise<{ slug: string; articleSlug: string }>;
 }) {
+  const t = await getT();
   const { slug, articleSlug } = await params;
   const portal = await fetchPortal(slug);
   if (!portal) notFound();
@@ -84,7 +86,7 @@ export default async function ArticlePage({
         <Markdown source={article.content} />
       ) : (
         <p className="text-sm text-fg-muted">
-          Este artículo todavía no tiene contenido.
+          {t("hc.articleEmpty")}
         </p>
       )}
     </article>

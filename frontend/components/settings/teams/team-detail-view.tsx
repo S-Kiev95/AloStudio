@@ -8,6 +8,7 @@ import { type TeamInput, useTeam, useUpdateTeam } from "@/lib/api/teams";
 
 import { TeamForm } from "./team-form";
 import { TeamMembersPanel } from "./team-members-panel";
+import { useT } from "@/lib/i18n/provider";
 
 export function TeamDetailView({
   accountId,
@@ -16,6 +17,7 @@ export function TeamDetailView({
   accountId: string;
   teamId: number;
 }) {
+  const t = useT();
   const { data: team, isLoading, isError } = useTeam(accountId, teamId);
   const update = useUpdateTeam(accountId);
 
@@ -30,14 +32,14 @@ export function TeamDetailView({
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver a equipos
+        {t("settingsTeams.back")}
       </Link>
 
       {isLoading ? (
-        <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+        <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
       ) : isError || !team ? (
         <p role="alert" className="p-8 text-center text-sm text-danger">
-          No se pudo cargar el equipo.
+          {t("settingsTeams.loadFailed")}
         </p>
       ) : (
         <>
@@ -53,7 +55,7 @@ export function TeamDetailView({
                 onCancel={() => {
                   /* no-op — form keeps its own state on cancel */
                 }}
-                submitLabel="Guardar cambios"
+                submitLabel={t("common.saveChanges")}
               />
             </CardContent>
           </Card>

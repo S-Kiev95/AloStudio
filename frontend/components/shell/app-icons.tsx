@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { type IconComponent, Instagram } from "@/components/ui/brand-icons";
+import { type IconComponent, Instagram, WhatsApp } from "@/components/ui/brand-icons";
 import { cn } from "@/lib/utils";
 
 /** The app's own icon set, for the sidebar and Inicio: a rounded line with a
@@ -165,6 +165,11 @@ export const MessagesIcon = appIcon(
  *  a little smaller: it fills its whole box, unlike the rest of the set. */
 export const InstagramNavIcon: IconComponent = ({ className, ...props }) => (
   <Instagram mono className={cn("scale-[0.85]", className)} {...props} />
+);
+
+/** WhatsApp's logo, same treatment as Instagram's. */
+export const WhatsappNavIcon: IconComponent = ({ className, ...props }) => (
+  <WhatsApp mono className={cn("scale-[0.85]", className)} {...props} />
 );
 
 const SIDEBAR_PANE =

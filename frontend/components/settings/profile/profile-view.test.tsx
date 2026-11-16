@@ -23,6 +23,12 @@ vi.mock("@/lib/api/uploads", () => ({
   })),
 }));
 
+// The language card switches through the router.
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh, push: vi.fn(), replace: vi.fn() }),
+}));
+
 let putBody: unknown = null;
 let currentAvatar: string | null = null;
 
@@ -87,5 +93,30 @@ describe("ProfileView avatar", () => {
       "Foto de perfil",
     )) as HTMLImageElement;
     expect(img.src).toContain("https://cdn.example.com/a.png");
+  });
+});
+
+describe("ProfileView language", () => {
+  it("switches at once and saves the choice keeping other ui_settings", async () => {
+    server.use(
+      http.get("*/api/v1/profile", () =>
+        HttpResponse.json({
+          data: { ...profilePayload().data, ui_settings: { theme: "dark" } },
+        }),
+      ),
+    );
+    wrap(<ProfileView />);
+    await screen.findByDisplayValue("Me");
+
+    const select = screen.getByLabelText("Idioma de la interfaz");
+    fireEvent.change(select, { target: { value: "pt" } });
+
+    expect(document.cookie).toContain("alo_locale=pt");
+    expect(refresh).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(putBody).toEqual({
+        profile: { ui_settings: { theme: "dark", locale: "pt" } },
+      }),
+    );
   });
 });

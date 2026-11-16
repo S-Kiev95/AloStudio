@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import type { MessageKey } from "@/lib/i18n/translate";
+
 import { apiFetch } from "./fetcher";
 import { MACRO_ACTIONS } from "./macros";
 
@@ -13,12 +15,12 @@ export const AUTOMATION_EVENTS = [
 ] as const;
 export type AutomationEvent = (typeof AUTOMATION_EVENTS)[number];
 
-export const AUTOMATION_EVENT_LABELS: Record<AutomationEvent, string> = {
-  conversation_created: "Conversación creada",
-  conversation_updated: "Conversación actualizada",
-  conversation_opened: "Conversación abierta",
-  conversation_resolved: "Conversación resuelta",
-  message_created: "Mensaje creado",
+export const AUTOMATION_EVENT_LABELS: Record<AutomationEvent, MessageKey> = {
+  conversation_created: "settingsAutomation.events.conversation_created",
+  conversation_updated: "settingsAutomation.events.conversation_updated",
+  conversation_opened: "settingsAutomation.events.conversation_opened",
+  conversation_resolved: "settingsAutomation.events.conversation_resolved",
+  message_created: "settingsAutomation.events.message_created",
 };
 
 /** Macro action set + automation-only extras (mirrors backend allow-list). */
@@ -44,16 +46,16 @@ export const FILTER_OPERATORS = [
 ] as const;
 export type FilterOperator = (typeof FILTER_OPERATORS)[number];
 
-export const FILTER_OPERATOR_LABELS: Record<FilterOperator, string> = {
-  equal_to: "es igual a",
-  not_equal_to: "no es igual a",
-  contains: "contiene",
-  does_not_contain: "no contiene",
-  starts_with: "empieza con",
-  is_present: "está presente",
-  is_not_present: "no está presente",
-  is_greater_than: "es mayor que",
-  is_less_than: "es menor que",
+export const FILTER_OPERATOR_LABELS: Record<FilterOperator, MessageKey> = {
+  equal_to: "settingsAutomation.ops.equal_to",
+  not_equal_to: "settingsAutomation.ops.not_equal_to",
+  contains: "settingsAutomation.ops.contains",
+  does_not_contain: "settingsAutomation.ops.does_not_contain",
+  starts_with: "settingsAutomation.ops.starts_with",
+  is_present: "settingsAutomation.ops.is_present",
+  is_not_present: "settingsAutomation.ops.is_not_present",
+  is_greater_than: "settingsAutomation.ops.is_greater_than",
+  is_less_than: "settingsAutomation.ops.is_less_than",
 };
 
 /** Operators that don't read ``values``. */
@@ -64,22 +66,22 @@ export const OPERATORS_WITHOUT_VALUES: ReadonlySet<FilterOperator> = new Set([
 
 /** Common standard attributes the UI offers without per-account custom defs. */
 export const STANDARD_ATTRIBUTES = [
-  { key: "status", label: "Estado" },
-  { key: "priority", label: "Prioridad" },
-  { key: "assignee_id", label: "ID del agente asignado" },
-  { key: "team_id", label: "ID del equipo" },
-  { key: "inbox_id", label: "ID de la bandeja" },
-  { key: "labels", label: "Etiquetas" },
-  { key: "browser_language", label: "Idioma del navegador" },
-  { key: "country_code", label: "Código de país" },
-  { key: "referer", label: "Referer" },
-  { key: "conversation_language", label: "Idioma de conversación" },
-  { key: "mail_subject", label: "Asunto del email" },
-  { key: "content", label: "Contenido del mensaje" },
-  { key: "message_type", label: "Tipo de mensaje" },
-  { key: "email", label: "Email del contacto" },
-  { key: "phone_number", label: "Teléfono del contacto" },
-  { key: "company", label: "Empresa del contacto" },
+  { key: "status", label: "settingsAutomation.attrs.status" },
+  { key: "priority", label: "settingsAutomation.attrs.priority" },
+  { key: "assignee_id", label: "settingsAutomation.attrs.assignee_id" },
+  { key: "team_id", label: "settingsAutomation.attrs.team_id" },
+  { key: "inbox_id", label: "settingsAutomation.attrs.inbox_id" },
+  { key: "labels", label: "settingsAutomation.attrs.labels" },
+  { key: "browser_language", label: "settingsAutomation.attrs.browser_language" },
+  { key: "country_code", label: "settingsAutomation.attrs.country_code" },
+  { key: "referer", label: "settingsAutomation.attrs.referer" },
+  { key: "conversation_language", label: "settingsAutomation.attrs.conversation_language" },
+  { key: "mail_subject", label: "settingsAutomation.attrs.mail_subject" },
+  { key: "content", label: "settingsAutomation.attrs.content" },
+  { key: "message_type", label: "settingsAutomation.attrs.message_type" },
+  { key: "email", label: "settingsAutomation.attrs.email" },
+  { key: "phone_number", label: "settingsAutomation.attrs.phone_number" },
+  { key: "company", label: "settingsAutomation.attrs.company" },
 ] as const;
 
 export type RuleCondition = {

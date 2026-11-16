@@ -48,6 +48,6 @@ describe("uploadAttachment", () => {
     const file = new File([new Uint8Array([1])], "f.txt", {
       type: "text/plain",
     });
-    await expect(uploadAttachment("1", file)).rejects.toThrow(/upload failed/);
+    await expect(uploadAttachment("1", file)).rejects.toThrow(/No se pudo subir/);
   });
 });

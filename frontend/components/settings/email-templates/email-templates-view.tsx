@@ -31,10 +31,13 @@ import { cn } from "@/lib/utils";
 
 import { BlockEditor } from "./block-editor";
 import { TestSendBox } from "./test-send-box";
+import { useT } from "@/lib/i18n/provider";
+import { rich } from "@/lib/i18n/rich";
 
 const CONTENT = "{{contenido}}";
 
 export function EmailTemplatesView({ accountId }: { accountId: string }) {
+  const t = useT();
   const templates = useEmailTemplates(accountId);
   const create = useCreateEmailTemplate(accountId);
   const [selected, setSelected] = useState<number | null>(null);
@@ -57,32 +60,29 @@ export function EmailTemplatesView({ accountId }: { accountId: string }) {
       setNewName("");
       setSelected(created.id);
     } catch (err) {
-      setError((err as { message?: string })?.message ?? "No se pudo crear.");
+      setError((err as { message?: string })?.message ?? t("settingsEmailTpl.createFailed"));
     }
   }
 
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-xl font-medium text-fg">Plantillas de correo</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.email_templates")}</h2>
         <p className="text-sm text-fg-muted">
-          El diseño con el que salen los correos. Una organización puede
-          tener varias — bienvenida, cierre de ticket, avisos — y cada
-          casilla elige cuál usa.
+          {t("settingsEmailTpl.intro")}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Tus plantillas</CardTitle>
+          <CardTitle>{t("settingsEmailTpl.yours")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {templates.isLoading ? (
-            <p className="text-sm text-fg-muted">Cargando…</p>
+            <p className="text-sm text-fg-muted">{t("common.loading")}</p>
           ) : list.length === 0 ? (
             <p className="text-sm text-fg-muted">
-              Todavía no hay ninguna. Las casillas siguen usando el diseño
-              que traen por defecto.
+              {t("settingsEmailTpl.empty")}
             </p>
           ) : (
             <ul className="space-y-2">
@@ -109,12 +109,12 @@ export function EmailTemplatesView({ accountId }: { accountId: string }) {
 
           <form onSubmit={onCreate} className="flex flex-wrap items-end gap-2">
             <div className="min-w-[12rem] flex-1 space-y-1.5">
-              <Label htmlFor="new-template">Nueva plantilla</Label>
+              <Label htmlFor="new-template">{t("settingsEmailTpl.new")}</Label>
               <Input
                 id="new-template"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="Bienvenida"
+                placeholder={t("settingsEmailTpl.namePlaceholder")}
               />
             </div>
             <Button
@@ -123,7 +123,7 @@ export function EmailTemplatesView({ accountId }: { accountId: string }) {
               disabled={newName.trim() === ""}
             >
               <Plus className="h-4 w-4" aria-hidden />
-              Crear
+              {t("settingsEmailTpl.create")}
             </Button>
           </form>
           {error ? (
@@ -155,6 +155,7 @@ function TemplateEditor({
   template: EmailTemplate;
   onDeleted: () => void;
 }) {
+  const t = useT();
   const update = useUpdateEmailTemplate(accountId);
   const remove = useDeleteEmailTemplate(accountId);
 
@@ -212,14 +213,14 @@ function TemplateEditor({
       setSaved(true);
       setDirty(false);
     } catch (err) {
-      setError((err as { message?: string })?.message ?? "No se pudo guardar.");
+      setError((err as { message?: string })?.message ?? t("settingsInboxes.saveFailed"));
     }
   }
 
   async function onDelete() {
     if (
       !window.confirm(
-        `¿Eliminar la plantilla «${template.name}»? Las casillas que la usen vuelven a su propio diseño.`,
+        t("settingsEmailTpl.deleteConfirm", { name: template.name }),
       )
     ) {
       return;
@@ -229,14 +230,14 @@ function TemplateEditor({
       await remove.mutateAsync(template.id);
       onDeleted();
     } catch (err) {
-      setError((err as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((err as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Editar «{template.name}»</CardTitle>
+        <CardTitle>{t("settingsEmailTpl.editTitle", { name: template.name })}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={save} className="space-y-4">
@@ -248,7 +249,7 @@ function TemplateEditor({
 
           <div className="space-y-1.5">
             <Label htmlFor="tpl-name" required>
-              Nombre
+              {t("profile.name")}
             </Label>
             <Input
               id="tpl-name"
@@ -263,8 +264,8 @@ function TemplateEditor({
           <div className="flex gap-1 rounded-control border border-glass bg-field p-1">
             {(
               [
-                ["blocks", "Bloques"],
-                ["design", "Simple"],
+                ["blocks", t("settingsEmailTpl.modeBlocks")],
+                ["design", t("settingsEmailTpl.modeSimple")],
                 ["code", "HTML"],
               ] as const
             ).map(([value, label]) => (
@@ -320,7 +321,7 @@ function TemplateEditor({
             />
           ) : (
             <div className="space-y-1.5">
-              <Label htmlFor="tpl-html">HTML de la plantilla</Label>
+              <Label htmlFor="tpl-html">{t("settingsInboxes.templateHtml")}</Label>
               <Textarea
                 id="tpl-html"
                 rows={14}
@@ -334,14 +335,14 @@ function TemplateEditor({
               />
               {missingContent ? (
                 <p role="alert" className="text-xs text-danger">
-                  Falta {CONTENT}. Sin ese marcador el mensaje del agente no
-                  se incluye y el correo sale vacío.
+                  {t("settingsEmailTpl.missingContent", { token: CONTENT })}
                 </p>
               ) : (
                 <p className="text-xs text-fg-muted">
-                  Los estilos van en el atributo <code>style</code> de cada
-                  elemento: Gmail y Outlook descartan los bloques{" "}
-                  <code>&lt;style&gt;</code>.
+                  {rich(t("settingsEmailTpl.stylesHint"), {
+                    style: <code>style</code>, // i18n-ignore
+                    styleTag: <code>&lt;style&gt;</code>, // i18n-ignore
+                  })}
                 </p>
               )}
             </div>
@@ -349,7 +350,7 @@ function TemplateEditor({
 
           <div className="flex flex-wrap items-center gap-2">
             <Button type="submit" loading={update.isPending}>
-              Guardar
+              {t("actions.save")}
             </Button>
             <Button
               type="button"
@@ -359,11 +360,11 @@ function TemplateEditor({
               className="text-danger hover:bg-danger/10"
             >
               <Trash2 className="h-4 w-4" aria-hidden />
-              Eliminar
+              {t("actions.delete")}
             </Button>
             {saved ? (
               <span role="status" className="text-sm text-success">
-                Guardado.
+                {t("settingsEmailTpl.savedDot")}
               </span>
             ) : null}
           </div>

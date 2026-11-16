@@ -15,8 +15,10 @@ import {
 } from "@/lib/api/webhooks";
 
 import { WebhookForm } from "./webhook-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function WebhooksView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = useWebhooks(accountId);
   const create = useCreateWebhook(accountId);
   const update = useUpdateWebhook(accountId);
@@ -38,11 +40,11 @@ export function WebhooksView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-medium text-fg">Webhooks</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.webhooks")}</h2>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
-            Nuevo webhook
+            {t("settingsWebhooks.new")}
           </Button>
         ) : null}
       </div>
@@ -50,7 +52,7 @@ export function WebhooksView({ accountId }: { accountId: string }) {
       {creating ? (
         <Card>
           <CardHeader>
-            <CardTitle>Nuevo webhook</CardTitle>
+            <CardTitle>{t("settingsWebhooks.new")}</CardTitle>
           </CardHeader>
           <CardContent>
             <WebhookForm
@@ -66,7 +68,7 @@ export function WebhooksView({ accountId }: { accountId: string }) {
       {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>Editar webhook</CardTitle>
+            <CardTitle>{t("settingsWebhooks.edit")}</CardTitle>
           </CardHeader>
           <CardContent>
             <WebhookForm
@@ -82,14 +84,14 @@ export function WebhooksView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los webhooks.
+            {t("settingsWebhooks.loadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay webhooks todavía.
+            {t("settingsWebhooks.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -120,16 +122,17 @@ function WebhookRow({
   webhook: Webhook;
   onEdit: () => void;
 }) {
+  const t = useT();
   const del = useDeleteWebhook(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(`¿Eliminar este webhook?`)) return;
+    if (!window.confirm(t("settingsWebhooks.deleteConfirm"))) return;
     setError(null);
     try {
       await del.mutateAsync(webhook.id);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((e as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
@@ -144,9 +147,14 @@ function WebhookRow({
         </p>
         <p className="truncate text-xs text-fg-muted">{webhook.url}</p>
         <p className="text-xs text-fg-muted">
-          {webhook.subscriptions.length}{" "}
-          {webhook.subscriptions.length === 1 ? "evento" : "eventos"}
-          {webhook.inbox ? ` · ${webhook.inbox.name}` : " · Todas las bandejas"}
+          {t(
+            webhook.subscriptions.length === 1
+              ? "settingsWebhooks.eventsOne"
+              : "settingsWebhooks.eventsMany",
+            { count: webhook.subscriptions.length },
+          )}
+          {" · "}
+          {webhook.inbox ? webhook.inbox.name : t("conversations.allInboxes")}
         </p>
         {error ? (
           <p role="alert" className="text-xs text-danger">
@@ -156,8 +164,8 @@ function WebhookRow({
       </div>
       <button
         type="button"
-        aria-label="Editar"
-        title="Editar"
+        aria-label={t("actions.edit")}
+        title={t("actions.edit")}
         onClick={onEdit}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -165,8 +173,8 @@ function WebhookRow({
       </button>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

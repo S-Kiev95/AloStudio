@@ -1,3 +1,4 @@
+import type { MessageKey } from "@/lib/i18n/translate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
@@ -5,16 +6,16 @@ import { apiFetch } from "./fetcher";
 export type CampaignType = "ongoing" | "one_off";
 export type CampaignStatus = "active" | "completed";
 
-export const CAMPAIGN_TYPES: { value: CampaignType; label: string }[] = [
-  { value: "ongoing", label: "Continua (widget web)" },
-  { value: "one_off", label: "Puntual (programada)" },
+export const CAMPAIGN_TYPES: { value: CampaignType; label: MessageKey }[] = [
+  { value: "ongoing", label: "campaigns.typeLong.ongoing" },
+  { value: "one_off", label: "campaigns.typeLong.oneOff" },
 ];
 
 /** One entry in the audience array — Chatwoot scopes campaigns by labels. */
-export type AudienceEntry = {
-  type: "Label" | "Contact";
-  id: number;
-};
+export type AudienceEntry =
+  | { type: "Label" | "Contact"; id: number }
+  /** Every contact of the campaign's inbox (one-off sends). */
+  | { type: "Inbox"; id?: undefined };
 
 export type Campaign = {
   id: number; // = display_id
@@ -92,6 +93,34 @@ export function useCampaignAnalytics(accountId: string, displayId: number) {
         `${base(accountId)}/${displayId}/analytics`,
       ),
     enabled: Number.isFinite(displayId),
+  });
+}
+
+/** Who a campaign reached and how each delivery went. */
+export type CampaignRecipient = {
+  contact_id: number;
+  name: string | null;
+  phone_number: string | null;
+  conversation_id: number;
+  status: "sent" | "delivered" | "read" | "failed" | "progress";
+  error: string | null;
+  sent_at: number | null;
+};
+
+export function useCampaignRecipients(
+  accountId: string,
+  displayId: number,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ["campaign-recipients", accountId, displayId],
+    queryFn: async () =>
+      (
+        await apiFetch<{ recipients: CampaignRecipient[] }>(
+          `${base(accountId)}/${displayId}/recipients`,
+        )
+      ).recipients,
+    enabled: enabled && Number.isFinite(displayId),
   });
 }
 

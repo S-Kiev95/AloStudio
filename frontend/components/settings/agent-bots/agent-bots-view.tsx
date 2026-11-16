@@ -16,8 +16,10 @@ import {
 } from "@/lib/api/agent-bots";
 
 import { AgentBotForm } from "./agent-bot-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function AgentBotsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const { data, isLoading, isError } = useAgentBots(accountId);
   const create = useCreateAgentBot(accountId);
   const update = useUpdateAgentBot(accountId);
@@ -39,11 +41,11 @@ export function AgentBotsView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-medium text-fg">Bots</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.agent_bots")}</h2>
         {!creating && !editing ? (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
-            Nuevo bot
+            {t("settingsBots.new")}
           </Button>
         ) : null}
       </div>
@@ -51,7 +53,7 @@ export function AgentBotsView({ accountId }: { accountId: string }) {
       {creating ? (
         <Card>
           <CardHeader>
-            <CardTitle>Nuevo bot</CardTitle>
+            <CardTitle>{t("settingsBots.new")}</CardTitle>
           </CardHeader>
           <CardContent>
             <AgentBotForm
@@ -66,7 +68,7 @@ export function AgentBotsView({ accountId }: { accountId: string }) {
       {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>Editar bot</CardTitle>
+            <CardTitle>{t("settingsBots.edit")}</CardTitle>
           </CardHeader>
           <CardContent>
             <AgentBotForm
@@ -81,14 +83,14 @@ export function AgentBotsView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los bots.
+            {t("settingsBots.loadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay bots todavía.
+            {t("settingsBots.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -119,6 +121,7 @@ function BotRow({
   bot: AgentBot;
   onEdit: () => void;
 }) {
+  const t = useT();
   const del = useDeleteAgentBot(accountId);
   const reset = useResetBotSecret(accountId);
   const [error, setError] = useState<string | null>(null);
@@ -143,7 +146,7 @@ function BotRow({
           {bot.name}
           {bot.system_bot ? (
             <span className="ml-2 rounded-sm bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase text-fg-muted">
-              Sistema
+              {t("theme.system")}
             </span>
           ) : null}
         </p>
@@ -155,7 +158,7 @@ function BotRow({
         ) : null}
         {revealed ? (
           <p className="text-xs">
-            <span className="text-fg-muted">Secret: </span>
+            <span className="text-fg-muted">{t("settingsBots.secret")} </span>
             <code className="text-fg">{revealed}</code>
           </p>
         ) : null}
@@ -169,13 +172,13 @@ function BotRow({
         <>
           <button
             type="button"
-            aria-label="Rotar secret"
-            title="Rotar secret"
+            aria-label={t("settingsBots.rotateSecret")}
+            title={t("settingsBots.rotateSecret")}
             onClick={() =>
               run(async () => {
                 const rotated = await reset.mutateAsync(bot.id);
                 setRevealed(rotated.secret ?? null);
-              }, "No se pudo rotar el secret.")
+              }, t("settingsBots.rotateFailed"))
             }
             disabled={reset.isPending}
             className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -184,8 +187,8 @@ function BotRow({
           </button>
           <button
             type="button"
-            aria-label="Editar"
-            title="Editar"
+            aria-label={t("actions.edit")}
+            title={t("actions.edit")}
             onClick={onEdit}
             className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
@@ -193,11 +196,11 @@ function BotRow({
           </button>
           <button
             type="button"
-            aria-label="Eliminar"
-            title="Eliminar"
+            aria-label={t("actions.delete")}
+            title={t("actions.delete")}
             onClick={() => {
-              if (!window.confirm(`¿Eliminar el bot "${bot.name}"?`)) return;
-              run(() => del.mutateAsync(bot.id), "No se pudo eliminar.");
+              if (!window.confirm(t("settingsBots.deleteConfirm", { name: bot.name }))) return;
+              run(() => del.mutateAsync(bot.id), t("actions.deleteFailed"));
             }}
             disabled={del.isPending}
             className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

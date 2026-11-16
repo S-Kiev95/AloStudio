@@ -13,6 +13,7 @@ import {
   useUpdateContactNote,
 } from "@/lib/api/contacts";
 import { relativeTime } from "@/lib/time";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 export function NotesPanel({
   accountId,
@@ -21,6 +22,7 @@ export function NotesPanel({
   accountId: string;
   contactId: number;
 }) {
+  const t = useT();
   const { data, isLoading, isError } = useContactNotes(accountId, contactId);
   const create = useCreateContactNote(accountId, contactId);
 
@@ -36,7 +38,7 @@ export function NotesPanel({
       setDraft("");
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo agregar la nota.",
+        (e as { message?: string })?.message ?? t("contacts.notes.addFailed"),
       );
     }
   }
@@ -50,9 +52,9 @@ export function NotesPanel({
           </p>
         ) : null}
         <Textarea
-          aria-label="Nueva nota"
+          aria-label={t("contacts.notes.new")}
           rows={3}
-          placeholder="Agregá una nota sobre este contacto…"
+          placeholder={t("contacts.notes.placeholder")}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
         />
@@ -64,20 +66,20 @@ export function NotesPanel({
             disabled={!draft.trim()}
           >
             <Plus className="h-4 w-4" aria-hidden />
-            Agregar nota
+            {t("contacts.notes.add")}
           </Button>
         </div>
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-fg-muted">Cargando notas…</p>
+        <p className="text-sm text-fg-muted">{t("contacts.notes.loading")}</p>
       ) : isError ? (
         <p role="alert" className="text-sm text-danger">
-          No se pudieron cargar las notas.
+          {t("contacts.notes.loadFailed")}
         </p>
       ) : (data?.length ?? 0) === 0 ? (
         <p className="text-sm text-fg-muted">
-          Sin notas todavía.
+          {t("contacts.notes.empty")}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -104,6 +106,8 @@ function NoteRow({
   contactId: number;
   note: ContactNote;
 }) {
+  const locale = useLocale();
+  const t = useT();
   const update = useUpdateContactNote(accountId, contactId);
   const del = useDeleteContactNote(accountId, contactId);
 
@@ -120,18 +124,18 @@ function NoteRow({
       setEditing(false);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo actualizar.",
+        (e as { message?: string })?.message ?? t("contacts.notes.updateFailed"),
       );
     }
   }
 
   async function onDelete() {
-    if (!window.confirm("¿Eliminar esta nota?")) return;
+    if (!window.confirm(t("contacts.notes.deleteConfirm"))) return;
     setError(null);
     try {
       await del.mutateAsync(note.id);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((e as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
@@ -140,14 +144,14 @@ function NoteRow({
       {editing ? (
         <div className="space-y-2">
           <Textarea
-            aria-label="Editar nota"
+            aria-label={t("contacts.notes.edit")}
             rows={3}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
           />
           <div className="flex gap-2">
             <Button size="sm" onClick={save} loading={update.isPending}>
-              Guardar
+              {t("actions.save")}
             </Button>
             <Button
               size="sm"
@@ -157,7 +161,7 @@ function NoteRow({
                 setDraft(note.content);
               }}
             >
-              Cancelar
+              {t("actions.cancel")}
             </Button>
           </div>
         </div>
@@ -168,14 +172,14 @@ function NoteRow({
           </p>
           <div className="flex items-center justify-between text-xs text-fg-muted">
             <span>
-              {note.user?.name ?? "Sistema"} ·{" "}
-              {note.created_at ? relativeTime(note.created_at) : "—"}
+              {note.user?.name ?? t("conversations.contact.system")} ·{" "}
+              {note.created_at ? relativeTime(note.created_at, locale) : "—"}
             </span>
             <div className="flex gap-0.5">
               <button
                 type="button"
-                aria-label="Editar"
-                title="Editar"
+                aria-label={t("actions.edit")}
+                title={t("actions.edit")}
                 onClick={() => setEditing(true)}
                 className="rounded-md p-1 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
@@ -183,8 +187,8 @@ function NoteRow({
               </button>
               <button
                 type="button"
-                aria-label="Eliminar"
-                title="Eliminar"
+                aria-label={t("actions.delete")}
+                title={t("actions.delete")}
                 onClick={onDelete}
                 disabled={del.isPending}
                 className="rounded-md p-1 hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

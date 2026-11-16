@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Team, TeamInput } from "@/lib/api/teams";
+import { useT } from "@/lib/i18n/provider";
 
 export function TeamForm({
   initial,
@@ -21,6 +22,7 @@ export function TeamForm({
   onCancel: () => void;
   submitLabel?: string;
 }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [allowAutoAssign, setAllowAutoAssign] = useState(
@@ -30,7 +32,7 @@ export function TeamForm({
 
   async function submit() {
     setError(null);
-    if (!name.trim()) return setError("El nombre es obligatorio.");
+    if (!name.trim()) return setError(t("products.form.nameRequired"));
     try {
       await onSubmit({
         name: name.trim(),
@@ -39,7 +41,7 @@ export function TeamForm({
       });
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar el equipo.",
+        (e as { message?: string })?.message ?? t("settingsTeams.saveFailed"),
       );
     }
   }
@@ -54,7 +56,7 @@ export function TeamForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="t-name" required>
-          Nombre
+          {t("profile.name")}
         </Label>
         <Input
           id="t-name"
@@ -65,7 +67,7 @@ export function TeamForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="t-desc">Descripción</Label>
+        <Label htmlFor="t-desc">{t("products.form.description")}</Label>
         <Textarea
           id="t-desc"
           rows={2}
@@ -80,15 +82,15 @@ export function TeamForm({
           checked={allowAutoAssign}
           onChange={(e) => setAllowAutoAssign(e.target.checked)}
         />
-        Permitir asignación automática
+        {t("settingsTeams.autoAssign")}
       </label>
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {submitLabel ?? (initial ? "Guardar cambios" : "Crear equipo")}
+          {submitLabel ?? (initial ? t("common.saveChanges") : t("settingsTeams.create"))}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

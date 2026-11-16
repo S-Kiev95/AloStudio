@@ -30,6 +30,7 @@ from app.core import llm
 from app.core.config import get_settings
 from app.core.deps import AccountContext
 from app.core.errors import ChatwootHTTPException
+from app.core.i18n import user_locale
 from app.domains.agent.models import (
     AGENT_ROLE_ASSISTANT,
     AGENT_ROLE_TOOL,
@@ -42,6 +43,7 @@ from app.domains.agent.models import (
     AgentMessage,
     AgentThread,
 )
+from app.domains.usage.ai import ai_usage
 from app.mcp.context import MCPContext, bind_mcp_context, reset_mcp_context
 
 log = logging.getLogger(__name__)
@@ -69,6 +71,17 @@ TITLE_LENGTH = 60
 _DATE_ARGUMENTS: tuple[str, ...] = ("scheduled_for", "from", "to")
 
 _WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
+
+# The language the user has the dashboard in, named for the prompt.
+_LANGUAGE_NAMES = {
+    "es": "español",
+    "en": "inglés",
+    "pt": "portugués",
+    "fr": "francés",
+    "de": "alemán",
+    "ja": "japonés",
+    "ko": "coreano",
+}
 
 _server: FastMCP | None = None
 
@@ -375,11 +388,12 @@ async def _run_model(
         messages = [{"role": "system", "content": _system_prompt(ctx, thread)}]
         messages += [m for m in (_as_openai(r) for r in rows) if m is not None]
         try:
-            reply = await llm.chat_completion(
-                messages=messages,
-                tools=tools,
-                tool_choice="none" if step == MAX_MODEL_CALLS - 1 else None,
-            )
+            with ai_usage(session, ctx.account.id, "agent"):
+                reply = await llm.chat_completion(
+                    messages=messages,
+                    tools=tools,
+                    tool_choice="none" if step == MAX_MODEL_CALLS - 1 else None,
+                )
         except llm.LlmError as exc:
             log.warning("agent: thread %s model call failed: %s", thread.id, exc)
             raise ChatwootHTTPException(
@@ -597,9 +611,11 @@ def _system_prompt(ctx: AccountContext, thread: AgentThread) -> str:
         "publicaciones.",
         "",
         "Reglas:",
-        "- Respondé en el idioma del usuario, breve y claro, en texto plano: "
-        "párrafos cortos y listas con guiones. Sin markdown (nada de **, #, "
-        "tablas ni enlaces entre corchetes).",
+        "- Respondé en el idioma en que te escribe el usuario, breve y claro, "
+        "en texto plano: párrafos cortos y listas con guiones. Sin markdown "
+        "(nada de **, #, tablas ni enlaces entre corchetes). "
+        f"Tiene la app en {_LANGUAGE_NAMES[user_locale(ctx.user)]}: si no se "
+        "entiende en qué idioma escribe, usá ese.",
         "- Antes de crear una publicación consultá los canales con "
         "list_publication_channels y usá solo sus id. Nunca inventes ids. Un "
         'canal con status "reconnect" no puede publicar: avisale al usuario.',

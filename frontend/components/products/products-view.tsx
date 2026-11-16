@@ -3,6 +3,7 @@
 import { Package, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { MetaCatalogCard, useProductCatalogState } from "@/components/crm/meta-catalog-card";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,17 +16,22 @@ import {
   useProducts,
   useUpdateProduct,
 } from "@/lib/api/products";
+import { useMetaCatalog } from "@/lib/api/crm";
+import { useIsAccountAdmin } from "@/lib/api/profile";
 import { cn } from "@/lib/utils";
 
 import { ProductForm } from "./product-form";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const FILTERS: { value: "all" | "active" | "inactive"; label: string }[] = [
-  { value: "all", label: "Todos" },
-  { value: "active", label: "Activos" },
-  { value: "inactive", label: "Inactivos" },
+const FILTERS: { value: "all" | "active" | "inactive"; label: MessageKey }[] = [
+  { value: "all", label: "products.filters.all" },
+  { value: "active", label: "products.filters.active" },
+  { value: "inactive", label: "products.filters.inactive" },
 ];
 
 export function ProductsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
   const [editing, setEditing] = useState<Product | null>(null);
   const [creating, setCreating] = useState(false);
@@ -35,6 +41,9 @@ export function ProductsView({ accountId }: { accountId: string }) {
   const { data, isLoading, isError } = useProducts(accountId, { enabled });
   const create = useCreateProduct(accountId);
   const update = useUpdateProduct(accountId);
+  const isAdmin = useIsAccountAdmin(accountId);
+  const catalog = useMetaCatalog(accountId);
+  const catalogConnected = catalog.data?.connected ?? false;
 
   async function handleCreate(input: ProductInput) {
     await create.mutateAsync(input);
@@ -50,12 +59,12 @@ export function ProductsView({ accountId }: { accountId: string }) {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Productos"
+        title={t("products.title")}
         actions={
           !creating && !editing ? (
             <Button size="sm" onClick={() => setCreating(true)}>
               <Plus className="h-4 w-4" aria-hidden />
-              Nuevo producto
+              {t("products.new")}
             </Button>
           ) : undefined
         }
@@ -64,7 +73,7 @@ export function ProductsView({ accountId }: { accountId: string }) {
       {creating ? (
         <Card>
           <CardHeader>
-            <CardTitle>Nuevo producto</CardTitle>
+            <CardTitle>{t("products.new")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ProductForm
@@ -79,7 +88,7 @@ export function ProductsView({ accountId }: { accountId: string }) {
       {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>Editar producto</CardTitle>
+            <CardTitle>{t("products.edit")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ProductForm
@@ -92,24 +101,28 @@ export function ProductsView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
+      {isAdmin && catalog.data ? (
+        <MetaCatalogCard accountId={accountId} catalog={catalog.data} />
+      ) : null}
+
       <SegmentedControl
-        ariaLabel="Filtrar productos"
+        ariaLabel={t("products.filterLabel")}
         size="sm"
         value={filter}
         onValueChange={setFilter}
-        options={FILTERS}
+        options={FILTERS.map((o) => ({ ...o, label: t(o.label) }))}
       />
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los productos.
+            {t("products.loadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay productos todavía.
+            {t("products.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -118,6 +131,7 @@ export function ProductsView({ accountId }: { accountId: string }) {
                 key={p.id}
                 accountId={accountId}
                 product={p}
+                inCatalog={catalogConnected}
                 onEdit={() => {
                   setCreating(false);
                   setEditing(p);
@@ -134,22 +148,27 @@ export function ProductsView({ accountId }: { accountId: string }) {
 function ProductRow({
   accountId,
   product,
+  inCatalog,
   onEdit,
 }: {
   accountId: string;
   product: Product;
+  inCatalog: boolean;
   onEdit: () => void;
 }) {
+  const t = useT();
+  const catalogState = useProductCatalogState();
+  const state = inCatalog ? catalogState(product) : null;
   const del = useDeleteProduct(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(`¿Eliminar "${product.name}"?`)) return;
+    if (!window.confirm(t("products.deleteConfirm", { name: product.name }))) return;
     setError(null);
     try {
       await del.mutateAsync(product.id);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((e as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
@@ -179,6 +198,18 @@ function ProductRow({
           {priceLabel}
           {product.sku ? ` · SKU ${product.sku}` : ""}
         </p>
+        {state ? (
+          <p
+            title={state.detail}
+            className={cn(
+              "truncate text-xs",
+              state.tone === "ok" ? "text-success" : state.tone === "warn" ? "text-warning" : "text-fg-muted",
+            )}
+          >
+            {state.label}
+            {state.detail ? `: ${state.detail}` : ""}
+          </p>
+        ) : null}
         {error ? (
           <p role="alert" className="text-xs text-danger">
             {error}
@@ -193,12 +224,12 @@ function ProductRow({
             : "bg-surface-2 text-fg-muted",
         )}
       >
-        {product.enabled ? "Activo" : "Inactivo"}
+        {product.enabled ? t("products.active") : t("products.inactive")}
       </span>
       <button
         type="button"
-        aria-label="Editar"
-        title="Editar"
+        aria-label={t("actions.edit")}
+        title={t("actions.edit")}
         onClick={onEdit}
         className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
@@ -206,8 +237,8 @@ function ProductRow({
       </button>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"

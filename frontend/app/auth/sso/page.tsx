@@ -7,6 +7,7 @@ import { Suspense, useEffect, useState } from "react";
 import { NeonWordmark } from "@/components/brand/neon-wordmark";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { messageFromBody } from "@/lib/api/errors";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * SSO landing page: Postiz redirects the browser here with a short-lived
@@ -14,6 +15,7 @@ import { messageFromBody } from "@/lib/api/errors";
  * for the devise session cookies, then send the user to their account.
  */
 function SsoExchange() {
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,7 @@ function SsoExchange() {
   useEffect(() => {
     const token = params.get("token");
     if (!token) {
-      setError("El enlace de acceso no incluye un token.");
+      setError(t("authCallback.ssoNoToken"));
       return;
     }
     let cancelled = false;
@@ -37,7 +39,7 @@ function SsoExchange() {
         setError(
           messageFromBody(
             body,
-            "No se pudo iniciar sesión. El enlace puede haber caducado.",
+            t("authCallback.ssoFailed"),
           ),
         );
         return;
@@ -48,12 +50,12 @@ function SsoExchange() {
     return () => {
       cancelled = true;
     };
-  }, [params, router]);
+  }, [params, router, t]);
 
   return (
     <div className="space-y-5">
       <div className="neon-sign">
-        <h1 className="text-[28px] leading-[1.2]">Acceso desde Postiz</h1>
+        <h1 className="text-[28px] leading-[1.2]">{t("authCallback.ssoTitle")}</h1>
       </div>
       {error ? (
         <div className="space-y-4">
@@ -67,11 +69,11 @@ function SsoExchange() {
             href="/login"
             className="block text-center text-sm text-info hover:underline"
           >
-            Ir a iniciar sesión
+            {t("auth.confirm.goToLogin")}
           </Link>
         </div>
       ) : (
-        <p className="text-sm text-fg-muted">Iniciando sesión…</p>
+        <p className="text-sm text-fg-muted">{t("authCallback.signingIn")}</p>
       )}
     </div>
   );

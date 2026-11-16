@@ -273,6 +273,104 @@ async def destroy_campaign(
     await session.flush()
 
 
+async def resolve_audience_contact_ids(
+    session: AsyncSession, *, campaign: Campaign
+) -> list[int]:
+    """Who a one-off campaign goes to, without repeats, in audience order:
+
+    * ``{type: "Contact", id}`` — that contact;
+    * ``{type: "Label", id}`` — contacts with a conversation carrying that
+      label (labels live on conversations, not on contacts);
+    * ``{type: "Inbox"}`` — everyone who has written to the campaign's
+      inbox (for WhatsApp: every contact of that number).
+    """
+    from app.domains.contacts.models import Contact, ContactInbox
+    from app.domains.labels.models import Label
+
+    ids: list[int] = []
+    seen: set[int] = set()
+
+    def add(contact_id: Any) -> None:
+        if isinstance(contact_id, int) and contact_id not in seen:
+            seen.add(contact_id)
+            ids.append(contact_id)
+
+    for entry in campaign.audience or []:
+        if not isinstance(entry, dict):
+            continue
+        kind = entry.get("type")
+        if kind == "Contact":
+            add(entry.get("id"))
+        elif kind == "Label":
+            label = await session.get(Label, entry.get("id"))
+            if label is None or label.account_id != campaign.account_id:
+                continue
+            rows = (
+                await session.exec(
+                    select(Conversation.contact_id, Conversation.cached_label_list).where(
+                        Conversation.account_id == campaign.account_id,
+                        Conversation.cached_label_list.ilike(f"%{label.title}%"),  # type: ignore[union-attr]
+                    )
+                )
+            ).all()
+            for contact_id, csv in rows:
+                titles = {t.strip() for t in (csv or "").split(",")}
+                if label.title in titles:
+                    add(contact_id)
+        elif kind == "Inbox":
+            rows = (
+                await session.exec(
+                    select(ContactInbox.contact_id)
+                    .join(Contact, Contact.id == ContactInbox.contact_id)  # type: ignore[arg-type]
+                    .where(
+                        ContactInbox.inbox_id == campaign.inbox_id,
+                        Contact.account_id == campaign.account_id,
+                    )
+                    .order_by(ContactInbox.id)  # type: ignore[arg-type]
+                )
+            ).all()
+            for contact_id in rows:
+                add(contact_id)
+    return ids
+
+
+async def campaign_recipients(
+    session: AsyncSession, *, campaign: Campaign
+) -> list[dict[str, Any]]:
+    """One row per contact the campaign messaged: name, phone, delivery
+    state and, when it failed, why (Meta's error)."""
+    from app.domains.contacts.models import Contact
+
+    rows = (
+        await session.exec(
+            select(Message, Conversation.display_id, Contact.id, Contact.name, Contact.phone_number)
+            .join(Conversation, Conversation.id == Message.conversation_id)  # type: ignore[arg-type]
+            .join(Contact, Contact.id == Conversation.contact_id)  # type: ignore[arg-type]
+            .where(
+                Message.account_id == campaign.account_id,
+                Message.additional_attributes["campaign_id"].astext  # type: ignore[index]
+                == str(campaign.id),
+            )
+            .order_by(Message.id)  # type: ignore[arg-type]
+        )
+    ).all()
+    out: list[dict[str, Any]] = []
+    for message, conv_display_id, contact_id, name, phone in rows:
+        attrs = message.content_attributes if isinstance(message.content_attributes, dict) else {}
+        out.append(
+            {
+                "contact_id": contact_id,
+                "name": name,
+                "phone_number": phone,
+                "conversation_id": conv_display_id,
+                "status": message_status_to_str(message.status),
+                "error": attrs.get("external_error"),
+                "sent_at": int(message.created_at.timestamp()) if message.created_at else None,
+            }
+        )
+    return out
+
+
 async def campaign_analytics(
     session: AsyncSession, *, campaign: Campaign
 ) -> dict[str, Any]:
@@ -321,9 +419,11 @@ async def campaign_analytics(
 __all__ = [
     "CAMPAIGN_TYPE_ONE_OFF",
     "campaign_analytics",
+    "campaign_recipients",
     "create_campaign",
     "destroy_campaign",
     "fetch_campaign_by_display_id",
     "list_campaigns",
+    "resolve_audience_contact_ids",
     "update_campaign",
 ]

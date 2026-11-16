@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { Agent } from "./account";
 import type { FilterCondition } from "./conversations";
+import type { ContactOrigin } from "./crm";
 import { apiFetch } from "./fetcher";
 
 /** Slim inbox shape returned by contactable_inboxes. */
@@ -31,6 +32,8 @@ export type Contact = {
   last_activity_at?: number | null;
   created_at?: number | null;
   contact_inboxes?: ContactInbox[];
+  /** How the person first came (F11); null until known. */
+  origin?: ContactOrigin | null;
 };
 
 export type ContactsPage = {
@@ -341,4 +344,37 @@ export function useDeleteContactNote(accountId: string, contactId: number) {
       ),
     onSuccess: () => invalidateNotes(qc, accountId, contactId),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Picture set by hand (F11) — Meta's never replaces it.
+// ---------------------------------------------------------------------------
+export const CONTACT_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+export const CONTACT_PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+
+/** Thrown for a picture the backend won't take (type or size). */
+export class ContactPhotoRejected extends Error {}
+
+export function useContactPhoto(accountId: string, contactId: number) {
+  const qc = useQueryClient();
+  const url = `${process.env.NEXT_PUBLIC_API_BASE ?? "/api/backend"}${base(accountId)}/${contactId}/avatar`;
+  const done = () => invalidate(qc, accountId);
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      if (!CONTACT_PHOTO_TYPES.includes(file.type) || file.size > CONTACT_PHOTO_MAX_BYTES) {
+        throw new ContactPhotoRejected();
+      }
+      const form = new FormData();
+      form.append("file", file, file.name);
+      const res = await fetch(url, { method: "POST", body: form });
+      if (res.status === 422) throw new ContactPhotoRejected();
+      if (!res.ok) throw new Error(String(res.status));
+    },
+    onSuccess: done,
+  });
+  const remove = useMutation({
+    mutationFn: () => apiFetch(`${base(accountId)}/${contactId}/avatar`, { method: "DELETE" }),
+    onSuccess: done,
+  });
+  return { upload, remove };
 }

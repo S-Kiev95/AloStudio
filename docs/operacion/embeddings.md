@@ -38,7 +38,7 @@ calcula EmbeddingGemma 2, un modelo gratis que corre en el servidor.
 
 | Pieza | Dónde |
 |---|---|
-| Servicio con el modelo (127.0.0.1:8100, solo texto, `float32`, 2 hilos, `MemoryMax=2560M`) | `app/embeddings_service/`, unidad `ops/embeddings/alostudio-embeddings.service` |
+| Servicio con el modelo (127.0.0.1:8100, solo texto, `float32`, 2 hilos, `MemoryMax=3072M`, lotes de 4) | `app/embeddings_service/`, unidad `ops/embeddings/alostudio-embeddings.service` |
 | Cliente y elección de modelo por cuenta | `app/core/embeddings.py` |
 | Migración (columnas nuevas, solo agrega) | `alembic/versions/6a7b8c9d0e1f_embedding_gemma.py` |
 | Backfill (tarea ARQ, por lotes de 32, se puede retomar) | `app/workers/embeddings_backfill.py` |

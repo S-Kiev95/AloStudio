@@ -5,18 +5,23 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
+import httpx
 from fastmcp import FastMCP
 from pydantic import Field
 
 from app.core.errors import ChatwootHTTPException
+from app.core.outbound import guarded_client
 from app.domains.media_library import service as media_svc
 from app.domains.media_library.presenters import present_asset
-from app.domains.publishing import analytics
+from app.domains.publishing import analytics, connections, presets
 from app.domains.publishing import service as svc
+from app.domains.publishing.models import Publication
 from app.domains.publishing.presenters import (
     present_channel,
     present_one_publication,
     present_publications,
+    present_sets,
+    present_signature,
 )
 from app.mcp.context import current_mcp_context
 from app.mcp.permissions import requires
@@ -40,6 +45,30 @@ def _parse_datetime(raw: str | None, field: str) -> datetime | None:
         return datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
     except ValueError as exc:
         raise ValueError(f"{field} must be an ISO 8601 datetime") from exc
+
+
+async def _download(url: str) -> tuple[bytes, str | None]:
+    """Fetch a public file, refusing private addresses (outbound guard) and
+    anything over the media library's largest size."""
+    limit = media_svc.MAX_UPLOAD_BYTES
+    try:
+        async with (
+            guarded_client(timeout=30.0, follow_redirects=True) as client,
+            client.stream("GET", url) as resp,
+        ):
+            if resp.status_code >= 400:
+                raise ValueError(f"could not download the file (HTTP {resp.status_code})")
+            chunks: list[bytes] = []
+            size = 0
+            async for chunk in resp.aiter_bytes():
+                size += len(chunk)
+                if size > limit:
+                    raise ValueError("the file is too big for the media library")
+                chunks.append(chunk)
+            content_type = resp.headers.get("content-type")
+    except httpx.HTTPError as exc:
+        raise ValueError(f"could not download the file: {exc}") from exc
+    return b"".join(chunks), (content_type or "").split(";", 1)[0] or None
 
 
 def register(mcp: FastMCP) -> None:
@@ -167,6 +196,138 @@ def register(mcp: FastMCP) -> None:
             )
         except ChatwootHTTPException as exc:
             raise _as_value_error(exc) from exc
+
+    async def _publication(
+        publication_id: int, *, for_update: bool = False
+    ) -> Publication:
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        publication = await svc.get_publication(
+            ctx.session,
+            account_id=ctx.account.id,
+            publication_id=publication_id,
+            for_update=for_update,
+        )
+        if publication is None:
+            raise ValueError(f"publication {publication_id} not found in this account")
+        return publication
+
+    @mcp.tool(name="show_publication")
+    @requires("read")
+    async def show_publication(publication_id: int) -> dict[str, Any]:
+        """One publication with each channel's state, result, link and
+        error (if it failed)."""
+        ctx = current_mcp_context()
+        publication = await _publication(publication_id)
+        return await present_one_publication(ctx.session, publication)
+
+    @mcp.tool(name="update_publication")
+    @requires("write")
+    async def update_publication(
+        publication_id: int,
+        content: str | None = None,
+        media: list[dict[str, Any]] | None = None,
+        scheduled_for: str | None = None,
+        channel_ids: list[int] | None = None,
+    ) -> dict[str, Any]:
+        """Change a draft or scheduled publication: text, media (same shape
+        as create_publication), date (ISO 8601) or channels. Fields left out
+        stay as they are. A date in the past sends it now."""
+        ctx = current_mcp_context()
+        publication = await _publication(publication_id, for_update=True)
+        payload: dict[str, Any] = {}
+        if content is not None:
+            payload["content"] = content
+        if media is not None:
+            payload["media"] = media
+        if scheduled_for is not None:
+            payload["scheduled_for"] = _parse_datetime(scheduled_for, "scheduled_for")
+        if channel_ids is not None:
+            payload["targets"] = [{"channel_id": cid, "settings": {}} for cid in channel_ids]
+        if not payload:
+            raise ValueError("nothing to update")
+        updated = await svc.update_publication(
+            ctx.session, publication=publication, payload=payload
+        )
+        await svc.publish_now_if_due(ctx.session, updated)
+        return await present_one_publication(ctx.session, updated)
+
+    @mcp.tool(name="retry_publication")
+    @requires("write")
+    async def retry_publication(publication_id: int) -> dict[str, Any]:
+        """Send again the channels that failed in a publication (the ones
+        already published stay). It goes out right away."""
+        ctx = current_mcp_context()
+        publication = await _publication(publication_id, for_update=True)
+        updated = await svc.retry_publication(ctx.session, publication=publication)
+        await svc.publish_now_if_due(ctx.session, updated)
+        return await present_one_publication(ctx.session, updated)
+
+    @mcp.tool(name="upload_media")
+    @requires("write")
+    async def upload_media(url: str, filename: str | None = None) -> dict[str, Any]:
+        """Copy an image or MP4 video from a public https URL into the
+        account's media library, ready for create_publication
+        (``{"media_id": id}``). Images are converted to JPG."""
+        url = (url or "").strip()
+        if not url.startswith("https://"):
+            raise ValueError("url must be a public https address")
+        data, content_type = await _download(url)
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        asset = await media_svc.upload_asset(
+            ctx.session,
+            account_id=ctx.account.id,
+            filename=filename or url.rsplit("/", 1)[-1].split("?", 1)[0] or None,
+            content_type=content_type,
+            data=data,
+            uploaded_by_id=ctx.user.id,
+        )
+        return present_asset(asset)
+
+    @mcp.tool(name="refresh_publication_metrics")
+    @requires("write")
+    async def refresh_publication_metrics(publication_id: int) -> dict[str, Any]:
+        """Read the figures of a published post now instead of waiting for
+        the hourly refresh (channels read in the last minutes are skipped,
+        to save the networks' quota)."""
+        ctx = current_mcp_context()
+        publication = await _publication(publication_id)
+        await analytics.refresh_publication_metrics(ctx.session, publication=publication)
+        return await present_one_publication(ctx.session, publication)
+
+    @mcp.tool(name="list_publishing_networks")
+    @requires("read")
+    async def list_publishing_networks() -> dict[str, Any]:
+        """Networks this installation can publish to and whether each is
+        configured. Connecting one needs the owner in the browser
+        (Publicaciones → Canales)."""
+        return {
+            "networks": [
+                {k: v for k, v in n.items() if k != "fields"}
+                for n in connections.connectable_networks()
+            ]
+        }
+
+    @mcp.tool(name="list_signatures")
+    @requires("read")
+    async def list_signatures() -> dict[str, Any]:
+        """Saved signatures (text added at the end of a post). Copy the text
+        into create_publication's content."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        rows = await presets.list_signatures(ctx.session, account_id=ctx.account.id)
+        return {"signatures": [present_signature(r) for r in rows]}
+
+    @mcp.tool(name="list_publication_sets")
+    @requires("read")
+    async def list_publication_sets() -> dict[str, Any]:
+        """Saved publication sets: a name with channels, settings and media
+        to reuse. Pass their channels and settings to create_publication."""
+        ctx = current_mcp_context()
+        assert ctx.account.id is not None
+        rows = await presets.list_sets(ctx.session, account_id=ctx.account.id)
+        return {"sets": await present_sets(ctx.session, rows)}
 
     @mcp.tool(name="cancel_publication")
     @requires("write")

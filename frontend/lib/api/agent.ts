@@ -1,3 +1,4 @@
+import { clientT } from "@/lib/i18n/client-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError } from "./errors";
@@ -97,7 +98,7 @@ export function getBrowserTimezone(): string {
 
 export function getAgentErrorMessage(
   err: unknown,
-  fallback = "Ocurrió un error al comunicarse con el agente.",
+  fallback = clientT()("apiErrors.agentFailed"),
 ): string {
   if (err instanceof ApiError) {
     if (err.body && typeof err.body === "object") {

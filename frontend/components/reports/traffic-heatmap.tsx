@@ -3,6 +3,8 @@
 import { useCallback, useState } from "react";
 
 import type { TrafficRow } from "@/lib/api/reports";
+import { useT } from "@/lib/i18n/provider";
+import type { Translate } from "@/lib/i18n/translate";
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
@@ -16,9 +18,11 @@ function hourLabel(h: number): string {
   return `${String(h).padStart(2, "0")}:00`;
 }
 
-function countLabel(count: number): string {
-  if (count === 0) return "Sin conversaciones";
-  return count === 1 ? "1 conversación" : `${count} conversaciones`;
+function countLabel(count: number, t: Translate): string {
+  if (count === 0) return t("reports.heatmap.none");
+  return count === 1
+    ? t("reports.heatmap.one")
+    : t("reports.heatmap.many", { count });
 }
 
 type Hovered = { x: number; y: number; when: string; count: number };
@@ -38,6 +42,7 @@ type Hovered = { x: number; y: number; when: string; count: number };
  * container, which would otherwise clip an absolutely-positioned tooltip.
  */
 export function TrafficHeatmap({ data }: { data: TrafficRow[] }) {
+  const t = useT();
   const [hovered, setHovered] = useState<Hovered | null>(null);
 
   const show = useCallback(
@@ -57,7 +62,7 @@ export function TrafficHeatmap({ data }: { data: TrafficRow[] }) {
   if (data.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-fg-muted">
-        No hay conversaciones en el rango elegido.
+        {t("reports.heatmap.empty")}
       </p>
     );
   }
@@ -99,7 +104,7 @@ export function TrafficHeatmap({ data }: { data: TrafficRow[] }) {
                       <div
                         // Kept for screen readers, which read cells through
                         // table navigation rather than hover.
-                        aria-label={`${when} — ${countLabel(count)}`}
+                        aria-label={`${when} — ${countLabel(count, t)}`}
                         onMouseEnter={(e) => show(e, when, count)}
                         onMouseLeave={hide}
                         className={
@@ -139,7 +144,7 @@ export function TrafficHeatmap({ data }: { data: TrafficRow[] }) {
           <p className="font-numeric tabular-nums text-fg-muted">
             {hovered.when}
           </p>
-          <p className="font-semibold text-fg">{countLabel(hovered.count)}</p>
+          <p className="font-semibold text-fg">{countLabel(hovered.count, t)}</p>
         </div>
       ) : null}
     </div>

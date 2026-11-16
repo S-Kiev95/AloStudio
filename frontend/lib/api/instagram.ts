@@ -49,6 +49,19 @@ export function useChannelSettings(accountId: string, channelId: number) {
 // Connection
 // ---------------------------------------------------------------------------
 /** Fetch the OAuth dialog URL then redirect the browser to Meta. */
+/** Which connect flows this installation has configured. */
+export function useInstagramConnectOptions(accountId: string) {
+  return useQuery({
+    queryKey: ["instagram-connect-options", accountId],
+    queryFn: () =>
+      apiFetch<{ facebook_login: boolean; instagram_login: boolean }>(
+        `/api/v1/accounts/${accountId}/instagram_channels/connect/options`,
+      ),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
 export async function startOAuth(
   accountId: string,
   flow: "facebook" | "instagram",

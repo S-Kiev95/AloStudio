@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/automation-rules";
 
 import { AutomationRuleForm } from "./automation-rule-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function AutomationRuleDetailView({
   accountId,
@@ -20,6 +21,7 @@ export function AutomationRuleDetailView({
   accountId: string;
   ruleId: number;
 }) {
+  const t = useT();
   const router = useRouter();
   const { data: rule, isLoading, isError } = useAutomationRule(accountId, ruleId);
   const update = useUpdateAutomationRule(accountId);
@@ -35,13 +37,13 @@ export function AutomationRuleDetailView({
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver a reglas
+        {t("settingsAutomation.back")}
       </Link>
       {isLoading ? (
-        <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+        <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
       ) : isError || !rule ? (
         <p role="alert" className="p-8 text-center text-sm text-danger">
-          No se pudo cargar la regla.
+          {t("settingsAutomation.loadFailed")}
         </p>
       ) : (
         <Card>

@@ -6,12 +6,19 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import { NeonWordmark } from "@/components/brand/neon-wordmark";
+import { CallDock } from "@/components/calls/call-dock";
 import type { Profile } from "@/lib/auth/profile";
+import { useHasWhatsappInbox } from "@/lib/api/inboxes";
+import { saveLocaleIfMissing } from "@/lib/api/profile";
+import { isLocale, type Locale } from "@/lib/i18n/config";
+import { useLocale, useSwitchLocale, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { useCable } from "@/lib/realtime/use-cable";
 import { cn } from "@/lib/utils";
 
@@ -70,20 +77,20 @@ function Brand({
   );
 }
 
-function resolveDefaultSign(pathname: string, accountId: string): string {
+function resolveDefaultSign(pathname: string, accountId: string): MessageKey {
   const base = `/accounts/${accountId}`;
   if (
     pathname === `${base}/notifications` ||
     pathname.startsWith(`${base}/notifications/`)
   ) {
-    return "Notificaciones";
+    return "nav.notifications";
   }
   const activeKey = activeNavItemKey(pathname, accountId);
   if (activeKey) {
     const matched = NAV_ITEMS.find((item) => item.key === activeKey);
     if (matched) return matched.label;
   }
-  return "Inicio";
+  return "nav.home";
 }
 
 export function DashboardShell({
@@ -116,6 +123,17 @@ export function DashboardShell({
     });
   };
 
+  // The language saved in the profile wins over this browser's cookie, so
+  // a choice made on another device applies here after signing in.
+  const locale = useLocale();
+  const switchLocale = useSwitchLocale();
+  useEffect(() => {
+    if (isLocale(profile.locale) && profile.locale !== locale) {
+      switchLocale(profile.locale);
+    }
+  }, [profile.locale, locale, switchLocale]);
+  useSaveFirstLocale(!isLocale(profile.locale), locale);
+
   useCable({
     pubsubToken: profile.pubsubToken,
     userId: profile.id,
@@ -123,11 +141,14 @@ export function DashboardShell({
   });
 
   const signCtx = useMemo(() => ({ setSignTitle: setCustomSign }), []);
-  const signTitle = customSign ?? resolveDefaultSign(pathname, accountId);
+  const t = useT();
+  const hasWhatsapp = useHasWhatsappInbox(accountId);
+  const hiddenNavKeys = hasWhatsapp ? [] : ["whatsapp"];
+  const signTitle = customSign ?? t(resolveDefaultSign(pathname, accountId));
   const homeHref = navHref(accountId, "");
   const toggleLabel = sidebarCollapsed
-    ? "Expandir barra lateral"
-    : "Colapsar barra lateral";
+    ? t("shell.expandSidebar")
+    : t("shell.collapseSidebar");
 
   return (
     <PageSignContext.Provider value={signCtx}>
@@ -150,7 +171,11 @@ export function DashboardShell({
           >
             <Brand href={homeHref} collapsed={sidebarCollapsed} />
           </div>
-          <SidebarNav accountId={accountId} collapsed={sidebarCollapsed} />
+          <SidebarNav
+            accountId={accountId}
+            collapsed={sidebarCollapsed}
+            hiddenKeys={hiddenNavKeys}
+          />
           <div className="border-t border-glass px-[10px] pb-3 pt-2">
             <button
               type="button"
@@ -178,7 +203,7 @@ export function DashboardShell({
           <div className="fixed inset-0 z-40 lg:hidden">
             <button
               type="button"
-              aria-label="Cerrar menú"
+              aria-label={t("shell.closeMenu")}
               className="absolute inset-0 bg-backdrop/80"
               onClick={() => setMobileOpen(false)}
             />
@@ -190,7 +215,7 @@ export function DashboardShell({
                 />
                 <button
                   type="button"
-                  aria-label="Cerrar menú"
+                  aria-label={t("shell.closeMenu")}
                   onClick={() => setMobileOpen(false)}
                   className="inline-flex h-11 w-11 items-center justify-center rounded-control text-fg-muted hover:bg-hover-glass hover:text-fg"
                 >
@@ -199,6 +224,7 @@ export function DashboardShell({
               </div>
               <SidebarNav
                 accountId={accountId}
+                hiddenKeys={hiddenNavKeys}
                 onNavigate={() => setMobileOpen(false)}
               />
             </aside>
@@ -207,10 +233,14 @@ export function DashboardShell({
 
         {/* Work glass panel */}
         <div className="glass-panel flex min-w-0 flex-1 flex-col rounded-panel bg-surface">
-          <header className="vt-topbar flex h-16 shrink-0 items-center gap-3 border-b border-glass px-4 lg:h-20 lg:px-6">
+          {/* view-transition-name makes the bar its own stacking layer, so its
+              menus (account, notifications, user) can only rise as high as the
+              bar itself: z-[35] keeps them above the page's own layers (up to
+              z-30) and below the mobile drawer (z-40) and dialogs (z-50). */}
+          <header className="vt-topbar relative z-[35] flex h-16 shrink-0 items-center gap-3 border-b border-glass px-4 lg:h-20 lg:px-6">
             <button
               type="button"
-              aria-label="Abrir menú"
+              aria-label={t("shell.openMenu")}
               onClick={() => setMobileOpen(true)}
               className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-fg-muted hover:bg-hover-glass hover:text-fg lg:hidden"
             >
@@ -242,6 +272,23 @@ export function DashboardShell({
           </main>
         </div>
       </div>
+      {/* WhatsApp calls ringing in my inboxes, and the one I am on (F7). */}
+      {hasWhatsapp ? <CallDock accountId={accountId} /> : null}
     </PageSignContext.Provider>
   );
+}
+
+/**
+ * Someone who never picked a language in their profile is seeing the one
+ * from the sign-in switcher or their browser. Save it, once: the backend
+ * writes their mail and notifications in the profile's language, and
+ * without this they'd get Spanish while reading the app in another one.
+ */
+function useSaveFirstLocale(missing: boolean, locale: Locale) {
+  const saved = useRef(false);
+  useEffect(() => {
+    if (!missing || saved.current) return;
+    saved.current = true;
+    void saveLocaleIfMissing(locale);
+  }, [missing, locale]);
 }

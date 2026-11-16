@@ -4,6 +4,7 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
 
 import type { ProfileAccount } from "@/lib/auth/profile";
+import { useT } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
 /**
@@ -18,6 +19,7 @@ export function AccountSwitcher({
   accounts: ProfileAccount[];
 }) {
   const active = accounts.find((a) => String(a.id) === accountId);
+  const t = useT();
 
   return (
     <details className="group relative">
@@ -31,7 +33,7 @@ export function AccountSwitcher({
         {/* On phones the name gives its room to the page sign; the menu
             still lists every account by name. */}
         <span className="max-w-[9rem] truncate max-sm:sr-only sm:max-w-[12rem]">
-          {active?.name ?? "Cuenta"}
+          {active?.name ?? t("shell.account")}
         </span>
         <ChevronsUpDown className="h-4 w-4 text-fg-muted" aria-hidden />
       </summary>

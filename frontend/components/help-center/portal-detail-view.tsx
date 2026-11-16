@@ -18,13 +18,15 @@ import { cn } from "@/lib/utils";
 import { ArticlesPanel } from "./articles-panel";
 import { CategoriesPanel } from "./categories-panel";
 import { PortalForm } from "./portal-form";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 type Tab = "articles" | "categories" | "settings";
 
-const TABS: { value: Tab; label: string }[] = [
-  { value: "articles", label: "Artículos" },
-  { value: "categories", label: "Categorías" },
-  { value: "settings", label: "Ajustes" },
+const TABS: { value: Tab; label: MessageKey }[] = [
+  { value: "articles", label: "helpCenter.articles" },
+  { value: "categories", label: "hc.categories" },
+  { value: "settings", label: "nav.settings" },
 ];
 
 export function PortalDetailView({
@@ -34,6 +36,7 @@ export function PortalDetailView({
   accountId: string;
   slug: string;
 }) {
+  const t = useT();
   const { data: portal, isLoading, isError } = usePortal(accountId, slug);
   const update = useUpdatePortal(accountId);
   const [tab, setTab] = useState<Tab>("articles");
@@ -57,14 +60,14 @@ export function PortalDetailView({
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver a portales
+        {t("helpCenter.backToPortals")}
       </Link>
 
       {isLoading ? (
-        <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+        <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
       ) : isError || !portal ? (
         <p role="alert" className="p-8 text-center text-sm text-danger">
-          No se pudo cargar el portal.
+          {t("helpCenter.portalLoadFailed")}
         </p>
       ) : (
         <>
@@ -101,10 +104,10 @@ export function PortalDetailView({
               <select
                 value={locale}
                 onChange={(e) => setLocale(e.target.value)}
-                aria-label="Idioma"
+                aria-label={t("auth.language")}
                 className={cn(selectClassName("sm"), "shrink-0")}
               >
-                <option value="">Todos los idiomas</option>
+                <option value="">{t("helpCenter.allLanguages")}</option>
                 {allowedLocales.map((l) => (
                   <option key={l} value={l}>
                     {l}
@@ -116,9 +119,9 @@ export function PortalDetailView({
 
           <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
             <TabsList>
-              {TABS.map((t) => (
-                <TabsTrigger key={t.value} value={t.value}>
-                  {t.label}
+              {TABS.map((tab) => (
+                <TabsTrigger key={tab.value} value={tab.value}>
+                  {t(tab.label)}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -139,7 +142,7 @@ export function PortalDetailView({
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>Ajustes del portal</CardTitle>
+                <CardTitle>{t("helpCenter.portalSettings")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <PortalForm
@@ -165,6 +168,7 @@ function ReindexButton({
   accountId: string;
   slug: string;
 }) {
+  const t = useT();
   const reindex = useReindexPortal(accountId, slug);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -174,11 +178,14 @@ function ReindexButton({
       const { enqueued } = await reindex.mutateAsync();
       setMsg(
         enqueued > 0
-          ? `Reindexando ${enqueued} artículo${enqueued === 1 ? "" : "s"}…`
-          : "Búsqueda semántica no configurada (OPENAI_API_KEY).",
+          ? t(
+              enqueued === 1 ? "helpCenter.reindexingOne" : "helpCenter.reindexingMany",
+              { count: enqueued },
+            )
+          : t("helpCenter.semanticOff"),
       );
     } catch {
-      setMsg("No se pudo reindexar.");
+      setMsg(t("helpCenter.reindexFailed"));
     }
   }
 
@@ -188,14 +195,14 @@ function ReindexButton({
         type="button"
         onClick={run}
         disabled={reindex.isPending}
-        title="Regenerar los embeddings de búsqueda de todos los artículos"
+        title={t("helpCenter.reindexHint")}
         className="inline-flex items-center gap-1.5 rounded-control border border-glass bg-field px-2.5 py-1.5 text-xs font-medium text-fg hover:bg-hover-glass disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
         <RefreshCw
           className={cn("h-3.5 w-3.5", reindex.isPending && "animate-spin")}
           aria-hidden
         />
-        Reindexar búsqueda
+        {t("helpCenter.reindex")}
       </button>
       {msg ? (
         <span className="text-[10px] text-fg-muted" role="status">

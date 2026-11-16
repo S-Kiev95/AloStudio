@@ -15,15 +15,17 @@ import {
 import { relativeTime } from "@/lib/time";
 
 import { RatingStars } from "./rating-stars";
+import { useLocale, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 const RANGES = [
-  { value: 7, label: "7 días" },
-  { value: 30, label: "30 días" },
-  { value: 90, label: "90 días" },
+  { value: 7, label: "reports.range.d7" },
+  { value: 30, label: "reports.range.d30" },
+  { value: 90, label: "reports.range.d90" },
 ] as const;
 
 const RATING_FILTERS = [
-  { value: undefined, label: "Todos" },
+  { value: undefined, label: "helpCenter.filters.all" },
   { value: 5, label: "5" },
   { value: 4, label: "4" },
   { value: 3, label: "3" },
@@ -32,6 +34,7 @@ const RATING_FILTERS = [
 ] as const;
 
 export function CsatView({ accountId }: { accountId: string }) {
+  const t = useT();
   const [days, setDays] = useState<number>(30);
   const [rating, setRating] = useState<number | undefined>(undefined);
 
@@ -50,22 +53,22 @@ export function CsatView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-medium text-fg">CSAT</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.csat")}</h2>
         <SegmentedControl
           size="sm"
-          ariaLabel="Período"
+          ariaLabel={t("reports.period")}
           value={days}
           onValueChange={setDays}
-          options={RANGES}
+          options={RANGES.map((o) => ({ ...o, label: t(o.label) }))}
         />
       </div>
 
       {/* Metric cards */}
       {metrics.isLoading ? (
-        <p className="text-sm text-fg-muted">Cargando métricas…</p>
+        <p className="text-sm text-fg-muted">{t("reports.loadingMetrics")}</p>
       ) : metrics.isError ? (
         <p role="alert" className="text-sm text-danger">
-          No se pudieron cargar las métricas de CSAT.
+          {t("settingsCsat.metricsFailed")}
         </p>
       ) : metrics.data ? (
         <>
@@ -77,27 +80,30 @@ export function CsatView({ accountId }: { accountId: string }) {
       {/* Rating filter */}
       <SegmentedControl
         size="sm"
-        ariaLabel="Calificación"
+        ariaLabel={t("settingsCsat.rating")}
         value={rating}
         onValueChange={setRating}
-        options={RATING_FILTERS}
+        options={RATING_FILTERS.map((o) => ({
+          ...o,
+          label: o.value === undefined ? t(o.label as MessageKey) : o.label,
+        }))}
       />
 
       {/* Response list */}
       <Card>
         <CardHeader>
-          <CardTitle>Respuestas</CardTitle>
+          <CardTitle>{t("settingsCsat.responses")}</CardTitle>
         </CardHeader>
         <CardContent>
           {responses.isLoading ? (
-            <p className="py-8 text-center text-sm text-fg-muted">Cargando…</p>
+            <p className="py-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
           ) : responses.isError ? (
             <p role="alert" className="py-8 text-center text-sm text-danger">
-              No se pudieron cargar las respuestas.
+              {t("settingsCsat.responsesFailed")}
             </p>
           ) : (responses.data?.length ?? 0) === 0 ? (
             <p className="py-8 text-center text-sm text-fg-muted">
-              Sin respuestas en este período.
+              {t("settingsCsat.noResponses")}
             </p>
           ) : (
             <ul className="divide-y divide-glass">
@@ -113,6 +119,7 @@ export function CsatView({ accountId }: { accountId: string }) {
 }
 
 function MetricsCards({ data }: { data: CsatMetrics }) {
+  const t = useT();
   const totalSent = data.total_sent_messages_count || 0;
   const responseRate =
     totalSent > 0 ? Math.round((data.total_count / totalSent) * 100) : 0;
@@ -131,7 +138,7 @@ function MetricsCards({ data }: { data: CsatMetrics }) {
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Card className="p-4">
         <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
-          Encuestas enviadas
+          {t("settingsCsat.surveysSent")}
         </p>
         <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
           {totalSent}
@@ -139,7 +146,7 @@ function MetricsCards({ data }: { data: CsatMetrics }) {
       </Card>
       <Card className="p-4">
         <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
-          Respuestas
+          {t("settingsCsat.responses")}
         </p>
         <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
           {data.total_count}
@@ -147,7 +154,7 @@ function MetricsCards({ data }: { data: CsatMetrics }) {
       </Card>
       <Card className="p-4">
         <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
-          Tasa de respuesta
+          {t("settingsCsat.responseRate")}
         </p>
         <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
           {responseRate}%
@@ -155,7 +162,7 @@ function MetricsCards({ data }: { data: CsatMetrics }) {
       </Card>
       <Card className="p-4">
         <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
-          Promedio
+          {t("settingsCsat.average")}
         </p>
         <p className="mt-1 font-numeric text-2xl font-semibold tabular-nums text-fg">
           {avg !== null ? `${avg.toFixed(1)} / 5` : "—"}
@@ -166,6 +173,7 @@ function MetricsCards({ data }: { data: CsatMetrics }) {
 }
 
 function RatingBreakdown({ data }: { data: CsatMetrics }) {
+  const t = useT();
   const total = data.total_count || 0;
   const buckets = [5, 4, 3, 2, 1].map((rating) => {
     const count = Number(data.ratings_count[String(rating)] ?? 0);
@@ -176,7 +184,7 @@ function RatingBreakdown({ data }: { data: CsatMetrics }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Distribución</CardTitle>
+        <CardTitle>{t("settingsCsat.distribution")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {buckets.map((b) => (
@@ -207,7 +215,9 @@ function ResponseRow({
   accountId: string;
   response: CsatResponse;
 }) {
-  const contactName = response.contact?.name?.trim() || "Anónimo";
+  const t = useT();
+  const locale = useLocale();
+  const contactName = response.contact?.name?.trim() || t("settingsCsat.anonymous");
   return (
     <li className="flex items-start gap-3 py-3">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-focused text-lit">
@@ -231,11 +241,13 @@ function ResponseRow({
             {response.feedback_message}
           </p>
         ) : (
-          <p className="text-sm text-fg-muted">(sin comentario)</p>
+          <p className="text-sm text-fg-muted">{t("settingsCsat.noComment")}</p>
         )}
         <p className="text-xs text-fg-muted">
-          {response.assigned_agent ? `Agente: ${response.assigned_agent.name} · ` : ""}
-          {relativeTime(response.created_at)}
+          {response.assigned_agent
+            ? `${t("settingsCsat.agent", { name: response.assigned_agent.name })} · `
+            : ""}
+          {relativeTime(response.created_at, locale)}
         </p>
       </div>
     </li>

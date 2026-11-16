@@ -23,14 +23,17 @@ import {
 import { cn } from "@/lib/utils";
 
 import { PublicationErrorAlert } from "./publication-error-alert";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const KIND_FILTERS: { value: MediaKind | undefined; label: string }[] = [
-  { value: undefined, label: "Todo" },
-  { value: "image", label: "Imágenes" },
-  { value: "video", label: "Videos" },
+const KIND_FILTERS: { value: MediaKind | undefined; label: MessageKey }[] = [
+  { value: undefined, label: "publications.media.filters.all" },
+  { value: "image", label: "publications.media.filters.images" },
+  { value: "video", label: "publications.media.filters.videos" },
 ];
 
 export function MediaLibraryView({ accountId }: { accountId: string }) {
+  const t = useT();
   const isAdmin = useIsAccountAdmin(accountId);
   const [kindFilter, setKindFilter] = useState<MediaKind | undefined>(undefined);
   const [dragging, setDragging] = useState(false);
@@ -65,20 +68,22 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
         await uploadMutation.mutateAsync(file);
       }
     } catch (err) {
-      setError(parsePublicationError(err, "No se pudo subir el archivo."));
+      setError(parsePublicationError(err, t("publications.media.uploadFailed")));
     } finally {
       setUploadingCount((c) => Math.max(0, c - files.length));
     }
   }
 
   async function handleDelete(asset: MediaAsset) {
-    const label = asset.filename || `archivo #${asset.id}`;
-    if (!window.confirm(`¿Borrar "${label}" de la biblioteca?`)) return;
+    const label =
+      asset.filename || t("publications.media.fileNumberLower", { id: asset.id });
+    if (!window.confirm(t("publications.media.deleteConfirm", { name: label })))
+      return;
     setError(null);
     try {
       await deleteMutation.mutateAsync(asset.id);
     } catch (err) {
-      setError(parsePublicationError(err, "No se pudo borrar el archivo."));
+      setError(parsePublicationError(err, t("publications.media.deleteFailed")));
     }
   }
 
@@ -105,7 +110,7 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
         type="file"
         multiple
         accept="image/*,video/*"
-        aria-label="Seleccionar archivos para subir"
+        aria-label={t("publications.media.pickFiles")}
         className="hidden"
         tabIndex={-1}
         onChange={(e) => {
@@ -118,7 +123,7 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
       />
 
       <PageHeader
-        title="Medios"
+        title={t("nav.media")}
         actions={
           <Button
             size="sm"
@@ -126,22 +131,22 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
             disabled={isUploading}
           >
             <Upload className="h-4 w-4" aria-hidden />
-            {isUploading ? "Subiendo…" : "Subir"}
+            {isUploading ? t("publications.media.uploading") : t("publications.media.upload")}
           </Button>
         }
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SegmentedControl
-          ariaLabel="Filtrar tipo de medio"
+          ariaLabel={t("publications.media.filterType")}
           size="sm"
           value={kindFilter}
           onValueChange={setKindFilter}
-          options={KIND_FILTERS}
+          options={KIND_FILTERS.map((o) => ({ ...o, label: t(o.label) }))}
         />
         {isUploading ? (
           <p role="status" className="text-xs font-medium text-lit">
-            Subiendo…
+            {t("publications.media.uploading")}
           </p>
         ) : null}
       </div>
@@ -159,11 +164,11 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
       >
         {mediaQuery.isLoading ? (
           <p className="py-16 text-center text-sm text-fg-muted">
-            Cargando medios…
+            {t("publications.media.loading")}
           </p>
         ) : mediaQuery.isError ? (
           <p role="alert" className="py-16 text-center text-sm text-danger">
-            No se pudo cargar la biblioteca de medios.
+            {t("publications.media.loadFailed")}
           </p>
         ) : items.length === 0 ? (
           <div className="flex min-h-[320px] flex-col items-center justify-center px-4 py-12 text-center">
@@ -177,12 +182,11 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
             </div>
             <h2 className="text-base font-medium text-fg">
               {kindFilter
-                ? "No hay archivos para este filtro"
-                : "Todavía no tenés medios"}
+                ? t("publications.media.emptyFilter")
+                : t("publications.media.empty")}
             </h2>
             <p className="mt-1.5 max-w-md text-xs text-fg-muted">
-              Seleccioná o arrastrá imágenes (máximo 30 MB) o videos (máximo
-              200 MB) a esta pantalla.
+              {t("publications.media.dropHint")}
             </p>
             <div className="mt-5">
               <Button
@@ -191,7 +195,7 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
                 disabled={isUploading}
               >
                 <Plus className="h-4 w-4" aria-hidden />
-                {isUploading ? "Subiendo…" : "Subir"}
+                {isUploading ? t("publications.media.uploading") : t("publications.media.upload")}
               </Button>
             </div>
           </div>
@@ -199,7 +203,7 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
           <div className="space-y-5">
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {items.map((asset) => {
-                const label = asset.filename || `Archivo #${asset.id}`;
+                const label = asset.filename || t("publications.media.fileNumber", { id: asset.id });
                 return (
                   <li
                     key={asset.id}
@@ -216,7 +220,7 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
                           />
                           <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-sm bg-backdrop/80 px-1.5 py-0.5 text-[10px] font-medium uppercase text-fg">
                             <Film className="h-3 w-3" aria-hidden />
-                            Video
+                            {t("publications.media.video")}
                           </span>
                         </>
                       ) : (
@@ -230,7 +234,7 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
                           />
                           <span className="sr-only">
                             <ImageIcon className="h-3 w-3" aria-hidden />
-                            Imagen
+                            {t("publications.media.image")}
                           </span>
                         </>
                       )}
@@ -250,8 +254,8 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
                       {isAdmin ? (
                         <button
                           type="button"
-                          aria-label={`Borrar ${label}`}
-                          title="Borrar"
+                          aria-label={t("publications.media.deleteNamed", { name: label })}
+                          title={t("publications.media.delete")}
                           disabled={deleteMutation.isPending}
                           onClick={() => handleDelete(asset)}
                           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
@@ -274,7 +278,7 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
                   loading={mediaQuery.isFetchingNextPage}
                   onClick={() => mediaQuery.fetchNextPage()}
                 >
-                  Cargar más
+                  {t("publications.media.loadMore")}
                 </Button>
               </div>
             ) : null}

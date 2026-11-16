@@ -513,6 +513,30 @@ async def retry_publication(
     return publication
 
 
+async def publish_now_if_due(
+    session: AsyncSession, publication: Publication
+) -> None:
+    """Enqueue a publication that should go out now — one scheduled for
+    now or earlier (claimed first), or one put back to publishing by a
+    retry. Commits first so the worker's own session sees it."""
+    from app.workers.publishing import enqueue_publication
+
+    if publication.state == PUBLICATION_STATE_SCHEDULED:
+        due = (
+            publication.scheduled_for is not None
+            and _aware(publication.scheduled_for) <= datetime.now(UTC)  # type: ignore[operator]
+        )
+        if not due or not await start_publishing(
+            session, publication_id=publication.id  # type: ignore[arg-type]
+        ):
+            return
+    elif publication.state != PUBLICATION_STATE_PUBLISHING:
+        return
+    await session.commit()
+    await enqueue_publication(publication.id)  # type: ignore[arg-type]
+    await session.refresh(publication)
+
+
 async def due_publication_ids(
     session: AsyncSession, *, now: datetime | None = None
 ) -> list[int]:

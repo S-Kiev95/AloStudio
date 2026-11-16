@@ -1,0 +1,18 @@
+export const settingsCanned = {
+  shortCodeRequired: "El atajo es obligatorio.",
+  contentRequired: "El contenido es obligatorio.",
+  saveFailed: "No se pudo guardar la respuesta.",
+  shortCode: "Atajo",
+  content: "Contenido",
+  create: "Crear respuesta",
+  new: "Nueva respuesta",
+  search: "Buscar respuestas",
+  searchPlaceholder: "Buscar por atajo o contenido…",
+  edit: "Editar respuesta",
+  loadFailed: "No se pudieron cargar las respuestas.",
+  noneFound: "No se encontraron respuestas.",
+  empty: "No hay respuestas todavía.",
+  deleteConfirm: "¿Eliminar \"/{code}\"?",
+  shortCodeHint: "Escribí {code} en el editor para insertar la respuesta.",
+  shortCodeExample: "atajo",
+};

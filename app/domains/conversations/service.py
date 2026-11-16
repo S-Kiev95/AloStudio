@@ -237,6 +237,10 @@ async def create_conversation(
     await session.flush()
     # ``display_id`` + ``uuid`` are server-assigned; refresh to pull them.
     await session.refresh(conv)
+    # The contact's origin (F11): their first conversation sets it.
+    from app.domains.crm.origin import stamp_from_conversation
+
+    await stamp_from_conversation(session, conv, inbox.channel_type)
 
     await dispatcher.dispatch(session, CONVERSATION_CREATED, conversation=conv)
     # Mirror Rails' ``after_save :run_auto_assignment`` — skipped when
@@ -1310,7 +1314,48 @@ async def _maybe_send_outbound_whatsapp(
             )
 
     try:
+        # Products from the Meta catalogue go out as an interactive message.
+        products = (message.content_attributes or {}).get("whatsapp_products")
+        if (
+            isinstance(products, dict)
+            and not template_params
+            and channel.provider == WHATSAPP_PROVIDER_CLOUD
+        ):
+            from app.domains.whatsapp.catalog import interactive_for
+            from app.domains.whatsapp.cloud_provider import (
+                send_interactive_message_cloud,
+            )
+
+            interactive = interactive_for(products)
+            if interactive is not None:
+                await send_interactive_message_cloud(
+                    session,
+                    channel=channel,
+                    message=message,
+                    to_phone=to_phone,
+                    interactive=interactive,
+                )
+                return
+
         if template_params:
+            from app.domains.usage.limits import limit_reached
+
+            if await limit_reached(session, message.account_id, "whatsapp"):
+                # Over the month's WhatsApp spend cap (F6): the template
+                # isn't sent; the message shows why.
+                from app.domains.conversations.models import MESSAGE_STATUS_FAILED
+
+                attrs = dict(message.content_attributes or {})
+                attrs["external_error"] = (
+                    "Se llegó al tope mensual de gasto de WhatsApp "
+                    "(Estadísticas → Gastos)."
+                )
+                message.content_attributes = attrs
+                message.status = MESSAGE_STATUS_FAILED
+                session.add(message)
+                await session.flush()
+                return
+
             from app.domains.whatsapp.template_processor import (
                 process_template_params,
             )

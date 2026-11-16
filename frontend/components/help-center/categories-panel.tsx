@@ -15,6 +15,7 @@ import {
 } from "@/lib/api/portals";
 
 import { CategoryForm } from "./category-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function CategoriesPanel({
   accountId,
@@ -25,6 +26,7 @@ export function CategoriesPanel({
   slug: string;
   locale?: string;
 }) {
+  const t = useT();
   const { data, isLoading, isError } = useCategories(accountId, slug, locale);
   const create = useCreateCategory(accountId, slug);
   const update = useUpdateCategory(accountId, slug);
@@ -46,11 +48,11 @@ export function CategoriesPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-fg">Categorías</h3>
+        <h3 className="text-sm font-medium text-fg">{t("hc.categories")}</h3>
         {!creating && !editing ? (
           <Button size="sm" variant="ghost" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" aria-hidden />
-            Nueva categoría
+            {t("helpCenter.newCategory")}
           </Button>
         ) : null}
       </div>
@@ -58,7 +60,7 @@ export function CategoriesPanel({
       {creating ? (
         <Card>
           <CardHeader>
-            <CardTitle>Nueva categoría</CardTitle>
+            <CardTitle>{t("helpCenter.newCategory")}</CardTitle>
           </CardHeader>
           <CardContent>
             <CategoryForm
@@ -73,7 +75,7 @@ export function CategoriesPanel({
       {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle>Editar categoría</CardTitle>
+            <CardTitle>{t("helpCenter.editCategory")}</CardTitle>
           </CardHeader>
           <CardContent>
             <CategoryForm
@@ -88,14 +90,14 @@ export function CategoriesPanel({
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-6 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-6 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-6 text-center text-sm text-danger">
-            No se pudieron cargar las categorías.
+            {t("helpCenter.categoriesLoadFailed")}
           </p>
         ) : (data?.length ?? 0) === 0 ? (
           <p className="p-6 text-center text-sm text-fg-muted">
-            No hay categorías en este portal todavía.
+            {t("helpCenter.noCategories")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -129,16 +131,17 @@ function CategoryRow({
   category: Category;
   onEdit: () => void;
 }) {
+  const t = useT();
   const del = useDeleteCategory(accountId, slug);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(`¿Eliminar la categoría "${category.name}"?`)) return;
+    if (!window.confirm(t("helpCenter.deleteCategoryConfirm", { name: category.name }))) return;
     setError(null);
     try {
       await del.mutateAsync(category.id);
     } catch (e) {
-      setError((e as { message?: string })?.message ?? "No se pudo eliminar.");
+      setError((e as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
 
@@ -161,8 +164,8 @@ function CategoryRow({
       </div>
       <button
         type="button"
-        aria-label="Editar"
-        title="Editar"
+        aria-label={t("actions.edit")}
+        title={t("actions.edit")}
         onClick={onEdit}
         className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
       >
@@ -170,8 +173,8 @@ function CategoryRow({
       </button>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"

@@ -4,8 +4,10 @@ import {
   formatLocalDateKey,
   formatWeekRangeLabel,
   startOfWeekMonday,
+  weekdayName,
 } from "@/components/agenda/week-utils";
 import type { Publication } from "@/lib/api/publications";
+import { DEFAULT_LOCALE, INTL_TAGS, type Locale } from "@/lib/i18n/config";
 
 export {
   addDaysLocal,
@@ -15,6 +17,7 @@ export {
   startOfWeekMonday,
 };
 
+// i18n-ignore-start: Spanish short names; shortWeekdayNames() covers the rest.
 export const SHORT_WEEKDAYS = [
   "Lun",
   "Mar",
@@ -34,6 +37,15 @@ export const LONG_WEEKDAYS = [
   "Sábado",
   "Domingo",
 ] as const;
+// i18n-ignore-end
+
+/** Monday-first short day names in the interface language. */
+export function shortWeekdayNames(locale: Locale = DEFAULT_LOCALE): string[] {
+  // 2024-01-01 was a Monday.
+  return Array.from({ length: 7 }, (_, i) =>
+    weekdayName(new Date(2024, 0, 1 + i), "short", locale),
+  );
+}
 
 export type CalendarPeriod = "day" | "week" | "month";
 
@@ -71,12 +83,13 @@ export function publicationTimestamp(pub: Publication): Date | null {
 export function publicationPreviewWords(
   pub: Publication,
   maxWords = 10,
+  emptyLabel = "Sin texto", // i18n-ignore: callers pass t("publications.noText")
 ): string {
   const raw =
     pub.content?.trim() ||
     pub.targets.find((t) => t.content_override?.trim())?.content_override?.trim() ||
     "";
-  if (!raw) return "Sin texto";
+  if (!raw) return emptyLabel;
   const words = raw.split(/\s+/);
   if (words.length <= maxWords) return words.join(" ");
   return `${words.slice(0, maxWords).join(" ")}…`;
@@ -95,19 +108,20 @@ export function formatClockHHMM(date: Date): string {
 export function formatCalendarRangeLabel(
   period: CalendarPeriod,
   cursor: Date,
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
   if (period === "week") {
-    return formatWeekRangeLabel(cursor);
+    return formatWeekRangeLabel(cursor, locale);
   }
   if (period === "day") {
-    return cursor.toLocaleDateString("es-ES", {
+    return cursor.toLocaleDateString(INTL_TAGS[locale], {
       weekday: "short",
       day: "numeric",
       month: "short",
       year: "numeric",
     });
   }
-  const monthLabel = cursor.toLocaleDateString("es-ES", {
+  const monthLabel = cursor.toLocaleDateString(INTL_TAGS[locale], {
     month: "long",
     year: "numeric",
   });
@@ -152,16 +166,12 @@ function sortPublications(items: Publication[]): Publication[] {
   });
 }
 
-function weekdayIndexMondayFirst(date: Date): number {
-  const day = date.getDay(); // 0 = Sun
-  return day === 0 ? 6 : day - 1;
-}
-
 export function buildDayColumns(
   startDate: Date,
   numDays: number,
   publications: Publication[],
   referenceMonth?: number,
+  locale: Locale = DEFAULT_LOCALE,
 ): CalendarDayColumn[] {
   const cols: CalendarDayColumn[] = [];
   const byKey = new Map<string, CalendarDayColumn>();
@@ -169,12 +179,11 @@ export function buildDayColumns(
   for (let i = 0; i < numDays; i++) {
     const d = addDaysLocal(startDate, i);
     const key = formatLocalDateKey(d);
-    const wd = weekdayIndexMondayFirst(d);
     const col: CalendarDayColumn = {
       date: d,
       key,
-      shortName: SHORT_WEEKDAYS[wd],
-      longName: LONG_WEEKDAYS[wd],
+      shortName: weekdayName(d, "short", locale),
+      longName: weekdayName(d, "long", locale),
       dayNumber: d.getDate(),
       dateShort: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
       inCurrentMonth:
@@ -210,6 +219,7 @@ export type DayListGroup = {
 
 export function groupPublicationsByLocalDay(
   publications: Publication[],
+  locale: Locale = DEFAULT_LOCALE,
 ): DayListGroup[] {
   const map = new Map<string, DayListGroup>();
   for (const pub of sortPublications(publications)) {
@@ -219,7 +229,7 @@ export function groupPublicationsByLocalDay(
     let grp = map.get(key);
     if (!grp) {
       const dayStart = startOfLocalDay(dt);
-      const rawHeading = dayStart.toLocaleDateString("es-ES", {
+      const rawHeading = dayStart.toLocaleDateString(INTL_TAGS[locale], {
         weekday: "long",
         day: "numeric",
         month: "long",

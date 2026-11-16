@@ -1,6 +1,7 @@
 import { Settings } from "lucide-react";
 
 import type { IconComponent } from "@/components/ui/brand-icons";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 import {
   AgentIcon,
@@ -14,11 +15,13 @@ import {
   MegaphoneIcon,
   PeopleIcon,
   StatsIcon,
+  WhatsappNavIcon,
 } from "./app-icons";
 
 export type NavItem = {
   key: string;
-  label: string;
+  /** Message key of the label, e.g. `"nav.home"`; render with `t()`. */
+  label: MessageKey;
   icon: IconComponent;
   segment: string; // "" = account home
   /** Additional segments under `/accounts/[accountId]/` that activate this item. */
@@ -26,59 +29,60 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { key: "home", label: "Inicio", icon: HomeIcon, segment: "" },
+  { key: "home", label: "nav.home", icon: HomeIcon, segment: "" },
   {
     key: "calendar",
-    label: "Calendario",
+    label: "nav.calendar",
     icon: CalendarIcon,
     segment: "publications",
   },
   {
     key: "agent",
-    label: "Agente",
+    label: "nav.agent",
     icon: AgentIcon,
     segment: "agent",
   },
   {
     key: "analytics",
-    label: "Estadísticas",
+    label: "nav.analytics",
     icon: StatsIcon,
     segment: "publications/analytics",
   },
   {
     key: "media",
-    label: "Medios",
+    label: "nav.media",
     icon: MediaIcon,
     segment: "publications/media",
   },
   {
     key: "conversations",
-    label: "Bandeja",
+    label: "nav.conversations",
     icon: InboxIcon,
     segment: "conversations",
   },
   {
     key: "crm",
-    label: "CRM",
+    label: "nav.crm",
     icon: PeopleIcon,
     segment: "contacts",
-    matchSegments: ["contacts", "products", "agenda"],
+    matchSegments: ["contacts", "companies", "opportunities", "tasks", "products", "agenda"],
   },
-  { key: "instagram", label: "Instagram", icon: InstagramNavIcon, segment: "instagram" },
+  { key: "instagram", label: "nav.instagram", icon: InstagramNavIcon, segment: "instagram" },
+  { key: "whatsapp", label: "nav.whatsapp", icon: WhatsappNavIcon, segment: "whatsapp" },
   {
     key: "help-center",
-    label: "Help Center",
+    label: "nav.helpCenter",
     icon: BookIcon,
     segment: "help-center",
   },
   {
     key: "campaigns",
-    label: "Campañas",
+    label: "nav.campaigns",
     icon: MegaphoneIcon,
     segment: "campaigns",
   },
-  { key: "reports", label: "Reportes", icon: BarsIcon, segment: "reports" },
-  { key: "settings", label: "Ajustes", icon: Settings, segment: "settings" },
+  { key: "reports", label: "nav.reports", icon: BarsIcon, segment: "reports" },
+  { key: "settings", label: "nav.settings", icon: Settings, segment: "settings" },
 ];
 
 /** Flat main section list up top with Ajustes pinned to the bottom (DESIGN.md). */
@@ -96,6 +100,7 @@ export const NAV_GROUPS: NavGroup[] = [
       "conversations",
       "crm",
       "instagram",
+      "whatsapp",
       "help-center",
       "campaigns",
       "reports",

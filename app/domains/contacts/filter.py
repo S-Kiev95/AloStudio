@@ -19,6 +19,8 @@ Attributes + operators:
   * ``company_name`` reads ``additional_attributes->>'company_name'``.
   * ``blocked`` (bool): equal_to (``"true"``/``"false"``).
   * ``created_at`` (date): is_greater_than, is_less_than, equal_to.
+  * Origin (F11): ``source`` / ``source_channel`` (codes): equal_to,
+    not_equal_to, is_present, is_not_present; ``source_detail`` is text.
 """
 
 from __future__ import annotations
@@ -36,7 +38,10 @@ from app.domains.contacts.models import Contact
 
 RESULTS_PER_PAGE = 15
 
-_TEXT_ATTRS = {"name", "email", "phone_number", "identifier", "company_name"}
+_TEXT_ATTRS = {"name", "email", "phone_number", "identifier", "company_name", "source_detail"}
+# Origin codes (F11): matched exactly, from a fixed list.
+_CHOICE_ATTRS = {"source", "source_channel"}
+_CHOICE_OPS = {"equal_to", "not_equal_to", "is_present", "is_not_present"}
 _BOOL_ATTRS = {"blocked"}
 _DATE_ATTRS = {"created_at"}
 
@@ -110,6 +115,8 @@ def _build_clause(condition: dict[str, Any]) -> ColumnElement[Any]:
 
     if attr in _TEXT_ATTRS:
         allowed = _TEXT_OPS
+    elif attr in _CHOICE_ATTRS:
+        allowed = _CHOICE_OPS
     elif attr in _BOOL_ATTRS:
         allowed = _BOOL_OPS
     elif attr in _DATE_ATTRS:

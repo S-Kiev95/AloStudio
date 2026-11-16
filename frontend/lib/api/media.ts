@@ -1,3 +1,4 @@
+import { clientT } from "@/lib/i18n/client-t";
 import {
   useInfiniteQuery,
   useMutation,
@@ -43,13 +44,13 @@ export function inferMediaKind(file: File): MediaKind | null {
 export function validateMediaFile(file: File): string | null {
   const kind = inferMediaKind(file);
   if (!kind) {
-    return "Formato no soportado. Subí una imagen o un video.";
+    return clientT()("apiErrors.mediaUnsupported");
   }
   if (kind === "image" && file.size > MAX_IMAGE_BYTES) {
-    return "La imagen supera el límite de 30 MB.";
+    return clientT()("apiErrors.imageTooBig");
   }
   if (kind === "video" && file.size > MAX_VIDEO_BYTES) {
-    return "El video supera el límite de 200 MB.";
+    return clientT()("apiErrors.videoTooBig");
   }
   return null;
 }
@@ -151,7 +152,7 @@ export function useUploadMedia(accountId: string) {
       if (!res.ok) {
         throw new ApiError(
           res.status,
-          messageFromBody(body, `No se pudo subir el archivo (${res.status}).`),
+          messageFromBody(body, clientT()("apiErrors.uploadFailed", { status: res.status })),
           body,
         );
       }

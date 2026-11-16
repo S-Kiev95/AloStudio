@@ -247,6 +247,17 @@ slow/failed ACK is a no-op on your side.
 * [ ] Drop `sender_type == "agent_bot"` for bot-reply paths.
 * [ ] Respond `200 OK` quickly; do work async.
 * [ ] Tolerate fields you don't know — payloads are additive.
+* [ ] Reply in the customer's language (see below).
+
+### Replying in the customer's language
+
+AloStudio doesn't translate what a bot sends: the reply goes out as the bot
+wrote it. A bot backed by a language model should be told so in its own
+prompt, for example *"Answer in the language the customer writes in; if
+it's unclear, use the one in `browser_language`"*. The hint, when the
+channel provides one, is in `conversation.additional_attributes.browser_language`
+(web widget) or the contact's `additional_attributes`. Keep the inbox's own
+instructions as they are: language is a reply rule, not a persona change.
 
 ---
 

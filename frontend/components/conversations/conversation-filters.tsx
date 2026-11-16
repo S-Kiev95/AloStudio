@@ -15,6 +15,8 @@ import { type Team, useTeams } from "@/lib/api/teams";
 import { Button } from "@/components/ui/button";
 import { selectClassName } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 type ValueKind =
   | "status"
@@ -28,7 +30,7 @@ type ValueKind =
 
 type AttrDef = {
   key: string;
-  label: string;
+  label: MessageKey;
   ops: FilterOperator[];
   value: ValueKind;
 };
@@ -41,35 +43,35 @@ const ALL_OPS: FilterOperator[] = [
 ];
 
 const ATTRIBUTES: AttrDef[] = [
-  { key: "status", label: "Estado", ops: ["equal_to", "not_equal_to"], value: "status" },
-  { key: "priority", label: "Prioridad", ops: ALL_OPS, value: "priority" },
-  { key: "assignee_id", label: "Asignado a", ops: ALL_OPS, value: "agent" },
-  { key: "inbox_id", label: "Bandeja", ops: ALL_OPS, value: "inbox" },
+  { key: "status", label: "conversations.filters.attr.status", ops: ["equal_to", "not_equal_to"], value: "status" },
+  { key: "priority", label: "conversations.filters.attr.priority", ops: ALL_OPS, value: "priority" },
+  { key: "assignee_id", label: "conversations.filters.attr.assignee", ops: ALL_OPS, value: "agent" },
+  { key: "inbox_id", label: "conversations.filters.attr.inbox", ops: ALL_OPS, value: "inbox" },
   // Broader than "Bandeja": three WhatsApp numbers are three inboxes but
   // one channel, and "everything from WhatsApp" is the question people ask.
   {
     key: "channel",
-    label: "Canal",
+    label: "conversations.filters.attr.channel",
     ops: ["equal_to", "not_equal_to"],
     value: "channel",
   },
-  { key: "team_id", label: "Equipo", ops: ALL_OPS, value: "team" },
-  { key: "labels", label: "Etiqueta", ops: ALL_OPS, value: "label" },
+  { key: "team_id", label: "conversations.filters.attr.team", ops: ALL_OPS, value: "team" },
+  { key: "labels", label: "conversations.filters.attr.label", ops: ALL_OPS, value: "label" },
   // "tiene valor" answers "everything an ad brought in", which is the
   // question asked most often; equal_to narrows to one campaign.
-  { key: "ad_id", label: "Anuncio", ops: ALL_OPS, value: "ad" },
+  { key: "ad_id", label: "conversations.filters.attr.ad", ops: ALL_OPS, value: "ad" },
 ];
 
-const OP_LABELS: Record<FilterOperator, string> = {
-  equal_to: "es",
-  not_equal_to: "no es",
-  contains: "contiene",
-  does_not_contain: "no contiene",
-  starts_with: "empieza con",
-  is_present: "tiene valor",
-  is_not_present: "sin valor",
-  is_greater_than: "después de",
-  is_less_than: "antes de",
+const OP_LABELS: Record<FilterOperator, MessageKey> = {
+  equal_to: "conversations.filters.op.equal_to",
+  not_equal_to: "conversations.filters.op.not_equal_to",
+  contains: "conversations.filters.op.contains",
+  does_not_contain: "conversations.filters.op.does_not_contain",
+  starts_with: "conversations.filters.op.starts_with",
+  is_present: "conversations.filters.op.is_present",
+  is_not_present: "conversations.filters.op.is_not_present",
+  is_greater_than: "conversations.filters.op.is_greater_than",
+  is_less_than: "conversations.filters.op.is_less_than",
 };
 
 /** Short names, matching what the filter endpoint accepts alongside the
@@ -81,21 +83,21 @@ const CHANNEL_OPTS = [
   { v: "telegram", l: "Telegram" },
   { v: "email", l: "Email" },
   { v: "sms", l: "SMS" },
-  { v: "webwidget", l: "Web" },
+  { v: "webwidget", l: "conversations.filters.channelWeb" },
   { v: "api", l: "API" },
 ];
 
 const STATUS_OPTS = [
-  { v: "open", l: "Abierta" },
-  { v: "pending", l: "Pendiente" },
-  { v: "resolved", l: "Resuelta" },
-  { v: "snoozed", l: "Pospuesta" },
+  { v: "open", l: "conversations.status.open" },
+  { v: "pending", l: "conversations.status.pending" },
+  { v: "resolved", l: "conversations.status.resolved" },
+  { v: "snoozed", l: "conversations.status.snoozed" },
 ];
 const PRIORITY_OPTS = [
-  { v: "low", l: "Baja" },
-  { v: "medium", l: "Media" },
-  { v: "high", l: "Alta" },
-  { v: "urgent", l: "Urgente" },
+  { v: "low", l: "conversations.priority.low" },
+  { v: "medium", l: "conversations.priority.medium" },
+  { v: "high", l: "conversations.priority.high" },
+  { v: "urgent", l: "conversations.priority.urgent" },
 ];
 
 const SELECT_CLS = selectClassName("sm");
@@ -148,6 +150,7 @@ export function ConversationFilters({
     match: "AND" | "OR",
   ) => void;
 }) {
+  const t = useT();
   const [rows, setRows] = useState<DraftRow[]>(
     initial.length > 0 ? initial.map(toDraft) : [blankRow()],
   );
@@ -212,12 +215,12 @@ export function ConversationFilters({
             <select
               value={row.attribute_key}
               onChange={(e) => changeAttribute(i, e.target.value)}
-              aria-label="Atributo"
+              aria-label={t("conversations.filters.attribute")}
               className={SELECT_CLS}
             >
               {ATTRIBUTES.map((a) => (
                 <option key={a.key} value={a.key}>
-                  {a.label}
+                  {t(a.label)}
                 </option>
               ))}
             </select>
@@ -228,12 +231,12 @@ export function ConversationFilters({
                   filter_operator: e.target.value as FilterOperator,
                 })
               }
-              aria-label="Operador"
+              aria-label={t("conversations.filters.operator")}
               className={SELECT_CLS}
             >
               {def.ops.map((op) => (
                 <option key={op} value={op}>
-                  {OP_LABELS[op]}
+                  {t(OP_LABELS[op])}
                 </option>
               ))}
             </select>
@@ -253,7 +256,7 @@ export function ConversationFilters({
               type="button"
               onClick={() => removeRow(i)}
               disabled={rows.length <= 1}
-              aria-label="Quitar condición"
+              aria-label={t("conversations.filters.removeCondition")}
               className="ml-auto rounded-md p-1 text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-40"
             >
               <X className="h-4 w-4" aria-hidden />
@@ -268,18 +271,18 @@ export function ConversationFilters({
           onClick={() => setRows((prev) => [...prev, blankRow()])}
           className="rounded-control border border-glass bg-field px-3 py-1.5 text-sm font-medium text-fg hover:bg-hover-glass"
         >
-          + Agregar condición
+          {t("conversations.filters.addCondition")}
         </button>
         {rows.length > 1 ? (
           <div className="flex items-center gap-1 text-xs text-fg-muted">
-            <span>Coincidir:</span>
+            <span>{t("conversations.filters.match")}</span>
             <button
               type="button"
               onClick={() => setMatch("AND")}
               aria-pressed={match === "AND"}
               className={matchCls(match === "AND")}
             >
-              Todas
+              {t("conversations.filters.matchAll")}
             </button>
             <button
               type="button"
@@ -287,7 +290,7 @@ export function ConversationFilters({
               aria-pressed={match === "OR"}
               className={matchCls(match === "OR")}
             >
-              Cualquiera
+              {t("conversations.filters.matchAny")}
             </button>
           </div>
         ) : null}
@@ -295,10 +298,10 @@ export function ConversationFilters({
 
       <div className="flex items-center gap-2 border-t border-glass pt-3">
         <Button type="button" size="sm" onClick={apply}>
-          Aplicar
+          {t("actions.apply")}
         </Button>
         <Button type="button" size="sm" variant="secondary" onClick={onCancel}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
         {initial.length > 0 ? (
           <button
@@ -306,7 +309,7 @@ export function ConversationFilters({
             onClick={onClear}
             className="ml-auto rounded-md px-3 py-1.5 text-sm font-medium text-fg-muted hover:text-fg"
           >
-            Limpiar filtros
+            {t("conversations.filters.clear")}
           </button>
         ) : null}
       </div>
@@ -316,8 +319,8 @@ export function ConversationFilters({
           type="text"
           value={saveName}
           onChange={(e) => setSaveName(e.target.value)}
-          placeholder="Guardar como vista…"
-          aria-label="Nombre de la vista"
+          placeholder={t("conversations.filters.saveAsView")}
+          aria-label={t("conversations.filters.viewName")}
           className={cn(SELECT_CLS, "min-w-[10rem] flex-1")}
         />
         <Button
@@ -327,7 +330,7 @@ export function ConversationFilters({
           onClick={save}
           disabled={!saveName.trim() || buildConditions().length === 0}
         >
-          Guardar vista
+          {t("conversations.filters.saveView")}
         </Button>
       </div>
     </div>
@@ -360,6 +363,7 @@ function ValueControl({
   labels: Label[];
   ads: KnownAd[];
 }) {
+  const t = useT();
   let options: { v: string; l: string }[] = [];
   if (def.value === "status") options = STATUS_OPTS;
   else if (def.value === "priority") options = PRIORITY_OPTS;
@@ -380,13 +384,14 @@ function ValueControl({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      aria-label="Valor"
+      aria-label={t("conversations.filters.value")}
       className={SELECT_CLS}
     >
-      <option value="">Seleccionar…</option>
+      <option value="">{t("actions.selectPlaceholder")}</option>
       {options.map((o) => (
         <option key={o.v} value={o.v}>
-          {o.l}
+          {/* Brand names are not keys: t() hands them back as they are. */}
+          {t(o.l as MessageKey)}
         </option>
       ))}
     </select>

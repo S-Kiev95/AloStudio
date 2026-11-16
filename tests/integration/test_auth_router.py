@@ -109,6 +109,7 @@ async def test_sign_in_rejects_bad_password(client, seeded_user):
     assert resp.json() == {
         "success": False,
         "errors": ["Invalid login credentials. Please try again."],
+        "code": "invalid_login",
     }
 
 

@@ -11,8 +11,10 @@ import {
 } from "@/lib/api/campaigns";
 
 import { CampaignForm } from "./campaign-form";
+import { useT } from "@/lib/i18n/provider";
 
 export function CampaignNewView({ accountId }: { accountId: string }) {
+  const t = useT();
   const router = useRouter();
   const create = useCreateCampaign(accountId);
 
@@ -28,11 +30,11 @@ export function CampaignNewView({ accountId }: { accountId: string }) {
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver a campañas
+        {t("campaigns.back")}
       </Link>
       <Card>
         <CardHeader>
-          <CardTitle>Nueva campaña</CardTitle>
+          <CardTitle>{t("campaigns.new")}</CardTitle>
         </CardHeader>
         <CardContent>
           <CampaignForm

@@ -1,3 +1,4 @@
+import type { MessageKey } from "@/lib/i18n/translate";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { Agent } from "./account";
@@ -5,9 +6,9 @@ import { apiFetch } from "./fetcher";
 
 export type AgentRole = "agent" | "administrator";
 
-export const ROLE_LABEL: Record<AgentRole, string> = {
-  administrator: "Administrador",
-  agent: "Agente",
+export const ROLE_LABEL: Record<AgentRole, MessageKey> = {
+  administrator: "settingsAgents.roles.administrator",
+  agent: "settingsAgents.roles.agent",
 };
 
 export type InviteAgentInput = {

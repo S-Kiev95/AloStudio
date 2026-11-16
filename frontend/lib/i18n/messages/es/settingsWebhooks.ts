@@ -1,0 +1,16 @@
+export const settingsWebhooks = {
+  urlRequired: "La URL es obligatoria.",
+  eventsRequired: "Elegí al menos un evento al que suscribirse.",
+  saveFailed: "No se pudo guardar el webhook.",
+  url: "URL",
+  inboxOptional: "Bandeja (opcional)",
+  events: "Eventos suscritos",
+  create: "Crear webhook",
+  new: "Nuevo webhook",
+  edit: "Editar webhook",
+  loadFailed: "No se pudieron cargar los webhooks.",
+  empty: "No hay webhooks todavía.",
+  deleteConfirm: "¿Eliminar este webhook?",
+  eventsOne: "{count} evento",
+  eventsMany: "{count} eventos",
+};

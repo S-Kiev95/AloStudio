@@ -3,6 +3,7 @@ import type {
   InstagramPostType,
   TikTokSettings,
 } from "@/lib/api/publications";
+import { createTranslate, type Translate } from "@/lib/i18n/translate";
 
 export type MediaCandidate = {
   type: "image" | "video";
@@ -180,11 +181,12 @@ export function validatePublicationTargets(
   sharedContent: string,
   media: MediaCandidate[],
   targets: TargetRuleInput[],
+  tr: Translate = createTranslate("es"),
 ): string[] {
   const problems: string[] = [];
 
   if (targets.length === 0) {
-    problems.push("Elegí al menos un canal para la publicación.");
+    problems.push(tr("publications.rules.pickChannel"));
     return problems;
   }
 
@@ -201,25 +203,25 @@ export function validatePublicationTargets(
     if (net === "instagram") {
       if (length > 2200) {
         problems.push(
-          `${label} (Instagram): el texto supera los 2200 caracteres (${length}/2200).`,
+          tr("publications.rules.textTooLong", { label, net: "Instagram", limit: 2200, length }),
         );
       }
       if (t.postType === "feed") {
         if (media.length < 1 || media.length > 10) {
           problems.push(
-            `${label} (Instagram Feed): requiere entre 1 y 10 imágenes o videos.`,
+            tr("publications.rules.igFeed", { label }),
           );
         }
       } else if (t.postType === "reels") {
         if (media.length !== 1 || media[0].type !== "video") {
           problems.push(
-            `${label} (Instagram Reels): requiere exactamente 1 video.`,
+            tr("publications.rules.igReels", { label }),
           );
         }
       } else if (t.postType === "story") {
         if (media.length !== 1) {
           problems.push(
-            `${label} (Instagram Story): requiere exactamente 1 imagen o video.`,
+            tr("publications.rules.igStory", { label }),
           );
         }
       }
@@ -229,12 +231,12 @@ export function validatePublicationTargets(
     if (net === "facebook_page") {
       if (!hasText && media.length === 0) {
         problems.push(
-          `${label} (Facebook): escribí un texto o agregá al menos un medio.`,
+          tr("publications.rules.needTextOrMedia", { label, net: "Facebook" }),
         );
       }
       if (length > 63206) {
         problems.push(
-          `${label} (Facebook): el texto supera los 63206 caracteres.`,
+          tr("publications.rules.textTooLongPlain", { label, net: "Facebook", limit: 63206 }),
         );
       }
       if (media.length > 0) {
@@ -242,7 +244,7 @@ export function validatePublicationTargets(
         const validSingleVideo = media.length === 1 && videoCount === 1;
         if (!validImagesOnly && !validSingleVideo) {
           problems.push(
-            `${label} (Facebook): admite hasta 10 imágenes o 1 video solo (sin mezclar).`,
+            tr("publications.rules.fbMedia", { label }),
           );
         }
       }
@@ -252,20 +254,20 @@ export function validatePublicationTargets(
     if (net === "x") {
       if (!hasText && media.length === 0) {
         problems.push(
-          `${label} (X): escribí un texto o agregá al menos un medio.`,
+          tr("publications.rules.needTextOrMedia", { label, net: "X" }),
         );
       }
       if (length > 280) {
         problems.push(
-          `${label} (X): el texto supera los 280 caracteres, contando cada link como 23 y cada emoji como 2 (${length}/280).`,
+          tr("publications.rules.xTextTooLong", { label, length }),
         );
       }
       if (videoCount > 0 && media.length > 1) {
         problems.push(
-          `${label} (X): admite 1 video solo, sin otras imágenes o videos.`,
+          tr("publications.rules.oneVideoOnly", { label, net: "X" }),
         );
       } else if (media.length > 4) {
-        problems.push(`${label} (X): admite hasta 4 imágenes.`);
+        problems.push(tr("publications.rules.maxImages", { label, net: "X", max: 4 }));
       }
       continue;
     }
@@ -273,17 +275,17 @@ export function validatePublicationTargets(
     if (net === "threads") {
       if (!hasText && media.length === 0) {
         problems.push(
-          `${label} (Threads): escribí un texto o agregá al menos un medio.`,
+          tr("publications.rules.needTextOrMedia", { label, net: "Threads" }),
         );
       }
       if (length > 500) {
         problems.push(
-          `${label} (Threads): el texto supera los 500 caracteres, contando cada emoji como varios (${length}/500).`,
+          tr("publications.rules.threadsTextTooLong", { label, length }),
         );
       }
       if (media.length > 20) {
         problems.push(
-          `${label} (Threads): admite hasta 20 imágenes o videos.`,
+          tr("publications.rules.maxMedia", { label, net: "Threads", max: 20 }),
         );
       }
       continue;
@@ -292,15 +294,15 @@ export function validatePublicationTargets(
     if (net === "tiktok") {
       const limit = channelCharLimit("tiktok", media) ?? 2200;
       if (media.length === 0) {
-        problems.push(`${label} (TikTok): agregá un video o al menos una foto.`);
+        problems.push(tr("publications.rules.tiktokNeedMedia", { label }));
       } else if (videoCount > 0 && imageCount > 0) {
         problems.push(
-          `${label} (TikTok): se publica un video o fotos, sin mezclarlos.`,
+          tr("publications.rules.tiktokNoMix", { label }),
         );
       } else if (videoCount > 1) {
-        problems.push(`${label} (TikTok): publica un solo video por vez.`);
+        problems.push(tr("publications.rules.tiktokOneVideo", { label }));
       } else if (imageCount > 35) {
-        problems.push(`${label} (TikTok): admite hasta 35 fotos.`);
+        problems.push(tr("publications.rules.tiktokMaxPhotos", { label, max: 35 }));
       } else if (
         media.some(
           (m) =>
@@ -308,25 +310,25 @@ export function validatePublicationTargets(
             !["jpg", "jpeg", "webp"].includes(mediaExtension(m)),
         )
       ) {
-        problems.push(`${label} (TikTok): solo acepta fotos en JPG o WebP.`);
+        problems.push(tr("publications.rules.tiktokPhotoFormat", { label }));
       }
       if (length > limit) {
         problems.push(
-          `${label} (TikTok): el texto supera los ${limit} caracteres (${length}/${limit}).`,
+          tr("publications.rules.textTooLong", { label, net: "TikTok", limit, length }),
         );
       }
       const chosen = t.tiktok;
       if (!chosen?.privacy_level) {
-        problems.push(`${label} (TikTok): elegí quién puede ver la publicación.`);
+        problems.push(tr("publications.rules.tiktokPickPrivacy", { label }));
       }
       if (chosen?.disclose && !chosen.brand_organic && !chosen.brand_content) {
         problems.push(
-          `${label} (TikTok): indicá si el contenido promociona tu marca, a un tercero o ambos.`,
+          tr("publications.rules.tiktokDisclosure", { label }),
         );
       }
       if (chosen?.brand_content && chosen.privacy_level === "SELF_ONLY") {
         problems.push(
-          `${label} (TikTok): el contenido de marca no puede tener visibilidad «Solo yo».`,
+          tr("publications.rules.tiktokBrandSelfOnly", { label }),
         );
       }
       continue;
@@ -335,20 +337,20 @@ export function validatePublicationTargets(
     if (net === "linkedin") {
       if (!hasText && media.length === 0) {
         problems.push(
-          `${label} (LinkedIn): escribí un texto o agregá al menos una imagen o video.`,
+          tr("publications.rules.linkedinNeedTextOrMedia", { label }),
         );
       }
       if (length > 3000) {
         problems.push(
-          `${label} (LinkedIn): el texto supera los 3000 caracteres (${length}/3000).`,
+          tr("publications.rules.textTooLong", { label, net: "LinkedIn", limit: 3000, length }),
         );
       }
       if (videoCount > 0 && media.length > 1) {
         problems.push(
-          `${label} (LinkedIn): admite 1 video solo, sin otras imágenes o videos.`,
+          tr("publications.rules.oneVideoOnly", { label, net: "LinkedIn" }),
         );
       } else if (imageCount > 20) {
-        problems.push(`${label} (LinkedIn): admite hasta 20 imágenes.`);
+        problems.push(tr("publications.rules.maxImages", { label, net: "LinkedIn", max: 20 }));
       }
       continue;
     }
@@ -356,18 +358,20 @@ export function validatePublicationTargets(
     if (net === "telegram") {
       if (!hasText && media.length === 0) {
         problems.push(
-          `${label} (Telegram): escribí un texto o agregá al menos un medio.`,
+          tr("publications.rules.needTextOrMedia", { label, net: "Telegram" }),
         );
       }
       const limit = media.length > 0 ? 1024 : 4096;
       if (length > limit) {
         problems.push(
-          `${label} (Telegram): el texto supera los ${limit} caracteres${media.length > 0 ? " con medios" : ""} (${length}/${limit}).`,
+          media.length > 0
+            ? tr("publications.rules.telegramTextTooLongWithMedia", { label, limit, length })
+            : tr("publications.rules.textTooLong", { label, net: "Telegram", limit, length }),
         );
       }
       if (media.length > 10) {
         problems.push(
-          `${label} (Telegram): admite hasta 10 imágenes o videos.`,
+          tr("publications.rules.maxMedia", { label, net: "Telegram", max: 10 }),
         );
       }
       continue;
@@ -375,11 +379,11 @@ export function validatePublicationTargets(
 
     // Discord and Slack: webhooks, with videos sent as links in the text.
     if (net === "discord" || net === "slack") {
-      const name = net === "discord" ? "Discord" : "Slack";
+      const name = net === "discord" ? "Discord" : "Slack"; // i18n-ignore
       const max = WEBHOOK_TEXT_MAX[net];
       if (!hasText && media.length === 0) {
         problems.push(
-          `${label} (${name}): escribí un texto o agregá al menos un medio.`,
+          tr("publications.rules.needTextOrMedia", { label, net: name }),
         );
       }
       const videoLinkChars = media
@@ -388,11 +392,13 @@ export function validatePublicationTargets(
       const effectiveLen = length + videoLinkChars;
       if (effectiveLen > max) {
         problems.push(
-          `${label} (${name}): el texto${videoCount > 0 ? " más los links de video" : ""} supera los ${max} caracteres.`,
+          videoCount > 0
+            ? tr("publications.rules.textWithVideoLinksTooLong", { label, net: name, limit: max })
+            : tr("publications.rules.textTooLongPlain", { label, net: name, limit: max }),
         );
       }
       if (imageCount > 10) {
-        problems.push(`${label} (${name}): admite hasta 10 imágenes.`);
+        problems.push(tr("publications.rules.maxImages", { label, net: name, max: 10 }));
       }
     }
   }

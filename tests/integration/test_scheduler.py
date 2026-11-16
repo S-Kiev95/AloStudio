@@ -229,11 +229,13 @@ async def test_oneoff_delivers_to_audience(db_session):
         )
 
 
-async def test_oneoff_skips_contact_with_existing_conversation(db_session):
+async def test_oneoff_reaches_existing_conversation_once(db_session):
+    """A mass send goes to contacts who already talked to the business:
+    into their latest conversation, and only once per campaign."""
     owner = await _seed_account(db_session, "-skip")
     inbox = await _seed_inbox(db_session, owner)
     contact = Contact(
-        account_id=owner.account.id, name="A", email="a@skip.example.com"
+        account_id=owner.account.id, name="Ana Pérez", email="a@skip.example.com"
     )
     db_session.add(contact)
     await db_session.flush()
@@ -243,31 +245,103 @@ async def test_oneoff_skips_contact_with_existing_conversation(db_session):
         inbox=inbox,
         source_id=f"src-{contact.id}",
     ).perform()
-    # Pre-existing conversation on this ContactInbox — the campaign must
-    # not create a second one for the same contact.
-    await create_conversation(
+    existing = await create_conversation(
         db_session, contact_inbox=ci, params=ConversationBuilderParams()
     )
 
     campaign = _make_campaign(
         owner, inbox, scheduled_at=datetime.now(UTC) - timedelta(hours=1)
     )
+    campaign.message = "Hola {primer_nombre}"
+    campaign.template_params = {
+        "name": "promo",
+        "language": "es",
+        "processed_params": {"body": {"1": "{nombre}"}},
+    }
     campaign.audience = [{"type": "Contact", "id": contact.id}]
     db_session.add(campaign)
     await db_session.flush()
 
-    fired = await fire_due_oneoff_campaigns(db_session)
-    assert fired == 1
-    camp_convs = list(
+    assert await fire_due_oneoff_campaigns(db_session) == 1
+    msgs = list(
         (
             await db_session.exec(
-                select(Conversation).where(
-                    Conversation.campaign_id == campaign.id
+                select(Message).where(
+                    Message.conversation_id == existing.id,
+                    Message.message_type == MESSAGE_TYPE_OUTGOING,
                 )
             )
         ).all()
     )
-    assert camp_convs == []
+    assert [m.content for m in msgs] == ["Hola Ana"]
+    tpl = (msgs[0].additional_attributes or {}).get("template_params") or {}
+    assert tpl.get("processed_params", {}).get("body", {}).get("1") == "Ana Pérez"
+
+    # A second run (the campaign re-armed) doesn't message her again.
+    campaign.campaign_status = CAMPAIGN_STATUS_ACTIVE
+    db_session.add(campaign)
+    await db_session.flush()
+    await fire_due_oneoff_campaigns(db_session)
+    again = (
+        await db_session.exec(
+            select(Message).where(
+                Message.conversation_id == existing.id,
+                Message.message_type == MESSAGE_TYPE_OUTGOING,
+            )
+        )
+    ).all()
+    assert len(list(again)) == 1
+
+
+async def test_oneoff_label_and_inbox_audiences(db_session):
+    """``Label`` reaches contacts whose conversations carry the label;
+    ``Inbox`` reaches every contact of the campaign's inbox."""
+    from app.domains.campaigns.service import (
+        campaign_recipients,
+        resolve_audience_contact_ids,
+    )
+    from app.domains.labels.models import Label
+
+    owner = await _seed_account(db_session, "-lbl")
+    inbox = await _seed_inbox(db_session, owner)
+    label = Label(account_id=owner.account.id, title="alumnos")
+    db_session.add(label)
+    tagged = Contact(account_id=owner.account.id, name="Tag", email="t@lbl.example.com")
+    other = Contact(account_id=owner.account.id, name="Otro", email="o@lbl.example.com")
+    db_session.add(tagged)
+    db_session.add(other)
+    await db_session.flush()
+    convs = {}
+    for c in (tagged, other):
+        ci = await ContactInboxBuilder(
+            session=db_session, contact=c, inbox=inbox, source_id=f"src-{c.id}"
+        ).perform()
+        convs[c.id] = await create_conversation(
+            db_session, contact_inbox=ci, params=ConversationBuilderParams()
+        )
+    convs[tagged.id].cached_label_list = "alumnos,vip"
+    convs[other.id].cached_label_list = "alumnos-viejos"
+    db_session.add(convs[tagged.id])
+    db_session.add(convs[other.id])
+    await db_session.flush()
+
+    campaign = _make_campaign(
+        owner, inbox, scheduled_at=datetime.now(UTC) - timedelta(hours=1)
+    )
+    campaign.audience = [{"type": "Label", "id": label.id}]
+    db_session.add(campaign)
+    await db_session.flush()
+    assert await resolve_audience_contact_ids(db_session, campaign=campaign) == [tagged.id]
+
+    campaign.audience = [{"type": "Inbox"}, {"type": "Contact", "id": tagged.id}]
+    assert sorted(await resolve_audience_contact_ids(db_session, campaign=campaign)) == sorted(
+        [tagged.id, other.id]
+    )
+
+    campaign.audience = [{"type": "Label", "id": label.id}]
+    await fire_due_oneoff_campaigns(db_session)
+    rows = await campaign_recipients(db_session, campaign=campaign)
+    assert [(r["name"], r["status"]) for r in rows] == [("Tag", "sent")]
 
 
 # ---------------------------------------------------------------------------

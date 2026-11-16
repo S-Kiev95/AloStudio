@@ -18,6 +18,7 @@ import {
   paramsToText,
   textToParams,
 } from "./macro-action-row";
+import { useT } from "@/lib/i18n/provider";
 
 type ActionDraft = { action_name: MacroActionName; text: string };
 
@@ -32,6 +33,7 @@ export function MacroForm({
   onSubmit: (input: MacroInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [visibility, setVisibility] = useState<MacroVisibility>(
     initial?.visibility ?? "personal",
@@ -50,9 +52,9 @@ export function MacroForm({
 
   async function submit() {
     setError(null);
-    if (!name.trim()) return setError("El nombre es obligatorio.");
+    if (!name.trim()) return setError(t("products.form.nameRequired"));
     if (actions.length === 0)
-      return setError("Agregá al menos una acción.");
+      return setError(t("settingsMacros.needAction"));
 
     const input: MacroInput = {
       name: name.trim(),
@@ -67,7 +69,7 @@ export function MacroForm({
       await onSubmit(input);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar el macro.",
+        (e as { message?: string })?.message ?? t("settingsMacros.saveFailed"),
       );
     }
   }
@@ -82,7 +84,7 @@ export function MacroForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="m-name" required>
-          Nombre
+          {t("profile.name")}
         </Label>
         <Input
           id="m-name"
@@ -93,7 +95,7 @@ export function MacroForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label>Visibilidad</Label>
+        <Label>{t("settingsMacros.visibility")}</Label>
         <div className="flex gap-3 text-sm">
           <label className="flex items-center gap-1.5">
             <input
@@ -101,7 +103,7 @@ export function MacroForm({
               checked={visibility === "personal"}
               onChange={() => setVisibility("personal")}
             />
-            Personal
+            {t("settingsMacros.personal")}
           </label>
           <label className="flex items-center gap-1.5">
             <input
@@ -109,16 +111,16 @@ export function MacroForm({
               checked={visibility === "global"}
               onChange={() => setVisibility("global")}
             />
-            Global (visible para toda la cuenta)
+            {t("settingsMacros.globalLong")}
           </label>
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label>Acciones</Label>
+        <Label>{t("settingsMacros.actions")}</Label>
         {actions.length === 0 ? (
           <p className="text-sm text-fg-muted">
-            Agregá al menos una acción para definir qué hace el macro.
+            {t("settingsMacros.needActionHint")}
           </p>
         ) : (
           <div className="space-y-2">
@@ -140,16 +142,16 @@ export function MacroForm({
         )}
         <Button type="button" variant="ghost" size="sm" onClick={addAction}>
           <Plus className="h-4 w-4" aria-hidden />
-          Agregar acción
+          {t("settingsMacros.addAction")}
         </Button>
       </div>
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear macro"}
+          {initial ? t("common.saveChanges") : t("settingsMacros.create")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { AlertTriangle, Check, Minus } from "lucide-react";
 
 import type { Capability } from "@/lib/inboxes/instagram-capabilities";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * What a connection method can do, as a list.
@@ -34,6 +35,7 @@ function CapabilityRow({
   capability: Capability;
   compact: boolean;
 }) {
+  const t = useT();
   const { level, label, note } = capability;
   const size = compact ? "h-3.5 w-3.5" : "h-4 w-4";
   const icon =
@@ -48,7 +50,7 @@ function CapabilityRow({
       <Minus className={`mt-0.5 shrink-0 text-danger ${size}`} aria-hidden />
     );
   // Screen readers get the verdict as a word — an icon alone says nothing.
-  const estado = level === "yes" ? "Sí" : level === "partial" ? "Limitado" : "No";
+  const estado = level === "yes" ? t("actions.yes") : level === "partial" ? t("instagram.capability.limited") : t("actions.no");
 
   return (
     <li className={`flex gap-2 ${compact ? "text-xs" : "text-sm"}`}>
@@ -56,10 +58,10 @@ function CapabilityRow({
       <span className="min-w-0">
         <span className="sr-only">{estado}: </span>
         <span className={level === "no" ? "text-fg-muted" : undefined}>
-          {label}
+          {t(label)}
         </span>
         {note && !compact ? (
-          <span className="mt-0.5 block text-xs text-fg-muted">{note}</span>
+          <span className="mt-0.5 block text-xs text-fg-muted">{t(note)}</span>
         ) : null}
       </span>
     </li>

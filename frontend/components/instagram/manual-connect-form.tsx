@@ -12,17 +12,19 @@ import { useConnectManual } from "@/lib/api/instagram";
 import { flowById } from "@/lib/inboxes/instagram-capabilities";
 
 import { CapabilityList } from "./capability-list";
+import { useT } from "@/lib/i18n/provider";
 
 const schema = z.object({
-  name: z.string().min(1, "Nombre requerido"),
-  instagram_id: z.string().min(1, "IG Business Account ID requerido"),
-  access_token: z.string().min(1, "Token requerido"),
+  name: z.string().min(1, "instagram.manual.nameRequired"),
+  instagram_id: z.string().min(1, "instagram.manual.igIdRequired"),
+  access_token: z.string().min(1, "instagram.manual.tokenRequired"),
   login_type: z.enum(["facebook", "instagram"]),
 });
 type FormInput = z.infer<typeof schema>;
 
 /** Advanced connect: paste a (permanent) token. */
 export function ManualConnectForm({ accountId }: { accountId: string }) {
+  const t = useT();
   const [error, setError] = useState<string | null>(null);
   const connect = useConnectManual(accountId);
   const {
@@ -46,7 +48,7 @@ export function ManualConnectForm({ accountId }: { accountId: string }) {
       await connect.mutateAsync(values);
       reset();
     } catch {
-      setError("No se pudo conectar. Revisá el token y el IG id.");
+      setError(t("instagram.manual.failed"));
     }
   }
 
@@ -59,7 +61,7 @@ export function ManualConnectForm({ accountId }: { accountId: string }) {
       ) : null}
       <div className="space-y-1.5">
         <Label htmlFor="m-name" required>
-          Nombre del inbox
+          {t("instagram.manual.inboxName")}
         </Label>
         <Input id="m-name" {...register("name")} aria-invalid={!!errors.name} />
       </div>
@@ -85,7 +87,7 @@ export function ManualConnectForm({ accountId }: { accountId: string }) {
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="m-login">Tipo de conexión</Label>
+        <Label htmlFor="m-login">{t("instagram.manual.connectionType")}</Label>
         <select
           id="m-login"
           {...register("login_type")}
@@ -97,12 +99,12 @@ export function ManualConnectForm({ accountId }: { accountId: string }) {
       </div>
       <div className="rounded-md border border-border bg-surface-2 px-3 py-2">
         <p className="mb-1.5 text-xs font-medium">
-          Con {flow.title} vas a poder:
+          {t("instagram.manual.withFlow", { flow: flow.title })}
         </p>
         <CapabilityList capabilities={flow.capabilities} compact />
       </div>
       <Button type="submit" loading={isSubmitting}>
-        Conectar con token
+        {t("instagram.manual.connect")}
       </Button>
     </form>
   );

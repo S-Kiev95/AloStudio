@@ -121,11 +121,10 @@ async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) ->
     if inbox is None:
         return 0
 
+    from app.domains.campaigns.service import resolve_audience_contact_ids
+
     sent = 0
-    for entry in campaign.audience or []:
-        if not isinstance(entry, dict) or entry.get("type") != "Contact":
-            continue
-        contact_id = entry.get("id")
+    for contact_id in await resolve_audience_contact_ids(session, campaign=campaign):
         try:
             contact = (
                 await session.exec(
@@ -150,7 +149,10 @@ async def _deliver_oneoff_campaign(session: AsyncSession, campaign: Campaign) ->
                     session=session, contact=contact, inbox=inbox
                 ).perform()
             conv = await build_campaign_conversation(
-                session, campaign=campaign, contact_inbox=contact_inbox
+                session,
+                campaign=campaign,
+                contact_inbox=contact_inbox,
+                reuse_existing=True,
             )
             if conv is not None:
                 sent += 1
@@ -238,19 +240,54 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         publications_fired = await fire_due_publications(pub_session)
         await pub_session.commit()
 
+    # CRM tasks that fell due (F11): the notification row is committed
+    # before its mail and push jobs are enqueued, since they read it back.
+    from app.domains.crm.activities import remind_due_activities
+    from app.domains.notifications.mailer import enqueue_notification_email
+    from app.domains.notifications.push import enqueue_notification_push
+
+    async with sessionmaker() as crm_session:
+        reminders = await remind_due_activities(crm_session)
+        await crm_session.commit()
+    for notification_id in reminders:
+        await enqueue_notification_email(notification_id)
+        await enqueue_notification_push(notification_id)
+
+    # Spend caps (F6): admins hear about 80 % and 100 %, once per month.
+    from app.domains.usage.limits import notify_limits
+
+    async with sessionmaker() as usage_session:
+        cap_alerts = await notify_limits(usage_session)
+        await usage_session.commit()
+    for notification_id in cap_alerts:
+        await enqueue_notification_email(notification_id)
+        await enqueue_notification_push(notification_id)
+
+    # Calls (F7): close the ones whose end never reached us, and copy
+    # recordings and transcripts a first attempt could not.
+    from app.domains.calls.tick import run as calls_tick
+
+    async with sessionmaker() as calls_session:
+        calls_closed = (await calls_tick(calls_session))["closed"]
+        await calls_session.commit()
+
     log.info(
         "scheduler.tick.done campaigns_fired=%s conversations_reopened=%s "
-        "instagram_posts_fired=%s publications_fired=%s",
+        "instagram_posts_fired=%s publications_fired=%s crm_reminders=%s calls_closed=%s",
         campaigns_fired,
         conversations_reopened,
         len(ig_fired),
         len(publications_fired),
+        len(reminders),
+        calls_closed,
     )
     return {
         "campaigns_fired": campaigns_fired,
         "conversations_reopened": conversations_reopened,
         "instagram_posts_fired": len(ig_fired),
         "publications_fired": len(publications_fired),
+        "crm_reminders": len(reminders),
+        "calls_closed": calls_closed,
     }
 
 
@@ -277,6 +314,25 @@ async def sync_ad_insights_task(ctx: dict[str, Any]) -> dict[str, int]:
         rows = await sync_all_connected_accounts(session)
     log.info("scheduler.ads_sync.done rows=%s", rows)
     return {"ad_insight_rows": rows}
+
+
+async def sync_whatsapp_costs_task(ctx: dict[str, Any]) -> dict[str, int]:
+    """What Meta charged each WhatsApp number in the last days (F6), from
+    ``pricing_analytics``. Several times a day: Meta's figures settle late."""
+    from app.domains.usage.whatsapp import sync_recent_costs
+
+    engine = _engine_from_ctx(ctx)
+    sessionmaker = async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+    async with sessionmaker() as session:
+        rows = await sync_recent_costs(session)
+        await session.commit()
+    log.info("scheduler.whatsapp_costs.done rows=%s", rows)
+    return {"whatsapp_cost_rows": rows}
 
 
 def _engine_from_ctx(ctx: dict[str, Any]) -> AsyncEngine:
@@ -323,6 +379,22 @@ class WorkerSettings:
         )
 
     @staticmethod
+    async def on_job_start(ctx: dict[str, Any]) -> None:
+        # Settings saved from the dashboard after the worker started (a new
+        # API key, say) reach it here, re-read at most every
+        # REFRESH_INTERVAL_SECONDS. Before, only startup read them, so a key
+        # loaded from Ajustes → Instalación did nothing until a restart. When
+        # the settings are fresh this touches no connection at all.
+        try:
+            from app.core.db import get_session_factory
+            from app.domains.installation import service as installation
+
+            async with get_session_factory()() as session:
+                await installation.refresh_if_stale(session)
+        except Exception as exc:  # noqa: BLE001 - old settings beat a failed job
+            log.warning("installation_config.refresh_failed err=%s", type(exc).__name__)
+
+    @staticmethod
     async def on_shutdown(ctx: dict[str, Any]) -> None:
         engine = ctx.get("engine")
         if engine is not None:
@@ -342,6 +414,11 @@ class WorkerSettings:
         )
         from app.domains.portals.embeddings import reindex_article_task
         from app.workers.business_agent import release_to_ai_task
+        from app.workers.contact_avatars import (
+            refresh_contact_avatar_task,
+            refresh_stale_avatars_task,
+        )
+        from app.workers.decisions import decide_conversation_task
         from app.workers.deliver_webhook import (
             MAX_ATTEMPTS as WEBHOOK_MAX_ATTEMPTS,
         )
@@ -352,6 +429,7 @@ class WorkerSettings:
         from app.workers.instagram_autoreply import (
             send_comment_autoreply_task,
         )
+        from app.workers.meta_catalog import sync_meta_catalog_task
         from app.workers.publishing import (
             JOB_TIMEOUT_SECONDS as PUBLICATION_JOB_TIMEOUT_SECONDS,
         )
@@ -392,6 +470,19 @@ class WorkerSettings:
             # Cron, below. Registered here because ARQ resolves a cron job
             # against the function list.
             fetch_imap_inboxes_task,
+            # Enqueued a few seconds after a new Instagram or Messenger
+            # contact writes; the daily refresh below is a cron.
+            refresh_contact_avatar_task,
+            refresh_stale_avatars_task,
+            # Enqueued a few seconds after a product changes, for accounts
+            # linked to a Meta catalogue (F11). Keeps no result: ARQ refuses a
+            # job id while its result lives (an hour by default), so every
+            # change in the hour after a sync was dropped.
+            func(sync_meta_catalog_task, keep_result=0),
+            # Enqueued when a customer writes, for accounts deciding their
+            # conversations in shadow mode (F10). Keeps no result, same reason:
+            # the next message after a decision must schedule another.
+            func(decide_conversation_task, keep_result=0),
         ]
 
     # ARQ reads these off the class, so they're class-level by contract, not
@@ -411,7 +502,9 @@ class WorkerSettings:
         from arq.connections import RedisSettings
         from arq.cron import cron
 
+        from app.workers.contact_avatars import refresh_stale_avatars_task
         from app.workers.email_poll import fetch_imap_inboxes_task
+        from app.workers.message_embeddings import embed_messages_task
         from app.workers.publishing import (
             METRICS_JOB_TIMEOUT_SECONDS,
             snapshot_publishing_channels_task,
@@ -462,6 +555,25 @@ class WorkerSettings:
                 fetch_imap_inboxes_task,
                 minute=set(range(1, 60, 2)),
             ),
+            # Message vectors for meaning-based search (F8): every three
+            # minutes, off the 5-minute tick and the mail poll. A no-op
+            # until the local embedding service is configured.
+            cron(embed_messages_task, minute=set(range(2, 60, 3))),
+            # Contact profile pictures, once a day: Meta's links expire and
+            # people change their picture. Early UTC, off the other jobs.
+            cron(
+                refresh_stale_avatars_task,
+                hour={4},
+                minute={23},
+                timeout=METRICS_JOB_TIMEOUT_SECONDS,
+            ),
+            # WhatsApp spend from Meta (F6), every six hours, off the hour.
+            cron(
+                sync_whatsapp_costs_task,
+                hour={1, 7, 13, 19},
+                minute={41},
+                timeout=METRICS_JOB_TIMEOUT_SECONDS,
+            ),
         ]
 
 
@@ -470,5 +582,6 @@ __all__ = [
     "fire_due_oneoff_campaigns",
     "reopen_snoozed_conversations",
     "sync_ad_insights_task",
+    "sync_whatsapp_costs_task",
     "tick_5min",
 ]

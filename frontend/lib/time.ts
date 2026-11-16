@@ -1,22 +1,35 @@
-/** Relative time from a unix-seconds timestamp (backend emits seconds). */
-export function relativeTime(unixSeconds: number | null | undefined): string {
+import { DEFAULT_LOCALE, INTL_TAGS, type Locale } from "@/lib/i18n/config";
+import { createTranslate } from "@/lib/i18n/translate";
+
+/**
+ * Relative time from a unix-seconds timestamp (backend emits seconds).
+ * `locale` comes from `useLocale()`; Spanish when omitted.
+ */
+export function relativeTime(
+  unixSeconds: number | null | undefined,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   if (!unixSeconds) return "";
+  const t = createTranslate(locale);
   const diffMs = Date.now() - unixSeconds * 1000;
   const sec = Math.round(diffMs / 1000);
-  if (sec < 60) return "ahora";
+  if (sec < 60) return t("time.now");
   const min = Math.round(sec / 60);
-  if (min < 60) return `hace ${min}m`;
+  if (min < 60) return t("time.minutesAgo", { n: min });
   const hr = Math.round(min / 60);
-  if (hr < 24) return `hace ${hr}h`;
+  if (hr < 24) return t("time.hoursAgo", { n: hr });
   const day = Math.round(hr / 24);
-  if (day < 7) return `hace ${day}d`;
-  return new Date(unixSeconds * 1000).toLocaleDateString();
+  if (day < 7) return t("time.daysAgo", { n: day });
+  return new Date(unixSeconds * 1000).toLocaleDateString(INTL_TAGS[locale]);
 }
 
 /** Clock time (HH:MM) for message bubbles. */
-export function clockTime(unixSeconds: number | null | undefined): string {
+export function clockTime(
+  unixSeconds: number | null | undefined,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   if (!unixSeconds) return "";
-  return new Date(unixSeconds * 1000).toLocaleTimeString([], {
+  return new Date(unixSeconds * 1000).toLocaleTimeString(INTL_TAGS[locale], {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -44,9 +57,12 @@ export function formatDuration(seconds: number | null | undefined): string {
 }
 
 /** Short date label (e.g. "12 may") for chart axes from unix seconds. */
-export function shortDate(unixSeconds: number | null | undefined): string {
+export function shortDate(
+  unixSeconds: number | null | undefined,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   if (!unixSeconds) return "";
-  return new Date(unixSeconds * 1000).toLocaleDateString(undefined, {
+  return new Date(unixSeconds * 1000).toLocaleDateString(INTL_TAGS[locale], {
     day: "numeric",
     month: "short",
   });

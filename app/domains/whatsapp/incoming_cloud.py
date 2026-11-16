@@ -120,6 +120,9 @@ _STATUS_MAP: dict[str, int] = {
 # ---------------------------------------------------------------------------
 # Payload accessors
 # ---------------------------------------------------------------------------
+_TEMPLATE_FIELDS = frozenset({"message_template_status_update", "template_category_update"})
+
+
 def _changes(payload: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
     """Every ``(field, value)`` in a Cloud webhook payload.
 
@@ -349,6 +352,10 @@ async def _process_status(
             msg.content_attributes = ca
     session.add(msg)
     await session.flush()
+    if status.get("pricing"):
+        from app.domains.usage.whatsapp import record_message_pricing
+
+        await record_message_pricing(session, message=msg, status=status)
     return msg
 
 
@@ -371,6 +378,23 @@ async def process_cloud_webhook(
     out: list[Message] = []
     changes = _changes(payload)
     for field, value in changes:
+        if field in _TEMPLATE_FIELDS:
+            # Meta approved, rejected or paused a template, or changed its
+            # category: keep the cached copy in step (F5). These changes are
+            # about the business account, not about a number.
+            from app.domains.whatsapp.templates import apply_template_update
+
+            await apply_template_update(
+                session, channel=channel, field=field, value=value
+            )
+            continue
+        if field == "calls":
+            # A customer calling the number, or the end of a call (F7).
+            if _for_channel(value, channel):
+                from app.domains.calls.whatsapp import process_calls_value
+
+                await process_calls_value(session, channel=channel, inbox=inbox, value=value)
+            continue
         if field not in ("messages", "messaging_handovers", "standby"):
             continue
         if not _for_channel(value, channel):
@@ -705,11 +729,32 @@ async def _process_value(
         # conversation is already attributed when listeners fan out.
         if stamp_conversation(conversation, parse_whatsapp_referral(msg)):
             session.add(conversation)
+            from app.domains.crm.origin import stamp_from_referral
+
+            await stamp_from_referral(session, conversation)
 
         body = _message_text(msg)
         attachments, media_caption = await _build_media_attachments(
             channel=channel, msg=msg, msg_type=str(msg_type)
         )
+        # A cart sent from the catalogue: items matched to our products.
+        order_attrs: dict[str, Any] | None = None
+        if msg_type == "order":
+            from app.domains.whatsapp.catalog import order_from_message
+
+            order = await order_from_message(
+                session, account_id=channel.account_id, msg=msg
+            )
+            if order is not None:
+                body, order_attrs = order
+        # The customer's answer to "can we call you?" (F7).
+        call_attrs: dict[str, Any] | None = None
+        if msg_type == "interactive":
+            from app.domains.calls.whatsapp import permission_reply
+
+            reply = permission_reply(msg)
+            if reply is not None:
+                body, call_attrs = reply
         try:
             # A savepoint, so losing the race below rolls back only this
             # insert and the session stays usable for the request's commit.
@@ -724,6 +769,7 @@ async def _process_value(
                         message_type="incoming",
                         source_id=str(wamid),
                         attachments=attachments or None,
+                        content_attributes=order_attrs or call_attrs,
                     ),
                     user_id=None,
                 )
@@ -740,6 +786,12 @@ async def _process_value(
                 "whatsapp.inbound.create_message_failed wamid=%s", wamid
             )
             continue
+        if order_attrs is not None:
+            from app.domains.whatsapp.catalog import open_opportunity_for_order
+
+            await open_opportunity_for_order(
+                session, message=inserted, conversation=conversation
+            )
         out.append(inserted)
 
     return out

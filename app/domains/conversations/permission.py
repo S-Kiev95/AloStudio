@@ -81,4 +81,46 @@ async def apply_permission_scope(
     return stmt.where(Conversation.inbox_id.in_(member_inbox_ids))  # type: ignore[attr-defined]
 
 
-__all__ = ["apply_permission_scope", "is_administrator"]
+async def can_view_conversation(
+    session: AsyncSession,
+    *,
+    account_id: int,
+    user_id: int,
+    conversation: Conversation,
+) -> bool:
+    """Mirror ``ConversationPolicy#show?``.
+
+    ``administrator? || agent_can_view_conversation?``, the latter being
+    membership in the conversation's inbox *or* in its team. Chatwoot runs
+    this on every endpoint that loads one conversation; the list had its
+    scope, but opening a conversation by number did not check it, so any
+    member of the account could read any conversation in it.
+    """
+    if await is_administrator(session, account_id=account_id, user_id=user_id):
+        return True
+    in_inbox = (
+        await session.exec(
+            select(InboxMember.id).where(
+                InboxMember.inbox_id == conversation.inbox_id,
+                InboxMember.user_id == user_id,
+            )
+        )
+    ).first()
+    if in_inbox is not None:
+        return True
+    if conversation.team_id is None:
+        return False
+    from app.domains.teams.models import TeamMember  # local: avoid a cycle
+
+    in_team = (
+        await session.exec(
+            select(TeamMember.id).where(
+                TeamMember.team_id == conversation.team_id,
+                TeamMember.user_id == user_id,
+            )
+        )
+    ).first()
+    return in_team is not None
+
+
+__all__ = ["apply_permission_scope", "can_view_conversation", "is_administrator"]

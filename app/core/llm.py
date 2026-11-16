@@ -75,6 +75,7 @@ async def embed_text(text: str) -> list[float]:
     """
     if not text or not text.strip():
         return []
+    await _check_budget()
     settings = get_settings()
     payload = {
         "model": settings.openai_embedding_model,
@@ -90,6 +91,7 @@ async def embed_text(text: str) -> list[float]:
             )
             resp.raise_for_status()
             data = resp.json()
+        _record(settings.openai_embedding_model, data)
         vector = data["data"][0]["embedding"]
         if not isinstance(vector, list):
             raise LlmError("embedding response had no vector")
@@ -108,6 +110,7 @@ async def generate_search_terms(
     malformed/empty response rather than raising, so indexing a quirky
     article never hard-fails.
     """
+    await _check_budget()
     settings = get_settings()
     user_content = (
         f"title: {title} \n description: {description or ''} \n "
@@ -130,6 +133,7 @@ async def generate_search_terms(
             )
             resp.raise_for_status()
             data = resp.json()
+        _record(settings.openai_chat_model, data)
         raw = data["choices"][0]["message"]["content"]
         parsed = json.loads(raw)
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
@@ -152,6 +156,7 @@ async def chat_completion(
     One tool call per step (``parallel_tool_calls: false``) so a write the
     user has to confirm never travels next to another call.
     """
+    await _check_budget()
     settings = get_settings()
     payload: dict[str, Any] = {
         "model": settings.openai_agent_model,
@@ -174,12 +179,32 @@ async def chat_completion(
                 raise LlmError(
                     f"chat completion failed: HTTP {resp.status_code} {_error_message(resp)}"
                 )
-            message = resp.json()["choices"][0]["message"]
+            data = resp.json()
+            _record(settings.openai_agent_model, data)
+            message = data["choices"][0]["message"]
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
         raise LlmError(f"chat completion failed: {exc}") from exc
     if not isinstance(message, dict):
         raise LlmError("chat completion returned no message")
     return message
+
+
+async def _check_budget() -> None:
+    """Spend cap (F6): the account's AI cap reached → no call."""
+    from app.domains.usage.ai import ai_budget_reached
+
+    if await ai_budget_reached():
+        raise LlmError("ai spend cap reached for this month")
+
+
+def _record(model: str, data: Any) -> None:
+    """Spend tracking (F6): the response's ``usage`` goes to the account
+    scope the caller opened, if any. The model OpenAI reports wins over the
+    configured alias."""
+    from app.domains.usage.ai import record_ai_call
+
+    if isinstance(data, dict):
+        record_ai_call(str(data.get("model") or model), data.get("usage"))
 
 
 def _error_message(resp: httpx.Response) -> str:

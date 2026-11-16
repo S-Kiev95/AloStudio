@@ -11,6 +11,7 @@ import {
   OPERATORS_WITHOUT_VALUES,
   STANDARD_ATTRIBUTES,
 } from "@/lib/api/automation-rules";
+import { useT } from "@/lib/i18n/provider";
 
 /** Editor draft for a condition — same shape as the wire row, plus
  * ``valuesText`` (comma-separated string) so the input stays controlled. */
@@ -35,6 +36,7 @@ export function ConditionRow({
   onChange: (next: ConditionDraft) => void;
   onRemove: () => void;
 }) {
+  const t = useT();
   const hideValues = OPERATORS_WITHOUT_VALUES.has(value.filter_operator);
   const isLast = index === total - 1;
 
@@ -42,7 +44,7 @@ export function ConditionRow({
     <div className="space-y-2 rounded-md border border-glass bg-surface-2/40 p-2">
       <div className="flex flex-wrap items-start gap-2">
         <select
-          aria-label="Atributo"
+          aria-label={t("settingsAutomation.attribute")}
           value={value.attribute_key}
           onChange={(e) =>
             onChange({ ...value, attribute_key: e.target.value })
@@ -51,13 +53,13 @@ export function ConditionRow({
         >
           {STANDARD_ATTRIBUTES.map((a) => (
             <option key={a.key} value={a.key}>
-              {a.label}
+              {t(a.label)}
             </option>
           ))}
         </select>
 
         <select
-          aria-label="Operador"
+          aria-label={t("settingsAutomation.operator")}
           value={value.filter_operator}
           onChange={(e) =>
             onChange({
@@ -69,29 +71,29 @@ export function ConditionRow({
         >
           {FILTER_OPERATORS.map((op) => (
             <option key={op} value={op}>
-              {FILTER_OPERATOR_LABELS[op]}
+              {t(FILTER_OPERATOR_LABELS[op])}
             </option>
           ))}
         </select>
 
         {!hideValues ? (
           <Input
-            aria-label="Valores"
+            aria-label={t("settingsAttrs.values")}
             value={value.valuesText}
             onChange={(e) =>
               onChange({ ...value, valuesText: e.target.value })
             }
-            placeholder="valor (o varios separados por coma)"
+            placeholder={t("settingsAutomation.valuesPlaceholder")}
             className="h-9 min-w-44 flex-1"
           />
         ) : (
-          <p className="self-center text-xs text-fg-muted">Sin valor</p>
+          <p className="self-center text-xs text-fg-muted">{t("settingsAutomation.noValue")}</p>
         )}
 
         <button
           type="button"
-          aria-label="Quitar condición"
-          title="Quitar condición"
+          aria-label={t("settingsAutomation.removeCondition")}
+          title={t("settingsAutomation.removeCondition")}
           onClick={onRemove}
           className="rounded-md p-2 text-fg-muted hover:bg-hover-glass hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -108,7 +110,7 @@ export function ConditionRow({
               onChange={() => onChange({ ...value, query_operator: "AND" })}
               className="accent-neon"
             />
-            Y (todas)
+            {t("settingsAutomation.and")}
           </label>
           <label className="flex items-center gap-1.5 text-fg-muted">
             <input
@@ -117,7 +119,7 @@ export function ConditionRow({
               onChange={() => onChange({ ...value, query_operator: "OR" })}
               className="accent-neon"
             />
-            O (cualquiera)
+            {t("settingsAutomation.or")}
           </label>
         </div>
       ) : null}

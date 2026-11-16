@@ -1,3 +1,5 @@
+import { clientT } from "@/lib/i18n/client-t";
+
 /** The attachment ref sent with a message (`{file_type, external_url}`). */
 export type UploadedAttachment = { external_url: string; file_type: string };
 
@@ -32,7 +34,7 @@ export async function uploadAttachment(
     { method: "POST", body: form },
   );
   if (!res.ok) {
-    throw new Error(`upload failed (${res.status})`);
+    throw new Error(clientT()("apiErrors.uploadFailed", { status: res.status }));
   }
   const data = (await res.json()) as { file_url: string };
   return { external_url: data.file_url, file_type: mimeToFileType(file.type) };
@@ -57,7 +59,7 @@ export async function uploadInstagramMedia(
     { method: "POST", body: form },
   );
   if (!res.ok) {
-    let message = `upload failed (${res.status})`;
+    let message = clientT()("apiErrors.uploadFailed", { status: res.status });
     try {
       const body = (await res.json()) as { message?: string };
       if (body.message) message = body.message;

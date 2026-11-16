@@ -32,6 +32,7 @@ import {
   valuesFromText,
   valuesToText,
 } from "./condition-row";
+import { useT } from "@/lib/i18n/provider";
 
 type ActionDraft = { action_name: AutomationActionName; text: string };
 
@@ -46,6 +47,7 @@ export function AutomationRuleForm({
   onSubmit: (input: AutomationRuleInput) => Promise<void> | void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [eventName, setEventName] = useState<AutomationEvent>(
@@ -87,9 +89,9 @@ export function AutomationRuleForm({
 
   async function submit() {
     setError(null);
-    if (!name.trim()) return setError("El nombre es obligatorio.");
+    if (!name.trim()) return setError(t("profile.nameRequired"));
     if (actions.length === 0)
-      return setError("Agregá al menos una acción.");
+      return setError(t("settingsMacros.needAction"));
 
     const wireConditions: RuleCondition[] = conditions.map((c, i) => ({
       attribute_key: c.attribute_key,
@@ -119,7 +121,7 @@ export function AutomationRuleForm({
       await onSubmit(input);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar la regla.",
+        (e as { message?: string })?.message ?? t("settingsAutomation.saveFailed"),
       );
     }
   }
@@ -134,7 +136,7 @@ export function AutomationRuleForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="ar-name" required>
-          Nombre
+          {t("profile.name")}
         </Label>
         <Input
           id="ar-name"
@@ -145,7 +147,7 @@ export function AutomationRuleForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="ar-desc">Descripción</Label>
+        <Label htmlFor="ar-desc">{t("products.description")}</Label>
         <Textarea
           id="ar-desc"
           rows={2}
@@ -155,7 +157,7 @@ export function AutomationRuleForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="ar-event">Evento</Label>
+        <Label htmlFor="ar-event">{t("settingsNotif.event")}</Label>
         <select
           id="ar-event"
           className={selectClassName()}
@@ -164,7 +166,7 @@ export function AutomationRuleForm({
         >
           {AUTOMATION_EVENTS.map((ev) => (
             <option key={ev} value={ev}>
-              {AUTOMATION_EVENT_LABELS[ev]}
+              {t(AUTOMATION_EVENT_LABELS[ev])}
             </option>
           ))}
         </select>
@@ -177,14 +179,14 @@ export function AutomationRuleForm({
           onChange={(e) => setActive(e.target.checked)}
           className="h-4 w-4 rounded border-glass accent-neon"
         />
-        Activa
+        {t("settingsAutomation.active")}
       </label>
 
       <div className="space-y-2">
-        <Label>Condiciones</Label>
+        <Label>{t("settingsAutomation.conditions")}</Label>
         {conditions.length === 0 ? (
           <p className="text-sm text-fg-muted">
-            Sin condiciones, la regla dispara siempre que ocurra el evento.
+            {t("settingsAutomation.noConditionsHint")}
           </p>
         ) : (
           <div className="space-y-2">
@@ -208,15 +210,15 @@ export function AutomationRuleForm({
         )}
         <Button type="button" variant="ghost" size="sm" onClick={addCondition}>
           <Plus className="h-4 w-4" aria-hidden />
-          Agregar condición
+          {t("settingsAutomation.addCondition")}
         </Button>
       </div>
 
       <div className="space-y-2">
-        <Label>Acciones</Label>
+        <Label>{t("settingsMacros.actions")}</Label>
         {actions.length === 0 ? (
           <p className="text-sm text-fg-muted">
-            Agregá al menos una acción.
+            {t("settingsMacros.needAction")}
           </p>
         ) : (
           <div className="space-y-2">
@@ -238,16 +240,16 @@ export function AutomationRuleForm({
         )}
         <Button type="button" variant="ghost" size="sm" onClick={addAction}>
           <Plus className="h-4 w-4" aria-hidden />
-          Agregar acción
+          {t("settingsMacros.addAction")}
         </Button>
       </div>
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>
-          {initial ? "Guardar cambios" : "Crear regla"}
+          {initial ? t("common.saveChanges") : t("settingsAutomation.create")}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
       </div>
     </div>

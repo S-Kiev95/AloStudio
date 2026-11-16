@@ -1,0 +1,30 @@
+import type { companies as es } from "../es/companies";
+import type { Strings } from "../types";
+
+export const companies: Strings<typeof es> = {
+  pageTitle: "Companies",
+  new: "New company",
+  create: "Create company",
+  company: "Company",
+  assign: "Assign company",
+  createNamed: "Create \"{name}\"",
+  back: "Back to companies",
+  details: "Company details",
+  people: "People",
+  peopleOne: "{count} person",
+  peopleMany: "{count} people",
+  noPeople: "No people in this company yet.",
+  removePerson: "Remove {name} from the company",
+  noOpportunities: "This company's people have no opportunities.",
+  nameRequired: "The name is required.",
+  saveFailed: "Couldn't save the company.",
+  loadFailed: "Couldn't load the companies.",
+  deleteConfirm: "Delete the company \"{name}\"? Its people are left without a company.",
+  empty: "No companies yet.",
+  noneFound: "No companies found.",
+  search: "Search companies",
+  website: "Website",
+  taxId: "Tax ID",
+  address: "Address",
+  addPerson: "Add person",
+};

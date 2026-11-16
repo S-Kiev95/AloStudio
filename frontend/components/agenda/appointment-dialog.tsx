@@ -21,13 +21,15 @@ import { cn } from "@/lib/utils";
 
 import { APPOINTMENT_STATUS_OPTIONS } from "./status-badge";
 import { fromDatetimeLocalInput, toDatetimeLocalInput } from "./week-utils";
+import { useT } from "@/lib/i18n/provider";
+import type { Translate } from "@/lib/i18n/translate";
 
-function contactDisplayName(c: AppointmentContact): string {
+function contactDisplayName(c: AppointmentContact, t: Translate): string {
   return (
     c.name?.trim() ||
     c.email?.trim() ||
     c.phone_number?.trim() ||
-    `Contacto #${c.id}`
+    t("conversations.contact.fallbackName", { id: c.id })
   );
 }
 
@@ -46,6 +48,7 @@ export function AppointmentDialog({
   presetContact?: AppointmentContact | null;
   defaultStartsAt?: Date | null;
 }) {
+  const t = useT();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const [contactQuery, setContactQuery] = useState("");
@@ -142,7 +145,7 @@ export function AppointmentDialog({
 
   function validateTitleOnBlur() {
     if (!title.trim()) {
-      setTitleError("El título es obligatorio.");
+      setTitleError(t("agenda.dialog.titleRequired"));
     } else {
       setTitleError(null);
     }
@@ -153,26 +156,26 @@ export function AppointmentDialog({
     setError(null);
 
     if (!selectedContact) {
-      setError("Seleccioná un contacto para la cita.");
+      setError(t("agenda.dialog.pickContact"));
       return;
     }
     if (!title.trim()) {
-      setTitleError("El título es obligatorio.");
-      setError("El título es obligatorio.");
+      setTitleError(t("agenda.dialog.titleRequired"));
+      setError(t("agenda.dialog.titleRequired"));
       return;
     }
     const isoStart = fromDatetimeLocalInput(startsAt);
     if (!isoStart) {
-      setError("Indicá una fecha y hora de inicio válidas.");
+      setError(t("agenda.dialog.startInvalid"));
       return;
     }
     const isoEnd = endsAt.trim() ? fromDatetimeLocalInput(endsAt) : null;
     if (endsAt.trim() && !isoEnd) {
-      setError("La fecha y hora de fin no es válida.");
+      setError(t("agenda.dialog.endInvalid"));
       return;
     }
     if (isoEnd && new Date(isoEnd).getTime() < new Date(isoStart).getTime()) {
-      setError("La hora de fin debe ser igual o posterior al inicio.");
+      setError(t("agenda.dialog.endBeforeStart"));
       return;
     }
 
@@ -207,7 +210,7 @@ export function AppointmentDialog({
     } catch (err) {
       setError(
         (err as { message?: string })?.message ??
-          "No se pudo guardar la cita.",
+          t("agenda.dialog.saveFailed"),
       );
     }
   }
@@ -227,11 +230,11 @@ export function AppointmentDialog({
             id="appointment-dialog-title"
             className="text-lg font-medium text-fg"
           >
-            {initial ? "Editar cita" : "Nueva cita"}
+            {initial ? t("agenda.dialog.editTitle") : t("agenda.newAppointment")}
           </h2>
           <button
             type="button"
-            aria-label="Cerrar diálogo"
+            aria-label={t("actions.closeDialog")}
             onClick={onClose}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
           >
@@ -248,7 +251,7 @@ export function AppointmentDialog({
         {/* Contacto */}
         <div className="space-y-1.5">
           <Label htmlFor="appt-contact-search" required>
-            Contacto
+            {t("conversations.contact.title")}
           </Label>
           {selectedContact && !pickingContact ? (
             <div className="flex items-center justify-between gap-2 rounded-control border border-glass bg-field px-3 py-2 text-sm">
@@ -259,7 +262,7 @@ export function AppointmentDialog({
                 />
                 <div className="min-w-0">
                   <p className="truncate font-medium text-fg">
-                    {contactDisplayName(selectedContact)}
+                    {contactDisplayName(selectedContact, t)}
                   </p>
                   {selectedContact.email || selectedContact.phone_number ? (
                     <p className="truncate text-xs text-fg-muted">
@@ -276,7 +279,7 @@ export function AppointmentDialog({
                 variant="ghost"
                 onClick={() => setPickingContact(true)}
               >
-                Cambiar
+                {t("agenda.dialog.change")}
               </Button>
             </div>
           ) : (
@@ -290,20 +293,20 @@ export function AppointmentDialog({
                   id="appt-contact-search"
                   value={contactQuery}
                   onChange={(e) => setContactQuery(e.target.value)}
-                  placeholder="Buscar por nombre, email o teléfono…"
+                  placeholder={t("agenda.dialog.searchPlaceholder")}
                   className="pl-9"
                 />
               </div>
               {contactQuery.trim().length > 0 && searchContacts.isLoading ? (
-                <p className="text-xs text-fg-muted">Buscando contactos…</p>
+                <p className="text-xs text-fg-muted">{t("agenda.dialog.searching")}</p>
               ) : candidateContacts.length === 0 ? (
                 <p className="text-xs text-fg-muted">
-                  No se encontraron contactos.
+                  {t("agenda.dialog.noContacts")}
                 </p>
               ) : (
                 <ul className="max-h-40 divide-y divide-glass overflow-y-auto rounded-md border border-glass bg-surface">
                   {candidateContacts.map((c) => {
-                    const label = contactDisplayName(c);
+                    const label = contactDisplayName(c, t);
                     const sub = [c.email, c.phone_number]
                       .filter(Boolean)
                       .join(" · ");
@@ -337,7 +340,7 @@ export function AppointmentDialog({
         {/* Título */}
         <div className="space-y-1.5">
           <Label htmlFor="appt-title" required>
-            Título
+            {t("agenda.dialog.titleLabel")}
           </Label>
           <Input
             id="appt-title"
@@ -348,7 +351,7 @@ export function AppointmentDialog({
             }}
             onBlur={validateTitleOnBlur}
             maxLength={255}
-            placeholder="Ej: Consulta inicial"
+            placeholder={t("agenda.dialog.titlePlaceholder")}
           />
           {titleError ? (
             <p role="alert" aria-live="polite" className="text-xs text-danger">
@@ -361,7 +364,7 @@ export function AppointmentDialog({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="appt-starts-at" required>
-              Inicio
+              {t("agenda.dialog.start")}
             </Label>
             <Input
               id="appt-starts-at"
@@ -372,7 +375,7 @@ export function AppointmentDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="appt-ends-at">Fin (opcional)</Label>
+            <Label htmlFor="appt-ends-at">{t("agenda.dialog.end")}</Label>
             <Input
               id="appt-ends-at"
               type="datetime-local"
@@ -386,14 +389,14 @@ export function AppointmentDialog({
         {/* Producto y Estado */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="appt-product">Producto / servicio</Label>
+            <Label htmlFor="appt-product">{t("agenda.dialog.product")}</Label>
             <select
               id="appt-product"
               value={productId}
               onChange={(e) => setProductId(e.target.value)}
               className={selectClassName()}
             >
-              <option value="">Sin producto</option>
+              <option value="">{t("agenda.dialog.noProduct")}</option>
               {availableProducts.map((p) => (
                 <option key={p.id} value={String(p.id)}>
                   {p.name}
@@ -405,7 +408,7 @@ export function AppointmentDialog({
             </select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="appt-status">Estado</Label>
+            <Label htmlFor="appt-status">{t("conversations.filters.attr.status")}</Label>
             <select
               id="appt-status"
               value={status}
@@ -414,7 +417,7 @@ export function AppointmentDialog({
             >
               {APPOINTMENT_STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
-                  {opt.label}
+                  {t(opt.label)}
                 </option>
               ))}
             </select>
@@ -423,13 +426,13 @@ export function AppointmentDialog({
 
         {/* Notas */}
         <div className="space-y-1.5">
-          <Label htmlFor="appt-notes">Notas</Label>
+          <Label htmlFor="appt-notes">{t("agenda.dialog.notes")}</Label>
           <Textarea
             id="appt-notes"
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Detalles o recordatorios internos…"
+            placeholder={t("agenda.dialog.notesPlaceholder")}
           />
         </div>
 
@@ -440,10 +443,10 @@ export function AppointmentDialog({
             onClick={onClose}
             disabled={isSubmitting}
           >
-            Cancelar
+            {t("actions.cancel")}
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            {initial ? "Guardar cambios" : "Agendar cita"}
+            {initial ? t("common.saveChanges") : t("agenda.schedule")}
           </Button>
         </div>
       </form>

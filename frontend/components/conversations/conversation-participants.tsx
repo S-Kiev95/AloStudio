@@ -10,6 +10,7 @@ import {
   useParticipants,
   useRemoveParticipant,
 } from "@/lib/api/participants";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * The conversation's "watcher" set: agents who follow it for
@@ -24,6 +25,7 @@ export function ConversationParticipants({
   accountId: string;
   displayId: number;
 }) {
+  const t = useT();
   const participants = useParticipants(accountId, displayId);
   const agents = useAgents(accountId);
   const add = useAddParticipant(accountId, displayId);
@@ -40,14 +42,14 @@ export function ConversationParticipants({
       await add.mutateAsync(userId);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo agregar.",
+        (e as { message?: string })?.message ?? t("conversations.participants.addFailed"),
       );
     }
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-glass px-4 py-1.5">
-      <span className="text-xs font-medium text-fg-muted">Participantes</span>
+      <span className="text-xs font-medium text-fg-muted">{t("conversations.participants.title")}</span>
 
       {current.map((p) => (
         <span
@@ -57,7 +59,7 @@ export function ConversationParticipants({
           {p.name}
           <button
             type="button"
-            aria-label={`Quitar ${p.name}`}
+            aria-label={t("conversations.participants.remove", { name: p.name })}
             onClick={() => remove.mutate(p.id)}
             disabled={remove.isPending}
             className="rounded-sm p-0.5 text-fg-muted hover:text-danger disabled:opacity-50"
@@ -68,7 +70,7 @@ export function ConversationParticipants({
       ))}
 
       {current.length === 0 ? (
-        <span className="text-xs text-fg-muted">Nadie sigue esta conversación.</span>
+        <span className="text-xs text-fg-muted">{t("conversations.participants.none")}</span>
       ) : null}
 
       {addable.length > 0 ? (
@@ -83,9 +85,9 @@ export function ConversationParticipants({
               e.currentTarget.value = "";
             }}
             disabled={add.isPending}
-            aria-label="Agregar participante"
+            aria-label={t("conversations.participants.add")}
           >
-            <option value="">Agregar…</option>
+            <option value="">{t("actions.addPlaceholder")}</option>
             {addable.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}

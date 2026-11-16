@@ -42,6 +42,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from app.core.storage import object_url
+from app.domains.contacts.avatar import contact_thumbnail
 from app.domains.conversations.models import (
     FILE_TYPE_AUDIO,
     FILE_TYPE_CONTACT,
@@ -104,7 +105,7 @@ def _contact_push_event_data(contact: Contact) -> dict[str, Any]:
         "identifier": contact.identifier,
         "name": contact.name,
         "phone_number": contact.phone_number,
-        "thumbnail": "",  # Avatarable concern, Phase 6+
+        "thumbnail": contact_thumbnail(contact),
         "blocked": contact.blocked,
         "type": "contact",
     }

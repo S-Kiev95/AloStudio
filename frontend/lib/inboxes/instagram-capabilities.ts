@@ -11,76 +11,78 @@
  * real account, not read off a table.
  */
 
+import type { MessageKey } from "@/lib/i18n/translate";
+
 export type CapabilityLevel = "yes" | "partial" | "no";
 
 export type Capability = {
-  label: string;
+  label: MessageKey;
   level: CapabilityLevel;
   /** Shown when the answer is not a plain yes. */
-  note?: string;
+  note?: MessageKey;
 };
 
 export type ConnectFlow = {
   id: "facebook" | "instagram";
   title: string;
   /** One line on who this flow is for. */
-  summary: string;
-  requirement: string;
+  summary: MessageKey;
+  requirement: MessageKey;
   capabilities: Capability[];
 };
 
 const PUBLISH: Capability = {
-  label: "Publicar fotos, carruseles, reels e historias",
+  label: "igCapabilities.publish",
   level: "yes",
 };
 const COMMENTS: Capability = {
-  label: "Leer y responder comentarios, con reglas automáticas",
+  label: "igCapabilities.comments",
   level: "yes",
 };
-const INSIGHTS: Capability = { label: "Métricas de las publicaciones", level: "yes" };
+const INSIGHTS: Capability = { label: "igCapabilities.insights", level: "yes" };
 
 export const CONNECT_FLOWS: ConnectFlow[] = [
   {
     id: "facebook",
-    title: "Facebook Login",
+    title: "Facebook Login", // i18n-ignore
     summary:
-      "El camino completo. Es el que conviene si vas a atender mensajes.",
+      "igCapabilities.facebook.summary",
     requirement:
-      "Necesita una Página de Facebook vinculada a la cuenta de Instagram.",
+      "igCapabilities.facebook.requirement",
     capabilities: [
       PUBLISH,
       COMMENTS,
       INSIGHTS,
       {
-        label: "Recibir y responder mensajes directos",
+        label: "igCapabilities.dms",
         level: "yes",
-        note: "Los mensajes llegan con su texto y sus adjuntos.",
+        note: "igCapabilities.facebook.dmsNote",
       },
       {
-        label: "Borrar publicaciones desde AloStudio",
+        label: "igCapabilities.deletePosts",
         level: "yes",
       },
     ],
   },
   {
     id: "instagram",
-    title: "Instagram Login",
+    title: "Instagram Login", // i18n-ignore
     summary:
-      "Más simple de conectar, pero deja los mensajes fuera de servicio.",
-    requirement: "No necesita Página de Facebook.",
+      "igCapabilities.instagram.summary",
+    requirement: "igCapabilities.instagram.requirement",
     capabilities: [
       PUBLISH,
       COMMENTS,
       INSIGHTS,
       {
-        label: "Recibir y responder mensajes directos",
+        label: "igCapabilities.dms",
         level: "partial",
-        note: "Meta avisa que llegó un mensaje pero no manda el texto, así que la conversación no se puede reconstruir. Es una limitación suya, no de AloStudio.",
+        note: "igCapabilities.instagram.dmsNote",
       },
       {
-        label: "Borrar publicaciones desde AloStudio",
+        label: "igCapabilities.deletePosts",
         level: "no",
-        note: "Meta no ofrece el borrado en esta API. Hay que borrar desde la app de Instagram.",
+        note: "igCapabilities.instagram.deleteNote",
       },
     ],
   },

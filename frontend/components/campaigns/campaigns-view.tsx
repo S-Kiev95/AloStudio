@@ -14,19 +14,23 @@ import {
   useDeleteCampaign,
 } from "@/lib/api/campaigns";
 import { cn } from "@/lib/utils";
+import { INTL_TAGS } from "@/lib/i18n/config";
+import { useLocale, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const TYPE_FILTERS: { value: CampaignType | undefined; label: string }[] = [
-  { value: undefined, label: "Todas" },
-  { value: "ongoing", label: "Continuas" },
-  { value: "one_off", label: "Puntuales" },
+const TYPE_FILTERS: { value: CampaignType | undefined; label: MessageKey }[] = [
+  { value: undefined, label: "campaigns.filters.all" },
+  { value: "ongoing", label: "campaigns.filters.ongoing" },
+  { value: "one_off", label: "campaigns.filters.oneOff" },
 ];
 
-const TYPE_LABEL: Record<CampaignType, string> = {
-  ongoing: "Continua",
-  one_off: "Puntual",
+const TYPE_LABEL: Record<CampaignType, MessageKey> = {
+  ongoing: "campaigns.type.ongoing",
+  one_off: "campaigns.type.oneOff",
 };
 
 export function CampaignsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const [type, setType] = useState<CampaignType | undefined>(undefined);
   const { data, isLoading, isError } = useCampaigns(accountId);
 
@@ -37,36 +41,36 @@ export function CampaignsView({ accountId }: { accountId: string }) {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <PageHeader
-        title="Campañas"
+        title={t("nav.campaigns")}
         actions={
           <Link
             href={`/accounts/${accountId}/campaigns/new`}
             className={buttonVariants({ size: "sm" })}
           >
             <Plus className="h-4 w-4" aria-hidden />
-            Nueva campaña
+            {t("campaigns.new")}
           </Link>
         }
       />
 
       <SegmentedControl
-        ariaLabel="Filtrar campañas"
+        ariaLabel={t("campaigns.filterLabel")}
         size="sm"
         value={type}
         onValueChange={setType}
-        options={TYPE_FILTERS}
+        options={TYPE_FILTERS.map((o) => ({ ...o, label: t(o.label) }))}
       />
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar las campañas.
+            {t("campaigns.listLoadFailed")}
           </p>
         ) : filtered.length === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
-            No hay campañas en este filtro.
+            {t("campaigns.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -87,30 +91,34 @@ function CampaignRow({
   accountId: string;
   campaign: Campaign;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const del = useDeleteCampaign(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(`¿Eliminar la campaña "${campaign.title ?? ""}"?`))
+    if (!window.confirm(t("campaigns.deleteConfirm", { title: campaign.title ?? "" })))
       return;
     setError(null);
     try {
       await del.mutateAsync(campaign.display_id);
     } catch (err) {
       setError(
-        (err as { message?: string })?.message ?? "No se pudo eliminar.",
+        (err as { message?: string })?.message ?? t("actions.deleteFailed"),
       );
     }
   }
 
   const when =
     campaign.campaign_type === "one_off" && campaign.scheduled_at
-      ? `Programada ${new Date(campaign.scheduled_at).toLocaleString()}`
+      ? t("campaigns.scheduledAt", {
+          when: new Date(campaign.scheduled_at).toLocaleString(INTL_TAGS[locale]),
+        })
       : campaign.campaign_status === "completed"
-        ? "Completada"
-        : "Activa";
+        ? t("campaigns.completed")
+        : t("campaigns.active");
 
   const ongoing = campaign.campaign_type === "ongoing";
   const TypeIcon = ongoing ? Megaphone : Send;
@@ -131,7 +139,7 @@ function CampaignRow({
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-fg">
-            {campaign.title ?? <span className="text-fg-muted">(sin título)</span>}
+            {campaign.title ?? <span className="text-fg-muted">{t("campaigns.untitledParen")}</span>}
           </p>
           <p className="truncate font-numeric text-xs tabular-nums text-fg-muted">
             {when}
@@ -143,7 +151,7 @@ function CampaignRow({
           ) : null}
         </div>
         <span className="rounded-pill bg-surface-2 px-2 py-0.5 text-xs font-medium text-fg-muted">
-          {TYPE_LABEL[campaign.campaign_type]}
+          {t(TYPE_LABEL[campaign.campaign_type])}
         </span>
         <span
           className={cn(
@@ -153,13 +161,13 @@ function CampaignRow({
               : "bg-surface-2 text-fg-muted",
           )}
         >
-          {campaign.enabled ? "Activa" : "Inactiva"}
+          {campaign.enabled ? t("campaigns.active") : t("campaigns.inactive")}
         </span>
       </Link>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"

@@ -1,19 +1,10 @@
 "use client";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  Mail,
-  Phone,
-  Plus,
-  Search,
-  SlidersHorizontal,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Compass, Mail, Phone, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { useOriginSummary } from "@/components/crm/contact-origin-card";
 import { PageHeader } from "@/components/shell/page-header";
 import { Avatar } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
@@ -36,10 +27,12 @@ import {
 import { cn } from "@/lib/utils";
 
 import { ContactFilters } from "./contact-filters";
+import { useT } from "@/lib/i18n/provider";
 
 const PAGE_SIZE = 15; // mirrors backend RESULTS_PER_PAGE
 
 export function ContactsView({ accountId }: { accountId: string }) {
+  const t = useT();
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [company, setCompany] = useState<string | null>(null);
@@ -104,14 +97,14 @@ export function ContactsView({ accountId }: { accountId: string }) {
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       <PageHeader
-        title="Contactos"
+        title={t("contacts.title")}
         actions={
           <Link
             href={`/accounts/${accountId}/contacts/new`}
             className={buttonVariants({ size: "sm" })}
           >
             <Plus className="h-4 w-4" aria-hidden />
-            Nuevo contacto
+            {t("contacts.new")}
           </Link>
         }
       />
@@ -123,7 +116,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
             aria-hidden
           />
           <Input
-            aria-label="Buscar contactos"
+            aria-label={t("contacts.searchLabel")}
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
@@ -131,7 +124,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
               setFilters([]);
               setPage(1);
             }}
-            placeholder="Buscar por nombre, email, teléfono o identificador…"
+            placeholder={t("contacts.searchPlaceholder")}
             className="pl-9"
           />
         </div>
@@ -148,7 +141,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
           )}
         >
           <SlidersHorizontal className="h-4 w-4" aria-hidden />
-          Filtros
+          {t("conversations.list.filters")}
         </button>
       </div>
 
@@ -168,7 +161,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
 
       {!searching && (segments.data?.length ?? 0) > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-fg-muted">Segmentos:</span>
+          <span className="text-xs font-medium text-fg-muted">{t("contacts.segments")}</span>
           {segments.data?.map((seg) => (
             <span
               key={seg.id}
@@ -183,7 +176,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
               </button>
               <button
                 type="button"
-                aria-label={`Eliminar segmento ${seg.name}`}
+                aria-label={t("contacts.deleteSegment", { name: seg.name })}
                 onClick={() => deleteSegment.mutate(seg.id)}
                 className="rounded-r-pill py-0.5 pl-1 pr-2 text-fg-muted hover:text-danger"
               >
@@ -196,7 +189,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
 
       {!searching && !filtering && (companies.data?.length ?? 0) > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-fg-muted">Empresas:</span>
+          <span className="text-xs font-medium text-fg-muted">{t("contacts.companies")}</span>
           {companies.data?.map((co) => {
             const on = company === co.name;
             return (
@@ -229,20 +222,20 @@ export function ContactsView({ accountId }: { accountId: string }) {
 
       <div className="overflow-hidden rounded-md border border-glass bg-surface">
         {active.isLoading ? (
-          <p className="p-8 text-center text-sm text-fg-muted">Cargando…</p>
+          <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : active.isError ? (
           <p role="alert" className="p-8 text-center text-sm text-danger">
-            No se pudieron cargar los contactos.
+            {t("contacts.loadFailed")}
           </p>
         ) : items.length === 0 ? (
           <p className="p-8 text-center text-sm text-fg-muted">
             {searching
-              ? `No hay resultados para "${trimmed}".`
+              ? t("contacts.noResults", { query: trimmed })
               : filtering
-                ? "No hay contactos que coincidan con el filtro."
+                ? t("contacts.noMatches")
                 : company
-                  ? `No hay contactos en ${company}.`
-                  : "No hay contactos todavía."}
+                  ? t("contacts.noneInCompany", { company })
+                  : t("contacts.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">
@@ -258,13 +251,17 @@ export function ContactsView({ accountId }: { accountId: string }) {
         <div className="flex items-center justify-between font-numeric text-sm tabular-nums text-fg-muted">
           <span>
             {searching
-              ? `Página ${page}`
-              : `Página ${page} de ${totalPages} · ${total} contacto${total === 1 ? "" : "s"}`}
+              ? t("actions.page", { n: page })
+              : t(total === 1 ? "contacts.pageOfOne" : "contacts.pageOfMany", {
+                  n: page,
+                  pages: totalPages,
+                  count: total,
+                })}
           </span>
           <div className="flex gap-1">
             <button
               type="button"
-              aria-label="Página anterior"
+              aria-label={t("contacts.prevPage")}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1 || active.isFetching}
               className="rounded-md border border-glass bg-field p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-50"
@@ -273,7 +270,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
             </button>
             <button
               type="button"
-              aria-label="Página siguiente"
+              aria-label={t("contacts.nextPage")}
               onClick={() => setPage((p) => p + 1)}
               disabled={!hasMore || active.isFetching}
               className="rounded-md border border-glass bg-field p-1.5 text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-50"
@@ -294,6 +291,7 @@ function ContactRow({
   accountId: string;
   contact: Contact;
 }) {
+  const t = useT();
   const del = useDeleteContact(accountId);
   const [error, setError] = useState<string | null>(null);
 
@@ -301,22 +299,23 @@ function ContactRow({
     e.preventDefault();
     e.stopPropagation();
     const label = contact.name || contact.email || `#${contact.id}`;
-    if (!window.confirm(`¿Eliminar el contacto "${label}"?`)) return;
+    if (!window.confirm(t("contacts.deleteConfirm", { name: label }))) return;
     setError(null);
     try {
       await del.mutateAsync(contact.id);
     } catch (err) {
       setError(
-        (err as { message?: string })?.message ?? "No se pudo eliminar.",
+        (err as { message?: string })?.message ?? t("actions.deleteFailed"),
       );
     }
   }
 
+  const originSummary = useOriginSummary();
   const displayName =
     contact.name?.trim() ||
     contact.email?.trim() ||
     contact.phone_number?.trim() ||
-    `Contacto #${contact.id}`;
+    t("conversations.contact.fallbackName", { id: contact.id });
 
   return (
     <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-hover-glass">
@@ -324,13 +323,13 @@ function ContactRow({
         href={`/accounts/${accountId}/contacts/${contact.id}`}
         className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-neon"
       >
-        <Avatar name={displayName} />
+        <Avatar name={displayName} src={contact.thumbnail} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-fg">
             {displayName}
             {contact.blocked ? (
               <span className="ml-2 rounded-sm bg-danger/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-danger">
-                Bloqueado
+                {t("conversations.contact.blocked")}
               </span>
             ) : null}
           </p>
@@ -350,6 +349,12 @@ function ContactRow({
             {!contact.email && !contact.phone_number && contact.identifier
               ? `id ${contact.identifier}`
               : null}
+            {contact.origin ? (
+              <span className="flex items-center gap-1">
+                <Compass className="h-3 w-3" aria-hidden />
+                {originSummary(contact.origin)}
+              </span>
+            ) : null}
           </p>
           {error ? (
             <p role="alert" className="text-xs text-danger">
@@ -360,8 +365,8 @@ function ContactRow({
       </Link>
       <button
         type="button"
-        aria-label="Eliminar"
-        title="Eliminar"
+        aria-label={t("actions.delete")}
+        title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
         className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"

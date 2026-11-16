@@ -11,6 +11,7 @@ import {
   useConnectPendingPage,
   usePendingFacebookPages,
 } from "@/lib/api/inboxes";
+import { useT } from "@/lib/i18n/provider";
 
 /** Connects a Page by logging in with Facebook. Facebook sends the browser
  *  back here with `fb_pick` (several Pages to choose from) or `fb_error`. */
@@ -21,6 +22,7 @@ function FacebookPageConnectInner({
   accountId: string;
   showManualHint?: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
   const nonce = params.get("fb_pick");
@@ -38,7 +40,7 @@ function FacebookPageConnectInner({
     try {
       await startFacebookPageOAuth(accountId);
     } catch (err) {
-      setError(message(err, "No se pudo iniciar la conexión."));
+      setError(message(err, t("settingsInboxes.fbStartFailed")));
       setStarting(false);
     }
   }
@@ -50,14 +52,14 @@ function FacebookPageConnectInner({
       const result = await connect.mutateAsync({ nonce, pageId });
       router.push(`/accounts/${accountId}/settings/inboxes/${result.inbox_id}`);
     } catch (err) {
-      setError(message(err, "No se pudo conectar la Página."));
+      setError(message(err, t("settingsInboxes.fbConnectFailed")));
     }
   }
 
   const shownError =
     error ??
     (pages.isError
-      ? message(pages.error, "No se pudieron leer las Páginas. Volvé a conectar con Facebook.")
+      ? message(pages.error, t("settingsInboxes.fbPagesFailed"))
       : null);
 
   return (
@@ -73,7 +75,7 @@ function FacebookPageConnectInner({
 
       {nonce && pages.data ? (
         <div className="space-y-2">
-          <p className="text-sm font-medium text-fg">¿Qué Página querés conectar?</p>
+          <p className="text-sm font-medium text-fg">{t("settingsInboxes.fbWhichPage")}</p>
           {pages.data.map((page) => (
             <Button
               key={page.id}
@@ -91,18 +93,17 @@ function FacebookPageConnectInner({
       ) : (
         <div className="space-y-2">
           <p className="text-sm text-fg-muted">
-            Iniciá sesión con Facebook y elegí la Página. La bandeja se crea
-            sola, con su nombre.
+            {t("settingsInboxes.fbIntro")}
           </p>
           <Button type="button" loading={starting} onClick={() => void start()}>
             <Facebook mono className="h-4 w-4" aria-hidden />
-            Conectar con Facebook
+            {t("settingsInboxes.fbConnect")}
           </Button>
         </div>
       )}
       {showManualHint ? (
         <p className="border-t border-glass pt-3 text-xs text-fg-muted">
-          También podés cargar los datos a mano en el formulario de abajo.
+          {t("settingsInboxes.fbManual")}
         </p>
       ) : null}
     </div>

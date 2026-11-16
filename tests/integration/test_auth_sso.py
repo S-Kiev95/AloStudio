@@ -155,7 +155,7 @@ async def test_only_a_literal_true_counts(client, claim):
 
 
 async def test_an_account_postiz_created_first_gets_no_bootstrap(
-    client, db_session
+    client, db_session, no_other_accounts
 ):
     """On a fresh sidecar the first Postiz org to sign in creates account
     #1 and becomes its admin; that must not make it the operator."""

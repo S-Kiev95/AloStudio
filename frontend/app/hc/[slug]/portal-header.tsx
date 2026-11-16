@@ -1,9 +1,11 @@
 import Link from "next/link";
 
 import type { Portal } from "@/lib/api/portals";
+import { getT } from "@/lib/i18n/server";
 
 /** Branded portal header. The portal's ``color`` becomes the accent. */
-export function PortalHeader({ portal }: { portal: Portal }) {
+export async function PortalHeader({ portal }: { portal: Portal }) {
+  const t = await getT();
   const accent = portal.color || "#1f93ff";
   return (
     <header
@@ -30,7 +32,7 @@ export function PortalHeader({ portal }: { portal: Portal }) {
             rel="noreferrer"
             className="text-sm text-fg-muted hover:text-fg"
           >
-            Volver al sitio
+            {t("hc.backToSite")}
           </a>
         ) : null}
       </div>

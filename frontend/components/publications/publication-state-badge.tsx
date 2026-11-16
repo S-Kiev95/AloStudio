@@ -1,13 +1,15 @@
 import type { PublicationState, TargetState } from "@/lib/api/publications";
 import { cn } from "@/lib/utils";
+import type { MessageKey } from "@/lib/i18n/translate";
+import { useT } from "@/lib/i18n/provider";
 
-export const PUBLICATION_STATE_LABELS: Record<PublicationState, string> = {
-  draft: "Borrador",
-  scheduled: "Programada",
-  publishing: "Publicando",
-  published: "Publicada",
-  partially_published: "Publicada en parte",
-  failed: "Falló",
+export const PUBLICATION_STATE_LABELS: Record<PublicationState, MessageKey> = {
+  draft: "publications.state.draft",
+  scheduled: "publications.state.scheduled",
+  publishing: "publications.state.publishing",
+  published: "publications.state.published",
+  partially_published: "publications.state.partially_published",
+  failed: "publications.state.failed",
 };
 
 const PUBLICATION_STATE_STYLES: Record<PublicationState, string> = {
@@ -21,15 +23,15 @@ const PUBLICATION_STATE_STYLES: Record<PublicationState, string> = {
 
 export const PUBLICATION_STATE_FILTERS: {
   value: PublicationState | undefined;
-  label: string;
+  label: MessageKey;
 }[] = [
-  { value: undefined, label: "Todas" },
-  { value: "draft", label: "Borrador" },
-  { value: "scheduled", label: "Programada" },
-  { value: "publishing", label: "Publicando" },
-  { value: "published", label: "Publicada" },
-  { value: "partially_published", label: "Publicada en parte" },
-  { value: "failed", label: "Falló" },
+  { value: undefined, label: "publications.state.all" },
+  { value: "draft", label: "publications.state.draft" },
+  { value: "scheduled", label: "publications.state.scheduled" },
+  { value: "publishing", label: "publications.state.publishing" },
+  { value: "published", label: "publications.state.published" },
+  { value: "partially_published", label: "publications.state.partially_published" },
+  { value: "failed", label: "publications.state.failed" },
 ];
 
 export function PublicationStateBadge({
@@ -39,6 +41,7 @@ export function PublicationStateBadge({
   state: PublicationState;
   className?: string;
 }) {
+  const t = useT();
   return (
     <span
       className={cn(
@@ -47,16 +50,16 @@ export function PublicationStateBadge({
         className,
       )}
     >
-      {PUBLICATION_STATE_LABELS[state] ?? state}
+      {PUBLICATION_STATE_LABELS[state] ? t(PUBLICATION_STATE_LABELS[state]) : state}
     </span>
   );
 }
 
-const TARGET_STATE_LABELS: Record<TargetState, string> = {
-  pending: "Pendiente",
-  publishing: "Publicando",
-  published: "Publicada",
-  failed: "Falló",
+const TARGET_STATE_LABELS: Record<TargetState, MessageKey> = {
+  pending: "publications.state.pending",
+  publishing: "publications.state.publishing",
+  published: "publications.state.published",
+  failed: "publications.state.failed",
 };
 
 const TARGET_STATE_STYLES: Record<TargetState, string> = {
@@ -67,6 +70,7 @@ const TARGET_STATE_STYLES: Record<TargetState, string> = {
 };
 
 export function TargetStateBadge({ state }: { state: TargetState }) {
+  const t = useT();
   return (
     <span
       className={cn(
@@ -74,7 +78,7 @@ export function TargetStateBadge({ state }: { state: TargetState }) {
         TARGET_STATE_STYLES[state] ?? "bg-surface-2 text-fg-muted",
       )}
     >
-      {TARGET_STATE_LABELS[state] ?? state}
+      {TARGET_STATE_LABELS[state] ? t(TARGET_STATE_LABELS[state]) : state}
     </span>
   );
 }

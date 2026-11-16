@@ -13,10 +13,17 @@ import {
   useInboxWorkingHours,
 } from "@/lib/api/working-hours";
 import { cn } from "@/lib/utils";
+import { useLocale, useT } from "@/lib/i18n/provider";
+import { weekdayName } from "@/components/agenda/week-utils";
+import type { Locale } from "@/lib/i18n/config";
 
-const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+/** Day name for the backend's day_of_week (0 = Sunday). 2024-01-07 was a Sunday. */
+function dayName(dayOfWeek: number, locale: Locale): string {
+  return weekdayName(new Date(2024, 0, 7 + dayOfWeek), "long", locale);
+}
 
 export function WorkingHoursView({ accountId }: { accountId: string }) {
+  const t = useT();
   const inboxes = useInboxes(accountId);
   const [inboxId, setInboxId] = useState<number | null>(null);
 
@@ -30,10 +37,10 @@ export function WorkingHoursView({ accountId }: { accountId: string }) {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-medium text-fg">Horarios laborales</h2>
+        <h2 className="text-xl font-medium text-fg">{t("settings.items.working_hours")}</h2>
         <div className="flex items-center gap-2">
           <label htmlFor="wh-inbox" className="text-sm text-fg-muted">
-            Bandeja
+            {t("conversations.filters.attr.inbox")}
           </label>
           <select
             id="wh-inbox"
@@ -42,7 +49,7 @@ export function WorkingHoursView({ accountId }: { accountId: string }) {
             onChange={(e) => setInboxId(Number(e.target.value) || null)}
             disabled={inboxes.isLoading}
           >
-            <option value="">Elegí una bandeja…</option>
+            <option value="">{t("campaigns.form.pickInboxPlaceholder")}</option>
             {inboxes.data?.map((ib) => (
               <option key={ib.id} value={ib.id}>
                 {ib.name}
@@ -53,14 +60,14 @@ export function WorkingHoursView({ accountId }: { accountId: string }) {
       </div>
 
       {inboxes.isLoading ? (
-        <p className="text-sm text-fg-muted">Cargando bandejas…</p>
+        <p className="text-sm text-fg-muted">{t("contacts.inboxes.loading")}</p>
       ) : inboxes.isError ? (
         <p role="alert" className="text-sm text-danger">
-          No se pudieron cargar las bandejas.
+          {t("settingsHours.inboxesLoadFailed")}
         </p>
       ) : (inboxes.data?.length ?? 0) === 0 ? (
         <p className="text-sm text-fg-muted">
-          No hay bandejas conectadas todavía.
+          {t("settingsHours.noInboxes")}
         </p>
       ) : inboxId ? (
         <Schedule accountId={accountId} inboxId={inboxId} />
@@ -76,6 +83,7 @@ function Schedule({
   accountId: string;
   inboxId: number;
 }) {
+  const t = useT();
   const { data, isLoading, isError } = useInboxWorkingHours(accountId, inboxId);
   const bulkUpdate = useBulkUpdateWorkingHours(accountId, inboxId);
 
@@ -108,18 +116,18 @@ function Schedule({
       setSaved(true);
     } catch (e) {
       setError(
-        (e as { message?: string })?.message ?? "No se pudo guardar el horario.",
+        (e as { message?: string })?.message ?? t("settingsHours.saveFailed"),
       );
     }
   }
 
   if (isLoading) {
-    return <p className="text-sm text-fg-muted">Cargando horario…</p>;
+    return <p className="text-sm text-fg-muted">{t("settingsHours.loading")}</p>;
   }
   if (isError) {
     return (
       <p role="alert" className="text-sm text-danger">
-        No se pudo cargar el horario.
+        {t("settingsHours.loadFailed")}
       </p>
     );
   }
@@ -127,7 +135,7 @@ function Schedule({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Horario semanal</CardTitle>
+        <CardTitle>{t("settingsHours.weekly")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {error ? (
@@ -136,7 +144,7 @@ function Schedule({
           </p>
         ) : null}
         {saved ? (
-          <p className="text-sm text-success">Cambios guardados.</p>
+          <p className="text-sm text-success">{t("common.changesSaved")}</p>
         ) : null}
 
         <div className="space-y-2">
@@ -151,7 +159,7 @@ function Schedule({
 
         <div className="flex justify-end">
           <Button onClick={save} loading={bulkUpdate.isPending}>
-            Guardar
+            {t("actions.save")}
           </Button>
         </div>
       </CardContent>
@@ -166,11 +174,13 @@ function DayRow({
   row: WorkingHourInput;
   onChange: (patch: Partial<WorkingHourInput>) => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const disabled = row.closed_all_day || row.open_all_day;
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-md border border-glass bg-surface-2/40 p-3">
       <p className="w-24 shrink-0 text-sm font-medium text-fg">
-        {DAYS_ES[row.day_of_week] ?? `Día ${row.day_of_week}`}
+        {dayName(row.day_of_week, locale)}
       </p>
 
       <label className="flex items-center gap-1.5 text-sm text-fg">
@@ -185,7 +195,7 @@ function DayRow({
           }
           className="h-4 w-4 rounded border-glass accent-neon"
         />
-        Cerrado
+        {t("settingsHours.closed")}
       </label>
 
       <label className="flex items-center gap-1.5 text-sm text-fg">
@@ -200,12 +210,12 @@ function DayRow({
           }
           className="h-4 w-4 rounded border-glass accent-neon"
         />
-        24 horas
+        {t("settingsHours.allDay")}
       </label>
 
       <div className="ml-auto flex items-center gap-2">
         <TimeField
-          label="Abre"
+          label={t("settingsHours.opens")}
           hour={row.open_hour}
           minutes={row.open_minutes}
           disabled={disabled}
@@ -215,7 +225,7 @@ function DayRow({
         />
         <span className="text-fg-muted">–</span>
         <TimeField
-          label="Cierra"
+          label={t("settingsHours.closes")}
           hour={row.close_hour}
           minutes={row.close_minutes}
           disabled={disabled}

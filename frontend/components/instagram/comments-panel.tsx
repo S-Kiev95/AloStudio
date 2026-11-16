@@ -15,6 +15,7 @@ import {
   useReplyComment,
 } from "@/lib/api/instagram-comments";
 import { cn } from "@/lib/utils";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 
 /**
  * Comments moderation for a published post. The GET does a live Meta sync and
@@ -29,6 +30,7 @@ export function CommentsPanel({
   postId: number;
   enabled: boolean;
 }) {
+  const t = useT();
   const { data, isLoading, isError, error } = useComments(
     accountId,
     postId,
@@ -63,7 +65,7 @@ export function CommentsPanel({
       setNewComment("");
     } catch (e) {
       setFormError(
-        (e as { message?: string })?.message ?? "No se pudo publicar el comentario.",
+        (e as { message?: string })?.message ?? t("instagram.comments.postFailed"),
       );
     }
   }
@@ -71,7 +73,7 @@ export function CommentsPanel({
   if (!enabled) {
     return (
       <p className="text-sm text-fg-muted">
-        Los comentarios estarán disponibles cuando la publicación esté publicada.
+        {t("instagram.comments.notYet")}
       </p>
     );
   }
@@ -86,9 +88,9 @@ export function CommentsPanel({
           </p>
         ) : null}
         <Textarea
-          aria-label="Nuevo comentario"
+          aria-label={t("instagram.comments.new")}
           rows={2}
-          placeholder="Escribí un comentario…"
+          placeholder={t("instagram.comments.placeholder")}
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
           maxLength={2200}
@@ -101,21 +103,21 @@ export function CommentsPanel({
             disabled={!newComment.trim()}
           >
             <Send className="h-4 w-4" aria-hidden />
-            Comentar
+            {t("instagram.comments.comment")}
           </Button>
         </div>
       </div>
 
       {/* Thread list */}
       {isLoading ? (
-        <p className="text-sm text-fg-muted">Cargando comentarios…</p>
+        <p className="text-sm text-fg-muted">{t("instagram.comments.loading")}</p>
       ) : isError ? (
         <p role="alert" className="text-sm text-danger">
           {(error as { message?: string })?.message ??
-            "No se pudieron cargar los comentarios."}
+            t("instagram.comments.loadFailed")}
         </p>
       ) : threads.length === 0 ? (
-        <p className="text-sm text-fg-muted">Todavía no hay comentarios.</p>
+        <p className="text-sm text-fg-muted">{t("instagram.comments.empty")}</p>
       ) : (
         <ul className="space-y-3">
           {threads.map(({ comment, replies }) => (
@@ -158,6 +160,8 @@ function CommentRow({
   comment: IgComment;
   canReply?: boolean;
 }) {
+  const intlTag = useIntlTag();
+  const t = useT();
   const hide = useHideComment(accountId, postId);
   const del = useDeleteComment(accountId, postId);
   const reply = useReplyComment(accountId, postId);
@@ -182,7 +186,7 @@ function CommentRow({
       await reply.mutateAsync({ commentId: comment.id, message });
       setReplyText("");
       setReplying(false);
-    }, "No se pudo responder.");
+    }, t("instagram.comments.replyFailed"));
   }
 
   return (
@@ -196,30 +200,30 @@ function CommentRow({
         <Avatar name={comment.from_username || "Usuario"} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-fg">
-            {comment.from_username ? `@${comment.from_username}` : "Usuario"}
+            {comment.from_username ? `@${comment.from_username}` : t("shell.user")}
             {comment.hidden ? (
               <span className="ml-2 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase text-fg-muted">
-                Oculto
+                {t("instagram.comments.hidden")}
               </span>
             ) : null}
           </p>
           <p className="whitespace-pre-wrap break-words text-sm text-fg">
-            {comment.text || <span className="text-fg-muted">(sin texto)</span>}
+            {comment.text || <span className="text-fg-muted">{t("conversations.email.noText")}</span>}
           </p>
           {comment.ig_created_at ? (
             <p className="mt-0.5 text-xs text-fg-muted">
-              {new Date(comment.ig_created_at).toLocaleString()}
+              {new Date(comment.ig_created_at).toLocaleString(intlTag)}
             </p>
           ) : null}
         </div>
         <div className="flex shrink-0 gap-1">
           <IconBtn
-            label={comment.hidden ? "Mostrar" : "Ocultar"}
+            label={comment.hidden ? t("instagram.comments.show") : t("instagram.comments.hide")}
             loading={hide.isPending}
             onClick={() =>
               run(
                 () => hide.mutateAsync({ commentId: comment.id, hide: !comment.hidden }),
-                "No se pudo cambiar la visibilidad.",
+                t("instagram.comments.visibilityFailed"),
               )
             }
           >
@@ -230,12 +234,12 @@ function CommentRow({
             )}
           </IconBtn>
           <IconBtn
-            label="Eliminar"
+            label={t("actions.delete")}
             danger
             loading={del.isPending}
             onClick={() => {
-              if (!window.confirm("¿Eliminar este comentario?")) return;
-              run(() => del.mutateAsync(comment.id), "No se pudo eliminar.");
+              if (!window.confirm(t("instagram.comments.deleteConfirm"))) return;
+              run(() => del.mutateAsync(comment.id), t("actions.deleteFailed"));
             }}
           >
             <Trash2 className="h-4 w-4" aria-hidden />
@@ -254,9 +258,9 @@ function CommentRow({
           {replying ? (
             <div className="space-y-2">
               <Textarea
-                aria-label="Respuesta"
+                aria-label={t("conversations.composer.reply")}
                 rows={2}
-                placeholder="Escribí una respuesta…"
+                placeholder={t("instagram.comments.replyPlaceholder")}
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 maxLength={2200}
@@ -268,7 +272,7 @@ function CommentRow({
                   loading={reply.isPending}
                   disabled={!replyText.trim()}
                 >
-                  Responder
+                  {t("instagram.reply")}
                 </Button>
                 <Button
                   size="sm"
@@ -278,7 +282,7 @@ function CommentRow({
                     setReplyText("");
                   }}
                 >
-                  Cancelar
+                  {t("actions.cancel")}
                 </Button>
               </div>
             </div>
@@ -289,7 +293,7 @@ function CommentRow({
               className="flex items-center gap-1 text-xs font-medium text-info hover:underline"
             >
               <CornerDownRight className="h-3 w-3" aria-hidden />
-              Responder
+              {t("instagram.reply")}
             </button>
           )}
         </div>

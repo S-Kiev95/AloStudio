@@ -13,6 +13,8 @@ aparte (`exp/*`). Pasan a `develop` solo si convencen al dueño con números.
 
 **Estado de F1 (2026-11-09): hecho en CTC.** Scripts en `ops/respaldo/`, procedimiento en `docs/operacion/respaldos.md`. Copias cifradas con restic en el bucket `alostudio-respaldos` de Cloudflare R2, cron diario 03:30 y prueba de restauración el día 1, avisos en Healthchecks.io. Primera copia y prueba de restauración verificadas. Develop sigue sin respaldo de AloStudio (el dueño solo quiso avisos para CTC).
 
+**Pendientes al día:** `PENDIENTES-POR-FASE.md`.
+
 **Orden propuesto:** F1 → F2 → F3 → F4, y después según prioridad. F1 va
 primero porque hoy un disco roto o un servidor perdido se lleva los datos de
 CTC. F3 conviene arrancarla temprano porque las revisiones de cada red
@@ -87,6 +89,8 @@ Slack y Twitch. Detalle de cada app en `HANDOFF-apps-redes-sociales.md`
 - X cobra por uso: entra en F6.
 
 ## F4. Herramientas que le faltan al MCP
+
+**Estado (2026-11-11): hecha.** Prioridad alta, media y baja en develop; detalle en `PENDIENTES-POR-FASE.md`.
 
 Hoy `/mcp` tiene 43 herramientas (`app/mcp/tools/`): conversaciones,
 mensajes, contactos, etiquetas, citas, productos (solo lectura),
@@ -413,6 +417,33 @@ Meta (se cobra cada envío).
 - WhatsApp sigue con su costo por envío; mostrarlo al elegirlo.
 - Antes de hacerlo, preguntar a los agentes de CTC qué usarían de verdad
   (Sofía lo consulta el 2026-11-11).
+
+## F16. Plugins de e-commerce (idea, muy a futuro)
+
+Idea del dueño (2026-11-14), a partir del catálogo de Meta: sumar Mercado
+Libre y, detrás, cualquier e-commerce con API (Tienda Nube, Shopify,
+WooCommerce...). En lugar de meter cada uno en el núcleo, que sean
+**plugins**: servicios aparte que hablan con AloStudio por lo que ya expone.
+
+- **Ya existe:** API de productos con `external_id` (el id en el otro
+  sistema), webhooks salientes, apps OAuth (cada cuenta autoriza al plugin
+  sin pasar claves) y el MCP.
+- **Contrato del núcleo, una sola vez:** "proveedor de catálogo" (sube y
+  actualiza productos) y "fuente de pedidos" (avisa pedidos nuevos y su
+  estado). Cada e-commerce es un plugin que lo cumple; el catálogo de Meta
+  de F11 podría pasar a ese formato.
+- **Falta:**
+  - Registro de plugins: manifiesto (qué hace, permisos, eventos que
+    escucha) e instalar/desinstalar por cuenta desde Ajustes.
+  - Eventos nuevos en los webhooks (`order.created`, `product.updated`) y
+    una entidad Pedido en el CRM (renglones y estado), que también pidió el
+    dueño para los pedidos de WhatsApp.
+  - Aislamiento: un plugin lento o caído no frena la Bandeja ni ve otras
+    cuentas (va de la mano con F2).
+  - Más adelante, marketplace para publicar o cobrar plugins.
+- **Mientras tanto:** n8n o Make pueden conectar Mercado Libre con la API y
+  los webhooks de AloStudio sin escribir un plugin, para ver si un cliente lo
+  usa antes de invertir.
 
 ## Descartado
 

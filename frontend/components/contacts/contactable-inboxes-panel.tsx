@@ -3,6 +3,7 @@
 import { Inbox } from "lucide-react";
 
 import { useContactableInboxes } from "@/lib/api/contacts";
+import { useT } from "@/lib/i18n/provider";
 
 export function ContactableInboxesPanel({
   accountId,
@@ -11,18 +12,19 @@ export function ContactableInboxesPanel({
   accountId: string;
   contactId: number;
 }) {
+  const t = useT();
   const { data, isLoading, isError } = useContactableInboxes(
     accountId,
     contactId,
   );
 
   if (isLoading) {
-    return <p className="text-sm text-fg-muted">Cargando bandejas…</p>;
+    return <p className="text-sm text-fg-muted">{t("contacts.inboxes.loading")}</p>;
   }
   if (isError) {
     return (
       <p role="alert" className="text-sm text-danger">
-        No se pudieron cargar las bandejas disponibles.
+        {t("contacts.inboxes.loadFailed")}
       </p>
     );
   }
@@ -30,11 +32,10 @@ export function ContactableInboxesPanel({
     return (
       <div className="space-y-2">
         <p className="text-sm text-fg-muted">
-          Este contacto todavía no está asociado a ninguna bandeja.
+          {t("contacts.inboxes.empty")}
         </p>
         <p className="text-xs text-fg-muted">
-          En esta entrega solo soportamos bandejas de tipo API; los demás
-          canales se habilitan a medida que se portan en el backend.
+          {t("contacts.inboxes.apiOnly")}
         </p>
       </div>
     );

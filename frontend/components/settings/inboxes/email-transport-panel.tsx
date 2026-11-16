@@ -11,6 +11,7 @@ import {
   useTestEmailConnection,
   useUpdateInbox,
 } from "@/lib/api/inboxes";
+import { useT } from "@/lib/i18n/provider";
 
 /** IMAP and SMTP for one mailbox.
  *
@@ -27,6 +28,7 @@ export function EmailTransportPanel({
   accountId: string;
   inbox: InboxDetail;
 }) {
+  const t = useT();
   const update = useUpdateInbox(accountId);
   const probe = useTestEmailConnection(accountId);
   const [form, setForm] = useState({
@@ -71,7 +73,7 @@ export function EmailTransportPanel({
       setForm((f) => ({ ...f, imap_password: "", smtp_password: "" }));
       setSaved(true);
     } catch (err) {
-      setError((err as { message?: string })?.message ?? "No se pudo guardar.");
+      setError((err as { message?: string })?.message ?? t("settingsInboxes.saveFailed"));
     }
   }
 
@@ -84,8 +86,8 @@ export function EmailTransportPanel({
       ) : null}
 
       <Side
-        legend="Recibir (IMAP)"
-        hint="Sin esto, los correos que te escriban no entran a la bandeja."
+        legend={t("settingsInboxes.imap")}
+        hint={t("settingsInboxes.imapHint")}
         enabled={form.imap_enabled}
         onToggle={(v) => set("imap_enabled", v)}
         prefix="imap"
@@ -95,15 +97,15 @@ export function EmailTransportPanel({
         password={form.imap_password}
         passwordSet={inbox.imap_password_set ?? false}
         secure={form.imap_enable_ssl}
-        secureLabel="Conexión segura (SSL)"
-        secureHint="Casi siempre sí. El puerto 993 no contesta sin cifrar."
+        secureLabel={t("settingsInboxes.ssl")}
+        secureHint={t("settingsInboxes.sslHint")}
         onToggleSecure={(v) => set("imap_enable_ssl", v)}
         onChange={set}
       />
 
       <Side
-        legend="Enviar (SMTP)"
-        hint="Sin esto, las respuestas de los agentes no salen."
+        legend={t("settingsInboxes.smtp")}
+        hint={t("settingsInboxes.smtpHint")}
         enabled={form.smtp_enabled}
         onToggle={(v) => set("smtp_enabled", v)}
         prefix="smtp"
@@ -113,15 +115,15 @@ export function EmailTransportPanel({
         password={form.smtp_password}
         passwordSet={inbox.smtp_password_set ?? false}
         secure={form.smtp_enable_starttls_auto}
-        secureLabel="Conexión segura (STARTTLS)"
-        secureHint="Necesario en el puerto 587. Gmail rechaza autenticarse sin esto."
+        secureLabel={t("settingsInboxes.starttls")}
+        secureHint={t("settingsInboxes.starttlsHint")}
         onToggleSecure={(v) => set("smtp_enable_starttls_auto", v)}
         onChange={set}
       />
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="sm" loading={update.isPending}>
-          Guardar
+          {t("actions.save")}
         </Button>
         <Button
           type="button"
@@ -130,22 +132,21 @@ export function EmailTransportPanel({
           loading={probe.isPending}
           onClick={() => probe.mutate(inbox.id)}
         >
-          Probar conexión
+          {t("settingsInboxes.testConnection")}
         </Button>
         {saved ? (
           <span role="status" className="text-sm text-success">
-            Guardado
+            {t("settingsInboxes.saved")}
           </span>
         ) : null}
       </div>
 
       {probe.data ? (
         <div className="space-y-2" role="status">
-          <ProbeRow label="Recibir (IMAP)" side={probe.data.imap} />
-          <ProbeRow label="Enviar (SMTP)" side={probe.data.smtp} />
+          <ProbeRow label={t("settingsInboxes.imap")} side={probe.data.imap} />
+          <ProbeRow label={t("settingsInboxes.smtp")} side={probe.data.smtp} />
           <p className="text-xs text-fg-muted">
-            Se prueba lo guardado, no lo que hay en pantalla. Guardá primero
-            si acabás de cambiar algo.
+            {t("settingsInboxes.testsSaved")}
           </p>
         </div>
       ) : null}
@@ -154,21 +155,22 @@ export function EmailTransportPanel({
 }
 
 function ProbeRow({ label, side }: { label: string; side: ProbeSide }) {
+  const t = useT();
   if (!side.configured) {
     return (
       <p className="text-sm text-fg-muted">
-        {label}: apagado.
+        {t("settingsInboxes.probeOff", { label })}
       </p>
     );
   }
   if (side.ok) {
     return (
-      <p className="text-sm text-success">{label}: conecta bien.</p>
+      <p className="text-sm text-success">{t("settingsInboxes.probeOk", { label })}</p>
     );
   }
   return (
     <div className="rounded-lg border border-danger/30 bg-danger/5 p-2.5">
-      <p className="text-sm font-medium text-danger">{label}: no conecta</p>
+      <p className="text-sm font-medium text-danger">{t("settingsInboxes.probeFail", { label })}</p>
       <p className="mt-0.5 text-sm text-fg-muted">{side.error}</p>
     </div>
   );
@@ -194,6 +196,7 @@ type SideProps = {
 };
 
 function Side(p: SideProps) {
+  const t = useT();
   return (
     <fieldset className="space-y-3 rounded-lg border border-border p-3">
       <legend className="px-1 text-sm font-semibold text-fg">{p.legend}</legend>
@@ -206,15 +209,15 @@ function Side(p: SideProps) {
           // Both sides had a box labelled "Activado". Read on its own —
           // by a screen reader, or by a test — neither said which side it
           // belonged to.
-          aria-label={`Activar ${p.legend}`}
+          aria-label={t("settingsInboxes.enableSide", { side: p.legend })}
         />
-        Activado
+        {t("settingsInboxes.enabled")}
       </label>
       <p className="text-xs text-fg-muted">{p.hint}</p>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
         <div className="space-y-1.5">
-          <Label htmlFor={`${p.prefix}-address`}>Servidor</Label>
+          <Label htmlFor={`${p.prefix}-address`}>{t("settingsInboxes.server")}</Label>
           <Input
             id={`${p.prefix}-address`}
             value={p.address}
@@ -225,7 +228,7 @@ function Side(p: SideProps) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor={`${p.prefix}-port`}>Puerto</Label>
+          <Label htmlFor={`${p.prefix}-port`}>{t("settingsInboxes.port")}</Label>
           <Input
             id={`${p.prefix}-port`}
             inputMode="numeric"
@@ -236,7 +239,7 @@ function Side(p: SideProps) {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor={`${p.prefix}-login`}>Usuario</Label>
+        <Label htmlFor={`${p.prefix}-login`}>{t("settingsInboxes.username")}</Label>
         <Input
           id={`${p.prefix}-login`}
           value={p.login}
@@ -246,19 +249,19 @@ function Side(p: SideProps) {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor={`${p.prefix}-password`}>Contraseña</Label>
+        <Label htmlFor={`${p.prefix}-password`}>{t("common.password")}</Label>
         <Input
           id={`${p.prefix}-password`}
           type="password"
           value={p.password}
           onChange={(e) => p.onChange(`${p.prefix}_password`, e.target.value)}
           autoComplete="new-password"
-          placeholder={p.passwordSet ? "Ya hay una guardada" : ""}
+          placeholder={p.passwordSet ? t("settingsInboxes.passwordSaved") : ""}
         />
         <p className="text-xs text-fg-muted">
           {p.passwordSet
-            ? "Dejala vacía para conservar la que ya está."
-            : "Si tu proveedor tiene verificación en dos pasos, usá una contraseña de aplicación."}
+            ? t("settingsInboxes.passwordKeep")
+            : t("settingsInboxes.passwordAppHint")}
         </p>
       </div>
 

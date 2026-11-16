@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 const MAX_CHARS = 4000;
 const SHOW_COUNTER_FROM = 3500;
@@ -26,6 +27,7 @@ export function AgentComposer({
   isBusy?: boolean;
   error: string | null;
 }) {
+  const t = useT();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -61,11 +63,11 @@ export function AgentComposer({
           value={value}
           disabled={disabled}
           aria-invalid={overLimit || undefined}
-          aria-label="Mensaje para el agente"
+          aria-label={t("agent.composer.label")}
           placeholder={
             disabled
-              ? "El agente no está disponible"
-              : "Escribí un mensaje…"
+              ? t("agent.composer.unavailable")
+              : t("agent.composer.placeholder")
           }
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
@@ -86,7 +88,7 @@ export function AgentComposer({
         <Button
           type="button"
           size="icon"
-          aria-label="Enviar mensaje"
+          aria-label={t("agent.composer.send")}
           disabled={!canSend}
           onClick={onSubmit}
           className="h-11 w-11 shrink-0"

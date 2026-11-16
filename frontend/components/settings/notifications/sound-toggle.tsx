@@ -9,12 +9,14 @@ import {
   playNotificationSound,
   setNotificationSoundOn,
 } from "@/lib/notification-sound";
+import { useT } from "@/lib/i18n/provider";
 
 /**
  * Sound on this device when a notification arrives (a handoff from the
  * bot, an assignment…). Stored per device, on by default.
  */
 export function SoundToggle() {
+  const t = useT();
   const [on, setOn] = useState(true);
 
   useEffect(() => {
@@ -34,14 +36,14 @@ export function SoundToggle() {
           }}
           className="h-4 w-4 cursor-pointer rounded border-glass accent-neon"
         />
-        Sonido al recibir una notificación
+        {t("settingsNotif.sound")}
       </label>
       <Button
         variant="secondary"
         size="sm"
         onClick={() => playNotificationSound({ force: true })}
       >
-        <Volume2 className="h-4 w-4" aria-hidden /> Probar
+        <Volume2 className="h-4 w-4" aria-hidden /> {t("settingsNotif.test")}
       </Button>
     </div>
   );

@@ -2,9 +2,11 @@
 
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
+import { useT } from "@/lib/i18n/provider";
 
 /** A labelled value with a copy button (same look as the inbox details). */
 export function CopyField({ label, value }: { label: string; value: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -26,8 +28,8 @@ export function CopyField({ label, value }: { label: string; value: string }) {
         </code>
         <button
           type="button"
-          aria-label={`Copiar ${label}`}
-          title="Copiar"
+          aria-label={t("settingsInboxes.copyNamed", { label })}
+          title={t("settingsMcp.copy")}
           onClick={() => void copy()}
           className="shrink-0 rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >

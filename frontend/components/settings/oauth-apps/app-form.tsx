@@ -8,17 +8,18 @@ import { Label } from "@/components/ui/label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Textarea } from "@/components/ui/textarea";
 import type { OAuthApp, OAuthAppInput } from "@/lib/api/oauth";
+import { useT } from "@/lib/i18n/provider";
 
 const KIND_OPTIONS = [
-  { value: "confidential", label: "Confidencial" },
-  { value: "public", label: "Pública" },
+  { value: "confidential", label: "settingsOauth.confidential" },
+  { value: "public", label: "settingsOauth.public" },
 ] as const;
 
 const KIND_HINT = {
   confidential:
-    "Tiene un servidor propio que guarda el secreto (una integración web, n8n, un conector).",
+    "settingsOauth.kindHint.confidential",
   public:
-    "Corre en el equipo del usuario (escritorio, móvil, un script): no tiene secreto y usa PKCE.",
+    "settingsOauth.kindHint.public",
 } as const;
 
 /** Create (with the confidential/public choice) or edit an app. */
@@ -35,6 +36,7 @@ export function AppForm({
   onSubmit: (input: OAuthAppInput) => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [uris, setUris] = useState((initial?.redirect_uris ?? []).join("\n"));
   const [kind, setKind] = useState<"confidential" | "public">(
@@ -57,19 +59,19 @@ export function AppForm({
     <form onSubmit={submit} className="space-y-4" noValidate>
       <div className="space-y-1.5">
         <Label htmlFor="oauth-app-name" required>
-          Nombre
+          {t("profile.name")}
         </Label>
         <Input
           id="oauth-app-name"
           value={name}
           maxLength={80}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Mi integración"
+          placeholder={t("settingsOauth.namePlaceholder")}
         />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="oauth-app-uris" required>
-          URL de retorno
+          {t("settingsOauth.redirectUrl")}
         </Label>
         <Textarea
           id="oauth-app-uris"
@@ -79,20 +81,19 @@ export function AppForm({
           placeholder="https://tu-app.com/oauth/callback"
         />
         <p className="text-xs text-fg-muted">
-          Una por línea. Tienen que empezar con https:// (o http://localhost
-          para desarrollo).
+          {t("settingsOauth.redirectHint")}
         </p>
       </div>
       {initial ? null : (
         <div className="space-y-1.5">
-          <p className="text-sm font-medium text-fg">Tipo</p>
+          <p className="text-sm font-medium text-fg">{t("settingsOauth.kind")}</p>
           <SegmentedControl
             value={kind}
             onValueChange={setKind}
-            options={KIND_OPTIONS}
-            ariaLabel="Tipo de app"
+            options={KIND_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
+            ariaLabel={t("settingsOauth.appKind")}
           />
-          <p className="text-xs text-fg-muted">{KIND_HINT[kind]}</p>
+          <p className="text-xs text-fg-muted">{t(KIND_HINT[kind])}</p>
         </div>
       )}
       {error ? (
@@ -102,10 +103,10 @@ export function AppForm({
       ) : null}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-          Cancelar
+          {t("actions.cancel")}
         </Button>
         <Button type="submit" size="sm" loading={submitting}>
-          {initial ? "Guardar" : "Crear app"}
+          {initial ? t("actions.save") : t("settingsOauth.create")}
         </Button>
       </div>
     </form>

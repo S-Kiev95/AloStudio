@@ -7,8 +7,10 @@ is opt-in per user (``NotificationSetting.whatsapp_subscriptions`` plus
 
 The notice leaves from the conversation's own WhatsApp number when it is a
 WhatsApp inbox, otherwise from any WhatsApp number of the account. That
-number needs the approved template :data:`TEMPLATE_NAME` (Spanish), synced
-into ``WhatsappChannel.message_templates``; without it nothing is sent.
+number needs the approved template :data:`TEMPLATE_NAME`, synced into
+``WhatsappChannel.message_templates``; without it nothing is sent. It goes
+in the recipient's language when that variant of the template is approved,
+else in Spanish.
 
 Body variables: ``{{1}}`` contact name, ``{{2}}`` inbox name, ``{{3}}``
 conversation number.
@@ -23,6 +25,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
+from app.core.i18n import DEFAULT_LOCALE, t, user_locale
 from app.core.logging import get_logger
 from app.domains.contacts.models import Contact
 from app.domains.conversations.models import Conversation
@@ -37,6 +40,7 @@ from app.domains.notifications.models import (
     NotificationSetting,
     notification_type_to_str,
 )
+from app.domains.users.models import User
 from app.domains.whatsapp.template_processor import process_template_params
 from app.domains.whatsapp.templates import send_template_message
 
@@ -44,6 +48,16 @@ log = get_logger("app.notifications.whatsapp")
 
 TEMPLATE_NAME = "aviso_derivacion"
 TEMPLATE_LANGUAGE = "es"
+# The profile language → the code Meta uses for that template variant.
+_META_LANGUAGE = {
+    "es": "es",
+    "en": "en",
+    "pt": "pt_BR",
+    "fr": "fr",
+    "de": "de",
+    "ja": "ja",
+    "ko": "ko",
+}
 WHATSAPP_TYPES = frozenset({"conversation_bot_handoff"})
 
 
@@ -113,23 +127,44 @@ async def send_notification_whatsapp(session: AsyncSession, *, notification_id: 
         else None
     )
     inbox = await session.get(Inbox, conversation.inbox_id)
-    template_params = {
-        "name": TEMPLATE_NAME,
-        "language": TEMPLATE_LANGUAGE,
-        "processed_params": {
-            "body": {
-                "1": _param(contact.name if contact else None, "Un contacto"),
-                "2": _param(inbox.name if inbox else None, "AloStudio"),
-                "3": str(conversation.display_id),
-            }
-        },
-    }
-    # First number whose synced templates include the approved notice.
-    for channel in await _candidate_channels(session, conversation):
-        template_info = process_template_params(template_params, channel.message_templates)
+    user = await session.get(User, notification.user_id)
+    locale = user_locale(user)
+    # (profile language, Meta template language) to try, in order.
+    attempts = [(locale, _META_LANGUAGE.get(locale, TEMPLATE_LANGUAGE))]
+    if attempts[0][1] != TEMPLATE_LANGUAGE:
+        attempts.append((DEFAULT_LOCALE, TEMPLATE_LANGUAGE))
+
+    def template_params(text_locale: str, language: str) -> dict[str, Any]:
+        return {
+            "name": TEMPLATE_NAME,
+            "language": language,
+            "processed_params": {
+                "body": {
+                    # The fallback is written in the template's language.
+                    "1": _param(
+                        contact.name if contact else None,
+                        t(text_locale, "whatsapp.contact_fallback"),
+                    ),
+                    "2": _param(inbox.name if inbox else None, "AloStudio"),
+                    "3": str(conversation.display_id),
+                }
+            },
+        }
+
+    # First number whose synced templates include the approved notice, in
+    # the recipient's language if that variant exists, else in Spanish.
+    channels = await _candidate_channels(session, conversation)
+    template_info = None
+    for text_locale, language in attempts:
+        for channel in channels:
+            template_info = process_template_params(
+                template_params(text_locale, language), channel.message_templates
+            )
+            if template_info is not None:
+                break
         if template_info is not None:
             break
-    else:
+    if template_info is None:
         log.info(
             "notifications.whatsapp.no_template notification_id=%s account_id=%s",
             notification_id,
