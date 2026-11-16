@@ -204,11 +204,15 @@ dentro de la rama.
   Facturación (estado y portal). develop traído a la rama el 2026-11-15.
   Probado de punta a punta contra Polar sandbox el 2026-11-15 (registro,
   checkout con prueba gratis, webhooks por túnel, portal, cancelar y
-  revocar; detalle en `PLAN.multitenant.md`). Falta: topes por plan,
-  prueba gratis una sola vez por cliente, pago rechazado y renovación en
-  sandbox, motivo del error en el registro, traducir registro y Embedded
-  Signup, y paquetes de crédito para Max. El webhook de pagos no puede
-  tirar excepciones.
+  revocar; detalle en `PLAN.multitenant.md`). Topes por plan hechos el
+  2026-11-16: Basic solo redes de Meta (más correo, chat web y API),
+  llamadas solo en Max, tope de IA + WhatsApp de USD 5 / 15 / 40 desde la
+  metadata de Polar. Falta: avisos al 80/100 % del tope del plan, ocultar
+  en la interfaz lo que el plan no incluye, prueba gratis una sola vez por
+  cliente, pago rechazado y renovación en sandbox, motivo del error en el
+  registro, traducir registro y Embedded Signup, y créditos (decidir si
+  WhatsApp entra: con Embedded Signup lo cobra Meta directo). El webhook
+  de pagos no puede tirar excepciones.
 - **Sandbox primero, producción después (dueño, 2026-11-15):** todo F2 se
   termina y se prueba de punta a punta en Polar sandbox (alta, checkout,
   prueba gratis, renovación, falta de pago, portal). Recién con eso probado
