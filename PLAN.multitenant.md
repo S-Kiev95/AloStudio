@@ -235,6 +235,26 @@ hace nada ni consulta la base.
   autorespuestas y la IA del worker se cortan con los topes por plan.
 - Tests en `test_billing_polar.py` (402, estados, instalación propia, MCP).
 
+### Pantallas de plan y facturación (hecho 2026-11-15)
+
+En los 7 idiomas (`messages/*/billing.ts`). Solo con `MULTITENANT=true`.
+
+- **Elegí un plan:** `SubscriptionGate` (en el shell) reemplaza la página
+  cuando la cuenta no tiene plan; cubre también el alta, porque una cuenta
+  nueva entra sin plan. Muestra los planes de Polar con precio y días de
+  prueba (`trial_days`, nuevo en `/billing/plans`); elegir uno abre el
+  checkout de Polar. Un agente no admin ve "pedile a un administrador".
+- **Cualquier 402** hace que se vuelva a pedir el estado (`lib/query.ts`),
+  así la pantalla aparece aunque el plan venza a mitad de sesión; un 402 no
+  se reintenta.
+- **Ajustes → Facturación** (`settings/billing`, en el menú solo en
+  multitenant): plan, estado, renovación o fin de la prueba, botón al
+  portal de Polar, y los planes mientras no haya uno activo. Al volver del
+  checkout (`?checkout_id=`) consulta cada 3 s hasta que llega el webhook.
+- `GET /billing` lo puede leer cualquier miembro (solo plan y estado);
+  pagar y el portal siguen siendo de administradores.
+- Tests en `components/billing/billing.test.tsx`.
+
 ### Planes (decididos 2026-11-15, creados en Polar **sandbox**)
 
 Organización sandbox: `S Kiev` (`17fc0826-cf00-4bcb-a5db-5c1c26a53bed`).
@@ -264,13 +284,14 @@ nuevos, `POLAR_SERVER=production` y actualizar los IDs acá.
 
 ### Falta
 
-- Pantallas (Argon): ante un 402 `subscription_required`, pantalla "elegí
-  un plan" (también al registrarse); Ajustes → Facturación con estado y
-  botón al portal.
-- Topes por plan (F6 ya mide WhatsApp e IA): pasar los topes según plan.
-- Del lado de Polar (dueño): crear la organización, los productos, el
-  token y el webhook a `https://<dominio>/webhooks/polar` con los eventos
-  de suscripción. Probar todo primero en sandbox.
-- Al mergear F2 con develop: resolver conflictos en pantallas (login,
-  conexión de Instagram, formulario de bandejas) y reordenar la migración
-  después de la última de develop.
+- Topes por plan (F6 ya mide WhatsApp e IA): pasar los topes según plan
+  (metadata de cada producto), y que Basic solo conecte redes de Meta.
+- Del lado de Polar (dueño): token de la organización sandbox y el webhook
+  a `https://<dominio>/webhooks/polar` con los eventos de suscripción.
+- Probar todo de punta a punta en sandbox en un servidor multitenant (no
+  probado todavía en el navegador contra Polar).
+- Traducir las pantallas de registro y de Embedded Signup de WhatsApp
+  (siguen solo en español).
+- develop ya se trajo a la rama el 2026-11-15 (conflictos de login,
+  Instagram y bandejas resueltos; la migración de facturación va después de
+  `b4c5d6e7f8a1`). Al volver a traerlo, revisar que siga una sola cabeza.

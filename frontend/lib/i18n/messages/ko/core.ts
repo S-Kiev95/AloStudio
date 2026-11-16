@@ -140,6 +140,7 @@ export const core: Strings<typeof es> = {
       oauth_apps: "OAuth 앱",
       email_templates: "이메일 템플릿",
       installation: "설치",
+      billing: "결제",
       signatures: "서명",
       sets: "세트",
       autoposts: "자동 게시",

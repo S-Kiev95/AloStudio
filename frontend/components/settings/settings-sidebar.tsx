@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { usePublicInstallation } from "@/lib/api/installation";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,8 @@ export type SettingsItem = {
   milestone: string;
   done: boolean;
   group?: "general" | "publishing";
+  /** Only on a multitenant install (F2): paid plans. */
+  multitenantOnly?: boolean;
 };
 
 export const SETTINGS_ITEMS: SettingsItem[] = [
@@ -105,6 +108,13 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     done: true,
   },
   {
+    segment: "billing",
+    label: "settings.items.billing",
+    milestone: "F2",
+    done: true,
+    multitenantOnly: true,
+  },
+  {
     segment: "signatures",
     label: "settings.items.signatures",
     milestone: "F.7",
@@ -184,8 +194,11 @@ export function SettingsSidebar({ accountId }: { accountId: string }) {
   const pathname = usePathname() ?? "";
   const baseHref = `/accounts/${accountId}/settings`;
   const t = useT();
+  const multitenant = Boolean(usePublicInstallation().data?.multitenant);
 
-  const generalItems = SETTINGS_ITEMS.filter((i) => i.group !== "publishing");
+  const generalItems = SETTINGS_ITEMS.filter(
+    (i) => i.group !== "publishing" && (multitenant || !i.multitenantOnly),
+  );
   const publishingItems = SETTINGS_ITEMS.filter(
     (i) => i.group === "publishing",
   );

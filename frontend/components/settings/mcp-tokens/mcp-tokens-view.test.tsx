@@ -72,7 +72,7 @@ describe("MCPTokensView y menú lateral de Ajustes", () => {
   });
 
   it("incluye el grupo Publicación (Firmas, Sets, Auto post, Plugs) y API y MCP en SettingsSidebar", () => {
-    render(<SettingsSidebar accountId="1" />);
+    renderWithQuery(<SettingsSidebar accountId="1" />);
     expect(screen.getByText("Publicación")).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: "Firmas" })[0],

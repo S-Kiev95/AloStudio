@@ -11,6 +11,7 @@ export const apiErrors: Strings<typeof es> = {
   pushDenied: "通知の許可が拒否されました。",
   agentFailed: "エージェントとの通信中にエラーが発生しました。",
   requestFailed: "リクエストの処理中にエラーが発生しました。",
+  subscriptionRequired: "このアカウントには有効なプランがありません。",
   requestFailedStatus: "リクエストに失敗しました ({status})。",
   notFound: "お探しのものが見つかりませんでした。削除された可能性があります。",
   validationFailed: "無効なデータがあります。確認してもう一度お試しください。",

@@ -11,6 +11,7 @@ export const apiErrors: Strings<typeof es> = {
   pushDenied: "Autorisation des notifications refusée.",
   agentFailed: "Une erreur s’est produite en communiquant avec l’agent.",
   requestFailed: "Une erreur s’est produite lors du traitement de la demande.",
+  subscriptionRequired: "Ce compte n’a pas de forfait actif.",
   requestFailedStatus: "La demande a échoué ({status}).",
   notFound: "Nous n’avons pas trouvé ce que vous cherchez. Il a peut-être été supprimé.",
   validationFailed: "Certaines données ne sont pas valides. Vérifiez-les et réessayez.",

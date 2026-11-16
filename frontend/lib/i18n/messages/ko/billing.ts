@@ -1,0 +1,43 @@
+import type { billing as es } from "../es/billing";
+import type { Strings } from "../types";
+
+export const billing: Strings<typeof es> = {
+  title: "결제",
+  subtitle: "요금제, 결제 상태, 청구서.",
+  loadFailed: "결제 정보를 불러올 수 없습니다.",
+  adminOnly: "결제 정보는 관리자만 볼 수 있습니다.",
+  plan: "요금제",
+  noPlan: "요금제 없음",
+  renewsOn: "{date}에 갱신됩니다",
+  trialEndsOn: "무료 체험이 {date}에 끝납니다",
+  endsOn: "{date}에 종료됩니다",
+  portal: "결제 및 청구서 관리",
+  portalHint: "카드, 청구서, 요금제 변경이나 해지는 Polar에서 합니다.",
+  portalFailed: "결제 포털을 열 수 없습니다.",
+  confirming: "결제를 받았습니다. 여기에 표시되기까지 몇 초 걸릴 수 있습니다.",
+  choose: {
+    title: "요금제 선택",
+    subtitle: "AloStudio를 계속 사용하려면 요금제를 선택하세요. 대화와 데이터는 그대로 보관됩니다.",
+    notAdmin: "이 계정에는 활성 요금제가 없습니다. 관리자에게 설정 → 결제에서 요금제를 선택해 달라고 요청하세요.",
+  },
+  plans: {
+    title: "요금제",
+    loadFailed: "요금제를 불러올 수 없습니다.",
+    empty: "아직 선택할 요금제가 없습니다.",
+    perMonth: "월 {price}",
+    perYear: "연 {price}",
+    trial: "{days}일 무료 체험",
+    noTrial: "무료 체험 없음",
+    choose: "{name} 선택",
+    checkoutFailed: "결제 페이지를 열 수 없습니다.",
+  },
+  statuses: {
+    none: "요금제 없음",
+    incomplete: "결제 미완료",
+    trialing: "무료 체험 중",
+    active: "활성",
+    past_due: "결제 연체",
+    canceled: "해지됨",
+    unpaid: "미결제",
+  },
+};

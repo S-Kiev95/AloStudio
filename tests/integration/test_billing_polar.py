@@ -169,6 +169,7 @@ async def test_plans_and_checkout(client, db_session):
                         {"id": "prod_pro", "name": "Pro", "recurring_interval": "month",
                          "prices": [{"price_amount": 4900, "price_currency": "usd"}]},
                         {"id": "prod_basic", "name": "Básico", "recurring_interval": "month",
+                         "trial_interval": "day", "trial_interval_count": 30,
                          "prices": [{"price_amount": 1900, "price_currency": "usd"}]},
                     ]
                 },
@@ -180,6 +181,7 @@ async def test_plans_and_checkout(client, db_session):
         plans = (await client.get(f"{base}/plans", headers=headers)).json()["plans"]
         assert [p["name"] for p in plans] == ["Básico", "Pro"]
         assert plans[0]["amount"] == 19 and plans[0]["currency"] == "USD"
+        assert [p["trial_days"] for p in plans] == [30, None]
         resp = await client.post(f"{base}/checkout", json={"product_id": "prod_pro"}, headers=headers)
     assert resp.json() == {"url": "https://sandbox.polar.sh/checkout/abc"}
     sent = json.loads(checkout.calls.last.request.content)

@@ -75,6 +75,18 @@ def _price_of(product: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_TRIAL_UNIT_DAYS = {"day": 1, "week": 7, "month": 30, "year": 365}
+
+
+def _trial_days(product: dict[str, Any]) -> int | None:
+    """The free trial as days (Polar keeps unit + count), or None."""
+    unit = _TRIAL_UNIT_DAYS.get(str(product.get("trial_interval") or ""))
+    count = product.get("trial_interval_count")
+    if unit is None or not isinstance(count, int) or count <= 0:
+        return None
+    return unit * count
+
+
 async def list_plans() -> list[dict[str, Any]]:
     """The active recurring products of the organisation, cheapest first."""
     body = await _call("GET", "/products/", params={"is_archived": "false", "is_recurring": "true", "limit": 100})
@@ -84,6 +96,7 @@ async def list_plans() -> list[dict[str, Any]]:
             "id": p.get("id"),
             "name": p.get("name"),
             "description": p.get("description"),
+            "trial_days": _trial_days(p),
             **_price_of(p),
         }
         for p in items or []

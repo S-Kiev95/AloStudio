@@ -20,7 +20,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
 from app.core.db import get_session
-from app.core.deps import AccountContext, require_billing_admin
+from app.core.deps import AccountContext, account_membership, require_billing_admin
 from app.domains.billing import polar
 from app.domains.billing.service import handle_webhook, present_subscription, subscription_for
 
@@ -38,7 +38,9 @@ class CheckoutBody(BaseModel):
 
 @router.get("")
 async def billing_status(
-    ctx: Annotated[AccountContext, Depends(require_billing_admin)],
+    # Any member: the app shows agents "elegí un plan" / "pedile al admin"
+    # from it. Paying and the portal stay admin-only.
+    ctx: Annotated[AccountContext, Depends(account_membership)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None

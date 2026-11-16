@@ -15,6 +15,7 @@ import { metaCatalog } from "./metaCatalog";
 import { calls } from "./calls";
 import { decisions } from "./decisions";
 import { usage } from "./usage";
+import { billing } from "./billing";
 import { opportunities } from "./opportunities";
 import { origin } from "./origin";
 import { igCapabilities } from "./igCapabilities";
@@ -73,6 +74,7 @@ export const es = {
   calls,
   decisions,
   usage,
+  billing,
 
   opportunities,
 

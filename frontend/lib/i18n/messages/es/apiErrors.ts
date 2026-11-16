@@ -8,6 +8,7 @@ export const apiErrors = {
   pushDenied: "Permiso de notificaciones denegado.",
   agentFailed: "Ocurrió un error al comunicarse con el agente.",
   requestFailed: "Ocurrió un error al procesar la solicitud.",
+  subscriptionRequired: "Esta cuenta no tiene un plan activo.",
   requestFailedStatus: "La solicitud falló ({status}).",
   notFound: "No encontramos lo que buscás. Puede que lo hayan borrado.",
   validationFailed: "Hay datos que no son válidos. Revisalos y probá de nuevo.",

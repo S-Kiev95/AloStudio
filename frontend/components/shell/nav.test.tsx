@@ -32,6 +32,10 @@ vi.mock("./notification-bell", () => ({
   NotificationBell: () => <div data-testid="notification-bell" />,
 }));
 
+vi.mock("@/components/billing/subscription-gate", () => ({
+  SubscriptionGate: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 vi.mock("@/components/calls/call-dock", () => ({
   CallDock: () => <div data-testid="call-dock" />,
 }));

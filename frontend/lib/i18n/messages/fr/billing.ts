@@ -1,0 +1,43 @@
+import type { billing as es } from "../es/billing";
+import type { Strings } from "../types";
+
+export const billing: Strings<typeof es> = {
+  title: "Facturation",
+  subtitle: "Votre forfait, l’état du paiement et les factures.",
+  loadFailed: "Impossible de charger la facturation.",
+  adminOnly: "Seuls les administrateurs voient la facturation.",
+  plan: "Forfait",
+  noPlan: "Aucun forfait",
+  renewsOn: "Renouvellement le {date}",
+  trialEndsOn: "L’essai gratuit se termine le {date}",
+  endsOn: "Se termine le {date}",
+  portal: "Gérer le paiement et les factures",
+  portalHint: "La carte, les factures, le changement de forfait ou la résiliation se gèrent dans Polar.",
+  portalFailed: "Impossible d’ouvrir le portail de paiement.",
+  confirming: "Nous avons reçu le paiement. Il peut falloir quelques secondes pour qu’il apparaisse ici.",
+  choose: {
+    title: "Choisissez un forfait",
+    subtitle: "Pour continuer à utiliser AloStudio, choisissez un forfait. Vos conversations et vos données sont conservées.",
+    notAdmin: "Ce compte n’a pas de forfait actif. Demandez à un administrateur d’en choisir un dans Paramètres → Facturation.",
+  },
+  plans: {
+    title: "Forfaits",
+    loadFailed: "Impossible de charger les forfaits.",
+    empty: "Aucun forfait disponible pour le moment.",
+    perMonth: "{price} par mois",
+    perYear: "{price} par an",
+    trial: "{days} jours d’essai gratuit",
+    noTrial: "Sans essai gratuit",
+    choose: "Choisir {name}",
+    checkoutFailed: "Impossible d’ouvrir la page de paiement.",
+  },
+  statuses: {
+    none: "Aucun forfait",
+    incomplete: "Paiement non terminé",
+    trialing: "Essai gratuit",
+    active: "Actif",
+    past_due: "Paiement en attente",
+    canceled: "Résilié",
+    unpaid: "Impayé",
+  },
+};

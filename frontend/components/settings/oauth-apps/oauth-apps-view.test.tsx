@@ -200,7 +200,11 @@ describe("Ajustes → Apps OAuth", () => {
   });
 
   it("tiene su entrada en el menú de Ajustes", () => {
-    render(<SettingsSidebar accountId="1" />);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SettingsSidebar accountId="1" />
+      </QueryClientProvider>,
+    );
     expect(screen.getAllByRole("link", { name: "Apps OAuth" })[0]).toHaveAttribute(
       "href",
       "/accounts/1/settings/oauth_apps",

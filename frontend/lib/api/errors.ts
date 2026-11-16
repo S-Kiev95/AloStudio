@@ -46,6 +46,7 @@ export class ApiError extends Error {
 const WORDING_BY_CODE: Record<string, MessageKey> = {
   // From the backend (app/core/errors.py adds most of them centrally)
   not_authorized: "apiErrors.notAuthorized",
+  subscription_required: "apiErrors.subscriptionRequired",
   too_many_attempts: "apiErrors.tooManyAttempts",
   not_found: "apiErrors.notFound",
   validation_failed: "apiErrors.validationFailed",

@@ -142,6 +142,7 @@ export const core: Strings<typeof es> = {
       oauth_apps: "Apps OAuth",
       email_templates: "Modèles d’e-mail",
       installation: "Installation",
+      billing: "Facturation",
       signatures: "Signatures",
       sets: "Sets",
       autoposts: "Auto post",

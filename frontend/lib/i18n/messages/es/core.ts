@@ -138,6 +138,7 @@ export const core = {
       oauth_apps: "Apps OAuth",
       email_templates: "Plantillas de correo",
       installation: "Instalación",
+      billing: "Facturación",
       signatures: "Firmas",
       sets: "Sets",
       autoposts: "Auto post",
