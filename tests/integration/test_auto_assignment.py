@@ -255,6 +255,24 @@ async def test_full_rotation_visits_each_member(seeded, db_session):
     assert len(set(chosen_ids)) == 3
 
 
+async def test_inbox_default_assignee_takes_every_conversation(seeded, db_session):
+    """With a default assignee ("Responsable por defecto") on the inbox, new
+    conversations all go to that member instead of rotating; the other
+    members keep access."""
+    _, agents, inbox, contact, _, _ = seeded
+    inbox.handoff_assignee_id = agents[1].user.id
+    db_session.add(inbox)
+    await db_session.flush()
+    chosen_ids = []
+    for _ in range(3):
+        ci_n = await ContactInboxBuilder(session=db_session, contact=contact, inbox=inbox).perform()
+        conv = await create_conversation(
+            db_session, contact_inbox=ci_n, params=ConversationBuilderParams()
+        )
+        chosen_ids.append(conv.assignee_id)
+    assert chosen_ids == [agents[1].user.id] * 3
+
+
 # ---------------------------------------------------------------------------
 # update_team
 # ---------------------------------------------------------------------------
