@@ -1,6 +1,7 @@
 """F2 paso 3 — Polar: webhook signatures (standard and legacy secrets),
 subscription events applied once per webhook-id, never raising, and the
-checkout / plans calls (Polar mocked with respx)."""
+checkout / plans calls (Polar mocked with respx), and the 402 gate for
+accounts without a plan on a multitenant install."""
 
 from __future__ import annotations
 
@@ -18,12 +19,13 @@ from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 
 from app.core.auth.devise_token_auth import create_new_auth_token
-from app.core.config import get_settings
+from app.core.config import clear_settings_overlay, get_settings
 from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.billing.models import AccountSubscription, BillingEvent
 from app.domains.billing.polar import verify_signature
 from app.main import app
+from app.mcp.service import MCPAuthError, create_token, resolve_token
 
 pytestmark = pytest.mark.integration
 
@@ -185,3 +187,54 @@ async def test_plans_and_checkout(client, db_session):
     assert sent["external_customer_id"] == str(owner.account.id)
     assert sent["metadata"] == {"account_id": str(owner.account.id)}
     assert checkout.calls.last.request.headers["Authorization"] == "Bearer polar_oat_test"
+
+
+@pytest.fixture
+def multitenant(monkeypatch):
+    monkeypatch.setenv("MULTITENANT", "true")
+    clear_settings_overlay()
+    get_settings.cache_clear()
+    yield
+    clear_settings_overlay()
+    get_settings.cache_clear()
+
+
+async def _set_status(db_session, account_id: int, status: str) -> None:
+    sub = (
+        await db_session.exec(select(AccountSubscription).where(AccountSubscription.account_id == account_id))
+    ).first() or AccountSubscription(account_id=account_id)
+    sub.status = status
+    db_session.add(sub)
+    await db_session.flush()
+
+
+async def test_multitenant_without_a_plan_gets_402_but_can_pay(multitenant, client, db_session):
+    owner, headers = await _owner(db_session, "-gate")
+    base = f"/api/v1/accounts/{owner.account.id}"
+    resp = await client.get(f"{base}/conversations", headers=headers)
+    assert resp.status_code == 402
+    assert resp.json()["code"] == "subscription_required"
+    assert (await client.post(f"{base}/labels", json={"title": "x"}, headers=headers)).status_code == 402
+    # The account itself and billing stay open, to choose a plan and pay.
+    assert (await client.get(base, headers=headers)).status_code == 200
+    assert (await client.get(f"{base}/billing", headers=headers)).json()["has_access"] is False
+
+    for status, code in (("trialing", 200), ("active", 200), ("past_due", 402), ("canceled", 402)):
+        await _set_status(db_session, owner.account.id, status)
+        assert (await client.get(f"{base}/conversations", headers=headers)).status_code == code, status
+
+
+async def test_single_tenant_never_asks_for_a_plan(client, db_session):
+    owner, headers = await _owner(db_session, "-single")
+    resp = await client.get(f"/api/v1/accounts/{owner.account.id}/conversations", headers=headers)
+    assert resp.status_code == 200
+
+
+async def test_mcp_token_needs_a_plan_on_multitenant(multitenant, client, db_session):
+    owner, _ = await _owner(db_session, "-mcp")
+    token = await create_token(db_session, account_id=owner.account.id, name="bot")
+    with pytest.raises(MCPAuthError):
+        await resolve_token(db_session, token_value=token.token)
+    await _set_status(db_session, owner.account.id, "active")
+    ctx = await resolve_token(db_session, token_value=token.token)
+    assert ctx.account.id == owner.account.id

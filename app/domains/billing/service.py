@@ -15,6 +15,7 @@ from typing import Any
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.domains.billing.models import ACTIVE_STATUSES, AccountSubscription, BillingEvent
 
 log = logging.getLogger(__name__)
@@ -100,6 +101,15 @@ async def handle_webhook(
     return outcome
 
 
+async def has_paid_access(session: AsyncSession, account_id: int) -> bool:
+    """Always on a single-tenant install (CTC, Enterprise); on a multitenant
+    one, only while Polar's subscription is ``active`` or ``trialing``."""
+    if not get_settings().multitenant:
+        return True
+    sub = await subscription_for(session, account_id)
+    return sub is not None and sub.status in ACTIVE_STATUSES
+
+
 def present_subscription(sub: AccountSubscription | None) -> dict[str, Any]:
     if sub is None:
         return {"status": "none", "has_access": False}
@@ -115,4 +125,9 @@ def present_subscription(sub: AccountSubscription | None) -> dict[str, Any]:
     }
 
 
-__all__ = ["handle_webhook", "present_subscription", "subscription_for"]
+__all__ = [
+    "handle_webhook",
+    "has_paid_access",
+    "present_subscription",
+    "subscription_for",
+]

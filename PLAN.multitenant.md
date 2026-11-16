@@ -209,6 +209,32 @@ cliente. Rama `feat/multitenant`; no se mergea hasta tener F2 completo.
 - Tests de la rama: base aparte `alostudio_test_mt` (la de develop va
   adelantada en migraciones).
 
+### Bloqueo sin plan (hecho 2026-11-15)
+
+Solo con `MULTITENANT=true`; en una instalación propia (CTC, Enterprise) no
+hace nada ni consulta la base.
+
+- **API:** `account_context` (lo usan todas las rutas de cuenta, también
+  vía `require_admin`) responde **402** `{"error": "This account has no
+  active plan", "code": "subscription_required"}` si la suscripción no está
+  `active` ni `trialing`. El frontend traduce por `code`.
+- **Abierto sin plan:** `/billing/*` usa `require_billing_admin` (solo
+  membresía y admin, sin chequeo de plan) para elegir plan y pagar. También
+  la cuenta en sí (`GET`/`PATCH /accounts/{id}`) y su lista de agentes, que
+  no pasan por `account_context` y no consumen nada. Un agente no admin de
+  una cuenta sin plan recibe 401 en `/billing`: la pantalla le dice que le
+  pida al admin.
+- **MCP:** `resolve_token` rechaza los tokens "API y MCP" y los de OAuth de
+  una cuenta sin plan (401 del MCP).
+- **Tiempo real:** el websocket rechaza la suscripción a `account_<id>`.
+- **Sigue andando:** widget web, centro de ayuda y media pública.
+- No se borra nada: al volver a pagar, el webhook pone la suscripción en
+  `active` y todo vuelve a andar.
+- Sin bloquear todavía: los webhooks de entrada (WhatsApp, Instagram...)
+  siguen guardando mensajes, para no perder conversaciones; las
+  autorespuestas y la IA del worker se cortan con los topes por plan.
+- Tests en `test_billing_polar.py` (402, estados, instalación propia, MCP).
+
 ### Planes (decididos 2026-11-15, creados en Polar **sandbox**)
 
 Organización sandbox: `S Kiev` (`17fc0826-cf00-4bcb-a5db-5c1c26a53bed`).
@@ -238,10 +264,9 @@ nuevos, `POLAR_SERVER=production` y actualizar los IDs acá.
 
 ### Falta
 
-- Bloquear el uso cuando la suscripción no da acceso (en multitenant):
-  pantalla "elegí un plan" y la API con 402, sin borrar datos.
-- Pantallas (Argon): elegir plan al registrarse, Ajustes → Facturación
-  con estado, botón al portal.
+- Pantallas (Argon): ante un 402 `subscription_required`, pantalla "elegí
+  un plan" (también al registrarse); Ajustes → Facturación con estado y
+  botón al portal.
 - Topes por plan (F6 ya mide WhatsApp e IA): pasar los topes según plan.
 - Del lado de Polar (dueño): crear la organización, los productos, el
   token y el webhook a `https://<dominio>/webhooks/polar` con los eventos

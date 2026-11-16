@@ -24,6 +24,7 @@ from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.config import clear_settings_overlay, get_settings
 from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
+from app.domains.billing.models import AccountSubscription
 from app.domains.conversations.models import Message
 from app.domains.inboxes.models import (
     WHATSAPP_PROVIDER_CLOUD,
@@ -90,6 +91,8 @@ async def _account(db_session, suffix: str):
     headers, new_tokens = create_new_auth_token(user_tokens=owner.user.tokens, uid=owner.user.uid)
     owner.user.tokens = new_tokens
     db_session.add(owner.user)
+    # A paying client: without a plan the API answers 402 (paso 3).
+    db_session.add(AccountSubscription(account_id=owner.account.id, status="active"))
     await db_session.flush()
     return owner, headers.as_response_headers()
 

@@ -17,6 +17,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.accounts.models import Account
+from app.domains.billing.service import has_paid_access
 from app.domains.oauth import service as oauth
 from app.domains.users.models import User
 from app.mcp.context import MCPContext
@@ -129,6 +130,9 @@ async def resolve_token(
         grant = await oauth.resolve_access_token(session, token_value)
         if grant is None:
             raise MCPAuthError("invalid or expired access token")
+        assert grant.account.id is not None
+        if not await has_paid_access(session, grant.account.id):
+            raise MCPAuthError("account without an active plan")
         await session.flush()
         return MCPContext(
             user=grant.user,
@@ -148,6 +152,10 @@ async def resolve_token(
     account = await session.get(Account, row.account_id)
     if account is None:
         raise MCPAuthError("account no longer exists")
+    # F2 multitenant: same rule as the API (402 there).
+    assert account.id is not None
+    if not await has_paid_access(session, account.id):
+        raise MCPAuthError("account without an active plan")
 
     # ``user_id`` is optional on the token — we don't fail when the
     # column is null, but we do try to resolve the user for context

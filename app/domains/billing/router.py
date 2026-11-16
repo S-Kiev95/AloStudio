@@ -20,7 +20,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
 from app.core.db import get_session
-from app.core.deps import AccountContext, require_admin
+from app.core.deps import AccountContext, require_billing_admin
 from app.domains.billing import polar
 from app.domains.billing.service import handle_webhook, present_subscription, subscription_for
 
@@ -38,7 +38,7 @@ class CheckoutBody(BaseModel):
 
 @router.get("")
 async def billing_status(
-    ctx: Annotated[AccountContext, Depends(require_admin)],
+    ctx: Annotated[AccountContext, Depends(require_billing_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
@@ -47,7 +47,7 @@ async def billing_status(
 
 @router.get("/plans")
 async def billing_plans(
-    ctx: Annotated[AccountContext, Depends(require_admin)],
+    ctx: Annotated[AccountContext, Depends(require_billing_admin)],
 ) -> dict[str, Any]:
     return {"plans": await polar.list_plans()}
 
@@ -55,7 +55,7 @@ async def billing_plans(
 @router.post("/checkout")
 async def billing_checkout(
     body: CheckoutBody,
-    ctx: Annotated[AccountContext, Depends(require_admin)],
+    ctx: Annotated[AccountContext, Depends(require_billing_admin)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
     base = get_settings().app_base_url.rstrip("/")
@@ -70,7 +70,7 @@ async def billing_checkout(
 
 @router.post("/portal")
 async def billing_portal(
-    ctx: Annotated[AccountContext, Depends(require_admin)],
+    ctx: Annotated[AccountContext, Depends(require_billing_admin)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
     return {"url": await polar.customer_portal_url(account_id=ctx.account.id)}
