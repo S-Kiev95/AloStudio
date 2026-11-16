@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
@@ -339,5 +339,23 @@ describe("ConversationView — buscar dentro del chat (F8)", () => {
     expect(mockReplace).toHaveBeenCalledWith(
       "/accounts/1/conversations/18?message=555",
     );
+  });
+});
+
+describe("ConversationView — no leídos", () => {
+  it("marca la conversación como vista al abrirla, para que se vaya el contador", async () => {
+    let seen = 0;
+    server.use(
+      http.post(
+        "*/api/v1/accounts/:accountId/conversations/18/update_last_seen",
+        () => {
+          seen += 1;
+          return new HttpResponse(null, { status: 200 });
+        },
+      ),
+    );
+    renderView();
+    await screen.findByText("Buen día, quería consultar el estado del pedido");
+    await waitFor(() => expect(seen).toBe(1));
   });
 });

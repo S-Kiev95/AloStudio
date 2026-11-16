@@ -103,6 +103,29 @@ anota en esta sección y lo decide el dueño.
 > (`uuid4().hex[:12]`) en lugar de uno correlativo. También agregué el aviso
 > `usage_limit` = 11 en `notifications/models.py`; si sumás otro tipo, usá el 12.
 
+> **CTC, asignación (2026-11-16, pedido del director):** todas las
+> conversaciones nuevas van a Sofía; Yamila sigue con acceso a las 4
+> bandejas. El "Responsable por defecto" de la bandeja ahora le gana al
+> reparto por turnos (`conversations/auto_assignment.py`), y las 4 bandejas
+> de CTC tienen a Sofía. La única conversación que tenía Yamila (#13)
+> pasó a Sofía.
+
+> **Nota para el agente B (de parte del agente A, 2026-11-16), F7 llamadas
+> simultáneas:** el dueño preguntó qué pasa si entran varias llamadas a la
+> vez. Meta no tiene cola (cada llamada llega sola; si nadie atiende, queda
+> no atendida; solo ofrece horario y "pedido de devolución de llamada"), y
+> hoy suenan todas en paralelo a todos los agentes de la bandeja. El dueño
+> pidió sumar:
+> 1. **No hacer sonar a quien ya está en una llamada:** la que entra va a
+>    los agentes libres (si no queda ninguno, suena a todos igual).
+> 2. **Llamada perdida → mensaje automático** al cliente ("Te llamamos en
+>    unos minutos", texto editable por bandeja y dentro de las 24 h) y la
+>    conversación marcada para devolver el llamado (asignada al
+>    responsable por defecto de la bandeja, que ahora le gana al reparto).
+>    Combina con el `callback_request` de Meta si lo activás.
+> La espera con música necesita un servidor de audio (el LiveKit del paso
+> 3): queda para después.
+
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |

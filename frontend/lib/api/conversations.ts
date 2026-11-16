@@ -395,6 +395,22 @@ export function useSendMessage(accountId: string, displayId: number) {
   });
 }
 
+/** Marks the conversation as seen by the team, so its unread badge goes
+ *  away in the list. Called on opening it and on each new message that
+ *  arrives while it is open. */
+export function useMarkSeen(accountId: string, displayId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<unknown>(`${base(accountId)}/${displayId}/update_last_seen`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["conversations", accountId] });
+    },
+  });
+}
+
 /** Messages still going out or that failed, oldest first. They live in the
  *  mutation cache, so refetching the thread doesn't touch them. */
 export function usePendingMessages(accountId: string, displayId: number) {
