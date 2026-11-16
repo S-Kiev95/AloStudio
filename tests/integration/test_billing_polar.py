@@ -11,6 +11,7 @@ import hmac
 import json
 import time
 from collections.abc import AsyncIterator
+from datetime import timedelta
 from decimal import Decimal
 
 import httpx
@@ -371,37 +372,97 @@ async def test_single_tenant_ignores_plans(client, db_session):
     assert await plan_usage_cap(db_session, owner.account.id) is None
 
 
-async def test_the_plan_cap_adds_ai_and_whatsapp_in_usd(multitenant, client, db_session):
+async def test_the_plan_cap_is_ai_only_and_credit_extends_it(multitenant, client, db_session):
     from datetime import UTC, datetime
-    from decimal import Decimal
 
     from app.domains.usage.limits import limit_reached
     from app.domains.usage.models import KIND_AI, UsageRecord, WhatsappCostDay
 
     owner, headers = await _owner(db_session, "-cap")
-    await _with_plan(db_session, owner.account.id, BASIC)  # USD 5
+    account_id = owner.account.id
+    await _with_plan(db_session, account_id, BASIC)  # USD 5 of AI
     now = datetime.now(UTC)
     db_session.add(
-        UsageRecord(account_id=owner.account.id, kind=KIND_AI, occurred_at=now,
-                    category="agent", cost=Decimal("3"), source_id="ai-cap-1")
+        UsageRecord(account_id=account_id, kind=KIND_AI, occurred_at=now,
+                    category="agent", cost=Decimal("6"), source_id="ai-cap-1")
     )
-    day = WhatsappCostDay(
-        account_id=owner.account.id, inbox_id=1, day=now.date(), pricing_category="MARKETING",
-        pricing_type="REGULAR", country="UY", volume=10, cost=Decimal("2.5"),
-        currency="USD", synced_at=now,
+    db_session.add(
+        WhatsappCostDay(
+            account_id=account_id, inbox_id=1, day=now.date(), pricing_category="MARKETING",
+            pricing_type="REGULAR", country="UY", volume=10, cost=Decimal("50"),
+            currency="USD", synced_at=now,
+        )
     )
-    db_session.add(day)
     await db_session.flush()
-    assert await limit_reached(db_session, owner.account.id, "ai")
-    assert await limit_reached(db_session, owner.account.id, "whatsapp")
-    status = (await client.get(f"/api/v1/accounts/{owner.account.id}/billing", headers=headers)).json()
-    assert status["usage"] == {"cap": 5.0, "spent": 5.5, "currency": "USD"}
+    # WhatsApp is the client's own bill with Meta: the plan never stops it.
+    assert not await limit_reached(db_session, account_id, "whatsapp")
+    assert await limit_reached(db_session, account_id, "ai")
 
-    # Meta billing in another currency: only the AI counts, USD 3 < 5.
-    day.currency = "UYU"
-    db_session.add(day)
-    await db_session.flush()
-    assert not await limit_reached(db_session, owner.account.id, "ai")
+    # USD 20 of credit gives USD 10; the USD 1 past the cap is taken from it.
+    paid = {
+        "type": "order.paid",
+        "data": {
+            "id": "ord_credit_1",
+            "paid": True,
+            "net_amount": 2000,
+            "refunded_amount": 0,
+            "created_at": now.isoformat(),
+            "product": {"id": "prod_credits", "metadata": {"kind": "ai_credits"}},
+            "customer": {"id": "cus_c", "external_id": str(account_id)},
+            "metadata": {"account_id": str(account_id)},
+        },
+    }
+    assert (await _post(client, paid, "wh_credit_1")).status_code == 202
+    assert (await _post(client, paid, "wh_credit_1b")).status_code == 202  # same order again
+    assert not await limit_reached(db_session, account_id, "ai")
+    status = (await client.get(f"/api/v1/accounts/{account_id}/billing", headers=headers)).json()
+    assert status["usage"] == {"cap": 5.0, "spent": 6.0, "currency": "USD", "credit_balance": 9.0}
+    credits = (await client.get(f"/api/v1/accounts/{account_id}/billing/credits", headers=headers)).json()
+    assert credits["balance"] == 9.0
+    [purchase] = credits["purchases"]
+    assert {k: purchase[k] for k in ("paid", "credit", "refunded")} == {
+        "paid": 20.0, "credit": 10.0, "refunded": False,
+    }
+
+    # A full refund takes the credit back: AI stops again.
+    refunded = {**paid, "type": "order.refunded", "data": {**paid["data"], "refunded_amount": 2000}}
+    await _post(client, refunded, "wh_credit_2")
+    assert await limit_reached(db_session, account_id, "ai")
+
+
+def test_credit_tiers():
+    from app.domains.billing.service import credit_for
+
+    assert credit_for(499) == 0
+    assert credit_for(500) == Decimal("2.50")
+    assert credit_for(4900) == Decimal("24.50")
+    assert credit_for(5000) == Decimal("32.50")
+    assert credit_for(10_000) == Decimal("75.00")
+    assert credit_for(20_000) == Decimal("150.00")
+    assert credit_for(501) == Decimal("2.51")  # 2.505: half a cent up, like the screen
+
+
+async def test_credits_checkout_sends_the_amount(client, db_session):
+    owner, headers = await _owner(db_session, "-buy")
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(f"{SANDBOX}/products/").mock(
+            return_value=httpx.Response(200, json={"items": [
+                {"id": "prod_other", "metadata": {}},
+                {"id": "prod_credits", "metadata": {"kind": "ai_credits"}},
+            ]})
+        )
+        checkout = mock.post(f"{SANDBOX}/checkouts/").mock(
+            return_value=httpx.Response(201, json={"url": "https://sandbox.polar.sh/checkout/cr"})
+        )
+        base = f"/api/v1/accounts/{owner.account.id}/billing/credits/checkout"
+        too_little = await client.post(base, json={"amount": 4.99}, headers=headers)
+        assert too_little.status_code == 422
+        resp = await client.post(base, json={"amount": 50}, headers=headers)
+    assert resp.json() == {"url": "https://sandbox.polar.sh/checkout/cr"}
+    sent = json.loads(checkout.calls.last.request.content)
+    assert sent["products"] == ["prod_credits"]
+    assert sent["amount"] == 5000
+    assert sent["metadata"] == {"account_id": str(owner.account.id)}
 
 
 async def test_metadata_typed_as_text_still_reads(multitenant, client, db_session):
@@ -420,3 +481,73 @@ async def test_metadata_typed_as_text_still_reads(multitenant, client, db_sessio
         assert await plan_usage_cap(db_session, owner.account.id) is None, bad
     status = (await client.get(f"/api/v1/accounts/{owner.account.id}/billing", headers=headers)).json()
     assert "usage" not in status
+
+
+async def _credit(client, account_id: int, order_id: str, cents: int, paid_at) -> None:
+    payload = {
+        "type": "order.paid",
+        "data": {
+            "id": order_id, "paid": True, "net_amount": cents, "refunded_amount": 0,
+            "created_at": paid_at.isoformat(),
+            "product": {"id": "prod_credits", "metadata": {"kind": "ai_credits"}},
+            "customer": {"id": "cus_x", "external_id": str(account_id)},
+            "metadata": {"account_id": str(account_id)},
+        },
+    }
+    assert (await _post(client, payload, f"wh_{order_id}")).status_code == 202
+
+
+async def test_credit_pays_only_what_came_after_buying_it(multitenant, client, db_session):
+    from datetime import UTC, datetime, timedelta
+
+    from app.domains.usage.limits import credit_balance
+    from app.domains.usage.models import KIND_AI, UsageRecord
+
+    owner, _ = await _owner(db_session, "-after")
+    account_id = owner.account.id
+    await _with_plan(db_session, account_id, BASIC)  # USD 5
+    now = datetime.now(UTC)
+    # USD 7 before buying (2 over the cap, while AI was stopped) ...
+    db_session.add(UsageRecord(account_id=account_id, kind=KIND_AI, occurred_at=now - timedelta(minutes=5),
+                               category="agent", cost=Decimal("7"), source_id="after-1"))
+    await db_session.flush()
+    await _credit(client, account_id, "ord_after", 2000, now - timedelta(minutes=1))  # USD 10
+    # ... and USD 3 after: only those come out of the credit.
+    db_session.add(UsageRecord(account_id=account_id, kind=KIND_AI, occurred_at=now,
+                               category="agent", cost=Decimal("3"), source_id="after-2"))
+    await db_session.flush()
+    assert await credit_balance(db_session, account_id) == Decimal("7")
+
+
+async def test_a_closed_month_keeps_its_credit_after_a_plan_change(multitenant, client, db_session):
+    from datetime import UTC, datetime
+
+    from app.domains.billing.models import CreditMonthUsage
+    from app.domains.usage.limits import credit_balance
+    from app.domains.usage.models import KIND_AI, UsageRecord
+
+    owner, _ = await _owner(db_session, "-frozen")
+    account_id = owner.account.id
+    await _with_plan(db_session, account_id, MAX)  # USD 40
+    last_month = (datetime.now(UTC).replace(day=1) - timedelta(days=1)).replace(day=10)
+    await _credit(client, account_id, "ord_frozen", 2000, last_month)  # USD 10
+    db_session.add(UsageRecord(account_id=account_id, kind=KIND_AI, occurred_at=last_month.replace(day=20),
+                               category="agent", cost=Decimal("42"), source_id="frozen-1"))
+    await db_session.flush()
+    assert await credit_balance(db_session, account_id) == Decimal("8")  # 2 over Max's 40
+    rows = (await db_session.exec(select(CreditMonthUsage).where(CreditMonthUsage.account_id == account_id))).all()
+    assert [r.used for r in rows] == [Decimal("2")]
+    # Down to Basic (USD 5): last month stays as it was charged.
+    await _with_plan(db_session, account_id, BASIC)
+    assert await credit_balance(db_session, account_id) == Decimal("8")
+
+
+async def test_an_order_without_product_stays_to_replay(client, db_session):
+    owner, _ = await _owner(db_session, "-noprod")
+    payload = {"type": "order.paid", "data": {"id": "ord_noprod", "paid": True, "net_amount": 2000,
+               "metadata": {"account_id": str(owner.account.id)}}}
+    assert (await _post(client, payload, "wh_noprod")).status_code == 202
+    event = (await db_session.exec(select(BillingEvent).where(BillingEvent.webhook_id == "wh_noprod"))).one()
+    assert event.processed_at is None
+    assert "without product" in (event.error or "")
+

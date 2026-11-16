@@ -23,8 +23,8 @@ export type BillingStatus = {
   /** Unix seconds. */
   current_period_end?: number | null;
   cancel_at_period_end?: boolean;
-  /** The plan's monthly cap on AI + WhatsApp spend, when it has one. */
-  usage?: { cap: number; spent: number; currency: string };
+  /** The plan's monthly AI cap and the credit that extends it. */
+  usage?: { cap: number; spent: number; currency: string; credit_balance: number };
 };
 
 export type BillingPlan = {
@@ -106,6 +106,50 @@ export async function startCheckout(
 export async function openBillingPortal(accountId: string): Promise<void> {
   const { url } = await apiFetch<{ url: string }>(`${base(accountId)}/portal`, {
     method: "POST",
+  });
+  window.location.href = url;
+}
+
+export type CreditTier = { from: number; share: number };
+
+export type BillingCredits = {
+  balance: number;
+  currency: string;
+  minimum: number;
+  /** Highest threshold first, as the backend checks them. */
+  tiers: CreditTier[];
+  purchases: Array<{ id: number; paid: number; credit: number; refunded: boolean; paid_at: number }>;
+};
+
+export function useBillingCredits(
+  accountId: string,
+  { enabled = true, untilPaid = false }: { enabled?: boolean; untilPaid?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: [...BILLING_KEY, accountId, "credits"],
+    queryFn: () => apiFetch<BillingCredits>(`${base(accountId)}/credits`),
+    enabled,
+    retry: false,
+    // Back from Polar: order.paid may land a few seconds after the browser.
+    refetchInterval: (query) =>
+      untilPaid && query.state.dataUpdateCount < POLL_ATTEMPTS ? 3_000 : false,
+  });
+}
+
+/** USD of credit an amount buys, with the backend's tiers (0 under the
+ *  minimum). In whole cents, half a cent up, exactly as the backend
+ *  credits it (``credit_for`` in billing/service.py). */
+export function creditFor(amount: number, tiers: CreditTier[]): number {
+  const cents = Math.round(amount * 100);
+  const tier = tiers.find((t) => cents >= Math.round(t.from * 100));
+  return tier ? Math.round(cents * tier.share) / 100 : 0;
+}
+
+/** Polar's payment page for that much credit (USD, before taxes). */
+export async function startCreditsCheckout(accountId: string, amount: number): Promise<void> {
+  const { url } = await apiFetch<{ url: string }>(`${base(accountId)}/credits/checkout`, {
+    method: "POST",
+    body: JSON.stringify({ amount }),
   });
   window.location.href = url;
 }

@@ -10,10 +10,23 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
@@ -77,4 +90,56 @@ class BillingEvent(TimestampMixin, table=True):
     error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
 
 
-__all__ = ["ACTIVE_STATUSES", "AccountSubscription", "BillingEvent"]
+class CreditPurchase(TimestampMixin, table=True):
+    """AI credit bought in Polar (one ``order.paid`` of the credits
+    product). The balance is computed from these and the AI spend above the
+    plan's cap; nothing is deducted per call. Credit never expires."""
+
+    __tablename__ = "credit_purchases"
+
+    id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True
+        )
+    )
+    # Polar's order: a retried webhook must not credit twice.
+    order_id: str = Field(sa_column=Column(String, nullable=False, unique=True))
+    # What the client paid, without taxes (Polar's ``net_amount``), cents.
+    paid_cents: int = Field(sa_column=Column(Integer, nullable=False))
+    refunded_cents: int = Field(
+        default=0, sa_column=Column(Integer, nullable=False, server_default="0")
+    )
+    # USD of AI it buys (the paid amount less the margin of its tier).
+    credit: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    paid_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+
+
+class CreditMonthUsage(TimestampMixin, table=True):
+    """AI credit a closed month used (its AI spend above the plan's cap
+    then). Frozen once the month is over, so a later change of plan doesn't
+    rewrite the past, and the balance doesn't re-read the whole history."""
+
+    __tablename__ = "credit_month_usages"
+    __table_args__ = (UniqueConstraint("account_id", "month", name="uniq_credit_month_usages"),)
+
+    id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
+    )
+    account_id: int = Field(
+        sa_column=Column(BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    )
+    # First day of the month (UTC).
+    month: date = Field(sa_column=Column(Date, nullable=False))
+    used: Decimal = Field(sa_column=Column(Numeric(12, 6), nullable=False))
+
+
+__all__ = [
+    "ACTIVE_STATUSES",
+    "AccountSubscription",
+    "BillingEvent",
+    "CreditMonthUsage",
+    "CreditPurchase",
+]

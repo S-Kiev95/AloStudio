@@ -19,6 +19,7 @@ import { useLocale, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
+import { CreditsSection } from "./credits-section";
 import { PlanPicker } from "./plan-picker";
 
 const STATUS_LABEL: Record<string, MessageKey> = {
@@ -38,7 +39,9 @@ export function BillingView({ accountId }: { accountId: string }) {
   const installation = usePublicInstallation();
   // Polar sends the browser back here with `checkout_id`; the status is
   // asked again for a minute (see useBillingStatus), and so long the note.
-  const returning = Boolean(useSearchParams().get("checkout_id"));
+  const params = useSearchParams();
+  const returning = Boolean(params.get("checkout_id"));
+  const returningFromCredits = Boolean(params.get("credits_checkout"));
   const [recent, setRecent] = useState(returning);
   useEffect(() => {
     if (!returning) return;
@@ -90,6 +93,10 @@ export function BillingView({ accountId }: { accountId: string }) {
           <h3 className="text-lg font-medium text-fg">{t("billing.plans.title")}</h3>
           <PlanPicker accountId={accountId} />
         </section>
+      ) : null}
+
+      {!notAdmin && status.data ? (
+        <CreditsSection accountId={accountId} returning={returningFromCredits} />
       ) : null}
     </div>
   );
@@ -184,14 +191,15 @@ function StatusCard({
   );
 }
 
-/** The plan's cap on AI + WhatsApp spend this month, like the caps in
- *  Gastos (components/usage/limit-editor.tsx). */
+/** The plan's cap on AI spend this month, like the caps in Gastos
+ *  (components/usage/limit-editor.tsx). Past it, AI runs on credit. */
 function PlanUsage({ usage }: { usage: NonNullable<BillingStatus["usage"]> }) {
   const t = useT();
   const locale = useLocale();
   const tag = INTL_TAGS[locale];
   const percent = usage.cap > 0 ? Math.min((usage.spent / usage.cap) * 100, 100) : 100;
   const reached = usage.spent >= usage.cap;
+  const onCredits = reached && usage.credit_balance > 0;
   return (
     <div className="space-y-2 border-t border-glass pt-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
@@ -214,12 +222,20 @@ function PlanUsage({ usage }: { usage: NonNullable<BillingStatus["usage"]> }) {
         <div
           className={cn(
             "h-full rounded-pill",
-            reached ? "bg-danger" : percent >= 80 ? "bg-warning" : "bg-success",
+            onCredits
+              ? "bg-warning"
+              : reached
+                ? "bg-danger"
+                : percent >= 80
+                  ? "bg-warning"
+                  : "bg-success",
           )}
           style={{ width: `${percent}%` }}
         />
       </div>
-      {reached ? (
+      {onCredits ? (
+        <p className="text-xs text-fg-muted">{t("billing.usageOnCredits")}</p>
+      ) : reached ? (
         <p role="alert" className="text-xs text-danger">
           {t("billing.usageReached")}
         </p>

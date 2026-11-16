@@ -352,7 +352,7 @@ sandbox necesitan esperar el ciclo o una tarjeta de prueba que falle.
 El checkout de Polar no funciona dentro del navegador de la app de Claude
 (error de React de la página de Polar); en Chrome sí.
 
-### Créditos de IA (diseño, decidido con el dueño 2026-11-16; sin código)
+### Créditos de IA (decidido y hecho 2026-11-16)
 
 Para cuando el tope del plan no alcanza: el cliente carga saldo y la IA
 sigue andando después del tope.
@@ -431,6 +431,27 @@ créditos.
 - Avisos: al llegar al tope del plan ("seguís con tus créditos") y cuando
   el saldo baja de USD 1 o se termina.
 
+**Cómo quedó hecho**
+
+- Producto de Polar sandbox "Créditos de IA"
+  `e6359a1f-d606-4537-a9b1-06d95a48cf50` (precio libre, mínimo USD 5,
+  sugerido 20, metadata `kind: ai_credits`). El webhook ya recibe
+  `order.refunded`. En producción hay que crearlo de nuevo.
+- Tablas `credit_purchases` (migración `9a5e3c7b2d4f`) y
+  `credit_month_usages` (`a6b8d0f2c4e1`): cada mes cerrado guarda una vez
+  el crédito que usó, con el tope de ese momento, así un cambio de plan
+  posterior no reescribe el pasado y el saldo no relee todo el historial.
+- Solo cuenta lo gastado **después** de la primera compra (lo que se pasó
+  antes, con la IA ya cortada, no sale del crédito). Meses en UTC.
+- Crédito redondeado a medio centavo hacia arriba, igual en backend
+  (`credit_for`) y en la pantalla (`creditFor`).
+- Un `order.*` que llega sin `product` queda con error para reprocesar
+  en vez de perderse.
+- Rutas: `GET /billing/credits` y `POST /billing/credits/checkout
+  {amount}`; `GET /billing` suma `credit_balance`.
+- Probado en sandbox: carga de USD 20 → USD 10 de crédito, la IA vuelve a
+  andar pasada el tope y Facturación muestra saldo, tramos e historial.
+
 **Riesgos**
 
 - Un cliente con saldo y un agente de IA en loop puede gastar todo el
@@ -441,8 +462,8 @@ créditos.
 
 ### Falta
 
-- **Implementar los créditos** (diseño arriba), empezando por sacar
-  WhatsApp del tope del plan.
+- Créditos: avisos de saldo bajo y de "seguís con créditos"; alerta si
+  un día gasta mucho más que el promedio.
 - Avisos al 80 % y 100 % del tope del plan (hoy el worker avisa solo los
   topes que pone un admin en Gastos).
 - El control del tope suma 5 a 7 consultas por llamada a la IA y por envío

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
@@ -37,6 +37,18 @@ const PLANS = [
     currency: "USD", interval: "month", trial_days: null },
 ];
 
+const CREDITS = {
+  balance: 12.5,
+  currency: "USD",
+  minimum: 5,
+  tiers: [
+    { from: 100, share: 0.75 },
+    { from: 50, share: 0.65 },
+    { from: 5, share: 0.5 },
+  ],
+  purchases: [{ id: 1, paid: 25, credit: 12.5, refunded: false, paid_at: 1_797_000_000 }],
+};
+
 function handlers({
   multitenant = true,
   billing = { status: "none", has_access: false } as Record<string, unknown>,
@@ -62,6 +74,7 @@ function handlers({
     http.get("*/api/v1/accounts/1/billing/plans", () =>
       HttpResponse.json({ plans: PLANS }),
     ),
+    http.get("*/api/v1/accounts/1/billing/credits", () => HttpResponse.json(CREDITS)),
   ];
 }
 
@@ -208,13 +221,36 @@ describe("BillingView", () => {
           plan_name: "Basic",
           current_period_end: 1_797_000_000,
           cancel_at_period_end: false,
-          usage: { cap: 5, spent: 5.5, currency: "USD" },
+          usage: { cap: 5, spent: 5.5, currency: "USD", credit_balance: 0 },
         },
       }),
     );
     renderWith(<BillingView accountId="1" />);
-    expect(await screen.findByText("Consumo del mes (IA y WhatsApp)")).toBeVisible();
+    expect(await screen.findByText("Consumo de IA del mes")).toBeVisible();
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
     expect(screen.getByRole("alert")).toHaveTextContent(/Llegaste al tope del plan/);
+  });
+  it("los créditos muestran el saldo, lo que se recibe y el tramo siguiente", async () => {
+    server.use(
+      ...handlers({
+        billing: {
+          status: "active",
+          has_access: true,
+          plan_name: "Basic",
+          usage: { cap: 5, spent: 6, currency: "USD", credit_balance: 12.5 },
+        },
+      }),
+    );
+    renderWith(<BillingView accountId="1" />);
+    expect(await screen.findByText("Créditos de IA")).toBeVisible();
+    expect(screen.getByText("Pasaste el tope del plan: la IA sigue con tus créditos.")).toBeVisible();
+    const input = await screen.findByLabelText("Monto a cargar (USD)");
+    expect(screen.getByText(/Recibís US.{1,3}10,00 de crédito/)).toBeVisible();
+    expect(screen.getByText(/Con US.{1,3}50,00 recibís US.{1,3}32,50/)).toBeVisible();
+    fireEvent.change(input, { target: { value: "100" } });
+    expect(screen.getByText(/Recibís US.{1,3}75,00 de crédito/)).toBeVisible();
+    fireEvent.change(input, { target: { value: "3" } });
+    expect(screen.getByText(/Mínimo US.{1,3}5,00/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Cargar créditos" })).toBeDisabled();
   });
 });

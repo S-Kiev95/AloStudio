@@ -10,6 +10,10 @@ says how much the month has spent so far and whether the cap is reached:
     delay, so the cap can be passed by a few messages, never by much.
   * **AI:** the sum of the estimated cost of every recorded call.
 
+On a multitenant install (F2) the plan adds an AI cap that AI credit
+extends (:func:`credit_balance`); WhatsApp is the client's own bill with
+Meta, so only the admin's cap stops it.
+
 Reaching a WhatsApp cap stops template messages (campaigns, the agent, the
 Bandeja's "Plantilla" button); replies inside the 24 h window still go out,
 so customers aren't left unanswered. Reaching the AI cap stops the calls
@@ -21,15 +25,17 @@ falls back to plain text search). The worker tells the admins at 80 % and
 from __future__ import annotations
 
 import logging
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.domains.billing.service import plan_usage_cap
+from app.domains.billing.models import CreditMonthUsage
+from app.domains.billing.service import credit_left_of, credit_purchases, plan_usage_cap
 from app.domains.usage.models import (
     KIND_AI,
     KIND_WHATSAPP,
@@ -143,43 +149,98 @@ async def get_limit(session: AsyncSession, account_id: int, kind: str) -> UsageL
     ).first()
 
 
-async def plan_month_spend(session: AsyncSession, account_id: int) -> Decimal:
-    """WhatsApp + AI this month, in USD, for the plan's cap (F2). WhatsApp
-    counts only while Meta bills the account in USD: its figures come in the
-    WhatsApp Business Account's currency, and there is no rate to convert."""
-    first, _ = _month_start()
-    currencies = set(
-        (
+def _excess(total: Decimal, before: Decimal, cap: Decimal | None) -> Decimal:
+    """Credit a month uses: its AI spend above the cap, less what was
+    already above it before the first purchase (the AI was stopped then;
+    credit pays only for what came after)."""
+    if cap is None:
+        return Decimal(0)
+    return max(total - cap, Decimal(0)) - max(before - cap, Decimal(0))
+
+
+async def _ai_spend_by_month(
+    session: AsyncSession, account_id: int, since: datetime, until: datetime | None = None
+) -> dict[date, Decimal]:
+    # Months in UTC whatever the session's time zone, like _month_start.
+    month = func.date_trunc("month", func.timezone("UTC", UsageRecord.occurred_at))
+    query = select(month, func.sum(UsageRecord.cost)).where(
+        UsageRecord.account_id == account_id,
+        UsageRecord.kind == KIND_AI,
+        UsageRecord.occurred_at >= since,
+    )
+    if until is not None:
+        query = query.where(UsageRecord.occurred_at < until)
+    rows = (await session.exec(query.group_by(month))).all()
+    return {m.date(): Decimal(spent or 0) for m, spent in rows}
+
+
+async def credit_balance(
+    session: AsyncSession, account_id: int, *, cap: Decimal | None = None, cap_known: bool = False
+) -> Decimal:
+    """AI credit left (F2): bought, less refunds, less every month's AI
+    spend above the plan's cap since the first purchase. Computed, never
+    deducted per call; 0 without purchases, never negative.
+
+    Closed months are frozen in ``credit_month_usages`` the first time they
+    are needed (with the cap of that moment), so a later change of plan
+    doesn't rewrite them and only the current month is read live."""
+    purchases = await credit_purchases(session, account_id)
+    if not purchases:
+        return Decimal(0)
+    bought = sum((credit_left_of(p) for p in purchases), Decimal(0))
+    if not cap_known:
+        cap = await plan_usage_cap(session, account_id)
+    first_paid = min(p.paid_at for p in purchases)
+    first_month = first_paid.astimezone(UTC).date().replace(day=1)
+    this_month, _ = _month_start()
+    first_start = datetime(first_month.year, first_month.month, 1, tzinfo=UTC)
+    before = (await _ai_spend_by_month(session, account_id, first_start, first_paid)).get(
+        first_month, Decimal(0)
+    )
+    frozen = {
+        row.month: row.used
+        for row in (
             await session.exec(
-                select(WhatsappCostDay.currency)
-                .where(WhatsappCostDay.account_id == account_id, WhatsappCostDay.day >= first)
-                .distinct()
+                select(CreditMonthUsage).where(
+                    CreditMonthUsage.account_id == account_id,
+                    CreditMonthUsage.month >= first_month,
+                )
             )
         ).all()
-    )
-    spend = await ai_month_spend(session, account_id)
-    if currencies <= {None, "USD"}:
-        spend += await whatsapp_month_spend(session, account_id)
-    else:
-        log.warning(
-            "usage.limits.plan_cap_whatsapp_skipped account_id=%s currencies=%s",
-            account_id,
-            sorted(c for c in currencies if c),
-        )
-    return spend
+    }
+    since = first_start
+    if frozen:
+        nxt = (max(frozen).replace(day=28) + timedelta(days=4)).replace(day=1)
+        since = datetime(nxt.year, nxt.month, 1, tzinfo=UTC)
+    used = sum(frozen.values(), Decimal(0))
+    for month, total in (await _ai_spend_by_month(session, account_id, since)).items():
+        excess = _excess(total, before if month == first_month else Decimal(0), cap)
+        used += excess
+        if month < this_month:
+            try:
+                async with session.begin_nested():
+                    session.add(CreditMonthUsage(account_id=account_id, month=month, used=excess))
+            except IntegrityError:
+                pass  # another request froze it first
+    return max(bought - used, Decimal(0))
 
 
 async def limit_reached(session: AsyncSession, account_id: int, kind: str) -> bool:
     """Whether this month's spend reached the admin's cap for ``kind`` or,
-    on a multitenant install, the plan's cap on WhatsApp + AI together
-    (False without either). Never raises: a broken check must not stop the
-    account's messages."""
+    on a multitenant install, the plan's AI cap with no credit left (False
+    without either). WhatsApp is the client's own bill with Meta, so only
+    the admin's cap stops it. Never raises: a broken check must not stop
+    the account's messages."""
     try:
         cap = await get_limit(session, account_id, kind)
         if cap is not None and await month_spend(session, account_id, kind) >= cap.monthly_limit:
             return True
+        if kind != KIND_AI:
+            return False
         plan_cap = await plan_usage_cap(session, account_id)
-        return plan_cap is not None and await plan_month_spend(session, account_id) >= plan_cap
+        if plan_cap is None or await ai_month_spend(session, account_id) < plan_cap:
+            return False
+        return await credit_balance(session, account_id, cap=plan_cap, cap_known=True) <= 0
     except Exception:
         log.exception("usage.limits.check_failed account_id=%s kind=%s", account_id, kind)
         return False

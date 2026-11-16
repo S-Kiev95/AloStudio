@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from sqlmodel import select
@@ -18,7 +18,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
 from app.core.errors import ChatwootHTTPException
-from app.domains.billing.models import ACTIVE_STATUSES, AccountSubscription, BillingEvent
+from app.domains.billing.models import (
+    ACTIVE_STATUSES,
+    AccountSubscription,
+    BillingEvent,
+    CreditPurchase,
+)
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +78,95 @@ async def _apply_subscription(session: AsyncSession, data: dict[str, Any]) -> No
     await session.flush()
 
 
+# --- AI credits --------------------------------------------------------------
+#
+# Pay what you want from USD 5; the more it is, the less margin we keep
+# (decided by the owner on 2026-11-16). Thresholds on the amount paid
+# without taxes, in cents: (from, share of it that becomes credit).
+CREDIT_MINIMUM_CENTS = 500
+CREDIT_TIERS: tuple[tuple[int, Decimal], ...] = (
+    (10_000, Decimal("0.75")),
+    (5_000, Decimal("0.65")),
+    (CREDIT_MINIMUM_CENTS, Decimal("0.50")),
+)
+
+
+def credit_for(paid_cents: int) -> Decimal:
+    """USD of AI credit that ``paid_cents`` buys (0 under the minimum)."""
+    for threshold, share in CREDIT_TIERS:
+        if paid_cents >= threshold:
+            # Half a cent up, like the screen's preview (lib/api/billing.ts).
+            return (Decimal(paid_cents) * share / 100).quantize(Decimal("0.01"), ROUND_HALF_UP)
+    return Decimal(0)
+
+
+def _is_credits_order(data: dict[str, Any]) -> bool:
+    product = data.get("product") if isinstance(data.get("product"), dict) else {}
+    metadata = product.get("metadata") if isinstance(product.get("metadata"), dict) else {}
+    return _text(metadata.get("kind")) == "ai_credits"
+
+
+def _cents(value: Any) -> int:
+    return int(value) if isinstance(value, int | float) and not isinstance(value, bool) else 0
+
+
+async def _apply_credit_order(session: AsyncSession, event_type: str, data: dict[str, Any]) -> bool:
+    """``order.paid`` credits the account once per order; ``order.refunded``
+    (or an update carrying a refund) keeps the refunded part. Returns
+    whether it was a credits order."""
+    if not data.get("id"):
+        return False
+    order_id = str(data["id"])
+    purchase = (
+        await session.exec(select(CreditPurchase).where(CreditPurchase.order_id == order_id))
+    ).first()
+    if purchase is None and not _is_credits_order(data):
+        if not isinstance(data.get("product"), dict):
+            # Can't tell what was bought: fail, so the event stays to replay
+            # instead of a payment lost as "ignored".
+            raise ValueError("order without product")
+        return False
+    if purchase is None:
+        if event_type != "order.paid" and not data.get("paid"):
+            return True  # not paid yet: ``order.paid`` will come
+        account_id = _account_id(data)
+        if account_id is None:
+            raise ValueError("credits order without account (metadata.account_id / customer.external_id)")
+        paid = _cents(data.get("net_amount"))
+        purchase = CreditPurchase(
+            account_id=account_id,
+            order_id=order_id,
+            paid_cents=paid,
+            credit=credit_for(paid),
+            # Polar's order has no paid-at; the payment lands seconds after.
+            paid_at=_parse_dt(data.get("created_at")) or datetime.now(UTC),
+        )
+    purchase.refunded_cents = max(purchase.refunded_cents, _cents(data.get("refunded_amount")))
+    session.add(purchase)
+    await session.flush()
+    return True
+
+
+def credit_left_of(purchase: CreditPurchase) -> Decimal:
+    """The purchase's credit after refunds (a refund takes its share)."""
+    if purchase.paid_cents <= 0:
+        return Decimal(0)
+    kept = max(purchase.paid_cents - purchase.refunded_cents, 0)
+    return (purchase.credit * kept / purchase.paid_cents).quantize(Decimal("0.01"))
+
+
+async def credit_purchases(session: AsyncSession, account_id: int) -> list[CreditPurchase]:
+    return list(
+        (
+            await session.exec(
+                select(CreditPurchase)
+                .where(CreditPurchase.account_id == account_id)
+                .order_by(CreditPurchase.paid_at.desc())  # type: ignore[attr-defined]
+            )
+        ).all()
+    )
+
+
 async def handle_webhook(
     session: AsyncSession, *, webhook_id: str, payload: dict[str, Any]
 ) -> str:
@@ -93,6 +187,10 @@ async def handle_webhook(
         async with session.begin_nested():
             if event_type.startswith("subscription."):
                 await _apply_subscription(session, data)
+                outcome = "applied"
+            elif event_type.startswith("order.") and await _apply_credit_order(
+                session, event_type, data
+            ):
                 outcome = "applied"
         event.processed_at = datetime.now(UTC)
         event.error = None
@@ -162,7 +260,7 @@ async def plan_allows_calls(session: AsyncSession, account_id: int) -> bool:
 
 
 async def plan_usage_cap(session: AsyncSession, account_id: int) -> Decimal | None:
-    """The plan's monthly cap on WhatsApp + AI spend, in USD, or None (also
+    """The plan's monthly cap on AI spend, in USD, or None (also
     for a value that isn't a positive number)."""
     features = await _plan_features(session, account_id)
     cents = (features or {}).get("usage_cap_usd_cents")
@@ -204,6 +302,11 @@ def present_subscription(sub: AccountSubscription | None) -> dict[str, Any]:
 
 
 __all__ = [
+    "CREDIT_MINIMUM_CENTS",
+    "CREDIT_TIERS",
+    "credit_for",
+    "credit_left_of",
+    "credit_purchases",
     "handle_webhook",
     "has_paid_access",
     "plan_allows_calls",

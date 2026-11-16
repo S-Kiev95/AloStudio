@@ -5,6 +5,10 @@
   * ``POST /api/v1/accounts/{id}/billing/checkout`` — Polar payment link.
   * ``POST /api/v1/accounts/{id}/billing/portal``   — Polar portal (card,
     invoices, cancel).
+  * ``GET  /api/v1/accounts/{id}/billing/credits``  — AI credit: balance,
+    tiers and purchases.
+  * ``POST /api/v1/accounts/{id}/billing/credits/checkout`` — Polar payment
+    link to buy credit for an amount.
   * ``POST /webhooks/polar`` — Polar's events (signature checked).
 """
 
@@ -12,10 +16,11 @@ from __future__ import annotations
 
 import json
 import logging
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, Response, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
@@ -23,12 +28,16 @@ from app.core.db import get_session
 from app.core.deps import AccountContext, account_membership, require_billing_admin
 from app.domains.billing import polar
 from app.domains.billing.service import (
+    CREDIT_MINIMUM_CENTS,
+    CREDIT_TIERS,
+    credit_left_of,
+    credit_purchases,
     handle_webhook,
     plan_usage_cap,
     present_subscription,
     subscription_for,
 )
-from app.domains.usage.limits import plan_month_spend
+from app.domains.usage.limits import ai_month_spend, credit_balance
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +49,13 @@ class CheckoutBody(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     product_id: str
+
+
+class CreditsCheckoutBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    # USD, without taxes (Polar adds them per country).
+    amount: float = Field(ge=CREDIT_MINIMUM_CENTS / 100, le=10_000)
 
 
 @router.get("")
@@ -56,12 +72,61 @@ async def billing_status(
         # The plan and its state matter more than the meter: a failing sum
         # leaves the meter out instead of the whole answer.
         try:
-            spent = await plan_month_spend(session, ctx.account.id)
+            spent = await ai_month_spend(session, ctx.account.id)
+            balance = await credit_balance(session, ctx.account.id)
         except Exception:
             log.exception("billing.usage_failed account_id=%s", ctx.account.id)
         else:
-            out["usage"] = {"cap": float(cap), "spent": round(float(spent), 2), "currency": "USD"}
+            out["usage"] = {
+                "cap": float(cap),
+                "spent": round(float(spent), 2),
+                "currency": "USD",
+                "credit_balance": float(balance),
+            }
     return out
+
+
+@router.get("/credits")
+async def billing_credits(
+    ctx: Annotated[AccountContext, Depends(require_billing_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    purchases = await credit_purchases(session, ctx.account.id)
+    return {
+        "balance": float(await credit_balance(session, ctx.account.id)),
+        "currency": "USD",
+        "minimum": CREDIT_MINIMUM_CENTS / 100,
+        # Cheapest tier last, as the backend checks them.
+        "tiers": [{"from": cents / 100, "share": float(share)} for cents, share in CREDIT_TIERS],
+        "purchases": [
+            {
+                "id": p.id,
+                "paid": p.paid_cents / 100,
+                "credit": float(credit_left_of(p)),
+                "refunded": p.refunded_cents > 0,
+                "paid_at": int(p.paid_at.timestamp()),
+            }
+            for p in purchases
+        ],
+    }
+
+
+@router.post("/credits/checkout")
+async def billing_credits_checkout(
+    body: CreditsCheckoutBody,
+    ctx: Annotated[AccountContext, Depends(require_billing_admin)],
+) -> dict[str, Any]:
+    assert ctx.account.id is not None
+    base = get_settings().app_base_url.rstrip("/")
+    url = await polar.create_checkout(
+        account_id=ctx.account.id,
+        product_id=await polar.credits_product_id(),
+        customer_email=ctx.user.email,
+        success_url=f"{base}/accounts/{ctx.account.id}/settings/billing?credits_checkout={{CHECKOUT_ID}}",
+        amount_cents=int((Decimal(str(body.amount)) * 100).quantize(Decimal(1), ROUND_HALF_UP)),
+    )
+    return {"url": url}
 
 
 @router.get("/plans")

@@ -139,16 +139,38 @@ async def list_plans() -> list[dict[str, Any]]:
     return sorted(plans, key=lambda p: (p["amount"] is None, p["amount"] or 0))
 
 
+CREDITS_KIND = "ai_credits"
+
+
+async def credits_product_id() -> str:
+    """The one-time "Créditos de IA" product (metadata ``kind: ai_credits``,
+    a pay-what-you-want price)."""
+    body = await _call("GET", "/products/", params={"is_archived": "false", "is_recurring": "false", "limit": 100})
+    for p in (body.get("items") if isinstance(body, dict) else None) or []:
+        metadata = p.get("metadata") if isinstance(p, dict) else None
+        if isinstance(metadata, dict) and str(metadata.get("kind", "")).strip() == CREDITS_KIND:
+            return str(p["id"])
+    raise _unprocessable("Falta crear en Polar el producto de créditos (metadata kind: ai_credits).")
+
+
 async def create_checkout(
-    *, account_id: int, product_id: str, customer_email: str | None, success_url: str
+    *,
+    account_id: int,
+    product_id: str,
+    customer_email: str | None,
+    success_url: str,
+    amount_cents: int | None = None,
 ) -> str:
-    payload = {
+    """``amount_cents`` sets the amount of a pay-what-you-want price."""
+    payload: dict[str, Any] = {
         "products": [product_id],
         "external_customer_id": str(account_id),
         "customer_email": customer_email or None,
         "success_url": success_url,
         "metadata": {"account_id": str(account_id)},
     }
+    if amount_cents is not None:
+        payload["amount"] = amount_cents
     try:
         body = await _call("POST", "/checkouts/", json=payload)
     except PolarRejected as exc:
