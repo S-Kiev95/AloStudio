@@ -202,8 +202,11 @@ dentro de la rama.
   sandbox, IDs en `PLAN.multitenant.md`. Pantallas hechas en los 7
   idiomas: "Elegí un plan" cuando la cuenta no tiene plan y Ajustes →
   Facturación (estado y portal). develop traído a la rama el 2026-11-15.
-  Falta: topes por plan, token y webhook de Polar sandbox, la prueba de
-  punta a punta en un servidor multitenant, traducir registro y Embedded
+  Probado de punta a punta contra Polar sandbox el 2026-11-15 (registro,
+  checkout con prueba gratis, webhooks por túnel, portal, cancelar y
+  revocar; detalle en `PLAN.multitenant.md`). Falta: topes por plan,
+  prueba gratis una sola vez por cliente, pago rechazado y renovación en
+  sandbox, motivo del error en el registro, traducir registro y Embedded
   Signup, y paquetes de crédito para Max. El webhook de pagos no puede
   tirar excepciones.
 - **Sandbox primero, producción después (dueño, 2026-11-15):** todo F2 se
