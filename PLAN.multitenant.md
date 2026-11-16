@@ -284,14 +284,50 @@ webhook apuntando al servidor de prueba. Recién con eso probado se pasa a
 producción: crear los tres productos en Polar producción, token y webhook
 nuevos, `POLAR_SERVER=production` y actualizar los IDs acá.
 
+### Prueba en sandbox (2026-11-15, instalación local + túnel)
+
+Backend de la rama en :8010 con `MULTITENANT=true` y base
+`alostudio_mt_dev`, frontend en :3010, `.env.local` (ignorado) con el
+token y el secreto; webhook de Polar sandbox
+`67532852-1beb-4576-9c89-5fe00aefe6d8` a un túnel `trycloudflare` (la URL
+cambia cada vez que se abre el túnel: actualizar el webhook en Polar).
+
+Anduvo:
+
+- Registro, correo de confirmación (MailHog) y "Elegí un plan" al entrar.
+- Planes leídos de Polar con precio y días de prueba; checkout de Basic
+  con 30 días gratis ($0 hoy, después $10/mes), pagado con la tarjeta de
+  prueba.
+- Webhooks firmados por el túnel: `subscription.created`, `.active`,
+  `.updated` aplicados y `order.paid` ignorado; la cuenta pasa a
+  `trialing` y el panel abre.
+- Ajustes → Facturación y el portal de Polar (suscripción en prueba y el
+  pedido).
+- Cancelar al final del período: sigue con acceso, "Termina el…".
+- Revocar: `canceled` al instante y vuelve "Elegí un plan", sin borrar
+  datos.
+
+Arreglado en la prueba: Polar rechaza correos de dominios que no reciben
+mail y el checkout ni empezaba (ahora se reintenta sin precargar el
+correo); errores de Polar legibles; con la prueba cancelada Facturación
+decía "la prueba termina" en vez de "termina", y mostraba una fecha vieja
+sin acceso.
+
+Sin probar todavía: renovación real y pago rechazado (`past_due`), que en
+sandbox necesitan esperar el ciclo o una tarjeta de prueba que falle.
+El checkout de Polar no funciona dentro del navegador de la app de Claude
+(error de React de la página de Polar); en Chrome sí.
+
 ### Falta
 
 - Topes por plan (F6 ya mide WhatsApp e IA): pasar los topes según plan
   (metadata de cada producto), y que Basic solo conecte redes de Meta.
-- Del lado de Polar (dueño): token de la organización sandbox y el webhook
-  a `https://<dominio>/webhooks/polar` con los eventos de suscripción.
-- Probar todo de punta a punta en sandbox en un servidor multitenant (no
-  probado todavía en el navegador contra Polar).
+- Prueba gratis una sola vez: después de cancelar, los planes vuelven a
+  ofrecer 30 días gratis. Revisar si Polar lo limita por cliente o
+  limitarlo acá.
+- Pago rechazado y renovación en sandbox (ver arriba).
+- El registro dice solo "No se pudo crear la cuenta" cuando el correo no
+  es válido: mostrar el motivo.
 - Traducir las pantallas de registro y de Embedded Signup de WhatsApp
   (siguen solo en español).
 - develop ya se trajo a la rama el 2026-11-15 (conflictos de login,

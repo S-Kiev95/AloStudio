@@ -164,4 +164,38 @@ describe("BillingView", () => {
     renderWith(<BillingView accountId="1" />);
     await waitFor(() => expect(notFound).toHaveBeenCalled());
   });
+
+  it("una prueba cancelada dice cuándo termina, no que se renueva", async () => {
+    server.use(
+      ...handlers({
+        billing: {
+          status: "trialing",
+          has_access: true,
+          plan_name: "Basic",
+          current_period_end: 1_797_000_000,
+          cancel_at_period_end: true,
+        },
+      }),
+    );
+    renderWith(<BillingView accountId="1" />);
+    expect(await screen.findByText(/^Termina el/)).toBeVisible();
+    expect(screen.queryByText(/La prueba gratis termina/)).toBeNull();
+  });
+
+  it("sin acceso no muestra una fecha vieja", async () => {
+    server.use(
+      ...handlers({
+        billing: {
+          status: "canceled",
+          has_access: false,
+          plan_name: "Basic",
+          current_period_end: 1_797_000_000,
+          cancel_at_period_end: true,
+        },
+      }),
+    );
+    renderWith(<BillingView accountId="1" />);
+    expect(await screen.findByText("Cancelado")).toBeVisible();
+    expect(screen.queryByText(/Termina el|Se renueva/)).toBeNull();
+  });
 });

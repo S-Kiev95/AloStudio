@@ -114,15 +114,16 @@ function StatusCard({
         { day: "numeric", month: "long", year: "numeric" },
       )
     : null;
-  const period = !date
-    ? null
-    : status.status === "trialing"
-      ? t("billing.trialEndsOn", { date })
-      : status.cancel_at_period_end || status.status === "canceled"
+  // Cancelled (also during the trial): it ends and does not renew. Without
+  // access the date is in the past, so say nothing.
+  const period =
+    !date || !status.has_access
+      ? null
+      : status.cancel_at_period_end
         ? t("billing.endsOn", { date })
-        : status.has_access
-          ? t("billing.renewsOn", { date })
-          : null;
+        : status.status === "trialing"
+          ? t("billing.trialEndsOn", { date })
+          : t("billing.renewsOn", { date });
   // Polar only has a customer once a checkout went through.
   const hasCustomer = status.status !== "none";
 
