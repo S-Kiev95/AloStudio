@@ -210,10 +210,10 @@ dentro de la rama.
   metadata de Polar. Falta: avisos al 80/100 % del tope del plan, ocultar
   en la interfaz lo que el plan no incluye, prueba gratis una sola vez por
   cliente, pago rechazado y renovación en sandbox, motivo del error en el
-  registro, traducir registro y Embedded Signup, e implementar los
-  créditos de IA (diseño decidido el 2026-11-16 en `PLAN.multitenant.md`:
-  monto libre desde USD 5, margen 50 / 35 / 25 %, sin vencimiento, solo
-  IA; el tope del plan pasa a ser solo de IA). El webhook
+  registro, traducir registro y Embedded Signup, y avisos de los
+  créditos. Créditos de IA hechos y probados en sandbox el 2026-11-16
+  (monto libre desde USD 5, margen 50 / 35 / 25 %, sin vencimiento, solo
+  IA; el tope del plan pasó a ser solo de IA). El webhook
   de pagos no puede tirar excepciones.
 - **Sandbox primero, producción después (dueño, 2026-11-15):** todo F2 se
   termina y se prueba de punta a punta en Polar sandbox (alta, checkout,
