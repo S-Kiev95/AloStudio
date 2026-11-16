@@ -240,3 +240,45 @@ async def test_mcp_token_needs_a_plan_on_multitenant(multitenant, client, db_ses
     await _set_status(db_session, owner.account.id, "active")
     ctx = await resolve_token(db_session, token_value=token.token)
     assert ctx.account.id == owner.account.id
+
+
+async def test_checkout_retries_without_an_email_polar_refuses(client, db_session):
+    owner, headers = await _owner(db_session, "-mail")
+    refused = {"detail": [
+        {"type": "value_error", "loc": ["body", "CheckoutProductsCreate", "customer_email"],
+         "msg": "The domain name example.com does not accept email."},
+        {"type": "missing", "loc": ["body", "CheckoutProductCreate", "product_id"], "msg": "Field required"},
+    ]}
+    with respx.mock(assert_all_called=False) as mock:
+        checkout = mock.post(f"{SANDBOX}/checkouts/").mock(
+            side_effect=[
+                httpx.Response(422, json=refused),
+                httpx.Response(201, json={"url": "https://sandbox.polar.sh/checkout/xyz"}),
+            ]
+        )
+        resp = await client.post(
+            f"/api/v1/accounts/{owner.account.id}/billing/checkout",
+            json={"product_id": "prod_pro"},
+            headers=headers,
+        )
+    assert resp.json() == {"url": "https://sandbox.polar.sh/checkout/xyz"}
+    assert json.loads(checkout.calls[0].request.content)["customer_email"]
+    assert json.loads(checkout.calls[1].request.content)["customer_email"] is None
+
+
+async def test_polar_validation_errors_read_plainly(client, db_session):
+    owner, headers = await _owner(db_session, "-err")
+    with respx.mock(assert_all_called=False) as mock:
+        mock.post(f"{SANDBOX}/checkouts/").mock(
+            return_value=httpx.Response(422, json={"detail": [
+                {"type": "value_error", "loc": ["body", "X", "products"], "msg": "Product is archived."},
+                {"type": "missing", "loc": ["body", "Y", "product_id"], "msg": "Field required"},
+            ]})
+        )
+        resp = await client.post(
+            f"/api/v1/accounts/{owner.account.id}/billing/checkout",
+            json={"product_id": "prod_old"},
+            headers=headers,
+        )
+    assert resp.status_code == 422
+    assert resp.json()["message"] == "Product is archived."

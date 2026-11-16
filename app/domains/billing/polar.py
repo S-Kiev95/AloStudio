@@ -19,6 +19,7 @@ import base64
 import contextlib
 import hashlib
 import hmac
+import logging
 import time
 from typing import Any
 
@@ -26,6 +27,8 @@ import httpx
 
 from app.core.config import get_settings
 from app.core.errors import ChatwootHTTPException
+
+log = logging.getLogger(__name__)
 
 _TOLERANCE_SECONDS = 5 * 60
 
@@ -37,6 +40,15 @@ def api_base() -> str:
 
 def _unprocessable(message: str) -> ChatwootHTTPException:
     return ChatwootHTTPException(status_code=422, detail={"message": message})
+
+
+class PolarRejected(ChatwootHTTPException):
+    """Polar answered 4xx; ``fields`` are the request fields its validation
+    named (``customer_email``…), so a caller can retry without one."""
+
+    def __init__(self, message: str, fields: frozenset[str]) -> None:
+        super().__init__(status_code=422, detail={"message": message})
+        self.fields = fields
 
 
 async def _call(method: str, path: str, *, json: dict[str, Any] | None = None,
@@ -60,9 +72,31 @@ async def _call(method: str, path: str, *, json: dict[str, Any] | None = None,
             detail = resp.json().get("detail")
         except ValueError:
             detail = None
-        message = detail if isinstance(detail, str) else "Polar rechazó el pedido."
-        raise _unprocessable(message)
+        log.warning("billing.polar.error %s %s status=%s detail=%s", method, path, resp.status_code, detail)
+        raise PolarRejected(
+            _detail_message(detail) or "Polar rechazó el pedido.", _detail_fields(detail)
+        )
     return resp.json() if resp.content else {}
+
+
+def _validation_items(detail: Any) -> list[dict[str, Any]]:
+    if not isinstance(detail, list):
+        return []
+    return [i for i in detail if isinstance(i, dict) and i.get("msg") and i.get("type") != "missing"]
+
+
+def _detail_fields(detail: Any) -> frozenset[str]:
+    return frozenset(str(i["loc"][-1]) for i in _validation_items(detail) if i.get("loc"))
+
+
+def _detail_message(detail: Any) -> str | None:
+    """Polar's ``detail``: a string, or a validation list ``[{loc, msg}]``.
+    Its ``missing`` entries come from the request shapes it did not pick
+    (one product vs. several), not from ours."""
+    if isinstance(detail, str):
+        return detail
+    msgs = dict.fromkeys(str(i["msg"]) for i in _validation_items(detail))
+    return "; ".join(msgs) or None
 
 
 def _price_of(product: dict[str, Any]) -> dict[str, Any]:
@@ -108,17 +142,21 @@ async def list_plans() -> list[dict[str, Any]]:
 async def create_checkout(
     *, account_id: int, product_id: str, customer_email: str | None, success_url: str
 ) -> str:
-    body = await _call(
-        "POST",
-        "/checkouts/",
-        json={
-            "products": [product_id],
-            "external_customer_id": str(account_id),
-            "customer_email": customer_email or None,
-            "success_url": success_url,
-            "metadata": {"account_id": str(account_id)},
-        },
-    )
+    payload = {
+        "products": [product_id],
+        "external_customer_id": str(account_id),
+        "customer_email": customer_email or None,
+        "success_url": success_url,
+        "metadata": {"account_id": str(account_id)},
+    }
+    try:
+        body = await _call("POST", "/checkouts/", json=payload)
+    except PolarRejected as exc:
+        # The email only pre-fills Polar's form, and Polar refuses one whose
+        # domain takes no mail: let the client type it there instead.
+        if exc.fields != {"customer_email"}:
+            raise
+        body = await _call("POST", "/checkouts/", json={**payload, "customer_email": None})
     url = body.get("url") if isinstance(body, dict) else None
     if not url:
         raise _unprocessable("Polar no devolvió el enlace de pago.")
