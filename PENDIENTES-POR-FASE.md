@@ -113,7 +113,7 @@ anota en esta sección y lo decide el dueño.
 | F6 Gastos por uso | A | En CTC (2026-11-15, pasó con el resto de develop): WhatsApp (costo de Meta) e IA |
 | F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real). En CTC falta activar las llamadas en el número y suscribir el webhook `calls` |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
-| F9 EmbeddingGemma | A | En develop, comparando en sombra con OpenAI |
+| F9 EmbeddingGemma | A | Develop pasado a Gemma (2026-11-15); CTC sigue con OpenAI hasta que use autorespuestas o Help Center |
 | F10 Jev y Laya | B | Paso 1 en CTC (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; andando en staging con Jev real. En CTC falta cargar la clave y prender el modo sombra. Después, juntar etiquetas y decidir qué hacer con las decisiones. Laya más adelante, solo con etiquetas de personas |
 | F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
@@ -445,9 +445,17 @@ dentro de la rama.
 - Buscador dentro del chat: lupa en el encabezado de la conversación, busca
   sólo ahí (texto y significado) y abre el chat en el mensaje elegido.
 
+- **Arreglado el 2026-11-15:** desde el 13/11 el servicio de Gemma de develop
+  se caía por memoria cada 3 minutos (lotes de 64 × 2000 caracteres) y había
+  0 vectores de mensajes. Ahora lotes de 16 (encode de a 4), 1000 caracteres
+  y `MemoryMax=3072M`: sin caídas, pico 2,0 GB, ~16 mensajes cada 3 minutos.
+  Al instalar el servicio en CTC, usar la unidad nueva.
+
 **Falta:**
 
-- Audios e imágenes. El servicio carga EmbeddingGemma 2 *sólo texto* (~2 GB);
+- Audios e imágenes. El dueño no quiere servicios pagos para esto
+  (2026-11-15): opciones gratis, Whisper local (transcribe, 1-2 GB más) o
+  Gemma completo (audio e imagen, ~4,4 GB). Probar Whisper local en develop. El servicio carga EmbeddingGemma 2 *sólo texto* (~2 GB);
   el modelo completo con imagen y audio pide ~4,4 GB. Medir en staging con
   notas de voz e imágenes antes de decidir: imágenes con Gemma; audios con
   Gemma, con transcripción o con las dos (un vector dice de qué trata un
@@ -462,6 +470,19 @@ dentro de la rama.
 - Revisar con el dueño la regla de autorespuesta de Instagram con umbral
   0,55 antes de pasar esa cuenta a Gemma.
 - Pasar cuenta por cuenta; en CTC hoy no está configurado (sigue OpenAI).
+- **Revisión del 2026-11-15:** la sombra no juntó datos. En develop, 0
+  comentarios de Instagram por reglas y 0 artículos de Help Center en la
+  semana; en CTC tampoco hay uso (0 reglas, 0 artículos, 5 comentarios en 30
+  días). Sin tráfico real, la decisión queda con la medición offline que ya
+  dio a Gemma por encima de OpenAI. Propuesta: pasar las cuentas de develop
+  a Gemma ya (gratis, local) y en CTC instalar el servicio (hay 5,4 GB
+  libres de 8) recién cuando empiecen a usar respuestas automáticas o el
+  Help Center. La búsqueda de la Bandeja (F8) ya usa Gemma.
+- **Hecho el 2026-11-15:** las 6 cuentas de develop leen con Gemma
+  (`scripts/embeddings_gemma.py modelo <cuenta> gemma`). La sombra sigue
+  prendida (ahora compara contra OpenAI). La regla 3 de Demo Co (0,55 en
+  OpenAI) usa el umbral por defecto de Gemma, 0,15. Volver atrás: `modelo
+  <cuenta> openai`.
 
 ## F10. Jev y Laya
 
