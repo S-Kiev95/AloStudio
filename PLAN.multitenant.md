@@ -269,11 +269,44 @@ Todos recurrentes mensuales, en USD, precio fijo.
 | Max | USD 50/mes | sin prueba | Pro + llamadas de WhatsApp; tope de consumo USD 40/mes | `ab94ac2c-ab4f-4004-a184-f81ec4aee352` | `839dbfc0-5502-4f4c-8599-6be2cc96b54e` |
 
 - Metadata de cada producto (para leer el plan sin depender del nombre):
-  `plan` (`basic` / `pro` / `max`), `channels` (`meta` / `all`); Max suma
-  `whatsapp_calls: true` y `usage_cap_usd_cents: 4000`.
+  `plan` (`basic` / `pro` / `max`), `channels` (`meta` / `all`),
+  `whatsapp_calls` (solo Max en `true`) y `usage_cap_usd_cents` (Basic
+  500, Pro 1500, Max 4000).
 - Tope de Max: más adelante se amplía con **paquetes de crédito** (productos
   de pago único en Polar); todavía no creados.
 - Son IDs de sandbox: en producción hay que crearlos de nuevo y cambian.
+
+### Topes por plan (hecho 2026-11-16)
+
+Decisiones del dueño: correo, chat web y API vienen en todos los planes;
+el tope suma IA y WhatsApp; Basic USD 5, Pro USD 15, Max USD 40.
+
+- **De dónde salen:** la metadata del producto de Polar se copia en
+  `account_subscriptions.plan_features` (migración `8f4d2b6a1c3e`) con
+  cada webhook de suscripción, así que un plan se cambia en Polar sin
+  deploy. Ojo: editar la metadata no dispara webhooks; cada cuenta toma
+  el cambio en su próximo evento (renovación, cambio de plan). Valores en
+  texto ("true", " Meta ", "1500") se leen igual; un tope que no es un
+  número positivo se ignora. Solo con `MULTITENANT=true`.
+- **Redes (Basic, `channels: meta`):** crear bandejas de Telegram o SMS y
+  conectar para publicar LinkedIn, TikTok, X, Discord, Slack o Telegram
+  responde **403** `plan_upgrade_required`. WhatsApp, Messenger,
+  Instagram, Facebook, Threads, correo, chat web y API se permiten en
+  todos. Lo ya conectado antes de bajar de plan no se borra ni se corta.
+- **Llamadas (`whatsapp_calls`):** activarlas en un número, pedir permiso,
+  llamar y atender dan 403 sin el plan; desactivarlas siempre se puede.
+  Si una cuenta baja de Max con las llamadas prendidas en Meta, la llamada
+  entrante se rechaza en el webhook (`action: reject`) en vez de sonar sin
+  que nadie pueda atender.
+- **Tope de consumo:** `limit_reached` de F6 corta también cuando IA +
+  WhatsApp del mes llegan al tope del plan (IA, plantillas, campañas;
+  las respuestas dentro de las 24 h siguen). WhatsApp suma solo si Meta
+  factura la cuenta en USD (no hay tipo de cambio); si no, cuenta solo IA
+  y queda en el log. Los topes que pone un admin en Gastos siguen además.
+- **Pantallas:** el 403 se muestra traducido ("Tu plan no incluye esto…")
+  y Facturación muestra el consumo del mes contra el tope.
+- Tests en `test_billing_polar.py` y `billing.test.tsx`; probado en la
+  instalación local (Telegram bloqueado con Basic, barra de consumo).
 
 ### Sandbox primero, producción después (dueño, 2026-11-15)
 
@@ -320,8 +353,16 @@ El checkout de Polar no funciona dentro del navegador de la app de Claude
 
 ### Falta
 
-- Topes por plan (F6 ya mide WhatsApp e IA): pasar los topes según plan
-  (metadata de cada producto), y que Basic solo conecte redes de Meta.
+- Avisos al 80 % y 100 % del tope del plan (hoy el worker avisa solo los
+  topes que pone un admin en Gastos).
+- El control del tope suma 5 a 7 consultas por llamada a la IA y por envío
+  de plantilla (solo multitenant). Si pesa, guardar el gasto del mes por
+  unos minutos.
+- **Créditos** (ampliar el tope comprando paquetes): decidir antes si
+  WhatsApp entra, porque con Embedded Signup Meta le cobra directo al
+  cliente y se lo estaríamos cobrando dos veces.
+- Ocultar en la interfaz lo que el plan no incluye (hoy se ve y al usarlo
+  responde "Tu plan no incluye esto").
 - Prueba gratis una sola vez: después de cancelar, los planes vuelven a
   ofrecer 30 días gratis. Revisar si Polar lo limita por cliente o
   limitarlo acá.

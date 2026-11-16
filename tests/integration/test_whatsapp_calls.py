@@ -975,3 +975,38 @@ async def test_calling_without_permission_says_so(client, db_session, seeded):
     assert resp.status_code == 422
     assert resp.json()["code"] == "calls.no_permission"
     assert await calls_service.by_provider_id(db_session, "wacid.OUT3") is None
+
+
+@respx.mock
+async def test_a_plan_without_calls_turns_the_call_down(db_session, seeded, monkeypatch):
+    """F2 multitenant: the account went down from Max with calling still on
+    at Meta. Nobody could answer, so Meta is told to reject it."""
+    from app.core.config import clear_settings_overlay, get_settings
+    from app.domains.billing.models import AccountSubscription
+
+    monkeypatch.setenv("MULTITENANT", "true")
+    clear_settings_overlay()
+    get_settings.cache_clear()
+    try:
+        db_session.add(
+            AccountSubscription(
+                account_id=seeded["account"].id,
+                status="active",
+                plan_features={"channels": "meta", "whatsapp_calls": "false"},
+            )
+        )
+        await db_session.flush()
+        meta = _mock_meta_calls()
+        await process_cloud_webhook(
+            db_session, channel=seeded["channel"], inbox=seeded["inbox"], payload=_connect("wacid.NOPLAN")
+        )
+        assert await calls_service.by_provider_id(db_session, "wacid.NOPLAN") is None
+        assert json.loads(meta.calls.last.request.content) == {
+            "messaging_product": "whatsapp",
+            "call_id": "wacid.NOPLAN",
+            "action": "reject",
+        }
+    finally:
+        monkeypatch.delenv("MULTITENANT")
+        clear_settings_overlay()
+        get_settings.cache_clear()

@@ -15,6 +15,9 @@ export const billing: Strings<typeof es> = {
   portalHint: "카드, 청구서, 요금제 변경이나 해지는 Polar에서 합니다.",
   portalFailed: "결제 포털을 열 수 없습니다.",
   confirming: "결제를 받았습니다. 여기에 표시되기까지 몇 초 걸릴 수 있습니다.",
+  usageTitle: "이번 달 사용량 (AI 및 WhatsApp)",
+  usageOf: "{cap} 중 {spent}",
+  usageReached: "요금제 한도에 도달했습니다. AI와 WhatsApp 템플릿은 다음 달까지 일시 중지됩니다. 24시간 이내의 답장은 계속 전송됩니다.",
   choose: {
     title: "요금제 선택",
     subtitle: "AloStudio를 계속 사용하려면 요금제를 선택하세요. 대화와 데이터는 그대로 보관됩니다.",

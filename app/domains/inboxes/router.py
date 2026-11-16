@@ -58,6 +58,7 @@ from app.core.deps import (
     require_admin,
 )
 from app.core.errors import ChatwootHTTPException
+from app.domains.billing.service import plan_allows_inbox_channel, plan_upgrade_required
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
@@ -173,6 +174,9 @@ async def create_inbox(
                 )
             },
         )
+    assert ctx.account.id is not None
+    if not await plan_allows_inbox_channel(session, ctx.account.id, payload.channel.type):
+        raise plan_upgrade_required()
     await _require_portal_in_account(session, ctx, payload.portal_id)
     result = await InboxBuilder(
         session,

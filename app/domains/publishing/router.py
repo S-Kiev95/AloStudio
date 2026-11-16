@@ -44,6 +44,7 @@ from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
 from app.core.oauth_state import verify_oauth_state
+from app.domains.billing.service import plan_allows_network, plan_upgrade_required
 from app.domains.publishing import analytics, autopost, connections, plugs, presets
 from app.domains.publishing import service as svc
 from app.domains.publishing.models import (
@@ -136,6 +137,8 @@ async def connect_channel(
     authorizes; ``{"channel"}`` already connected, for one that connects by
     form (``{"fields": {...}}`` as ``/networks`` describes)."""
     assert ctx.account.id is not None
+    if not await plan_allows_network(session, ctx.account.id, network):
+        raise plan_upgrade_required()
     if connections.connects_by_form(network):
         channel = await connections.connect_with_fields(
             session,

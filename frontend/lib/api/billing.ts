@@ -23,6 +23,8 @@ export type BillingStatus = {
   /** Unix seconds. */
   current_period_end?: number | null;
   cancel_at_period_end?: boolean;
+  /** The plan's monthly cap on AI + WhatsApp spend, when it has one. */
+  usage?: { cap: number; spent: number; currency: string };
 };
 
 export type BillingPlan = {

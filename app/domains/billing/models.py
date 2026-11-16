@@ -52,6 +52,13 @@ class AccountSubscription(TimestampMixin, table=True):
     cancel_at_period_end: bool = Field(
         default=False, sa_column=Column(Boolean, nullable=False, server_default="false")
     )
+    # The Polar product's metadata: what the plan allows (``channels``:
+    # ``meta`` / ``all``, ``whatsapp_calls``, ``usage_cap_usd_cents``).
+    # Edited in Polar, copied here by each subscription webhook.
+    plan_features: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
 
 
 class BillingEvent(TimestampMixin, table=True):

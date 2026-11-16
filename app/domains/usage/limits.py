@@ -29,6 +29,7 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.domains.billing.service import plan_usage_cap
 from app.domains.usage.models import (
     KIND_AI,
     KIND_WHATSAPP,
@@ -142,14 +143,43 @@ async def get_limit(session: AsyncSession, account_id: int, kind: str) -> UsageL
     ).first()
 
 
+async def plan_month_spend(session: AsyncSession, account_id: int) -> Decimal:
+    """WhatsApp + AI this month, in USD, for the plan's cap (F2). WhatsApp
+    counts only while Meta bills the account in USD: its figures come in the
+    WhatsApp Business Account's currency, and there is no rate to convert."""
+    first, _ = _month_start()
+    currencies = set(
+        (
+            await session.exec(
+                select(WhatsappCostDay.currency)
+                .where(WhatsappCostDay.account_id == account_id, WhatsappCostDay.day >= first)
+                .distinct()
+            )
+        ).all()
+    )
+    spend = await ai_month_spend(session, account_id)
+    if currencies <= {None, "USD"}:
+        spend += await whatsapp_month_spend(session, account_id)
+    else:
+        log.warning(
+            "usage.limits.plan_cap_whatsapp_skipped account_id=%s currencies=%s",
+            account_id,
+            sorted(c for c in currencies if c),
+        )
+    return spend
+
+
 async def limit_reached(session: AsyncSession, account_id: int, kind: str) -> bool:
-    """Whether this month's spend reached the cap (False without a cap).
-    Never raises: a broken check must not stop the account's messages."""
+    """Whether this month's spend reached the admin's cap for ``kind`` or,
+    on a multitenant install, the plan's cap on WhatsApp + AI together
+    (False without either). Never raises: a broken check must not stop the
+    account's messages."""
     try:
         cap = await get_limit(session, account_id, kind)
-        if cap is None:
-            return False
-        return await month_spend(session, account_id, kind) >= cap.monthly_limit
+        if cap is not None and await month_spend(session, account_id, kind) >= cap.monthly_limit:
+            return True
+        plan_cap = await plan_usage_cap(session, account_id)
+        return plan_cap is not None and await plan_month_spend(session, account_id) >= plan_cap
     except Exception:
         log.exception("usage.limits.check_failed account_id=%s kind=%s", account_id, kind)
         return False

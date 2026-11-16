@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
+from app.core.errors import ChatwootHTTPException
 from app.domains.billing.models import ACTIVE_STATUSES, AccountSubscription, BillingEvent
 
 log = logging.getLogger(__name__)
@@ -65,6 +67,8 @@ async def _apply_subscription(session: AsyncSession, data: dict[str, Any]) -> No
     sub.status = str(data.get("status") or sub.status)
     sub.current_period_end = _parse_dt(data.get("current_period_end"))
     sub.cancel_at_period_end = bool(data.get("cancel_at_period_end"))
+    if isinstance(product.get("metadata"), dict):
+        sub.plan_features = dict(product["metadata"])
     session.add(sub)
     await session.flush()
 
@@ -110,6 +114,80 @@ async def has_paid_access(session: AsyncSession, account_id: int) -> bool:
     return sub is not None and sub.status in ACTIVE_STATUSES
 
 
+# --- What each plan allows (multitenant only) --------------------------------
+#
+# Read from the Polar product's metadata (``plan_features``), so a plan is
+# changed in Polar without a deploy. Channels that are not social networks
+# (email, the website chat, the API) come with every plan; ``channels:
+# meta`` (Basic) keeps the rest to Meta's networks. A key missing from the
+# metadata allows the channel and denies calls.
+
+_META_INBOX_CHANNELS = frozenset({"whatsapp", "facebook", "instagram"})
+_OWN_INBOX_CHANNELS = frozenset({"api", "email", "web_widget"})
+_META_PUBLISHING_NETWORKS = frozenset({"facebook_page", "instagram", "threads"})
+
+
+async def _plan_features(session: AsyncSession, account_id: int) -> dict[str, Any] | None:
+    """None on a single-tenant install (CTC, Enterprise): everything."""
+    if not get_settings().multitenant:
+        return None
+    sub = await subscription_for(session, account_id)
+    return dict(sub.plan_features or {}) if sub else {}
+
+
+# Metadata typed in Polar's dashboard arrives as text ("true", " Meta ").
+def _text(value: Any) -> str:
+    return str(value).strip().lower() if value is not None else ""
+
+
+def _meta_only(features: dict[str, Any] | None) -> bool:
+    return features is not None and _text(features.get("channels")) == "meta"
+
+
+async def plan_allows_inbox_channel(session: AsyncSession, account_id: int, channel_type: str) -> bool:
+    if channel_type in _META_INBOX_CHANNELS | _OWN_INBOX_CHANNELS:
+        return True
+    return not _meta_only(await _plan_features(session, account_id))
+
+
+async def plan_allows_network(session: AsyncSession, account_id: int, network: str) -> bool:
+    if network in _META_PUBLISHING_NETWORKS:
+        return True
+    return not _meta_only(await _plan_features(session, account_id))
+
+
+async def plan_allows_calls(session: AsyncSession, account_id: int) -> bool:
+    features = await _plan_features(session, account_id)
+    return features is None or _text(features.get("whatsapp_calls")) in {"true", "1"}
+
+
+async def plan_usage_cap(session: AsyncSession, account_id: int) -> Decimal | None:
+    """The plan's monthly cap on WhatsApp + AI spend, in USD, or None (also
+    for a value that isn't a positive number)."""
+    features = await _plan_features(session, account_id)
+    cents = (features or {}).get("usage_cap_usd_cents")
+    if isinstance(cents, bool) or not isinstance(cents, int | float | str):
+        return None
+    try:
+        value = Decimal(str(cents).strip())
+    except ArithmeticError:
+        return None
+    if not value.is_finite() or value <= 0:
+        return None
+    return (value / 100).quantize(Decimal("0.01"))
+
+
+def plan_upgrade_required() -> ChatwootHTTPException:
+    """403 for what the account's plan doesn't include (402 is "no plan")."""
+    return ChatwootHTTPException(
+        status_code=403,
+        detail={
+            "error": "Your plan does not include this",
+            "code": "plan_upgrade_required",
+        },
+    )
+
+
 def present_subscription(sub: AccountSubscription | None) -> dict[str, Any]:
     if sub is None:
         return {"status": "none", "has_access": False}
@@ -128,6 +206,11 @@ def present_subscription(sub: AccountSubscription | None) -> dict[str, Any]:
 __all__ = [
     "handle_webhook",
     "has_paid_access",
+    "plan_allows_calls",
+    "plan_allows_inbox_channel",
+    "plan_allows_network",
+    "plan_upgrade_required",
+    "plan_usage_cap",
     "present_subscription",
     "subscription_for",
 ]

@@ -12,6 +12,7 @@ export const apiErrors: Strings<typeof es> = {
   agentFailed: "Something went wrong talking to the agent.",
   requestFailed: "Something went wrong processing the request.",
   subscriptionRequired: "This account has no active plan.",
+  planUpgradeRequired: "Your plan doesn't include this. You can change it in Settings → Billing.",
   requestFailedStatus: "The request failed ({status}).",
   notFound: "We couldn't find what you're looking for. It may have been deleted.",
   validationFailed: "Some data isn't valid. Check it and try again.",

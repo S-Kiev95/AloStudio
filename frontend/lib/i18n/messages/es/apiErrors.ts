@@ -9,6 +9,7 @@ export const apiErrors = {
   agentFailed: "Ocurrió un error al comunicarse con el agente.",
   requestFailed: "Ocurrió un error al procesar la solicitud.",
   subscriptionRequired: "Esta cuenta no tiene un plan activo.",
+  planUpgradeRequired: "Tu plan no incluye esto. Podés cambiarlo en Ajustes → Facturación.",
   requestFailedStatus: "La solicitud falló ({status}).",
   notFound: "No encontramos lo que buscás. Puede que lo hayan borrado.",
   validationFailed: "Hay datos que no son válidos. Revisalos y probá de nuevo.",

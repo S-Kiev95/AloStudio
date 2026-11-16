@@ -12,6 +12,7 @@ export const apiErrors: Strings<typeof es> = {
   agentFailed: "エージェントとの通信中にエラーが発生しました。",
   requestFailed: "リクエストの処理中にエラーが発生しました。",
   subscriptionRequired: "このアカウントには有効なプランがありません。",
+  planUpgradeRequired: "ご利用のプランには含まれていません。設定 → 請求で変更できます。",
   requestFailedStatus: "リクエストに失敗しました ({status})。",
   notFound: "お探しのものが見つかりませんでした。削除された可能性があります。",
   validationFailed: "無効なデータがあります。確認してもう一度お試しください。",

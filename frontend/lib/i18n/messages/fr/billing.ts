@@ -15,6 +15,9 @@ export const billing: Strings<typeof es> = {
   portalHint: "La carte, les factures, le changement de forfait ou la résiliation se gèrent dans Polar.",
   portalFailed: "Impossible d’ouvrir le portail de paiement.",
   confirming: "Nous avons reçu le paiement. Il peut falloir quelques secondes pour qu’il apparaisse ici.",
+  usageTitle: "Consommation du mois (IA et WhatsApp)",
+  usageOf: "{spent} sur {cap}",
+  usageReached: "Vous avez atteint le plafond de votre forfait : l’IA et les modèles WhatsApp sont en pause jusqu’au mois prochain. Les réponses dans la fenêtre de 24 heures partent toujours.",
   choose: {
     title: "Choisissez un forfait",
     subtitle: "Pour continuer à utiliser AloStudio, choisissez un forfait. Vos conversations et vos données sont conservées.",

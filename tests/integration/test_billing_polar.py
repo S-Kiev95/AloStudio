@@ -11,6 +11,7 @@ import hmac
 import json
 import time
 from collections.abc import AsyncIterator
+from decimal import Decimal
 
 import httpx
 import pytest
@@ -282,3 +283,140 @@ async def test_polar_validation_errors_read_plainly(client, db_session):
         )
     assert resp.status_code == 422
     assert resp.json()["message"] == "Product is archived."
+
+
+BASIC = {"plan": "basic", "channels": "meta", "whatsapp_calls": False, "usage_cap_usd_cents": 500}
+MAX = {"plan": "max", "channels": "all", "whatsapp_calls": True, "usage_cap_usd_cents": 4000}
+
+
+async def _with_plan(db_session, account_id: int, features: dict) -> None:
+    await _set_status(db_session, account_id, "active")
+    sub = (
+        await db_session.exec(select(AccountSubscription).where(AccountSubscription.account_id == account_id))
+    ).one()
+    sub.plan_features = features
+    db_session.add(sub)
+    await db_session.flush()
+
+
+async def test_the_plan_comes_from_the_products_metadata(client, db_session):
+    owner, _ = await _owner(db_session, "-meta")
+    event = {
+        "type": "subscription.active",
+        "data": {
+            "id": "sub_meta",
+            "status": "active",
+            "product": {"id": "prod_basic", "name": "Basic", "metadata": BASIC},
+            "customer": {"id": "cus_meta", "external_id": str(owner.account.id)},
+            "metadata": {"account_id": str(owner.account.id)},
+        },
+    }
+    assert (await _post(client, event, "wh_meta")).status_code == 202
+    sub = (
+        await db_session.exec(select(AccountSubscription).where(AccountSubscription.account_id == owner.account.id))
+    ).one()
+    assert sub.plan_features == BASIC
+
+
+async def test_basic_connects_only_metas_networks(multitenant, client, db_session):
+    owner, headers = await _owner(db_session, "-basic")
+    await _with_plan(db_session, owner.account.id, BASIC)
+    base = f"/api/v1/accounts/{owner.account.id}"
+    telegram = await client.post(
+        f"{base}/inboxes",
+        json={"name": "TG", "channel": {"type": "telegram", "bot_token": "1:x", "bot_name": "B"}},
+        headers=headers,
+    )
+    assert telegram.status_code == 403
+    assert telegram.json()["code"] == "plan_upgrade_required"
+    # Own channels come with every plan.
+    api = await client.post(
+        f"{base}/inboxes",
+        json={"name": "API", "channel": {"type": "api", "webhook_url": "https://example.com/hook"}},
+        headers=headers,
+    )
+    assert api.status_code == 200, api.text
+    linkedin = await client.post(f"{base}/publications/channels/connect/linkedin", headers=headers)
+    assert linkedin.json()["code"] == "plan_upgrade_required"
+
+    from app.domains.billing.service import plan_allows_network
+
+    assert await plan_allows_network(db_session, owner.account.id, "threads")
+    assert not await plan_allows_network(db_session, owner.account.id, "tiktok")
+    await _with_plan(db_session, owner.account.id, MAX)
+    assert await plan_allows_network(db_session, owner.account.id, "tiktok")
+
+
+async def test_whatsapp_calls_need_a_plan_with_them(multitenant, client, db_session):
+    owner, headers = await _owner(db_session, "-calls")
+    await _with_plan(db_session, owner.account.id, BASIC)
+    resp = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/calls", json={"conversation_id": 1, "sdp": "v=0 offer sdp"}, headers=headers
+    )
+    assert resp.status_code == 403
+    assert resp.json()["code"] == "plan_upgrade_required"
+    await _with_plan(db_session, owner.account.id, MAX)
+    resp = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/calls", json={"conversation_id": 1, "sdp": "v=0 offer sdp"}, headers=headers
+    )
+    assert resp.status_code == 404  # past the plan check: no such conversation
+
+
+async def test_single_tenant_ignores_plans(client, db_session):
+    from app.domains.billing.service import plan_allows_calls, plan_usage_cap
+
+    owner, _ = await _owner(db_session, "-ctc")
+    await _with_plan(db_session, owner.account.id, BASIC)
+    assert await plan_allows_calls(db_session, owner.account.id)
+    assert await plan_usage_cap(db_session, owner.account.id) is None
+
+
+async def test_the_plan_cap_adds_ai_and_whatsapp_in_usd(multitenant, client, db_session):
+    from datetime import UTC, datetime
+    from decimal import Decimal
+
+    from app.domains.usage.limits import limit_reached
+    from app.domains.usage.models import KIND_AI, UsageRecord, WhatsappCostDay
+
+    owner, headers = await _owner(db_session, "-cap")
+    await _with_plan(db_session, owner.account.id, BASIC)  # USD 5
+    now = datetime.now(UTC)
+    db_session.add(
+        UsageRecord(account_id=owner.account.id, kind=KIND_AI, occurred_at=now,
+                    category="agent", cost=Decimal("3"), source_id="ai-cap-1")
+    )
+    day = WhatsappCostDay(
+        account_id=owner.account.id, inbox_id=1, day=now.date(), pricing_category="MARKETING",
+        pricing_type="REGULAR", country="UY", volume=10, cost=Decimal("2.5"),
+        currency="USD", synced_at=now,
+    )
+    db_session.add(day)
+    await db_session.flush()
+    assert await limit_reached(db_session, owner.account.id, "ai")
+    assert await limit_reached(db_session, owner.account.id, "whatsapp")
+    status = (await client.get(f"/api/v1/accounts/{owner.account.id}/billing", headers=headers)).json()
+    assert status["usage"] == {"cap": 5.0, "spent": 5.5, "currency": "USD"}
+
+    # Meta billing in another currency: only the AI counts, USD 3 < 5.
+    day.currency = "UYU"
+    db_session.add(day)
+    await db_session.flush()
+    assert not await limit_reached(db_session, owner.account.id, "ai")
+
+
+async def test_metadata_typed_as_text_still_reads(multitenant, client, db_session):
+    from app.domains.billing.service import plan_allows_calls, plan_allows_network, plan_usage_cap
+
+    owner, headers = await _owner(db_session, "-text")
+    await _with_plan(
+        db_session, owner.account.id,
+        {"channels": " Meta ", "whatsapp_calls": "TRUE", "usage_cap_usd_cents": "1500"},
+    )
+    assert await plan_allows_calls(db_session, owner.account.id)
+    assert not await plan_allows_network(db_session, owner.account.id, "x")
+    assert await plan_usage_cap(db_session, owner.account.id) == Decimal("15.00")
+    for bad in ("NaN", "-100", "0", "mucho", True):
+        await _with_plan(db_session, owner.account.id, {"usage_cap_usd_cents": bad})
+        assert await plan_usage_cap(db_session, owner.account.id) is None, bad
+    status = (await client.get(f"/api/v1/accounts/{owner.account.id}/billing", headers=headers)).json()
+    assert "usage" not in status

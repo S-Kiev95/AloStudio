@@ -15,6 +15,9 @@ export const billing: Strings<typeof es> = {
   portalHint: "Karte, Rechnungen, Tarifwechsel oder Kündigung laufen über Polar.",
   portalFailed: "Das Zahlungsportal konnte nicht geöffnet werden.",
   confirming: "Wir haben die Zahlung erhalten. Es kann ein paar Sekunden dauern, bis sie hier erscheint.",
+  usageTitle: "Verbrauch des Monats (KI und WhatsApp)",
+  usageOf: "{spent} von {cap}",
+  usageReached: "Du hast das Limit deines Tarifs erreicht: KI und WhatsApp-Vorlagen sind bis zum nächsten Monat pausiert. Antworten innerhalb von 24 Stunden gehen weiter raus.",
   choose: {
     title: "Wähle einen Tarif",
     subtitle: "Um AloStudio weiter zu nutzen, wähle einen Tarif. Deine Unterhaltungen und Daten bleiben erhalten.",

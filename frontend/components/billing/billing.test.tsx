@@ -198,4 +198,23 @@ describe("BillingView", () => {
     expect(await screen.findByText("Cancelado")).toBeVisible();
     expect(screen.queryByText(/Termina el|Se renueva/)).toBeNull();
   });
+
+  it("muestra el consumo del mes contra el tope del plan", async () => {
+    server.use(
+      ...handlers({
+        billing: {
+          status: "active",
+          has_access: true,
+          plan_name: "Basic",
+          current_period_end: 1_797_000_000,
+          cancel_at_period_end: false,
+          usage: { cap: 5, spent: 5.5, currency: "USD" },
+        },
+      }),
+    );
+    renderWith(<BillingView accountId="1" />);
+    expect(await screen.findByText("Consumo del mes (IA y WhatsApp)")).toBeVisible();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
+    expect(screen.getByRole("alert")).toHaveTextContent(/Llegaste al tope del plan/);
+  });
 });

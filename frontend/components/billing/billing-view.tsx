@@ -3,6 +3,7 @@
 import { notFound, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { formatMoney } from "@/components/crm/money";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/errors";
@@ -16,6 +17,7 @@ import { useIsAccountAdmin } from "@/lib/api/profile";
 import { INTL_TAGS } from "@/lib/i18n/config";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { cn } from "@/lib/utils";
 
 import { PlanPicker } from "./plan-picker";
 
@@ -157,6 +159,7 @@ function StatusCard({
           </span>
         </div>
         {period ? <p className="text-sm text-fg-muted">{period}</p> : null}
+        {status.usage && status.has_access ? <PlanUsage usage={status.usage} /> : null}
         {error ? (
           <p role="alert" className="text-sm text-danger">
             {error}
@@ -178,5 +181,49 @@ function StatusCard({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+/** The plan's cap on AI + WhatsApp spend this month, like the caps in
+ *  Gastos (components/usage/limit-editor.tsx). */
+function PlanUsage({ usage }: { usage: NonNullable<BillingStatus["usage"]> }) {
+  const t = useT();
+  const locale = useLocale();
+  const tag = INTL_TAGS[locale];
+  const percent = usage.cap > 0 ? Math.min((usage.spent / usage.cap) * 100, 100) : 100;
+  const reached = usage.spent >= usage.cap;
+  return (
+    <div className="space-y-2 border-t border-glass pt-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+        <span className="text-fg">{t("billing.usageTitle")}</span>
+        <span className="text-fg-muted">
+          {t("billing.usageOf", {
+            spent: formatMoney(usage.spent, usage.currency, tag),
+            cap: formatMoney(usage.cap, usage.currency, tag),
+          })}
+        </span>
+      </div>
+      <div
+        className="h-2 overflow-hidden rounded-pill bg-field"
+        role="progressbar"
+        aria-label={t("billing.usageTitle")}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(percent)}
+      >
+        <div
+          className={cn(
+            "h-full rounded-pill",
+            reached ? "bg-danger" : percent >= 80 ? "bg-warning" : "bg-success",
+          )}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      {reached ? (
+        <p role="alert" className="text-xs text-danger">
+          {t("billing.usageReached")}
+        </p>
+      ) : null}
+    </div>
   );
 }

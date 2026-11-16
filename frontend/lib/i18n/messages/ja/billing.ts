@@ -15,6 +15,9 @@ export const billing: Strings<typeof es> = {
   portalHint: "カード、請求書、プランの変更や解約はPolarで行います。",
   portalFailed: "支払いポータルを開けませんでした。",
   confirming: "お支払いを受け付けました。ここに表示されるまで数秒かかることがあります。",
+  usageTitle: "今月の利用額（AIとWhatsApp）",
+  usageOf: "{cap}中 {spent}",
+  usageReached: "プランの上限に達しました。AIとWhatsAppテンプレートは来月まで停止します。24時間以内の返信は引き続き送信されます。",
   choose: {
     title: "プランを選択",
     subtitle: "AloStudioを引き続き使うにはプランを選んでください。会話とデータは保存されたままです。",

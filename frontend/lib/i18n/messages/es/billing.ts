@@ -12,6 +12,9 @@ export const billing = {
   portalHint: "La tarjeta, las facturas, cambiar de plan o cancelar se hacen en Polar.",
   portalFailed: "No se pudo abrir el portal de pagos.",
   confirming: "Recibimos el pago. Puede tardar unos segundos en verse acá.",
+  usageTitle: "Consumo del mes (IA y WhatsApp)",
+  usageOf: "{spent} de {cap}",
+  usageReached: "Llegaste al tope del plan: la IA y las plantillas de WhatsApp quedan en pausa hasta el mes que viene. Las respuestas dentro de las 24 horas siguen saliendo.",
   choose: {
     title: "Elegí un plan",
     subtitle: "Para seguir usando AloStudio elegí un plan. Tus conversaciones y datos quedan guardados.",

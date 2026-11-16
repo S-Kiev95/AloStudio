@@ -22,7 +22,13 @@ from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_membership, require_billing_admin
 from app.domains.billing import polar
-from app.domains.billing.service import handle_webhook, present_subscription, subscription_for
+from app.domains.billing.service import (
+    handle_webhook,
+    plan_usage_cap,
+    present_subscription,
+    subscription_for,
+)
+from app.domains.usage.limits import plan_month_spend
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +50,18 @@ async def billing_status(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
-    return present_subscription(await subscription_for(session, ctx.account.id))
+    out = present_subscription(await subscription_for(session, ctx.account.id))
+    cap = await plan_usage_cap(session, ctx.account.id)
+    if cap is not None:
+        # The plan and its state matter more than the meter: a failing sum
+        # leaves the meter out instead of the whole answer.
+        try:
+            spent = await plan_month_spend(session, ctx.account.id)
+        except Exception:
+            log.exception("billing.usage_failed account_id=%s", ctx.account.id)
+        else:
+            out["usage"] = {"cap": float(cap), "spent": round(float(spent), 2), "currency": "USD"}
+    return out
 
 
 @router.get("/plans")
