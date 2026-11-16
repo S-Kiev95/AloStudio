@@ -195,11 +195,12 @@ dentro de la rama.
 - Al borrar una bandeja conectada por Embedded Signup, desuscribir la app
   de esa cuenta de WhatsApp Business.
 - Captcha en el registro, si el límite por IP no alcanza.
-- **Paso 3, facturación con Polar:** backend hecho; planes Basic (USD 10,
-  30 días de prueba), Pro (USD 25, 30 días) y Max (USD 50, sin prueba, tope
-  de consumo USD 40/mes) creados en Polar sandbox, IDs en
-  `PLAN.multitenant.md`. Falta: bloqueo sin suscripción (402), pantallas de
-  plan y facturación, topes por plan, webhook de Polar sandbox y paquetes de
+- **Paso 3, facturación con Polar:** backend hecho, con bloqueo sin plan
+  (API 402 `subscription_required` y MCP rechazado, sin borrar datos);
+  planes Basic (USD 10, 30 días de prueba), Pro (USD 25, 30 días) y Max
+  (USD 50, sin prueba, tope de consumo USD 40/mes) creados en Polar
+  sandbox, IDs en `PLAN.multitenant.md`. Falta: pantallas de plan y
+  facturación, topes por plan, webhook de Polar sandbox y paquetes de
   crédito para Max. El webhook de pagos no puede tirar excepciones.
 - **Sandbox primero, producción después (dueño, 2026-11-15):** todo F2 se
   termina y se prueba de punta a punta en Polar sandbox (alta, checkout,
