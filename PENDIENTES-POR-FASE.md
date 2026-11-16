@@ -199,9 +199,13 @@ dentro de la rama.
   (API 402 `subscription_required` y MCP rechazado, sin borrar datos);
   planes Basic (USD 10, 30 días de prueba), Pro (USD 25, 30 días) y Max
   (USD 50, sin prueba, tope de consumo USD 40/mes) creados en Polar
-  sandbox, IDs en `PLAN.multitenant.md`. Falta: pantallas de plan y
-  facturación, topes por plan, webhook de Polar sandbox y paquetes de
-  crédito para Max. El webhook de pagos no puede tirar excepciones.
+  sandbox, IDs en `PLAN.multitenant.md`. Pantallas hechas en los 7
+  idiomas: "Elegí un plan" cuando la cuenta no tiene plan y Ajustes →
+  Facturación (estado y portal). develop traído a la rama el 2026-11-15.
+  Falta: topes por plan, token y webhook de Polar sandbox, la prueba de
+  punta a punta en un servidor multitenant, traducir registro y Embedded
+  Signup, y paquetes de crédito para Max. El webhook de pagos no puede
+  tirar excepciones.
 - **Sandbox primero, producción después (dueño, 2026-11-15):** todo F2 se
   termina y se prueba de punta a punta en Polar sandbox (alta, checkout,
   prueba gratis, renovación, falta de pago, portal). Recién con eso probado
