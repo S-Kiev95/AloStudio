@@ -85,4 +85,8 @@ MESSAGES: dict[str, str] = {
     "calls.permission.accepted_always": "Aceptó que lo llamen por WhatsApp (siempre)",
     "calls.permission.accepted_by_calling": "Al llamar, dejó que lo llamen de vuelta por 7 días",
     "calls.permission.rejected": "No quiere que lo llamen por WhatsApp",
+    # A call nobody answered (F7): what the customer reads, and the label
+    # that marks the conversation to call back
+    "calls.missed.reply": "¡Hola! Vimos tu llamada y no pudimos atenderla. Te llamamos en unos minutos.",
+    "calls.missed.label": "llamada-perdida",
 }

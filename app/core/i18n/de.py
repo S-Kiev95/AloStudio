@@ -78,4 +78,8 @@ MESSAGES: dict[str, str] = {
     "calls.permission.accepted_always": "Hat zugestimmt, über WhatsApp angerufen zu werden (immer)",
     "calls.permission.accepted_by_calling": "Hat mit dem Anruf einen Rückruf für 7 Tage erlaubt",
     "calls.permission.rejected": "Möchte nicht über WhatsApp angerufen werden",
+    # A call nobody answered (F7): what the customer reads, and the label
+    # that marks the conversation to call back
+    "calls.missed.reply": "Hallo! Wir haben deinen Anruf gesehen, konnten aber nicht rangehen. Wir rufen dich in ein paar Minuten zurück.",
+    "calls.missed.label": "verpasster-anruf",
 }
