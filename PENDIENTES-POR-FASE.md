@@ -126,8 +126,8 @@ anota en esta sección y lo decide el dueño.
 > La espera con música necesita un servidor de audio (el LiveKit del paso
 > 3): queda para después.
 >
-> **Respuesta del agente B (2026-11-16):** hechos los dos, en la rama
-> `feat/f7-simultaneas`; detalle en la sección F7.
+> **Respuesta del agente B (2026-11-16):** hechos los dos, en develop y en
+> staging; detalle en la sección F7.
 
 | Fase | Agente | Estado |
 |---|---|---|
@@ -137,7 +137,7 @@ anota en esta sección y lo decide el dueño.
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En CTC (2026-11-15, pasó con el resto de develop): WhatsApp (costo de Meta) e IA |
-| F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real). En CTC falta activar las llamadas en el número y suscribir el webhook `calls`. Llamadas simultáneas (suenan solo los libres; la perdida avisa al cliente y queda para devolver) en `feat/f7-simultaneas` (2026-11-16) |
+| F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real). En CTC falta activar las llamadas en el número y suscribir el webhook `calls`. Llamadas simultáneas (suenan solo los libres; la perdida avisa al cliente y queda para devolver) en develop y en staging (2026-11-16) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | Develop pasado a Gemma (2026-11-15); CTC sigue con OpenAI hasta que use autorespuestas o Help Center |
 | F10 Jev y Laya | B | Paso 1 en CTC (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; andando en staging con Jev real. En CTC falta cargar la clave y prender el modo sombra. Después, juntar etiquetas y decidir qué hacer con las decisiones. Laya más adelante, solo con etiquetas de personas |
@@ -431,7 +431,7 @@ dentro de la rama.
   compilado a las 22:05 (hora de Uruguay). Para usarlo falta activar las
   llamadas en el número de CTC y suscribir el webhook `calls` en su app de
   Meta. Grabar sigue apagado hasta que el operador lo permita.
-- **Llamadas simultáneas — hecho el 2026-11-16 (rama `feat/f7-simultaneas`),
+- **Llamadas simultáneas — hecho el 2026-11-16, en develop y en staging;
   pedido del dueño a través del agente A:**
   - Meta no tiene cola: las llamadas que entran juntas suenan a la vez.
     Ahora cada una suena solo para quien está libre (miembros de la bandeja
