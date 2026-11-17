@@ -50,6 +50,7 @@ from app.domains.conversations.router import (
 )
 from app.domains.conversations.router import router as conversations_router
 from app.domains.conversations.search_router import router as message_search_router
+from app.domains.conversions.router import router as conversions_router
 from app.domains.crm.router import router as crm_router
 from app.domains.csat.public_router import router as csat_public_router
 from app.domains.csat.router import router as csat_router
@@ -349,6 +350,8 @@ def create_app() -> FastAPI:
     app.include_router(decisions_router)
     # Why conversations close: categories and notes (F17).
     app.include_router(closing_router)
+    # Ad conversations that became leads or sales, reported to Meta (F17).
+    app.include_router(conversions_router)
     # Multi-network publishing: one publication, many channels, each
     # published by its network adapter.
     app.include_router(publishing_router)
