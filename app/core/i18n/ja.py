@@ -76,4 +76,8 @@ MESSAGES: dict[str, str] = {
     "calls.permission.accepted_always": "WhatsAppでの電話を許可しました(常に)",
     "calls.permission.accepted_by_calling": "電話をかけたことで、7日間の折り返しを許可しました",
     "calls.permission.rejected": "WhatsAppでの電話を希望していません",
+    # A call nobody answered (F7): what the customer reads, and the label
+    # that marks the conversation to call back
+    "calls.missed.reply": "こんにちは。お電話に出られず申し訳ありません。数分後にこちらからおかけ直しします。",
+    "calls.missed.label": "不在着信",
 }

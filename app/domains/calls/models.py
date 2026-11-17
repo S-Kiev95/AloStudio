@@ -60,6 +60,8 @@ PROVIDER_WHATSAPP = "whatsapp"
 # Languages Meta can read the recording notice in (``announcement_language``).
 ANNOUNCEMENT_LANGUAGES = ("es", "es_ES", "en", "pt", "fr", "de", "it", "nl", "hi", "kn", "te", "vi")
 PURPOSE_MAX = 250
+# What the customer reads after a call nobody answered.
+MISSED_TEXT_MAX = 1024
 
 
 class Call(TimestampMixin, table=True):
@@ -188,4 +190,12 @@ class CallInboxSettings(TimestampMixin, table=True):
     purpose: str | None = Field(default=None, sa_column=Column(String(PURPOSE_MAX), nullable=True))
     announcement_language: str = Field(
         default="es", sa_column=Column(String(8), nullable=False, server_default="es")
+    )
+    # A call nobody answered: tell the customer we call back (on unless
+    # turned off), with this text or ours.
+    missed_call_reply: bool = Field(
+        default=True, sa_column=Column(Boolean, nullable=False, server_default="true")
+    )
+    missed_call_text: str | None = Field(
+        default=None, sa_column=Column(String(MISSED_TEXT_MAX), nullable=True)
     )

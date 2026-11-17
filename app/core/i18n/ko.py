@@ -74,4 +74,8 @@ MESSAGES: dict[str, str] = {
     "calls.permission.accepted_always": "WhatsApp 통화를 허락했습니다(항상)",
     "calls.permission.accepted_by_calling": "전화를 걸어 7일 동안 회신 통화를 허락했습니다",
     "calls.permission.rejected": "WhatsApp 통화를 원하지 않습니다",
+    # A call nobody answered (F7): what the customer reads, and the label
+    # that marks the conversation to call back
+    "calls.missed.reply": "안녕하세요! 전화를 받지 못했어요. 몇 분 안에 다시 전화드릴게요.",
+    "calls.missed.label": "부재중-전화",
 }

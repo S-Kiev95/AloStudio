@@ -6,6 +6,11 @@ hang up. Every change reaches the agents of the inbox as a ``call.updated``
 event carrying the whole call, so the panel shows it without asking again
 (the request that created it may not have committed yet when the event
 arrives).
+
+Meta has no queue: calls that come in together all ring at once. A ringing
+call sounds only for the people who are free (``ring_user_ids``), or for all
+of them when nobody is. A call nobody answered leaves the conversation ready
+to call back, and the customer told so.
 """
 
 from __future__ import annotations
@@ -39,6 +44,7 @@ from app.domains.contacts.avatar import contact_thumbnail
 from app.domains.contacts.models import Contact
 from app.domains.conversations.models import (
     FILE_TYPE_AUDIO,
+    MESSAGE_TYPE_OUTGOING,
     Attachment,
     Conversation,
     Message,
@@ -60,6 +66,11 @@ RINGING_TIMEOUT = timedelta(minutes=3)
 IN_PROGRESS_TIMEOUT = timedelta(hours=6)
 # How long Meta keeps a recording or transcript after announcing it.
 MEDIA_RETENTION = timedelta(days=7)
+# After a call nobody answered the customer hears from us once in this time,
+# however many times they try.
+MISSED_REPLY_EVERY = timedelta(hours=1)
+# A call opens Meta's 24-hour window; past this we no longer write freely.
+REPLY_WINDOW = timedelta(hours=23)
 
 # Our statuses in the message, with Chatwoot's names (``voice_call`` bubbles).
 _MESSAGE_STATUS = {
@@ -118,6 +129,8 @@ async def present_call(session: AsyncSession, call: Call) -> dict[str, Any]:
             and call.status == CALL_RINGING
             and bool(call.sdp_offer)
         ),
+        # Whose panel rings for it (empty once it stops ringing).
+        "ring_user_ids": await ring_user_ids(session, call),
         "created_at": call.created_at,
         "answered_at": call.answered_at,
         "ended_at": call.ended_at,
@@ -160,19 +173,21 @@ def _media_state(call: Call, requested: bool, have: object) -> str | None:
 # ---------------------------------------------------------------------------
 # Who hears it
 # ---------------------------------------------------------------------------
-async def _agent_tokens(session: AsyncSession, *, account_id: int, inbox_id: int) -> list[str]:
+async def _audience(
+    session: AsyncSession, *, account_id: int, inbox_id: int
+) -> dict[int, str | None]:
     """Members of the inbox and administrators of the account: the people
-    who see its conversations."""
+    who see its conversations, with their cable token."""
     members = (
         await session.exec(
-            select(User.pubsub_token)
+            select(User.id, User.pubsub_token)
             .join(InboxMember, InboxMember.user_id == User.id)  # type: ignore[arg-type]
             .where(InboxMember.inbox_id == inbox_id)
         )
     ).all()
     admins = (
         await session.exec(
-            select(User.pubsub_token)
+            select(User.id, User.pubsub_token)
             .join(AccountUser, AccountUser.user_id == User.id)  # type: ignore[arg-type]
             .where(
                 AccountUser.account_id == account_id,
@@ -180,14 +195,63 @@ async def _agent_tokens(session: AsyncSession, *, account_id: int, inbox_id: int
             )
         )
     ).all()
-    return [token for token in {*members, *admins} if token]
+    return {int(uid): token for uid, token in [*members, *admins] if uid is not None}
+
+
+async def _busy(session: AsyncSession, user_ids: list[int]) -> set[int]:
+    """Who of these is on a call: taking one, talking, or calling out."""
+    if not user_ids:
+        return set()
+    now = _now()
+    rows = (
+        await session.exec(
+            select(Call).where(
+                Call.answered_by_id.in_(user_ids),  # type: ignore[union-attr]
+                Call.status.in_(ACTIVE_STATUSES),  # type: ignore[attr-defined]
+                Call.created_at > now - IN_PROGRESS_TIMEOUT,
+            )
+        )
+    ).all()
+    return {
+        int(c.answered_by_id) for c in rows if c.answered_by_id is not None and not _stale(c, now)
+    }
+
+
+async def ring_user_ids(session: AsyncSession, call: Call) -> list[int]:
+    """Who hears a ringing call: the people of the inbox not already on a
+    call. When everybody is, all of them: a call must not ring for nobody."""
+    if call.direction != DIRECTION_INBOUND or call.status != CALL_RINGING:
+        return []
+    audience = list(await _audience(session, account_id=call.account_id, inbox_id=call.inbox_id))
+    busy = await _busy(session, audience)
+    free = [uid for uid in audience if uid not in busy]
+    return sorted(free or audience)
+
+
+async def _ring_again(session: AsyncSession, call: Call) -> None:
+    """Whoever took, placed or ended ``call`` just became busy or free: tell
+    the panel again who hears each other call still ringing."""
+    others = (
+        await session.exec(
+            select(Call).where(
+                Call.account_id == call.account_id,
+                Call.id != call.id,
+                Call.status == CALL_RINGING,
+                Call.direction == DIRECTION_INBOUND,
+                Call.created_at > _now() - RINGING_TIMEOUT,
+            )
+        )
+    ).all()
+    for other in others:
+        await broadcast_call(session, other)
 
 
 async def broadcast_call(session: AsyncSession, call: Call) -> None:
     """Tell the inbox's agents. Best effort: a Redis hiccup must not lose
     the call, the panel also asks for the active calls every few seconds."""
     try:
-        tokens = await _agent_tokens(session, account_id=call.account_id, inbox_id=call.inbox_id)
+        audience = await _audience(session, account_id=call.account_id, inbox_id=call.inbox_id)
+        tokens = [token for token in audience.values() if token]
         if not tokens:
             return
         payload = {"call": await present_call(session, call), "account_id": call.account_id}
@@ -393,6 +457,7 @@ async def start_outbound(
     session.add(call)
     await session.flush()
     await broadcast_call(session, call)
+    await _ring_again(session, call)
     log.info(
         "calls.placed call_id=%s provider_call_id=%s conversation_id=%s",
         call.id,
@@ -424,6 +489,7 @@ async def customer_answered(session: AsyncSession, *, call: Call) -> None:
     await session.flush()
     await _sync_message(session, call)
     await broadcast_call(session, call)
+    await _called_back(session, call)
 
 
 # ---------------------------------------------------------------------------
@@ -448,6 +514,7 @@ async def claim(session: AsyncSession, *, call: Call, user_id: int) -> bool:
     if won:
         await _sync_message(session, call)
         await broadcast_call(session, call)
+        await _ring_again(session, call)
     return won
 
 
@@ -463,6 +530,7 @@ async def release(session: AsyncSession, *, call: Call) -> None:
     await session.flush()
     await _sync_message(session, call)
     await broadcast_call(session, call)
+    await _ring_again(session, call)
 
 
 async def mark_in_progress(
@@ -481,6 +549,7 @@ async def mark_in_progress(
     await session.flush()
     await _sync_message(session, call)
     await broadcast_call(session, call)
+    await _called_back(session, call)
 
 
 # ---------------------------------------------------------------------------
@@ -519,6 +588,13 @@ def default_purpose() -> str:
 def default_permission_text() -> str:
     """What the customer reads above WhatsApp's own allow/deny buttons."""
     return t(DEFAULT_LOCALE, "calls.permission.request")
+
+
+def missed_reply_text(settings: CallInboxSettings | None) -> str:
+    """What the customer reads after a call nobody answered: the inbox's
+    text, or ours."""
+    own = (settings.missed_call_text if settings is not None else None) or ""
+    return own.strip() or t(DEFAULT_LOCALE, "calls.missed.reply")
 
 
 async def media_announced(
@@ -651,6 +727,7 @@ async def finish(
     ourselves (the agent hung up): it then only brings the exact length."""
     await _lock(session, call)
     already_over = call.status in FINAL_STATUSES
+    had_agent = call.answered_by_id is not None
     if not already_over:
         call.status = status
     call.ended_at = ended_at or call.ended_at or _now()
@@ -665,13 +742,101 @@ async def finish(
     await session.flush()
     await _sync_message(session, call)
     await broadcast_call(session, call)
-    if not already_over:
-        log.info(
-            "calls.finished call_id=%s status=%s duration=%s",
-            call.id,
-            call.status,
-            call.duration_seconds,
+    if already_over:
+        return
+    if had_agent:
+        await _ring_again(session, call)
+    if call.status == CALL_MISSED and call.direction == DIRECTION_INBOUND:
+        await _after_missed(session, call)
+    log.info(
+        "calls.finished call_id=%s status=%s duration=%s",
+        call.id,
+        call.status,
+        call.duration_seconds,
+    )
+
+
+# ---------------------------------------------------------------------------
+# A call nobody answered
+# ---------------------------------------------------------------------------
+def _labels(conversation: Conversation) -> list[str]:
+    return [x.strip() for x in (conversation.cached_label_list or "").split(",") if x.strip()]
+
+
+async def _mark_to_call_back(session: AsyncSession, conversation: Conversation, *, on: bool) -> None:
+    """The label that says somebody has to call this customer back."""
+    from app.domains.conversations.service import update_labels
+
+    label = t(DEFAULT_LOCALE, "calls.missed.label")
+    titles = _labels(conversation)
+    if on and label not in titles:
+        await update_labels(session, conversation=conversation, titles=[*titles, label])
+    elif not on and label in titles:
+        await update_labels(
+            session, conversation=conversation, titles=[x for x in titles if x != label]
         )
+
+
+async def _tell_we_call_back(
+    session: AsyncSession, call: Call, conversation: Conversation
+) -> None:
+    """The inbox's "we call you back" message, once an hour at most however
+    many times they try, and only inside the 24 hours the call opened."""
+    settings = await inbox_settings(session, call.inbox_id)
+    if settings is not None and not settings.missed_call_reply:
+        return
+    if call.created_at < _now() - REPLY_WINDOW:
+        return
+    sent = (
+        await session.exec(
+            select(Message.content_attributes).where(
+                Message.conversation_id == call.conversation_id,
+                Message.message_type == MESSAGE_TYPE_OUTGOING,
+                Message.created_at > _now() - MISSED_REPLY_EVERY,
+            )
+        )
+    ).all()
+    if any((attrs or {}).get("missed_call_reply") for attrs in sent):
+        return
+    await create_message(
+        session,
+        conversation=conversation,
+        params=MessageBuilderParams(
+            content=missed_reply_text(settings),
+            message_type="outgoing",
+            content_attributes={"missed_call_reply": True},
+        ),
+        user_id=None,
+    )
+
+
+async def _after_missed(session: AsyncSession, call: Call) -> None:
+    """Nobody took the call: the customer hears we call back, and the
+    conversation is labelled for it and handed to its owner (the inbox's
+    default assignee when it had nobody). Never in the way of the call's end."""
+    from app.domains.conversations.auto_assignment import maybe_run_auto_assignment
+
+    try:
+        async with session.begin_nested():
+            conversation = await session.get(Conversation, call.conversation_id)
+            if conversation is None:
+                return
+            await _tell_we_call_back(session, call, conversation)
+            await _mark_to_call_back(session, conversation, on=True)
+            await maybe_run_auto_assignment(session, conversation=conversation)
+    except Exception:
+        log.exception("calls.missed_follow_up_failed call_id=%s", call.id)
+
+
+async def _called_back(session: AsyncSession, call: Call) -> None:
+    """We talked to the customer: nobody needs to call them back any more."""
+    try:
+        async with session.begin_nested():
+            conversation = await session.get(Conversation, call.conversation_id)
+            if conversation is not None:
+                await _mark_to_call_back(session, conversation, on=False)
+    except Exception:
+        log.exception("calls.called_back_failed call_id=%s", call.id)
 
 
 async def expire_stale(session: AsyncSession) -> int:
@@ -711,8 +876,10 @@ __all__ = [
     "finish",
     "get_call",
     "mark_in_progress",
+    "missed_reply_text",
     "present_call",
     "release",
+    "ring_user_ids",
     "save_answer",
     "start_inbound",
     "start_outbound",
