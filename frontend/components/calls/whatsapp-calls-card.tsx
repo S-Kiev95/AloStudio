@@ -9,9 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ANNOUNCEMENT_LANGUAGES,
   type CallSettingsInput,
+  MISSED_TEXT_MAX,
   PURPOSE_MAX,
   useCallSettings,
   useSaveCallSettings,
@@ -30,6 +32,8 @@ const EMPTY: Form = {
   transcribe: false,
   purpose: "",
   announcement_language: "es",
+  missed_call_reply: true,
+  missed_call_text: "",
 };
 
 type Flag =
@@ -38,7 +42,8 @@ type Flag =
   | "business_hours"
   | "callback_requests"
   | "record"
-  | "transcribe";
+  | "transcribe"
+  | "missed_call_reply";
 
 function problemKey(err: unknown): string {
   const code = (err as { body?: { code?: unknown } })?.body?.code;
@@ -98,6 +103,8 @@ export function WhatsappCallsCard({
       transcribe: data.transcribe,
       purpose: data.purpose ?? "",
       announcement_language: data.announcement_language || "es",
+      missed_call_reply: data.missed_call_reply ?? true,
+      missed_call_text: data.missed_call_text ?? "",
     });
   }, [settings.data]);
 
@@ -106,7 +113,10 @@ export function WhatsappCallsCard({
     setForm((f) => ({ ...f, [key]: !f[key] }));
   }
 
-  function change(key: "purpose" | "announcement_language", value: string) {
+  function change(
+    key: "purpose" | "announcement_language" | "missed_call_text",
+    value: string,
+  ) {
     setSaved(false);
     setForm((f) => ({ ...f, [key]: value }));
   }
@@ -246,6 +256,31 @@ export function WhatsappCallsCard({
                   <p className="text-xs text-fg-muted">{t("calls.settings.recordingLegal")}</p>
                 </>
               )}
+            </fieldset>
+
+            <fieldset className="space-y-3 border-t border-glass pt-4">
+              <legend className="text-sm font-medium text-fg">
+                {t("calls.settings.missedTitle")}
+              </legend>
+              <Toggle
+                checked={form.missed_call_reply}
+                onChange={() => toggle("missed_call_reply")}
+                disabled={!form.enabled}
+                label={t("calls.settings.missedReply")}
+                hint={t("calls.settings.missedReplyHint")}
+              />
+              <div className="space-y-1.5">
+                <Label htmlFor={`call-missed-${inboxId}`}>{t("calls.settings.missedText")}</Label>
+                <Textarea
+                  id={`call-missed-${inboxId}`}
+                  rows={2}
+                  value={form.missed_call_text}
+                  maxLength={MISSED_TEXT_MAX}
+                  disabled={!form.enabled || !form.missed_call_reply}
+                  onChange={(e) => change("missed_call_text", e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-fg-muted">{t("calls.settings.missedMarkHint")}</p>
             </fieldset>
 
             {restrictions.length > 0 ? (

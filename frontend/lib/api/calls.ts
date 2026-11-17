@@ -35,6 +35,8 @@ export type Call = {
   answered_by: { id: number; name: string } | null;
   /** Still ringing and with the caller's offer: an agent can take it. */
   can_answer: boolean;
+  /** Whose panel rings for it: the people free, or everybody when nobody is. */
+  ring_user_ids?: number[];
   created_at: string;
   answered_at: string | null;
   ended_at: string | null;
@@ -149,6 +151,10 @@ export type CallSettings = {
   /** What Meta reads to both sides before recording. */
   purpose: string;
   announcement_language: string;
+  /** After a call nobody answered, tell the customer we call back. */
+  missed_call_reply: boolean;
+  /** What they read (ours until the inbox writes its own). */
+  missed_call_text: string;
 };
 
 /** What the card sends. The recording fields are left out while the
@@ -162,6 +168,8 @@ export type CallSettingsInput = {
   transcribe?: boolean;
   purpose?: string;
   announcement_language?: string;
+  missed_call_reply?: boolean;
+  missed_call_text?: string;
 };
 
 /** Languages Meta can read the recording notice in. */
@@ -180,6 +188,7 @@ export const ANNOUNCEMENT_LANGUAGES = [
   "vi",
 ] as const;
 export const PURPOSE_MAX = 250;
+export const MISSED_TEXT_MAX = 1024;
 
 function settingsKey(accountId: string, inboxId: number) {
   return ["calls", accountId, "settings", inboxId] as const;

@@ -181,7 +181,9 @@ export async function placeCall(speaker: HTMLAudioElement): Promise<OutgoingAudi
 
 /** Two short tones every few seconds while a call rings. Browsers may keep
  *  the sound off until the page was clicked once; the card still shows. */
-export function startRingtone(): () => void {
+/** Two beeps every 3 s; while I am on another call (``waiting``), one soft
+ *  beep every 6 s, like call waiting on a phone. */
+export function startRingtone(waiting = false): () => void {
   type Ctor = typeof AudioContext;
   const AudioCtx: Ctor | undefined =
     typeof window === "undefined"
@@ -202,7 +204,7 @@ export function startRingtone(): () => void {
     osc.type = "sine";
     osc.frequency.value = 440;
     gain.gain.setValueAtTime(0.0001, at);
-    gain.gain.exponentialRampToValueAtTime(0.18, at + 0.03);
+    gain.gain.exponentialRampToValueAtTime(waiting ? 0.06 : 0.18, at + 0.03);
     gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.35);
     osc.connect(gain).connect(ctx.destination);
     osc.start(at);
@@ -211,10 +213,10 @@ export function startRingtone(): () => void {
   const ring = () => {
     const now = ctx.currentTime;
     beep(now);
-    beep(now + 0.5);
+    if (!waiting) beep(now + 0.5);
   };
   ring();
-  const timer = setInterval(ring, 3000);
+  const timer = setInterval(ring, waiting ? 6000 : 3000);
   return () => {
     clearInterval(timer);
     void ctx.close().catch(() => undefined);
