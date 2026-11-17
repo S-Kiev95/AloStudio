@@ -298,6 +298,26 @@ async def test_the_crm_reports_leads_qualified_and_won(db_session, seeded):
     ]
 
 
+async def test_a_contact_stage_mapped_to_an_event_is_reported(db_session, seeded):
+    from app.domains.lifecycle import service as lifecycle
+
+    await _turn_on(db_session, seeded, lifecycle={"customer": {"event": "Purchase", "value": 4500}})
+    await lifecycle.save_settings(
+        db_session, account_id=seeded["account"].id, enabled=True, stages=None
+    )
+    await lifecycle.set_stage(
+        db_session,
+        account_id=seeded["account"].id,
+        contact=seeded["contact"],
+        stage_key="customer",
+        user=seeded["admin"],
+    )
+    queued = await _events(db_session, seeded["from_ad"].id)
+    assert [(e.event_name, e.trigger, e.value, e.currency) for e in queued] == [
+        ("Purchase", "lifecycle", Decimal("4500.00"), "UYU")
+    ]
+
+
 @respx.mock
 async def test_a_refusal_is_retried_and_then_given_up(db_session, seeded):
     _mock_meta(events_status=400)
