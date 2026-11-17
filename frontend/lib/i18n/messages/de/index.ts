@@ -5,6 +5,7 @@ import { companies } from "./companies";
 import { activities } from "./activities";
 import { metaCatalog } from "./metaCatalog";
 import { calls } from "./calls";
+import { closing } from "./closing";
 import { decisions } from "./decisions";
 import { usage } from "./usage";
 import { opportunities } from "./opportunities";
@@ -64,6 +65,7 @@ export const de: Messages = {
   metaCatalog,
   calls,
   decisions,
+  closing,
   usage,
 
   opportunities,
