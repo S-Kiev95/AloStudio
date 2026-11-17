@@ -80,4 +80,12 @@ MESSAGES: dict[str, str] = {
     # that marks the conversation to call back
     "calls.missed.reply": "Hi! We saw your call and couldn't take it. We'll call you back in a few minutes.",
     "calls.missed.label": "missed-call",
+    # Why a conversation closed (F17): the default categories, and the
+    # title of the private note a closing leaves
+    "closing.default.answered": "Question answered",
+    "closing.default.enrolled": "Signed up",
+    "closing.default.not_interested": "Not interested",
+    "closing.default.no_reply": "Customer didn't reply",
+    "closing.default.spam": "Spam or wrong number",
+    "closing.note_title": "Closing note",
 }

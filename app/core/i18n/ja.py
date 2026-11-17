@@ -80,4 +80,12 @@ MESSAGES: dict[str, str] = {
     # that marks the conversation to call back
     "calls.missed.reply": "こんにちは。お電話に出られず申し訳ありません。数分後にこちらからおかけ直しします。",
     "calls.missed.label": "不在着信",
+    # Why a conversation closed (F17): the default categories, and the
+    # title of the private note a closing leaves
+    "closing.default.answered": "問い合わせに回答",
+    "closing.default.enrolled": "申し込み済み",
+    "closing.default.not_interested": "興味なし",
+    "closing.default.no_reply": "お客様から返信なし",
+    "closing.default.spam": "スパム・番号違い",
+    "closing.note_title": "クローズメモ",
 }

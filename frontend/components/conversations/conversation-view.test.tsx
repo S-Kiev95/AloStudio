@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
@@ -357,5 +357,43 @@ describe("ConversationView — no leídos", () => {
     renderView();
     await screen.findByText("Buen día, quería consultar el estado del pedido");
     await waitFor(() => expect(seen).toBe(1));
+  });
+});
+
+describe("ConversationView — notas de cierre (F17)", () => {
+  it("con las notas prendidas, Resolver pide el motivo y cierra con él", async () => {
+    // jsdom ships <dialog> without showModal/close.
+    HTMLDialogElement.prototype.showModal = function () {
+      this.open = true;
+    };
+    HTMLDialogElement.prototype.close = function () {
+      this.open = false;
+    };
+    let closed: unknown = null;
+    let toggled = false;
+    server.use(
+      http.get("*/api/v1/accounts/:accountId/closing_notes/settings", () =>
+        HttpResponse.json({ enabled: true, required: true, categories: ["Se inscribió"] }),
+      ),
+      http.post("*/api/v1/accounts/:accountId/closing_notes/18", async ({ request }) => {
+        closed = await request.json();
+        return HttpResponse.json({ status: "resolved", category: "Se inscribió", note: null });
+      }),
+      http.post("*/api/v1/accounts/:accountId/conversations/18/toggle_status", () => {
+        toggled = true;
+        return HttpResponse.json({ payload: { current_status: "resolved" } });
+      }),
+    );
+    renderView();
+    // The dialog is there (closed) once the account's settings arrived.
+    await waitFor(() => expect(document.querySelector("dialog")).not.toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: "Resolver" }));
+    const dialog = await screen.findByRole("dialog", { name: "Resolver conversación" });
+    fireEvent.click(within(dialog).getByRole("radio", { name: "Se inscribió" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Resolver" }));
+
+    await waitFor(() => expect(closed).toEqual({ category: "Se inscribió", note: null }));
+    expect(toggled).toBe(false);
   });
 });

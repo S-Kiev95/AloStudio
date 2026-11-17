@@ -71,6 +71,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
     done: true,
   },
   { segment: "decisions", label: "settings.items.decisions", milestone: "F10", done: true },
+  { segment: "closing_notes", label: "settings.items.closing_notes", milestone: "F17", done: true },
   { segment: "webhooks", label: "settings.items.webhooks", milestone: "F.9f", done: true },
   { segment: "agent_bots", label: "settings.items.agent_bots", milestone: "F.9f", done: true },
   {

@@ -14,6 +14,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { CallButton } from "@/components/calls/call-button";
+import { CloseDialog } from "@/components/closing/close-dialog";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,7 @@ import {
   usePendingMessages,
   useToggleStatus,
 } from "@/lib/api/conversations";
+import { useClosingSettings } from "@/lib/api/closing";
 import { cn } from "@/lib/utils";
 
 import { AiHandoff, describeThreadControl } from "./ai-handoff";
@@ -143,6 +145,9 @@ export function ConversationView({
   }
   const pending = usePendingMessages(accountId, displayId);
   const toggle = useToggleStatus(accountId, displayId);
+  // Closing notes (F17): when the account asks why, resolving opens the dialog.
+  const closing = useClosingSettings(accountId);
+  const [closingOpen, setClosingOpen] = useState(false);
   const del = useDeleteMessage(accountId, displayId);
 
   function handleDelete(id: number) {
@@ -295,7 +300,10 @@ export function ConversationView({
             variant="secondary"
             size="sm"
             loading={toggle.isPending}
-            onClick={() => toggle.mutate(resolved ? "open" : "resolved")}
+            onClick={() => {
+              if (!resolved && closing.data?.enabled) setClosingOpen(true);
+              else toggle.mutate(resolved ? "open" : "resolved");
+            }}
           >
             {resolved ? (
               <>
@@ -307,6 +315,15 @@ export function ConversationView({
               </>
             )}
           </Button>
+          {closing.data?.enabled ? (
+            <CloseDialog
+              accountId={accountId}
+              displayId={displayId}
+              settings={closing.data}
+              open={closingOpen}
+              onClose={() => setClosingOpen(false)}
+            />
+          ) : null}
           {isWhatsapp ? (
             <CallButton
               accountId={accountId}

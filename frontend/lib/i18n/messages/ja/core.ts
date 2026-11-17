@@ -129,6 +129,7 @@ export const core: Strings<typeof es> = {
       macros: "マクロ",
       working_hours: "営業時間",
       decisions: "分類",
+      closing_notes: "クローズメモ",
       custom_attributes: "カスタム属性",
       automation: "自動化",
       webhooks: "Webhook",
