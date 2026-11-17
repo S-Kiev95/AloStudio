@@ -77,6 +77,7 @@ from app.domains.instagram.router import router as instagram_webhook_router
 from app.domains.installation.router import router as installation_router
 from app.domains.integrations.router import router as integrations_router
 from app.domains.labels.router import router as labels_router
+from app.domains.lifecycle.router import router as lifecycle_router
 from app.domains.macros.router import router as macros_router
 from app.domains.media_library.router import router as media_library_router
 from app.domains.notifications.router import (
@@ -352,6 +353,8 @@ def create_app() -> FastAPI:
     app.include_router(closing_router)
     # Ad conversations that became leads or sales, reported to Meta (F17).
     app.include_router(conversions_router)
+    # Where each contact stands, from new lead to customer (F17).
+    app.include_router(lifecycle_router)
     # Multi-network publishing: one publication, many channels, each
     # published by its network adapter.
     app.include_router(publishing_router)
