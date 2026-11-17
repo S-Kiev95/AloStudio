@@ -14,6 +14,7 @@ import { activities } from "./activities";
 import { metaCatalog } from "./metaCatalog";
 import { calls } from "./calls";
 import { closing } from "./closing";
+import { conversions } from "./conversions";
 import { decisions } from "./decisions";
 import { usage } from "./usage";
 import { opportunities } from "./opportunities";
@@ -74,6 +75,7 @@ export const es = {
   calls,
   decisions,
   closing,
+  conversions,
   usage,
 
   opportunities,

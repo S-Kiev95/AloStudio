@@ -3,6 +3,7 @@ one, and how many closed for each reason."""
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -21,6 +22,8 @@ from app.domains.closing.models import (
 from app.domains.conversations.models import Conversation
 
 DEFAULT_KEYS = ("answered", "enrolled", "not_interested", "no_reply", "spam")
+
+log = logging.getLogger(__name__)
 
 
 def _now() -> datetime:
@@ -156,7 +159,21 @@ async def close(
     )
     session.add(row)
     await session.flush()
+    if chosen is not None:
+        await _tell_meta(session, conversation, chosen)
     return row
+
+
+async def _tell_meta(session: AsyncSession, conversation: Conversation, category: str) -> None:
+    """A reason the account maps to a Conversions API event queues it (F17).
+    Never in the way of closing."""
+    from app.domains.conversions.service import on_closing
+
+    try:
+        async with session.begin_nested():
+            await on_closing(session, conversation=conversation, category=category)
+    except Exception:
+        log.exception("closing.conversions_failed conversation_id=%s", conversation.id)
 
 
 # ---------------------------------------------------------------------------
