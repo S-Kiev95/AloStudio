@@ -460,6 +460,14 @@ async def broadcast_event(
         await fan_out_to_decisions(session, name, **payload)
     except Exception:
         log.exception("decisions_listener.error event=%s", name)
+    # Contact lifecycle (F17): a first message puts the contact in the
+    # default stage.
+    from app.domains.lifecycle.listener import fan_out_to_lifecycle
+
+    try:
+        await fan_out_to_lifecycle(session, name, **payload)
+    except Exception:
+        log.exception("lifecycle_listener.error event=%s", name)
 
 
 __all__ = ["ActionCableListener", "broadcast_event"]
