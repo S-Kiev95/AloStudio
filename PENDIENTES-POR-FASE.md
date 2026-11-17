@@ -137,7 +137,7 @@ anota en esta sección y lo decide el dueño.
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En CTC (2026-11-15, pasó con el resto de develop): WhatsApp (costo de Meta) e IA |
-| F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real). En CTC falta activar las llamadas en el número y suscribir el webhook `calls`. Llamadas simultáneas (suenan solo los libres; la perdida avisa al cliente y queda para devolver) en develop y en staging (2026-11-16) |
+| F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (probado con Meta real en staging el 2026-11-16). En CTC falta activar las llamadas en el número y suscribir el webhook `calls`. Llamadas simultáneas (suenan solo los libres; la perdida avisa al cliente y queda para devolver) en develop y en staging (2026-11-16) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | Develop pasado a Gemma (2026-11-15); CTC sigue con OpenAI hasta que use autorespuestas o Help Center |
 | F10 Jev y Laya | B | Paso 1 en CTC (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; andando en staging con Jev real. En CTC falta cargar la clave y prender el modo sombra. Después, juntar etiquetas y decidir qué hacer con las decisiones. Laya más adelante, solo con etiquetas de personas |
@@ -426,7 +426,8 @@ dentro de la rama.
     plantilla (todavía no está; Meta responde y el panel lo explica).
   - Costo: por minuto según el país del cliente (va en F6).
   - Probado en local con el Meta simulado (pedido, aceptación, llamada con
-    audio en los dos sentidos, colgar). **Falta probarlo con Meta real.**
+    audio en los dos sentidos, colgar). Probado con Meta real en staging el
+    2026-11-16: el cliente atendió la llamada de vuelta.
 - **En CTC desde el 2026-11-15:** backend y migraciones a las 15:18, panel
   compilado a las 22:05 (hora de Uruguay). Para usarlo falta activar las
   llamadas en el número de CTC y suscribir el webhook `calls` en su app de
@@ -451,6 +452,9 @@ dentro de la rama.
   - Migración `c6d7e8f9a0b3` (`missed_call_reply` y `missed_call_text` en
     `call_inbox_settings`). La música de espera necesita el servidor de
     audio del paso 3.
+  - Probado con una llamada real en staging el 2026-11-16: el aviso llegó
+    (entregado), la conversación tomó la etiqueta y la perdió al devolver
+    la llamada. Falta probar el reparto con dos agentes a la vez.
 - **Sigue:** plantilla para pedir permiso fuera de las 24 h; paso 3, agente
   de voz.
 
