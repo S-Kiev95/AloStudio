@@ -88,4 +88,19 @@ MESSAGES: dict[str, str] = {
     "closing.default.no_reply": "お客様から返信なし",
     "closing.default.spam": "スパム・番号違い",
     "closing.note_title": "クローズメモ",
+    # Contact lifecycle (F17): the default stages, and the line a move
+    # leaves in the conversation
+    "lifecycle.default.new_lead.name": "新規リード",
+    "lifecycle.default.new_lead.description": "初めて連絡してきた。",
+    "lifecycle.default.hot_lead.name": "有望リード",
+    "lifecycle.default.hot_lead.description": "前に進みたい。",
+    "lifecycle.default.payment.name": "支払い中",
+    "lifecycle.default.payment.description": "支払い中、またはこれから支払う。",
+    "lifecycle.default.customer.name": "顧客",
+    "lifecycle.default.customer.description": "購入済み。",
+    "lifecycle.default.cold_lead.name": "冷えたリード",
+    "lifecycle.default.cold_lead.description": "返信がない、または興味を失った。",
+    "lifecycle.activity": "{name}がステージを{stage}に変更しました",
+    "lifecycle.activity_cleared": "{name}が連絡先のステージを外しました",
+    "lifecycle.someone": "誰か",
 }
