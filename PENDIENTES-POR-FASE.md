@@ -147,7 +147,7 @@ anota en esta sección y lo decide el dueño.
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
-| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso). Falta acordar los workflows y repartir el resto |
+| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en `feat/f17-etapas` (2026-11-17). Falta acordar los workflows y repartir el resto |
 
 ### Reglas para no pisarse
 
@@ -810,6 +810,24 @@ Detalle en `PLAN.i18n.md`.
     `whatsapp_business_manage_events` con acceso avanzado (App Review) y la
     Marketing API con acceso completo, y el token del número tiene que
     incluir ese permiso. Falta probarlo con Meta real.
+- **7, etapas del contacto — hecho el 2026-11-17 (agente B, rama
+  `feat/f17-etapas`), con la nomenclatura de respond.io:**
+  - Ajustes → Etapas del contacto (administradores): hasta 20 etapas con
+    emoji, nombre, descripción y tipo (etapa o perdida), en orden, y cuál es
+    la inicial. Por defecto: 🆕 Nuevo interesado (inicial), 🔥 Muy
+    interesado, 💳 En pago, 🤩 Cliente y, perdida, 🧊 Se enfrió. Vienen
+    apagadas.
+  - La etapa se cambia en el panel del contacto de la conversación (deja
+    una línea en el chat) y en la ficha del contacto. Un contacto que
+    escribe y no tiene etapa entra en la inicial. Cada cambio queda en
+    `contact_lifecycle_changes`; si se borra una etapa, sus contactos
+    quedan sin etapa.
+  - Estadísticas: tarjeta «Etapas de los contactos» con cuántos hay en cada
+    una y cuántos entraron en el período.
+  - En la Conversions API cada etapa se puede mapear a un evento de Meta
+    (por ejemplo 🤩 Cliente → Purchase con un valor).
+  - Dominio `app/domains/lifecycle/`, migración `f9a0b1c2d3e6`. Probado en
+    local de punta a punta. Falta: filtrar la lista de contactos por etapa.
 
 ---
 
