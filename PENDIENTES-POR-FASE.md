@@ -147,7 +147,7 @@ anota en esta sección y lo decide el dueño.
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
-| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre hechas por el agente B en `feat/f17-notas-de-cierre` (2026-11-17); falta acordar los workflows y repartir el resto |
+| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre hechas por el agente B, en develop y en staging (2026-11-17); falta acordar los workflows y repartir el resto |
 
 ### Reglas para no pisarse
 
@@ -779,8 +779,8 @@ Detalle en `PLAN.i18n.md`.
   - 11: el login con Google ya está hecho; falta crear el cliente OAuth en
     Google Cloud y cargar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en
     Ajustes → Instalación.
-- **4, notas de cierre — hecho el 2026-11-17 (agente B, rama
-  `feat/f17-notas-de-cierre`):**
+- **4, notas de cierre — hecho el 2026-11-17 (agente B), en develop y en
+  staging:**
   - Ajustes → Notas de cierre (administradores): prenderlas, hacerlas
     obligatorias y editar los motivos (5 por defecto, hasta 30). Vienen
     apagadas.
