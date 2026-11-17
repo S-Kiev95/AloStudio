@@ -15,6 +15,7 @@ import { metaCatalog } from "./metaCatalog";
 import { calls } from "./calls";
 import { closing } from "./closing";
 import { conversions } from "./conversions";
+import { lifecycle } from "./lifecycle";
 import { decisions } from "./decisions";
 import { usage } from "./usage";
 import { opportunities } from "./opportunities";
@@ -76,6 +77,7 @@ export const es = {
   decisions,
   closing,
   conversions,
+  lifecycle,
   usage,
 
   opportunities,
