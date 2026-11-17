@@ -90,4 +90,19 @@ MESSAGES: dict[str, str] = {
     "closing.default.no_reply": "Kunde hat nicht geantwortet",
     "closing.default.spam": "Spam oder falsche Nummer",
     "closing.note_title": "Abschlussnotiz",
+    # Contact lifecycle (F17): the default stages, and the line a move
+    # leaves in the conversation
+    "lifecycle.default.new_lead.name": "Neuer Lead",
+    "lifecycle.default.new_lead.description": "Hat zum ersten Mal geschrieben.",
+    "lifecycle.default.hot_lead.name": "Heißer Lead",
+    "lifecycle.default.hot_lead.description": "Will weitermachen.",
+    "lifecycle.default.payment.name": "Zahlung",
+    "lifecycle.default.payment.description": "Zahlt gerade oder bald.",
+    "lifecycle.default.customer.name": "Kunde",
+    "lifecycle.default.customer.description": "Hat gekauft.",
+    "lifecycle.default.cold_lead.name": "Kalter Lead",
+    "lifecycle.default.cold_lead.description": "Antwortet nicht mehr oder hat kein Interesse mehr.",
+    "lifecycle.activity": "{name} hat den Kontakt auf {stage} gesetzt",
+    "lifecycle.activity_cleared": "{name} hat die Phase des Kontakts entfernt",
+    "lifecycle.someone": "Jemand",
 }

@@ -17,7 +17,10 @@ export type CrmTrigger = (typeof CRM_TRIGGERS)[number];
 export type ClosingRule = { event: ConversionEventName; value: number | null };
 
 export type ConversionRules = Record<CrmTrigger, ConversionEventName | null> & {
+  /** By closing reason (its title). */
   closing: Record<string, ClosingRule>;
+  /** By contact stage (its key). */
+  lifecycle: Record<string, ClosingRule>;
 };
 
 export type ConversionSettings = {

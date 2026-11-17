@@ -129,6 +129,7 @@ export const core = {
       decisions: "Clasificación",
       closing_notes: "Notas de cierre",
       conversions: "Conversions API",
+      lifecycle: "Etapas del contacto",
       custom_attributes: "Atributos personalizados",
       automation: "Automatización",
       webhooks: "Webhooks",

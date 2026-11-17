@@ -133,6 +133,7 @@ export const core: Strings<typeof es> = {
       decisions: "Classification",
       closing_notes: "Closing notes",
       conversions: "Conversions API",
+      lifecycle: "Contact stages",
       custom_attributes: "Custom attributes",
       automation: "Automation",
       webhooks: "Webhooks",

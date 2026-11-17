@@ -125,6 +125,28 @@ describe("ConversionsView", () => {
     });
   });
 
+  it("maps a contact stage to an event", async () => {
+    server.use(
+      http.get("*/lifecycle/settings", () =>
+        HttpResponse.json({
+          enabled: true,
+          stages: [
+            { key: "new_lead", name: "Nuevo interesado", emoji: "🆕", description: "", kind: "stage", default: true },
+            { key: "customer", name: "Cliente", emoji: "🤩", description: "", kind: "stage", default: false },
+          ],
+        }),
+      ),
+    );
+    renderView();
+    fireEvent.change(await screen.findByLabelText("🤩 Cliente"), { target: { value: "Purchase" } });
+    fireEvent.change(screen.getByLabelText("Valor de 🤩 Cliente"), { target: { value: "4500" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByText("Guardado.")).toBeInTheDocument();
+    expect((saved as { rules: { lifecycle: unknown } }).rules.lifecycle).toEqual({
+      customer: { event: "Purchase", value: 4500 },
+    });
+  });
+
   it("connects a number's dataset, saying why Meta refused first", async () => {
     renderView();
     fireEvent.click(await screen.findByRole("button", { name: "Conectar" }));

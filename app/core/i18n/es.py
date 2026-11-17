@@ -97,4 +97,19 @@ MESSAGES: dict[str, str] = {
     "closing.default.no_reply": "El cliente no respondió",
     "closing.default.spam": "Spam o número equivocado",
     "closing.note_title": "Nota de cierre",
+    # Contact lifecycle (F17): the default stages, and the line a move
+    # leaves in the conversation
+    "lifecycle.default.new_lead.name": "Nuevo interesado",
+    "lifecycle.default.new_lead.description": "Escribió por primera vez.",
+    "lifecycle.default.hot_lead.name": "Muy interesado",
+    "lifecycle.default.hot_lead.description": "Quiere avanzar.",
+    "lifecycle.default.payment.name": "En pago",
+    "lifecycle.default.payment.description": "Está pagando o por pagar.",
+    "lifecycle.default.customer.name": "Cliente",
+    "lifecycle.default.customer.description": "Ya compró.",
+    "lifecycle.default.cold_lead.name": "Se enfrió",
+    "lifecycle.default.cold_lead.description": "Dejó de responder o ya no le interesa.",
+    "lifecycle.activity": "{name} cambió la etapa a {stage}",
+    "lifecycle.activity_cleared": "{name} le sacó la etapa al contacto",
+    "lifecycle.someone": "Alguien",
 }

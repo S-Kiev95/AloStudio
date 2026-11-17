@@ -86,4 +86,19 @@ MESSAGES: dict[str, str] = {
     "closing.default.no_reply": "고객 응답 없음",
     "closing.default.spam": "스팸 또는 잘못된 번호",
     "closing.note_title": "종료 메모",
+    # Contact lifecycle (F17): the default stages, and the line a move
+    # leaves in the conversation
+    "lifecycle.default.new_lead.name": "신규 리드",
+    "lifecycle.default.new_lead.description": "처음 연락했어요.",
+    "lifecycle.default.hot_lead.name": "유망 리드",
+    "lifecycle.default.hot_lead.description": "진행하고 싶어 해요.",
+    "lifecycle.default.payment.name": "결제 중",
+    "lifecycle.default.payment.description": "결제 중이거나 곧 결제해요.",
+    "lifecycle.default.customer.name": "고객",
+    "lifecycle.default.customer.description": "구매했어요.",
+    "lifecycle.default.cold_lead.name": "식은 리드",
+    "lifecycle.default.cold_lead.description": "응답이 없거나 관심을 잃었어요.",
+    "lifecycle.activity": "{name}님이 단계를 {stage}(으)로 바꿨어요",
+    "lifecycle.activity_cleared": "{name}님이 연락처의 단계를 뺐어요",
+    "lifecycle.someone": "누군가",
 }

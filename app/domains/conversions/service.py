@@ -39,7 +39,11 @@ DEFAULT_RULES: dict[str, Any] = {
     "opportunity_qualified": "QualifiedLead",
     "opportunity_won": "Purchase",
     "closing": {},
+    "lifecycle": {},
 }
+# ``closing`` maps closing reasons (their titles), ``lifecycle`` contact
+# stages (their keys), each to ``{event, value}``.
+MAPPED = ("closing", "lifecycle")
 # The seeded CRM stage that means "qualified".
 QUALIFIED_STAGE_CODE = "qualified"
 CLOSING_MAX = 30
@@ -57,8 +61,9 @@ def _now() -> datetime:
 def rules_of(row: ConversionSettings | None) -> dict[str, Any]:
     raw = row.rules if row is not None and isinstance(row.rules, dict) else {}
     out: dict[str, Any] = {k: raw[k] if k in raw else DEFAULT_RULES[k] for k in CRM_TRIGGERS}
-    closing = raw.get("closing")
-    out["closing"] = dict(closing) if isinstance(closing, dict) else {}
+    for group in MAPPED:
+        mapped = raw.get(group)
+        out[group] = dict(mapped) if isinstance(mapped, dict) else {}
     return out
 
 
@@ -72,13 +77,19 @@ def clean_rules(raw: Any) -> dict[str, Any]:
         if event is not None and event not in EVENTS:
             raise ValueError("event")
         out[key] = event
-    closing_raw = raw.get("closing") or {}
-    if not isinstance(closing_raw, dict) or len(closing_raw) > CLOSING_MAX:
-        raise ValueError("closing")
-    closing: dict[str, dict[str, Any]] = {}
-    for reason, rule in closing_raw.items():
-        if not isinstance(reason, str) or not reason.strip() or not isinstance(rule, dict):
-            raise ValueError("closing")
+    for group in MAPPED:
+        out[group] = _clean_mapping(raw.get(group) or {}, group)
+    return out
+
+
+def _clean_mapping(raw: Any, group: str) -> dict[str, dict[str, Any]]:
+    """``{name: {event, value}}`` for closing reasons or contact stages."""
+    if not isinstance(raw, dict) or len(raw) > CLOSING_MAX:
+        raise ValueError(group)
+    out: dict[str, dict[str, Any]] = {}
+    for name, rule in raw.items():
+        if not isinstance(name, str) or not name.strip() or not isinstance(rule, dict):
+            raise ValueError(group)
         event = rule.get("event")
         if event is None:
             continue
@@ -92,8 +103,7 @@ def clean_rules(raw: Any) -> dict[str, Any]:
                 raise ValueError("value") from exc
             if value < 0:
                 raise ValueError("value")
-        closing[" ".join(reason.split())] = {"event": event, "value": value}
-    out["closing"] = closing
+        out[" ".join(name.split())] = {"event": event, "value": value}
     return out
 
 
@@ -260,6 +270,23 @@ async def on_closing(session: AsyncSession, *, conversation: Conversation, categ
     )
 
 
+async def _ad_conversation(
+    session: AsyncSession, *, account_id: int, contact_id: int
+) -> Conversation | None:
+    """The contact's latest conversation that came from an ad."""
+    return (
+        await session.exec(
+            select(Conversation)
+            .where(
+                Conversation.account_id == account_id,
+                Conversation.contact_id == contact_id,
+                Conversation.ad_click_id.is_not(None),  # type: ignore[union-attr]
+            )
+            .order_by(Conversation.created_at.desc())  # type: ignore[attr-defined]
+        )
+    ).first()
+
+
 async def _conversation_for(session: AsyncSession, opportunity: Any) -> Conversation | None:
     """The ad conversation an opportunity belongs to: its own, or the
     contact's latest one that came from an ad."""
@@ -269,17 +296,34 @@ async def _conversation_for(session: AsyncSession, opportunity: Any) -> Conversa
             return own
     if not opportunity.contact_id:
         return None
-    return (
-        await session.exec(
-            select(Conversation)
-            .where(
-                Conversation.account_id == opportunity.account_id,
-                Conversation.contact_id == opportunity.contact_id,
-                Conversation.ad_click_id.is_not(None),  # type: ignore[union-attr]
-            )
-            .order_by(Conversation.created_at.desc())  # type: ignore[attr-defined]
-        )
-    ).first()
+    return await _ad_conversation(
+        session, account_id=opportunity.account_id, contact_id=opportunity.contact_id
+    )
+
+
+async def on_lifecycle(
+    session: AsyncSession, *, account_id: int, contact_id: int, stage_key: str, stage_name: str
+) -> None:
+    """A contact entered a stage the account maps to an event."""
+    settings = await _enabled(session, account_id)
+    if settings is None:
+        return
+    rule = rules_of(settings)["lifecycle"].get(stage_key)
+    if not rule:
+        return
+    conversation = await _ad_conversation(session, account_id=account_id, contact_id=contact_id)
+    if conversation is None:
+        return
+    value = rule.get("value")
+    await record(
+        session,
+        conversation=conversation,
+        event_name=rule["event"],
+        trigger="lifecycle",
+        detail=stage_name,
+        value=Decimal(str(value)) if value is not None else None,
+        currency=settings.currency,
+    )
 
 
 async def on_opportunity(
@@ -440,6 +484,7 @@ __all__ = [
     "clean_rules",
     "connect",
     "on_closing",
+    "on_lifecycle",
     "on_opportunity",
     "payload_for",
     "present_settings",

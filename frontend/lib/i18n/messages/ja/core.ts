@@ -131,6 +131,7 @@ export const core: Strings<typeof es> = {
       decisions: "分類",
       closing_notes: "クローズメモ",
       conversions: "Conversions API",
+      lifecycle: "連絡先のステージ",
       custom_attributes: "カスタム属性",
       automation: "自動化",
       webhooks: "Webhook",
