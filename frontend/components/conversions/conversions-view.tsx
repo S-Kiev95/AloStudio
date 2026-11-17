@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useClosingSettings } from "@/lib/api/closing";
+import { useLifecycleSettings } from "@/lib/api/lifecycle";
 import {
   CONVERSION_EVENTS,
   type ConversionEventName,
@@ -34,6 +35,7 @@ export function ConversionsView({ accountId }: { accountId: string }) {
   const t = useT();
   const settings = useConversionSettings(accountId);
   const closing = useClosingSettings(accountId);
+  const lifecycle = useLifecycleSettings(accountId);
   const save = useSaveConversionSettings(accountId);
   const connect = useConnectDataset(accountId);
   const [enabled, setEnabled] = useState(false);
@@ -55,6 +57,7 @@ export function ConversionsView({ accountId }: { accountId: string }) {
   }, [settings.data]);
 
   const reasons = closing.data?.enabled ? closing.data.categories : [];
+  const stageList = lifecycle.data?.enabled ? lifecycle.data.stages : [];
 
   function edited() {
     setSaved(false);
@@ -65,14 +68,19 @@ export function ConversionsView({ accountId }: { accountId: string }) {
     setRules((r) => (r ? { ...r, [trigger]: (event || null) as ConversionEventName | null } : r));
   }
 
-  function setClosing(reason: string, event: string, value: number | null) {
+  function setMapped(
+    group: "closing" | "lifecycle",
+    name: string,
+    event: string,
+    value: number | null,
+  ) {
     edited();
     setRules((r) => {
       if (!r) return r;
-      const closingRules = { ...r.closing };
-      if (event) closingRules[reason] = { event: event as ConversionEventName, value };
-      else delete closingRules[reason];
-      return { ...r, closing: closingRules };
+      const mapped = { ...(r[group] ?? {}) };
+      if (event) mapped[name] = { event: event as ConversionEventName, value };
+      else delete mapped[name];
+      return { ...r, [group]: mapped };
     });
   }
 
@@ -232,7 +240,9 @@ export function ConversionsView({ accountId }: { accountId: string }) {
                         <Select
                           id={`conversions-closing-${i}`}
                           value={rule?.event ?? NONE}
-                          onChange={(e) => setClosing(reason, e.target.value, rule?.value ?? null)}
+                          onChange={(e) =>
+                            setMapped("closing", reason, e.target.value, rule?.value ?? null)
+                          }
                         >
                           {eventOptions}
                         </Select>
@@ -244,7 +254,8 @@ export function ConversionsView({ accountId }: { accountId: string }) {
                             placeholder={t("conversions.value")}
                             value={rule.value ?? ""}
                             onChange={(e) =>
-                              setClosing(
+                              setMapped(
+                                "closing",
                                 reason,
                                 rule.event,
                                 e.target.value === "" ? null : Number(e.target.value),
@@ -265,6 +276,60 @@ export function ConversionsView({ accountId }: { accountId: string }) {
                       className="text-lit underline-offset-2 hover:underline"
                     >
                       {t("conversions.closingLink")}
+                    </Link>
+                  </p>
+                )}
+
+                <p className="pt-2 text-sm font-medium text-fg">{t("conversions.lifecycleTitle")}</p>
+                {stageList.length ? (
+                  stageList.map((stage) => {
+                    const rule = rules.lifecycle?.[stage.key];
+                    const label = `${stage.emoji} ${stage.name}`.trim();
+                    return (
+                      <div
+                        key={stage.key}
+                        className="grid gap-1.5 sm:grid-cols-[1fr_19rem_7rem] sm:items-center"
+                      >
+                        <Label htmlFor={`conversions-stage-${stage.key}`}>{label}</Label>
+                        <Select
+                          id={`conversions-stage-${stage.key}`}
+                          value={rule?.event ?? NONE}
+                          onChange={(e) =>
+                            setMapped("lifecycle", stage.key, e.target.value, rule?.value ?? null)
+                          }
+                        >
+                          {eventOptions}
+                        </Select>
+                        {rule?.event === "Purchase" ? (
+                          <Input
+                            type="number"
+                            min={0}
+                            aria-label={t("conversions.valueFor", { reason: label })}
+                            placeholder={t("conversions.value")}
+                            value={rule.value ?? ""}
+                            onChange={(e) =>
+                              setMapped(
+                                "lifecycle",
+                                stage.key,
+                                rule.event,
+                                e.target.value === "" ? null : Number(e.target.value),
+                              )
+                            }
+                          />
+                        ) : (
+                          <span aria-hidden />
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-fg-muted">
+                    {t("conversions.lifecycleOff")}{" "}
+                    <Link
+                      href={`/accounts/${accountId}/settings/lifecycle`}
+                      className="text-lit underline-offset-2 hover:underline"
+                    >
+                      {t("conversions.lifecycleLink")}
                     </Link>
                   </p>
                 )}
