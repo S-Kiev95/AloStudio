@@ -147,7 +147,7 @@ anota en esta sección y lo decide el dueño.
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
-| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en `feat/f17-conversions-api` (agente B, 2026-11-17; Meta tiene que aprobar el permiso). Falta acordar los workflows y repartir el resto |
+| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso). Falta acordar los workflows y repartir el resto |
 
 ### Reglas para no pisarse
 
@@ -792,8 +792,8 @@ Detalle en `PLAN.i18n.md`.
     por motivo; la ve cualquiera de la cuenta, como el resto de los reportes.
   - Dominio `app/domains/closing/`, migración `d7e8f9a0b1c4`. Probado en
     local de punta a punta (ajustes, cierre, nota y reporte).
-- **2, Conversions API de Meta — hecho el 2026-11-17 (agente B, rama
-  `feat/f17-conversions-api`), solo WhatsApp:**
+- **2, Conversions API de Meta — hecho el 2026-11-17 (agente B), en develop
+  y en staging, solo WhatsApp:**
   - Ajustes → Conversions API (administradores): prenderla, la moneda,
     conectar el dataset de cada número (`POST /{waba}/dataset`) y qué se le
     avisa a Meta. Por defecto: oportunidad creada → LeadSubmitted, pasa a
