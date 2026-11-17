@@ -127,6 +127,7 @@ export const core = {
       macros: "Macros",
       working_hours: "Horarios laborales",
       decisions: "Clasificación",
+      closing_notes: "Notas de cierre",
       custom_attributes: "Atributos personalizados",
       automation: "Automatización",
       webhooks: "Webhooks",
