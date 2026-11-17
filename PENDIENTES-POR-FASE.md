@@ -125,6 +125,9 @@ anota en esta sección y lo decide el dueño.
 >    Combina con el `callback_request` de Meta si lo activás.
 > La espera con música necesita un servidor de audio (el LiveKit del paso
 > 3): queda para después.
+>
+> **Respuesta del agente B (2026-11-16):** hechos los dos, en la rama
+> `feat/f7-simultaneas`; detalle en la sección F7.
 
 | Fase | Agente | Estado |
 |---|---|---|
@@ -134,7 +137,7 @@ anota en esta sección y lo decide el dueño.
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En CTC (2026-11-15, pasó con el resto de develop): WhatsApp (costo de Meta) e IA |
-| F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real). En CTC falta activar las llamadas en el número y suscribir el webhook `calls` |
+| F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real). En CTC falta activar las llamadas en el número y suscribir el webhook `calls`. Llamadas simultáneas (suenan solo los libres; la perdida avisa al cliente y queda para devolver) en `feat/f7-simultaneas` (2026-11-16) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | Develop pasado a Gemma (2026-11-15); CTC sigue con OpenAI hasta que use autorespuestas o Help Center |
 | F10 Jev y Laya | B | Paso 1 en CTC (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; andando en staging con Jev real. En CTC falta cargar la clave y prender el modo sombra. Después, juntar etiquetas y decidir qué hacer con las decisiones. Laya más adelante, solo con etiquetas de personas |
@@ -144,6 +147,7 @@ anota en esta sección y lo decide el dueño.
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
+| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16); falta acordar los workflows y repartirlas |
 
 ### Reglas para no pisarse
 
@@ -427,6 +431,26 @@ dentro de la rama.
   compilado a las 22:05 (hora de Uruguay). Para usarlo falta activar las
   llamadas en el número de CTC y suscribir el webhook `calls` en su app de
   Meta. Grabar sigue apagado hasta que el operador lo permita.
+- **Llamadas simultáneas — hecho el 2026-11-16 (rama `feat/f7-simultaneas`),
+  pedido del dueño a través del agente A:**
+  - Meta no tiene cola: las llamadas que entran juntas suenan a la vez.
+    Ahora cada una suena solo para quien está libre (miembros de la bandeja
+    y administradores sin otra llamada en curso). Si nadie está libre, suena
+    para todos; a quien está hablando le suena bajito (un pitido cada 6 s),
+    con el botón de atender apagado hasta que corte. Cuando alguien atiende
+    o corta, el panel recalcula a quién le suena cada llamada pendiente
+    (`ring_user_ids` en cada llamada).
+  - Llamada perdida (nadie atendió): el cliente recibe por WhatsApp «¡Hola!
+    Vimos tu llamada y no pudimos atenderla. Te llamamos en unos minutos.».
+    El texto se cambia o se apaga por bandeja en la tarjeta de llamadas.
+    Sale una vez por hora como máximo, y solo dentro de las 24 h.
+  - La conversación queda con la etiqueta `llamada-perdida` y, si no tenía
+    responsable, pasa al responsable por defecto de la bandeja (la
+    asignación automática del agente A). La etiqueta se va sola cuando se
+    habla con el cliente: atendemos una llamada suya o él atiende la nuestra.
+  - Migración `c6d7e8f9a0b3` (`missed_call_reply` y `missed_call_text` en
+    `call_inbox_settings`). La música de espera necesita el servidor de
+    audio del paso 3.
 - **Sigue:** plantilla para pedir permiso fuera de las 24 h; paso 3, agente
   de voz.
 
@@ -715,6 +739,42 @@ Detalle en `PLAN.i18n.md`.
 
 - Esperar lo que prefieren los agentes de CTC (Sofía lo consulta el
   2026-11-11). Telegram con un bot propio sería la opción gratis.
+
+## F17. Funciones de respond.io
+
+- **Comparación (2026-11-16, agente B):** respond.io es el producto más
+  parecido a AloStudio. Lo que tiene y nosotros no, con lo que decidió el
+  dueño:
+
+| # | Función | Decisión del dueño |
+|---|---|---|
+| 1 | Ayuda de IA al escribir: reformular, traducir, resumir | Sí. Con modelo de un proveedor, en el plan más caro y con créditos de IA; con un modelo liviano en la VPS, para todos |
+| 2 | Conversions API de Meta (avisarle a Meta qué chats de anuncios terminan en venta) | Sí, le sirve a CTC |
+| 3 | Workflows visuales: preguntar y esperar la respuesta, ramas, esperas | A acordar entre el dueño y el agente B: propios o con n8n |
+| 4 | Notas de cierre (motivo al cerrar una conversación, para reportes) | Sí |
+| 5 | Resumen de llamadas con IA | Sí, en el plan más caro; lo prende el superadmin de cada instalación y gasta créditos de IA |
+| 6 | Agente de IA que atiende llamadas | Contemplado (F7 paso 3) |
+| 7 | Etapas del contacto | Sí, con la nomenclatura de respond.io |
+| 8 | TikTok como canal de mensajes | Sí |
+| 9 | Llamadas de Messenger y telefonía VoIP | Sin decidir (el dueño preguntó qué es VoIP) |
+| 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
+| 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3 |
+| — | 2FA y SSO; apps nativas | Sin decidir |
+
+- **Notas:**
+  - 1: hace falta un modelo de lenguaje. Con OpenAI (ya configurado) cuesta
+    menos de US$ 0,001 por texto. Un modelo local de 1 a 4 mil millones de
+    parámetros en la VPS de CTC (4 núcleos, sin GPU) tardaría varios
+    segundos por texto: hay que medirlo antes de decidir.
+  - 3: la licencia de n8n (Sustainable Use License) permite usarlo para el
+    negocio propio, no ofrecérselo a clientes que pagan. Meterlo adentro de
+    AloStudio para los clientes de los planes pide su licencia comercial.
+    Que CTC lo use para sí mismo, conectado por webhooks y la API, sí se
+    puede.
+  - 8: es TikTok según el orden de la tabla que vio el dueño.
+  - 11: el login con Google ya está hecho; falta crear el cliente OAuth en
+    Google Cloud y cargar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en
+    Ajustes → Instalación.
 
 ---
 
