@@ -78,4 +78,12 @@ MESSAGES: dict[str, str] = {
     # that marks the conversation to call back
     "calls.missed.reply": "안녕하세요! 전화를 받지 못했어요. 몇 분 안에 다시 전화드릴게요.",
     "calls.missed.label": "부재중-전화",
+    # Why a conversation closed (F17): the default categories, and the
+    # title of the private note a closing leaves
+    "closing.default.answered": "문의 답변 완료",
+    "closing.default.enrolled": "등록함",
+    "closing.default.not_interested": "관심 없음",
+    "closing.default.no_reply": "고객 응답 없음",
+    "closing.default.spam": "스팸 또는 잘못된 번호",
+    "closing.note_title": "종료 메모",
 }
