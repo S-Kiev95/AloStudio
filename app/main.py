@@ -35,6 +35,7 @@ from app.domains.bulk_actions.router import router as bulk_actions_router
 from app.domains.calls.router import router as calls_router
 from app.domains.campaigns.router import router as campaigns_router
 from app.domains.canned_responses.router import router as canned_responses_router
+from app.domains.closing.router import router as closing_router
 from app.domains.contacts.router import actions_router as contact_actions_router
 from app.domains.contacts.router import router as contacts_router
 from app.domains.conversations.attachments_router import (
@@ -346,6 +347,8 @@ def create_app() -> FastAPI:
     app.include_router(calls_router)
     # Decisions about conversations, in shadow mode (F10).
     app.include_router(decisions_router)
+    # Why conversations close: categories and notes (F17).
+    app.include_router(closing_router)
     # Multi-network publishing: one publication, many channels, each
     # published by its network adapter.
     app.include_router(publishing_router)
