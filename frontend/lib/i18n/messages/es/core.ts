@@ -128,6 +128,7 @@ export const core = {
       working_hours: "Horarios laborales",
       decisions: "Clasificación",
       closing_notes: "Notas de cierre",
+      conversions: "Conversions API",
       custom_attributes: "Atributos personalizados",
       automation: "Automatización",
       webhooks: "Webhooks",

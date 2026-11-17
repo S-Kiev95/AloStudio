@@ -130,6 +130,7 @@ export const core: Strings<typeof es> = {
       working_hours: "営業時間",
       decisions: "分類",
       closing_notes: "クローズメモ",
+      conversions: "Conversions API",
       custom_attributes: "カスタム属性",
       automation: "自動化",
       webhooks: "Webhook",

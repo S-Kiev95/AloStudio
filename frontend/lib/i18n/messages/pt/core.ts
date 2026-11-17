@@ -131,6 +131,7 @@ export const core: Strings<typeof es> = {
       working_hours: "Horário de atendimento",
       decisions: "Classificação",
       closing_notes: "Notas de encerramento",
+      conversions: "Conversions API",
       custom_attributes: "Atributos personalizados",
       automation: "Automação",
       webhooks: "Webhooks",
