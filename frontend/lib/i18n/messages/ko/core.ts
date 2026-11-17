@@ -131,6 +131,7 @@ export const core: Strings<typeof es> = {
       decisions: "분류",
       closing_notes: "종료 메모",
       conversions: "Conversions API",
+      lifecycle: "연락처 단계",
       custom_attributes: "사용자 지정 속성",
       automation: "자동화",
       webhooks: "웹훅",
