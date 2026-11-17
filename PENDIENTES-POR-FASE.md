@@ -147,7 +147,7 @@ anota en esta sección y lo decide el dueño.
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
-| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre hechas por el agente B, en develop y en staging (2026-11-17); falta acordar los workflows y repartir el resto |
+| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en `feat/f17-conversions-api` (agente B, 2026-11-17; Meta tiene que aprobar el permiso). Falta acordar los workflows y repartir el resto |
 
 ### Reglas para no pisarse
 
@@ -792,6 +792,24 @@ Detalle en `PLAN.i18n.md`.
     por motivo; la ve cualquiera de la cuenta, como el resto de los reportes.
   - Dominio `app/domains/closing/`, migración `d7e8f9a0b1c4`. Probado en
     local de punta a punta (ajustes, cierre, nota y reporte).
+- **2, Conversions API de Meta — hecho el 2026-11-17 (agente B, rama
+  `feat/f17-conversions-api`), solo WhatsApp:**
+  - Ajustes → Conversions API (administradores): prenderla, la moneda,
+    conectar el dataset de cada número (`POST /{waba}/dataset`) y qué se le
+    avisa a Meta. Por defecto: oportunidad creada → LeadSubmitted, pasa a
+    «Calificada» → QualifiedLead, ganada → Purchase con su valor; se pueden
+    cambiar o apagar. Cada motivo de cierre se puede mapear a un evento
+    (Purchase con un valor fijo). Viene apagada.
+  - Solo cuentan las conversaciones que empezaron con un clic en un anuncio
+    (`ad_click_id`, el `ctwa_clid` de Meta). Cada evento va una vez por
+    conversación, porque Meta no deduplica. La tarea de cada 5 minutos los
+    manda y reintenta hasta 5 veces. La misma pantalla muestra los últimos
+    eventos y cómo salieron.
+  - Dominio `app/domains/conversions/`, migración `e8f9a0b1c2d5`.
+  - **Para que Meta los acepte:** la app de Meta necesita el permiso
+    `whatsapp_business_manage_events` con acceso avanzado (App Review) y la
+    Marketing API con acceso completo, y el token del número tiene que
+    incluir ese permiso. Falta probarlo con Meta real.
 
 ---
 
