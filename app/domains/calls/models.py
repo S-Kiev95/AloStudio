@@ -161,6 +161,13 @@ class Call(TimestampMixin, table=True):
     transcript_language: str | None = Field(
         default=None, sa_column=Column(String(16), nullable=True)
     )
+    # What the call was about, written by the AI from the transcript (F17),
+    # while the installation's operator has it on. Tries are counted so a
+    # call the model keeps failing on is left alone.
+    summary: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    summary_attempts: int = Field(
+        default=0, sa_column=Column(Integer, nullable=False, server_default="0")
+    )
 
 
 class CallInboxSettings(TimestampMixin, table=True):

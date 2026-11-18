@@ -159,6 +159,7 @@ def _message_data(call: Call, answered_by: User | None) -> dict[str, Any]:
         "recording": _media_state(call, call.recording_requested, call.recording_attachment_id),
         "transcription": _media_state(call, call.transcription_requested, call.transcript),
         "transcript": call.transcript or None,
+        "summary": call.summary or None,
     }
 
 
