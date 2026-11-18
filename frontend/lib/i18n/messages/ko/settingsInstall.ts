@@ -26,6 +26,10 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "인공지능",
   },
   items: {
+    AI_CALL_SUMMARY_ENABLED: {
+      title: "AI 통화 요약",
+      description: "통화에 녹취록이 있으면 AI가 짧은 요약(용건, 합의 내용, 다음 할 일)을 통화 말풍선에 씁니다. 에이전트의 키와 모델을 쓰며, 지출은 각 계정의 비용에 표시됩니다.",
+    },
     DECISIONS_API_KEY: {
       title: "판단 서비스: 키",
       description: "대화를 분류합니다(의도, 감정, 긴급도, 팀). TypeSafe(Jev) 키는 콘솔에서 받습니다. 로컬 Laya라면 그 서버에 설정한 키입니다.",

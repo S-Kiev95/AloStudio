@@ -68,6 +68,7 @@ export const calls: Strings<typeof es> = {
     hideTranscript: "Ocultar",
     speakerBusiness: "Atendente",
     speakerCustomer: "Cliente",
+    summary: "Resumo (IA)",
     incoming: "Chamada do WhatsApp",
     ringing: "Chamada recebida",
     inProgress: "Chamada em andamento",

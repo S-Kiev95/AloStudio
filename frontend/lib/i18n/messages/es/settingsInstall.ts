@@ -23,6 +23,10 @@ export const settingsInstall = {
     ai: "Inteligencia artificial",
   },
   items: {
+    AI_CALL_SUMMARY_ENABLED: {
+      title: "Resumen de llamadas con IA",
+      description: "Cuando una llamada tiene transcripción, la IA escribe un resumen corto (motivo, qué se acordó y qué sigue) en la burbuja de la llamada. Usa la clave y el modelo del agente; el gasto queda en Gastos de cada cuenta.",
+    },
     DECISIONS_API_KEY: {
       title: "Servicio de decisiones: clave",
       description: "Clasifica las conversaciones (intención, sentimiento, urgencia y equipo). La clave de TypeSafe (Jev) sale de su consola; con Laya local, la que le hayas puesto al servidor.",
