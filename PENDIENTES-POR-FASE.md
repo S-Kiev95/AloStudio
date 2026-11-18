@@ -792,7 +792,7 @@ Detalle en `PLAN.i18n.md`.
 | 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
 | 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3 |
 | — | 2FA y SSO; apps nativas | Sin decidir |
-| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Paso 1 hecho en la rama: el asistente del equipo usa todas las herramientas que el rol permite (un agente, solo sus bandejas). Paso 2a hecho en la rama (2026-11-18): responsable de derivación por chat, etiqueta, bandeja o cuenta (Ajustes → Derivación). Sigue la IA que atiende (2b), el modo sombra (2c) y después la voz |
+| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Paso 1 hecho en la rama: el asistente del equipo usa todas las herramientas que el rol permite (un agente, solo sus bandejas). Paso 2a hecho en la rama (2026-11-18): responsable de derivación por chat, etiqueta, bandeja o cuenta (Ajustes → Derivación). Paso 2b.1 hecho en la rama (2026-11-18): la IA de AloStudio atiende en modo sombra (sugiere arriba de la caja de texto) o en vivo, con Centro de ayuda, productos y derivación con resumen. Siguen Agenda y CRM (2b.2), la comparación con Claude (2b.3) y después la voz |
 | 13 | Saldo de WhatsApp recargable desde AloStudio (respond.io cobra los mensajes de Meta así) | El dueño pidió anotarlo (2026-11-17, agente A). Depende de F2: hoy, con Embedded Signup, Meta le cobra directo al cliente |
 
 - **12, paso 1 (agente A, 2026-11-17, rama `feat/agente-ia`, sin mezclar):**
@@ -810,6 +810,18 @@ Detalle en `PLAN.i18n.md`.
   `b1d3f5a7c9e2`). Para CTC: hoy todo va a Sofía por la bandeja; con una
   regla "Admin → Yamila" esas irían a Yamila. Para el agente B: quien
   llame a `bot_handoff` no tiene que cambiar nada.
+- **12, paso 2b.1 (agente A, 2026-11-18, rama `feat/agente-ia`, sin mezclar):**
+  bot de tipo IA (Ajustes → Bots) que cada bandeja elige en Ajustes →
+  Bandejas → Bot. En sombra propone respuestas (tabla `ai_replies`,
+  migración `c2e4a6b8d0f1`, mide si salen tal cual o editadas); en vivo
+  toma las conversaciones nuevas como `pending` y responde desde el
+  worker (`ai_reply_task`). En bandejas con el agente de Meta solo atiende
+  lo que una regla de derivación le da. Para el agente B: la asignación
+  automática ahora salta las conversaciones `pending` (como Chatwoot), y
+  `bot_handoff` acepta `allow_ai` (solo lo usa la derivación de Meta).
+  Aparte: en esta copia fallan 6 tests de entrega de webhooks
+  (`test_agent_bot_listener`, `test_webhook_retries`, `test_webhooks_router`)
+  también sin estos cambios; quedan por revisar.
 - **12 y 13, segunda comparación (agente A, 2026-11-17):** al repasar
   respond.io quedaron estas dos que no estaban en la tabla.
   - 12: es distinto del 1 (ayuda al agente humano) y del 6 (voz). Ya están
