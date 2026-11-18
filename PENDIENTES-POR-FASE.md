@@ -147,7 +147,7 @@ anota en esta sección y lo decide el dueño.
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
-| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en develop y en staging (2026-11-17). Falta acordar los workflows y repartir el resto |
+| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en develop y en staging (2026-11-17). Agente de IA de clientes y de voz (12 y 6): agente A, rama `feat/agente-ia` (2026-11-17). Falta acordar los workflows y repartir el resto |
 
 ### Reglas para no pisarse
 
@@ -477,8 +477,14 @@ dentro de la rama.
   - Probado con una llamada real en staging el 2026-11-16: el aviso llegó
     (entregado), la conversación tomó la etiqueta y la perdió al devolver
     la llamada. Falta probar el reparto con dos agentes a la vez.
-- **Sigue:** plantilla para pedir permiso fuera de las 24 h; paso 3, agente
-  de voz.
+- **Sigue:** plantilla para pedir permiso fuera de las 24 h. El paso 3,
+  agente de voz, lo hace el agente A por pedido del dueño (2026-11-17), con
+  el mismo núcleo que el agente de clientes por chat: rama
+  `feat/agente-ia`, plan en `PLAN.agente-ia.md` de esa rama. Va con
+  Pipecat en un proceso aparte; de `app/domains/calls/` toca solo un
+  enganche (cuando entra la llamada, decidir si suena a las personas o la
+  atiende la IA) y reusa `pre_accept` / `accept`. Se avisa acá antes de
+  mezclar.
 
 ## F8. Búsqueda en conversaciones viejas
 
@@ -779,14 +785,14 @@ Detalle en `PLAN.i18n.md`.
 | 3 | Workflows visuales: preguntar y esperar la respuesta, ramas, esperas | A acordar entre el dueño y el agente B: propios o con n8n |
 | 4 | Notas de cierre (motivo al cerrar una conversación, para reportes) | Sí |
 | 5 | Resumen de llamadas con IA | Sí, en el plan más caro; lo prende el superadmin de cada instalación y gasta créditos de IA |
-| 6 | Agente de IA que atiende llamadas | Contemplado (F7 paso 3) |
+| 6 | Agente de IA que atiende llamadas | Contemplado (F7 paso 3). Lo hace el agente A junto con el 12 (2026-11-17) |
 | 7 | Etapas del contacto | Sí, con la nomenclatura de respond.io |
 | 8 | TikTok como canal de mensajes | Sí |
 | 9 | Llamadas de Messenger y telefonía VoIP | Sin decidir (el dueño preguntó qué es VoIP) |
 | 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
 | 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3 |
 | — | 2FA y SSO; apps nativas | Sin decidir |
-| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | El dueño pidió anotarlo (2026-11-17, agente A). Sin decidir el alcance |
+| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Base y permisos primero, después el chat en modo sombra y la voz |
 | 13 | Saldo de WhatsApp recargable desde AloStudio (respond.io cobra los mensajes de Meta así) | El dueño pidió anotarlo (2026-11-17, agente A). Depende de F2: hoy, con Embedded Signup, Meta le cobra directo al cliente |
 
 - **12 y 13, segunda comparación (agente A, 2026-11-17):** al repasar
