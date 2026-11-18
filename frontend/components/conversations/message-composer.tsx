@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { WritingAssist } from "@/components/conversations/writing-assist";
 import { useCannedResponses } from "@/lib/api/canned-responses";
 import { useConversation, useSendMessage } from "@/lib/api/conversations";
 import { uploadAttachment } from "@/lib/api/uploads";
@@ -556,6 +557,17 @@ export function MessageComposer({
             Productos
           </button>
         ) : null}
+
+        <WritingAssist
+          accountId={accountId}
+          displayId={displayId}
+          draft={content}
+          onDraft={(text, asNote) => {
+            setContent(text);
+            if (asNote) setIsPrivate(true);
+            requestAnimationFrame(() => textareaRef.current?.focus());
+          }}
+        />
 
         <input
           ref={fileRef}
