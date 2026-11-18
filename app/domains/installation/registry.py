@@ -385,6 +385,19 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         group=AI_GROUP,
     ),
     ConfigSpec(
+        name="AI_WRITING_ASSIST_ENABLED",
+        setting="ai_writing_assist_enabled",
+        title="Ayuda de IA al escribir",
+        description=(
+            "Suma a la caja de texto un botón de IA que mejora, corrige, "
+            "cambia el tono, acorta o traduce lo que escribe el agente, y "
+            "resume la conversación. Usa la clave y el modelo del agente; el "
+            "gasto queda en Gastos de cada cuenta."
+        ),
+        group=AI_GROUP,
+        kind="boolean",
+    ),
+    ConfigSpec(
         name="DECISIONS_API_KEY",
         setting="decisions_api_key",
         title="Servicio de decisiones: clave",

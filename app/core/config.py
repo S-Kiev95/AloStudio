@@ -87,6 +87,10 @@ class Settings(BaseSettings):
     # Model behind the agent chat (``app.domains.agent``): it calls the
     # publishing MCP tools, so it has to be good at function calling.
     openai_agent_model: str = "gpt-5.4-mini"
+    # AI help while writing (F17): the composer's AI button rewrites the
+    # agent's draft and summarizes the conversation with the agent model.
+    # Off until the operator turns it on, since every use costs money.
+    ai_writing_assist_enabled: bool = False
 
     # --- local embeddings (EmbeddingGemma 2, F9)
     # Base URL of the embeddings service (``app.embeddings_service``), a
