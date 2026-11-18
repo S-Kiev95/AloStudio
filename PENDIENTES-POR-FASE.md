@@ -792,9 +792,16 @@ Detalle en `PLAN.i18n.md`.
 | 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
 | 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3 |
 | — | 2FA y SSO; apps nativas | Sin decidir |
-| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Base y permisos primero, después el chat en modo sombra y la voz |
+| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Paso 1 hecho en la rama: el asistente del equipo usa todas las herramientas que el rol permite (un agente, solo sus bandejas). Sigue el chat con clientes en modo sombra y después la voz |
 | 13 | Saldo de WhatsApp recargable desde AloStudio (respond.io cobra los mensajes de Meta así) | El dueño pidió anotarlo (2026-11-17, agente A). Depende de F2: hoy, con Embedded Signup, Meta le cobra directo al cliente |
 
+- **12, paso 1 (agente A, 2026-11-17, rama `feat/agente-ia`, sin mezclar):**
+  - Para el agente B, cuando se mezcle: una herramienta nueva del MCP
+    declara en `@requires(...)` `panel_admin=True` si su ruta REST usa
+    `require_admin`, y `reads=True` si es `admin` y solo lee. Sin
+    `@requires`, el asistente la trata como escritura de administradores.
+  - Cambia para las apps OAuth de un agente: ven solo sus bandejas, como
+    en el panel (antes veían la cuenta entera).
 - **12 y 13, segunda comparación (agente A, 2026-11-17):** al repasar
   respond.io quedaron estas dos que no estaban en la tabla.
   - 12: es distinto del 1 (ayuda al agente humano) y del 6 (voz). Ya están
