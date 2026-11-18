@@ -486,6 +486,12 @@
   .vt-page {
     view-transition-name: account-page;
   }
+  /* The inbox stretched over the title bar (z-[35]): its page layer has to
+     rise above the bar, or the bar takes the clicks (inbox-shell.tsx). */
+  .vt-page.vt-page-over-bar {
+    position: relative;
+    z-index: 36;
+  }
   @supports (view-transition-name: none) {
     .vt-page.page-enter {
       animation: none;

@@ -301,6 +301,18 @@ export function InboxShell({
     };
   }, [isDragging]);
 
+  // The page sits in `.vt-page`, which view-transition-name makes its own
+  // layer: the shell's z-[36] counts only inside it, so stretched up it
+  // went under the title bar, and the bar (transparent) took the clicks on
+  // the buttons it covered. While stretched, the whole page layer goes
+  // above the bar; otherwise it stays below, so the bar's menus open over it.
+  useEffect(() => {
+    const page = anchorRef.current?.closest<HTMLElement>(".vt-page");
+    if (!page) return;
+    page.classList.toggle("vt-page-over-bar", stretchPx > 0);
+    return () => page.classList.remove("vt-page-over-bar");
+  }, [stretchPx]);
+
   const toggleListCollapsed = useCallback(() => {
     setListCollapsed((prev) => {
       const next = !prev;
