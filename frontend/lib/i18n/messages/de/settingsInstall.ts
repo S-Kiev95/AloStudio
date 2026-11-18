@@ -170,5 +170,9 @@ export const settingsInstall: Strings<typeof es> = {
       title: "Modell des Agenten",
       description: "Das OpenAI-Modell, das der Chat-Agent verwendet, zum Beispiel gpt-5.4-mini (schnell und günstig) oder gpt-5.5 (leistungsfähiger).",
     },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "KI-Schreibhilfe",
+      description: "Fügt dem Eingabefeld eine KI-Schaltfläche hinzu, die verbessert, korrigiert, den Ton ändert, kürzt oder übersetzt, was der Agent schreibt, und die Unterhaltung zusammenfasst. Sie nutzt den Schlüssel und das Modell des Agenten; die Ausgaben stehen unter Kosten jedes Kontos.",
+    },
   },
 };

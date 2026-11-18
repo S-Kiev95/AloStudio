@@ -55,6 +55,7 @@ export const usage: Strings<typeof es> = {
     agent: "에이전트",
     instagram_autoreply: "Instagram 자동 답장",
     help_center: "헬프 센터",
+    writing_assist: "작성 도움",
   },
   categories: {
     MARKETING: "마케팅",

@@ -52,6 +52,7 @@ export const usage = {
     agent: "Agente",
     instagram_autoreply: "Respuestas automáticas de Instagram",
     help_center: "Help Center",
+    writing_assist: "Ayuda al escribir",
   },
   categories: {
     MARKETING: "Marketing",

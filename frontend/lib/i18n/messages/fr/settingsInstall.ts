@@ -170,5 +170,9 @@ export const settingsInstall: Strings<typeof es> = {
       title: "Modèle de l’agent",
       description: "Le modèle OpenAI qu’utilise l’agent de chat, par exemple gpt-5.4-mini (rapide et économique) ou gpt-5.5 (plus performant).",
     },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "Aide de l’IA à la rédaction",
+      description: "Ajoute à la zone de saisie un bouton d’IA qui améliore, corrige, change le ton, raccourcit ou traduit ce qu’écrit l’agent, et résume la conversation. Il utilise la clé et le modèle de l’agent ; la dépense apparaît dans Dépenses de chaque compte.",
+    },
   },
 };
