@@ -52,6 +52,7 @@ export const usage: Strings<typeof es> = {
   limitInvalid: "Digite um número maior ou igual a 0.",
   limitFailed: "Não foi possível salvar o limite.",
   purposes: {
+    call_summary: "Resumo de chamadas",
     agent: "Agente",
     instagram_autoreply: "Respostas automáticas do Instagram",
     help_center: "Help Center",

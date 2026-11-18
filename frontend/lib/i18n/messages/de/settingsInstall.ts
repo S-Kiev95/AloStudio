@@ -26,6 +26,10 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "Künstliche Intelligenz",
   },
   items: {
+    AI_CALL_SUMMARY_ENABLED: {
+      title: "KI-Zusammenfassung von Anrufen",
+      description: "Hat ein Anruf eine Transkription, schreibt die KI eine kurze Zusammenfassung (Anlass, Vereinbartes und nächste Schritte) in die Anrufblase. Sie nutzt den Schlüssel und das Modell des Agenten; die Ausgaben stehen unter Kosten jedes Kontos.",
+    },
     DECISIONS_API_KEY: {
       title: "Entscheidungsdienst: Schlüssel",
       description: "Ordnet Unterhaltungen ein (Absicht, Stimmung, Dringlichkeit und Team). Der TypeSafe-Schlüssel (Jev) kommt aus seiner Konsole; bei lokalem Laya der, den du auf seinem Server gesetzt hast.",

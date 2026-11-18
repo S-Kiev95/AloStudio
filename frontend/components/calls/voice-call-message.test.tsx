@@ -65,6 +65,23 @@ describe("VoiceCallMessage", () => {
     expect(screen.getByRole("button", { name: "Ocultar" })).toHaveAttribute("aria-expanded", "true");
   });
 
+  it("shows the AI summary above the folded transcript", () => {
+    render(
+      <VoiceCallMessage
+        message={call({
+          status: "completed",
+          duration: 40,
+          transcription: "ready",
+          transcript: [{ speaker: "customer", text: "Quería anotarme al curso." }],
+          summary: "- Quiere anotarse al curso de inglés.\n- Falta mandarle horarios.",
+        })}
+      />,
+    );
+    expect(screen.getByText("Resumen (IA)")).toBeInTheDocument();
+    expect(screen.getByText(/Falta mandarle horarios\./)).toBeInTheDocument();
+    expect(screen.queryByText("Quería anotarme al curso.")).not.toBeInTheDocument();
+  });
+
   it("shows a call the agent made", () => {
     render(
       <VoiceCallMessage
