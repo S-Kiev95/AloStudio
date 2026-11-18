@@ -11,6 +11,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
+import { ContactHandoff } from "@/components/handoff/contact-handoff";
 import { ContactStage } from "@/components/lifecycle/contact-stage";
 import { useContact, useContactNotes } from "@/lib/api/contacts";
 import { useConversations } from "@/lib/api/conversations";
@@ -233,6 +234,9 @@ export function ContactPanel({
           contactId={c.id}
           conversationId={currentDisplayId}
         />
+
+        {/* Handoff responsible for this chat (agente-ia 2a); admins only */}
+        <ContactHandoff accountId={accountId} contactId={c.id} />
 
         {/* Contact methods */}
         <div className="space-y-3 border-t border-glass pt-4 text-sm">

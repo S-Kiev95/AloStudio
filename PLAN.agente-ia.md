@@ -160,11 +160,73 @@ Llamar a un cliente lo cobra Meta aparte; atender es gratis.
 
 ### Paso 2. Agente de clientes por chat
 
+**Decisiones del dueño (2026-11-17)** sobre quién atiende cada
+conversación, ahora que hay tres: el agente de Meta (Business Agent, en
+los números que lo tienen, como CTC), la IA de AloStudio y las personas:
+
+- **Responsable de derivación** (cuando el agente de Meta o la IA de
+  AloStudio pasan una conversación): lo eligen los administradores de la
+  cuenta (el dueño del tenant) o el superadmin, por chat, por etiqueta o
+  para toda la cuenta. Hoy CTC deriva todo a Sofía; con una etiqueta
+  "Admin" asignada a Yamila, esas derivaciones irían a Yamila. La IA de
+  AloStudio es una opción más si el plan la incluye.
+- Cuando la IA de AloStudio termina o no puede seguir, pasa a **una
+  persona** (el responsable que toque, sin contar la IA), con una nota que
+  resume lo hablado. Al resolver, vuelve al agente de Meta, como hoy.
+- En bandejas sin agente de Meta, **cada bandeja elige** cuándo atiende la
+  IA: siempre primero, solo fuera de horario o solo cuando nadie del
+  equipo está libre. Si una persona contesta, la IA se corre.
+- **Modo sombra:** la respuesta propuesta aparece arriba de la caja de
+  texto con "Usar" (la pone en la caja para editarla y mandarla) y
+  "Descartar"; se mide cuántas se usan tal cual.
+
+**2a. Responsable de derivación** (sirve también sin la IA):
+
+- Niveles, gana el más específico: **chat** (el cliente: vale para sus
+  próximas derivaciones) → **etiqueta** (reglas en orden; gana la primera
+  etiqueta de la conversación que tenga regla) → **bandeja** (el
+  "Responsable por defecto" que ya existe) → **cuenta** → nadie (le llega
+  el aviso a todo el equipo de la bandeja).
+- Destino: una persona de la cuenta, o la IA de AloStudio (solo si hay un
+  agente de IA configurado y, en multitenant, si el plan lo incluye).
+- Se aplica en `bot_handoff`, el único punto por el que pasan las
+  derivaciones (del agente de Meta y de la IA). Junto a la línea de
+  asignación de siempre ("Asignada a Yamila") deja el motivo: "Derivada por
+  la etiqueta Admin", "al responsable de este chat" o "al responsable
+  general". El nivel bandeja no agrega nota (se comporta como antes).
+- Ajustes → Derivación (cuenta y etiquetas), el panel de la bandeja (ya
+  existe) y el panel de la conversación (por chat). Solo administradores.
+
+Hecho (2026-11-18):
+- Tabla `handoff_rules` (alcance `account` / `label` / `contact`, una
+  persona o `to_ai`, `position` para el orden de las etiquetas; índices
+  únicos parciales), dominio `app/domains/handoff` y API
+  `/api/v1/accounts/{id}/handoff` (GET, PUT `/account`, PUT `/labels`,
+  GET/PUT `/contacts/{contact_id}`), solo administradores; errores con
+  código `handoff.<motivo>`.
+- Una regla que no sirve (la persona dejó la cuenta, la IA no está o es la
+  IA la que deriva) pasa al nivel siguiente. Las etiquetas se comparan por
+  nombre, sin distinguir mayúsculas.
+- La IA todavía no se puede elegir: aparece cuando exista un bot de tipo 1
+  (2b).
+- Frontend: Ajustes → Derivación (reglas por etiqueta en orden, con subir y
+  bajar, y el responsable general) y "Derivación de este chat" en el panel
+  del contacto, solo para administradores. Textos en los 7 idiomas.
+- Tests: `tests/integration/test_handoff_rules.py`,
+  `frontend/components/handoff/handoff-settings-view.test.tsx`.
+
+**2b. La IA de AloStudio atiende:**
+
 - Nuevo tipo de bot "IA de AloStudio" (`agent_bots.bot_type = 1`) que se
   conecta a bandejas desde Ajustes → Bots, como los bots por webhook de
   Chatwoot. Configuración: nombre, instrucciones y tono, cuándo responde
   (siempre, fuera de horario, cuando nadie atiende), qué puede hacer y
   cuándo pasa a una persona.
+- Quién tiene la conversación, en un solo lugar: el agente de Meta
+  (`thread_control.owner = ai_agent`, AloStudio solo lee), la IA de
+  AloStudio (conversación `pending` con el bot asignado) o una persona
+  (`open`). Las puertas de Meta que ya existen (deriva, una persona toma o
+  contesta, resolver la devuelve) no cambian.
 - Conocimiento: Centro de ayuda (búsqueda por significado), productos y
   catálogo, horarios y Agenda.
 - Herramientas de cliente: buscar en el conocimiento, ver productos,

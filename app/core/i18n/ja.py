@@ -162,4 +162,7 @@ MESSAGES: dict[str, str] = {
     "agent.pending.create_publication.confirm_now": "今すぐ公開",
     "agent.args.macro_id": "マクロ",
     "agent.args.conversation_ids": "会話",
+    "handoff.activity.contact": "このチャットの担当者に引き継ぎました",
+    "handoff.activity.label": "ラベル「{label}」により引き継ぎました",
+    "handoff.activity.account": "全体の担当者に引き継ぎました",
 }

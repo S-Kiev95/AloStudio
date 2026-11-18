@@ -172,4 +172,7 @@ MESSAGES: dict[str, str] = {
     "agent.pending.create_publication.confirm_now": "Publicar ahora",
     "agent.args.macro_id": "Macro",
     "agent.args.conversation_ids": "Conversaciones",
+    "handoff.activity.contact": "Derivada al responsable de este chat",
+    "handoff.activity.label": "Derivada por la etiqueta {label}",
+    "handoff.activity.account": "Derivada al responsable general",
 }

@@ -128,6 +128,7 @@ export const core = {
       working_hours: "Horarios laborales",
       decisions: "Clasificación",
       closing_notes: "Notas de cierre",
+      handoff: "Derivación",
       conversions: "Conversions API",
       lifecycle: "Etapas del contacto",
       custom_attributes: "Atributos personalizados",

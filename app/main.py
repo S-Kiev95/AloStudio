@@ -60,6 +60,7 @@ from app.domains.decisions.router import router as decisions_router
 from app.domains.email.templates_router import router as email_templates_router
 from app.domains.facebook.connect_router import router as facebook_connect_router
 from app.domains.facebook.router import router as facebook_webhook_router
+from app.domains.handoff.router import router as handoff_router
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
 from app.domains.instagram.autoreply_router import (
@@ -355,6 +356,9 @@ def create_app() -> FastAPI:
     app.include_router(conversions_router)
     # Where each contact stands, from new lead to customer (F17).
     app.include_router(lifecycle_router)
+    # Who takes a handed-off conversation: chat, label, inbox or account
+    # (agente-ia, paso 2a).
+    app.include_router(handoff_router)
     # Multi-network publishing: one publication, many channels, each
     # published by its network adapter.
     app.include_router(publishing_router)

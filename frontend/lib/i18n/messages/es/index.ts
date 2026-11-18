@@ -14,6 +14,7 @@ import { activities } from "./activities";
 import { metaCatalog } from "./metaCatalog";
 import { calls } from "./calls";
 import { closing } from "./closing";
+import { handoff } from "./handoff";
 import { conversions } from "./conversions";
 import { lifecycle } from "./lifecycle";
 import { decisions } from "./decisions";
@@ -76,6 +77,7 @@ export const es = {
   calls,
   decisions,
   closing,
+  handoff,
   conversions,
   lifecycle,
   usage,

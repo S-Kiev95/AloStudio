@@ -130,6 +130,7 @@ export const core: Strings<typeof es> = {
       working_hours: "영업 시간",
       decisions: "분류",
       closing_notes: "종료 메모",
+      handoff: "인계",
       conversions: "Conversions API",
       lifecycle: "연락처 단계",
       custom_attributes: "사용자 지정 속성",

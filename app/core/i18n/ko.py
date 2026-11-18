@@ -160,4 +160,7 @@ MESSAGES: dict[str, str] = {
     "agent.pending.create_publication.confirm_now": "지금 게시",
     "agent.args.macro_id": "매크로",
     "agent.args.conversation_ids": "대화",
+    "handoff.activity.contact": "이 채팅의 담당자에게 넘겼습니다",
+    "handoff.activity.label": "라벨 {label}에 따라 넘겼습니다",
+    "handoff.activity.account": "기본 담당자에게 넘겼습니다",
 }

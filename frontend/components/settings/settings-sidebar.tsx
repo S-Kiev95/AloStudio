@@ -72,6 +72,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
   },
   { segment: "decisions", label: "settings.items.decisions", milestone: "F10", done: true },
   { segment: "closing_notes", label: "settings.items.closing_notes", milestone: "F17", done: true },
+  { segment: "handoff", label: "settings.items.handoff", milestone: "F7", done: true },
   { segment: "conversions", label: "settings.items.conversions", milestone: "F17", done: true },
   { segment: "lifecycle", label: "settings.items.lifecycle", milestone: "F17", done: true },
   { segment: "webhooks", label: "settings.items.webhooks", milestone: "F.9f", done: true },

@@ -164,4 +164,7 @@ MESSAGES: dict[str, str] = {
     "agent.pending.create_publication.confirm_now": "Jetzt veröffentlichen",
     "agent.args.macro_id": "Makro",
     "agent.args.conversation_ids": "Unterhaltungen",
+    "handoff.activity.contact": "An die zuständige Person dieses Chats übergeben",
+    "handoff.activity.label": "Über das Label {label} übergeben",
+    "handoff.activity.account": "An die allgemein zuständige Person übergeben",
 }

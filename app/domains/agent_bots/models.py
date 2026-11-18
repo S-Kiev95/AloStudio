@@ -38,8 +38,10 @@ from sqlmodel import Field
 
 from app.core.base_model import TimestampMixin
 
-# enum bot_type: {webhook: 0}
+# enum bot_type: {webhook: 0}; AloStudio adds its own AI (PLAN.agente-ia.md,
+# paso 2b): it answers in-process instead of posting to ``outgoing_url``.
 AGENT_BOT_TYPE_WEBHOOK = 0
+AGENT_BOT_TYPE_AI = 1
 
 # enum status on AgentBotInbox: {active: 0, paused: 1}
 AGENT_BOT_INBOX_STATUS_ACTIVE = 0

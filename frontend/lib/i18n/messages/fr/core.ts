@@ -132,6 +132,7 @@ export const core: Strings<typeof es> = {
       working_hours: "Horaires d’ouverture",
       decisions: "Classement",
       closing_notes: "Notes de clôture",
+      handoff: "Transfert",
       conversions: "Conversions API",
       lifecycle: "Étapes du contact",
       custom_attributes: "Attributs personnalisés",

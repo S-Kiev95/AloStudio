@@ -97,6 +97,7 @@ from app.domains.conversations.models import (
     message_status_from_str,
     message_type_from_str,
 )
+from app.domains.handoff.service import activity_text, resolve_target
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
@@ -411,18 +412,21 @@ async def bot_handoff(
     """Port of ``Conversation#bot_handoff!``.
 
     Opens the conversation and stamps ``waiting_since`` if blank. When
-    nobody is assigned and the inbox names a handoff assignee (AloStudio),
-    the conversation goes to that person first, so the handoff notice
-    reaches them.
+    nobody is assigned, the handoff responsible (AloStudio: chat, label,
+    inbox or account, see :mod:`app.domains.handoff`) takes it first, so
+    the handoff notice reaches them, with a line saying which rule chose.
     """
     if conversation.assignee_id is None:
-        inbox = await session.get(Inbox, conversation.inbox_id)
-        if inbox is not None and inbox.handoff_assignee_id is not None:
-            await update_assignee(
-                session,
-                conversation=conversation,
-                assignee_id=inbox.handoff_assignee_id,
+        target = await resolve_target(session, conversation, allow_ai=False)
+        if target is not None and target.user_id is not None:
+            assigned = await update_assignee(
+                session, conversation=conversation, assignee_id=target.user_id
             )
+            reason = activity_text(target)
+            if assigned is not None and reason:
+                await create_activity_message(
+                    session, conversation=conversation, content=reason
+                )
     if conversation.waiting_since is None:
         conversation.waiting_since = _utcnow()
     conversation.status = CONVERSATION_STATUS_OPEN
