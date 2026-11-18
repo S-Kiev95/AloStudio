@@ -786,6 +786,23 @@ Detalle en `PLAN.i18n.md`.
 | 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
 | 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3 |
 | — | 2FA y SSO; apps nativas | Sin decidir |
+| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | El dueño pidió anotarlo (2026-11-17, agente A). Sin decidir el alcance |
+| 13 | Saldo de WhatsApp recargable desde AloStudio (respond.io cobra los mensajes de Meta así) | El dueño pidió anotarlo (2026-11-17, agente A). Depende de F2: hoy, con Embedded Signup, Meta le cobra directo al cliente |
+
+- **12 y 13, segunda comparación (agente A, 2026-11-17):** al repasar
+  respond.io quedaron estas dos que no estaban en la tabla.
+  - 12: es distinto del 1 (ayuda al agente humano) y del 6 (voz). Ya están
+    las piezas: Agenda, CRM, productos, herramientas del MCP y las
+    autorespuestas de Instagram; falta un agente que las use en la
+    conversación con el cliente, con traspaso a una persona. Gasta
+    créditos de IA (F2), así que deja margen.
+  - 13: solo tiene sentido si AloStudio pasa a pagar WhatsApp por sus
+    clientes con su propia línea de crédito de Tech Provider; si no, Meta
+    sigue cobrándole al cliente y no hay nada que recargar acá.
+  - Precios de respond.io (para comparar con F2): desde US$ 79/mes
+    (Starter, pago anual) hasta US$ 279 (Advanced), más cargo por contacto
+    activo al mes y por usuario; créditos de IA incluidos según el plan y
+    US$ 15 cada 1.000 extra, con tope del 200 %.
 
 - **Notas:**
   - 1: hace falta un modelo de lenguaje. Con OpenAI (ya configurado) cuesta
