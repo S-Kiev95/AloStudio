@@ -365,7 +365,10 @@ export function MessageBubble({
   const author =
     message.sender?.name?.trim() || (!outgoing ? contactName?.trim() : "");
   const time = clockTime(message.created_at, locale);
-  const caption = [author, time].filter(Boolean).join(" · ");
+  // Written by AloStudio's AI (agente-ia, 2b), the only bot that sends
+  // as itself (webhook bots reply through the API).
+  const fromBot = message.sender_type === "AgentBot";
+  const caption = [author, fromBot ? t("aiAgent.tag") : "", time].filter(Boolean).join(" · ");
 
   return (
     <div

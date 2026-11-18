@@ -165,4 +165,8 @@ MESSAGES: dict[str, str] = {
     "handoff.activity.contact": "Handed off to this chat's responsible",
     "handoff.activity.label": "Handed off by the label {label}",
     "handoff.activity.account": "Handed off to the default responsible",
+    "ai_agent.activity.took": "Handed off to AloStudio AI",
+    "ai_agent.note.summary": "AI, summary for the team: {summary}",
+    "ai_agent.note.failed": "The AI could not answer and handed the conversation to the team.",
+    "ai_agent.activity.released": "A person replied: the AI stops answering in this conversation",
 }

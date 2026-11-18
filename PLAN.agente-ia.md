@@ -238,6 +238,62 @@ Hecho (2026-11-18):
 - Modo sombra primero, después en vivo. Adaptador de Anthropic y
   comparación a ciegas OpenAI / Claude.
 
+Por partes:
+
+- **2b.1** El bot de IA (Ajustes → Bots: instrucciones, modo sombra o en
+  vivo, cuándo responde) y su motor en el worker. En vivo, una conversación
+  que la IA toma queda `pending` con el bot asignado (la asignación
+  automática no la toca) y se abre cuando la IA deriva o contesta una
+  persona. En sombra no toma nada: deja la respuesta propuesta arriba de la
+  caja de texto (Usar / Descartar) y se mide cuántas salen sin cambios.
+  Herramientas: Centro de ayuda, productos, pasar a una persona con resumen.
+  La IA como destino de las derivaciones de Meta.
+- **2b.2** Agenda (horarios libres y agendar) y CRM (datos del contacto,
+  etapa, etiqueta, oportunidad).
+- **2b.3** Adaptador de Anthropic y comparación a ciegas.
+
+Hecho 2b.1 (2026-11-18):
+- Bot de tipo IA (`bot_type = 1`, en la API `"ai"`) con `bot_config`:
+  `instructions`, `mode` (`shadow` / `live`) y `respond_when` (`always`,
+  `out_of_hours` con el horario de la bandeja, `nobody_available`: nadie
+  de la bandeja "En línea"; la disponibilidad la marca cada persona, no
+  hay presencia automática). Ajustes → Bots lo crea; cada bandeja elige
+  su bot en Ajustes → Bandejas → Bot (`GET /inboxes/{id}/agent_bot`, que
+  faltaba).
+- En vivo, una conversación nueva (o una resuelta que vuelve a escribir y
+  no tiene persona asignada) queda `pending` con el bot como
+  `assignee_agent_bot_id`; la asignación automática salta las `pending`.
+  En bandejas con el agente de Meta la IA no toma nada sola: solo lo que
+  una regla de derivación le da cuando Meta deriva (`bot_handoff` con
+  `allow_ai`).
+- Cada mensaje del cliente encola una corrida en el worker
+  (`ai_reply_task`, 4 s después: una ráfaga recibe una respuesta). La
+  corrida usa herramientas propias atadas a la conversación (Centro de
+  ayuda, productos, pasar a una persona), responde como el bot o deriva
+  con un resumen en nota privada. Si el modelo falla, se pasa al equipo.
+  Tope de 20 corridas por conversación por hora. Una persona que
+  responde la saca a la IA (queda `open`). Respeta `ai_mode` (una IA
+  externa por MCP).
+- Modo sombra: la respuesta queda en `ai_replies` como sugerencia arriba
+  de la caja de texto (Usar / Descartar); al mandarla viaja
+  `content_attributes.ai_reply_id` y queda `sent` (tal cual) o `edited`;
+  si el equipo manda otra cosa, `superseded`.
+- Nadie queda esperando a la IA: suelta la conversación (queda `open`)
+  si Meta retoma el hilo, si se asigna a una persona, si el bot sale de
+  la bandeja, se borra o pasa a sombra; si la corrida no se puede encolar
+  o falla, se deriva al equipo. Quien responde se queda con la
+  conversación (la asignación automática no se la da a otro). La corrida
+  se encola después del commit y, al volver del modelo, se descarta si
+  mientras tanto el cliente escribió o una persona respondió. Sin la
+  clave de OpenAI no toma nada; tampoco las conversaciones que inicia una
+  persona desde el panel.
+- Cada corrida queda en `ai_replies` (modo, estado, herramientas usadas);
+  el costo va a los créditos con el propósito `ai_agent`.
+- Tests: `tests/integration/test_ai_agent.py`;
+  `frontend/components/conversations/ai-suggestion.test.tsx`,
+  `components/settings/inboxes/inbox-bot-panel.test.tsx`,
+  `components/settings/agent-bots/agent-bots-view.test.tsx`.
+
 ### Paso 3. Agente de voz
 
 - Proceso de voz con Pipecat; cada bandeja elige cuándo atiende la IA

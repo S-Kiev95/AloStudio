@@ -142,10 +142,21 @@ def _sender_push_event_data(
     if sender_type == SENDER_TYPE_USER:
         return _user_push_event_data(sender)
     if sender_type == SENDER_TYPE_AGENT_BOT:
-        # AgentBot-specific presenter arrives in Phase 8. Emit the same
-        # shape as a User so the frontend doesn't crash on unknown types.
-        return _user_push_event_data(sender)
+        return _agent_bot_push_event_data(sender)
     return None
+
+
+def _agent_bot_push_event_data(bot: Any) -> dict[str, Any]:
+    """Mirror of ``AgentBot#push_event_data`` (plus ``available_name``,
+    which the panel reads for every sender)."""
+    return {
+        "id": bot.id,
+        "name": bot.name,
+        "available_name": bot.name,
+        "avatar_url": "",
+        "type": "agent_bot",
+        "thumbnail": "",
+    }
 
 
 # ---------------------------------------------------------------------------

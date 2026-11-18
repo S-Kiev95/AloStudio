@@ -165,4 +165,8 @@ MESSAGES: dict[str, str] = {
     "handoff.activity.contact": "このチャットの担当者に引き継ぎました",
     "handoff.activity.label": "ラベル「{label}」により引き継ぎました",
     "handoff.activity.account": "全体の担当者に引き継ぎました",
+    "ai_agent.activity.took": "AloStudio AIに引き継ぎました",
+    "ai_agent.note.summary": "AI、チーム向けの要約: {summary}",
+    "ai_agent.note.failed": "AIが応答できなかったため、会話をチームに引き継ぎました。",
+    "ai_agent.activity.released": "担当者が返信したため、この会話ではAIは応答しません",
 }

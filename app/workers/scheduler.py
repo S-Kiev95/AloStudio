@@ -424,6 +424,7 @@ class WorkerSettings:
             send_notification_whatsapp_task,
         )
         from app.domains.portals.embeddings import reindex_article_task
+        from app.workers.ai_agent import ai_reply_task
         from app.workers.business_agent import release_to_ai_task
         from app.workers.contact_avatars import (
             refresh_contact_avatar_task,
@@ -459,6 +460,9 @@ class WorkerSettings:
             # Enqueued on resolve: hands a WhatsApp conversation the team
             # owned back to Meta Business Agent.
             release_to_ai_task,
+            # Enqueued on each customer message on an inbox with
+            # AloStudio's AI: it answers, or proposes the answer.
+            func(ai_reply_task, max_tries=1),
             # Enqueued on-demand by the NotificationListener when an in-app
             # notification is created and the recipient wants it by email / push.
             send_notification_email_task,

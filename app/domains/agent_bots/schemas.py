@@ -25,6 +25,8 @@ class AgentBotPayload(BaseModel):
     description: str | None = None
     outgoing_url: str | None = None
     bot_config: dict[str, Any] | None = None
+    # ``webhook`` (default) or ``ai`` (AloStudio's AI). Set on create only.
+    bot_type: str | None = None
 
 
 class SetAgentBotPayload(BaseModel):

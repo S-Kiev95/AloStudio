@@ -8,6 +8,7 @@ import {
   renderTemplateText,
 } from "@/components/whatsapp/templates-panel";
 import { ProductPicker } from "@/components/whatsapp/product-picker";
+import { AiSuggestion } from "@/components/conversations/ai-suggestion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,6 +61,9 @@ export function MessageComposer({
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(false);
+  // The AI suggestion the draft started from (shadow mode): sent along, so
+  // the AI learns whether it went out as is or edited.
+  const [aiReplyId, setAiReplyId] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -67,6 +71,10 @@ export function MessageComposer({
   const send = useSendMessage(accountId, displayId);
   const canned = useCannedResponses(accountId);
   const conv = useConversation(accountId, displayId);
+
+  useEffect(() => {
+    setAiReplyId(null);
+  }, [displayId]);
 
   const channel = channelProp ?? conv.data?.meta?.channel ?? null;
   const inboxId = inboxIdProp ?? conv.data?.inbox_id ?? null;
@@ -204,6 +212,7 @@ export function MessageComposer({
     send.mutate({
       content: text || undefined,
       isPrivate,
+      aiReplyId: !isPrivate && aiReplyId ? aiReplyId : undefined,
       attachments: attachments.length
         ? attachments.map((a) => ({
             external_url: a.external_url,
@@ -212,6 +221,7 @@ export function MessageComposer({
         : undefined,
     });
     setContent("");
+    if (!isPrivate) setAiReplyId(null);
     setPickerOpen(false);
     attachments.forEach(
       (a) => a.previewUrl && URL.revokeObjectURL(a.previewUrl),
@@ -275,6 +285,21 @@ export function MessageComposer({
             ))
           )}
         </ul>
+      ) : null}
+
+      {!windowClosed ? (
+        <AiSuggestion
+          key={displayId}
+          accountId={accountId}
+          displayId={displayId}
+          inUseId={aiReplyId}
+          onUse={(text, id) => {
+            setContent(text);
+            setAiReplyId(id);
+            setIsPrivate(false);
+            requestAnimationFrame(() => textareaRef.current?.focus());
+          }}
+        />
       ) : null}
 
       {isWhatsapp && productsOpen && !windowClosed ? (
@@ -451,7 +476,11 @@ export function MessageComposer({
         ref={textareaRef}
         value={content}
         disabled={windowClosed && !isPrivate}
-        onChange={(e) => setContent(e.target.value)}
+        onChange={(e) => {
+          setContent(e.target.value);
+          // Emptied: what comes next is not the AI's suggestion any more.
+          if (!e.target.value.trim()) setAiReplyId(null);
+        }}
         onKeyDown={(e) => {
           // Enter sends, or takes the first quick reply while they are
           // listed; Shift+Enter is a new line.

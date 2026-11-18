@@ -145,6 +145,11 @@ async def _set_owner(
     metadata: str | None = None,
 ) -> None:
     previous = thread_owner(conversation)
+    if owner == OWNER_AI_AGENT and conversation.assignee_agent_bot_id is not None:
+        # AloStudio's AI had it (agente-ia, 2b): Meta's answers now.
+        from app.domains.ai_agent.service import release_ai_hold
+
+        await release_ai_hold(session, conversation)
     _write_owner(conversation, owner, metadata=metadata)
     session.add(conversation)
     await session.flush()
@@ -667,8 +672,9 @@ async def process_handover_value(
         )
         if owner == OWNER_APP:
             # Stamps waiting_since and fires conversation.bot_handoff: the
-            # team gets notified and reports count the handoff.
-            await bot_handoff(session, conversation=conversation)
+            # team gets notified and reports count the handoff. A handoff
+            # rule may give it to AloStudio's AI instead (agente-ia, 2b).
+            await bot_handoff(session, conversation=conversation, allow_ai=True)
         changed.append(conversation)
     log.info(
         "whatsapp.handover.applied channel_id=%s conversations=%s",

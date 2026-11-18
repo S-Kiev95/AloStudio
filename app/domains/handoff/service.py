@@ -15,6 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.i18n import DEFAULT_LOCALE, t
 from app.domains.agent_bots.models import AGENT_BOT_TYPE_AI, AgentBot
+from app.domains.ai_agent.gate import inbox_ai_bot, is_live
 from app.domains.contacts.models import Contact
 from app.domains.conversations.models import Conversation
 from app.domains.handoff.models import (
@@ -54,11 +55,10 @@ async def ai_available(session: AsyncSession, account_id: int) -> bool:
 
 
 async def _member_ids(session: AsyncSession, account_id: int) -> set[int]:
-    return set(
-        (
-            await session.exec(select(AccountUser.user_id).where(AccountUser.account_id == account_id))
-        ).all()
-    )
+    rows = (
+        await session.exec(select(AccountUser.user_id).where(AccountUser.account_id == account_id))
+    ).all()
+    return {uid for uid in rows if uid is not None}
 
 
 def _labels_of(conversation: Conversation) -> list[str]:
@@ -87,7 +87,8 @@ async def resolve_target(
         ).all()
     )
     members = await _member_ids(session, account_id)
-    ai_ok = allow_ai and await ai_available(session, account_id)
+    # The AI takes it only where it answers: a live AI bot on the inbox.
+    ai_ok = allow_ai and is_live(await inbox_ai_bot(session, conversation.inbox_id))
 
     def usable(user_id: int | None, to_ai: bool) -> bool:
         return ai_ok if to_ai else user_id is not None and user_id in members
@@ -112,7 +113,7 @@ async def resolve_target(
             ).all()
         )
         for rule in label_rules:
-            title = titles.get(rule.label_id)  # type: ignore[arg-type]
+            title = titles.get(rule.label_id)
             if title and title.lower() in carried and usable(rule.user_id, rule.to_ai):
                 return HandoffTarget(rule.user_id, rule.to_ai, SCOPE_LABEL, label=title)
 
@@ -234,7 +235,7 @@ async def save_rules(
             raise ValueError("no_target")
         await checker.check(user_id, to_ai)
 
-    await session.exec(  # type: ignore[call-overload]
+    await session.exec(
         delete(HandoffRule).where(
             HandoffRule.account_id == account_id,  # type: ignore[arg-type]
             HandoffRule.scope != SCOPE_CONTACT,  # type: ignore[arg-type]

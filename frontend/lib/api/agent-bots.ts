@@ -8,7 +8,8 @@ export type AgentBot = {
   description: string | null;
   thumbnail: string;
   outgoing_url?: string | null;
-  bot_type: "webhook";
+  /** ``ai``: AloStudio's AI answering customers (PLAN.agente-ia.md, 2b). */
+  bot_type: "webhook" | "ai";
   bot_config: Record<string, unknown>;
   account_id: number | null; // null for system bots
   secret?: string | null;
@@ -20,7 +21,30 @@ export type AgentBotInput = {
   description?: string | null;
   outgoing_url?: string | null;
   bot_config?: Record<string, unknown>;
+  /** On create only. */
+  bot_type?: "webhook" | "ai";
 };
+
+/** The AI bot's settings (``bot_config``). */
+export type AiBotMode = "shadow" | "live";
+export type AiBotRespondWhen = "always" | "out_of_hours" | "nobody_available";
+export type AiBotConfig = {
+  instructions: string;
+  mode: AiBotMode;
+  respond_when: AiBotRespondWhen;
+};
+
+export function aiBotConfig(bot: Pick<AgentBot, "bot_config"> | undefined): AiBotConfig {
+  const raw = (bot?.bot_config ?? {}) as Partial<AiBotConfig>;
+  return {
+    instructions: typeof raw.instructions === "string" ? raw.instructions : "",
+    mode: raw.mode === "live" ? "live" : "shadow",
+    respond_when:
+      raw.respond_when === "out_of_hours" || raw.respond_when === "nobody_available"
+        ? raw.respond_when
+        : "always",
+  };
+}
 
 function base(accountId: string): string {
   return `/api/v1/accounts/${accountId}/agent_bots`;
@@ -83,6 +107,21 @@ export function useResetBotSecret(accountId: string) {
         method: "POST",
       }),
     onSuccess: () => invalidate(qc, accountId),
+  });
+}
+
+function inboxBotKey(accountId: string, inboxId: number) {
+  return ["agent-bots", accountId, "inbox", inboxId] as const;
+}
+
+/** The bot attached to an inbox, or null. Administrators only. */
+export function useInboxAgentBot(accountId: string, inboxId: number) {
+  return useQuery({
+    queryKey: inboxBotKey(accountId, inboxId),
+    queryFn: () =>
+      apiFetch<{ agent_bot: AgentBot | null }>(
+        `/api/v1/accounts/${accountId}/inboxes/${inboxId}/agent_bot`,
+      ),
   });
 }
 

@@ -171,4 +171,8 @@ MESSAGES: dict[str, str] = {
     "handoff.activity.contact": "Transférée au responsable de ce chat",
     "handoff.activity.label": "Transférée selon l'étiquette {label}",
     "handoff.activity.account": "Transférée au responsable par défaut",
+    "ai_agent.activity.took": "Transférée à l'IA d'AloStudio",
+    "ai_agent.note.summary": "IA, résumé pour l'équipe : {summary}",
+    "ai_agent.note.failed": "L'IA n'a pas pu répondre et a transmis la conversation à l'équipe.",
+    "ai_agent.activity.released": "Une personne a répondu : l'IA cesse de répondre dans cette conversation",
 }

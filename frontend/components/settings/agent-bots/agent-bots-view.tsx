@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   type AgentBot,
   type AgentBotInput,
+  aiBotConfig,
   useAgentBots,
   useCreateAgentBot,
   useDeleteAgentBot,
@@ -126,6 +127,8 @@ function BotRow({
   const reset = useResetBotSecret(accountId);
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<string | null>(null);
+  // AloStudio's AI posts nothing out, so it has no secret to rotate.
+  const ai = bot.bot_type === "ai";
 
   async function run(fn: () => Promise<unknown>, fallback: string) {
     setError(null);
@@ -149,6 +152,12 @@ function BotRow({
               {t("theme.system")}
             </span>
           ) : null}
+          {ai ? (
+            <span className="ml-2 rounded-sm bg-focused px-1.5 py-0.5 text-[10px] font-medium uppercase text-lit">
+              {t("aiAgent.tag")} ·{" "}
+              {aiBotConfig(bot).mode === "live" ? t("aiAgent.modeLive") : t("aiAgent.modeShadow")}
+            </span>
+          ) : null}
         </p>
         {bot.description ? (
           <p className="truncate text-xs text-fg-muted">{bot.description}</p>
@@ -170,6 +179,7 @@ function BotRow({
       </div>
       {!bot.system_bot ? (
         <>
+          {!ai ? (
           <button
             type="button"
             aria-label={t("settingsBots.rotateSecret")}
@@ -185,6 +195,7 @@ function BotRow({
           >
             <KeyRound className="h-4 w-4" aria-hidden />
           </button>
+          ) : null}
           <button
             type="button"
             aria-label={t("actions.edit")}

@@ -175,4 +175,8 @@ MESSAGES: dict[str, str] = {
     "handoff.activity.contact": "Derivada al responsable de este chat",
     "handoff.activity.label": "Derivada por la etiqueta {label}",
     "handoff.activity.account": "Derivada al responsable general",
+    "ai_agent.activity.took": "Derivada a la IA de AloStudio",
+    "ai_agent.note.summary": "IA, resumen para el equipo: {summary}",
+    "ai_agent.note.failed": "La IA no pudo responder y pasó la conversación al equipo.",
+    "ai_agent.activity.released": "Una persona respondió: la IA deja de contestar en esta conversación",
 }

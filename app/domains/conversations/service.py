@@ -55,6 +55,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.current import current_user_ctx
 from app.core.errors import ChatwootHTTPException
+from app.domains.ai_agent.gate import taker_for
 from app.domains.conversations.activities import (
     assignee_change_activity_content,
     create_activity_message,
@@ -81,10 +82,12 @@ from app.domains.conversations.events import (
 from app.domains.conversations.models import (
     CONTENT_TYPE_TEXT,
     CONVERSATION_STATUS_OPEN,
+    CONVERSATION_STATUS_PENDING,
     CONVERSATION_STATUS_RESOLVED,
     CONVERSATION_STATUS_SNOOZED,
     MESSAGE_TYPE_INCOMING,
     MESSAGE_TYPE_OUTGOING,
+    SENDER_TYPE_AGENT_BOT,
     SENDER_TYPE_CONTACT,
     SENDER_TYPE_USER,
     Attachment,
@@ -219,6 +222,14 @@ async def create_conversation(
     status_int: int = CONVERSATION_STATUS_OPEN
     if params.status is not None:
         status_int = conversation_status_from_str(params.status)
+    # AloStudio's AI (PLAN.agente-ia.md, 2b): a live AI bot on the inbox
+    # takes the new conversation as ``pending``, which auto-assignment skips.
+    # Not one a person starts from the panel (they are on it).
+    ai_bot = None
+    if params.status is None and params.assignee_id is None and current_user_ctx.get() is None:
+        ai_bot = await taker_for(session, inbox)
+        if ai_bot is not None:
+            status_int = CONVERSATION_STATUS_PENDING
 
     conv = Conversation(
         account_id=inbox.account_id,
@@ -230,6 +241,7 @@ async def create_conversation(
         status=status_int,
         snoozed_until=params.snoozed_until,
         assignee_id=params.assignee_id,
+        assignee_agent_bot_id=ai_bot.id if ai_bot is not None else None,
         team_id=params.team_id,
         last_activity_at=_utcnow(),
         waiting_since=_utcnow(),  # mirrors ``ensure_waiting_since`` before_create
@@ -407,7 +419,7 @@ async def toggle_priority(
 
 
 async def bot_handoff(
-    session: AsyncSession, *, conversation: Conversation
+    session: AsyncSession, *, conversation: Conversation, allow_ai: bool = False
 ) -> Conversation:
     """Port of ``Conversation#bot_handoff!``.
 
@@ -415,9 +427,16 @@ async def bot_handoff(
     nobody is assigned, the handoff responsible (AloStudio: chat, label,
     inbox or account, see :mod:`app.domains.handoff`) takes it first, so
     the handoff notice reaches them, with a line saying which rule chose.
+    With ``allow_ai`` (Meta's agent hands off, not AloStudio's AI) the
+    responsible may be AloStudio's AI, which then holds it as ``pending``.
     """
     if conversation.assignee_id is None:
-        target = await resolve_target(session, conversation, allow_ai=False)
+        target = await resolve_target(session, conversation, allow_ai=allow_ai)
+        if target is not None and target.to_ai:
+            from app.domains.ai_agent.service import hand_to_ai
+
+            if await hand_to_ai(session, conversation, reason=activity_text(target)):
+                return conversation
         if target is not None and target.user_id is not None:
             assigned = await update_assignee(
                 session, conversation=conversation, assignee_id=target.user_id
@@ -484,6 +503,11 @@ async def update_assignee(
     from app.domains.users.models import User
 
     prev_id = conversation.assignee_id
+    # AloStudio's AI held it (agente-ia, 2b): now the team does.
+    ai_held = (
+        conversation.assignee_agent_bot_id is not None
+        and conversation.status == CONVERSATION_STATUS_PENDING
+    )
 
     new_user: User | None = None
     if assignee_id is not None:
@@ -534,6 +558,8 @@ async def update_assignee(
             await create_activity_message(
                 session, conversation=conversation, content=content
             )
+    if ai_held:
+        await toggle_status(session, conversation=conversation, status="open")
     return new_user
 
 
@@ -1025,6 +1051,7 @@ async def create_message(
     conversation: Conversation,
     params: MessageBuilderParams,
     user_id: int | None,
+    agent_bot_id: int | None = None,
 ) -> Message:
     """Port of ``Messages::MessageBuilder#perform`` + the subset of
     ``Message``'s post-create callbacks listed in the module docstring.
@@ -1041,6 +1068,9 @@ async def create_message(
         message_type_str=params.message_type,
         user_id=user_id,
     )
+    if agent_bot_id is not None and params.message_type == "outgoing":
+        # AloStudio's AI writes as its bot (PLAN.agente-ia.md, 2b).
+        sender_type, sender_id = SENDER_TYPE_AGENT_BOT, agent_bot_id
 
     content_type_int = (
         content_type_from_str(params.content_type)
@@ -1136,8 +1166,11 @@ async def _attach_resolved_sender(
         user = await session.get(User, message.sender_id)
         message._resolved_sender = user
         return
-    # AgentBot arrives with Phase 8 — leave resolved=None so the presenter
-    # drops the sender block rather than crashing.
+    if message.sender_type == SENDER_TYPE_AGENT_BOT:
+        from app.domains.agent_bots.models import AgentBot
+
+        message._resolved_sender = await session.get(AgentBot, message.sender_id)
+        return
     message._resolved_sender = None
 
 
@@ -1155,10 +1188,21 @@ async def _apply_message_post_create(
             conversation.status = CONVERSATION_STATUS_OPEN
             conversation.snoozed_until = None
         elif conversation.status == CONVERSATION_STATUS_RESOLVED:
-            # Rails chooses between ``pending`` (bot inbox) and ``open``
-            # (API/other). ``Inbox.active_bot?`` is Phase 8 material, so
-            # route everything to ``open`` in 4a.
-            conversation.status = CONVERSATION_STATUS_OPEN
+            # Rails chooses between ``pending`` (bot inbox) and ``open``.
+            # AloStudio's live AI takes it back when nobody owns it
+            # (PLAN.agente-ia.md, 2b); everything else opens.
+            ai_bot = (
+                await taker_for(session, conversation.inbox)
+                if conversation.assignee_id is None
+                and not conversation.ai_mode
+                and conversation.inbox is not None
+                else None
+            )
+            if ai_bot is not None:
+                conversation.status = CONVERSATION_STATUS_PENDING
+                conversation.assignee_agent_bot_id = ai_bot.id
+            else:
+                conversation.status = CONVERSATION_STATUS_OPEN
 
     # 2. set_conversation_activity -------------------------------------
     conversation.last_activity_at = message.created_at or _utcnow()

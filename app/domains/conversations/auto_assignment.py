@@ -45,7 +45,7 @@ from app.domains.conversations.events import (
     CONVERSATION_UPDATED,
     dispatcher,
 )
-from app.domains.conversations.models import Conversation
+from app.domains.conversations.models import CONVERSATION_STATUS_PENDING, Conversation
 from app.domains.inboxes.models import Inbox, InboxMember
 from app.domains.teams.models import Team, TeamMember
 
@@ -97,9 +97,12 @@ async def _should_run(
     """Mirror ``should_run_auto_assignment?``.
 
     v1 branch only: skip when the inbox has auto-assign disabled, or
-    when the assignee is already an inbox member.
+    when the assignee is already an inbox member. A ``pending``
+    conversation belongs to a bot (Rails checks ``conversation.open?``).
     """
     if conversation.inbox_id is None:
+        return False
+    if conversation.status == CONVERSATION_STATUS_PENDING:
         return False
     inbox = await session.get(Inbox, conversation.inbox_id)
     if inbox is None or not inbox.enable_auto_assignment:

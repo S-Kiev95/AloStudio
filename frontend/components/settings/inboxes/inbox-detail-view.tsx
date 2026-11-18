@@ -22,6 +22,7 @@ import {
 } from "@/lib/api/inboxes";
 
 import { HandoffAssigneePanel } from "./handoff-assignee-panel";
+import { InboxBotPanel } from "./inbox-bot-panel";
 import { InboxMembersPanel } from "./inbox-members-panel";
 import { useT } from "@/lib/i18n/provider";
 
@@ -142,6 +143,15 @@ export function InboxDetailView({
         </CardHeader>
         <CardContent>
           <InboxMembersPanel accountId={accountId} inboxId={inboxId} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("aiAgent.inboxBot")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InboxBotPanel accountId={accountId} inboxId={inboxId} />
         </CardContent>
       </Card>
 

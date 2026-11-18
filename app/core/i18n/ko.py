@@ -163,4 +163,8 @@ MESSAGES: dict[str, str] = {
     "handoff.activity.contact": "이 채팅의 담당자에게 넘겼습니다",
     "handoff.activity.label": "라벨 {label}에 따라 넘겼습니다",
     "handoff.activity.account": "기본 담당자에게 넘겼습니다",
+    "ai_agent.activity.took": "AloStudio AI에게 넘겼습니다",
+    "ai_agent.note.summary": "AI, 팀을 위한 요약: {summary}",
+    "ai_agent.note.failed": "AI가 답변하지 못해 대화를 팀에 넘겼습니다.",
+    "ai_agent.activity.released": "담당자가 답장하여 이 대화에서 AI가 더 이상 답하지 않습니다",
 }

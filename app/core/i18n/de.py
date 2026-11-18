@@ -167,4 +167,8 @@ MESSAGES: dict[str, str] = {
     "handoff.activity.contact": "An die zuständige Person dieses Chats übergeben",
     "handoff.activity.label": "Über das Label {label} übergeben",
     "handoff.activity.account": "An die allgemein zuständige Person übergeben",
+    "ai_agent.activity.took": "An die AloStudio-KI übergeben",
+    "ai_agent.note.summary": "KI, Zusammenfassung für das Team: {summary}",
+    "ai_agent.note.failed": "Die KI konnte nicht antworten und hat die Unterhaltung an das Team übergeben.",
+    "ai_agent.activity.released": "Eine Person hat geantwortet: Die KI antwortet in dieser Unterhaltung nicht mehr",
 }

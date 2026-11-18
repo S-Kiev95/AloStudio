@@ -18,11 +18,25 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.errors import ChatwootHTTPException
 from app.domains.agent_bots.models import (
     AGENT_BOT_INBOX_STATUS_ACTIVE,
+    AGENT_BOT_TYPE_AI,
     AGENT_BOT_TYPE_WEBHOOK,
     AgentBot,
     AgentBotInbox,
 )
 from app.domains.inboxes.models import Inbox
+
+
+def _ai_config(raw: Any) -> dict[str, Any]:
+    """An AI bot's settings, checked (``ai_agent.gate``)."""
+    from app.domains.ai_agent.gate import validate_config
+
+    try:
+        return validate_config(raw)
+    except ValueError as exc:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": f"bot_config: {exc}", "code": f"agent_bots.{exc}"},
+        ) from exc
 
 
 def _new_secret() -> str:
@@ -84,13 +98,20 @@ async def create_bot(
         raise ChatwootHTTPException(
             status_code=422, detail={"message": "Name can't be blank"}
         )
+    kind = payload.get("bot_type") or "webhook"
+    if kind not in ("webhook", "ai"):
+        raise ChatwootHTTPException(
+            status_code=422, detail={"message": "bot_type is not valid"}
+        )
+    ai = kind == "ai"
     bot = AgentBot(
         account_id=account_id,
         name=name,
         description=payload.get("description"),
-        outgoing_url=payload.get("outgoing_url"),
-        bot_type=AGENT_BOT_TYPE_WEBHOOK,
-        bot_config=payload.get("bot_config") or {},
+        # AloStudio's AI answers in-process: nothing to POST to.
+        outgoing_url=None if ai else payload.get("outgoing_url"),
+        bot_type=AGENT_BOT_TYPE_AI if ai else AGENT_BOT_TYPE_WEBHOOK,
+        bot_config=_ai_config(payload.get("bot_config")) if ai else payload.get("bot_config") or {},
         secret=_new_secret(),
     )
     session.add(bot)
@@ -114,17 +135,29 @@ async def update_bot(
         bot.name = new_name
     if "description" in payload:
         bot.description = payload.get("description")
-    if "outgoing_url" in payload:
+    ai = bot.bot_type == AGENT_BOT_TYPE_AI
+    if "outgoing_url" in payload and not ai:
         bot.outgoing_url = payload.get("outgoing_url")
     if "bot_config" in payload:
-        bot.bot_config = payload.get("bot_config") or {}
+        bot.bot_config = _ai_config(payload.get("bot_config")) if ai else payload.get("bot_config") or {}
+        if ai and bot.bot_config.get("mode") != "live" and bot.id is not None:
+            await _release(session, bot.id)
     session.add(bot)
     await session.flush()
     await session.refresh(bot)
     return bot
 
 
+async def _release(session: AsyncSession, bot_id: int, *, inbox_id: int | None = None) -> None:
+    """AloStudio's AI lets go of the conversations it holds (agente-ia, 2b)."""
+    from app.domains.ai_agent.service import release_bot
+
+    await release_bot(session, bot_id, inbox_id=inbox_id)
+
+
 async def destroy_bot(session: AsyncSession, *, bot: AgentBot) -> None:
+    if bot.id is not None:
+        await _release(session, bot.id)
     await session.delete(bot)
     await session.flush()
 
@@ -166,6 +199,8 @@ async def attach_bot_to_inbox(
         ).all()
     )
     for row in existing:
+        if row.agent_bot_id is not None and row.agent_bot_id != agent_bot_id:
+            await _release(session, row.agent_bot_id, inbox_id=inbox.id)
         await session.delete(row)
     if existing:
         await session.flush()
@@ -210,6 +245,8 @@ async def detach_bot_from_inbox(
         ).all()
     )
     for row in existing:
+        if row.agent_bot_id is not None:
+            await _release(session, row.agent_bot_id, inbox_id=inbox.id)
         await session.delete(row)
     if existing:
         await session.flush()

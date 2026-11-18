@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
@@ -38,8 +38,14 @@ const bots = [
   },
 ];
 
+let created: Record<string, unknown> | null = null;
+
 const server = setupServer(
   http.get("*/agent_bots", () => HttpResponse.json(bots)),
+  http.post("*/agent_bots", async ({ request }) => {
+    created = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ id: 3, ...created });
+  }),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
@@ -60,5 +66,34 @@ describe("AgentBotsView", () => {
     expect(await screen.findByText("Csat Bot")).toBeInTheDocument();
     expect(screen.getByText("Sistema")).toBeInTheDocument();
     expect(screen.getByText("https://bot.example.com")).toBeInTheDocument();
+  });
+
+  it("creates AloStudio's AI with its settings", async () => {
+    renderWithQuery(<AgentBotsView accountId="1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Nuevo bot" }));
+    fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: "ai" } });
+    // No outgoing URL for the AI.
+    expect(screen.queryByLabelText("URL de salida")).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: "Sofi" } });
+    fireEvent.change(screen.getByLabelText("Instrucciones"), {
+      target: { value: "Vendemos cursos." },
+    });
+    fireEvent.change(screen.getByLabelText("Modo"), { target: { value: "live" } });
+    fireEvent.change(screen.getByLabelText("Cuándo atiende"), {
+      target: { value: "out_of_hours" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Crear bot" }));
+
+    await waitFor(() => expect(created).not.toBeNull());
+    expect(created).toEqual({
+      name: "Sofi",
+      description: null,
+      bot_type: "ai",
+      bot_config: {
+        instructions: "Vendemos cursos.",
+        mode: "live",
+        respond_when: "out_of_hours",
+      },
+    });
   });
 });

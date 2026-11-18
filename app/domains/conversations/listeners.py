@@ -435,6 +435,15 @@ async def broadcast_event(
         await fan_out_to_agent_bots(session, name, **payload)
     except Exception:
         log.exception("agent_bot_listener.error event=%s", name)
+    # AloStudio's AI (agente-ia, 2b) — a customer message queues its
+    # answer; a person's reply makes it step aside.
+    if name == ev.MESSAGE_CREATED and isinstance(payload.get("message"), Message):
+        from app.domains.ai_agent.service import on_message_created
+
+        try:
+            await on_message_created(session, payload["message"])
+        except Exception:
+            log.exception("ai_agent_listener.error event=%s", name)
     # In-app notifications inbox (v2.5) — inserts a Notification row
     # per recipient (inbox members on create, assignee on assign /
     # new incoming message) and broadcasts ``notification.created``

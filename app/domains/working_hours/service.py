@@ -276,6 +276,23 @@ def _row_intervals_for_day(row: WorkingHour) -> tuple[int, int] | None:
     )
 
 
+def open_at(
+    *, rows: list[WorkingHour], timezone_name: str | None, moment: datetime
+) -> bool:
+    """Whether ``moment`` falls inside the schedule (AloStudio's AI answers
+    "only out of hours", PLAN.agente-ia.md 2b). No schedule counts as open."""
+    if not rows:
+        return True
+    local = moment.astimezone(_resolve_zone(timezone_name))
+    # day_of_week: Python Mon=0..Sun=6; Chatwoot Sun=0..Sat=6.
+    row = next((r for r in rows if r.day_of_week == (local.weekday() + 1) % 7), None)
+    interval = _row_intervals_for_day(row) if row is not None else None
+    if interval is None:
+        return False
+    minute = local.hour * 60 + local.minute
+    return interval[0] <= minute < interval[1]
+
+
 def business_hours_between(
     *,
     rows: list[WorkingHour],
@@ -344,5 +361,6 @@ __all__ = [
     "create_default_working_hours",
     "fetch_account_working_hour",
     "list_for_inbox",
+    "open_at",
     "update_working_hour",
 ]

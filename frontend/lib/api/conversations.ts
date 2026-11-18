@@ -31,6 +31,8 @@ export type Message = {
   created_at: number;
   private: boolean;
   sender?: Sender;
+  /** ``User``, ``Contact``, ``AgentBot`` (AloStudio's AI or a webhook bot)… */
+  sender_type?: string | null;
   content_attributes?: {
     deleted?: boolean;
     /** Present on Channel::Email messages — the headers the thread view
@@ -341,6 +343,8 @@ export type SendMessageInput = {
   bccEmails?: string;
   /** WhatsApp template parameters when sending an approved template. */
   templateParams?: MessageTemplateParams;
+  /** The AI suggestion this message started from (shadow mode, 2b). */
+  aiReplyId?: number;
 };
 
 export type PendingMessage = {
@@ -375,6 +379,7 @@ export function useSendMessage(accountId: string, displayId: number) {
           cc_emails: input.ccEmails || undefined,
           bcc_emails: input.bccEmails || undefined,
           template_params: input.templateParams || undefined,
+          content_attributes: input.aiReplyId ? { ai_reply_id: input.aiReplyId } : undefined,
         }),
       }),
     onSuccess: async (message) => {

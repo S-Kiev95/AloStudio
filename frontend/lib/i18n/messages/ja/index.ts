@@ -7,6 +7,7 @@ import { metaCatalog } from "./metaCatalog";
 import { calls } from "./calls";
 import { closing } from "./closing";
 import { handoff } from "./handoff";
+import { aiAgent } from "./aiAgent";
 import { conversions } from "./conversions";
 import { lifecycle } from "./lifecycle";
 import { decisions } from "./decisions";
@@ -70,6 +71,7 @@ export const ja: Messages = {
   decisions,
   closing,
   handoff,
+  aiAgent,
   conversions,
   lifecycle,
   usage,

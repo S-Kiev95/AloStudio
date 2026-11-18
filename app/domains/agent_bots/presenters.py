@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.domains.agent_bots.models import AgentBot
+from app.domains.agent_bots.models import AGENT_BOT_TYPE_AI, AgentBot
 
 
 def present_agent_bot(
@@ -33,7 +33,7 @@ def present_agent_bot(
     }
     if not bot.system_bot:
         body["outgoing_url"] = bot.outgoing_url
-    body["bot_type"] = "webhook"  # only enum value v4.13.0 ships
+    body["bot_type"] = "ai" if bot.bot_type == AGENT_BOT_TYPE_AI else "webhook"
     body["bot_config"] = bot.bot_config or {}
     body["account_id"] = bot.account_id
     if access_token:

@@ -48,6 +48,7 @@ from app.domains.agent_bots.schemas import (
 )
 from app.domains.agent_bots.service import (
     attach_bot_to_inbox,
+    attached_bot_for_inbox,
     create_bot,
     destroy_bot,
     detach_bot_from_inbox,
@@ -210,6 +211,21 @@ async def _find_inbox(
             detail={"error": "Resource could not be found"},
         )
     return inbox
+
+
+@inbox_set_agent_bot_router.get("/agent_bot")
+async def show_inbox_agent_bot(
+    inbox_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """``GET /inboxes/{id}/agent_bot`` — the bot attached, or null."""
+    assert ctx.account.id is not None
+    inbox = await _find_inbox(
+        session, account_id=ctx.account.id, inbox_id=inbox_id
+    )
+    bot = await attached_bot_for_inbox(session, inbox_id=inbox.id)  # type: ignore[arg-type]
+    return {"agent_bot": present_agent_bot(bot) if bot is not None else None}
 
 
 @inbox_set_agent_bot_router.post(
