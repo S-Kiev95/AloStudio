@@ -38,11 +38,13 @@ const READ_SUGGESTIONS = [
   "agent.suggestions.lastMonth",
 ] as const;
 
+const INBOX_SUGGESTION: MessageKey = "agent.suggestions.inbox";
+
 const UNCONFIGURED_NOTICE: MessageKey =
   "agent.unconfigured";
 
-const READ_ONLY_NOTICE: MessageKey =
-  "agent.readOnly";
+const ROLE_NOTE: MessageKey =
+  "agent.roleNote";
 
 const EMPTY_GREETING: MessageKey =
   "agent.greeting";
@@ -181,7 +183,9 @@ export function AgentChatView({
   const agentDisabled =
     statusQuery.data?.enabled === false || statusQuery.isError;
   const canWrite = statusQuery.data ? statusQuery.data.can_write : true;
-  const showReadOnlyBanner = statusQuery.data?.can_write === false;
+  const isAdministrator = statusQuery.data?.is_administrator !== false;
+  // Agents get a note about what they can reach: their own inboxes.
+  const showRoleNote = statusQuery.data?.is_administrator === false;
 
   const isSending = createThread.isPending || sendMessage.isPending;
   const isActing = confirmAction.isPending || rejectAction.isPending;
@@ -258,7 +262,7 @@ export function AgentChatView({
       await confirmAction.mutateAsync({
         threadId: effectiveThreadId,
         actionId: action.id,
-        publicationId: action.publication.id,
+        publicationId: action.publication?.id ?? null,
       });
     } catch (err) {
       setActionError(getAgentErrorMessage(err));
@@ -273,7 +277,7 @@ export function AgentChatView({
       await rejectAction.mutateAsync({
         threadId: effectiveThreadId,
         actionId: action.id,
-        publicationId: action.publication.id,
+        publicationId: action.publication?.id ?? null,
       });
     } catch (err) {
       setActionError(getAgentErrorMessage(err));
@@ -286,9 +290,10 @@ export function AgentChatView({
       : (threadQuery.data?.title ??
         (threadQuery.isLoading ? t("common.loading") : t("agent.chat")));
 
-  const suggestions = statusQuery.data?.can_write
-    ? [t(WRITE_SUGGESTION), ...READ_SUGGESTIONS.map((s) => t(s))]
-    : READ_SUGGESTIONS.map((s) => t(s));
+  // Publishing is administrators' (the panel's rule); the inbox, everyone's.
+  const suggestions = isAdministrator
+    ? [t(INBOX_SUGGESTION), t(WRITE_SUGGESTION), ...READ_SUGGESTIONS.map((s) => t(s))]
+    : [t(INBOX_SUGGESTION), ...READ_SUGGESTIONS.map((s) => t(s))];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -311,13 +316,13 @@ export function AgentChatView({
         </h2>
       </header>
 
-      {/* Fixed read-only note for non-admin agents */}
-      {showReadOnlyBanner ? (
+      {/* What an agent reaches: their own inboxes */}
+      {showRoleNote ? (
         <div
           role="note"
           className="shrink-0 border-b border-glass bg-surface-2 px-4 py-2 text-xs text-fg-muted"
         >
-          {t(READ_ONLY_NOTICE)}
+          {t(ROLE_NOTE)}
         </div>
       ) : null}
 

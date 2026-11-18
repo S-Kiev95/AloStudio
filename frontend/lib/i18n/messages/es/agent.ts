@@ -1,12 +1,13 @@
 export const agent = {
   suggestions: {
+    inbox: "¿Qué conversaciones abiertas tengo sin responder?",
     write: "Armá una publicación para mañana a las 10 en todos mis canales",
     week: "¿Qué tengo programado esta semana?",
     lastMonth: "¿Cómo les fue a mis publicaciones del último mes?",
   },
   unconfigured: "El agente todavía no está configurado. Un operador de la instalación tiene que cargar la clave de OpenAI en Ajustes → Instalación → Inteligencia artificial.",
-  readOnly: "Podés consultar publicaciones y estadísticas. Crear o borrar publicaciones lo hace un administrador.",
-  greeting: "Hola, soy el agente de AloStudio. Puedo armar y programar publicaciones en tus canales, revisar tu calendario y contarte cómo les fueron tus posts.",
+  roleNote: "Ves y hacés lo mismo que en la Bandeja: las conversaciones de tus bandejas. La configuración de la cuenta la cambia un administrador.",
+  greeting: "Hola, soy el agente de AloStudio. Puedo buscar y responder conversaciones, ayudarte con contactos, el CRM, la Agenda, las publicaciones y los reportes, con lo que tu rol permite. Lo que cambia algo te lo muestro antes para que lo confirmes.",
   seeInCalendar: "Ver en el calendario",
   newChat: "Nuevo chat",
   chat: "Chat",

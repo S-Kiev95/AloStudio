@@ -1,16 +1,20 @@
-"""The agent chat turn: an OpenAI model with the publishing MCP tools.
+"""The agent chat turn: an OpenAI model with the MCP tools, as the user.
 
 A turn sends the chat history to the model and runs the tools it asks for
 until it answers in text. Read tools run right away. A tool that writes
-(create or cancel a publication) is first tried inside a savepoint that is
-rolled back, so an invalid proposal goes back to the model instead of to
-the user, and then waits as a ``pending`` row until the user confirms it
-(:func:`confirm_action`) or rejects it (:func:`reject_action`).
+waits as a ``pending`` row until the user confirms it
+(:func:`confirm_action`) or rejects it (:func:`reject_action`). Writes that
+stay in the database (``TRIAL_TOOLS``) are first tried inside a savepoint
+that is rolled back, so an invalid proposal goes back to the model instead
+of to the user; anything that messages a customer, calls Meta or notifies
+the panel is never run before the user confirms it.
 
 The tools are the MCP server's own (same descriptions, schemas and scope
-checks), run in-process as the chatting user, in their account, with a
-scope taken from their role: administrators write, agents only read, like
-the publications REST API.
+checks), run in-process as the chatting user, in their account, seeing what
+their role sees in the panel (``MCPContext.user_scoped``): an administrator
+the whole account, an agent the conversations of their inboxes. Tools the
+panel keeps to administrators (``requires(..., panel_admin=True)``) are not
+offered to agents.
 """
 
 from __future__ import annotations
@@ -18,7 +22,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, NamedTuple
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastmcp import FastMCP
@@ -45,21 +49,20 @@ from app.domains.agent.models import (
 )
 from app.domains.usage.ai import ai_usage
 from app.mcp.context import MCPContext, bind_mcp_context, reset_mcp_context
+from app.mcp.permissions import permissions_of
 
 log = logging.getLogger(__name__)
 
-READ_TOOLS: tuple[str, ...] = (
-    "list_publication_channels",
-    "list_media",
-    "list_publications",
-    "get_publishing_analytics",
-)
-# Never run without the user's confirmation.
-WRITE_TOOLS: tuple[str, ...] = ("create_publication", "cancel_publication")
+# The proposals with a card of their own (presenters), and the only writes
+# whose whole effect stays in the database: they are tried in a savepoint
+# and rolled back before reaching the user. Every other write is proposed
+# as is and runs only once confirmed.
+PUBLICATION_TOOLS: frozenset[str] = frozenset({"create_publication", "cancel_publication"})
+TRIAL_TOOLS: frozenset[str] = PUBLICATION_TOOLS
 
 MAX_CONTENT_LENGTH = 4000
 # Model calls per turn; the last one has to answer in text.
-MAX_MODEL_CALLS = 6
+MAX_MODEL_CALLS = 8
 # Messages of context sent to the model.
 HISTORY_LIMIT = 40
 # A long tool result is cut for the model (the publications of a busy month).
@@ -67,8 +70,16 @@ TOOL_RESULT_LIMIT = 12_000
 # How long a turn may hold its chat before another request can take it over.
 BUSY_TIMEOUT = timedelta(minutes=3)
 TITLE_LENGTH = 60
-# Date arguments of the publishing tools (see :func:`_localize_dates`).
-_DATE_ARGUMENTS: tuple[str, ...] = ("scheduled_for", "from", "to")
+# Date arguments of the tools (see :func:`_localize_dates`).
+_DATE_ARGUMENTS: tuple[str, ...] = (
+    "scheduled_for",
+    "scheduled_at",
+    "from",
+    "to",
+    "starts_at",
+    "ends_at",
+    "due_at",
+)
 
 _WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 
@@ -83,7 +94,14 @@ _LANGUAGE_NAMES = {
     "ko": "coreano",
 }
 
+class _ToolCatalog(NamedTuple):
+    names: tuple[str, ...]  # sorted
+    reads: frozenset[str]
+    admin_only: frozenset[str]
+
+
 _server: FastMCP | None = None
+_catalog: _ToolCatalog | None = None
 
 
 def _mcp_server() -> FastMCP:
@@ -101,8 +119,36 @@ def agent_enabled() -> bool:
     return bool(get_settings().openai_api_key)
 
 
-def allowed_tools(ctx: AccountContext) -> tuple[str, ...]:
-    return READ_TOOLS + WRITE_TOOLS if ctx.is_administrator else READ_TOOLS
+async def _tool_catalog() -> _ToolCatalog:
+    """The MCP tools by what each one declared (``requires``). One that
+    declared nothing counts as a write for administrators only."""
+    global _catalog
+    if _catalog is None:
+        names: list[str] = []
+        reads: set[str] = set()
+        admin_only: set[str] = set()
+        for tool in await _mcp_server().list_tools(run_middleware=False):
+            names.append(tool.name)
+            declared = permissions_of(getattr(tool, "fn", None))
+            if declared is not None and declared.reads:
+                reads.add(tool.name)
+            if declared is None or declared.scope == "admin" or declared.panel_admin:
+                admin_only.add(tool.name)
+        _catalog = _ToolCatalog(tuple(sorted(names)), frozenset(reads), frozenset(admin_only))
+    return _catalog
+
+
+async def allowed_tools(ctx: AccountContext) -> tuple[str, ...]:
+    """What the user's role may use, sorted (a stable prefix for the
+    model's prompt cache)."""
+    catalog = await _tool_catalog()
+    if ctx.is_administrator:
+        return catalog.names
+    return tuple(name for name in catalog.names if name not in catalog.admin_only)
+
+
+async def is_read_tool(name: str) -> bool:
+    return name in (await _tool_catalog()).reads
 
 
 def _unavailable() -> ChatwootHTTPException:
@@ -381,7 +427,7 @@ async def _run_model(
     session: AsyncSession, ctx: AccountContext, thread: AgentThread
 ) -> None:
     """Call the model until it answers in text or proposes a write."""
-    names = allowed_tools(ctx)
+    names = await allowed_tools(ctx)
     tools = await _tool_specs(names)
     for step in range(MAX_MODEL_CALLS):
         rows = await _history(session, thread.id)  # type: ignore[arg-type]
@@ -450,7 +496,7 @@ async def _handle_call(
         row.status = TOOL_STATUS_ERROR
         row.content = _dump({"error": f"La herramienta {name} no está disponible."})
         return proposed
-    if name not in WRITE_TOOLS:
+    if await is_read_tool(name):
         ok, result = await _run_tool(session, ctx, name, arguments, keep=True)
         row.status = TOOL_STATUS_DONE if ok else TOOL_STATUS_ERROR
         row.content = _dump(result)
@@ -459,11 +505,12 @@ async def _handle_call(
         row.status = TOOL_STATUS_ERROR
         row.content = _dump({"error": "Proponé una sola acción por vez."})
         return proposed
-    ok, result = await _run_tool(session, ctx, name, arguments, keep=False)
-    if not ok:
-        row.status = TOOL_STATUS_INVALID
-        row.content = _dump(result)
-        return proposed
+    if name in TRIAL_TOOLS:
+        ok, result = await _run_tool(session, ctx, name, arguments, keep=False)
+        if not ok:
+            row.status = TOOL_STATUS_INVALID
+            row.content = _dump(result)
+            return proposed
     row.status = TOOL_STATUS_PENDING
     return True
 
@@ -518,29 +565,39 @@ async def _run_tool(
     only when ``keep`` (a trial run of a proposal leaves nothing behind).
     Returns ``(ok, result)``; a failure is ``{"error": ...}`` for the model."""
     tool = await _mcp_server().get_tool(name)
-    if tool is None or name not in allowed_tools(ctx):
+    if tool is None or name not in await allowed_tools(ctx):
         return False, {"error": f"La herramienta {name} no está disponible."}
     binding = bind_mcp_context(
         MCPContext(
             user=ctx.user,
             account=ctx.account,
-            scope="write" if ctx.is_administrator else "read",
+            # The role decides (allowed_tools and the tools' own visibility
+            # checks); the scope only has to let those tools run.
+            scope="admin" if ctx.is_administrator else "write",
             session=session,
+            user_scoped=True,
         )
     )
     savepoint = await session.begin_nested()
     try:
         result = await tool.run(arguments)
     except Exception as exc:  # noqa: BLE001 — the model reads it and adjusts
-        await savepoint.rollback()
+        if savepoint.is_active:
+            await savepoint.rollback()
         log.info("agent: tool %s failed: %s", name, exc)
         return False, {"error": _error_text(exc)}
     finally:
         reset_mcp_context(binding)
-    if keep:
-        await savepoint.commit()
-    else:
-        await savepoint.rollback()
+    # Some services commit on their own (sending an Instagram attachment,
+    # retrying a publication): the savepoint is gone and what they did
+    # already happened, so there is nothing left to keep or undo.
+    if savepoint.is_active:
+        if keep:
+            await savepoint.commit()
+        else:
+            await savepoint.rollback()
+    elif not keep:
+        log.error("agent: trial of %s committed on its own and could not be undone", name)
     payload = result.structured_content
     if not isinstance(payload, dict):
         text = "\n".join(getattr(part, "text", "") for part in result.content)
@@ -601,14 +658,16 @@ def _system_prompt(ctx: AccountContext, thread: AgentThread) -> str:
     zone = ZoneInfo(thread.timezone or "UTC")
     now = datetime.now(zone)
     offset = now.strftime("%z")
+    role = "administrador" if ctx.is_administrator else "agente"
     lines = [
         f'Sos el agente de AloStudio de la cuenta "{ctx.account.name}". '
-        f"Hablás con {ctx.user.name or 'un usuario de la cuenta'}.",
+        f"Hablás con {ctx.user.name or 'un usuario de la cuenta'}, que es "
+        f"{role} de la cuenta.",
         f"Ahora es {_WEEKDAYS[now.weekday()]} {now:%Y-%m-%d %H:%M} en la zona "
         f"{zone.key} (UTC{offset[:3]}:{offset[3:]}).",
-        "Ayudás a armar y programar publicaciones en las redes conectadas de la "
-        "cuenta, a revisar qué hay programado y a contar cómo les fue a las "
-        "publicaciones.",
+        "Ayudás con lo que se hace en AloStudio: buscar y responder "
+        "conversaciones, contactos, CRM, Agenda, productos, publicaciones y "
+        "reportes, con las herramientas que tenés.",
         "",
         "Reglas:",
         "- Respondé en el idioma en que te escribe el usuario, breve y claro, "
@@ -616,46 +675,51 @@ def _system_prompt(ctx: AccountContext, thread: AgentThread) -> str:
         "(nada de **, #, tablas ni enlaces entre corchetes). "
         f"Tiene la app en {_LANGUAGE_NAMES[user_locale(ctx.user)]}: si no se "
         "entiende en qué idioma escribe, usá ese.",
-        "- Antes de crear una publicación consultá los canales con "
-        "list_publication_channels y usá solo sus id. Nunca inventes ids. Un "
-        'canal con status "reconnect" no puede publicar: avisale al usuario.',
-        "- Para usar imágenes o videos buscalos con list_media y pasalos como "
-        '{"media_id": id}. No podés generar imágenes ni videos.',
-        "- Si falta un dato imprescindible (en qué canales, cuándo), "
-        'preguntalo. "Todos mis canales" son todos los que pueden publicar.',
+        "- Usá solo ids que te devolvieron las herramientas (list_..., "
+        "search_..., show_...). Nunca inventes ids. Si hay varios candidatos, "
+        "preguntá cuál.",
+        "- Lo que cambia algo (mandar un mensaje, asignar, agendar, crear o "
+        "borrar) lo confirma el usuario en una tarjeta que le muestra la app. "
+        "Antes de llamar a esa herramienta explicá en una línea qué vas a "
+        "hacer; no pidas confirmación en el texto. Si la rechaza o pide "
+        "cambios, armá otra propuesta.",
+        "- Un mensaje a un cliente lo lee el cliente: escribilo como lo "
+        "escribiría la persona del equipo.",
         "- Las fechas que mandes a las herramientas van en ISO 8601 con la "
-        "zona del usuario. Sin scheduled_for la publicación sale en los "
-        "próximos minutos: dejalo vacío solo si el usuario pide publicar ya.",
-        "- Si una herramienta devuelve un error (por ejemplo un texto más "
-        "largo de lo que acepta una red), corregí la propuesta y probá de "
-        "nuevo, o explicale al usuario qué pasa.",
-        "- No tenés acceso a la bandeja de mensajes ni a los contactos.",
+        "zona del usuario. Para publicar: sin scheduled_for la publicación "
+        "sale en los próximos minutos.",
+        "- Si una herramienta devuelve un error, corregí y probá de nuevo, o "
+        "explicale al usuario qué pasa.",
+        "- Para publicar, consultá los canales con list_publication_channels "
+        "(uno con status \"reconnect\" no puede publicar) y las imágenes o "
+        "videos con list_media; pasalos como {\"media_id\": id}. No podés "
+        "generar imágenes ni videos.",
     ]
     if ctx.is_administrator:
         lines.append(
-            "- Crear y borrar publicaciones lo confirma el usuario en una "
-            "tarjeta que le muestra la app. No pidas confirmación en el "
-            "texto: llamá a la herramienta con la propuesta completa y la "
-            "app se la muestra. Si la rechaza o pide cambios, armá otra."
+            "- Es administrador: ve toda la cuenta y puede cambiar la "
+            "configuración que exponen las herramientas."
         )
     else:
         lines.append(
-            "- Este usuario no es administrador: podés consultar "
-            "publicaciones y estadísticas, pero no crear ni borrar. Si lo "
-            "pide, decile que lo tiene que hacer un administrador."
+            "- Es agente: ve y toca solo las conversaciones de sus bandejas. "
+            "La configuración de la cuenta (productos, campañas, etiquetas "
+            "nuevas, Instagram, publicaciones, automatizaciones) la cambia un "
+            "administrador: si lo pide, decíselo."
         )
     return "\n".join(lines)
 
 
 __all__ = [
     "MAX_CONTENT_LENGTH",
-    "READ_TOOLS",
-    "WRITE_TOOLS",
+    "PUBLICATION_TOOLS",
+    "TRIAL_TOOLS",
     "agent_enabled",
     "allowed_tools",
     "confirm_action",
     "delete_thread",
     "get_thread",
+    "is_read_tool",
     "list_threads",
     "pending_row",
     "pending_thread_ids",

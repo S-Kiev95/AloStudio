@@ -40,7 +40,7 @@ from app.domains.inboxes.models import (
 )
 from app.domains.whatsapp.template_processor import find_approved_template
 from app.mcp.context import current_mcp_context
-from app.mcp.permissions import requires
+from app.mcp.permissions import ensure_conversation_visible, ensure_inbox_visible, requires
 
 
 async def _find_conv(conversation_id: int) -> Conversation:
@@ -50,6 +50,7 @@ async def _find_conv(conversation_id: int) -> Conversation:
         raise ValueError(
             f"conversation {conversation_id} not found in this account"
         )
+    await ensure_conversation_visible(conv)
     return conv
 
 
@@ -60,6 +61,12 @@ async def _find_message(message_id: int) -> Message:
         raise ValueError(
             f"message {message_id} not found in this account"
         )
+    if ctx.user_scoped:
+        conv = await ctx.session.get(Conversation, msg.conversation_id)
+        try:
+            await ensure_conversation_visible(conv)  # type: ignore[arg-type]
+        except ValueError:
+            raise ValueError(f"message {message_id} not found in this account") from None
     return msg
 
 
@@ -175,12 +182,30 @@ def register(mcp: FastMCP) -> None:
         result = await search_messages(
             ctx.session,
             account_id=ctx.account.id,
-            current_user_id=None,
+            # Acting as a panel user: only their inboxes, as in the Bandeja.
+            current_user_id=ctx.user.id if ctx.user_scoped else None,
             q=query,
             conversation_display_id=display_id,
             page=max(page, 1),
         )
-        return {"messages": result["payload"], **result["meta"]}
+        # The search speaks the panel's conversation number; these tools
+        # take the internal id (``conversation_display_id`` keeps the number).
+        numbers = {m["conversation_id"] for m in result["payload"]}
+        ids = dict(
+            (
+                await ctx.session.exec(
+                    select(Conversation.display_id, Conversation.id).where(
+                        Conversation.account_id == ctx.account.id,
+                        Conversation.display_id.in_(numbers),  # type: ignore[union-attr]
+                    )
+                )
+            ).all()
+        ) if numbers else {}
+        messages = [
+            {**m, "conversation_id": ids.get(m["conversation_id"]), "conversation_display_id": m["conversation_id"]}
+            for m in result["payload"]
+        ]
+        return {"messages": messages, **result["meta"]}
 
     @mcp.tool(name="show_message")
     @requires("read")
@@ -233,6 +258,7 @@ def register(mcp: FastMCP) -> None:
         """Approved WhatsApp templates of a WhatsApp inbox: name, language,
         category, body text and how many ``{{n}}`` variables it takes. Only
         approved ones can be sent (send_whatsapp_template)."""
+        await ensure_inbox_visible(inbox_id)
         channel = await _whatsapp_channel(inbox_id)
         templates = []
         for tpl in channel.message_templates or []:

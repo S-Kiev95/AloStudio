@@ -44,7 +44,7 @@ def register(mcp: FastMCP) -> None:
         return {"products": [present_product(p) for p in rows]}
 
     @mcp.tool(name="create_product")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def create_product(
         name: str,
         description: str | None = None,
@@ -76,7 +76,7 @@ def register(mcp: FastMCP) -> None:
         return present_product(product)
 
     @mcp.tool(name="update_product")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def update_product(
         product_id: int,
         name: str | None = None,

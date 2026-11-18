@@ -9,6 +9,8 @@ export type AgentStatus = {
   enabled: boolean;
   model: string;
   can_write: boolean;
+  /** Agents see only their inboxes; the suggestions and the note follow. */
+  is_administrator?: boolean;
 };
 
 export type AgentThreadSummary = {
@@ -64,14 +66,20 @@ export type AgentPendingPublication = {
   media: AgentPendingMedia[];
 };
 
-export type AgentActionTool = "create_publication" | "cancel_publication";
+/** Any MCP tool that writes; the publication ones have their own card. */
+export type AgentActionTool = string;
+
+export type AgentPendingDetail = { label: string; value: string };
 
 export type AgentPendingAction = {
   id: string;
   tool: AgentActionTool;
   title: string;
   confirm_label: string;
-  publication: AgentPendingPublication;
+  /** Set for create_publication / cancel_publication only. */
+  publication: AgentPendingPublication | null;
+  /** The other writes: their arguments, named, ids shown as names. */
+  details?: AgentPendingDetail[];
 };
 
 export type AgentThread = {

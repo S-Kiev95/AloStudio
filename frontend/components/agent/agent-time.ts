@@ -78,7 +78,7 @@ export function formatPendingSchedule(
   if (action.tool === "cancel_publication") {
     return t("agent.pending.willDelete");
   }
-  const iso = action.publication.scheduled_for;
+  const iso = action.publication?.scheduled_for;
   if (!iso) {
     return t("agent.pending.soon");
   }

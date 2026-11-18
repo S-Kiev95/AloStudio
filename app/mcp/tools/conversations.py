@@ -60,7 +60,12 @@ from app.domains.inboxes.models import (
 from app.domains.macros import service as macro_service
 from app.domains.teams.models import Team
 from app.mcp.context import current_mcp_context
-from app.mcp.permissions import requires
+from app.mcp.permissions import (
+    ensure_conversation_visible,
+    ensure_inbox_visible,
+    requires,
+    visible_conversations,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +82,7 @@ async def _find_conversation(conversation_id: int) -> Conversation:
         raise ValueError(
             f"conversation {conversation_id} not found in this account"
         )
+    await ensure_conversation_visible(conv)
     return conv
 
 
@@ -204,6 +210,7 @@ def register(mcp: FastMCP) -> None:
         if assignee_id is not None:
             stmt = stmt.where(Conversation.assignee_id == assignee_id)
 
+        stmt = await visible_conversations(stmt)
         stmt = stmt.order_by(
             Conversation.last_activity_at.desc().nullslast(),
             Conversation.id.desc(),
@@ -322,6 +329,7 @@ def register(mcp: FastMCP) -> None:
         inbox = await ctx.session.get(Inbox, inbox_id)
         if inbox is None or inbox.account_id != ctx.account.id:
             raise ValueError(f"inbox {inbox_id} not found in this account")
+        await ensure_inbox_visible(inbox_id)
         contact = await ctx.session.get(Contact, contact_id)
         if contact is None or contact.account_id != ctx.account.id:
             raise ValueError(f"contact {contact_id} not found in this account")
@@ -390,6 +398,9 @@ def register(mcp: FastMCP) -> None:
             ctx.session, macro=macro, user_id=ctx.user.id
         ):
             raise ValueError(f"macro {macro_id} not found for this user")
+        if ctx.user_scoped:
+            for conversation_id in conversation_ids:
+                await _find_conversation(conversation_id)  # the user's inboxes only
         ran = await macro_service.execute_macro_on_conversations(
             ctx.session,
             macro=macro,
@@ -411,11 +422,14 @@ def register(mcp: FastMCP) -> None:
         conv = await _find_conversation(conversation_id)
         ctx = current_mcp_context()
         try:
-            await update_assignee(
+            updated = await update_assignee(
                 ctx.session, conversation=conv, assignee_id=agent_id
             )
         except ChatwootHTTPException as exc:
             raise ValueError(exc.detail) from exc
+        if updated is None and agent_id is not None:
+            # The service ignores someone outside the account, like Rails.
+            raise ValueError(f"agent {agent_id} not found in this account")
         return _present_conv(conv)
 
     @mcp.tool(name="assign_team")
@@ -427,6 +441,11 @@ def register(mcp: FastMCP) -> None:
         """Route to a team. ``null`` clears the team."""
         conv = await _find_conversation(conversation_id)
         ctx = current_mcp_context()
+        if team_id is not None:
+            team = await ctx.session.get(Team, team_id)
+            if team is None or team.account_id != ctx.account.id:
+                # The service would clear the team instead.
+                raise ValueError(f"team {team_id} not found in this account")
         await update_team(
             ctx.session, conversation=conv, team_id=team_id
         )
@@ -492,7 +511,7 @@ def register(mcp: FastMCP) -> None:
         }
 
     @mcp.tool(name="set_ai_mode")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def set_ai_mode(
         conversation_id: int,
         on: bool,

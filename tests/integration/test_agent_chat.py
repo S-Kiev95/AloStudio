@@ -21,7 +21,6 @@ from app.core.config import get_settings
 from app.core.db import get_session
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.agent.models import AgentThread
-from app.domains.agent.service import READ_TOOLS, WRITE_TOOLS
 from app.domains.conversations import models as _conversations  # noqa: F401
 from app.domains.publishing import service as publishing_svc
 from app.domains.publishing.models import Publication, PublishingChannel
@@ -186,8 +185,14 @@ async def test_status_follows_the_key_and_the_role(client, db_session, monkeypat
 
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
     status = (await client.get(base, headers=h)).json()
-    assert status == {"enabled": True, "model": settings.openai_agent_model, "can_write": True}
-    assert (await client.get(base, headers=agent_h)).json()["can_write"] is False
+    assert status == {
+        "enabled": True,
+        "model": settings.openai_agent_model,
+        "can_write": True,
+        "is_administrator": True,
+    }
+    # Agents confirm what their role allows (test_agent_roles.py).
+    assert (await client.get(base, headers=agent_h)).json()["is_administrator"] is False
 
     monkeypatch.setattr(settings, "openai_api_key", "")
     assert (await client.get(base, headers=h)).json()["enabled"] is False
@@ -226,7 +231,9 @@ async def test_a_read_tool_runs_and_the_agent_answers(client, db_session, openai
     assert chat["items"][2]["content"] == "Tenés un canal: Mi Threads."
 
     first, second = openai.requests
-    assert _tool_names(first) == list(READ_TOOLS + WRITE_TOOLS)
+    names = _tool_names(first)
+    assert names == sorted(names)
+    assert {"list_publication_channels", "create_publication", "send_message"} <= set(names)
     assert first["parallel_tool_calls"] is False
     assert first["model"] == get_settings().openai_agent_model
     system = first["messages"][0]
@@ -415,7 +422,7 @@ async def test_rejecting_or_writing_drops_the_proposal(client, db_session, opena
     assert await _publications(db_session, owner.account.id) == []
 
 
-async def test_agents_only_get_read_tools(client, db_session, openai):
+async def test_agents_dont_get_publishing_writes(client, db_session, openai):
     owner, _ = await _seed(db_session, "-ag")
     channel = await _channel(db_session, owner.account)
     agent_h = await _seed_agent(db_session, owner.account.id, "-ag")
@@ -428,8 +435,9 @@ async def test_agents_only_get_read_tools(client, db_session, openai):
     chat = (
         await client.post(f"{base}/threads", headers=agent_h, json={"content": "Publicá hola"})
     ).json()
-    assert _tool_names(openai.requests[0]) == list(READ_TOOLS)
-    assert "no es administrador" in openai.requests[0]["messages"][0]["content"]
+    names = _tool_names(openai.requests[0])
+    assert "list_publications" in names and "create_publication" not in names
+    assert "Es agente" in openai.requests[0]["messages"][0]["content"]
     assert chat["pending_action"] is None
     tool = next(i for i in chat["items"] if i["kind"] == "tool")
     assert tool["status"] == "error"

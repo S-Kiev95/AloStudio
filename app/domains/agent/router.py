@@ -51,7 +51,10 @@ async def agent_status(
     return {
         "enabled": svc.agent_enabled(),
         "model": get_settings().openai_agent_model,
-        "can_write": ctx.is_administrator,
+        # Every member confirms the changes their role allows (an agent:
+        # replies, notes, labels... in their inboxes).
+        "can_write": True,
+        "is_administrator": ctx.is_administrator,
     }
 
 

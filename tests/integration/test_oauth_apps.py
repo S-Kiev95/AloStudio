@@ -396,7 +396,10 @@ async def test_the_scope_follows_the_users_role_and_membership(client, db_sessio
     membership.role = ACCOUNT_USER_ROLE_AGENT
     db_session.add(membership)
     await db_session.flush()
-    assert (await _resolves(db_session, tokens["access_token"])).scope == "read"
+    agent_ctx = await _resolves(db_session, tokens["access_token"])
+    assert agent_ctx.scope == "read"
+    # It acts as that agent: their inboxes only, like the panel.
+    assert agent_ctx.user_scoped is True
 
     await db_session.delete(membership)
     await db_session.flush()

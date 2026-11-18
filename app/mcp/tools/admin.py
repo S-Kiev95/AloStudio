@@ -69,7 +69,7 @@ def _only_set(**values: Any) -> dict[str, Any]:
 def register(mcp: FastMCP) -> None:
     # --- automation rules -------------------------------------------------
     @mcp.tool(name="list_automation_rules")
-    @requires("admin")
+    @requires("admin", reads=True)
     async def list_automation_rules() -> dict[str, Any]:
         """The account's automation rules: event, conditions, actions and
         whether each is active."""
@@ -156,7 +156,7 @@ def register(mcp: FastMCP) -> None:
 
     # --- outgoing webhooks --------------------------------------------------
     @mcp.tool(name="list_webhooks")
-    @requires("admin")
+    @requires("admin", reads=True)
     async def list_webhooks() -> dict[str, Any]:
         """Webhooks the account sends its events to, with their signing
         secret."""
@@ -208,7 +208,7 @@ def register(mcp: FastMCP) -> None:
 
     # --- business hours -----------------------------------------------------
     @mcp.tool(name="get_working_hours")
-    @requires("admin")
+    @requires("admin", reads=True)
     async def get_working_hours(inbox_id: int) -> dict[str, Any]:
         """An inbox's business hours, one row per day of the week
         (0 = Sunday)."""
@@ -240,7 +240,7 @@ def register(mcp: FastMCP) -> None:
 
     # --- RSS autoposts and plugs --------------------------------------------
     @mcp.tool(name="list_autoposts")
-    @requires("admin")
+    @requires("admin", reads=True)
     async def list_autoposts() -> dict[str, Any]:
         """RSS feeds that publish (or draft) a post for each new item."""
         ctx = current_mcp_context()
@@ -265,7 +265,7 @@ def register(mcp: FastMCP) -> None:
         return present_autopost(autopost)
 
     @mcp.tool(name="list_plugs")
-    @requires("admin")
+    @requires("admin", reads=True)
     async def list_plugs() -> dict[str, Any]:
         """Automatic actions on published posts (for example: repost when a
         post passes N likes), with their recent runs."""
@@ -294,7 +294,7 @@ def register(mcp: FastMCP) -> None:
 
     # --- Help Center ----------------------------------------------------------
     @mcp.tool(name="list_help_centers")
-    @requires("admin")
+    @requires("admin", reads=True)
     async def list_help_centers() -> dict[str, Any]:
         """The account's Help Centers (portals); their ``slug`` is what the
         article tools take."""
@@ -304,7 +304,7 @@ def register(mcp: FastMCP) -> None:
         return {"help_centers": [present_portal(p) for p in rows]}
 
     @mcp.tool(name="list_articles")
-    @requires("admin")
+    @requires("admin", reads=True)
     async def list_articles(
         portal_slug: str, query: str | None = None, locale: str | None = None
     ) -> dict[str, Any]:

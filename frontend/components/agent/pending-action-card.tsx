@@ -36,7 +36,8 @@ export function PendingActionCard({
   const locale = useLocale();
   const [expanded, setExpanded] = useState(false);
 
-  const content = action.publication.content ?? "";
+  const publication = action.publication;
+  const content = publication?.content ?? "";
   const hasContent = content.trim().length > 0;
   const isCollapsible =
     content.split("\n").length > MAX_COLLAPSED_LINES ||
@@ -51,9 +52,20 @@ export function PendingActionCard({
     >
       <h3 className="text-sm font-semibold text-fg">{action.title}</h3>
 
-      {action.publication.channels.length > 0 ? (
+      {!publication && action.details?.length ? (
+        <dl className="space-y-1.5 text-sm">
+          {action.details.map((d, i) => (
+            <div key={`${i}-${d.label}`} className="flex flex-wrap gap-x-2">
+              <dt className="text-fg-muted">{d.label}</dt>
+              <dd className="whitespace-pre-wrap break-words text-fg">{d.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
+      {publication && publication.channels.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          {action.publication.channels.map((ch) => (
+          {publication.channels.map((ch) => (
             <span
               key={ch.id}
               className="inline-flex items-center gap-1.5 rounded-sm border border-glass bg-field px-2 py-1 text-xs font-medium text-fg"
@@ -87,9 +99,9 @@ export function PendingActionCard({
         </div>
       ) : null}
 
-      {action.publication.media.length > 0 ? (
+      {publication && publication.media.length > 0 ? (
         <div className="flex flex-wrap gap-2">
-          {action.publication.media.map((m, idx) => (
+          {publication.media.map((m, idx) => (
             <div
               key={m.id ?? `${m.url}-${idx}`}
               className="h-16 w-16 shrink-0 overflow-hidden rounded-md border border-glass bg-field"
@@ -115,9 +127,11 @@ export function PendingActionCard({
         </div>
       ) : null}
 
-      <p className="font-numeric text-xs font-medium tabular-nums text-fg-muted">
-        {formatPendingSchedule(action, locale)}
-      </p>
+      {publication ? (
+        <p className="font-numeric text-xs font-medium tabular-nums text-fg-muted">
+          {formatPendingSchedule(action, locale)}
+        </p>
+      ) : null}
 
       {error ? (
         <p role="alert" className="text-xs text-danger">

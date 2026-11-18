@@ -135,6 +135,8 @@ async def resolve_token(
             account=grant.account,
             scope=grant.scope,  # type: ignore[arg-type]
             session=session,
+            # It acts as that person: their role's view of the account.
+            user_scoped=True,
         )
 
     row = (

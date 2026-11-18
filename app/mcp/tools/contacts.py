@@ -20,7 +20,7 @@ from app.domains.contacts.models import Contact
 from app.domains.contacts.service import contact_snapshot, dispatch_contact_updated
 from app.domains.conversations.models import Conversation
 from app.mcp.context import current_mcp_context
-from app.mcp.permissions import requires
+from app.mcp.permissions import ensure_conversation_visible, requires
 
 
 def _present(contact: Contact) -> dict[str, Any]:
@@ -58,6 +58,7 @@ async def _find_conversation(conversation_id: int) -> Conversation:
         raise ValueError(
             f"conversation {conversation_id} not found in this account"
         )
+    await ensure_conversation_visible(conv)
     return conv
 
 

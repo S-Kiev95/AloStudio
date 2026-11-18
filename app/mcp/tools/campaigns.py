@@ -23,7 +23,7 @@ from app.mcp.permissions import requires
 
 def register(mcp: FastMCP) -> None:
     @mcp.tool(name="list_campaigns")
-    @requires("read")
+    @requires("read", panel_admin=True)
     async def list_campaigns() -> dict[str, Any]:
         """The account's campaigns with their state (pending / completed),
         inbox, audience and schedule. ``id`` is the one the other campaign
@@ -34,7 +34,7 @@ def register(mcp: FastMCP) -> None:
         return {"campaigns": [present_campaign(c) for c in rows]}
 
     @mcp.tool(name="create_campaign")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def create_campaign(
         title: str,
         inbox_id: int,
@@ -106,7 +106,7 @@ def register(mcp: FastMCP) -> None:
         return present_campaign(campaign)
 
     @mcp.tool(name="get_campaign_result")
-    @requires("read")
+    @requires("read", panel_admin=True)
     async def get_campaign_result(campaign_id: int) -> dict[str, Any]:
         """Delivery figures of a campaign: messages sent, delivered, read,
         failed and replies."""

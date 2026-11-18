@@ -9,10 +9,12 @@ from typing import Any
 from fastmcp import FastMCP
 
 from app.mcp.context import current_mcp_context
+from app.mcp.permissions import requires
 
 
 def register(mcp: FastMCP) -> None:
     @mcp.tool(name="whoami")
+    @requires("read")
     async def whoami() -> dict[str, Any]:
         """Return the resolved account + scope for the current token.
 

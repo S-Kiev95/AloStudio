@@ -122,6 +122,42 @@ Llamar a un cliente lo cobra Meta aparte; atender es gratis.
   herramientas solo de administradores no aparecen para un agente; los
   tokens del MCP (sin usuario) siguen igual.
 
+**Hecho (2026-11-17):**
+
+- `MCPContext.user_scoped`: el asistente y las apps OAuth actúan como la
+  persona y ven lo que su rol ve en el panel. Las herramientas lo aplican
+  con `app/mcp/permissions.py` (`ensure_conversation_visible`,
+  `visible_conversations`, `ensure_inbox_visible`, `visible_inboxes`), que
+  reusan `conversations/permission.py` (se sumó `can_view_inbox`). Los
+  tokens "API y MCP" no cambian.
+- Cada herramienta declara en `@requires(...)` si el panel la reserva a
+  administradores (`panel_admin=True`, como su ruta REST con
+  `require_admin`) y si una herramienta `admin` solo lee (`reads=True`).
+  Una herramienta sin `@requires` cuenta como escritura de administradores.
+  Con `user_scoped`, la herramienta misma rechaza a un agente (también si
+  la llama una app OAuth).
+- El asistente ofrece todas las herramientas que el rol permite (unas 100
+  para un administrador, ~48.000 caracteres de definiciones por llamada:
+  medir el costo; si pesa, elegir grupos de herramientas por pedido). Toda
+  escritura espera la confirmación; solo las de publicaciones se ensayan
+  antes (lo demás manda mensajes, llama a Meta o avisa al panel).
+- Tarjeta de confirmación genérica: los datos de la acción con sus nombres
+  y los ids como nombres (solo de lo que el usuario puede ver), en los 7
+  idiomas; los estados del chat también pasaron a los 7 idiomas.
+- Arreglos que salieron de la revisión: macros sobre conversaciones de
+  bandejas ajenas; `list_inboxes` y las plantillas de WhatsApp respetan las
+  bandejas; `set_ai_mode` (apaga las automatizaciones) queda para
+  administradores; asignar a una persona o equipo que no existe da error
+  (el servicio lo ignoraba o borraba el equipo); `search_messages`
+  devuelve el id interno de la conversación (y el número en
+  `conversation_display_id`); confirmar ya no da error 500 cuando el
+  servicio confirma la base por su cuenta (adjuntos de Instagram, reintento
+  de publicaciones).
+- Igual que la API REST, sin cambios: los reportes y la CSAT no se filtran
+  por bandeja para los agentes (decisión de producto, a revisar).
+- Tests: `tests/integration/test_agent_roles.py`, `test_agent_chat.py`,
+  `test_oauth_apps.py` y los del MCP; frontend `components/agent`.
+
 ### Paso 2. Agente de clientes por chat
 
 - Nuevo tipo de bot "IA de AloStudio" (`agent_bots.bot_type = 1`) que se

@@ -124,3 +124,20 @@ async def can_view_conversation(
 
 
 __all__ = ["apply_permission_scope", "can_view_conversation", "is_administrator"]
+
+
+async def can_view_inbox(
+    session: AsyncSession, *, account_id: int, user_id: int, inbox_id: int
+) -> bool:
+    """Mirror ``InboxPolicy#show?``: administrators every inbox of the
+    account, agents the ones they are members of."""
+    if await is_administrator(session, account_id=account_id, user_id=user_id):
+        return True
+    member = (
+        await session.exec(
+            select(InboxMember.id).where(
+                InboxMember.inbox_id == inbox_id, InboxMember.user_id == user_id
+            )
+        )
+    ).first()
+    return member is not None

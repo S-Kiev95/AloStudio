@@ -93,7 +93,7 @@ def _as_value_error(exc: ChatwootHTTPException) -> ValueError:
 def register(mcp: FastMCP) -> None:
     # ---- read ----------------------------------------------------------
     @mcp.tool(name="list_instagram_posts")
-    @requires("read")
+    @requires("read", panel_admin=True)
     async def list_instagram_posts(
         state: Literal[
             "pending", "publishing", "published", "failed", "deleted"
@@ -110,7 +110,7 @@ def register(mcp: FastMCP) -> None:
         return {"page": page, "posts": [present_post(p) for p in rows]}
 
     @mcp.tool(name="show_instagram_post")
-    @requires("read")
+    @requires("read", panel_admin=True)
     async def show_instagram_post(post_id: int) -> dict[str, Any]:
         """Read one post with its containers + linked products."""
         ctx = current_mcp_context()
@@ -134,7 +134,7 @@ def register(mcp: FastMCP) -> None:
         return {"page": page, "products": [present_product(p) for p in rows]}
 
     @mcp.tool(name="instagram_products_for_media")
-    @requires("read")
+    @requires("read", panel_admin=True)
     async def instagram_products_for_media(
         ig_media_id: str,
     ) -> dict[str, Any]:
@@ -152,7 +152,7 @@ def register(mcp: FastMCP) -> None:
         }
 
     @mcp.tool(name="list_instagram_comments")
-    @requires("read")
+    @requires("read", panel_admin=True)
     async def list_instagram_comments(
         ig_media_id: str, include_hidden: bool = False
     ) -> dict[str, Any]:
@@ -172,7 +172,7 @@ def register(mcp: FastMCP) -> None:
 
     # ---- write ---------------------------------------------------------
     @mcp.tool(name="create_instagram_post")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def create_instagram_post(
         inbox_id: int,
         media_type: Literal["IMAGE", "VIDEO", "REELS", "CAROUSEL", "STORIES"],
@@ -224,7 +224,7 @@ def register(mcp: FastMCP) -> None:
         return present_post(post, products=products)
 
     @mcp.tool(name="post_instagram_comment")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def post_instagram_comment(
         post_id: int, message: str
     ) -> dict[str, Any]:
@@ -247,7 +247,7 @@ def register(mcp: FastMCP) -> None:
         return present_comment(comment)
 
     @mcp.tool(name="reply_to_instagram_comment")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def reply_to_instagram_comment(
         comment_id: int, message: str
     ) -> dict[str, Any]:
@@ -268,7 +268,7 @@ def register(mcp: FastMCP) -> None:
         return present_comment(reply)
 
     @mcp.tool(name="hide_instagram_comment")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def hide_instagram_comment(
         comment_id: int, hide: bool = True
     ) -> dict[str, Any]:

@@ -124,7 +124,7 @@ def register(mcp: FastMCP) -> None:
         return {"publications": await present_publications(ctx.session, rows)}
 
     @mcp.tool(name="create_publication")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def create_publication(
         channel_ids: list[int],
         content: str | None = None,
@@ -222,7 +222,7 @@ def register(mcp: FastMCP) -> None:
         return await present_one_publication(ctx.session, publication)
 
     @mcp.tool(name="update_publication")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def update_publication(
         publication_id: int,
         content: str | None = None,
@@ -253,7 +253,7 @@ def register(mcp: FastMCP) -> None:
         return await present_one_publication(ctx.session, updated)
 
     @mcp.tool(name="retry_publication")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def retry_publication(publication_id: int) -> dict[str, Any]:
         """Send again the channels that failed in a publication (the ones
         already published stay). It goes out right away."""
@@ -286,7 +286,7 @@ def register(mcp: FastMCP) -> None:
         return present_asset(asset)
 
     @mcp.tool(name="refresh_publication_metrics")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def refresh_publication_metrics(publication_id: int) -> dict[str, Any]:
         """Read the figures of a published post now instead of waiting for
         the hourly refresh (channels read in the last minutes are skipped,
@@ -330,7 +330,7 @@ def register(mcp: FastMCP) -> None:
         return {"sets": await present_sets(ctx.session, rows)}
 
     @mcp.tool(name="cancel_publication")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def cancel_publication(publication_id: int) -> dict[str, Any]:
         """Delete a publication that has not gone out (draft, scheduled or failed)."""
         ctx = current_mcp_context()

@@ -3,13 +3,14 @@ import type { Strings } from "../types";
 
 export const agent: Strings<typeof es> = {
   suggestions: {
+    inbox: "아직 답하지 않은 열린 대화는 무엇인가요?",
     write: "내일 10시에 모든 채널에 올릴 게시물을 만들어 줘",
     week: "이번 주에 예약된 게 뭐야?",
     lastMonth: "지난달 게시물 성과는 어땠어?",
   },
   unconfigured: "에이전트가 아직 설정되지 않았습니다. 설치 운영자가 설정 → 설치 → 인공지능에서 OpenAI 키를 등록해야 합니다.",
-  readOnly: "게시물과 통계를 조회할 수 있습니다. 게시물 생성이나 삭제는 관리자가 합니다.",
-  greeting: "안녕하세요, AloStudio 에이전트입니다. 채널에 올릴 게시물을 만들고 예약하고, 캘린더를 확인하고, 게시물 성과를 알려 드릴 수 있어요.",
+  roleNote: "받은편지함과 같은 것을 보고 할 수 있습니다: 내 받은편지함의 대화입니다. 계정 설정은 관리자가 변경합니다.",
+  greeting: "안녕하세요, AloStudio 에이전트입니다. 대화를 찾고 답하며, 연락처, CRM, 캘린더, 게시물, 보고서를 역할이 허용하는 범위에서 도와드립니다. 무언가를 바꾸는 작업은 확인할 수 있도록 먼저 보여드립니다.",
   seeInCalendar: "캘린더에서 보기",
   newChat: "새 채팅",
   chat: "채팅",

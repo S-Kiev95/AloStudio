@@ -37,7 +37,7 @@ from app.domains.users.models import (
     User,
 )
 from app.mcp.context import current_mcp_context
-from app.mcp.permissions import requires
+from app.mcp.permissions import requires, visible_inboxes
 
 
 def _period(
@@ -95,7 +95,7 @@ def register(mcp: FastMCP) -> None:
         }
 
     @mcp.tool(name="create_label")
-    @requires("write")
+    @requires("write", panel_admin=True)
     async def create_label(
         title: str,
         description: str | None = None,
@@ -125,15 +125,8 @@ def register(mcp: FastMCP) -> None:
         Instagram, email, web chat…). Use their id in create_conversation
         and to read the channel of a conversation."""
         ctx = current_mcp_context()
-        rows = list(
-            (
-                await ctx.session.exec(
-                    select(Inbox)
-                    .where(Inbox.account_id == ctx.account.id)
-                    .order_by(col(Inbox.id).asc())
-                )
-            ).all()
-        )
+        stmt = await visible_inboxes(select(Inbox).where(Inbox.account_id == ctx.account.id))
+        rows = list((await ctx.session.exec(stmt.order_by(col(Inbox.id).asc()))).all())
         return {
             "inboxes": [
                 {

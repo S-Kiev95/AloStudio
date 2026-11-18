@@ -3,13 +3,14 @@ import type { Strings } from "../types";
 
 export const agent: Strings<typeof es> = {
   suggestions: {
+    inbox: "Quelles conversations ouvertes n’ai-je pas encore répondues ?",
     write: "Prépare une publication pour demain à 10 h sur tous mes canaux",
     week: "Qu’est-ce que j’ai de programmé cette semaine ?",
     lastMonth: "Comment se sont passées mes publications le mois dernier ?",
   },
   unconfigured: "L’agent n’est pas encore configuré. Un opérateur de l’installation doit ajouter la clé OpenAI dans Paramètres → Installation → Intelligence artificielle.",
-  readOnly: "Vous pouvez consulter les publications et les statistiques. La création ou la suppression de publications est réservée à un administrateur.",
-  greeting: "Bonjour, je suis l’agent AloStudio. Je peux préparer et programmer des publications sur vos canaux, consulter votre calendrier et vous dire comment se sont passées vos publications.",
+  roleNote: "Vous voyez et faites la même chose que dans la Boîte de réception : les conversations de vos boîtes. Un administrateur modifie les paramètres du compte.",
+  greeting: "Bonjour, je suis l’agent d’AloStudio. Je peux chercher et répondre aux conversations, et vous aider avec les contacts, le CRM, l’Agenda, les publications et les rapports, selon ce que votre rôle permet. Ce qui modifie quelque chose, je vous le montre d’abord pour que vous le confirmiez.",
   seeInCalendar: "Voir dans le calendrier",
   newChat: "Nouveau chat",
   chat: "Chat",

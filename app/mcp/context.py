@@ -48,6 +48,11 @@ class MCPContext:
     account: Account
     scope: Scope
     session: AsyncSession
+    # Acting as this user in the panel (the agent chat): tools see what the
+    # user's role sees there — an agent only the conversations of the
+    # inboxes (and teams) they belong to. API and OAuth tokens leave it off
+    # and keep the whole account.
+    user_scoped: bool = False
 
 
 _ctx_var: contextvars.ContextVar[MCPContext | None] = contextvars.ContextVar(

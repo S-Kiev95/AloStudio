@@ -613,6 +613,38 @@ describe("Agente — tarjeta de confirmación (confirmar y cancelar)", () => {
       within(immediateCard).getByRole("button", { name: "Publicar ahora" }),
     ).toBeInTheDocument();
   });
+
+  it("cualquier otra acción muestra sus datos con nombres y se confirma igual", async () => {
+    server.use(
+      http.get("*/api/v1/accounts/1/agent/threads/7", () =>
+        HttpResponse.json({
+          ...THREAD_7_PENDING,
+          pending_action: {
+            id: "call_msg_1",
+            tool: "send_message",
+            title: "Confirmá esta acción",
+            confirm_label: "Confirmar",
+            publication: null,
+            details: [
+              { label: "Conversación", value: "#12 · Ana" },
+              { label: "Mensaje", value: "¡Hola Ana! Te confirmo el turno." },
+            ],
+          },
+        }),
+      ),
+    );
+
+    renderAgentScreen(7);
+
+    const card = await screen.findByTestId("agent-pending-action-card");
+    expect(within(card).getByText("Confirmá esta acción")).toBeInTheDocument();
+    expect(within(card).getByText("#12 · Ana")).toBeInTheDocument();
+    expect(
+      within(card).getByText("¡Hola Ana! Te confirmo el turno."),
+    ).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Confirmar" })).toBeInTheDocument();
+    expect(within(card).queryByText("Sale en los próximos minutos")).toBeNull();
+  });
 });
 
 describe("Agente — errores del backend (503, 502, 409, 422) y sugerencias", () => {
@@ -862,13 +894,14 @@ describe("Agente — enabled: false y can_write: false", () => {
     expect(screen.getByLabelText("Mensaje para el agente")).toBeDisabled();
   });
 
-  it("con can_write: false muestra la nota de solo lectura bajo el encabezado y oculta la sugerencia de armar publicación", async () => {
+  it("a un agente le muestra hasta dónde llega y oculta la sugerencia de armar publicación", async () => {
     server.use(
       http.get("*/api/v1/accounts/1/agent", () =>
         HttpResponse.json({
           enabled: true,
           model: "gpt-5.4-mini",
-          can_write: false,
+          can_write: true,
+          is_administrator: false,
         }),
       ),
     );
@@ -877,8 +910,13 @@ describe("Agente — enabled: false y can_write: false", () => {
 
     expect(
       await screen.findByText(
-        "Podés consultar publicaciones y estadísticas. Crear o borrar publicaciones lo hace un administrador.",
+        "Ves y hacés lo mismo que en la Bandeja: las conversaciones de tus bandejas. La configuración de la cuenta la cambia un administrador.",
       ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "¿Qué conversaciones abiertas tengo sin responder?",
+      }),
     ).toBeInTheDocument();
 
     expect(
