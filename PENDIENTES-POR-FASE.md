@@ -147,7 +147,7 @@ anota en esta sección y lo decide el dueño.
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
-| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en develop y en staging (2026-11-17). Agente de IA de clientes y de voz (12 y 6): agente A, rama `feat/agente-ia` (2026-11-17). Falta acordar los workflows y repartir el resto |
+| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en develop y en staging (2026-11-17). Resumen de llamadas con IA en develop y en staging (2026-11-18, apagado hasta que el superadmin lo prenda). Agente de IA de clientes y de voz (12 y 6): agente A, rama `feat/agente-ia` (2026-11-17). Falta acordar los workflows y repartir el resto |
 
 ### Reglas para no pisarse
 
@@ -784,7 +784,7 @@ Detalle en `PLAN.i18n.md`.
 | 2 | Conversions API de Meta (avisarle a Meta qué chats de anuncios terminan en venta) | Sí, le sirve a CTC |
 | 3 | Workflows visuales: preguntar y esperar la respuesta, ramas, esperas | A acordar entre el dueño y el agente B: propios o con n8n |
 | 4 | Notas de cierre (motivo al cerrar una conversación, para reportes) | Sí |
-| 5 | Resumen de llamadas con IA | Sí, en el plan más caro; lo prende el superadmin de cada instalación y gasta créditos de IA |
+| 5 | Resumen de llamadas con IA | Sí, en el plan más caro; lo prende el superadmin de cada instalación y gasta créditos de IA. **Hecho** (agente B, 2026-11-18): Instalación → Llamadas → "Resumen de llamadas con IA"; el resumen sale en la burbuja de la llamada cuando hay transcripción y el gasto va a Gastos como `call_summary`. Para F2/multitenant: atarlo al plan más caro |
 | 6 | Agente de IA que atiende llamadas | Contemplado (F7 paso 3). Lo hace el agente A junto con el 12 (2026-11-17) |
 | 7 | Etapas del contacto | Sí, con la nomenclatura de respond.io |
 | 8 | TikTok como canal de mensajes | Sí |
