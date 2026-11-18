@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 
 const ITEM =
   "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-fg hover:bg-hover-glass focus-visible:bg-hover-glass focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent";
+// The menu's width (w-64), to open it leftwards where it would not fit.
+const MENU_WIDTH_PX = 256;
 
 /** The composer's AI button (F17): rewrites the draft, or writes a private
  *  note summarizing the conversation. Nothing shows while the installation
@@ -38,6 +40,8 @@ export function WritingAssist({
   const info = useWritingAssist(accountId);
   const assist = useAssist(accountId);
   const [open, setOpen] = useState(false);
+  // On a phone the button can sit too far right for the menu to fit.
+  const [alignRight, setAlignRight] = useState(false);
   const [choosingLanguage, setChoosingLanguage] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   // The box before the AI's text, offered back while the box still shows it.
@@ -107,7 +111,9 @@ export function WritingAssist({
     <div ref={wrapRef} className="relative flex flex-wrap items-center gap-2">
       <button
         type="button"
-        onClick={() => {
+        onClick={(e) => {
+          const { left } = e.currentTarget.getBoundingClientRect();
+          setAlignRight(left + MENU_WIDTH_PX > window.innerWidth - 8);
           setChoosingLanguage(false);
           setOpen((v) => !v);
         }}
@@ -137,7 +143,10 @@ export function WritingAssist({
           role="menu"
           aria-label={t("writingAssist.menu")}
           onKeyDown={onMenuKey}
-          className="absolute bottom-full left-0 z-30 mb-1 max-h-72 w-64 overflow-auto rounded-md border border-glass bg-surface-2 py-1 shadow-menu"
+          className={cn(
+            "absolute bottom-full z-30 mb-1 max-h-72 w-64 overflow-auto rounded-md border border-glass bg-surface-2 py-1 shadow-menu",
+            alignRight ? "right-0" : "left-0",
+          )}
         >
           {choosingLanguage ? (
             <>
