@@ -3,7 +3,7 @@
 import { Megaphone, Search, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { isVoiceCallMessage, useVoiceCallPreview } from "@/components/calls/voice-call-message";
 import { Avatar } from "@/components/ui/avatar";
@@ -49,6 +49,8 @@ const ASSIGNEE_TABS = [
 
 const PER_PAGE = 25;
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export function ConversationList({ accountId }: { accountId: string }) {
   const t = useT();
   const searchParams = useSearchParams();
@@ -91,6 +93,27 @@ export function ConversationList({ accountId }: { accountId: string }) {
     },
     [searchParams, pathname, router],
   );
+
+  // What the search box shows. It is ours, not the URL's: each URL change is
+  // a navigation, and letters typed while one runs were lost ("eze" → "ee").
+  // The URL follows a moment after the typing stops.
+  const [searchDraft, setSearchDraft] = useState(q);
+  const pushedQ = useRef(q);
+  useEffect(() => {
+    // Back/forward or a link changed it: show that.
+    if (q !== pushedQ.current) {
+      pushedQ.current = q;
+      setSearchDraft(q);
+    }
+  }, [q]);
+  useEffect(() => {
+    if (searchDraft === pushedQ.current) return;
+    const id = window.setTimeout(() => {
+      pushedQ.current = searchDraft;
+      setParams({ q: searchDraft || null, page: null });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [searchDraft, setParams]);
 
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [filters, setFilters] = useState<FilterCondition[]>([]);
@@ -276,21 +299,23 @@ export function ConversationList({ accountId }: { accountId: string }) {
               name="conversation-search"
               autoComplete="off"
               aria-label={t("conversations.list.searchLabel")}
-              value={q}
+              value={searchDraft}
               onChange={(e) => {
                 const v = e.target.value;
-                setParams({ q: v || null, page: null });
+                setSearchDraft(v);
                 clearSelected();
                 if (v.trim()) setFilters([]); // search and filters are exclusive
               }}
               placeholder={t("conversations.list.searchPlaceholder")}
               className="glass-field h-9 w-full rounded-control border border-glass bg-field pl-8 pr-8 text-xs text-fg placeholder:text-fg-muted"
             />
-            {q ? (
+            {searchDraft ? (
               <button
                 type="button"
                 aria-label={t("conversations.list.clearSearch")}
                 onClick={() => {
+                  pushedQ.current = "";
+                  setSearchDraft("");
                   setParams({ q: null, page: null });
                   clearSelected();
                 }}
