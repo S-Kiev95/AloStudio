@@ -12,6 +12,7 @@ import { useProfile, useUpdateProfile } from "@/lib/api/profile";
 import { uploadAttachment } from "@/lib/api/uploads";
 import { useT } from "@/lib/i18n/provider";
 
+import { GoogleCalendarCard } from "./google-calendar-card";
 import { LanguageCard } from "./language-card";
 
 export function ProfileView() {
@@ -242,6 +243,7 @@ export function ProfileView() {
       </Card>
 
       <LanguageCard />
+      <GoogleCalendarCard />
     </div>
   );
 }

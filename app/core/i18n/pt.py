@@ -78,4 +78,31 @@ MESSAGES: dict[str, str] = {
     "calls.permission.accepted_always": "Aceitou receber ligações pelo WhatsApp (sempre)",
     "calls.permission.accepted_by_calling": "Ao ligar, permitiu receber retorno por 7 dias",
     "calls.permission.rejected": "Não quer receber ligações pelo WhatsApp",
+    # A call nobody answered (F7): what the customer reads, and the label
+    # that marks the conversation to call back
+    "calls.missed.reply": "Olá! Vimos sua ligação e não conseguimos atender. Ligamos para você em alguns minutos.",
+    "calls.missed.label": "chamada-perdida",
+    # Why a conversation closed (F17): the default categories, and the
+    # title of the private note a closing leaves
+    "closing.default.answered": "Dúvida respondida",
+    "closing.default.enrolled": "Se inscreveu",
+    "closing.default.not_interested": "Não teve interesse",
+    "closing.default.no_reply": "O cliente não respondeu",
+    "closing.default.spam": "Spam ou número errado",
+    "closing.note_title": "Nota de encerramento",
+    # Contact lifecycle (F17): the default stages, and the line a move
+    # leaves in the conversation
+    "lifecycle.default.new_lead.name": "Novo interessado",
+    "lifecycle.default.new_lead.description": "Escreveu pela primeira vez.",
+    "lifecycle.default.hot_lead.name": "Muito interessado",
+    "lifecycle.default.hot_lead.description": "Quer avançar.",
+    "lifecycle.default.payment.name": "Em pagamento",
+    "lifecycle.default.payment.description": "Está pagando ou vai pagar.",
+    "lifecycle.default.customer.name": "Cliente",
+    "lifecycle.default.customer.description": "Já comprou.",
+    "lifecycle.default.cold_lead.name": "Esfriou",
+    "lifecycle.default.cold_lead.description": "Parou de responder ou perdeu o interesse.",
+    "lifecycle.activity": "{name} mudou a etapa para {stage}",
+    "lifecycle.activity_cleared": "{name} tirou a etapa do contato",
+    "lifecycle.someone": "Alguém",
 }

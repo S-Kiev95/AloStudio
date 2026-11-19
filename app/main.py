@@ -35,6 +35,7 @@ from app.domains.bulk_actions.router import router as bulk_actions_router
 from app.domains.calls.router import router as calls_router
 from app.domains.campaigns.router import router as campaigns_router
 from app.domains.canned_responses.router import router as canned_responses_router
+from app.domains.closing.router import router as closing_router
 from app.domains.contacts.router import actions_router as contact_actions_router
 from app.domains.contacts.router import router as contacts_router
 from app.domains.conversations.attachments_router import (
@@ -49,6 +50,7 @@ from app.domains.conversations.router import (
 )
 from app.domains.conversations.router import router as conversations_router
 from app.domains.conversations.search_router import router as message_search_router
+from app.domains.conversions.router import router as conversions_router
 from app.domains.crm.router import router as crm_router
 from app.domains.csat.public_router import router as csat_public_router
 from app.domains.csat.router import router as csat_router
@@ -58,6 +60,7 @@ from app.domains.decisions.router import router as decisions_router
 from app.domains.email.templates_router import router as email_templates_router
 from app.domains.facebook.connect_router import router as facebook_connect_router
 from app.domains.facebook.router import router as facebook_webhook_router
+from app.domains.google_calendar.router import router as google_calendar_router
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
 from app.domains.instagram.autoreply_router import (
@@ -75,6 +78,7 @@ from app.domains.instagram.router import router as instagram_webhook_router
 from app.domains.installation.router import router as installation_router
 from app.domains.integrations.router import router as integrations_router
 from app.domains.labels.router import router as labels_router
+from app.domains.lifecycle.router import router as lifecycle_router
 from app.domains.macros.router import router as macros_router
 from app.domains.media_library.router import router as media_library_router
 from app.domains.notifications.router import (
@@ -346,6 +350,14 @@ def create_app() -> FastAPI:
     app.include_router(calls_router)
     # Decisions about conversations, in shadow mode (F10).
     app.include_router(decisions_router)
+    # Why conversations close: categories and notes (F17).
+    app.include_router(closing_router)
+    # Each agent's Agenda in their Google Calendar (F17).
+    app.include_router(google_calendar_router)
+    # Ad conversations that became leads or sales, reported to Meta (F17).
+    app.include_router(conversions_router)
+    # Where each contact stands, from new lead to customer (F17).
+    app.include_router(lifecycle_router)
     # Multi-network publishing: one publication, many channels, each
     # published by its network adapter.
     app.include_router(publishing_router)

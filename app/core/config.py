@@ -176,6 +176,9 @@ class Settings(BaseSettings):
     # installation's operator turns it on: recording people has legal weight,
     # so an account admin can only use it once the operator allowed it.
     call_recording_allowed: bool = False
+    # AI summary of each transcribed call (F17), written into the call's
+    # bubble. Off until the operator turns it on: it spends AI credits.
+    ai_call_summary_enabled: bool = False
     # Decisions service (F10): intent, sentiment, urgency and team of each
     # conversation. TypeSafe's Jev today; a local Laya later answers the same
     # ``POST /v1/systemone``, so switching is changing these three.

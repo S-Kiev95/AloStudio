@@ -26,6 +26,10 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "Artificial intelligence",
   },
   items: {
+    AI_CALL_SUMMARY_ENABLED: {
+      title: "AI call summaries",
+      description: "When a call has a transcript, the AI writes a short summary (why they called, what was agreed and what follows) in the call's bubble. It uses the agent's key and model; the spending shows in each account's Costs.",
+    },
     DECISIONS_API_KEY: {
       title: "Decisions service: key",
       description: "Classifies conversations (intent, sentiment, urgency and team). TypeSafe's (Jev) key comes from its console; with a local Laya, the one you set on its server.",

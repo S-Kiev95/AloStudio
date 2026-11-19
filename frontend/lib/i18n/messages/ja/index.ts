@@ -5,8 +5,12 @@ import { companies } from "./companies";
 import { activities } from "./activities";
 import { metaCatalog } from "./metaCatalog";
 import { calls } from "./calls";
+import { closing } from "./closing";
+import { conversions } from "./conversions";
+import { lifecycle } from "./lifecycle";
 import { decisions } from "./decisions";
 import { usage } from "./usage";
+import { googleCalendar } from "./googleCalendar";
 import { opportunities } from "./opportunities";
 import { origin } from "./origin";
 import { igCapabilities } from "./igCapabilities";
@@ -64,7 +68,11 @@ export const ja: Messages = {
   metaCatalog,
   calls,
   decisions,
+  closing,
+  conversions,
+  lifecycle,
   usage,
+  googleCalendar,
 
   opportunities,
 

@@ -13,6 +13,7 @@ import { ContactOpportunitiesCard } from "@/components/crm/contact-opportunities
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ContactStage } from "@/components/lifecycle/contact-stage";
 import {
   type ContactInput,
   useContact,
@@ -108,6 +109,9 @@ export function ContactDetailView({
                 {t("conversations.contact.blocked")}
               </span>
             ) : null}
+            <div className="w-56 shrink-0">
+              <ContactStage accountId={accountId} contactId={contact.id} compact />
+            </div>
             <Button
               size="sm"
               variant="secondary"

@@ -26,6 +26,10 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "Inteligência artificial",
   },
   items: {
+    AI_CALL_SUMMARY_ENABLED: {
+      title: "Resumo de chamadas com IA",
+      description: "Quando uma chamada tem transcrição, a IA escreve um resumo curto (motivo, o que foi combinado e o que vem depois) no balão da chamada. Usa a chave e o modelo do agente; o gasto aparece em Gastos de cada conta.",
+    },
     DECISIONS_API_KEY: {
       title: "Serviço de decisões: chave",
       description: "Classifica as conversas (intenção, sentimento, urgência e equipe). A chave da TypeSafe (Jev) vem do console dela; com o Laya local, a que você definiu no servidor.",

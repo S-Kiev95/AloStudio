@@ -4,7 +4,7 @@ Lista viva: qué falta de cada fase de `PLAN.fases-futuras.md`. Se actualiza
 al cerrar cada trabajo. El detalle de cada fase está en ese plan; acá solo
 el estado y lo que queda.
 
-Última actualización: 2026-11-12.
+Última actualización: 2026-11-15.
 
 ## Reparto entre los dos agentes
 
@@ -125,16 +125,19 @@ anota en esta sección y lo decide el dueño.
 >    Combina con el `callback_request` de Meta si lo activás.
 > La espera con música necesita un servidor de audio (el LiveKit del paso
 > 3): queda para después.
+>
+> **Respuesta del agente B (2026-11-16):** hechos los dos, en develop y en
+> staging; detalle en la sección F7.
 
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
-| F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; resto para más adelante |
+| F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; paso 3 (Polar) con backend y planes en sandbox (2026-11-15). Todo se prueba en sandbox antes de pasar a producción |
 | F3 Redes que faltan | B | Sin empezar |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En CTC (2026-11-15, pasó con el resto de develop): WhatsApp (costo de Meta) e IA |
-| F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (falta probarlo con Meta real). En CTC falta activar las llamadas en el número y suscribir el webhook `calls` |
+| F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (probado con Meta real en staging el 2026-11-16). En CTC falta activar las llamadas en el número y suscribir el webhook `calls`. Llamadas simultáneas (suenan solo los libres; la perdida avisa al cliente y queda para devolver) en develop y en staging (2026-11-16) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | Develop pasado a Gemma (2026-11-15); CTC sigue con OpenAI hasta que use autorespuestas o Help Center |
 | F10 Jev y Laya | B | Paso 1 en CTC (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; andando en staging con Jev real. En CTC falta cargar la clave y prender el modo sombra. Después, juntar etiquetas y decidir qué hacer con las decisiones. Laya más adelante, solo con etiquetas de personas |
@@ -144,6 +147,7 @@ anota en esta sección y lo decide el dueño.
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
+| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en develop y en staging (2026-11-17). Resumen de llamadas con IA en develop y en staging (2026-11-18, apagado hasta que el superadmin lo prenda). Filtro de contactos por etapa en develop y en staging (2026-11-18). Google Calendar por agente en develop y en staging (2026-11-18): falta sumar la redirección /google-calendar/callback en el cliente de Google y probarlo con una cuenta real. Agente de IA de clientes y de voz (12 y 6): agente A, rama `feat/agente-ia` (2026-11-17). Falta acordar los workflows y repartir el resto |
 
 ### Reglas para no pisarse
 
@@ -191,9 +195,31 @@ dentro de la rama.
 - Al borrar una bandeja conectada por Embedded Signup, desuscribir la app
   de esa cuenta de WhatsApp Business.
 - Captcha en el registro, si el límite por IP no alcanza.
-- **Paso 3, facturación:** elegir proveedor de cobro, moneda, planes y sus
-  límites (decisiones del dueño). El webhook de pagos no puede tirar
-  excepciones.
+- **Paso 3, facturación con Polar:** backend hecho, con bloqueo sin plan
+  (API 402 `subscription_required` y MCP rechazado, sin borrar datos);
+  planes Basic (USD 10, 30 días de prueba), Pro (USD 25, 30 días) y Max
+  (USD 50, sin prueba, tope de consumo USD 40/mes) creados en Polar
+  sandbox, IDs en `PLAN.multitenant.md`. Pantallas hechas en los 7
+  idiomas: "Elegí un plan" cuando la cuenta no tiene plan y Ajustes →
+  Facturación (estado y portal). develop traído a la rama el 2026-11-15.
+  Probado de punta a punta contra Polar sandbox el 2026-11-15 (registro,
+  checkout con prueba gratis, webhooks por túnel, portal, cancelar y
+  revocar; detalle en `PLAN.multitenant.md`). Topes por plan hechos el
+  2026-11-16: Basic solo redes de Meta (más correo, chat web y API),
+  llamadas solo en Max, tope de IA + WhatsApp de USD 5 / 15 / 40 desde la
+  metadata de Polar. Falta: avisos al 80/100 % del tope del plan, ocultar
+  en la interfaz lo que el plan no incluye, prueba gratis una sola vez por
+  cliente, pago rechazado y renovación en sandbox, motivo del error en el
+  registro, traducir registro y Embedded Signup, y avisos de los
+  créditos. Créditos de IA hechos y probados en sandbox el 2026-11-16
+  (monto libre desde USD 5, margen 50 / 35 / 25 %, sin vencimiento, solo
+  IA; el tope del plan pasó a ser solo de IA). El webhook
+  de pagos no puede tirar excepciones.
+- **Sandbox primero, producción después (dueño, 2026-11-15):** todo F2 se
+  termina y se prueba de punta a punta en Polar sandbox (alta, checkout,
+  prueba gratis, renovación, falta de pago, portal). Recién con eso probado
+  se pasa a producción: crear los productos de nuevo en Polar producción
+  (los IDs cambian), token y webhook de producción y `POLAR_SERVER=production`.
 - **Paso 4:** límites de uso por cuenta en el worker y la API.
 - **Paso 5:** panel interno de cuentas, métricas por cliente, borrado y
   exportación de los datos de una cuenta.
@@ -422,13 +448,43 @@ dentro de la rama.
     plantilla (todavía no está; Meta responde y el panel lo explica).
   - Costo: por minuto según el país del cliente (va en F6).
   - Probado en local con el Meta simulado (pedido, aceptación, llamada con
-    audio en los dos sentidos, colgar). **Falta probarlo con Meta real.**
+    audio en los dos sentidos, colgar). Probado con Meta real en staging el
+    2026-11-16: el cliente atendió la llamada de vuelta.
 - **En CTC desde el 2026-11-15:** backend y migraciones a las 15:18, panel
   compilado a las 22:05 (hora de Uruguay). Para usarlo falta activar las
   llamadas en el número de CTC y suscribir el webhook `calls` en su app de
   Meta. Grabar sigue apagado hasta que el operador lo permita.
-- **Sigue:** plantilla para pedir permiso fuera de las 24 h; paso 3, agente
-  de voz.
+- **Llamadas simultáneas — hecho el 2026-11-16, en develop y en staging;
+  pedido del dueño a través del agente A:**
+  - Meta no tiene cola: las llamadas que entran juntas suenan a la vez.
+    Ahora cada una suena solo para quien está libre (miembros de la bandeja
+    y administradores sin otra llamada en curso). Si nadie está libre, suena
+    para todos; a quien está hablando le suena bajito (un pitido cada 6 s),
+    con el botón de atender apagado hasta que corte. Cuando alguien atiende
+    o corta, el panel recalcula a quién le suena cada llamada pendiente
+    (`ring_user_ids` en cada llamada).
+  - Llamada perdida (nadie atendió): el cliente recibe por WhatsApp «¡Hola!
+    Vimos tu llamada y no pudimos atenderla. Te llamamos en unos minutos.».
+    El texto se cambia o se apaga por bandeja en la tarjeta de llamadas.
+    Sale una vez por hora como máximo, y solo dentro de las 24 h.
+  - La conversación queda con la etiqueta `llamada-perdida` y, si no tenía
+    responsable, pasa al responsable por defecto de la bandeja (la
+    asignación automática del agente A). La etiqueta se va sola cuando se
+    habla con el cliente: atendemos una llamada suya o él atiende la nuestra.
+  - Migración `c6d7e8f9a0b3` (`missed_call_reply` y `missed_call_text` en
+    `call_inbox_settings`). La música de espera necesita el servidor de
+    audio del paso 3.
+  - Probado con una llamada real en staging el 2026-11-16: el aviso llegó
+    (entregado), la conversación tomó la etiqueta y la perdió al devolver
+    la llamada. Falta probar el reparto con dos agentes a la vez.
+- **Sigue:** plantilla para pedir permiso fuera de las 24 h. El paso 3,
+  agente de voz, lo hace el agente A por pedido del dueño (2026-11-17), con
+  el mismo núcleo que el agente de clientes por chat: rama
+  `feat/agente-ia`, plan en `PLAN.agente-ia.md` de esa rama. Va con
+  Pipecat en un proceso aparte; de `app/domains/calls/` toca solo un
+  enganche (cuando entra la llamada, decidir si suena a las personas o la
+  atiende la IA) y reusa `pre_accept` / `accept`. Se avisa acá antes de
+  mezclar.
 
 ## F8. Búsqueda en conversaciones viejas
 
@@ -715,6 +771,135 @@ Detalle en `PLAN.i18n.md`.
 
 - Esperar lo que prefieren los agentes de CTC (Sofía lo consulta el
   2026-11-11). Telegram con un bot propio sería la opción gratis.
+
+## F17. Funciones de respond.io
+
+- **Comparación (2026-11-16, agente B):** respond.io es el producto más
+  parecido a AloStudio. Lo que tiene y nosotros no, con lo que decidió el
+  dueño:
+
+| # | Función | Decisión del dueño |
+|---|---|---|
+| 1 | Ayuda de IA al escribir: reformular, traducir, resumir | Sí. Con modelo de un proveedor, en el plan más caro y con créditos de IA; con un modelo liviano en la VPS, para todos |
+| 2 | Conversions API de Meta (avisarle a Meta qué chats de anuncios terminan en venta) | Sí, le sirve a CTC |
+| 3 | Workflows visuales: preguntar y esperar la respuesta, ramas, esperas | A acordar entre el dueño y el agente B: propios o con n8n |
+| 4 | Notas de cierre (motivo al cerrar una conversación, para reportes) | Sí |
+| 5 | Resumen de llamadas con IA | Sí, en el plan más caro; lo prende el superadmin de cada instalación y gasta créditos de IA. **Hecho** (agente B, 2026-11-18): Instalación → Llamadas → "Resumen de llamadas con IA"; el resumen sale en la burbuja de la llamada cuando hay transcripción y el gasto va a Gastos como `call_summary`. Para F2/multitenant: atarlo al plan más caro |
+| 6 | Agente de IA que atiende llamadas | Contemplado (F7 paso 3). Lo hace el agente A junto con el 12 (2026-11-17) |
+| 7 | Etapas del contacto | Sí, con la nomenclatura de respond.io |
+| 8 | TikTok como canal de mensajes | Sí. En espera (2026-11-18): primero el dueño pide a TikTok el acceso a la Business Messaging API (revisión de seguridad; cuenta de empresa con acceso avanzado o verificada, que acepte DMs de todos). Con eso, el agente B porta el canal de TikTok de Chatwoot |
+| 9 | Llamadas de Messenger y telefonía VoIP | Sin decidir (el dueño preguntó qué es VoIP) |
+| 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
+| 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3. Calendar **hecho** (agente B, 2026-11-18): cada agente lo conecta en Mi perfil; sus citas y tareas con fecha van a su calendario, en una dirección |
+| — | 2FA y SSO; apps nativas | Sin decidir |
+| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Paso 1 hecho en la rama: el asistente del equipo usa todas las herramientas que el rol permite (un agente, solo sus bandejas). Paso 2a hecho en la rama (2026-11-18): responsable de derivación por chat, etiqueta, bandeja o cuenta (Ajustes → Derivación). Paso 2b.1 hecho en la rama (2026-11-18): la IA de AloStudio atiende en modo sombra (sugiere arriba de la caja de texto) o en vivo, con Centro de ayuda, productos y derivación con resumen. Siguen Agenda y CRM (2b.2), la comparación con Claude (2b.3) y después la voz |
+| 13 | Saldo de WhatsApp recargable desde AloStudio (respond.io cobra los mensajes de Meta así) | El dueño pidió anotarlo (2026-11-17, agente A). Depende de F2: hoy, con Embedded Signup, Meta le cobra directo al cliente |
+
+- **12, paso 1 (agente A, 2026-11-17, rama `feat/agente-ia`, sin mezclar):**
+  - Para el agente B, cuando se mezcle: una herramienta nueva del MCP
+    declara en `@requires(...)` `panel_admin=True` si su ruta REST usa
+    `require_admin`, y `reads=True` si es `admin` y solo lee. Sin
+    `@requires`, el asistente la trata como escritura de administradores.
+  - Cambia para las apps OAuth de un agente: ven solo sus bandejas, como
+    en el panel (antes veían la cuenta entera).
+- **12, paso 2a (agente A, 2026-11-18, rama `feat/agente-ia`, sin mezclar):**
+  cuando el agente de Meta (o después la IA) deriva y nadie tiene la
+  conversación, `bot_handoff` la asigna al responsable más específico:
+  el del chat (contacto), la primera etiqueta con regla, el de la bandeja
+  (el de siempre) o el general. Tabla nueva `handoff_rules` (migración
+  `b1d3f5a7c9e2`). Para CTC: hoy todo va a Sofía por la bandeja; con una
+  regla "Admin → Yamila" esas irían a Yamila. Para el agente B: quien
+  llame a `bot_handoff` no tiene que cambiar nada.
+- **12, paso 2b.1 (agente A, 2026-11-18, rama `feat/agente-ia`, sin mezclar):**
+  bot de tipo IA (Ajustes → Bots) que cada bandeja elige en Ajustes →
+  Bandejas → Bot. En sombra propone respuestas (tabla `ai_replies`,
+  migración `c2e4a6b8d0f1`, mide si salen tal cual o editadas); en vivo
+  toma las conversaciones nuevas como `pending` y responde desde el
+  worker (`ai_reply_task`). En bandejas con el agente de Meta solo atiende
+  lo que una regla de derivación le da. Para el agente B: la asignación
+  automática ahora salta las conversaciones `pending` (como Chatwoot), y
+  `bot_handoff` acepta `allow_ai` (solo lo usa la derivación de Meta).
+  Aparte: en esta copia fallan 6 tests de entrega de webhooks
+  (`test_agent_bot_listener`, `test_webhook_retries`, `test_webhooks_router`)
+  también sin estos cambios; quedan por revisar.
+- **12 y 13, segunda comparación (agente A, 2026-11-17):** al repasar
+  respond.io quedaron estas dos que no estaban en la tabla.
+  - 12: es distinto del 1 (ayuda al agente humano) y del 6 (voz). Ya están
+    las piezas: Agenda, CRM, productos, herramientas del MCP y las
+    autorespuestas de Instagram; falta un agente que las use en la
+    conversación con el cliente, con traspaso a una persona. Gasta
+    créditos de IA (F2), así que deja margen.
+  - 13: solo tiene sentido si AloStudio pasa a pagar WhatsApp por sus
+    clientes con su propia línea de crédito de Tech Provider; si no, Meta
+    sigue cobrándole al cliente y no hay nada que recargar acá.
+  - Precios de respond.io (para comparar con F2): desde US$ 79/mes
+    (Starter, pago anual) hasta US$ 279 (Advanced), más cargo por contacto
+    activo al mes y por usuario; créditos de IA incluidos según el plan y
+    US$ 15 cada 1.000 extra, con tope del 200 %.
+
+- **Notas:**
+  - 1: hace falta un modelo de lenguaje. Con OpenAI (ya configurado) cuesta
+    menos de US$ 0,001 por texto. Un modelo local de 1 a 4 mil millones de
+    parámetros en la VPS de CTC (4 núcleos, sin GPU) tardaría varios
+    segundos por texto: hay que medirlo antes de decidir.
+  - 3: la licencia de n8n (Sustainable Use License) permite usarlo para el
+    negocio propio, no ofrecérselo a clientes que pagan. Meterlo adentro de
+    AloStudio para los clientes de los planes pide su licencia comercial.
+    Que CTC lo use para sí mismo, conectado por webhooks y la API, sí se
+    puede.
+  - 8: es TikTok según el orden de la tabla que vio el dueño.
+  - 11: el login con Google ya está hecho; falta crear el cliente OAuth en
+    Google Cloud y cargar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en
+    Ajustes → Instalación.
+- **4, notas de cierre — hecho el 2026-11-17 (agente B), en develop y en
+  staging:**
+  - Ajustes → Notas de cierre (administradores): prenderlas, hacerlas
+    obligatorias y editar los motivos (5 por defecto, hasta 30). Vienen
+    apagadas.
+  - Al tocar «Resolver» en una conversación se abre una ventana con los
+    motivos y una nota opcional. Queda una nota privada en la conversación
+    («Nota de cierre: motivo») y una fila en `conversation_closings`. Las
+    automatizaciones, las acciones masivas y la API resuelven sin preguntar.
+  - Estadísticas: tarjeta «Motivos de cierre» con los cierres del período
+    por motivo; la ve cualquiera de la cuenta, como el resto de los reportes.
+  - Dominio `app/domains/closing/`, migración `d7e8f9a0b1c4`. Probado en
+    local de punta a punta (ajustes, cierre, nota y reporte).
+- **2, Conversions API de Meta — hecho el 2026-11-17 (agente B), en develop
+  y en staging, solo WhatsApp:**
+  - Ajustes → Conversions API (administradores): prenderla, la moneda,
+    conectar el dataset de cada número (`POST /{waba}/dataset`) y qué se le
+    avisa a Meta. Por defecto: oportunidad creada → LeadSubmitted, pasa a
+    «Calificada» → QualifiedLead, ganada → Purchase con su valor; se pueden
+    cambiar o apagar. Cada motivo de cierre se puede mapear a un evento
+    (Purchase con un valor fijo). Viene apagada.
+  - Solo cuentan las conversaciones que empezaron con un clic en un anuncio
+    (`ad_click_id`, el `ctwa_clid` de Meta). Cada evento va una vez por
+    conversación, porque Meta no deduplica. La tarea de cada 5 minutos los
+    manda y reintenta hasta 5 veces. La misma pantalla muestra los últimos
+    eventos y cómo salieron.
+  - Dominio `app/domains/conversions/`, migración `e8f9a0b1c2d5`.
+  - **Para que Meta los acepte:** la app de Meta necesita el permiso
+    `whatsapp_business_manage_events` con acceso avanzado (App Review) y la
+    Marketing API con acceso completo, y el token del número tiene que
+    incluir ese permiso. Falta probarlo con Meta real.
+- **7, etapas del contacto — hecho el 2026-11-17 (agente B), en develop y
+  en staging, con la nomenclatura de respond.io:**
+  - Ajustes → Etapas del contacto (administradores): hasta 20 etapas con
+    emoji, nombre, descripción y tipo (etapa o perdida), en orden, y cuál es
+    la inicial. Por defecto: 🆕 Nuevo interesado (inicial), 🔥 Muy
+    interesado, 💳 En pago, 🤩 Cliente y, perdida, 🧊 Se enfrió. Vienen
+    apagadas.
+  - La etapa se cambia en el panel del contacto de la conversación (deja
+    una línea en el chat) y en la ficha del contacto. Un contacto que
+    escribe y no tiene etapa entra en la inicial. Cada cambio queda en
+    `contact_lifecycle_changes`; si se borra una etapa, sus contactos
+    quedan sin etapa.
+  - Estadísticas: tarjeta «Etapas de los contactos» con cuántos hay en cada
+    una y cuántos entraron en el período.
+  - En la Conversions API cada etapa se puede mapear a un evento de Meta
+    (por ejemplo 🤩 Cliente → Purchase con un valor).
+  - Dominio `app/domains/lifecycle/`, migración `f9a0b1c2d3e6`. Probado en
+    local de punta a punta. Falta: filtrar la lista de contactos por etapa.
 
 ---
 
