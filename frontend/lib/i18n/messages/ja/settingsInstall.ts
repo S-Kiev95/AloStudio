@@ -174,5 +174,9 @@ export const settingsInstall: Strings<typeof es> = {
       title: "エージェントのモデル",
       description: "チャットエージェントが使う OpenAI のモデル。例: gpt-5.4-mini (高速で安価) や gpt-5.5 (より高性能)。",
     },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "AI 文章作成アシスト",
+      description: "入力欄に AI ボタンを追加し、エージェントが書いた文章の改善・修正・トーン変更・短縮・翻訳と、会話の要約ができるようにします。エージェントのキーとモデルを使い、費用は各アカウントの「費用」に表示されます。",
+    },
   },
 };

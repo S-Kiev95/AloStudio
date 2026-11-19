@@ -11,6 +11,7 @@ import { lifecycle } from "./lifecycle";
 import { decisions } from "./decisions";
 import { usage } from "./usage";
 import { googleCalendar } from "./googleCalendar";
+import { writingAssist } from "./writingAssist";
 import { opportunities } from "./opportunities";
 import { origin } from "./origin";
 import { igCapabilities } from "./igCapabilities";
@@ -73,6 +74,7 @@ export const de: Messages = {
   lifecycle,
   usage,
   googleCalendar,
+  writingAssist,
 
   opportunities,
 

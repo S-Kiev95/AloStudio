@@ -174,5 +174,9 @@ export const settingsInstall: Strings<typeof es> = {
       title: "에이전트 모델",
       description: "채팅 에이전트가 쓰는 OpenAI 모델입니다. 예: gpt-5.4-mini(빠르고 저렴) 또는 gpt-5.5(더 뛰어남).",
     },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "AI 작성 도움",
+      description: "입력창에 AI 버튼을 추가해 상담원이 쓴 내용을 다듬고, 고치고, 어조를 바꾸고, 줄이거나 번역하며 대화를 요약합니다. 에이전트의 키와 모델을 쓰며, 지출은 각 계정의 비용에 표시됩니다.",
+    },
   },
 };

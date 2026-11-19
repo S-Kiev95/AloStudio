@@ -171,5 +171,9 @@ export const settingsInstall = {
       title: "Modelo del agente",
       description: "El modelo de OpenAI que usa el agente con chat, por ejemplo gpt-5.4-mini (rápido y barato) o gpt-5.5 (más capaz).",
     },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "Ayuda de IA al escribir",
+      description: "Suma a la caja de texto un botón de IA que mejora, corrige, cambia el tono, acorta o traduce lo que escribe el agente, y resume la conversación. Usa la clave y el modelo del agente; el gasto queda en Gastos de cada cuenta.",
+    },
   },
 };

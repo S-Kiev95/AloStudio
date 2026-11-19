@@ -174,5 +174,9 @@ export const settingsInstall: Strings<typeof es> = {
       title: "Agent model",
       description: "The OpenAI model the chat agent uses, for example gpt-5.4-mini (fast and cheap) or gpt-5.5 (more capable).",
     },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "AI writing help",
+      description: "Adds an AI button to the message box that improves, corrects, changes the tone of, shortens or translates what the agent writes, and summarizes the conversation. It uses the agent's key and model; the spending shows in each account's Costs.",
+    },
   },
 };

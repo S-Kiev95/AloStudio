@@ -137,6 +137,7 @@ from app.domains.working_hours.router import (
 from app.domains.working_hours.router import (
     single_router as working_hours_single_router,
 )
+from app.domains.writing_assist.router import router as writing_assist_router
 from app.mcp.http import MCP_PATH
 from app.mcp.http import build_http_app as build_mcp_http_app
 from app.mcp.router import router as mcp_tokens_router
@@ -354,6 +355,8 @@ def create_app() -> FastAPI:
     app.include_router(closing_router)
     # Each agent's Agenda in their Google Calendar (F17).
     app.include_router(google_calendar_router)
+    # The composer's AI button: rewrite the draft, summarize the chat (F17).
+    app.include_router(writing_assist_router)
     # Ad conversations that became leads or sales, reported to Meta (F17).
     app.include_router(conversions_router)
     # Where each contact stands, from new lead to customer (F17).

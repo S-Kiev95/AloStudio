@@ -30,7 +30,7 @@ const CATEGORY_KEYS = new Set([
   "MARKETING_LITE",
   "REFERRAL_CONVERSION",
 ]);
-const PURPOSE_KEYS = new Set(["call_summary", "agent", "instagram_autoreply", "help_center"]);
+const PURPOSE_KEYS = new Set(["call_summary", "agent", "instagram_autoreply", "help_center", "writing_assist"]);
 
 function useMoney() {
   const tag = useIntlTag();

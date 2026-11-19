@@ -56,6 +56,7 @@ export const usage: Strings<typeof es> = {
     agent: "Agent",
     instagram_autoreply: "Instagram-Autoantworten",
     help_center: "Help Center",
+    writing_assist: "Schreibhilfe",
   },
   categories: {
     MARKETING: "Marketing",
