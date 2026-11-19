@@ -86,9 +86,9 @@ async def ask(question: str, *, page: str | None = None, is_admin: bool = False)
     answer = str(reply.get("respuesta") or "").strip()
     if not reply.get("sabe") or not answer:
         return _dont_know(seconds)
-    invented = knowledge.invented_menus(answer)
+    invented = knowledge.invented_menus(answer) + knowledge.invented_quotes(answer)
     if invented:
-        log.warning("help_assistant.invented_menus %s", invented)
+        log.warning("help_assistant.invented %s", invented)
         return _dont_know(seconds)
     key = reply.get("pantalla")
     screen = SCREENS.get(key) if isinstance(key, str) else None

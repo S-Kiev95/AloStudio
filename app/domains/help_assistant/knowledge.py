@@ -19,7 +19,7 @@ from app.domains.help_assistant.screens import SCREENS
 
 HELP_FILE = pathlib.Path(__file__).with_name("ayuda.md")
 NO_SCREEN = "ninguna"
-ANSWER_MAX = 400
+ANSWER_MAX = 300
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,8 +50,10 @@ _RULES = (
     "Sos el asistente de ayuda de AloStudio, un sistema de atención al cliente. Respondés "
     "dudas sobre cómo usar AloStudio usando solo la AYUDA de abajo.\n"
     "Reglas:\n"
-    "- Respuesta corta: 1 a 3 oraciones en español rioplatense (vos), con los pasos en orden.\n"
-    "- Nombrá menús y botones exactamente como en la AYUDA, con → entre menús.\n"
+    "- Respuesta corta: 1 o 2 oraciones, menos de 200 caracteres, con los pasos en orden.\n"
+    "- Hablá de vos (tocá, entrá, elegí), nunca de tú (puedes, usas).\n"
+    "- Nombrá menús y botones exactamente como en la AYUDA, con → solo entre un menú y su "
+    'opción (por ejemplo Ajustes → Mi perfil), y botones entre comillas ("Nueva cita").\n'
     "- Si la AYUDA no dice cómo hacerlo, o la duda no es sobre AloStudio, respondé "
     '{"sabe": false}. No inventes menús, botones ni funciones.\n'
     '- "pantalla" es la clave adonde hay que ir, de la lista PANTALLAS, o "ninguna".\n'
@@ -136,16 +138,50 @@ def _menus() -> dict[str, tuple[str, ...]]:
     return {top: tuple(subs) for top, subs in menus.items()}
 
 
+_QUOTES = "\"'“”«»"
+_STOP = re.compile(r"[\n.,;:()→]")
+
+
+@cache
+def _known_text() -> str:
+    """Everything the help and the menus say, to check quoted names against."""
+    return (system_prompt() + "\n" + "\n".join(s.label for s in SCREENS.values())).lower()
+
+
 def invented_menus(answer: str) -> list[str]:
-    """The ``Menu → Item`` paths in ``answer`` that AloStudio does not have."""
+    """The ``Menu → Item`` paths in ``answer`` that AloStudio does not have.
+
+    An arrow after a top menu (Ajustes, CRM, …) must lead to one of its
+    options. After any other real screen (``Campañas → Nueva campaña``,
+    ``Ajustes → Instalación → Llamadas``) it may lead to something the help
+    names. Any other arrow is made up."""
     menus = _menus()
-    pattern = re.compile(r"\b(" + "|".join(map(re.escape, menus)) + r")\s*→\s*([^\n.,;:()]+)")
+    labels = [s.label for s in SCREENS.values()]
     bad = []
-    for match in pattern.finditer(answer):
-        top, tail = match.group(1), match.group(2).strip().strip("\"'“”«»")
-        if not any(tail.startswith(item) for item in menus[top]):
-            bad.append(f"{top} → {tail}")
+    for arrow in re.finditer("→", answer):
+        left = answer[: arrow.start()].rstrip().rstrip(_QUOTES).rstrip()
+        right = _STOP.split(answer[arrow.end() :], maxsplit=1)[0].strip().strip(_QUOTES).strip()
+        top = next((t for t in menus if left.endswith(t)), None)
+        if top is not None:
+            if not any(right.startswith(item) for item in menus[top]):
+                bad.append(f"{top} → {right}")
+            continue
+        if any(left.endswith(label) for label in labels):
+            first = right.split(" ")[0].lower()
+            if first and first in _known_text():
+                continue
+        bad.append(f"… → {right}")
     return bad
+
+
+def invented_quotes(answer: str) -> list[str]:
+    """Button or option names in quotes that the help never mentions."""
+    known = _known_text()
+    return [
+        quoted
+        for quoted in re.findall(r"[\"“«]([^\"”»\n]{2,60})[\"”»]", answer)
+        if quoted.strip().lower() not in known
+    ]
 
 
 __all__ = [
@@ -153,6 +189,7 @@ __all__ = [
     "NO_SCREEN",
     "Section",
     "invented_menus",
+    "invented_quotes",
     "prefix_messages",
     "response_schema",
     "sections",

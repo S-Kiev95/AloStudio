@@ -63,6 +63,11 @@ def test_the_prefix_is_always_the_same():
             ["Ajustes → Exportaciones y bajá el archivo"],
         ),
         ("En CRM → Reportes de ventas.", ["CRM → Reportes de ventas"]),
+        ("Tocá Respuestas rápidas → Nueva respuesta.", ["… → Nueva respuesta"]),
+        ("Andá a Estadísticas → Notificaciones → Reportes.", ["Estadísticas → Notificaciones"]),
+        ("Entrá a Ajustes → Instalación → Llamadas y prendelo.", []),
+        ("En Campañas → Nueva campaña elegí WhatsApp.", []),
+        ("Andá a Reportes → Motivos de cierre.", []),
     ],
 )
 def test_menus_the_panel_does_not_have_are_caught(answer, invented):
@@ -83,3 +88,18 @@ def test_menus_the_panel_does_not_have_are_caught(answer, invented):
 )
 def test_the_page_names_the_screen(page, key):
     assert screen_for(page) == key
+
+
+@pytest.mark.parametrize(
+    ("answer", "invented"),
+    [
+        ('Tocá "Nueva cita" en CRM → Agenda.', []),
+        ('En Ajustes → Mi perfil tocá "Conectar Google Calendar".', []),
+        (
+            'Activá "Reportes" y elegí "Enviar por correo todos los lunes".',
+            ["Enviar por correo todos los lunes"],
+        ),
+    ],
+)
+def test_quoted_names_must_be_in_the_help(answer, invented):
+    assert knowledge.invented_quotes(answer) == invented

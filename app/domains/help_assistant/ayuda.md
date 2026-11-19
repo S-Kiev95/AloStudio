@@ -16,9 +16,13 @@ En Bandeja, la lista tiene pestañas Mías, Sin asignar y Todas, y estados Abier
 pantallas: bandeja
 Abrí la conversación en Bandeja y escribí en la caja de abajo. Enter envía y Shift+Enter hace una línea nueva. El clip adjunta archivos e imágenes.
 
-## Respuestas rápidas
-pantallas: ajustes_respuestas, bandeja
-En la caja de texto escribí / y el atajo, o tocá el botón Respuestas rápidas, y elegí una. Se crean y editan en Ajustes → Respuestas predefinidas.
+## Usar una respuesta rápida
+pantallas: bandeja
+En la caja de texto escribí / y el atajo, o tocá el botón Respuestas rápidas, y elegí una.
+
+## Crear o editar respuestas rápidas
+pantallas: ajustes_respuestas
+Las respuestas rápidas se crean en Ajustes → Respuestas predefinidas con "Nueva respuesta": cada una tiene un Atajo y el texto. Ahí también se editan.
 
 ## Nota privada
 pantallas: bandeja
@@ -50,7 +54,7 @@ La lupa arriba en la conversación busca palabras dentro de ese chat.
 
 ## Llamadas de WhatsApp
 pantallas: bandeja, ajustes_bandejas
-Los clientes llaman al número de WhatsApp y el equipo atiende desde el panel con el micrófono de la computadora; recibir llamadas es gratis. Para llamar a un cliente, el teléfono arriba en la conversación pide primero su permiso. Las llamadas se prenden en Ajustes → Bandejas de entrada, entrando a la bandeja de WhatsApp (horarios, grabación si la instalación lo permite y el mensaje para llamadas perdidas).
+Cuando un cliente llama al número de WhatsApp, suena y aparece un aviso abajo a la derecha con el botón "Atender"; se habla con el micrófono de la computadora y recibir llamadas es gratis. Para llamar vos a un cliente, el teléfono arriba en la conversación primero le pide permiso. Las llamadas se prenden en Ajustes → Bandejas de entrada, entrando a la bandeja de WhatsApp (horarios, grabación si la instalación lo permite y el mensaje para llamadas perdidas).
 
 ## Resumen de llamadas con IA
 pantallas: ajustes_instalacion
@@ -70,7 +74,7 @@ Las etapas (por ejemplo Nuevo interesado, Muy interesado, Cliente) se prenden co
 
 ## Notas de cierre
 pantallas: ajustes_notas_cierre, reportes
-Un administrador las prende en Ajustes → Notas de cierre con "Usar notas de cierre" y edita los motivos. Si marca Obligatorio, al tocar Resolver hay que elegir un motivo. Reportes muestra cuántas se cerraron por cada motivo.
+Un administrador las prende en Ajustes → Notas de cierre con "Usar notas de cierre" y edita los motivos. Si marca Obligatorio, al tocar Resolver hay que elegir un motivo. El menú Reportes, a la izquierda, muestra cuántas se cerraron por cada motivo.
 
 ## Agenda y citas
 pantallas: agenda
@@ -94,7 +98,7 @@ Estadísticas → Gastos muestra lo que costaron WhatsApp y la inteligencia arti
 
 ## Reportes
 pantallas: reportes, bandeja_reportes
-Reportes muestra cómo viene la atención: conversaciones, tiempos, motivos de cierre y contactos por etapa. Bandeja → Reportes muestra el resumen de cada bandeja.
+El menú Reportes, a la izquierda (no está dentro de Estadísticas), muestra cómo viene la atención: conversaciones, tiempos, motivos de cierre y contactos por etapa. Bandeja → Reportes muestra el resumen de cada bandeja. Arriba se bajan en CSV o en Excel (XLSX); no se mandan por correo.
 
 ## Campañas
 pantallas: campanas
