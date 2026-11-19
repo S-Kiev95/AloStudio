@@ -34,7 +34,7 @@ from app.core import llm
 from app.core.config import get_settings
 from app.core.deps import AccountContext
 from app.core.errors import ChatwootHTTPException
-from app.core.i18n import user_locale
+from app.core.i18n import t, user_locale
 from app.domains.agent.models import (
     AGENT_ROLE_ASSISTANT,
     AGENT_ROLE_TOOL,
@@ -68,7 +68,7 @@ HISTORY_LIMIT = 40
 # A long tool result is cut for the model (the publications of a busy month).
 TOOL_RESULT_LIMIT = 12_000
 # How long a turn may hold its chat before another request can take it over.
-BUSY_TIMEOUT = timedelta(minutes=3)
+BUSY_TIMEOUT = timedelta(minutes=5)
 TITLE_LENGTH = 60
 # Date arguments of the tools (see :func:`_localize_dates`).
 _DATE_ARGUMENTS: tuple[str, ...] = (
@@ -116,7 +116,39 @@ def _mcp_server() -> FastMCP:
 
 
 def agent_enabled() -> bool:
+    """Fast works: the installation has an OpenAI key."""
     return bool(get_settings().openai_api_key)
+
+
+# One assistant, two ways to answer (the «?» and the Agente menu, unified):
+# Free is the help assistant on the local model (guides, does nothing, no
+# cost); Fast is this agent on OpenAI (guides and does, spends).
+MODE_FREE = "free"
+MODE_FAST = "fast"
+
+
+def assistant_modes() -> list[str]:
+    """What the installation can answer with, Fast first (the default:
+    it does what is asked, Free only explains)."""
+    from app.core import local_llm
+
+    out = []
+    if agent_enabled():
+        out.append(MODE_FAST)
+    if local_llm.configured():
+        out.append(MODE_FREE)
+    return out
+
+
+def _pick_mode(mode: str | None) -> str:
+    modes = assistant_modes()
+    if not modes:
+        raise _unavailable()
+    if mode is None:
+        return modes[0]
+    if mode not in modes:
+        raise _unprocessable("Ese modo no está disponible.")
+    return mode
 
 
 async def _tool_catalog() -> _ToolCatalog:
@@ -283,11 +315,16 @@ async def delete_thread(session: AsyncSession, thread: AgentThread) -> None:
 # Turns
 # ---------------------------------------------------------------------------
 async def start_thread(
-    session: AsyncSession, ctx: AccountContext, *, content: str, timezone: str | None
+    session: AsyncSession,
+    ctx: AccountContext,
+    *,
+    content: str,
+    timezone: str | None,
+    mode: str | None = None,
+    page: str | None = None,
 ) -> AgentThread:
     """A new chat with its first message, answered."""
-    if not agent_enabled():
-        raise _unavailable()
+    mode = _pick_mode(mode)
     text = _clean_content(content)
     thread = AgentThread(
         account_id=ctx.account.id,  # type: ignore[arg-type]
@@ -301,7 +338,7 @@ async def start_thread(
     session.add(AgentMessage(thread_id=thread.id, role=AGENT_ROLE_USER, content=text))  # type: ignore[arg-type]
     await session.commit()
     try:
-        await _run_model(session, ctx, thread)
+        await _answer(session, ctx, thread, text, mode=mode, page=page)
     except ChatwootHTTPException as exc:
         # The chat and its message are saved: say which one, so the client
         # can open it even though the model did not answer.
@@ -320,11 +357,12 @@ async def send_message(
     *,
     content: str,
     timezone: str | None,
+    mode: str | None = None,
+    page: str | None = None,
 ) -> None:
     """The user's next message, answered. A proposal still waiting for
     confirmation is dropped: the user answered it with words instead."""
-    if not agent_enabled():
-        raise _unavailable()
+    mode = _pick_mode(mode)
     text = _clean_content(content)
     zone = _zone_name(timezone)
     await _claim(session, thread)
@@ -340,15 +378,74 @@ async def send_message(
         session.add(thread)
         session.add(AgentMessage(thread_id=thread.id, role=AGENT_ROLE_USER, content=text))  # type: ignore[arg-type]
         await session.commit()
-        await _run_model(session, ctx, thread)
+        await _answer(session, ctx, thread, text, mode=mode, page=page)
     finally:
         await _release(session, thread)
+
+
+async def _answer(
+    session: AsyncSession,
+    ctx: AccountContext,
+    thread: AgentThread,
+    text: str,
+    *,
+    mode: str,
+    page: str | None,
+) -> None:
+    if mode == MODE_FREE:
+        await _answer_free(session, ctx, thread, text, page)
+    else:
+        await _run_model(session, ctx, thread, page=page)
+
+
+async def _answer_free(
+    session: AsyncSession, ctx: AccountContext, thread: AgentThread, text: str, page: str | None
+) -> None:
+    """Free: the help assistant on the local model answers how to do it;
+    it can't use tools, so it never does it. Its screen goes as a link."""
+    from app.core import local_llm
+    from app.domains.help_assistant import service as help_assistant
+
+    locale = user_locale(ctx.user)
+    try:
+        reply = await help_assistant.ask(
+            text, page=page, is_admin=ctx.is_administrator, mode=help_assistant.FREE
+        )
+    except ValueError as exc:
+        raise ChatwootHTTPException(
+            status_code=502, detail={"message": t(locale, "agent.free.failed")}
+        ) from exc
+    except local_llm.LocalLlmError as exc:
+        log.warning("agent: free answer failed: %s", exc)
+        raise ChatwootHTTPException(
+            status_code=502,
+            detail={"message": t(locale, "agent.free.busy" if exc.code == "timeout" else "agent.free.failed")},
+        ) from exc
+    parts = [reply["answer"]]
+    screen = reply.get("screen")
+    if isinstance(screen, dict) and screen.get("key"):
+        parts.append(screen_token(str(screen["key"])))
+    if reply.get("note"):
+        parts.append(str(reply["note"]))
+    if MODE_FAST in assistant_modes():
+        parts.append(t(locale, "agent.free.fast_hint"))
+    session.add(
+        AgentMessage(thread_id=thread.id, role=AGENT_ROLE_ASSISTANT, content="\n".join(parts))
+    )
+    await session.commit()
+
+
+def screen_token(key: str) -> str:
+    """How an answer points to a screen of the panel; the presenter turns
+    it into a link (``agent.presenters``)."""
+    return f"[[pantalla:{key}]]"
 
 
 async def confirm_action(
     session: AsyncSession, ctx: AccountContext, thread: AgentThread, action_id: str
 ) -> None:
-    """Run the proposal the user confirmed, then let the agent follow up."""
+    """Run the proposal the user confirmed, then let the agent follow up
+    (only Fast proposes anything)."""
     if not agent_enabled():
         raise _unavailable()
     await _claim(session, thread)
@@ -424,14 +521,14 @@ async def _release(session: AsyncSession, thread: AgentThread) -> None:
 
 
 async def _run_model(
-    session: AsyncSession, ctx: AccountContext, thread: AgentThread
+    session: AsyncSession, ctx: AccountContext, thread: AgentThread, *, page: str | None = None
 ) -> None:
     """Call the model until it answers in text or proposes a write."""
     names = await allowed_tools(ctx)
     tools = await _tool_specs(names)
     for step in range(MAX_MODEL_CALLS):
         rows = await _history(session, thread.id)  # type: ignore[arg-type]
-        messages = [{"role": "system", "content": _system_prompt(ctx, thread)}]
+        messages = [{"role": "system", "content": _system_prompt(ctx, thread, page)}]
         messages += [m for m in (_as_openai(r) for r in rows) if m is not None]
         try:
             with ai_usage(session, ctx.account.id, "agent"):
@@ -654,7 +751,36 @@ def _as_openai(row: AgentMessage) -> dict[str, Any] | None:
     return {"role": "tool", "tool_call_id": row.tool_call_id, "content": row.content or ""}
 
 
-def _system_prompt(ctx: AccountContext, thread: AgentThread) -> str:
+def _help_reference() -> list[str]:
+    """AloStudio's own help (the same the «?» uses) and the real screens,
+    so it can also guide. Always the same: it goes first in the prompt, the
+    part OpenAI caches."""
+    from app.domains.help_assistant import knowledge
+    from app.domains.help_assistant.screens import SCREENS
+
+    screens = "\n".join(f"{key}: {screen.label}" for key, screen in SCREENS.items())
+    help_text = "\n".join(f"## {s.title}\n{s.text}" for s in knowledge.sections())
+    return ["PANTALLAS:", screens, "", "AYUDA DE ALOSTUDIO:", help_text, ""]
+
+
+def _help_rules(page: str | None) -> list[str]:
+    from app.domains.help_assistant import service as help_assistant
+    from app.domains.help_assistant.screens import SCREENS
+
+    lines = [
+        "- Si preguntan cómo se hace algo en AloStudio, respondé con la AYUDA DE "
+        "ALOSTUDIO de arriba (no inventes menús ni botones) y, si lo podés hacer "
+        "con tus herramientas, ofrecé hacerlo. Para llevar a una pantalla "
+        f"escribí {screen_token('clave')} con una clave de PANTALLAS; la app lo "
+        "muestra como enlace.",
+    ]
+    here = help_assistant.screen_for(page)
+    if here is not None:
+        lines.append(f"- La persona está en la pantalla {SCREENS[here].label} ({here}).")
+    return lines
+
+
+def _system_prompt(ctx: AccountContext, thread: AgentThread, page: str | None = None) -> str:
     zone = ZoneInfo(thread.timezone or "UTC")
     now = datetime.now(zone)
     offset = now.strftime("%z")
@@ -707,15 +833,19 @@ def _system_prompt(ctx: AccountContext, thread: AgentThread) -> str:
             "nuevas, Instagram, publicaciones, automatizaciones) la cambia un "
             "administrador: si lo pide, decíselo."
         )
-    return "\n".join(lines)
+    lines += _help_rules(page)
+    return "\n".join(_help_reference() + lines)
 
 
 __all__ = [
     "MAX_CONTENT_LENGTH",
+    "MODE_FAST",
+    "MODE_FREE",
     "PUBLICATION_TOOLS",
     "TRIAL_TOOLS",
     "agent_enabled",
     "allowed_tools",
+    "assistant_modes",
     "confirm_action",
     "delete_thread",
     "get_thread",
@@ -724,6 +854,7 @@ __all__ = [
     "pending_row",
     "pending_thread_ids",
     "reject_action",
+    "screen_token",
     "send_message",
     "start_thread",
     "thread_messages",

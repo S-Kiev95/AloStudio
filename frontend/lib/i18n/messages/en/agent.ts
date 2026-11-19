@@ -41,4 +41,8 @@ export const agent: Strings<typeof es> = {
   },
   deleteConfirm: "Delete the chat “{title}”?",
   deleteChatNamed: "Delete chat {title}",
+  modeFastHint: "Guides and does it for you. Spends on OpenAI.",
+  modeFreeHint: "Only guides you. No cost, a bit slower.",
+  openFull: "Open in Agent",
+  closePanel: "Close",
 };

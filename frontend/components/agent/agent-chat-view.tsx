@@ -8,7 +8,9 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type AgentItem,
+  type AgentMode,
   type AgentPendingAction,
+  type AgentTextItem,
   type AgentToolItem,
   getAgentErrorMessage,
   getAgentErrorThreadId,
@@ -93,6 +95,42 @@ function ToolActivityRow({
   );
 }
 
+const SCREEN_TOKEN = /\[\[pantalla:([a-z_]+)\]\]/g;
+
+/** An answer's text with its ``[[pantalla:clave]]`` as links to the
+ *  screen (or its name, when the user can't open it). */
+function AnswerText({ accountId, item }: { accountId: string; item: AgentTextItem }) {
+  const t = useT();
+  const screens = new Map((item.screens ?? []).map((s) => [s.key, s]));
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  for (const match of item.content.matchAll(SCREEN_TOKEN)) {
+    const index = match.index ?? 0;
+    parts.push(item.content.slice(last, index));
+    const screen = screens.get(match[1] ?? "");
+    if (screen?.label) {
+      parts.push(
+        screen.path !== null ? (
+          <Link
+            key={index}
+            href={`/accounts/${accountId}/${screen.path}`.replace(/\/$/, "")}
+            className="font-medium text-lit underline-offset-2 hover:underline"
+          >
+            {t("helpAssistant.goTo", { screen: screen.label })}
+          </Link>
+        ) : (
+          <span key={index} className="font-medium">
+            {screen.label}
+          </span>
+        ),
+      );
+    }
+    last = index + match[0].length;
+  }
+  parts.push(item.content.slice(last));
+  return <p className="whitespace-pre-wrap break-words">{parts}</p>;
+}
+
 function AgentItemRow({
   accountId,
   item,
@@ -122,7 +160,11 @@ function AgentItemRow({
             : "rounded-panel rounded-bl-sm border border-glass bg-surface-2 text-fg",
         )}
       >
-        <p className="whitespace-pre-wrap break-words">{item.content}</p>
+        {isUser ? (
+          <p className="whitespace-pre-wrap break-words">{item.content}</p>
+        ) : (
+          <AnswerText accountId={accountId} item={item} />
+        )}
       </div>
       {time ? (
         <span
@@ -138,16 +180,37 @@ function AgentItemRow({
   );
 }
 
+const MODE_KEY = "alostudio:help-mode";
+
+function readMode(): AgentMode | null {
+  try {
+    const value = window.localStorage.getItem(MODE_KEY);
+    return value === "free" || value === "fast" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export function AgentChatView({
   accountId,
   threadId,
+  page,
+  embedded = false,
+  defaultMode,
 }: {
   accountId: string;
   threadId: number | null;
+  /** The screen the person is on, when the chat opens over it (the «?»). */
+  page?: string;
+  /** Inside the «?» panel: a new chat stays here instead of opening its page. */
+  embedded?: boolean;
+  /** The mode when the person never picked one (the «?»: Free, no cost). */
+  defaultMode?: AgentMode;
 }) {
   const t = useT();
   const router = useRouter();
   const shell = useAgentShell();
+  const [pickedMode, setPickedMode] = useState<AgentMode | null>(() => readMode());
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [createdThreadId, setCreatedThreadId] = useState<number | null>(null);
@@ -187,6 +250,20 @@ export function AgentChatView({
   // Agents get a note about what they can reach: their own inboxes.
   const showRoleNote = statusQuery.data?.is_administrator === false;
 
+  const modes = statusQuery.data?.modes ?? [];
+  const wantedMode = pickedMode ?? defaultMode;
+  const mode: AgentMode | undefined =
+    wantedMode && modes.includes(wantedMode) ? wantedMode : modes[0];
+
+  function pickMode(next: AgentMode) {
+    setPickedMode(next);
+    try {
+      window.localStorage.setItem(MODE_KEY, next);
+    } catch {
+      // No storage: the choice lasts while the chat is open.
+    }
+  }
+
   const isSending = createThread.isPending || sendMessage.isPending;
   const isActing = confirmAction.isPending || rejectAction.isPending;
   const isBusy = isSending || isActing;
@@ -224,15 +301,19 @@ export function AgentChatView({
         const created = await createThread.mutateAsync({
           content: text,
           timezone,
+          mode,
+          page,
         });
         setCreatedThreadId(created.id);
         setOptimisticUserMessage(null);
-        router.push(`/accounts/${accountId}/agent/${created.id}`);
+        if (!embedded) router.push(`/accounts/${accountId}/agent/${created.id}`);
       } else {
         await sendMessage.mutateAsync({
           threadId: effectiveThreadId,
           content: text,
           timezone,
+          mode,
+          page,
         });
         setOptimisticUserMessage(null);
       }
@@ -314,6 +395,28 @@ export function AgentChatView({
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-fg">
           {headerTitle}
         </h2>
+        {modes.length > 1 ? (
+          <div role="radiogroup" aria-label={t("helpAssistant.modeLabel")} className="flex shrink-0 gap-1">
+            {modes.map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={mode === m}
+                title={m === "fast" ? t("agent.modeFastHint") : t("agent.modeFreeHint")}
+                onClick={() => pickMode(m)}
+                className={cn(
+                  "rounded-control border px-2 py-1 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon",
+                  mode === m
+                    ? "border-neon bg-focused text-fg"
+                    : "border-glass text-fg-muted hover:bg-hover-glass",
+                )}
+              >
+                {m === "fast" ? t("helpAssistant.modeFast") : t("helpAssistant.modeFree")}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </header>
 
       {/* What an agent reaches: their own inboxes */}

@@ -5,8 +5,14 @@ import { ApiError } from "./errors";
 import { apiFetch } from "./fetcher";
 import { invalidatePublications } from "./publications";
 
+/** One assistant, two ways to answer: Fast (OpenAI: guides and does,
+ *  spends) and Free (the server's local model: only guides, no cost). */
+export type AgentMode = "fast" | "free";
+
 export type AgentStatus = {
   enabled: boolean;
+  /** Fast first (the default), then Free. */
+  modes?: AgentMode[];
   model: string;
   can_write: boolean;
   /** Agents see only their inboxes; the suggestions and the note follow. */
@@ -24,11 +30,16 @@ export type AgentThreadsResponse = {
   threads: AgentThreadSummary[];
 };
 
+/** A screen an answer points to (``[[pantalla:clave]]`` in the text);
+ *  no ``path`` when the user can't open it. */
+export type AgentScreenLink = { key: string; label: string | null; path: string | null };
+
 export type AgentTextItem = {
   id: number;
   kind: "user" | "assistant";
   content: string;
   created_at: string;
+  screens?: AgentScreenLink[];
 };
 
 export type AgentToolStatus = "done" | "error" | "rejected" | "pending";
@@ -94,6 +105,9 @@ export type AgentThread = {
 export type AgentMessageInput = {
   content: string;
   timezone: string;
+  mode?: AgentMode;
+  /** The panel path the person is on (asked from the «?»). */
+  page?: string;
 };
 
 export function getBrowserTimezone(): string {
@@ -206,6 +220,8 @@ export function useSendAgentMessage(accountId: string) {
         body: JSON.stringify({
           content: input.content,
           timezone: input.timezone,
+          mode: input.mode,
+          page: input.page,
         }),
       }),
     onSuccess: (thread) => {

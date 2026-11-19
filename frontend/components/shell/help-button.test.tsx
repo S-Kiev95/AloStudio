@@ -6,54 +6,56 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 
 import { HelpButton } from "./help-button";
 
+const push = vi.fn();
+let pathname = "/accounts/1/settings/lifecycle";
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/accounts/1/settings/lifecycle",
+  usePathname: () => pathname,
+  useRouter: () => ({ push, replace: vi.fn() }),
 }));
 
-let enabled = true;
-let modes = ["free"];
-let canManage = false;
-let fastAllowed = false;
-let asked: unknown = null;
-let allowed: unknown = null;
-let reply: Record<string, unknown> = {};
-let status = 200;
-
-function info() {
-  return {
-    enabled,
-    modes: enabled ? modes : [],
-    fast_possible: true,
-    fast_allowed: fastAllowed,
-    can_manage: canManage,
-    question_max: 300,
-  };
-}
+let modes: string[] = ["fast", "free"];
+let created: Record<string, unknown> | null = null;
 
 const server = setupServer(
-  http.get("*/help_assistant", () => HttpResponse.json(info())),
-  http.put("*/help_assistant/settings", async ({ request }) => {
-    allowed = await request.json();
-    fastAllowed = (allowed as { fast: boolean }).fast;
-    modes = fastAllowed ? ["free", "fast"] : ["free"];
-    return HttpResponse.json(info());
-  }),
-  http.post("*/help_assistant", async ({ request }) => {
-    asked = await request.json();
-    return HttpResponse.json(reply, { status });
+  http.get("*/api/v1/accounts/1/agent", () =>
+    HttpResponse.json({
+      enabled: modes.length > 0,
+      modes,
+      model: "m",
+      can_write: true,
+      is_administrator: true,
+    }),
+  ),
+  http.post("*/api/v1/accounts/1/agent/threads", async ({ request }) => {
+    created = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      id: 12,
+      title: "¿Cómo creo una etapa?",
+      created_at: "2026-11-19T10:00:00Z",
+      updated_at: "2026-11-19T10:00:00Z",
+      items: [
+        { id: 1, kind: "user", content: "¿Cómo creo una etapa?", created_at: "2026-11-19T10:00:00Z" },
+        {
+          id: 2,
+          kind: "assistant",
+          content: "Tocá \"Nueva etapa\". [[pantalla:ajustes_etapas]]",
+          created_at: "2026-11-19T10:00:01Z",
+          screens: [{ key: "ajustes_etapas", label: "Ajustes → Etapas", path: "settings/lifecycle" }],
+        },
+      ],
+      pending_action: null,
+    });
   }),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
 afterEach(() => {
   server.resetHandlers();
-  enabled = true;
-  modes = ["free"];
-  canManage = false;
-  fastAllowed = false;
-  asked = null;
-  allowed = null;
-  status = 200;
+  modes = ["fast", "free"];
+  created = null;
+  pathname = "/accounts/1/settings/lifecycle";
+  push.mockReset();
   window.localStorage.clear();
 });
 afterAll(() => server.close());
@@ -67,65 +69,53 @@ function renderButton() {
   );
 }
 
-async function askQuestion(text: string) {
-  fireEvent.click((await screen.findAllByLabelText("Ayuda"))[0]);
-  fireEvent.change(screen.getByLabelText("Tu pregunta"), { target: { value: text } });
-  fireEvent.click(screen.getByRole("button", { name: "Preguntar" }));
-}
-
 describe("HelpButton", () => {
-  it("is hidden while the local model is not set up", async () => {
-    enabled = false;
+  it("is hidden while no mode is set up", async () => {
+    modes = [];
     renderButton();
     await new Promise((r) => setTimeout(r, 50));
-    expect(screen.queryAllByLabelText("Ayuda")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Ayuda" })).toBeNull();
   });
 
-  it("answers with a link to the screen and sends where the user is", async () => {
-    reply = {
-      known: true,
-      answer: 'Entrá a Ajustes → Notas de cierre y marcá "Obligatorio".',
-      screen: { key: "ajustes_notas_cierre", label: "Ajustes → Notas de cierre", path: "settings/closing_notes" },
-      note: null,
-      seconds: 9.5,
-    };
+  it("opens the Agent over the screen, in the chosen mode, with links to screens", async () => {
     renderButton();
-    await askQuestion("como pido un motivo al cerrar");
-    expect(await screen.findByText(/marcá "Obligatorio"/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Ir a Ajustes → Notas de cierre/ })).toHaveAttribute(
-      "href",
-      "/accounts/1/settings/closing_notes",
-    );
-    expect(asked).toEqual({
-      question: "como pido un motivo al cerrar",
-      page: "/accounts/1/settings/lifecycle",
-      mode: "free",
+    fireEvent.click(await screen.findByRole("button", { name: "Ayuda" }));
+    // Free by default in the «?» (no cost) when nothing was picked.
+    expect(await screen.findByRole("radio", { name: "Free" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.change(screen.getByLabelText("Mensaje para el agente"), {
+      target: { value: "¿Cómo creo una etapa?" },
     });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar mensaje" }));
+
+    await waitFor(() => expect(created).not.toBeNull());
+    expect(created).toMatchObject({
+      content: "¿Cómo creo una etapa?",
+      mode: "free",
+      page: "/accounts/1/settings/lifecycle",
+    });
+    const link = await screen.findByRole("link", { name: "Ir a Ajustes → Etapas" });
+    expect(link).toHaveAttribute("href", "/accounts/1/settings/lifecycle");
+    // The chat stays in the panel.
+    expect(push).not.toHaveBeenCalled();
+    const panel = screen.getByRole("dialog", { name: "Ayuda" });
+    expect(panel).toHaveClass("flex");
+    // Following the link closes it.
+    fireEvent.click(link);
+    expect(panel).toHaveClass("hidden");
   });
 
-  it("says when the model is still getting ready", async () => {
-    status = 503;
-    reply = { message: "busy", code: "help_assistant.busy" };
+  it("closes with the X and keeps the chosen mode", async () => {
+    window.localStorage.setItem("alostudio:help-mode", "fast");
     renderButton();
-    await askQuestion("hola");
-    await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent("La ayuda se está preparando"),
-    );
+    fireEvent.click(await screen.findByRole("button", { name: "Ayuda" }));
+    expect(await screen.findByRole("radio", { name: "Fast" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+    expect(document.querySelector('[role="dialog"]')).toHaveClass("hidden");
   });
 
-  it("lets an administrator allow Fast, and then asks in Fast", async () => {
-    canManage = true;
-    reply = { known: true, answer: "Tocá Resolver.", screen: null, note: null, seconds: 1.2, mode: "fast" };
+  it("is off on the Agente screen, where the chat already is", async () => {
+    pathname = "/accounts/1/agent/3";
     renderButton();
-    fireEvent.click((await screen.findAllByLabelText("Ayuda"))[0]);
-    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Permitir el modo Fast/ }));
-    await waitFor(() => expect(allowed).toEqual({ fast: true }));
-    fireEvent.click(await screen.findByRole("radio", { name: /Fast/ }));
-    fireEvent.change(screen.getByLabelText("Tu pregunta"), { target: { value: "como cierro" } });
-    fireEvent.click(screen.getByRole("button", { name: "Preguntar" }));
-    expect(await screen.findByText("Tocá Resolver.")).toBeInTheDocument();
-    expect((asked as { mode: string }).mode).toBe("fast");
-    expect(window.localStorage.getItem("alostudio:help-mode")).toBe("fast");
+    expect(await screen.findByRole("button", { name: "Ayuda" })).toBeDisabled();
   });
 });

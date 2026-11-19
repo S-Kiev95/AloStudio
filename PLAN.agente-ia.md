@@ -158,6 +158,24 @@ Llamar a un cliente lo cobra Meta aparte; atender es gratis.
 - Tests: `tests/integration/test_agent_roles.py`, `test_agent_chat.py`,
   `test_oauth_apps.py` y los del MCP; frontend `components/agent`.
 
+**Un solo asistente: el «?» y el Agente (2026-11-19, pedido del dueño,
+nota del agente B):**
+- El Agente tiene dos modos: **Fast** (OpenAI: guía y hace, gasta) y
+  **Free** (el modelo local de la Ayuda: solo guía, sin costo). Se elige
+  arriba del chat; se recuerda en el navegador.
+- Fast suma a sus instrucciones la ayuda de AloStudio (`ayuda.md`) y las
+  pantallas reales, y sabe en qué pantalla está la persona; para llevarla
+  a una pantalla escribe `[[pantalla:clave]]`, que el panel muestra como
+  enlace (sin enlace si es de administradores y la persona no lo es).
+- Free llama a `help_assistant.service.ask` sin herramientas y avisa que
+  para que lo haga hay que pasar a Fast.
+- El «?» de la barra abre el Agente en un panel al costado, con la
+  pantalla actual; el chat queda en el menú Agente.
+- Queda para decidir: Fast sigue la regla del Agente (cualquier persona de
+  la cuenta, si hay clave de OpenAI), no el permiso de administrador que
+  tenía el Fast de la Ayuda (`accounts.settings.help_assistant.fast`, sin
+  uso ahora, igual que `/help_assistant` en el panel).
+
 ### Paso 2. Agente de clientes por chat
 
 **Decisiones del dueño (2026-11-17)** sobre quién atiende cada

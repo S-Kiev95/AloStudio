@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -109,6 +110,7 @@ async def present_thread(
     pending = next((r for r in rows if r.status == TOOL_STATUS_PENDING), None)
     locale = user_locale(ctx.user)
     reads = {r.tool_name for r in rows if r.tool_name and await is_read_tool(r.tool_name)}
+    admin = ctx.is_administrator
     return {
         "id": thread.id,
         "title": thread.title,
@@ -116,7 +118,7 @@ async def present_thread(
         "updated_at": _iso(thread.updated_at),
         "items": [
             item
-            for item in (_present_item(r, locale=locale, reads=reads) for r in rows)
+            for item in (_present_item(r, locale=locale, reads=reads, admin=admin) for r in rows)
             if item is not None
         ],
         "pending_action": (
@@ -125,16 +127,42 @@ async def present_thread(
     }
 
 
-def _present_item(row: AgentMessage, *, locale: str, reads: set[str]) -> dict[str, Any] | None:
+_SCREEN_TOKEN = re.compile(r"\[\[pantalla:([a-z_]+)\]\]")
+
+
+def _screens_in(content: str, *, admin: bool) -> list[dict[str, Any]]:
+    """The screens an answer links to (``[[pantalla:clave]]``): label and
+    path; no path for one an agent can't open, nor for an unknown key."""
+    from app.domains.help_assistant.screens import SCREENS
+
+    out: list[dict[str, Any]] = []
+    for key in dict.fromkeys(_SCREEN_TOKEN.findall(content)):
+        screen = SCREENS.get(key)
+        out.append(
+            {
+                "key": key,
+                "label": screen.label if screen is not None else None,
+                "path": screen.path if screen is not None and (admin or not screen.admin) else None,
+            }
+        )
+    return out
+
+
+def _present_item(
+    row: AgentMessage, *, locale: str, reads: set[str], admin: bool = False
+) -> dict[str, Any] | None:
     if row.role in (AGENT_ROLE_USER, AGENT_ROLE_ASSISTANT):
         if not (row.content or "").strip():
             return None  # an assistant step that only called a tool
-        return {
+        item: dict[str, Any] = {
             "id": row.id,
             "kind": row.role,
             "content": row.content,
             "created_at": _iso(row.created_at),
         }
+        if row.role == AGENT_ROLE_ASSISTANT:
+            item["screens"] = _screens_in(row.content or "", admin=admin)
+        return item
     result = _load(row.content)
     name = row.tool_name or ""
     if name in _LABELLED_TOOLS:

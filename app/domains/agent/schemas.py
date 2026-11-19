@@ -14,3 +14,9 @@ class AgentMessageIn(BaseModel):
     content: str
     # The browser's IANA zone ("America/Montevideo"); UTC when missing.
     timezone: str | None = None
+    # ``fast`` (OpenAI: guides and does) or ``free`` (the local model: only
+    # guides); the first available when missing.
+    mode: str | None = None
+    # The panel path the person is on (``/accounts/1/agenda``), when asked
+    # from the «?» over another screen.
+    page: str | None = None

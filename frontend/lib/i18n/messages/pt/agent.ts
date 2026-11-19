@@ -41,4 +41,8 @@ export const agent: Strings<typeof es> = {
   },
   deleteConfirm: "Excluir o chat “{title}”?",
   deleteChatNamed: "Excluir chat {title}",
+  modeFastHint: "Orienta e faz por você. Gasta na OpenAI.",
+  modeFreeHint: "Só orienta. Sem custo, demora um pouco mais.",
+  openFull: "Abrir no Agente",
+  closePanel: "Fechar",
 };

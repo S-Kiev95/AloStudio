@@ -48,8 +48,11 @@ async def _thread_response(
 async def agent_status(
     ctx: Annotated[AccountContext, Depends(account_context)],
 ) -> dict[str, Any]:
+    modes = svc.assistant_modes()
     return {
-        "enabled": svc.agent_enabled(),
+        "enabled": bool(modes),
+        # Fast first (the default), then Free.
+        "modes": modes,
         "model": get_settings().openai_agent_model,
         # Every member confirms the changes their role allows (an agent:
         # replies, notes, labels... in their inboxes).
@@ -79,7 +82,12 @@ async def create_thread_endpoint(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     thread = await svc.start_thread(
-        session, ctx, content=payload.content, timezone=payload.timezone
+        session,
+        ctx,
+        content=payload.content,
+        timezone=payload.timezone,
+        mode=payload.mode,
+        page=payload.page,
     )
     return await _thread_response(session, ctx, thread)
 
@@ -114,7 +122,13 @@ async def send_message_endpoint(
 ) -> dict[str, Any]:
     thread = await svc.get_thread(session, ctx, thread_id)
     await svc.send_message(
-        session, ctx, thread, content=payload.content, timezone=payload.timezone
+        session,
+        ctx,
+        thread,
+        content=payload.content,
+        timezone=payload.timezone,
+        mode=payload.mode,
+        page=payload.page,
     )
     return await _thread_response(session, ctx, thread)
 

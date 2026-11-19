@@ -41,4 +41,8 @@ export const agent: Strings<typeof es> = {
   },
   deleteConfirm: "Supprimer le chat « {title} » ?",
   deleteChatNamed: "Supprimer le chat {title}",
+  modeFastHint: "Vous guide et le fait pour vous. Dépense sur OpenAI.",
+  modeFreeHint: "Vous guide seulement. Sans coût, un peu plus lent.",
+  openFull: "Ouvrir dans Agent",
+  closePanel: "Fermer",
 };

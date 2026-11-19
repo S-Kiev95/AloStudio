@@ -184,9 +184,11 @@ async def test_status_follows_the_key_and_the_role(client, db_session, monkeypat
     settings = get_settings()
 
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    monkeypatch.setattr(settings, "local_llm_url", "")
     status = (await client.get(base, headers=h)).json()
     assert status == {
         "enabled": True,
+        "modes": ["fast"],
         "model": settings.openai_agent_model,
         "can_write": True,
         "is_administrator": True,
@@ -502,3 +504,99 @@ async def test_the_message_is_validated(client, db_session, openai):
         assert r.status_code == 422, payload
         assert r.json()["message"]
     assert openai.requests == []
+
+
+
+# ---------------------------------------------------------------------------
+# One assistant: Free (the help on the local model) and Fast (this agent)
+# ---------------------------------------------------------------------------
+async def test_fast_knows_the_help_and_the_screen_the_person_is_on(client, db_session, openai):
+    owner, h = await _seed(db_session, "-help")
+    base = f"/api/v1/accounts/{owner.account.id}/agent"
+    openai.queue(say("Entrá a CRM → Agenda y tocá \"Nueva cita\". [[pantalla:agenda]]"))
+
+    r = await client.post(
+        f"{base}/threads",
+        headers=h,
+        json={"content": "¿Cómo agendo?", "timezone": ZONE, "page": f"/accounts/{owner.account.id}/contacts"},
+    )
+
+    assert r.status_code == 200, r.text
+    system = openai.requests[0]["messages"][0]["content"]
+    # The fixed help first (cached by OpenAI), what changes after.
+    assert system.startswith("PANTALLAS:")
+    assert "AYUDA DE ALOSTUDIO:" in system
+    assert "La persona está en la pantalla CRM → Contactos (contactos)." in system
+    answer = r.json()["items"][-1]
+    assert answer["screens"] == [{"key": "agenda", "label": "CRM → Agenda", "path": "agenda"}]
+
+
+async def test_free_answers_from_the_help_without_tools(client, db_session, openai, monkeypatch):
+    from app.domains.help_assistant import service as help_assistant
+
+    owner, h = await _seed(db_session, "-free")
+    agent_h = await _seed_agent(db_session, owner.account.id, "-free")
+    monkeypatch.setattr(get_settings(), "local_llm_url", "http://llama.test")
+    asked: list[dict[str, Any]] = []
+
+    async def fake_ask(question, **kwargs):
+        asked.append({"question": question, **kwargs})
+        return {
+            "known": True,
+            "answer": "Entrá a Estadísticas → Gastos.",
+            "screen": {"key": "gastos", "label": "Estadísticas → Gastos", "path": "publications/analytics/costs"},
+            "note": None,
+            "seconds": 1.0,
+            "mode": "free",
+        }
+
+    monkeypatch.setattr(help_assistant, "ask", fake_ask)
+    base = f"/api/v1/accounts/{owner.account.id}/agent"
+    assert (await client.get(base, headers=h)).json()["modes"] == ["fast", "free"]
+
+    r = await client.post(
+        f"{base}/threads",
+        headers=agent_h,
+        json={"content": "¿Dónde veo los gastos?", "mode": "free", "page": "/accounts/1/agenda"},
+    )
+
+    assert r.status_code == 200, r.text
+    assert openai.requests == []  # no OpenAI, no tools
+    assert asked[0]["question"] == "¿Dónde veo los gastos?"
+    assert asked[0]["page"] == "/accounts/1/agenda"
+    assert asked[0]["is_admin"] is False
+    answer = r.json()["items"][-1]
+    assert answer["content"].startswith("Entrá a Estadísticas → Gastos.\n[[pantalla:gastos]]")
+    assert "cambiá a Fast" in answer["content"]
+    # An administrators' screen: named, not linked, for an agent.
+    assert answer["screens"] == [{"key": "gastos", "label": "Estadísticas → Gastos", "path": None}]
+
+
+async def test_an_unknown_mode_is_refused(client, db_session, openai, monkeypatch):
+    owner, h = await _seed(db_session, "-mode")
+    monkeypatch.setattr(get_settings(), "local_llm_url", "")
+    base = f"/api/v1/accounts/{owner.account.id}/agent"
+    r = await client.post(f"{base}/threads", headers=h, json={"content": "Hola", "mode": "free"})
+    assert r.status_code == 422
+
+
+async def test_a_free_failure_keeps_the_message_once(client, db_session, openai, monkeypatch):
+    from app.core import local_llm
+    from app.domains.help_assistant import service as help_assistant
+
+    owner, h = await _seed(db_session, "-free-down")
+    monkeypatch.setattr(get_settings(), "local_llm_url", "http://llama.test")
+
+    async def down(question, **kwargs):
+        raise local_llm.LocalLlmError("timeout")
+
+    monkeypatch.setattr(help_assistant, "ask", down)
+    base = f"/api/v1/accounts/{owner.account.id}/agent"
+    r = await client.post(f"{base}/threads", headers=h, json={"content": "¿Cómo exporto?", "mode": "free"})
+
+    # 502 like any model failure: the chat and the message are saved.
+    assert r.status_code == 502
+    assert "ocupado" in r.json()["message"]
+    thread_id = r.json()["thread_id"]
+    items = (await client.get(f"{base}/threads/{thread_id}", headers=h)).json()["items"]
+    assert [i["content"] for i in items] == ["¿Cómo exporto?"]

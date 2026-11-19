@@ -41,4 +41,8 @@ export const agent: Strings<typeof es> = {
   },
   deleteConfirm: "“{title}” 채팅을 삭제할까요?",
   deleteChatNamed: "{title} 채팅 삭제",
+  modeFastHint: "안내하고 대신 처리합니다. OpenAI 비용이 듭니다.",
+  modeFreeHint: "안내만 합니다. 무료지만 조금 느립니다.",
+  openFull: "에이전트에서 열기",
+  closePanel: "닫기",
 };

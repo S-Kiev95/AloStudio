@@ -38,4 +38,8 @@ export const agent = {
   },
   deleteConfirm: "¿Borrar el chat “{title}”?",
   deleteChatNamed: "Borrar chat {title}",
+  modeFastHint: "Guía y lo hace por vos. Gasta en OpenAI.",
+  modeFreeHint: "Solo te guía. Sin costo, tarda un poco más.",
+  openFull: "Abrir en Agente",
+  closePanel: "Cerrar",
 };
