@@ -48,11 +48,15 @@ async def _thread_response(
 async def agent_status(
     ctx: Annotated[AccountContext, Depends(account_context)],
 ) -> dict[str, Any]:
-    modes = svc.assistant_modes()
+    modes = svc.assistant_modes(ctx.account)
     return {
         "enabled": bool(modes),
         # Fast first (the default), then Free.
         "modes": modes,
+        # Fast needs the OpenAI key and an administrator's yes, which they
+        # give or take back with PUT /help_assistant/settings.
+        "fast_possible": svc.agent_enabled(),
+        "fast_allowed": svc.fast_allowed(ctx.account),
         "model": get_settings().openai_agent_model,
         # Every member confirms the changes their role allows (an agent:
         # replies, notes, labels... in their inboxes).

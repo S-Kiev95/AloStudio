@@ -13,6 +13,10 @@ export type AgentStatus = {
   enabled: boolean;
   /** Fast first (the default), then Free. */
   modes?: AgentMode[];
+  /** The installation has an OpenAI key. */
+  fast_possible?: boolean;
+  /** An administrator allowed Fast (it spends) in this account. */
+  fast_allowed?: boolean;
   model: string;
   can_write: boolean;
   /** Agents see only their inboxes; the suggestions and the note follow. */
@@ -188,6 +192,19 @@ export function useAgentThread(accountId: string, threadId: number | null) {
       apiFetch<AgentThread>(`${base(accountId)}/threads/${threadId}`),
     enabled: validId,
     staleTime: 30_000,
+  });
+}
+
+/** An administrator allows Fast in the account, or stops it. */
+export function useAllowFast(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (fast: boolean) =>
+      apiFetch<unknown>(`/api/v1/accounts/${accountId}/help_assistant/settings`, {
+        method: "PUT",
+        body: JSON.stringify({ fast }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: agentStatusQueryKey(accountId) }),
   });
 }
 

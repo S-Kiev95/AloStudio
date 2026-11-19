@@ -171,10 +171,11 @@ nota del agente B):**
   para que lo haga hay que pasar a Fast.
 - El «?» de la barra abre el Agente en un panel al costado, con la
   pantalla actual; el chat queda en el menú Agente.
-- Queda para decidir: Fast sigue la regla del Agente (cualquier persona de
-  la cuenta, si hay clave de OpenAI), no el permiso de administrador que
-  tenía el Fast de la Ayuda (`accounts.settings.help_assistant.fast`, sin
-  uso ahora, igual que `/help_assistant` en el panel).
+- Fast lo permite un administrador de la cuenta (decisión del dueño,
+  2026-11-19): el mismo permiso que tenía el Fast de la Ayuda
+  (`accounts.settings.help_assistant.fast`), que se prende arriba del chat.
+  Vale también para el menú Agente: una cuenta sin el permiso solo tiene
+  Free (o nada, si no hay modelo local) hasta que un administrador lo da.
 
 ### Paso 2. Agente de clientes por chat
 

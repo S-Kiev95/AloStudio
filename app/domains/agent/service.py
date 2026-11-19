@@ -35,6 +35,7 @@ from app.core.config import get_settings
 from app.core.deps import AccountContext
 from app.core.errors import ChatwootHTTPException
 from app.core.i18n import t, user_locale
+from app.domains.accounts.models import Account
 from app.domains.agent.models import (
     AGENT_ROLE_ASSISTANT,
     AGENT_ROLE_TOOL,
@@ -127,23 +128,31 @@ MODE_FREE = "free"
 MODE_FAST = "fast"
 
 
-def assistant_modes() -> list[str]:
-    """What the installation can answer with, Fast first (the default:
-    it does what is asked, Free only explains)."""
+def fast_allowed(account: Account) -> bool:
+    """Fast spends on OpenAI: an administrator of the account allows it
+    (the owner's decision, 2026-11-19; the same switch the «?» had)."""
+    from app.domains.help_assistant.service import fast_allowed as allowed
+
+    return agent_enabled() and allowed(account)
+
+
+def assistant_modes(account: Account) -> list[str]:
+    """What this account can answer with, Fast first (the default: it
+    does what is asked, Free only explains)."""
     from app.core import local_llm
 
     out = []
-    if agent_enabled():
+    if fast_allowed(account):
         out.append(MODE_FAST)
     if local_llm.configured():
         out.append(MODE_FREE)
     return out
 
 
-def _pick_mode(mode: str | None) -> str:
-    modes = assistant_modes()
+def _pick_mode(account: Account, mode: str | None) -> str:
+    modes = assistant_modes(account)
     if not modes:
-        raise _unavailable()
+        raise _fast_not_allowed() if agent_enabled() else _unavailable()
     if mode is None:
         return modes[0]
     if mode not in modes:
@@ -191,6 +200,16 @@ def _unavailable() -> ChatwootHTTPException:
                 "El agente no está configurado: falta la clave de OpenAI en "
                 "Ajustes → Instalación."
             )
+        },
+    )
+
+
+def _fast_not_allowed() -> ChatwootHTTPException:
+    return ChatwootHTTPException(
+        status_code=403,
+        detail={
+            "message": "El modo Fast lo tiene que permitir un administrador de la cuenta.",
+            "code": "agent.fast_not_allowed",
         },
     )
 
@@ -324,7 +343,7 @@ async def start_thread(
     page: str | None = None,
 ) -> AgentThread:
     """A new chat with its first message, answered."""
-    mode = _pick_mode(mode)
+    mode = _pick_mode(ctx.account, mode)
     text = _clean_content(content)
     thread = AgentThread(
         account_id=ctx.account.id,  # type: ignore[arg-type]
@@ -362,7 +381,7 @@ async def send_message(
 ) -> None:
     """The user's next message, answered. A proposal still waiting for
     confirmation is dropped: the user answered it with words instead."""
-    mode = _pick_mode(mode)
+    mode = _pick_mode(ctx.account, mode)
     text = _clean_content(content)
     zone = _zone_name(timezone)
     await _claim(session, thread)
@@ -427,7 +446,7 @@ async def _answer_free(
         parts.append(screen_token(str(screen["key"])))
     if reply.get("note"):
         parts.append(str(reply["note"]))
-    if MODE_FAST in assistant_modes():
+    if MODE_FAST in assistant_modes(ctx.account):
         parts.append(t(locale, "agent.free.fast_hint"))
     session.add(
         AgentMessage(thread_id=thread.id, role=AGENT_ROLE_ASSISTANT, content="\n".join(parts))
@@ -448,6 +467,8 @@ async def confirm_action(
     (only Fast proposes anything)."""
     if not agent_enabled():
         raise _unavailable()
+    if not fast_allowed(ctx.account):
+        raise _fast_not_allowed()
     await _claim(session, thread)
     try:
         row = await pending_row(session, thread.id)  # type: ignore[arg-type]
@@ -848,6 +869,7 @@ __all__ = [
     "assistant_modes",
     "confirm_action",
     "delete_thread",
+    "fast_allowed",
     "get_thread",
     "is_read_tool",
     "list_threads",

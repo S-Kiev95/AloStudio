@@ -17,6 +17,7 @@ import {
   getBrowserTimezone,
   isAgentErrorStatus,
   useAgentStatus,
+  useAllowFast,
   useAgentThread,
   useConfirmAgentAction,
   useCreateAgentThread,
@@ -242,6 +243,7 @@ export function AgentChatView({
   const sendMessage = useSendAgentMessage(accountId);
   const confirmAction = useConfirmAgentAction(accountId);
   const rejectAction = useRejectAgentAction(accountId);
+  const allowFast = useAllowFast(accountId);
 
   const agentDisabled =
     statusQuery.data?.enabled === false || statusQuery.isError;
@@ -418,6 +420,20 @@ export function AgentChatView({
           </div>
         ) : null}
       </header>
+
+      {/* Fast spends: an administrator allows it for the account */}
+      {statusQuery.data?.is_administrator && statusQuery.data.fast_possible ? (
+        <label className="flex shrink-0 items-center gap-2 border-b border-glass px-4 py-2 text-xs text-fg-muted">
+          <input
+            type="checkbox"
+            checked={statusQuery.data.fast_allowed === true}
+            disabled={allowFast.isPending}
+            onChange={(e) => allowFast.mutate(e.target.checked)}
+            className="h-4 w-4 rounded border-glass accent-neon focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          {t("helpAssistant.allowFast")}
+        </label>
+      ) : null}
 
       {/* What an agent reaches: their own inboxes */}
       {showRoleNote ? (

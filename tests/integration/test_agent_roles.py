@@ -57,6 +57,8 @@ def openai(monkeypatch) -> AsyncIterator[FakeOpenAI]:
     settings = get_settings()
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
     monkeypatch.setattr(settings, "openai_base_url", "https://api.openai.com")
+    # An administrator allowed Fast (test_fast_needs_an_administrators_yes).
+    monkeypatch.setattr("app.domains.help_assistant.service.fast_allowed", lambda account: True)
     fake = FakeOpenAI()
     with respx.mock(assert_all_called=False) as mock:
         mock.post(OPENAI).mock(side_effect=fake)

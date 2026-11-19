@@ -33,7 +33,9 @@ export function HelpButton({ accountId }: { accountId: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  if (!status.data?.enabled) return null;
+  const data = status.data;
+  // Shown when it can answer, or to an administrator who can allow Fast.
+  if (!data || !(data.enabled || (data.is_administrator && data.fast_possible))) return null;
   // On the Agente screen the chat is already there.
   const onAgentPage = pathname.startsWith(`/accounts/${accountId}/agent`);
 

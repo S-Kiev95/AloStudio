@@ -97,6 +97,8 @@ def openai(monkeypatch) -> AsyncIterator[FakeOpenAI]:
     settings = get_settings()
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
     monkeypatch.setattr(settings, "openai_base_url", "https://api.openai.com")
+    # An administrator allowed Fast (test_fast_needs_an_administrators_yes).
+    monkeypatch.setattr("app.domains.help_assistant.service.fast_allowed", lambda account: True)
     fake = FakeOpenAI()
     with respx.mock(assert_all_called=False) as mock:
         mock.post(OPENAI).mock(side_effect=fake)
@@ -185,10 +187,13 @@ async def test_status_follows_the_key_and_the_role(client, db_session, monkeypat
 
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
     monkeypatch.setattr(settings, "local_llm_url", "")
+    monkeypatch.setattr("app.domains.help_assistant.service.fast_allowed", lambda account: True)
     status = (await client.get(base, headers=h)).json()
     assert status == {
         "enabled": True,
         "modes": ["fast"],
+        "fast_possible": True,
+        "fast_allowed": True,
         "model": settings.openai_agent_model,
         "can_write": True,
         "is_administrator": True,
@@ -600,3 +605,24 @@ async def test_a_free_failure_keeps_the_message_once(client, db_session, openai,
     thread_id = r.json()["thread_id"]
     items = (await client.get(f"{base}/threads/{thread_id}", headers=h)).json()["items"]
     assert [i["content"] for i in items] == ["¿Cómo exporto?"]
+
+
+async def test_fast_needs_an_administrators_yes(client, db_session, monkeypatch):
+    owner, h = await _seed(db_session, "-fast-yes")
+    agent_h = await _seed_agent(db_session, owner.account.id, "-fast-yes")
+    settings = get_settings()
+    monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    monkeypatch.setattr(settings, "local_llm_url", "")
+    base = f"/api/v1/accounts/{owner.account.id}/agent"
+
+    status = (await client.get(base, headers=h)).json()
+    assert status["modes"] == [] and status["fast_possible"] is True and status["fast_allowed"] is False
+    r = await client.post(f"{base}/threads", headers=h, json={"content": "Hola"})
+    assert r.status_code == 403
+    assert r.json()["code"] == "agent.fast_not_allowed"
+
+    # Only an administrator gives the yes.
+    put = f"/api/v1/accounts/{owner.account.id}/help_assistant/settings"
+    assert (await client.put(put, headers=agent_h, json={"fast": True})).status_code in (401, 403)
+    assert (await client.put(put, headers=h, json={"fast": True})).status_code == 200
+    assert (await client.get(base, headers=agent_h)).json()["modes"] == ["fast"]
