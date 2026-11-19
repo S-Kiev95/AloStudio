@@ -822,6 +822,38 @@ Detalle en `PLAN.i18n.md`.
   Aparte: en esta copia fallan 6 tests de entrega de webhooks
   (`test_agent_bot_listener`, `test_webhook_retries`, `test_webhooks_router`)
   también sin estos cambios; quedan por revisar.
+- **Para el agente A: unir el «?» (Ayuda) y el Agente (dueño, 2026-11-19; nota del
+  agente B).** El dueño quiere un solo asistente de IA: el Agente del menú y el «?»
+  de la barra de arriba. Con modo **Free** (el Qwen local, sin costo) y **Fast**
+  (OpenAI, gasta). Lo que ya está, del agente B (rama `feat/ayuda-free-fast`,
+  falta pasarla a develop):
+  - `app/domains/help_assistant/`: la ayuda de AloStudio (`ayuda.md`, también es
+    la documentación), el mapa de pantallas reales (`screens.py`, un test verifica
+    que cada ruta exista), la parte fija del pedido que llama.cpp reutiliza
+    (`knowledge.prefix_messages`), respuesta con forma fija y controles
+    (`invented_menus`, `invented_quotes`). Modos: `service.modes(account)`; Fast lo
+    permite un administrador (`accounts.settings["help_assistant"]["fast"]`) y gasta
+    como `help_assistant`.
+  - `app/core/local_llm.py` (cliente de llama-server) y `app/core/llm.py`:
+    `chat_completion(..., response_format=...)`.
+  - Panel: `components/shell/help-button.tsx` (el «?», con el selector Free/Fast).
+  - Mediciones: `ops/llm/README.md` (Qwen3 4B: 29 de 30, ~22 s; leer cuesta ~12
+    tokens/s y escribir ~4 en 4 núcleos).
+  Lo que falta, cuando `feat/agente-ia` pase a develop:
+  1. **Fast = el Agente.** Sumarle al Agente la ayuda como fuente: una herramienta
+     `buscar_en_la_ayuda` que devuelva secciones de `knowledge.sections()`, o la
+     ayuda entera en el system prompt, más la regla de usar las claves de
+     `SCREENS` para los enlaces. Así guía y además hace cosas.
+  2. **Free = solo guía.** Qwen en 4 núcleos no puede usar herramientas: leer sus
+     definiciones lleva minutos. En Free el Agente llama a `help_assistant.service.ask`
+     (sin herramientas), y si la persona pide una acción, le explica cómo hacerla a
+     mano y le ofrece pasar a Fast.
+  3. **El «?» abre el Agente** en un panel (el mismo chat y la misma historia), con
+     la pantalla donde está la persona (`page`, ver `service.screen_for`). Después
+     `help-button.tsx` se puede reemplazar o pasar a ser ese panel.
+  4. El selector Free/Fast y el permiso del administrador ya existen en la Ayuda:
+     reutilizar `GET/PUT /help_assistant` o moverlos al Agente.
+  Al agente B le avisan si hace falta algo de la Ayuda.
 - **12 y 13, segunda comparación (agente A, 2026-11-17):** al repasar
   respond.io quedaron estas dos que no estaban en la tabla.
   - 12: es distinto del 1 (ayuda al agente humano) y del 6 (voz). Ya están
