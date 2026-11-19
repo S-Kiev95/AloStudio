@@ -132,7 +132,7 @@ describe("ContactsView", () => {
   it("filters the list by lifecycle stage", async () => {
     renderWithQuery(<ContactsView accountId="1" />);
     const hot = await screen.findByRole("button", { name: /Muy interesado/ });
-    expect(hot).toHaveTextContent("🔥 Muy interesado1");
+    expect(hot).toHaveTextContent("Muy interesado1");
     fireEvent.click(hot);
     await waitFor(() => expect(lastStage).toBe("hot_lead"));
     expect(hot).toHaveAttribute("aria-pressed", "true");

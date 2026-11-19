@@ -11,7 +11,6 @@ export const lifecycle = {
     enabled: "Usar etapas",
     enabledHint: "Muestra la etapa en la conversación y en la ficha del contacto. Un contacto que escribe por primera vez entra en la etapa inicial.",
     stagesHint: "Hasta 20, en orden. Las etapas perdidas son donde se cae la gente: no cuentan como avance. Si le cambiás el nombre a una, los contactos siguen en ella.",
-    emoji: "Emoji de la etapa {n}",
     name: "Nombre de la etapa {n}",
     kind: "Tipo de la etapa {n}",
     description: "Descripción de la etapa {n}",

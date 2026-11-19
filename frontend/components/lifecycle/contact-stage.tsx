@@ -76,7 +76,7 @@ export function ContactStage({
             .filter((s) => s.kind === "stage")
             .map((s) => (
               <option key={s.key} value={s.key}>
-                {`${s.emoji} ${s.name}`.trim()}
+                {s.name}
               </option>
             ))}
         </optgroup>
@@ -86,7 +86,7 @@ export function ContactStage({
               .filter((s) => s.kind === "lost")
               .map((s) => (
                 <option key={s.key} value={s.key}>
-                  {`${s.emoji} ${s.name}`.trim()}
+                  {s.name}
                 </option>
               ))}
           </optgroup>

@@ -284,7 +284,7 @@ export function ConversionsView({ accountId }: { accountId: string }) {
                 {stageList.length ? (
                   stageList.map((stage) => {
                     const rule = rules.lifecycle?.[stage.key];
-                    const label = `${stage.emoji} ${stage.name}`.trim();
+                    const label = stage.name;
                     return (
                       <div
                         key={stage.key}

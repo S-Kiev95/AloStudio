@@ -14,7 +14,6 @@ export const lifecycle: Strings<typeof es> = {
     enabled: "Use stages",
     enabledHint: "Shows the stage in the conversation and on the contact's page. A contact who writes for the first time enters the starting stage.",
     stagesHint: "Up to 20, in order. Lost stages are where people drop out: they don't count as progress. If you rename one, its contacts stay in it.",
-    emoji: "Emoji for stage {n}",
     name: "Name of stage {n}",
     kind: "Type of stage {n}",
     description: "Description of stage {n}",

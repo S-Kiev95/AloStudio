@@ -14,7 +14,6 @@ export const lifecycle: Strings<typeof es> = {
     enabled: "Phasen verwenden",
     enabledHint: "Zeigt die Phase in der Unterhaltung und auf der Kontaktseite. Wer zum ersten Mal schreibt, landet in der Startphase.",
     stagesHint: "Bis zu 20, in Reihenfolge. Verlorene Phasen sind, wo Leute abspringen: Sie zählen nicht als Fortschritt. Benennst du eine um, bleiben ihre Kontakte darin.",
-    emoji: "Emoji der Phase {n}",
     name: "Name der Phase {n}",
     kind: "Art der Phase {n}",
     description: "Beschreibung der Phase {n}",

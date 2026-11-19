@@ -135,9 +135,9 @@ describe("ContactStage", () => {
 describe("LifecycleReportCard", () => {
   it("counts contacts per stage", async () => {
     renderWith(<LifecycleReportCard accountId="1" days={30} />);
-    expect(await screen.findByText("🔥 Muy interesado")).toBeInTheDocument();
+    expect(await screen.findByText("Muy interesado")).toBeInTheDocument();
     expect(screen.getByText("3 ahora · 5 entraron")).toBeInTheDocument();
-    expect(screen.getByText("🧊 Se enfrió")).toBeInTheDocument();
+    expect(screen.getByText("Se enfrió")).toBeInTheDocument();
   });
 
   it("points to the settings while stages are off", async () => {

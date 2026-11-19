@@ -14,7 +14,6 @@ export const lifecycle: Strings<typeof es> = {
     enabled: "단계 사용",
     enabledHint: "대화와 연락처 페이지에 단계를 보여줘요. 처음 연락한 사람은 시작 단계에 들어가요.",
     stagesHint: "최대 20개, 순서대로예요. 이탈 단계는 사람들이 빠져나가는 곳으로, 진행으로 치지 않아요. 이름을 바꿔도 연락처는 그 단계에 남아요.",
-    emoji: "{n}단계 이모지",
     name: "{n}단계 이름",
     kind: "{n}단계 종류",
     description: "{n}단계 설명",

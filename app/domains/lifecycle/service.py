@@ -18,7 +18,6 @@ from app.domains.contacts.models import Contact
 from app.domains.conversations.models import Conversation
 from app.domains.lifecycle.models import (
     DESCRIPTION_MAX,
-    EMOJI_MAX,
     KEY_MAX,
     KIND_LOST,
     KIND_STAGE,
@@ -34,11 +33,11 @@ log = logging.getLogger(__name__)
 
 # respond.io's: four steps to a sale and one way out.
 DEFAULTS = (
-    ("new_lead", "🆕", KIND_STAGE, True),
-    ("hot_lead", "🔥", KIND_STAGE, False),
-    ("payment", "💳", KIND_STAGE, False),
-    ("customer", "🤩", KIND_STAGE, False),
-    ("cold_lead", "🧊", KIND_LOST, False),
+    ("new_lead", "", KIND_STAGE, True),
+    ("hot_lead", "", KIND_STAGE, False),
+    ("payment", "", KIND_STAGE, False),
+    ("customer", "", KIND_STAGE, False),
+    ("cold_lead", "", KIND_LOST, False),
 )
 _KEY = re.compile(r"[a-z0-9_]{1,40}")
 
@@ -119,7 +118,8 @@ def clean_stages(raw: Any) -> list[dict[str, Any]]:
             {
                 "key": key,
                 "name": name,
-                "emoji": str(item.get("emoji") or "").strip()[:EMOJI_MAX],
+                # No emojis (the owner, 2026-11-18): the name says it.
+                "emoji": "",
                 "description": description,
                 "kind": kind,
                 "default": is_default,
@@ -264,7 +264,7 @@ async def set_stage(
     if moved and conversation is not None and conversation.contact_id == contact.id:
         who = (user.available_name or user.name) if user is not None else t(DEFAULT_LOCALE, "lifecycle.someone")
         content = (
-            t(DEFAULT_LOCALE, "lifecycle.activity", name=who, stage=f"{stage['emoji']} {stage['name']}".strip())
+            t(DEFAULT_LOCALE, "lifecycle.activity", name=who, stage=stage["name"])
             if stage
             else t(DEFAULT_LOCALE, "lifecycle.activity_cleared", name=who)
         )

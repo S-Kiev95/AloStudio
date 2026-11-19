@@ -121,13 +121,6 @@ export function LifecycleSettingsView({ accountId }: { accountId: string }) {
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <Input
-                          aria-label={t("lifecycle.settings.emoji", { n })}
-                          className="w-14 text-center"
-                          value={stage.emoji}
-                          maxLength={8}
-                          onChange={(e) => update(i, { emoji: e.target.value })}
-                        />
-                        <Input
                           aria-label={t("lifecycle.settings.name", { n })}
                           className="min-w-[10rem] flex-1"
                           value={stage.name}
