@@ -132,6 +132,7 @@ export const conversations = {
     select: "Seleccionar {name}",
     cameFrom: "Vino de {source}",
     anAd: "un anuncio",
+    priority: "Prioridad: {level}",
     privateNote: "Nota privada",
     related: "Relacionado",
   },

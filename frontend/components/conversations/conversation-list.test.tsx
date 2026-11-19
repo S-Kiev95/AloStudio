@@ -240,6 +240,41 @@ describe("ConversationList", () => {
     expect(marks[0]).toHaveAccessibleName("Vino de 20% OFF en toda la tienda");
   });
 
+  it("marks each row with its priority, and leaves the others unmarked", async () => {
+    server.use(
+      http.get("*/conversations", () =>
+        HttpResponse.json({
+          data: {
+            meta: { mine_count: 3, assigned_count: 3, unassigned_count: 0, all_count: 3 },
+            payload: [
+              {
+                ...conversation,
+                id: 44,
+                priority: "urgent",
+                meta: { sender: { id: 3, name: "Rosario" }, channel: "api" },
+              },
+              {
+                ...conversation,
+                id: 45,
+                priority: "low",
+                meta: { sender: { id: 4, name: "Dalila" }, channel: "api" },
+              },
+              conversation, // no priority
+            ],
+          },
+        }),
+      ),
+    );
+    renderWithQuery(<ConversationList accountId="1" />);
+
+    expect(await screen.findByText("Rosario")).toBeInTheDocument();
+    const marks = screen.getAllByLabelText(/^Prioridad:/);
+    expect(marks.map((m) => m.getAttribute("aria-label"))).toEqual([
+      "Prioridad: Urgente",
+      "Prioridad: Baja",
+    ]);
+  });
+
   it("bulk-assigns selected conversations to an agent", async () => {
     let assignBody: unknown = null;
     server.use(
