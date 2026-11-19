@@ -31,4 +31,12 @@ export const aiAgent: Strings<typeof es> = {
   discard: "Discard",
   discardFailed: "Couldn't discard it.",
   fromAi: "Message from the AI",
+  canDo: "What it can do besides answering",
+  canBook: "Book appointments in the Agenda",
+  canBookHint: "It offers free times inside the inbox's working hours that don't clash with the account's other appointments.",
+  slotMinutes: "Length of each appointment",
+  minutes: "{n} min",
+  canUpdateCrm: "Save data to the CRM (name, email, stage, labels, opportunities)",
+  canDoHint: "It only fills in what's missing and leaves a line in the conversation. In shadow mode it does nothing: it proposes it with the answer.",
+  suggestionActions: "The AI would also:",
 };

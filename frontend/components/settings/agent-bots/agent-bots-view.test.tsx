@@ -82,6 +82,8 @@ describe("AgentBotsView", () => {
     fireEvent.change(screen.getByLabelText("Cuándo atiende"), {
       target: { value: "out_of_hours" },
     });
+    fireEvent.click(screen.getByLabelText("Agendar citas en la Agenda"));
+    fireEvent.change(screen.getByLabelText("Duración de cada cita"), { target: { value: "30" } });
     fireEvent.click(screen.getByRole("button", { name: "Crear bot" }));
 
     await waitFor(() => expect(created).not.toBeNull());
@@ -93,6 +95,9 @@ describe("AgentBotsView", () => {
         instructions: "Vendemos cursos.",
         mode: "live",
         respond_when: "out_of_hours",
+        can_book: true,
+        slot_minutes: 30,
+        can_update_crm: false,
       },
     });
   });

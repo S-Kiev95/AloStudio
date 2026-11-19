@@ -11,7 +11,7 @@ Ported from:
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from datetime import timezone as _timezone
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -276,6 +276,31 @@ def _row_intervals_for_day(row: WorkingHour) -> tuple[int, int] | None:
     )
 
 
+def open_windows(
+    *, rows: list[WorkingHour], timezone_name: str | None, start: datetime, days: int
+) -> list[tuple[datetime, datetime]]:
+    """The open stretches, in the inbox's zone, of ``days`` calendar days
+    from ``start``'s (AloStudio's AI offers appointments inside them,
+    PLAN.agente-ia.md 2b). Closed days give nothing, and so does a day
+    whose closing is before its opening (past midnight)."""
+    zone = _resolve_zone(timezone_name)
+    by_day = {r.day_of_week: r for r in rows}
+    first = start.astimezone(zone).replace(hour=0, minute=0, second=0, microsecond=0)
+    windows: list[tuple[datetime, datetime]] = []
+    for offset in range(days):
+        day = (first + timedelta(days=offset)).replace(tzinfo=None)
+        # day_of_week: Python Mon=0..Sun=6; Chatwoot Sun=0..Sat=6.
+        row = by_day.get((day.weekday() + 1) % 7)
+        interval = _row_intervals_for_day(row) if row is not None else None
+        if interval is None:
+            continue
+        midnight = day.replace(tzinfo=zone)
+        windows.append(
+            (midnight + timedelta(minutes=interval[0]), midnight + timedelta(minutes=interval[1]))
+        )
+    return windows
+
+
 def open_at(
     *, rows: list[WorkingHour], timezone_name: str | None, moment: datetime
 ) -> bool:
@@ -362,5 +387,6 @@ __all__ = [
     "fetch_account_working_hour",
     "list_for_inbox",
     "open_at",
+    "open_windows",
     "update_working_hour",
 ]

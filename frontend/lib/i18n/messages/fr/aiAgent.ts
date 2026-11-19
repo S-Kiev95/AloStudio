@@ -31,4 +31,12 @@ export const aiAgent: Strings<typeof es> = {
   discard: "Écarter",
   discardFailed: "Impossible de l'écarter.",
   fromAi: "Message de l'IA",
+  canDo: "Ce qu'elle peut faire en plus de répondre",
+  canBook: "Prendre des rendez-vous dans l'Agenda",
+  canBookHint: "Elle propose des créneaux libres dans les horaires de la boîte de réception qui ne chevauchent pas d'autres rendez-vous du compte.",
+  slotMinutes: "Durée de chaque rendez-vous",
+  minutes: "{n} min",
+  canUpdateCrm: "Enregistrer des données dans le CRM (nom, email, étape, étiquettes, opportunités)",
+  canDoHint: "Elle ne complète que ce qui manque et laisse une ligne dans la conversation. En mode observation elle ne fait rien : elle le propose avec la réponse.",
+  suggestionActions: "L'IA ferait aussi :",
 };

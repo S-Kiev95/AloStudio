@@ -12,6 +12,7 @@ import {
   type AgentBotInput,
   type AiBotMode,
   type AiBotRespondWhen,
+  SLOT_MINUTES,
   aiBotConfig,
 } from "@/lib/api/agent-bots";
 import { useT } from "@/lib/i18n/provider";
@@ -37,6 +38,9 @@ export function AgentBotForm({
   const [instructions, setInstructions] = useState(startConfig.instructions);
   const [mode, setMode] = useState<AiBotMode>(startConfig.mode);
   const [respondWhen, setRespondWhen] = useState<AiBotRespondWhen>(startConfig.respond_when);
+  const [canBook, setCanBook] = useState(startConfig.can_book);
+  const [slotMinutes, setSlotMinutes] = useState(startConfig.slot_minutes);
+  const [canUpdateCrm, setCanUpdateCrm] = useState(startConfig.can_update_crm);
   const [error, setError] = useState<string | null>(null);
   const ai = kind === "ai";
 
@@ -53,6 +57,9 @@ export function AgentBotForm({
                 instructions: instructions.trim(),
                 mode,
                 respond_when: respondWhen,
+                can_book: canBook,
+                slot_minutes: slotMinutes,
+                can_update_crm: canUpdateCrm,
               },
             }
           : { outgoing_url: outgoingUrl.trim() || null }),
@@ -153,6 +160,47 @@ export function AgentBotForm({
             </Select>
             <p className="text-xs text-fg-muted">{t("aiAgent.respondWhenHint")}</p>
           </div>
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-fg">{t("aiAgent.canDo")}</legend>
+            <label className="flex items-center gap-2 text-sm text-fg">
+              <input
+                type="checkbox"
+                checked={canBook}
+                onChange={(e) => setCanBook(e.target.checked)}
+                className="h-4 w-4 rounded border-glass accent-neon focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              {t("aiAgent.canBook")}
+            </label>
+            {canBook ? (
+              <div className="space-y-1.5 pl-6">
+                <Label htmlFor="ab-slot">{t("aiAgent.slotMinutes")}</Label>
+                <Select
+                  id="ab-slot"
+                  value={String(slotMinutes)}
+                  onChange={(e) => setSlotMinutes(Number(e.target.value))}
+                  className="max-w-[10rem]"
+                >
+                  {SLOT_MINUTES.map((m) => (
+                    <option key={m} value={String(m)}>
+                      {t("aiAgent.minutes", { n: m })}
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-fg-muted">{t("aiAgent.canBookHint")}</p>
+              </div>
+            ) : null}
+            <label className="flex items-center gap-2 text-sm text-fg">
+              <input
+                type="checkbox"
+                checked={canUpdateCrm}
+                onChange={(e) => setCanUpdateCrm(e.target.checked)}
+                className="h-4 w-4 rounded border-glass accent-neon focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              {t("aiAgent.canUpdateCrm")}
+            </label>
+            <p className="text-xs text-fg-muted">{t("aiAgent.canDoHint")}</p>
+          </fieldset>
 
           <p className="text-xs text-fg-muted">{t("aiAgent.attachHint")}</p>
         </>

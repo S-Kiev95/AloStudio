@@ -47,6 +47,9 @@ RESPOND_NOBODY_AVAILABLE = "nobody_available"
 RESPOND_WHEN = (RESPOND_ALWAYS, RESPOND_OUT_OF_HOURS, RESPOND_NOBODY_AVAILABLE)
 
 INSTRUCTIONS_MAX = 4000
+# Appointment lengths the AI can offer (minutes).
+SLOT_MINUTES = (15, 30, 45, 60, 90, 120)
+SLOT_MINUTES_DEFAULT = 60
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +57,12 @@ class AiConfig:
     instructions: str
     mode: str
     respond_when: str
+    # What it may do besides answering (off until an administrator allows
+    # it): book in the Agenda inside the inbox's hours, and write the
+    # contact's data, stage, labels and opportunities.
+    can_book: bool = False
+    slot_minutes: int = SLOT_MINUTES_DEFAULT
+    can_update_crm: bool = False
 
 
 def parse_config(raw: dict[str, Any] | None) -> AiConfig:
@@ -61,10 +70,14 @@ def parse_config(raw: dict[str, Any] | None) -> AiConfig:
     raw = raw if isinstance(raw, dict) else {}
     mode = raw.get("mode")
     when = raw.get("respond_when")
+    slot = raw.get("slot_minutes")
     return AiConfig(
         instructions=str(raw.get("instructions") or "")[:INSTRUCTIONS_MAX],
         mode=mode if mode in MODES else MODE_SHADOW,
         respond_when=when if when in RESPOND_WHEN else RESPOND_ALWAYS,
+        can_book=raw.get("can_book") is True,
+        slot_minutes=slot if slot in SLOT_MINUTES else SLOT_MINUTES_DEFAULT,
+        can_update_crm=raw.get("can_update_crm") is True,
     )
 
 
@@ -83,7 +96,20 @@ def validate_config(raw: Any) -> dict[str, Any]:
     when = raw.get("respond_when") or RESPOND_ALWAYS
     if when not in RESPOND_WHEN:
         raise ValueError("respond_when")
-    return {"instructions": instructions.strip(), "mode": mode, "respond_when": when}
+    for flag in ("can_book", "can_update_crm"):
+        if not isinstance(raw.get(flag, False), bool):
+            raise ValueError(flag)
+    slot = raw.get("slot_minutes", SLOT_MINUTES_DEFAULT)
+    if slot not in SLOT_MINUTES or isinstance(slot, bool):
+        raise ValueError("slot_minutes")
+    return {
+        "instructions": instructions.strip(),
+        "mode": mode,
+        "respond_when": when,
+        "can_book": raw.get("can_book", False),
+        "slot_minutes": slot,
+        "can_update_crm": raw.get("can_update_crm", False),
+    }
 
 
 async def inbox_ai_bot(session: AsyncSession, inbox_id: int | None) -> AgentBot | None:
@@ -173,6 +199,7 @@ __all__ = [
     "RESPOND_NOBODY_AVAILABLE",
     "RESPOND_OUT_OF_HOURS",
     "RESPOND_WHEN",
+    "SLOT_MINUTES",
     "AiConfig",
     "held_by_ai",
     "inbox_ai_bot",

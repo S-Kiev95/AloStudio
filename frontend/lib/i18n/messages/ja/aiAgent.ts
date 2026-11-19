@@ -31,4 +31,12 @@ export const aiAgent: Strings<typeof es> = {
   discard: "破棄",
   discardFailed: "破棄できませんでした。",
   fromAi: "AIからのメッセージ",
+  canDo: "返信以外にできること",
+  canBook: "アジェンダに予約を入れる",
+  canBookHint: "受信箱の営業時間内で、アカウントの他の予約と重ならない空き時間を提案します。",
+  slotMinutes: "1回の予約の長さ",
+  minutes: "{n}分",
+  canUpdateCrm: "CRMにデータを保存(名前、メール、ステージ、ラベル、商談)",
+  canDoHint: "足りない情報だけを補い、会話に記録を残します。シャドーモードでは何も実行せず、返信と一緒に提案します。",
+  suggestionActions: "AIは次のことも行います:",
 };

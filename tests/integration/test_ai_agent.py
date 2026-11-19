@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -35,6 +36,7 @@ from app.domains.agent_bots.models import (
 )
 from app.domains.agent_bots.service import detach_bot_from_inbox, update_bot
 from app.domains.ai_agent import service as ai
+from app.domains.ai_agent import tools as ai_tools
 from app.domains.ai_agent.models import (
     STATUS_ANSWERED,
     STATUS_DISCARDED,
@@ -235,6 +237,13 @@ async def _reply(db_session, conv, user, text: str, **attrs) -> Message:
             content=text, message_type="outgoing", content_attributes=attrs or None
         ),
         user_id=user.id,
+    )
+
+
+async def _contents(db_session, conversation_id: int) -> list[str | None]:
+    """Fresh from the database (a run's rollback expires loaded rows)."""
+    return list(
+        (await db_session.exec(select(Message.content).where(Message.conversation_id == conversation_id))).all()
     )
 
 
@@ -615,7 +624,14 @@ async def test_ai_bots_from_the_api(client, db_session):
         "instructions": "Somos CTC.",
         "mode": "live",
         "respond_when": "always",
+        "can_book": False,
+        "slot_minutes": 60,
+        "can_update_crm": False,
     }
+    bad_slot = await client.patch(
+        f"{base}/{body['id']}", headers=headers, json={"bot_config": {"slot_minutes": 7}}
+    )
+    assert bad_slot.json()["code"] == "agent_bots.slot_minutes"
 
     bad = await client.patch(
         f"{base}/{body['id']}", headers=headers, json={"bot_config": {"mode": "loud"}}
@@ -779,10 +795,11 @@ async def test_a_person_replying_while_the_model_thinks_wins(db_session, queued,
         return {"content": "Hola, soy la IA."}
 
     model.replies = [person_replies]
-    reply = await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
+    conv_id = conv.id
+    reply = await ai.answer(db_session, conversation_id=conv_id, message_id=message.id)
 
     assert reply is not None and reply.status == STATUS_SUPERSEDED
-    assert all(m.content != "Hola, soy la IA." for m in await _messages(db_session, conv))
+    assert "Hola, soy la IA." not in await _contents(db_session, conv_id)
 
 
 async def test_a_newer_message_while_the_model_thinks_drops_the_answer(db_session, queued, model):
@@ -794,10 +811,11 @@ async def test_a_newer_message_while_the_model_thinks_drops_the_answer(db_sessio
         return {"content": "Hola!"}
 
     model.replies = [customer_writes]
-    reply = await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
+    conv_id = conv.id
+    reply = await ai.answer(db_session, conversation_id=conv_id, message_id=message.id)
 
     assert reply is not None and reply.status == STATUS_SUPERSEDED
-    assert all(m.content != "Hola!" for m in await _messages(db_session, conv))
+    assert "Hola!" not in await _contents(db_session, conv_id)
 
 
 async def test_a_tool_error_goes_back_to_the_model(db_session, queued, model, monkeypatch):
@@ -807,12 +825,12 @@ async def test_a_tool_error_goes_back_to_the_model(db_session, queued, model, mo
     async def broken(*args, **kwargs):
         raise RuntimeError("db down")
 
-    monkeypatch.setattr(ai, "_products", broken)
+    monkeypatch.setitem(ai_tools._HANDLERS, "list_products", broken)
     model.replies = [_call("list_products", {}), {"content": "Te consulto y te aviso."}]
     reply = await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
 
     assert reply is not None and reply.status == STATUS_ANSWERED
-    assert "No se pudo consultar" in model.calls[1][-1]["content"]
+    assert "No se pudo hacer" in model.calls[1][-1]["content"]
 
 
 async def test_discarding_another_conversations_suggestion_is_refused(client, db_session, queued, model):
@@ -827,3 +845,246 @@ async def test_discarding_another_conversations_suggestion_is_refused(client, db
     assert resp.status_code == 409
     await db_session.refresh(reply_b)
     assert reply_b.status == STATUS_SUGGESTED
+
+
+# ---------------------------------------------------------------------------
+# Agenda and CRM (2b.2)
+# ---------------------------------------------------------------------------
+def _open_every_day(rows) -> None:
+    for r in rows:
+        r.open_all_day, r.closed_all_day = False, False
+        r.open_hour, r.open_minutes, r.close_hour, r.close_minutes = 9, 0, 12, 0
+
+
+async def _agenda_inbox(db_session, suffix: str, **config):
+    owner, _headers = await _seed_user(db_session, suffix)
+    inbox = await _inbox(db_session, owner, auto_assign=False)
+    inbox.timezone = "America/Montevideo"
+    inbox.working_hours_enabled = True
+    db_session.add(inbox)
+    rows = (await db_session.exec(select(WorkingHour).where(WorkingHour.inbox_id == inbox.id))).all()
+    _open_every_day(rows)
+    for r in rows:
+        db_session.add(r)
+    bot = await _ai_bot(db_session, owner, inbox, can_book=True, slot_minutes=60, **config)
+    conv = await _conversation(db_session, owner, inbox)
+    return owner, inbox, bot, conv
+
+
+async def test_writing_tools_are_offered_only_when_allowed(db_session, queued, model):
+    _o, _h, _inbox, _bot, conv = await _held(db_session, "offer")
+    message = await _incoming(db_session, conv, "Hola")
+    model.replies = [_call("book_appointment", {"starts_at": "2030-01-01T10:00:00-03:00"}), {"content": "Listo"}]
+    await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
+    assert "no existe" in model.calls[1][-1]["content"]
+
+
+async def test_free_times_skip_busy_and_closed_hours(db_session, queued, model):
+    from app.domains.appointments.models import Appointment
+
+    owner, _inbox, _bot, conv = await _agenda_inbox(db_session, "free")
+    other_contact = Contact(account_id=owner.account.id, name="Otro")
+    db_session.add(other_contact)
+    await db_session.flush()
+    # Tomorrow 10:00 Montevideo is taken.
+    tomorrow = (datetime.now(UTC).astimezone(ZoneInfo("America/Montevideo")) + timedelta(days=1)).date()
+    taken = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 10, 0, tzinfo=ZoneInfo("America/Montevideo"))
+    db_session.add(
+        Appointment(account_id=owner.account.id, contact_id=other_contact.id, title="X", starts_at=taken, status="scheduled")
+    )
+    await db_session.flush()
+    message = await _incoming(db_session, conv, "¿Tenés turno mañana?")
+
+    model.replies = [_call("list_free_times", {"from_date": tomorrow.isoformat()}), {"content": "Tengo 9 y 11."}]
+    await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
+
+    result = json.loads(model.calls[1][-1]["content"])
+    times = result["free_times"]
+    assert result["minutes"] == 60
+    assert times[:2] == [
+        datetime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 0, tzinfo=ZoneInfo("America/Montevideo")).isoformat(),
+        datetime(tomorrow.year, tomorrow.month, tomorrow.day, 11, 0, tzinfo=ZoneInfo("America/Montevideo")).isoformat(),
+    ]
+
+
+async def test_live_booking_creates_the_appointment_and_says_so(db_session, queued, model):
+    from app.domains.appointments.models import Appointment
+
+    owner, _inbox, _bot, conv = await _agenda_inbox(db_session, "book")
+    db_session.add(Product(account_id=owner.account.id, name="Entrevista", price=0, currency="UYU"))
+    await db_session.flush()
+    message = await _incoming(db_session, conv, "Dale, el de las 9")
+    tomorrow = (datetime.now(UTC).astimezone(ZoneInfo("America/Montevideo")) + timedelta(days=1)).date()
+    nine = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 0, tzinfo=ZoneInfo("America/Montevideo"))
+
+    model.replies = [
+        _call("book_appointment", {"starts_at": nine.isoformat(), "product": "entrevista"}),
+        {"content": "Te agendé mañana a las 9."},
+    ]
+    reply = await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
+
+    assert reply is not None and reply.status == STATUS_ANSWERED
+    booked = (await db_session.exec(select(Appointment).where(Appointment.contact_id == conv.contact_id))).one()
+    assert booked.title == "Entrevista"
+    assert booked.starts_at == nine
+    assert booked.ends_at == nine + timedelta(hours=1)
+    activities = [m.content for m in await _messages(db_session, conv) if m.message_type == MESSAGE_TYPE_ACTIVITY]
+    assert any((a or "").startswith("La IA hizo: Cita «Entrevista»") for a in activities)
+
+    # One upcoming appointment per customer.
+    message2 = await _incoming(db_session, conv, "¿Y otra el jueves?")
+    model.replies = [_call("book_appointment", {"starts_at": (nine + timedelta(hours=2)).isoformat()}), {"content": "Te paso."}]
+    await ai.answer(db_session, conversation_id=conv.id, message_id=message2.id)
+    assert "Ya tiene una cita" in model.calls[-1][-1]["content"]
+
+    # Another customer: that time is no longer free.
+    conv_b = await _conversation(db_session, owner, _inbox)
+    message3 = await _incoming(db_session, conv_b, "Quiero el de las 9")
+    model.replies = [_call("book_appointment", {"starts_at": nine.isoformat()}), {"content": "Ese no."}]
+    await ai.answer(db_session, conversation_id=conv_b.id, message_id=message3.id)
+    assert "no está libre" in model.calls[-1][-1]["content"]
+
+
+async def test_shadow_proposes_the_booking_without_doing_it(db_session, queued, model):
+    from app.domains.appointments.models import Appointment
+
+    _owner, _inbox, _bot, conv = await _agenda_inbox(db_session, "book-shadow", mode="shadow")
+    message = await _incoming(db_session, conv, "El de las 9")
+    tomorrow = (datetime.now(UTC).astimezone(ZoneInfo("America/Montevideo")) + timedelta(days=1)).date()
+    nine = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 0, tzinfo=ZoneInfo("America/Montevideo"))
+
+    model.replies = [_call("book_appointment", {"starts_at": nine.isoformat()}), {"content": "Te agendé a las 9."}]
+    reply = await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
+
+    assert reply is not None and reply.status == STATUS_SUGGESTED
+    assert (await db_session.exec(select(Appointment).where(Appointment.contact_id == conv.contact_id))).first() is None
+    shown = ai.present_suggestion(reply)
+    assert shown["actions"] == [f"Cita «Cita» el {nine:%Y-%m-%d %H:%M}"]
+
+
+async def test_crm_tools_fill_only_what_is_missing(db_session, queued, model):
+    from app.domains.crm.models import CrmOpportunity
+    from app.domains.labels.models import Label
+
+    owner, _h, _inbox, _bot, conv = await _held(db_session, "crm", can_update_crm=True)
+    contact = await db_session.get(Contact, conv.contact_id)
+    contact.email = None
+    db_session.add(contact)
+    db_session.add(Label(account_id=owner.account.id, title="interesado"))
+    await db_session.flush()
+    message = await _incoming(db_session, conv, "Soy Ana Pérez, ana@example.com, quiero el curso de Excel")
+
+    model.replies = [
+        _call("save_contact_details", {"name": "Ana Pérez", "email": "ANA@example.com"}),
+        _call("add_label", {"label": "Interesado"}),
+        _call("add_label", {"label": "vip"}),
+        _call("create_opportunity", {"title": "Curso de Excel", "value": 1500}),
+        {"content": "¡Perfecto, Ana!"},
+    ]
+    reply = await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
+
+    assert reply is not None and reply.status == STATUS_ANSWERED
+    await db_session.refresh(contact)
+    # The name was set ("Ana" stays: it wasn't missing); the email was.
+    assert contact.name == "Ana"
+    assert contact.email == "ana@example.com"
+    await db_session.refresh(conv)
+    assert "interesado" in (conv.cached_label_list or "")
+    assert "No existe esa etiqueta" in model.calls[3][-1]["content"]
+    opportunity = (
+        await db_session.exec(select(CrmOpportunity).where(CrmOpportunity.contact_id == conv.contact_id))
+    ).one()
+    assert opportunity.title == "Curso de Excel"
+    assert opportunity.conversation_id == conv.id
+    assert [s.get("action") for s in reply.steps if s.get("action")] == [
+        "Datos del contacto: email: ana@example.com",
+        "Etiqueta: interesado",
+        "Oportunidad «Curso de Excel»",
+    ]
+
+
+async def test_a_taken_email_is_refused(db_session, queued, model):
+    owner, _h, _inbox, _bot, conv = await _held(db_session, "crm-email", can_update_crm=True)
+    db_session.add(Contact(account_id=owner.account.id, name="Otra", email="dup@example.com"))
+    await db_session.flush()
+    message = await _incoming(db_session, conv, "mi mail es dup@example.com")
+
+    model.replies = [_call("save_contact_details", {"email": "dup@example.com"}), {"content": "Te paso con alguien."}]
+    await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
+
+    assert "ya es de otro contacto" in model.calls[1][-1]["content"]
+    contact = await db_session.get(Contact, conv.contact_id)
+    assert contact.email != "dup@example.com"
+
+
+async def test_a_dropped_run_undoes_its_writes_but_keeps_the_cost(db_session, queued, model):
+    from app.domains.appointments.models import Appointment
+    from app.domains.usage.models import UsageRecord
+
+    owner, _inbox, _bot, conv = await _agenda_inbox(db_session, "undo")
+    message = await _incoming(db_session, conv, "El de las 9")
+    tomorrow = (datetime.now(UTC).astimezone(ZoneInfo("America/Montevideo")) + timedelta(days=1)).date()
+    nine = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 0, tzinfo=ZoneInfo("America/Montevideo"))
+    contact_id = conv.contact_id
+    account_id = owner.account.id
+
+    async def spend_then_fail() -> dict[str, Any]:
+        db_session.add(UsageRecord(account_id=account_id, kind="ai", occurred_at=datetime.now(UTC), category="ai_agent", model="m"))
+        raise llm.LlmError("down")
+
+    model.replies = [_call("book_appointment", {"starts_at": nine.isoformat()}), spend_then_fail]
+    reply = await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
+
+    assert reply is not None and reply.status == STATUS_FAILED
+    booked = (await db_session.exec(select(Appointment.id).where(Appointment.contact_id == contact_id))).first()
+    assert booked is None
+    spent = (await db_session.exec(select(UsageRecord.id).where(UsageRecord.account_id == account_id))).all()
+    assert len(spent) == 1
+
+
+async def test_booking_needs_the_inbox_hours_and_a_near_date(db_session, queued, model):
+    _owner, inbox, _bot, conv = await _agenda_inbox(db_session, "hours-off")
+    message = await _incoming(db_session, conv, "¿Hay turno?")
+    far = datetime.now(UTC) + timedelta(days=40)
+    model.replies = [_call("book_appointment", {"starts_at": far.isoformat()}), {"content": "No."}]
+    await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
+    assert "días adelante" in model.calls[-1][-1]["content"]
+
+    inbox.working_hours_enabled = False
+    db_session.add(inbox)
+    await db_session.flush()
+    message2 = await _incoming(db_session, conv, "¿Y mañana?")
+    model.replies = [_call("list_free_times", {}), {"content": "Te paso."}]
+    await ai.answer(db_session, conversation_id=conv.id, message_id=message2.id)
+    assert "no cargó su horario" in model.calls[-1][-1]["content"]
+
+
+async def test_stage_moves_live_and_only_proposes_in_shadow(db_session, queued, model):
+    from app.domains.lifecycle.models import ContactLifecycle, LifecycleSettings
+
+    owner, _h, _ib, _bot, conv = await _held(db_session, "stage", can_update_crm=True)
+    db_session.add(LifecycleSettings(account_id=owner.account.id, enabled=True))
+    await db_session.flush()
+    message = await _incoming(db_session, conv, "Quiero pagar")
+    model.replies = [_call("set_contact_stage", {"stage": "nada"}), _call("set_contact_stage", {"stage": "payment"}), {"content": "Genial."}]
+    reply = await ai.answer(db_session, conversation_id=conv.id, message_id=message.id)
+
+    assert "No existe esa etapa" in model.calls[1][-1]["content"]
+    row = await db_session.get(ContactLifecycle, conv.contact_id)
+    assert row is not None and row.stage_key == "payment"
+    assert next(s["action"] for s in reply.steps if s.get("action")).startswith("Etapa:")
+
+    owner2, _h2 = await _seed_user(db_session, "stage-sh")
+    inbox2 = await _inbox(db_session, owner2, auto_assign=False)
+    await _ai_bot(db_session, owner2, inbox2, can_update_crm=True, mode="shadow")
+    db_session.add(LifecycleSettings(account_id=owner2.account.id, enabled=True))
+    await db_session.flush()
+    conv2 = await _conversation(db_session, owner2, inbox2)
+    message2 = await _incoming(db_session, conv2, "Quiero pagar")
+    model.replies = [_call("set_contact_stage", {"stage": "payment"}), {"content": "Genial."}]
+    shadow = await ai.answer(db_session, conversation_id=conv2.id, message_id=message2.id)
+    assert shadow is not None and shadow.status == STATUS_SUGGESTED
+    # Still where the first message put it.
+    row2 = await db_session.get(ContactLifecycle, conv2.contact_id)
+    assert row2 is None or row2.stage_key != "payment"
+    assert ai.present_suggestion(shadow)["actions"][0].startswith("Etapa:")

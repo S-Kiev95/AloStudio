@@ -31,4 +31,12 @@ export const aiAgent: Strings<typeof es> = {
   discard: "버리기",
   discardFailed: "버리지 못했습니다.",
   fromAi: "AI의 메시지",
+  canDo: "답변 외에 할 수 있는 일",
+  canBook: "아젠다에 예약하기",
+  canBookHint: "받은편지함 운영 시간 안에서 계정의 다른 예약과 겹치지 않는 빈 시간을 제안합니다.",
+  slotMinutes: "예약 1회 길이",
+  minutes: "{n}분",
+  canUpdateCrm: "CRM에 데이터 저장(이름, 이메일, 단계, 라벨, 영업 기회)",
+  canDoHint: "빠진 정보만 채우고 대화에 기록을 남깁니다. 섀도 모드에서는 실행하지 않고 답변과 함께 제안합니다.",
+  suggestionActions: "AI가 함께 할 일:",
 };

@@ -294,6 +294,31 @@ Hecho 2b.1 (2026-11-18):
   `components/settings/inboxes/inbox-bot-panel.test.tsx`,
   `components/settings/agent-bots/agent-bots-view.test.tsx`.
 
+Hecho 2b.2 (2026-11-18):
+- Herramientas de escritura, apagadas hasta que un administrador las
+  prende en el bot (`can_book` con `slot_minutes`, `can_update_crm`).
+  Todas viven en `app/domains/ai_agent/tools.py`, atadas a la
+  conversación (no reciben ids).
+- Agenda: horarios libres = horario de la bandeja (tiene que estar
+  activado) en turnos de la duración elegida, sin pisar citas agendadas o
+  confirmadas de toda la cuenta (una cita a la vez: decisión a revisar si
+  un negocio atiende a varios en paralelo), con una hora de anticipación
+  y hasta 14 días. Una cita futura por cliente. Un candado por cuenta
+  evita que dos chats tomen el mismo horario.
+- CRM: completa nombre o email que falten (no pisa datos; el email queda
+  marcado `email_from_ai`, no verificado; uno de otro contacto se
+  rechaza), mueve la etapa del ciclo de vida (sin avisar a Meta: no es
+  una conversión confirmada), pone una etiqueta que ya existe y crea una
+  oportunidad en el embudo por defecto.
+- En vivo cada acción deja "La IA hizo: …" en la conversación; si la
+  respuesta no sale (el modelo falla, el cliente escribió o una persona
+  respondió mientras pensaba) lo que escribió se deshace, y el costo de
+  las llamadas al modelo queda. En sombra no se hace nada: las acciones
+  se listan con la sugerencia para que las haga una persona.
+- Pendiente de decidir: limitar a qué etiquetas y etapas puede llegar la
+  IA (hoy cualquiera que exista, y las etiquetas disparan
+  automatizaciones).
+
 ### Paso 3. Agente de voz
 
 - Proceso de voz con Pipecat; cada bandeja elige cuándo atiende la IA

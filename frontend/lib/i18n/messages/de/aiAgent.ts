@@ -31,4 +31,12 @@ export const aiAgent: Strings<typeof es> = {
   discard: "Verwerfen",
   discardFailed: "Konnte nicht verworfen werden.",
   fromAi: "Nachricht der KI",
+  canDo: "Was sie außer Antworten tun darf",
+  canBook: "Termine im Kalender buchen",
+  canBookHint: "Sie bietet freie Zeiten innerhalb der Geschäftszeiten des Posteingangs an, die sich nicht mit anderen Terminen des Kontos überschneiden.",
+  slotMinutes: "Dauer jedes Termins",
+  minutes: "{n} Min.",
+  canUpdateCrm: "Daten im CRM speichern (Name, E-Mail, Phase, Labels, Verkaufschancen)",
+  canDoHint: "Sie ergänzt nur Fehlendes und hinterlässt eine Zeile in der Unterhaltung. Im Schattenmodus tut sie nichts: Sie schlägt es mit der Antwort vor.",
+  suggestionActions: "Die KI würde außerdem:",
 };

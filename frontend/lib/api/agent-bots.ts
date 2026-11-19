@@ -32,7 +32,14 @@ export type AiBotConfig = {
   instructions: string;
   mode: AiBotMode;
   respond_when: AiBotRespondWhen;
+  /** Book in the Agenda inside the inbox's hours (2b.2). */
+  can_book: boolean;
+  slot_minutes: number;
+  /** Write the contact's data, stage, labels and opportunities. */
+  can_update_crm: boolean;
 };
+
+export const SLOT_MINUTES = [15, 30, 45, 60, 90, 120] as const;
 
 export function aiBotConfig(bot: Pick<AgentBot, "bot_config"> | undefined): AiBotConfig {
   const raw = (bot?.bot_config ?? {}) as Partial<AiBotConfig>;
@@ -43,6 +50,11 @@ export function aiBotConfig(bot: Pick<AgentBot, "bot_config"> | undefined): AiBo
       raw.respond_when === "out_of_hours" || raw.respond_when === "nobody_available"
         ? raw.respond_when
         : "always",
+    can_book: raw.can_book === true,
+    slot_minutes: SLOT_MINUTES.includes(raw.slot_minutes as (typeof SLOT_MINUTES)[number])
+      ? (raw.slot_minutes as number)
+      : 60,
+    can_update_crm: raw.can_update_crm === true,
   };
 }
 

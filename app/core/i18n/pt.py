@@ -171,4 +171,12 @@ MESSAGES: dict[str, str] = {
     "ai_agent.note.summary": "IA, resumo para a equipe: {summary}",
     "ai_agent.note.failed": "A IA não conseguiu responder e passou a conversa para a equipe.",
     "ai_agent.activity.released": "Uma pessoa respondeu: a IA deixa de responder nesta conversa",
+    "ai_agent.done": "A IA fez: {action}",
+    "ai_agent.action.book": "Agendamento «{title}» em {when}",
+    "ai_agent.action.contact": "Dados do contato: {fields}",
+    "ai_agent.action.stage": "Etapa: {stage}",
+    "ai_agent.action.label": "Etiqueta: {label}",
+    "ai_agent.action.opportunity": "Oportunidade «{title}»",
+    "ai_agent.appointment_title": "Agendamento",
+    "ai_agent.appointment_note": "Agendado pela IA a partir da conversa #{n}",
 }

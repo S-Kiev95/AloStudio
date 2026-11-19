@@ -169,4 +169,12 @@ MESSAGES: dict[str, str] = {
     "ai_agent.note.summary": "AI, summary for the team: {summary}",
     "ai_agent.note.failed": "The AI could not answer and handed the conversation to the team.",
     "ai_agent.activity.released": "A person replied: the AI stops answering in this conversation",
+    "ai_agent.done": "The AI did: {action}",
+    "ai_agent.action.book": "Appointment “{title}” on {when}",
+    "ai_agent.action.contact": "Contact details: {fields}",
+    "ai_agent.action.stage": "Stage: {stage}",
+    "ai_agent.action.label": "Label: {label}",
+    "ai_agent.action.opportunity": "Opportunity “{title}”",
+    "ai_agent.appointment_title": "Appointment",
+    "ai_agent.appointment_note": "Booked by the AI from conversation #{n}",
 }

@@ -167,4 +167,12 @@ MESSAGES: dict[str, str] = {
     "ai_agent.note.summary": "AI, 팀을 위한 요약: {summary}",
     "ai_agent.note.failed": "AI가 답변하지 못해 대화를 팀에 넘겼습니다.",
     "ai_agent.activity.released": "담당자가 답장하여 이 대화에서 AI가 더 이상 답하지 않습니다",
+    "ai_agent.done": "AI가 처리함: {action}",
+    "ai_agent.action.book": "예약 「{title}」 {when}",
+    "ai_agent.action.contact": "연락처 정보: {fields}",
+    "ai_agent.action.stage": "단계: {stage}",
+    "ai_agent.action.label": "라벨: {label}",
+    "ai_agent.action.opportunity": "영업 기회 「{title}」",
+    "ai_agent.appointment_title": "예약",
+    "ai_agent.appointment_note": "대화 #{n}에서 AI가 예약함",
 }

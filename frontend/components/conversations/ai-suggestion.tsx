@@ -26,7 +26,7 @@ export function AiSuggestion({
   const discard = useDiscardAiSuggestion(accountId, displayId);
   const [failed, setFailed] = useState(false);
   const s = suggestion.data;
-  if (!s || s.id === inUseId || (!s.content && !s.summary)) return null;
+  if (!s || s.id === inUseId || (!s.content && !s.summary && !s.actions?.length)) return null;
 
   return (
     <div
@@ -40,6 +40,16 @@ export function AiSuggestion({
       </p>
       {s.content ? <p className="whitespace-pre-wrap text-sm text-fg">{s.content}</p> : null}
       {s.summary ? <p className="whitespace-pre-wrap text-xs text-fg-muted">{s.summary}</p> : null}
+      {s.actions?.length ? (
+        <div className="text-xs text-fg-muted">
+          <p className="font-medium">{t("aiAgent.suggestionActions")}</p>
+          <ul className="list-disc pl-4">
+            {s.actions.map((a, i) => (
+              <li key={i}>{a}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {failed ? (
         <p role="alert" className="text-xs text-danger">
           {t("aiAgent.discardFailed")}

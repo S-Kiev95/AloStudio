@@ -31,4 +31,12 @@ export const aiAgent: Strings<typeof es> = {
   discard: "Descartar",
   discardFailed: "Não foi possível descartar.",
   fromAi: "Mensagem da IA",
+  canDo: "O que pode fazer além de responder",
+  canBook: "Marcar compromissos na Agenda",
+  canBookHint: "Oferece horários livres dentro do horário da caixa de entrada que não coincidam com outros compromissos da conta.",
+  slotMinutes: "Duração de cada compromisso",
+  minutes: "{n} min",
+  canUpdateCrm: "Salvar dados no CRM (nome, email, etapa, etiquetas, oportunidades)",
+  canDoHint: "Só completa o que falta e deixa uma linha na conversa. No modo sombra não faz nada: propõe junto com a resposta.",
+  suggestionActions: "A IA também faria:",
 };

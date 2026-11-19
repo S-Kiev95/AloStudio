@@ -169,4 +169,12 @@ MESSAGES: dict[str, str] = {
     "ai_agent.note.summary": "AI、チーム向けの要約: {summary}",
     "ai_agent.note.failed": "AIが応答できなかったため、会話をチームに引き継ぎました。",
     "ai_agent.activity.released": "担当者が返信したため、この会話ではAIは応答しません",
+    "ai_agent.done": "AIが実行: {action}",
+    "ai_agent.action.book": "予約「{title}」{when}",
+    "ai_agent.action.contact": "連絡先の情報: {fields}",
+    "ai_agent.action.stage": "ステージ: {stage}",
+    "ai_agent.action.label": "ラベル: {label}",
+    "ai_agent.action.opportunity": "商談「{title}」",
+    "ai_agent.appointment_title": "予約",
+    "ai_agent.appointment_note": "会話 #{n} からAIが予約",
 }

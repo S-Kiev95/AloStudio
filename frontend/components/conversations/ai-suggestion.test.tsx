@@ -73,6 +73,20 @@ describe("AI suggestion above the composer", () => {
     await waitFor(() => expect(screen.queryByText("Hola")).toBeNull());
   });
 
+  it("lists what the AI would also do", async () => {
+    suggestion = {
+      id: 11,
+      content: "Te agendé el martes a las 10.",
+      summary: null,
+      handoff: false,
+      actions: ["Cita «Entrevista» el 2026-11-24 10:00"],
+      created_at: null,
+    };
+    wrap(<MessageComposer accountId="1" displayId={1} />);
+    expect(await screen.findByText("La IA también haría:")).toBeInTheDocument();
+    expect(screen.getByText("Cita «Entrevista» el 2026-11-24 10:00")).toBeInTheDocument();
+  });
+
   it("a plain message carries no suggestion", async () => {
     suggestion = null;
     wrap(<MessageComposer accountId="1" displayId={1} />);

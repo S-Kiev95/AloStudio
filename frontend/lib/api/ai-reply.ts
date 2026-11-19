@@ -11,6 +11,8 @@ export type AiSuggestion = {
   content: string | null;
   summary: string | null;
   handoff: boolean;
+  /** What it would also do (book, save data…): a person does it. */
+  actions: string[];
   created_at: string | null;
 };
 

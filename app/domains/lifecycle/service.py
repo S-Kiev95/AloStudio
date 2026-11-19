@@ -241,6 +241,7 @@ async def set_stage(
     stage_key: str | None,
     user: User | None,
     conversation: Conversation | None = None,
+    tell_meta: bool = True,
 ) -> dict[str, Any]:
     """Move a contact (``None``: out of every stage). The conversation it was
     done from gets a line saying so. Raises ValueError (``disabled`` /
@@ -269,7 +270,9 @@ async def set_stage(
             else t(DEFAULT_LOCALE, "lifecycle.activity_cleared", name=who)
         )
         await create_activity_message(session, conversation=conversation, content=content)
-    if moved and stage is not None:
+    # ``tell_meta=False``: a move AloStudio's AI made on a customer's word
+    # (agente-ia, 2b) is no conversion to report to Meta's ads.
+    if moved and stage is not None and tell_meta:
         await _tell_meta(session, account_id=account_id, contact_id=contact.id, stage=stage)
     return await contact_stage(session, account_id=account_id, contact_id=contact.id)
 
