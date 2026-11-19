@@ -45,7 +45,7 @@ from fastapi import APIRouter, Depends, File, Path, Query, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy import func, or_
 from sqlalchemy.orm import lazyload, selectinload
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import get_session
@@ -145,8 +145,12 @@ async def index_contacts(
     page: int = Query(1, ge=1),
     include_contact_inboxes: bool = Query(True),
     company: str | None = Query(None),
+    stage: str | None = Query(None),
 ) -> dict[str, Any]:
     """``GET /contacts`` — paginated list, optionally filtered by company.
+
+    ``?stage=`` narrows to the contacts in that lifecycle stage (F17), by
+    its key.
 
     ``?company=`` narrows to contacts whose
     ``additional_attributes['company_name']`` equals the value (the
@@ -159,6 +163,17 @@ async def index_contacts(
     conds: list[Any] = [Contact.account_id == ctx.account.id]
     if company:
         conds.append(company_name_expr() == company)
+    if stage:
+        from app.domains.lifecycle.models import ContactLifecycle
+
+        conds.append(
+            col(Contact.id).in_(
+                select(ContactLifecycle.contact_id).where(
+                    ContactLifecycle.account_id == ctx.account.id,
+                    ContactLifecycle.stage_key == stage,
+                )
+            )
+        )
     total = (
         await session.exec(
             select(func.count()).select_from(Contact).where(*conds)

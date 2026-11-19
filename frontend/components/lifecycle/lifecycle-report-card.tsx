@@ -43,7 +43,7 @@ export function LifecycleReportCard({ accountId, days }: { accountId: string; da
               <li key={s.key} className="space-y-1">
                 <div className="flex items-baseline justify-between gap-3 text-sm">
                   <span className={cn("truncate", s.kind === "lost" ? "text-fg-muted" : "text-fg")}>
-                    {`${s.emoji} ${s.name}`.trim()}
+                    {s.name}
                   </span>
                   <span className="shrink-0 font-numeric tabular-nums text-fg-muted">
                     {t("lifecycle.report.counts", { count: s.count, entered: s.entered })}

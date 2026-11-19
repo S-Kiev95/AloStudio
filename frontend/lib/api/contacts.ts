@@ -92,13 +92,15 @@ function base(accountId: string): string {
 /** One row of the companies roll-up (``GET /contacts/companies``). */
 export type Company = { name: string; count: number };
 
-/** ``GET /contacts`` — paginated, optionally filtered by company. */
-export function useContacts(accountId: string, page = 1, company?: string) {
+/** ``GET /contacts`` — paginated, optionally filtered by company or by
+ *  lifecycle stage (its key). */
+export function useContacts(accountId: string, page = 1, company?: string, stage?: string) {
   return useQuery({
-    queryKey: ["contacts", accountId, "list", page, company ?? null],
+    queryKey: ["contacts", accountId, "list", page, company ?? null, stage ?? null],
     queryFn: () => {
       const sp = new URLSearchParams({ page: String(page) });
       if (company) sp.set("company", company);
+      if (stage) sp.set("stage", stage);
       return apiFetch<ContactsPage>(`${base(accountId)}?${sp}`);
     },
     placeholderData: (prev) => prev,

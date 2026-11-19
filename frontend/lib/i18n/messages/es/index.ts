@@ -20,6 +20,9 @@ import { conversions } from "./conversions";
 import { lifecycle } from "./lifecycle";
 import { decisions } from "./decisions";
 import { usage } from "./usage";
+import { helpAssistant } from "./helpAssistant";
+import { googleCalendar } from "./googleCalendar";
+import { writingAssist } from "./writingAssist";
 import { opportunities } from "./opportunities";
 import { origin } from "./origin";
 import { igCapabilities } from "./igCapabilities";
@@ -83,6 +86,9 @@ export const es = {
   conversions,
   lifecycle,
   usage,
+  helpAssistant,
+  googleCalendar,
+  writingAssist,
 
   opportunities,
 

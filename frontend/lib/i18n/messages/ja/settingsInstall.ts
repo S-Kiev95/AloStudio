@@ -26,6 +26,10 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "人工知能",
   },
   items: {
+    AI_CALL_SUMMARY_ENABLED: {
+      title: "AI による通話の要約",
+      description: "通話に文字起こしがあると、AI が短い要約 (用件、合意内容、次の対応) を通話の吹き出しに書きます。エージェントのキーとモデルを使い、費用は各アカウントの「費用」に表示されます。",
+    },
     DECISIONS_API_KEY: {
       title: "判定サービス: キー",
       description: "会話を分類します(意図・感情・緊急度・チーム)。TypeSafe(Jev)のキーはコンソールで取得します。ローカルのLayaなら、そのサーバーに設定したキーです。",
@@ -169,6 +173,14 @@ export const settingsInstall: Strings<typeof es> = {
     OPENAI_AGENT_MODEL: {
       title: "エージェントのモデル",
       description: "チャットエージェントが使う OpenAI のモデル。例: gpt-5.4-mini (高速で安価) や gpt-5.5 (より高性能)。",
+    },
+    LOCAL_LLM_URL: {
+      title: "ローカル AI: アドレス",
+      description: "このサーバーで動くモデル (llama.cpp) のアドレス。例: http://127.0.0.1:8092。設定するとヘルプボタンが表示され、OpenAI の費用なしで AloStudio を案内します。空欄: オフ。",
+    },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "AI 文章作成アシスト",
+      description: "入力欄に AI ボタンを追加し、エージェントが書いた文章の改善・修正・トーン変更・短縮・翻訳と、会話の要約ができるようにします。エージェントのキーとモデルを使い、費用は各アカウントの「費用」に表示されます。",
     },
   },
 };

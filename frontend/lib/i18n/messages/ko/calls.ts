@@ -68,6 +68,7 @@ export const calls: Strings<typeof es> = {
     hideTranscript: "숨기기",
     speakerBusiness: "상담원",
     speakerCustomer: "고객",
+    summary: "요약 (AI)",
     incoming: "WhatsApp 통화",
     ringing: "수신 전화",
     inProgress: "통화 중",

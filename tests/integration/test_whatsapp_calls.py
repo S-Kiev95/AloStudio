@@ -1169,3 +1169,110 @@ async def test_an_inbox_changes_or_turns_off_the_missed_call_message(client, db_
     assert on.json()["missed_call_text"] == own
     await _miss(db_session, seeded, "wacid.B")
     assert [m.content for m in await _replies(db_session, first.conversation_id)] == [own]
+
+
+# ---------------------------------------------------------------------------
+# AI summary (F17)
+# ---------------------------------------------------------------------------
+_OPENAI = "https://api.openai.com/v1/chat/completions"
+
+
+def _summary_reply(content: str) -> httpx.Response:
+    return httpx.Response(
+        200,
+        json={
+            "model": "gpt-5.4-mini",
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": content}}],
+            "usage": {"prompt_tokens": 300, "completion_tokens": 60},
+        },
+    )
+
+
+async def _transcribed(db_session, seeded) -> Call:
+    call = await _ring(db_session, seeded)
+    await calls_service.save_transcript(
+        db_session,
+        call=call,
+        segments=[
+            {"speaker": "business", "text": "Buenas, CTC Salto.", "start": 0.0},
+            {"speaker": "customer", "text": "Quería anotarme al curso de inglés.", "start": 2.0},
+        ],
+        language="es",
+    )
+    return call
+
+
+async def test_the_ai_summary_needs_the_operators_switch(db_session, seeded, monkeypatch):
+    from app.core.config import get_settings
+    from app.domains.calls.tick import run as calls_tick
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    call = await _transcribed(db_session, seeded)
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.post(_OPENAI).mock(return_value=_summary_reply("- Quiere inglés."))
+        assert (await calls_tick(db_session))["summarized"] == 0
+        assert not route.called
+    await db_session.refresh(call)
+    assert call.summary is None and call.summary_attempts == 0
+
+
+async def test_a_transcribed_call_gets_its_summary_in_the_bubble(db_session, seeded, monkeypatch):
+    from app.core.config import get_settings
+    from app.domains.calls.tick import run as calls_tick
+    from app.domains.usage.models import KIND_AI, UsageRecord
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    monkeypatch.setattr(settings, "ai_call_summary_enabled", True)
+    call = await _transcribed(db_session, seeded)
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.post(_OPENAI).mock(
+            side_effect=[
+                httpx.Response(500, json={"error": {"message": "down"}}),
+                _summary_reply("- Quiere anotarse al curso de inglés.\n- Falta mandarle horarios."),
+            ]
+        )
+        assert (await calls_tick(db_session))["summarized"] == 0, "a failure is tried again"
+        assert (await calls_tick(db_session))["summarized"] == 1
+        assert (await calls_tick(db_session))["summarized"] == 0, "only once"
+        assert route.call_count == 2
+        sent = json.loads(route.calls[-1].request.content)["messages"]
+    assert "Write in Spanish" in sent[0]["content"]
+    assert sent[1]["content"] == (
+        "Agent: Buenas, CTC Salto.\nCustomer: Quería anotarme al curso de inglés."
+    )
+
+    await db_session.refresh(call)
+    assert call.summary.startswith("- Quiere anotarse") and call.summary_attempts == 2
+    message = await db_session.get(Message, call.message_id)
+    await db_session.refresh(message)
+    assert message.content_attributes["data"]["summary"] == call.summary
+    await db_session.flush()
+    usage = (
+        await db_session.exec(
+            select(UsageRecord).where(
+                UsageRecord.account_id == call.account_id, UsageRecord.kind == KIND_AI
+            )
+        )
+    ).all()
+    assert [(u.category, u.output_tokens) for u in usage] == [("call_summary", 60)]
+
+
+async def test_the_spend_cap_stops_the_summary(db_session, seeded, monkeypatch):
+    from app.core.config import get_settings
+    from app.domains.calls.summary import summarize_pending
+    from app.domains.usage.limits import set_limit
+    from app.domains.usage.models import KIND_AI
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    monkeypatch.setattr(settings, "ai_call_summary_enabled", True)
+    call = await _transcribed(db_session, seeded)
+    await set_limit(db_session, call.account_id, KIND_AI, 0)
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.post(_OPENAI).mock(return_value=_summary_reply("- x"))
+        assert await summarize_pending(db_session) == 0
+        assert not route.called
+    await db_session.refresh(call)
+    assert call.summary_attempts == 0, "waiting for the cap does not use up tries"

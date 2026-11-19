@@ -65,6 +65,7 @@ export const calls = {
     hideTranscript: "Ocultar",
     speakerBusiness: "Agente",
     speakerCustomer: "Cliente",
+    summary: "Resumen (IA)",
     incoming: "Llamada de WhatsApp",
     ringing: "Llamada entrante",
     inProgress: "Llamada en curso",

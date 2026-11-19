@@ -208,7 +208,7 @@ async def test_moving_a_contact_leaves_a_line_and_the_history(client, db_session
     ).all()
     hot = t(DEFAULT_LOCALE, "lifecycle.default.hot_lead.name")
     assert lines[-2:] == [
-        t(DEFAULT_LOCALE, "lifecycle.activity", name="Sofía", stage=f"🔥 {hot}"),
+        t(DEFAULT_LOCALE, "lifecycle.activity", name="Sofía", stage=hot),
         t(DEFAULT_LOCALE, "lifecycle.activity_cleared", name="Sofía"),
     ]
     history = (
@@ -282,3 +282,39 @@ async def test_a_removed_stage_lets_its_contacts_go_and_the_report_counts(client
         stages=[s for s in stages if s["key"] != "payment"],
     )
     assert await _stage_key(db_session, contact.id) is None
+
+
+async def test_the_contacts_list_filters_by_stage(client, db_session, seeded):
+    await _turn_on(db_session, seeded)
+    other = Contact(account_id=seeded["account"].id, name="Pedro Gómez")
+    db_session.add(other)
+    await db_session.flush()
+    await lifecycle.set_stage(
+        db_session,
+        account_id=seeded["account"].id,
+        contact=seeded["contact"],
+        stage_key="hot_lead",
+        user=seeded["admin"],
+    )
+    headers = await _headers(db_session, seeded["agent"])
+    url = f"/api/v1/accounts/{seeded['account'].id}/contacts"
+
+    hot = (await client.get(f"{url}?stage=hot_lead", headers=headers)).json()
+    assert [c["name"] for c in hot["payload"]] == ["Lucía Pereira"]
+    assert hot["meta"]["count"] == 1
+    assert (await client.get(f"{url}?stage=customer", headers=headers)).json()["payload"] == []
+    everyone = (await client.get(url, headers=headers)).json()
+    assert {c["name"] for c in everyone["payload"]} >= {"Lucía Pereira", "Pedro Gómez"}
+
+
+async def test_stages_carry_no_emojis(client, db_session, seeded):
+    admin_h = await _headers(db_session, seeded["admin"])
+    url = f"{seeded['base']}/settings"
+    shown = (await client.get(url, headers=admin_h)).json()
+    assert {s["emoji"] for s in shown["stages"]} == {""}
+    saved = await client.put(
+        url,
+        json={"enabled": True, "stages": [{**shown["stages"][0], "emoji": "🎓"}]},
+        headers=admin_h,
+    )
+    assert saved.json()["stages"][0]["emoji"] == ""

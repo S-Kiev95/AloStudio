@@ -385,6 +385,30 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         group=AI_GROUP,
     ),
     ConfigSpec(
+        name="LOCAL_LLM_URL",
+        setting="local_llm_url",
+        title="IA local: dirección",
+        description=(
+            "La dirección del modelo que corre en este servidor (llama.cpp), "
+            "por ejemplo http://127.0.0.1:8092. Con ella aparece el botón "
+            "Ayuda, que guía por AloStudio sin gastar en OpenAI. Vacío: apagado."
+        ),
+        group=AI_GROUP,
+    ),
+    ConfigSpec(
+        name="AI_WRITING_ASSIST_ENABLED",
+        setting="ai_writing_assist_enabled",
+        title="Ayuda de IA al escribir",
+        description=(
+            "Suma a la caja de texto un botón de IA que mejora, corrige, "
+            "cambia el tono, acorta o traduce lo que escribe el agente, y "
+            "resume la conversación. Usa la clave y el modelo del agente; el "
+            "gasto queda en Gastos de cada cuenta."
+        ),
+        group=AI_GROUP,
+        kind="boolean",
+    ),
+    ConfigSpec(
         name="DECISIONS_API_KEY",
         setting="decisions_api_key",
         title="Servicio de decisiones: clave",
@@ -424,6 +448,19 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "transcriban las llamadas de WhatsApp. Meta avisa a las dos "
             "partes antes de grabar y guarda el audio 7 días; AloStudio lo "
             "copia en su almacenamiento."
+        ),
+        group=CALLS_GROUP,
+        kind="boolean",
+    ),
+    ConfigSpec(
+        name="AI_CALL_SUMMARY_ENABLED",
+        setting="ai_call_summary_enabled",
+        title="Resumen de llamadas con IA",
+        description=(
+            "Cuando una llamada tiene transcripción, la IA escribe un resumen "
+            "corto (motivo, qué se acordó y qué sigue) en la burbuja de la "
+            "llamada. Usa la clave y el modelo del agente; el gasto queda en "
+            "Gastos de cada cuenta."
         ),
         group=CALLS_GROUP,
         kind="boolean",

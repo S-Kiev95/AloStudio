@@ -1,0 +1,22 @@
+export const googleCalendar = {
+  title: "Google Calendar",
+  intro: "Tus citas de la Agenda y tus tareas del CRM con fecha aparecen en tu Google Calendar, y se actualizan solas cada 5 minutos. Se editan en AloStudio.",
+  connect: "Conectar Google Calendar",
+  reconnect: "Conectar de nuevo",
+  disconnect: "Desconectar",
+  connectedAs: "Conectado como {email}",
+  lastSync: "última sincronización: {when}",
+  waiting: "la primera sincronización llega en unos minutos",
+  revoked: "Google ya no da acceso a tu calendario. Conectalo de nuevo.",
+  syncFailed: "La última sincronización falló: {detail}",
+  connecting: "Conectando tu calendario…",
+  back: "Volver a AloStudio",
+  problems: {
+    unavailable: "Esta instalación no tiene configurado Google.",
+    state: "El enlace venció o era de otra persona. Probá de nuevo.",
+    exchange: "Google no aceptó la conexión. Probá de nuevo.",
+    no_refresh_token: "Google no dio acceso permanente. Probá de nuevo.",
+    cancelled: "Se canceló la conexión con Google.",
+    failed: "No se pudo conectar con Google.",
+  },
+};

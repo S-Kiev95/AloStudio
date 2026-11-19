@@ -1,7 +1,7 @@
 """handoff rules: who takes a handed-off conversation (agente-ia, paso 2a)
 
 Revision ID: b1d3f5a7c9e2
-Revises: f9a0b1c2d3e6
+Revises: b1c2d3e4f5a8
 Create Date: 2026-11-17 20:00:00.000000
 """
 
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "b1d3f5a7c9e2"
-down_revision: str | None = "f9a0b1c2d3e6"
+down_revision: str | None = "b1c2d3e4f5a8"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

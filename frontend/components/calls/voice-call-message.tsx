@@ -2,6 +2,7 @@
 
 import {
   ChevronDown,
+  Sparkles,
   Phone,
   PhoneCall,
   PhoneIncoming,
@@ -25,6 +26,8 @@ type CallData = {
   recording?: "pending" | "ready" | null;
   transcription?: "pending" | "ready" | null;
   transcript?: Array<{ speaker: "business" | "customer"; text: string }> | null;
+  /** What the call was about, written by the AI from the transcript (F17). */
+  summary?: string | null;
 };
 
 export function isVoiceCallMessage(message: Pick<Message, "content_type">): boolean {
@@ -138,6 +141,15 @@ export function VoiceCallMessage({ message }: { message: Message }) {
       </span>
     </div>
       {pending ? <span className="text-xs opacity-80">{pending}</span> : null}
+      {data.summary ? (
+        <div className="rounded-md bg-surface/60 px-2.5 py-2 text-xs">
+          <p className="mb-1 inline-flex items-center gap-1 font-medium">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            {t("calls.bubble.summary")}
+          </p>
+          <p className="whitespace-pre-wrap break-words">{data.summary}</p>
+        </div>
+      ) : null}
       {data.transcript?.length ? <Transcript lines={data.transcript} /> : null}
     </div>
   );

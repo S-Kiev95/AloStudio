@@ -619,6 +619,38 @@ describe("Bandeja en tres columnas y pestañas", () => {
     expect(await screen.findByLabelText("Asignar agente")).toBeInTheDocument();
   });
 
+  it("estirada, sube la capa de la página sobre la barra de arriba para que los botones de arriba reciban el clic", () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    mockPathname = "/accounts/1/conversations";
+    const { container, unmount } = render(
+      <QueryClientProvider client={qc}>
+        <div className="vt-page">
+          <InboxShell list={<div />}>
+            <div />
+          </InboxShell>
+        </div>
+      </QueryClientProvider>,
+    );
+    const page = container.querySelector(".vt-page");
+    const handle = screen.getByRole("separator", {
+      name: "Cambiar el alto de la bandeja",
+    });
+    expect(page).not.toHaveClass("vt-page-over-bar");
+
+    fireEvent.keyDown(handle, { key: "ArrowUp" });
+    expect(page).toHaveClass("vt-page-over-bar");
+
+    fireEvent.keyDown(handle, { key: "Home" });
+    expect(page).not.toHaveClass("vt-page-over-bar");
+
+    // Saliendo de la bandeja estirada, la página vuelve a quedar debajo.
+    fireEvent.keyDown(handle, { key: "ArrowUp" });
+    unmount();
+    expect(page).not.toHaveClass("vt-page-over-bar");
+  });
+
   it("permite estirar la bandeja hacia arriba con teclado y puntero, resetear con doble clic, persistir y ajustar al redimensionar", async () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false } },

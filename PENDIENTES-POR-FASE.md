@@ -147,7 +147,7 @@ anota en esta sección y lo decide el dueño.
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
-| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en develop y en staging (2026-11-17). Falta acordar los workflows y repartir el resto |
+| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). **En CTC desde el 2026-11-18 (22:27, con respaldo):** llamadas simultáneas (F7), notas de cierre, Conversions API, etapas sin emojis, filtro por etapa, resumen de llamadas con IA y Google Calendar; los que gastan o dependen de terceros siguen apagados hasta prenderlos. Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en develop y en staging (2026-11-17). Resumen de llamadas con IA en develop y en staging (2026-11-18, apagado hasta que el superadmin lo prenda). Filtro de contactos por etapa en develop y en staging (2026-11-18). Google Calendar por agente en develop y en staging (2026-11-18): falta sumar la redirección /google-calendar/callback en el cliente de Google y probarlo con una cuenta real. Botón Ayuda con IA local (Qwen3 4B en la VPS, sin OpenAI) en develop y en staging (2026-11-19): 29 de 30 en la evaluación, ~22 s por respuesta; mediciones en ops/llm/README.md. Para CTC: levantar el modelo con ops/llm/levantar.sh (4,5 GB de RAM) y cargar LOCAL_LLM_URL. Agente de IA de clientes y de voz (12 y 6): agente A, rama `feat/agente-ia` (2026-11-17). Falta acordar los workflows y repartir el resto |
 
 ### Reglas para no pisarse
 
@@ -477,8 +477,14 @@ dentro de la rama.
   - Probado con una llamada real en staging el 2026-11-16: el aviso llegó
     (entregado), la conversación tomó la etiqueta y la perdió al devolver
     la llamada. Falta probar el reparto con dos agentes a la vez.
-- **Sigue:** plantilla para pedir permiso fuera de las 24 h; paso 3, agente
-  de voz.
+- **Sigue:** plantilla para pedir permiso fuera de las 24 h. El paso 3,
+  agente de voz, lo hace el agente A por pedido del dueño (2026-11-17), con
+  el mismo núcleo que el agente de clientes por chat: rama
+  `feat/agente-ia`, plan en `PLAN.agente-ia.md` de esa rama. Va con
+  Pipecat en un proceso aparte; de `app/domains/calls/` toca solo un
+  enganche (cuando entra la llamada, decidir si suena a las personas o la
+  atiende la IA) y reusa `pre_accept` / `accept`. Se avisa acá antes de
+  mezclar.
 
 ## F8. Búsqueda en conversaciones viejas
 
@@ -774,21 +780,80 @@ Detalle en `PLAN.i18n.md`.
 
 | # | Función | Decisión del dueño |
 |---|---|---|
-| 1 | Ayuda de IA al escribir: reformular, traducir, resumir | Sí. Con modelo de un proveedor, en el plan más caro y con créditos de IA; con un modelo liviano en la VPS, para todos |
+| 1 | Ayuda de IA al escribir: reformular, traducir, resumir | Sí. Con modelo de un proveedor, en el plan más caro y con créditos de IA; con un modelo liviano en la VPS, para todos. **Hecho** (agente B, 2026-11-18), en develop y staging: botón IA en la caja de texto (mejorar, corregir, tono, acortar, traducir, resumir la conversación); lo prende el superadmin (AI_WRITING_ASSIST_ENABLED). Para F2/multitenant: atarlo al plan más caro |
 | 2 | Conversions API de Meta (avisarle a Meta qué chats de anuncios terminan en venta) | Sí, le sirve a CTC |
 | 3 | Workflows visuales: preguntar y esperar la respuesta, ramas, esperas | A acordar entre el dueño y el agente B: propios o con n8n |
 | 4 | Notas de cierre (motivo al cerrar una conversación, para reportes) | Sí |
-| 5 | Resumen de llamadas con IA | Sí, en el plan más caro; lo prende el superadmin de cada instalación y gasta créditos de IA |
-| 6 | Agente de IA que atiende llamadas | Contemplado (F7 paso 3) |
+| 5 | Resumen de llamadas con IA | Sí, en el plan más caro; lo prende el superadmin de cada instalación y gasta créditos de IA. **Hecho** (agente B, 2026-11-18): Instalación → Llamadas → "Resumen de llamadas con IA"; el resumen sale en la burbuja de la llamada cuando hay transcripción y el gasto va a Gastos como `call_summary`. Para F2/multitenant: atarlo al plan más caro |
+| 6 | Agente de IA que atiende llamadas | Contemplado (F7 paso 3). Lo hace el agente A junto con el 12 (2026-11-17) |
 | 7 | Etapas del contacto | Sí, con la nomenclatura de respond.io |
-| 8 | TikTok como canal de mensajes | Sí |
+| 8 | TikTok como canal de mensajes | Sí. En espera (2026-11-18): primero el dueño pide a TikTok el acceso a la Business Messaging API (revisión de seguridad; cuenta de empresa con acceso avanzado o verificada, que acepte DMs de todos). Con eso, el agente B porta el canal de TikTok de Chatwoot |
 | 9 | Llamadas de Messenger y telefonía VoIP | Sin decidir (el dueño preguntó qué es VoIP) |
 | 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
-| 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3 |
+| 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3. Calendar **hecho** (agente B, 2026-11-18): cada agente lo conecta en Mi perfil; sus citas y tareas con fecha van a su calendario, en una dirección |
 | — | 2FA y SSO; apps nativas | Sin decidir |
-| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | El dueño pidió anotarlo (2026-11-17, agente A). Sin decidir el alcance |
+| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Paso 1 hecho en la rama: el asistente del equipo usa todas las herramientas que el rol permite (un agente, solo sus bandejas). Paso 2a hecho en la rama (2026-11-18): responsable de derivación por chat, etiqueta, bandeja o cuenta (Ajustes → Derivación). Paso 2b.1 hecho en la rama (2026-11-18): la IA de AloStudio atiende en modo sombra (sugiere arriba de la caja de texto) o en vivo, con Centro de ayuda, productos y derivación con resumen. Siguen Agenda y CRM (2b.2), la comparación con Claude (2b.3) y después la voz |
 | 13 | Saldo de WhatsApp recargable desde AloStudio (respond.io cobra los mensajes de Meta así) | El dueño pidió anotarlo (2026-11-17, agente A). Depende de F2: hoy, con Embedded Signup, Meta le cobra directo al cliente |
 
+- **12, paso 1 (agente A, 2026-11-17, rama `feat/agente-ia`, sin mezclar):**
+  - Para el agente B, cuando se mezcle: una herramienta nueva del MCP
+    declara en `@requires(...)` `panel_admin=True` si su ruta REST usa
+    `require_admin`, y `reads=True` si es `admin` y solo lee. Sin
+    `@requires`, el asistente la trata como escritura de administradores.
+  - Cambia para las apps OAuth de un agente: ven solo sus bandejas, como
+    en el panel (antes veían la cuenta entera).
+- **12, paso 2a (agente A, 2026-11-18, rama `feat/agente-ia`, sin mezclar):**
+  cuando el agente de Meta (o después la IA) deriva y nadie tiene la
+  conversación, `bot_handoff` la asigna al responsable más específico:
+  el del chat (contacto), la primera etiqueta con regla, el de la bandeja
+  (el de siempre) o el general. Tabla nueva `handoff_rules` (migración
+  `b1d3f5a7c9e2`). Para CTC: hoy todo va a Sofía por la bandeja; con una
+  regla "Admin → Yamila" esas irían a Yamila. Para el agente B: quien
+  llame a `bot_handoff` no tiene que cambiar nada.
+- **12, paso 2b.1 (agente A, 2026-11-18, rama `feat/agente-ia`, sin mezclar):**
+  bot de tipo IA (Ajustes → Bots) que cada bandeja elige en Ajustes →
+  Bandejas → Bot. En sombra propone respuestas (tabla `ai_replies`,
+  migración `c2e4a6b8d0f1`, mide si salen tal cual o editadas); en vivo
+  toma las conversaciones nuevas como `pending` y responde desde el
+  worker (`ai_reply_task`). En bandejas con el agente de Meta solo atiende
+  lo que una regla de derivación le da. Para el agente B: la asignación
+  automática ahora salta las conversaciones `pending` (como Chatwoot), y
+  `bot_handoff` acepta `allow_ai` (solo lo usa la derivación de Meta).
+  Aparte: en esta copia fallan 6 tests de entrega de webhooks
+  (`test_agent_bot_listener`, `test_webhook_retries`, `test_webhooks_router`)
+  también sin estos cambios; quedan por revisar.
+- **Para el agente A: unir el «?» (Ayuda) y el Agente (dueño, 2026-11-19; nota del
+  agente B).** El dueño quiere un solo asistente de IA: el Agente del menú y el «?»
+  de la barra de arriba. Con modo **Free** (el Qwen local, sin costo) y **Fast**
+  (OpenAI, gasta). Lo que ya está, del agente B (rama `feat/ayuda-free-fast`,
+  falta pasarla a develop):
+  - `app/domains/help_assistant/`: la ayuda de AloStudio (`ayuda.md`, también es
+    la documentación), el mapa de pantallas reales (`screens.py`, un test verifica
+    que cada ruta exista), la parte fija del pedido que llama.cpp reutiliza
+    (`knowledge.prefix_messages`), respuesta con forma fija y controles
+    (`invented_menus`, `invented_quotes`). Modos: `service.modes(account)`; Fast lo
+    permite un administrador (`accounts.settings["help_assistant"]["fast"]`) y gasta
+    como `help_assistant`.
+  - `app/core/local_llm.py` (cliente de llama-server) y `app/core/llm.py`:
+    `chat_completion(..., response_format=...)`.
+  - Panel: `components/shell/help-button.tsx` (el «?», con el selector Free/Fast).
+  - Mediciones: `ops/llm/README.md` (Qwen3 4B: 29 de 30, ~22 s; leer cuesta ~12
+    tokens/s y escribir ~4 en 4 núcleos).
+  Lo que falta, cuando `feat/agente-ia` pase a develop:
+  1. **Fast = el Agente.** Sumarle al Agente la ayuda como fuente: una herramienta
+     `buscar_en_la_ayuda` que devuelva secciones de `knowledge.sections()`, o la
+     ayuda entera en el system prompt, más la regla de usar las claves de
+     `SCREENS` para los enlaces. Así guía y además hace cosas.
+  2. **Free = solo guía.** Qwen en 4 núcleos no puede usar herramientas: leer sus
+     definiciones lleva minutos. En Free el Agente llama a `help_assistant.service.ask`
+     (sin herramientas), y si la persona pide una acción, le explica cómo hacerla a
+     mano y le ofrece pasar a Fast.
+  3. **El «?» abre el Agente** en un panel (el mismo chat y la misma historia), con
+     la pantalla donde está la persona (`page`, ver `service.screen_for`). Después
+     `help-button.tsx` se puede reemplazar o pasar a ser ese panel.
+  4. El selector Free/Fast y el permiso del administrador ya existen en la Ayuda:
+     reutilizar `GET/PUT /help_assistant` o moverlos al Agente.
+  Al agente B le avisan si hace falta algo de la Ayuda.
 - **12 y 13, segunda comparación (agente A, 2026-11-17):** al repasar
   respond.io quedaron estas dos que no estaban en la tabla.
   - 12: es distinto del 1 (ayuda al agente humano) y del 6 (voz). Ya están

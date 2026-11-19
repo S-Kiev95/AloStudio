@@ -138,8 +138,8 @@ describe("ConversionsView", () => {
       ),
     );
     renderView();
-    fireEvent.change(await screen.findByLabelText("🤩 Cliente"), { target: { value: "Purchase" } });
-    fireEvent.change(screen.getByLabelText("Valor de 🤩 Cliente"), { target: { value: "4500" } });
+    fireEvent.change(await screen.findByLabelText("Cliente"), { target: { value: "Purchase" } });
+    fireEvent.change(screen.getByLabelText("Valor de Cliente"), { target: { value: "4500" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
     expect(await screen.findByText("Guardado.")).toBeInTheDocument();
     expect((saved as { rules: { lifecycle: unknown } }).rules.lifecycle).toEqual({
