@@ -147,7 +147,7 @@ anota en esta sección y lo decide el dueño.
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
-| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en develop y en staging (2026-11-17). Resumen de llamadas con IA en develop y en staging (2026-11-18, apagado hasta que el superadmin lo prenda). Filtro de contactos por etapa en develop y en staging (2026-11-18). Agente de IA de clientes y de voz (12 y 6): agente A, rama `feat/agente-ia` (2026-11-17). Falta acordar los workflows y repartir el resto |
+| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en develop y en staging (2026-11-17). Resumen de llamadas con IA en develop y en staging (2026-11-18, apagado hasta que el superadmin lo prenda). Filtro de contactos por etapa en develop y en staging (2026-11-18). Google Calendar por agente en develop y en staging (2026-11-18): falta sumar la redirección /google-calendar/callback en el cliente de Google y probarlo con una cuenta real. Agente de IA de clientes y de voz (12 y 6): agente A, rama `feat/agente-ia` (2026-11-17). Falta acordar los workflows y repartir el resto |
 
 ### Reglas para no pisarse
 
@@ -790,7 +790,7 @@ Detalle en `PLAN.i18n.md`.
 | 8 | TikTok como canal de mensajes | Sí |
 | 9 | Llamadas de Messenger y telefonía VoIP | Sin decidir (el dueño preguntó qué es VoIP) |
 | 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
-| 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3 |
+| 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3. Calendar **hecho** (agente B, 2026-11-18): cada agente lo conecta en Mi perfil; sus citas y tareas con fecha van a su calendario, en una dirección |
 | — | 2FA y SSO; apps nativas | Sin decidir |
 | 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Paso 1 hecho en la rama: el asistente del equipo usa todas las herramientas que el rol permite (un agente, solo sus bandejas). Paso 2a hecho en la rama (2026-11-18): responsable de derivación por chat, etiqueta, bandeja o cuenta (Ajustes → Derivación). Paso 2b.1 hecho en la rama (2026-11-18): la IA de AloStudio atiende en modo sombra (sugiere arriba de la caja de texto) o en vivo, con Centro de ayuda, productos y derivación con resumen. Siguen Agenda y CRM (2b.2), la comparación con Claude (2b.3) y después la voz |
 | 13 | Saldo de WhatsApp recargable desde AloStudio (respond.io cobra los mensajes de Meta así) | El dueño pidió anotarlo (2026-11-17, agente A). Depende de F2: hoy, con Embedded Signup, Meta le cobra directo al cliente |
