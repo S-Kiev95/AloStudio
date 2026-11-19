@@ -1,9 +1,26 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
 
-/** AloStudio's help assistant: a small local model that answers "how do
- *  I…?" from AloStudio's own help and points to the screen. */
+/** AloStudio's help assistant: answers "how do I…?" from AloStudio's own
+ *  help and points to the screen. Free uses the server's local model (no
+ *  cost, slower); Fast uses OpenAI (faster, spends) when an administrator
+ *  allowed it. */
+export type HelpMode = "free" | "fast";
+
+export type HelpInfo = {
+  enabled: boolean;
+  /** What this account can use, Free first. */
+  modes: HelpMode[];
+  /** The installation has an OpenAI key. */
+  fast_possible: boolean;
+  /** An administrator allowed Fast in this account. */
+  fast_allowed: boolean;
+  /** The user is an administrator (can allow or stop Fast). */
+  can_manage: boolean;
+  question_max: number;
+};
+
 export type HelpAnswer = {
   /** False: the help does not cover it (``answer`` says so). */
   known: boolean;
@@ -13,28 +30,45 @@ export type HelpAnswer = {
   /** E.g. "only an administrator uses that screen". */
   note: string | null;
   seconds: number;
+  mode: HelpMode;
 };
 
 function base(accountId: string): string {
   return `/api/v1/accounts/${accountId}/help_assistant`;
 }
 
+function infoKey(accountId: string) {
+  return ["helpAssistant", accountId] as const;
+}
+
 export function useHelpAssistant(accountId: string) {
   return useQuery({
-    queryKey: ["helpAssistant", accountId] as const,
-    queryFn: () =>
-      apiFetch<{ enabled: boolean; question_max: number }>(base(accountId)),
+    queryKey: infoKey(accountId),
+    queryFn: () => apiFetch<HelpInfo>(base(accountId)),
     staleTime: 5 * 60_000,
   });
 }
 
 export function useAskHelp(accountId: string) {
   return useMutation({
-    mutationFn: (input: { question: string; page?: string }) =>
+    mutationFn: (input: { question: string; page?: string; mode?: HelpMode }) =>
       apiFetch<HelpAnswer>(base(accountId), {
         method: "POST",
         body: JSON.stringify(input),
       }),
+  });
+}
+
+/** An administrator allows (or stops) Fast for the whole account. */
+export function useAllowFastHelp(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (fast: boolean) =>
+      apiFetch<HelpInfo>(`${base(accountId)}/settings`, {
+        method: "PUT",
+        body: JSON.stringify({ fast }),
+      }),
+    onSuccess: (info) => qc.setQueryData(infoKey(accountId), info),
   });
 }
 

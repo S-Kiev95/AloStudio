@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import {
   helpProblemKey,
   type HelpAnswer,
+  type HelpMode,
+  useAllowFastHelp,
   useAskHelp,
   useHelpAssistant,
 } from "@/lib/api/help-assistant";
@@ -18,13 +20,28 @@ import { cn } from "@/lib/utils";
 
 type Turn = { question: string; answer: HelpAnswer };
 
-/** Topbar "?" button: ask how to do something in AloStudio. Answered by the
- *  local model from AloStudio's own help; hidden while it is not set up. */
+const MODE_KEY = "alostudio:help-mode";
+
+function readMode(): HelpMode | null {
+  try {
+    const value = window.localStorage.getItem(MODE_KEY);
+    return value === "free" || value === "fast" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Topbar "?" button: ask how to do something in AloStudio, from AloStudio's
+ *  own help. Free uses the server's local model (no cost, slower); Fast uses
+ *  OpenAI when an administrator allowed it. Hidden while neither is set up,
+ *  except for an administrator who can allow Fast. */
 export function HelpButton({ accountId }: { accountId: string }) {
   const t = useT();
   const pathname = usePathname() ?? "";
   const info = useHelpAssistant(accountId);
   const ask = useAskHelp(accountId);
+  const allowFast = useAllowFastHelp(accountId);
+  const [picked, setPicked] = useState<HelpMode | null>(null);
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -45,16 +62,29 @@ export function HelpButton({ accountId }: { accountId: string }) {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [open]);
 
-  if (!info.data?.enabled) return null;
-  const max = info.data.question_max;
+  const data = info.data;
+  if (!data || !(data.enabled || (data.can_manage && data.fast_possible))) return null;
+  const max = data.question_max;
+  const wanted = picked ?? (open ? readMode() : null);
+  const mode: HelpMode | null =
+    wanted && data.modes.includes(wanted) ? wanted : (data.modes[0] ?? null);
+
+  function pick(next: HelpMode) {
+    setPicked(next);
+    try {
+      window.localStorage.setItem(MODE_KEY, next);
+    } catch {
+      // No storage: the choice lasts while the panel is open.
+    }
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const text = question.trim();
-    if (!text || ask.isPending) return;
+    if (!text || ask.isPending || !mode) return;
     setProblem(null);
     ask.mutate(
-      { question: text, page: pathname },
+      { question: text, page: pathname, mode },
       {
         onSuccess: (answer) => {
           setTurns((prev) => [...prev, { question: text, answer }].slice(-5));
@@ -90,6 +120,32 @@ export function HelpButton({ accountId }: { accountId: string }) {
         <div className="border-b border-glass px-3 py-2.5">
           <h2 className="text-sm font-medium text-fg">{t("helpAssistant.title")}</h2>
           <p className="text-xs text-fg-muted">{t("helpAssistant.intro")}</p>
+          {data.modes.length > 1 ? (
+            <div role="radiogroup" aria-label={t("helpAssistant.modeLabel")} className="mt-2 flex gap-1.5">
+              {data.modes.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === m}
+                  onClick={() => pick(m)}
+                  className={cn(
+                    "flex-1 rounded-control border px-2 py-1 text-left text-xs transition-colors",
+                    mode === m
+                      ? "border-neon bg-focused text-lit"
+                      : "border-glass bg-field text-fg-muted hover:bg-hover-glass",
+                  )}
+                >
+                  <span className="block font-medium">
+                    {m === "fast" ? t("helpAssistant.modeFast") : t("helpAssistant.modeFree")}
+                  </span>
+                  <span className="block text-[11px] opacity-80">
+                    {m === "fast" ? t("helpAssistant.modeFastHint") : t("helpAssistant.modeFreeHint")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="max-h-[24rem] space-y-3 overflow-y-auto px-3 py-3 text-sm">
@@ -127,7 +183,7 @@ export function HelpButton({ accountId }: { accountId: string }) {
           {ask.isPending ? (
             <p className="inline-flex items-center gap-2 text-xs text-fg-muted" role="status">
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              {t("helpAssistant.thinking")}
+              {mode === "fast" ? t("helpAssistant.thinkingFast") : t("helpAssistant.thinking")}
             </p>
           ) : null}
           {problem ? (
@@ -136,6 +192,18 @@ export function HelpButton({ accountId }: { accountId: string }) {
             </p>
           ) : null}
         </div>
+
+        {data.can_manage && data.fast_possible ? (
+          <label className="flex items-center gap-2 border-t border-glass px-3 py-2 text-xs text-fg-muted">
+            <input
+              type="checkbox"
+              checked={data.fast_allowed}
+              disabled={allowFast.isPending}
+              onChange={(e) => allowFast.mutate(e.target.checked)}
+            />
+            {t("helpAssistant.allowFast")}
+          </label>
+        ) : null}
 
         <form onSubmit={submit} className="flex gap-2 border-t border-glass p-2">
           <input
@@ -147,7 +215,7 @@ export function HelpButton({ accountId }: { accountId: string }) {
             placeholder={t("helpAssistant.placeholder")}
             className="glass-field h-9 min-w-0 flex-1 rounded-control border border-glass bg-field px-2.5 text-xs text-fg placeholder:text-fg-muted"
           />
-          <Button type="submit" size="sm" disabled={!question.trim() || ask.isPending}>
+          <Button type="submit" size="sm" disabled={!question.trim() || ask.isPending || !mode}>
             {t("helpAssistant.ask")}
           </Button>
         </form>

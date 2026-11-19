@@ -52,6 +52,7 @@ export const usage: Strings<typeof es> = {
   limitInvalid: "0 以上の数値を入力してください。",
   limitFailed: "上限を保存できませんでした。",
   purposes: {
+    help_assistant: "ヘルプ",
     call_summary: "通話の要約",
     agent: "エージェント",
     instagram_autoreply: "Instagram 自動返信",
