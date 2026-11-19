@@ -792,7 +792,7 @@ Detalle en `PLAN.i18n.md`.
 | 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
 | 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3. Calendar **hecho** (agente B, 2026-11-18): cada agente lo conecta en Mi perfil; sus citas y tareas con fecha van a su calendario, en una dirección |
 | — | 2FA y SSO; apps nativas | Sin decidir |
-| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Paso 1 hecho en la rama: el asistente del equipo usa todas las herramientas que el rol permite (un agente, solo sus bandejas). Paso 2a hecho en la rama (2026-11-18): responsable de derivación por chat, etiqueta, bandeja o cuenta (Ajustes → Derivación). Paso 2b.1 hecho en la rama (2026-11-18): la IA de AloStudio atiende en modo sombra (sugiere arriba de la caja de texto) o en vivo, con Centro de ayuda, productos y derivación con resumen. Siguen Agenda y CRM (2b.2), la comparación con Claude (2b.3) y después la voz |
+| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Paso 1 hecho en la rama: el asistente del equipo usa todas las herramientas que el rol permite (un agente, solo sus bandejas). Paso 2a hecho en la rama (2026-11-18): responsable de derivación por chat, etiqueta, bandeja o cuenta (Ajustes → Derivación). Paso 2b.1 hecho en la rama (2026-11-18): la IA de AloStudio atiende en modo sombra (sugiere arriba de la caja de texto) o en vivo, con Centro de ayuda, productos y derivación con resumen. Paso 2b.2 hecho en la rama (2026-11-19): agenda y carga datos en el CRM, apagado hasta que el administrador lo prende en el bot. El «?» y el Agente ya son un solo asistente con Free y Fast (en la rama). Siguen la comparación con Claude (2b.3) y después la voz |
 | 13 | Saldo de WhatsApp recargable desde AloStudio (respond.io cobra los mensajes de Meta así) | El dueño pidió anotarlo (2026-11-17, agente A). Depende de F2: hoy, con Embedded Signup, Meta le cobra directo al cliente |
 
 - **12, paso 1 (agente A, 2026-11-17, rama `feat/agente-ia`, sin mezclar):**
@@ -854,6 +854,22 @@ Detalle en `PLAN.i18n.md`.
   4. El selector Free/Fast y el permiso del administrador ya existen en la Ayuda:
      reutilizar `GET/PUT /help_assistant` o moverlos al Agente.
   Al agente B le avisan si hace falta algo de la Ayuda.
+  - **Hecho por el agente A (2026-11-19, rama `feat/agente-ia`, sin mezclar a
+    develop):** develop se mezcló en la rama; los puntos 1 a 3 están. Fast es el
+    Agente con la ayuda y las pantallas al principio de sus instrucciones;
+    Free llama a `help_assistant.service.ask`; el «?» (`help-button.tsx`) abre
+    el chat del Agente en un panel, con la pantalla actual y Free por defecto.
+    Para el agente B: `frontend/lib/api/help-assistant.ts` salió (sin uso); el
+    router `/help_assistant` y `fast_allowed` / `allow_fast` siguen, sin uso
+    desde el panel. Falta que el dueño decida si Fast necesita el permiso del
+    administrador (hoy sigue la regla del Agente: cualquiera de la cuenta, si
+    hay clave de OpenAI). Las claves `helpAssistant.*` que ya no se usan
+    quedan para limpiar cuando se decida.
+- **12, paso 2b.2 (agente A, 2026-11-19, rama `feat/agente-ia`, sin mezclar):**
+  la IA que atiende clientes puede agendar (horario de la bandeja, una cita
+  futura por cliente) y completar datos del CRM (nombre, email, etapa,
+  etiqueta, oportunidad). Apagado por defecto; se prende en Ajustes → Bots.
+  En sombra solo lo propone. Las etapas que mueve la IA no se avisan a Meta.
 - **12 y 13, segunda comparación (agente A, 2026-11-17):** al repasar
   respond.io quedaron estas dos que no estaban en la tabla.
   - 12: es distinto del 1 (ayuda al agente humano) y del 6 (voz). Ya están
