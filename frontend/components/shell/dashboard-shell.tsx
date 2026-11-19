@@ -29,6 +29,7 @@ import { activeNavItemKey, NAV_ITEMS, navHref } from "./nav";
 import { NotificationBell } from "./notification-bell";
 import { PageSignContext } from "./page-header";
 import { SidebarNav } from "./sidebar-nav";
+import { HelpButton } from "./help-button";
 import { ThemeToggle } from "./theme-toggle";
 
 export const SIDEBAR_COLLAPSED_STORAGE_KEY = "alostudio:sidebar-collapsed";
@@ -256,6 +257,7 @@ export function DashboardShell({
             </div>
 
             <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+              <HelpButton accountId={accountId} />
               <ThemeToggle />
               <NotificationBell accountId={accountId} />
               <span className="mx-0.5 hidden h-5 w-px bg-glass sm:block" aria-hidden />
