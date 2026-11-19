@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any
 
 import httpx
@@ -26,9 +27,16 @@ from app.core.config import get_settings
 
 log = logging.getLogger(__name__)
 
-# A request waits while another one is answered (one slot), and the first
-# one after a restart reads the whole fixed beginning.
+# A request waits while another one is answered, and the first one after a
+# restart reads the whole fixed beginning.
 _TIMEOUT = httpx.Timeout(240.0, connect=5.0)
+
+# llama-server keeps each slot's processed prompt. The help assistant's long
+# fixed beginning lives in its own slot, so classifying conversations (F10,
+# the other slot) never makes it read the help again (``ops/llm/levantar.sh``
+# starts two slots).
+HELP_SLOT = 0
+DECISIONS_SLOT = 1
 
 
 class LocalLlmError(RuntimeError):
@@ -43,12 +51,36 @@ def configured() -> bool:
     return bool(get_settings().local_llm_url)
 
 
+# ``GET /props`` → ``total_slots``, kept a few minutes (it changes only when
+# the server is started again).
+_SLOTS_TTL_SECONDS = 300.0
+_slots_seen: tuple[float, int] | None = None
+
+
+async def slot_count() -> int:
+    """How many slots llama-server runs; 1 when it can't tell."""
+    global _slots_seen
+    now = time.monotonic()
+    if _slots_seen is not None and now - _slots_seen[0] < _SLOTS_TTL_SECONDS:
+        return _slots_seen[1]
+    url = f"{get_settings().local_llm_url.rstrip('/')}/props"
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(5.0)) as client:
+            resp = await client.get(url)
+        count = int(resp.json().get("total_slots") or 1)
+    except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+        return 1
+    _slots_seen = (now, count)
+    return count
+
+
 async def chat(
     messages: list[dict[str, str]],
     *,
     max_tokens: int,
     temperature: float = 0.1,
     json_schema: dict[str, Any] | None = None,
+    slot: int | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """The answer's text and llama-server's ``timings`` (tokens read from the
     cache, read anew and written, with their speeds)."""
@@ -64,6 +96,8 @@ async def chat(
     }
     if settings.local_llm_model:
         payload["model"] = settings.local_llm_model
+    if slot is not None:
+        payload["id_slot"] = slot
     if json_schema is not None:
         payload["response_format"] = {
             "type": "json_schema",
@@ -100,4 +134,12 @@ def parse_json(text: str) -> dict[str, Any]:
     return value
 
 
-__all__ = ["LocalLlmError", "chat", "configured", "parse_json"]
+__all__ = [
+    "DECISIONS_SLOT",
+    "HELP_SLOT",
+    "LocalLlmError",
+    "chat",
+    "configured",
+    "parse_json",
+    "slot_count",
+]

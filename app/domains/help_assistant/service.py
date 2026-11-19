@@ -120,7 +120,10 @@ async def ask(
         reply = await _ask_openai(messages, session, account_id)
     else:
         raw, timings = await local_llm.chat(
-            messages, max_tokens=MAX_TOKENS, json_schema=knowledge.response_schema()
+            messages,
+            max_tokens=MAX_TOKENS,
+            json_schema=knowledge.response_schema(),
+            slot=local_llm.HELP_SLOT,
         )
         reply = local_llm.parse_json(raw)
         log.info(
@@ -200,7 +203,7 @@ async def warm() -> bool:
     if not enabled():
         return False
     messages = [*knowledge.prefix_messages(), {"role": "user", "content": "hola"}]
-    await local_llm.chat(messages, max_tokens=1)
+    await local_llm.chat(messages, max_tokens=1, slot=local_llm.HELP_SLOT)
     return True
 
 

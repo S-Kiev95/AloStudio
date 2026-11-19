@@ -24,7 +24,9 @@ TIMEOUT_SECONDS = 30.0
 
 class DecisionsError(Exception):
     """``not_configured`` (no service set up), ``unreachable``, ``refused``
-    (the service said no; its reason in ``detail``)."""
+    (the service said no; its reason in ``detail``). The local model adds
+    ``busy`` (deciding another conversation: try later) and ``one_slot``
+    (llama-server runs one slot: it would wait behind the help)."""
 
     def __init__(self, code: str, detail: str | None = None) -> None:
         super().__init__(code)
@@ -45,6 +47,8 @@ class Decisions:
     answers: dict[str, Answer] = field(default_factory=dict)
     input_tokens: int = 0
     output_tokens: int = 0
+    # Why it picked the urgency, when the model says (the local one does).
+    reason: str = ""
 
 
 def configured() -> bool:

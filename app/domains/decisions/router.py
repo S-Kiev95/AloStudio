@@ -3,7 +3,8 @@
 Route map, under ``/api/v1/accounts/{account_id}/decisions``:
   * ``GET  /settings``        — shadow mode on/off, the questions, and whether
     the installation has a decisions service set up
-  * ``PUT  /settings``        — ``{enabled, questions?}``
+  * ``PUT  /settings``        — ``{enabled, questions?, provider?, context?,
+    apply_priority?}``
   * ``GET  /report``          — per question: decided, agreement with people,
     mean confidence; this month's calls and cost
   * ``GET  /labeling/next``   — a decided conversation people have not labeled
@@ -35,6 +36,10 @@ router = APIRouter(prefix="/api/v1/accounts/{account_id}/decisions", tags=["deci
 class SettingsBody(BaseModel):
     enabled: bool
     questions: list[dict[str, Any]] | None = None
+    # ``api`` (Jev or Laya) or ``local`` (the model on this server).
+    provider: str | None = None
+    context: str | None = None
+    apply_priority: bool | None = None
 
 
 class LabelsBody(BaseModel):
@@ -69,7 +74,13 @@ async def update_settings(
 ) -> dict[str, Any]:
     try:
         return await service.save_settings(
-            session, account_id=_account_id(ctx), enabled=body.enabled, questions=body.questions
+            session,
+            account_id=_account_id(ctx),
+            enabled=body.enabled,
+            questions=body.questions,
+            provider=body.provider,
+            context=body.context,
+            apply_priority=body.apply_priority,
         )
     except ValueError as exc:
         raise _fail(str(exc)) from exc

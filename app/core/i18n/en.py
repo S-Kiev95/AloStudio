@@ -103,4 +103,10 @@ MESSAGES: dict[str, str] = {
     "lifecycle.activity": "{name} moved the contact to {stage}",
     "lifecycle.activity_cleared": "{name} took the contact out of their stage",
     "lifecycle.someone": "Someone",
+    "decisions.priority_set": "The AI ({model}) set the priority to {level}",
+    "decisions.priority_set_because": "The AI ({model}) set the priority to {level}: {reason}",
+    "decisions.level.low": "Low",
+    "decisions.level.medium": "Medium",
+    "decisions.level.high": "High",
+    "decisions.level.urgent": "Urgent",
 }

@@ -241,9 +241,11 @@ async def test_nothing_is_sent_while_it_is_off(db_session, seeded, jev_key):
 
 async def test_a_customer_message_schedules_a_decision_only_when_on(db_session, seeded, jev_key, monkeypatch):
     scheduled: list[int] = []
+    delays: list[int] = []
 
-    async def fake_enqueue(conversation_id: int) -> None:
+    async def fake_enqueue(conversation_id: int, *, delay_seconds: int = 0) -> None:
         scheduled.append(conversation_id)
+        delays.append(delay_seconds)
 
     monkeypatch.setattr(decisions, "enqueue_decide", fake_enqueue)
     conversation = seeded["conversation"]
@@ -261,6 +263,7 @@ async def test_a_customer_message_schedules_a_decision_only_when_on(db_session, 
     await decisions.save_settings(db_session, account_id=seeded["owner"].account.id, enabled=True, questions=None)
     await customer_writes("¿Y los horarios?")
     assert scheduled == [conversation.id]
+    assert delays == [decisions.DECIDE_DELAY_SECONDS]
 
 
 @respx.mock

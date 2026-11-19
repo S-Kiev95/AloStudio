@@ -265,6 +265,32 @@ async def test_messages_index_returns_messages_oldest_first(
     assert contents == ["msg-0", "msg-1", "msg-2"]
 
 
+async def test_messages_index_hides_activity_lines(client, db_session):
+    """Like Chatwoot's ``filter_internal_messages``: the visitor never sees
+    who was assigned, priorities or the AI's notes."""
+    from app.domains.conversations.activities import create_activity_message
+
+    _, _, ww = await _seed_widget(db_session)
+    token = await _bootstrap_widget(client, ww)
+    await client.post(
+        f"/api/v1/widget/messages?website_token={ww.website_token}",
+        json={"message": {"content": "hola"}},
+        headers={"X-Auth-Token": token},
+    )
+    conv = (await db_session.exec(select(Conversation))).first()
+    assert conv is not None
+    await create_activity_message(
+        db_session, conversation=conv, content="La IA puso la prioridad Baja: puede esperar"
+    )
+
+    resp = await client.get(
+        f"/api/v1/widget/messages?website_token={ww.website_token}",
+        headers={"X-Auth-Token": token},
+    )
+    assert resp.status_code == 200
+    assert [m["content"] for m in resp.json()["payload"]] == ["hola"]
+
+
 # ---------------------------------------------------------------------------
 # update_last_seen / toggle_typing / toggle_status
 # ---------------------------------------------------------------------------

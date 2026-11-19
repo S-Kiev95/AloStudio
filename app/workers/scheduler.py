@@ -438,6 +438,7 @@ class WorkerSettings:
             refresh_contact_avatar_task,
             refresh_stale_avatars_task,
         )
+        from app.workers.decisions import MAX_TRIES as DECIDE_MAX_TRIES
         from app.workers.decisions import decide_conversation_task
         from app.workers.deliver_webhook import (
             MAX_ATTEMPTS as WEBHOOK_MAX_ATTEMPTS,
@@ -502,7 +503,8 @@ class WorkerSettings:
             # Enqueued when a customer writes, for accounts deciding their
             # conversations in shadow mode (F10). Keeps no result, same reason:
             # the next message after a decision must schedule another.
-            func(decide_conversation_task, keep_result=0),
+            # Retries itself while the local model decides another one.
+            func(decide_conversation_task, keep_result=0, max_tries=DECIDE_MAX_TRIES),
         ]
 
     # ARQ reads these off the class, so they're class-level by contract, not

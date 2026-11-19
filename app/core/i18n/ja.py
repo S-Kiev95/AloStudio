@@ -103,4 +103,10 @@ MESSAGES: dict[str, str] = {
     "lifecycle.activity": "{name}がステージを{stage}に変更しました",
     "lifecycle.activity_cleared": "{name}が連絡先のステージを外しました",
     "lifecycle.someone": "誰か",
+    "decisions.priority_set": "AI（{model}）が優先度を{level}にしました",
+    "decisions.priority_set_because": "AI（{model}）が優先度を{level}にしました: {reason}",
+    "decisions.level.low": "低",
+    "decisions.level.medium": "中",
+    "decisions.level.high": "高",
+    "decisions.level.urgent": "緊急",
 }

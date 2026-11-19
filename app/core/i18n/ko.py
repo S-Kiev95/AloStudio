@@ -101,4 +101,10 @@ MESSAGES: dict[str, str] = {
     "lifecycle.activity": "{name}님이 단계를 {stage}(으)로 바꿨어요",
     "lifecycle.activity_cleared": "{name}님이 연락처의 단계를 뺐어요",
     "lifecycle.someone": "누군가",
+    "decisions.priority_set": "AI({model})가 우선순위를 {level}(으)로 설정했습니다",
+    "decisions.priority_set_because": "AI({model})가 우선순위를 {level}(으)로 설정했습니다: {reason}",
+    "decisions.level.low": "낮음",
+    "decisions.level.medium": "보통",
+    "decisions.level.high": "높음",
+    "decisions.level.urgent": "긴급",
 }

@@ -4,8 +4,10 @@
 #   bash ops/llm/levantar.sh            # Qwen3 4B Instruct, the one evaluated
 #
 # Then set LOCAL_LLM_URL=http://127.0.0.1:8092 in Ajustes → Instalación.
-# It uses 4 CPUs and about 4.5 GB of RAM; the help is read once (about 3
-# minutes) and kept, and the worker re-reads it every 5 minutes if needed.
+# It uses 4 CPUs and about 5 GB of RAM. Two slots of 6144 tokens each: the
+# help keeps its long beginning read in slot 0 (about 3 minutes the first
+# time; the worker re-reads it every 5 minutes if needed) and classifying
+# conversations (F10) uses slot 1, so it never evicts the help.
 # Measurements: ops/llm/README.md.
 set -euo pipefail
 
@@ -25,7 +27,7 @@ fi
 docker rm -f alostudio-llm >/dev/null 2>&1 || true
 docker run -d --name alostudio-llm --restart unless-stopped --cpus=4 \
   -p 127.0.0.1:8092:8080 -v "$MODELS":/models:ro "$IMAGE" \
-  -m "/models/$FILE" -t 4 -c 8192 -np 1 --jinja >/dev/null
+  -m "/models/$FILE" -t 4 -c 12288 -np 2 --jinja >/dev/null
 
 for _ in $(seq 1 90); do
   if curl -sf http://127.0.0.1:8092/health >/dev/null; then

@@ -25,3 +25,18 @@ El botón Ayuda usa un modelo chico que corre en el servidor (llama.cpp).
 - Leer cuesta ~12 tokens/s y escribir ~4 tokens/s: por eso la parte fija va
   primero y se reutiliza, y las respuestas son cortas.
 - Memoria: ~4,5 GB con 8192 de contexto.
+
+## Dos lugares: la Ayuda y la clasificación (2026-11-19, agente A)
+
+Desde que Qwen también clasifica conversaciones (F10, Ajustes →
+Clasificación → "Modelo local"), `levantar.sh` arranca llama-server con
+dos lugares (`-np 2`) de 6144 tokens (`-c 12288`, unos 5 GB). La Ayuda usa
+el lugar 0 (`local_llm.HELP_SLOT`) y conserva su comienzo leído; la
+clasificación usa el 1 (`DECISIONS_SLOT`), de a una conversación, y nunca
+le borra lo leído a la Ayuda. Si las dos coinciden, comparten la CPU: una
+respuesta de la Ayuda puede tardar el doble mientras se clasifica.
+
+Un servidor arrancado con un solo lugar sigue sirviendo a la Ayuda; la
+clasificación local se niega enseguida (consulta `GET /props`,
+`total_slots`) hasta volver a correr `levantar.sh`, en vez de quedar
+esperando detrás de la Ayuda.

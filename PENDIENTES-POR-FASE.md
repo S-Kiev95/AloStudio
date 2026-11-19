@@ -637,6 +637,38 @@ dentro de la rama.
   cargar la clave de Jev en su Instalación y prender el modo sombra en
   Ajustes → Clasificación. La pregunta del equipo usa los equipos de la
   cuenta; si no hay equipos, no se hace.
+- **Prioridad automática con Qwen (agente A, 2026-11-19, rama
+  `feat/prioridad-qwen`; pedido del dueño):** en Ajustes → Clasificación se
+  elige quién clasifica: el servicio de decisiones (Jev o Laya) o el modelo
+  local (Qwen, gratis, ~1 minuto por conversación, de a una, en su propio
+  lugar de llama-server). El local lee "lo que la IA tiene que saber del
+  negocio" (campo nuevo) y la fecha de hoy. La urgencia suma la opción
+  `urgente`. Con "Poner la prioridad según la urgencia" (apagado al
+  principio) la urgencia pasa a ser la prioridad de la conversación, con
+  una línea y el motivo (anonimizado), mientras la prioridad sea de la IA
+  (tabla `conversation_priority_owners`): una que ya estaba, o que una
+  persona, una regla o una herramienta cambia o borra, no la vuelve a
+  tocar. La que una persona pone por su cuenta es su etiqueta de urgencia;
+  cambiar la de la IA es una corrección y Resultados la cuenta aparte. El
+  worker lee, suelta la base mientras el modelo piensa, guarda y vuelve a
+  decidir si el cliente escribió mientras tanto; el local va de a una
+  conversación (las demás reintentan con `Retry`) y se niega enseguida si
+  llama-server tiene un solo lugar. El historial del widget ya no muestra
+  líneas de actividad (como Chatwoot). Migración `d3f5b7c9e1a2`. Para el
+  agente B: toca `local_llm.chat` (`slot`, `slot_count`), la Ayuda (lugar
+  0) y `levantar.sh` (dos lugares, ver `ops/llm/README.md`).
+  - **Falta:** volver a levantar Qwen con dos lugares en el servidor de
+    pruebas, probar con conversaciones reales y medir contra lo que marca
+    el director; para CTC, llevar la Ayuda con Qwen a `main` e instalar el
+    modelo allá (unos 5 GB de RAM de los 6,5 libres). Mirar ahí la CPU
+    (cada clasificación usa los 4 núcleos un minuto: quizás `-t 3`) y la
+    memoria de llama-server (`docker stats`). Si la bandeja no tiene zona
+    horaria, "hoy" es el de UTC (de 21 a 24 en Uruguay, ya es mañana).
+  - **Al mezclar `feat/agente-ia` a `develop`:** su migración
+    `b1d3f5a7c9e2` también cuelga de `b1c2d3e4f5a8`; encadenarla detrás de
+    `d3f5b7c9e1a2` para que quede una sola cabeza.
+  - Una persona que vuelve a elegir el mismo valor que puso la IA no la
+    "toma" (no hay cambio): para fijarla, cambiarla y volver a ponerla.
 - **Para el agente B: prioridad automática (dueño, 2026-11-19; nota del
   agente A).** El director de CTC marca a mano la prioridad de cada chat
   para Sofía (el 19/11: 12 Urgente, 2 Alta, 1 Media de 74; sin etiquetas
