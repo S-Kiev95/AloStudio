@@ -60,6 +60,7 @@ from app.domains.decisions.router import router as decisions_router
 from app.domains.email.templates_router import router as email_templates_router
 from app.domains.facebook.connect_router import router as facebook_connect_router
 from app.domains.facebook.router import router as facebook_webhook_router
+from app.domains.google_calendar.router import router as google_calendar_router
 from app.domains.inboxes.router import inbox_members_router
 from app.domains.inboxes.router import router as inboxes_router
 from app.domains.instagram.autoreply_router import (
@@ -351,6 +352,8 @@ def create_app() -> FastAPI:
     app.include_router(decisions_router)
     # Why conversations close: categories and notes (F17).
     app.include_router(closing_router)
+    # Each agent's Agenda in their Google Calendar (F17).
+    app.include_router(google_calendar_router)
     # Ad conversations that became leads or sales, reported to Meta (F17).
     app.include_router(conversions_router)
     # Where each contact stands, from new lead to customer (F17).
