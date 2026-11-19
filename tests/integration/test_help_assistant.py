@@ -197,3 +197,67 @@ async def test_a_slow_model_says_it_is_getting_ready(client, db_session, seeded,
     busy = await client.post(seeded["url"], json={"question": "hola"}, headers=headers)
     assert busy.status_code == 503
     assert busy.json()["code"] == "help_assistant.busy"
+
+
+OPENAI = "https://api.openai.com/v1/chat/completions"
+
+
+async def test_fast_needs_an_admin_and_records_the_spend(
+    client, db_session, seeded, model, monkeypatch
+):
+    from sqlmodel import select
+
+    from app.domains.usage.models import KIND_AI, UsageRecord
+
+    monkeypatch.setattr(get_settings(), "openai_api_key", "sk-test")
+    agent_h = await _headers(db_session, seeded["agent"])
+    admin_h = await _headers(db_session, seeded["admin"])
+
+    shown = (await client.get(seeded["url"], headers=agent_h)).json()
+    assert shown["modes"] == ["free"]
+    assert shown["fast_possible"] is True and shown["fast_allowed"] is False
+    refused = await client.post(
+        seeded["url"], json={"question": "hola", "mode": "fast"}, headers=agent_h
+    )
+    assert refused.json()["code"] == "help_assistant.mode"
+    not_admin = await client.put(f"{seeded['url']}/settings", json={"fast": True}, headers=agent_h)
+    assert not_admin.status_code == 401
+
+    allowed = await client.put(f"{seeded['url']}/settings", json={"fast": True}, headers=admin_h)
+    assert allowed.json()["modes"] == ["free", "fast"]
+
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.post(OPENAI).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "model": "gpt-5.4-mini",
+                    "choices": [{"message": {"role": "assistant", "content": json.dumps(CLOSING)}}],
+                    "usage": {"prompt_tokens": 2600, "completion_tokens": 40},
+                },
+            )
+        )
+        done = await client.post(
+            seeded["url"], json={"question": "motivo al cerrar", "mode": "fast"}, headers=admin_h
+        )
+    assert done.status_code == 200, done.text
+    assert done.json()["mode"] == "fast"
+    assert done.json()["screen"]["key"] == "ajustes_notas_cierre"
+    sent = json.loads(route.calls[-1].request.content)
+    assert sent["response_format"]["json_schema"]["strict"] is True
+    assert sent["messages"][0] == service.knowledge.prefix_messages()[0]
+    await db_session.flush()
+    usage = (await db_session.exec(select(UsageRecord).where(UsageRecord.kind == KIND_AI))).all()
+    assert [u.category for u in usage] == ["help_assistant"]
+
+
+async def test_without_the_local_model_only_fast_is_offered(
+    client, db_session, seeded, monkeypatch
+):
+    monkeypatch.setattr(get_settings(), "local_llm_url", "")
+    monkeypatch.setattr(get_settings(), "openai_api_key", "sk-test")
+    admin_h = await _headers(db_session, seeded["admin"])
+    assert (await client.get(seeded["url"], headers=admin_h)).json()["enabled"] is False
+    await client.put(f"{seeded['url']}/settings", json={"fast": True}, headers=admin_h)
+    shown = (await client.get(seeded["url"], headers=admin_h)).json()
+    assert shown["enabled"] is True and shown["modes"] == ["fast"]
