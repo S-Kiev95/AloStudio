@@ -174,6 +174,10 @@ export const settingsInstall: Strings<typeof es> = {
       title: "에이전트 모델",
       description: "채팅 에이전트가 쓰는 OpenAI 모델입니다. 예: gpt-5.4-mini(빠르고 저렴) 또는 gpt-5.5(더 뛰어남).",
     },
+    LOCAL_LLM_URL: {
+      title: "로컬 AI: 주소",
+      description: "이 서버에서 실행되는 모델(llama.cpp)의 주소입니다. 예: http://127.0.0.1:8092. 설정하면 도움말 버튼이 나타나 OpenAI 비용 없이 AloStudio를 안내합니다. 비워 두면 꺼집니다.",
+    },
     AI_WRITING_ASSIST_ENABLED: {
       title: "AI 작성 도움",
       description: "입력창에 AI 버튼을 추가해 상담원이 쓴 내용을 다듬고, 고치고, 어조를 바꾸고, 줄이거나 번역하며 대화를 요약합니다. 에이전트의 키와 모델을 쓰며, 지출은 각 계정의 비용에 표시됩니다.",

@@ -91,6 +91,11 @@ class Settings(BaseSettings):
     # agent's draft and summarizes the conversation with the agent model.
     # Off until the operator turns it on, since every use costs money.
     ai_writing_assist_enabled: bool = False
+    # A small model on this server (llama.cpp's llama-server, OpenAI-style
+    # API), for the help assistant: free, nothing leaves the server. Empty
+    # → off. ``local_llm_model`` only names it in the logs.
+    local_llm_url: str = ""
+    local_llm_model: str = ""
 
     # --- local embeddings (EmbeddingGemma 2, F9)
     # Base URL of the embeddings service (``app.embeddings_service``), a
