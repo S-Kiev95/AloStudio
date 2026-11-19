@@ -524,6 +524,7 @@ class WorkerSettings:
 
         from app.workers.contact_avatars import refresh_stale_avatars_task
         from app.workers.email_poll import fetch_imap_inboxes_task
+        from app.workers.help_assistant import warm_help_assistant_task
         from app.workers.message_embeddings import embed_messages_task
         from app.workers.publishing import (
             METRICS_JOB_TIMEOUT_SECONDS,
@@ -579,6 +580,10 @@ class WorkerSettings:
             # minutes, off the 5-minute tick and the mail poll. A no-op
             # until the local embedding service is configured.
             cron(embed_messages_task, minute=set(range(2, 60, 3))),
+            # The help assistant's fixed beginning stays read in the local
+            # model (after a restart it takes minutes). A no-op until
+            # LOCAL_LLM_URL is set.
+            cron(warm_help_assistant_task, minute=set(range(4, 60, 5)), timeout=600),
             # Contact profile pictures, once a day: Meta's links expire and
             # people change their picture. Early UTC, off the other jobs.
             cron(

@@ -385,6 +385,17 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         group=AI_GROUP,
     ),
     ConfigSpec(
+        name="LOCAL_LLM_URL",
+        setting="local_llm_url",
+        title="IA local: dirección",
+        description=(
+            "La dirección del modelo que corre en este servidor (llama.cpp), "
+            "por ejemplo http://127.0.0.1:8092. Con ella aparece el botón "
+            "Ayuda, que guía por AloStudio sin gastar en OpenAI. Vacío: apagado."
+        ),
+        group=AI_GROUP,
+    ),
+    ConfigSpec(
         name="AI_WRITING_ASSIST_ENABLED",
         setting="ai_writing_assist_enabled",
         title="Ayuda de IA al escribir",
