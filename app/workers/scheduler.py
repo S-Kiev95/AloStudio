@@ -279,10 +279,17 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         conversions_sent = await send_conversions(conversions_session)
         await conversions_session.commit()
 
+    # Google Calendar (F17): each connected agent's appointments and tasks.
+    from app.domains.google_calendar.service import sync_all as sync_google_calendars
+
+    async with sessionmaker() as gcal_session:
+        gcal_writes = await sync_google_calendars(gcal_session)
+        await gcal_session.commit()
+
     log.info(
         "scheduler.tick.done campaigns_fired=%s conversations_reopened=%s "
         "instagram_posts_fired=%s publications_fired=%s crm_reminders=%s calls_closed=%s "
-        "conversions_sent=%s",
+        "conversions_sent=%s google_calendar_writes=%s",
         campaigns_fired,
         conversations_reopened,
         len(ig_fired),
@@ -290,6 +297,7 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         len(reminders),
         calls_closed,
         conversions_sent,
+        gcal_writes,
     )
     return {
         "campaigns_fired": campaigns_fired,
@@ -299,6 +307,7 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         "crm_reminders": len(reminders),
         "calls_closed": calls_closed,
         "conversions_sent": conversions_sent,
+        "google_calendar_writes": gcal_writes,
     }
 
 
