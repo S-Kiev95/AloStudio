@@ -637,6 +637,27 @@ dentro de la rama.
   cargar la clave de Jev en su Instalación y prender el modo sombra en
   Ajustes → Clasificación. La pregunta del equipo usa los equipos de la
   cuenta; si no hay equipos, no se hace.
+- **Para el agente B: prioridad automática (dueño, 2026-11-19; nota del
+  agente A).** El director de CTC marca a mano la prioridad de cada chat
+  para Sofía (el 19/11: 12 Urgente, 2 Alta, 1 Media de 74; sin etiquetas
+  para eso) y ahora la ve como flecha en la lista (rama
+  `feat/flecha-prioridad`). El dueño quiere que Jev la ponga sola y, con lo
+  acumulado, entrenar a Laya. Se le recordó que las respuestas de Jev no
+  pueden entrenar a Laya (2.3(b) de TypeSafe): sirven las que una persona
+  puso o cambió por su cuenta. Propuesta, a decidir con el dueño:
+  - Que la decisión de urgencia (sumando "urgente") se escriba en
+    `conversation.priority`, marcada como puesta por Jev, sin pisar nunca
+    la que puso una persona.
+  - Que la prioridad que una persona pone a mano cuente como etiqueta
+    humana, como ya cuenta el equipo que asigna un agente. Las que puso Jev
+    y nadie tocó no son etiquetas.
+  - Para Laya: que el modelo clasifique la intención (estable todo el año)
+    y la prioridad salga de reglas del director con la fecha ("noviembre y
+    diciembre: inscripción → Urgente"), así la temporada no se aprende ni
+    obliga a reentrenar.
+  - Cantidad estimada para entrenar: 300 a 500 conversaciones etiquetadas
+    por personas, más 50 a 100 apartadas para medir (en CTC, unos 5 chats
+    por día).
 
 ## F11. CRM (Krayin)
 
@@ -970,3 +991,11 @@ Detalle en `PLAN.i18n.md`.
   test fuerce la entrega inmediata.
 - **Colores con transparencia** (`bg-x/NN` sobre colores del tema) no generan
   CSS: falta el arreglo central en la configuración de Tailwind.
+- **Flecha de prioridad en la Bandeja (pedido del director de CTC,
+  2026-11-19, agente A):** al lado de la fecha, roja y doble Urgente,
+  amarilla Alta, normal Media, gris Baja. Rama `feat/flecha-prioridad`
+  (sale de `main`, solo panel). Falta pasarla a `main` y a `develop` y
+  compilar el panel de CTC fuera de horario.
+- **Tests del panel que tardan:** `templates-panel.test.tsx` y
+  `autoposts-view.test.tsx` pasan solos pero se pasan de los 5 s cuando
+  corre toda la suite (visto en `main` el 2026-11-19).
