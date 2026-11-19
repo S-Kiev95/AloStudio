@@ -52,6 +52,7 @@ export const usage: Strings<typeof es> = {
   limitInvalid: "Gib eine Zahl ab 0 ein.",
   limitFailed: "Das Limit konnte nicht gespeichert werden.",
   purposes: {
+    help_assistant: "Hilfe",
     call_summary: "Anrufzusammenfassungen",
     agent: "Agent",
     instagram_autoreply: "Instagram-Autoantworten",

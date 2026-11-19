@@ -11,12 +11,33 @@ vi.mock("next/navigation", () => ({
 }));
 
 let enabled = true;
+let modes = ["free"];
+let canManage = false;
+let fastAllowed = false;
 let asked: unknown = null;
+let allowed: unknown = null;
 let reply: Record<string, unknown> = {};
 let status = 200;
 
+function info() {
+  return {
+    enabled,
+    modes: enabled ? modes : [],
+    fast_possible: true,
+    fast_allowed: fastAllowed,
+    can_manage: canManage,
+    question_max: 300,
+  };
+}
+
 const server = setupServer(
-  http.get("*/help_assistant", () => HttpResponse.json({ enabled, question_max: 300 })),
+  http.get("*/help_assistant", () => HttpResponse.json(info())),
+  http.put("*/help_assistant/settings", async ({ request }) => {
+    allowed = await request.json();
+    fastAllowed = (allowed as { fast: boolean }).fast;
+    modes = fastAllowed ? ["free", "fast"] : ["free"];
+    return HttpResponse.json(info());
+  }),
   http.post("*/help_assistant", async ({ request }) => {
     asked = await request.json();
     return HttpResponse.json(reply, { status });
@@ -27,8 +48,13 @@ beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
 afterEach(() => {
   server.resetHandlers();
   enabled = true;
+  modes = ["free"];
+  canManage = false;
+  fastAllowed = false;
   asked = null;
+  allowed = null;
   status = 200;
+  window.localStorage.clear();
 });
 afterAll(() => server.close());
 
@@ -73,6 +99,7 @@ describe("HelpButton", () => {
     expect(asked).toEqual({
       question: "como pido un motivo al cerrar",
       page: "/accounts/1/settings/lifecycle",
+      mode: "free",
     });
   });
 
@@ -84,5 +111,21 @@ describe("HelpButton", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent("La ayuda se está preparando"),
     );
+  });
+
+  it("lets an administrator allow Fast, and then asks in Fast", async () => {
+    canManage = true;
+    reply = { known: true, answer: "Tocá Resolver.", screen: null, note: null, seconds: 1.2, mode: "fast" };
+    renderButton();
+    fireEvent.click((await screen.findAllByLabelText("Ayuda"))[0]);
+    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Permitir el modo Fast/ }));
+    await waitFor(() => expect(allowed).toEqual({ fast: true }));
+    fireEvent.click(await screen.findByRole("radio", { name: /Fast/ }));
+    fireEvent.change(screen.getByLabelText("Tu pregunta"), { target: { value: "como cierro" } });
+    fireEvent.click(screen.getByRole("button", { name: "Preguntar" }));
+    expect(await screen.findByText("Tocá Resolver.")).toBeInTheDocument();
+    expect((asked as { mode: string }).mode).toBe("fast");
+    expect(window.localStorage.getItem("alostudio:help-mode")).toBe("fast");
   });
 });

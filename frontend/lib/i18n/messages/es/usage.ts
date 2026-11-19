@@ -49,6 +49,7 @@ export const usage = {
   limitInvalid: "Poné un número mayor o igual a 0.",
   limitFailed: "No se pudo guardar el tope.",
   purposes: {
+    help_assistant: "Ayuda",
     call_summary: "Resumen de llamadas",
     agent: "Agente",
     instagram_autoreply: "Respuestas automáticas de Instagram",

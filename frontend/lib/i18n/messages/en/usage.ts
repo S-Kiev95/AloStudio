@@ -52,6 +52,7 @@ export const usage: Strings<typeof es> = {
   limitInvalid: "Enter a number of 0 or more.",
   limitFailed: "Couldn't save the cap.",
   purposes: {
+    help_assistant: "Help",
     call_summary: "Call summaries",
     agent: "Agent",
     instagram_autoreply: "Instagram auto-replies",

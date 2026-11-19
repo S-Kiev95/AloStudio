@@ -52,6 +52,7 @@ export const usage: Strings<typeof es> = {
   limitInvalid: "Saisissez un nombre supérieur ou égal à 0.",
   limitFailed: "Impossible d'enregistrer le plafond.",
   purposes: {
+    help_assistant: "Aide",
     call_summary: "Résumés d’appels",
     agent: "Agent",
     instagram_autoreply: "Réponses automatiques Instagram",
