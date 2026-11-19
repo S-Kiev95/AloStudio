@@ -993,9 +993,9 @@ Detalle en `PLAN.i18n.md`.
   CSS: falta el arreglo central en la configuración de Tailwind.
 - **Flecha de prioridad en la Bandeja (pedido del director de CTC,
   2026-11-19, agente A):** al lado de la fecha, roja y doble Urgente,
-  amarilla Alta, normal Media, gris Baja. Rama `feat/flecha-prioridad`
-  (sale de `main`, solo panel). Falta pasarla a `main` y a `develop` y
-  compilar el panel de CTC fuera de horario.
+  amarilla Alta, normal Media, gris Baja. En `main` (dda6ed4) y en
+  `develop` (bbda3d2, cherry-pick); en CTC desde el 2026-11-19 a las 16:08
+  (panel compilado en horario, con el OK del dueño). La Ayuda la explica.
 - **Tests del panel que tardan:** `templates-panel.test.tsx` y
   `autoposts-view.test.tsx` pasan solos pero se pasan de los 5 s cuando
   corre toda la suite (visto en `main` el 2026-11-19).
