@@ -780,7 +780,7 @@ Detalle en `PLAN.i18n.md`.
 
 | # | Función | Decisión del dueño |
 |---|---|---|
-| 1 | Ayuda de IA al escribir: reformular, traducir, resumir | Sí. Con modelo de un proveedor, en el plan más caro y con créditos de IA; con un modelo liviano en la VPS, para todos |
+| 1 | Ayuda de IA al escribir: reformular, traducir, resumir | Sí. Con modelo de un proveedor, en el plan más caro y con créditos de IA; con un modelo liviano en la VPS, para todos. **Hecho** (agente B, 2026-11-18), en develop y staging: botón IA en la caja de texto (mejorar, corregir, tono, acortar, traducir, resumir la conversación); lo prende el superadmin (AI_WRITING_ASSIST_ENABLED). Para F2/multitenant: atarlo al plan más caro |
 | 2 | Conversions API de Meta (avisarle a Meta qué chats de anuncios terminan en venta) | Sí, le sirve a CTC |
 | 3 | Workflows visuales: preguntar y esperar la respuesta, ramas, esperas | A acordar entre el dueño y el agente B: propios o con n8n |
 | 4 | Notas de cierre (motivo al cerrar una conversación, para reportes) | Sí |
