@@ -861,10 +861,10 @@ Detalle en `PLAN.i18n.md`.
     el chat del Agente en un panel, con la pantalla actual y Free por defecto.
     Para el agente B: `frontend/lib/api/help-assistant.ts` salió (sin uso); el
     router `/help_assistant` y `fast_allowed` / `allow_fast` siguen, sin uso
-    desde el panel. Falta que el dueño decida si Fast necesita el permiso del
-    administrador (hoy sigue la regla del Agente: cualquiera de la cuenta, si
-    hay clave de OpenAI). Las claves `helpAssistant.*` que ya no se usan
-    quedan para limpiar cuando se decida.
+    desde el panel, salvo `PUT /help_assistant/settings`: el dueño decidió
+    (2026-11-19) que Fast lo habilite un administrador, también en el menú
+    Agente, con ese mismo permiso (se prende arriba del chat). Las claves
+    `helpAssistant.*` que ya no se usan quedan para limpiar.
 - **12, paso 2b.2 (agente A, 2026-11-19, rama `feat/agente-ia`, sin mezclar):**
   la IA que atiende clientes puede agendar (horario de la bandeja, una cita
   futura por cliente) y completar datos del CRM (nombre, email, etapa,
