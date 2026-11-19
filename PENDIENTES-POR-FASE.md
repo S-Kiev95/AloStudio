@@ -787,7 +787,7 @@ Detalle en `PLAN.i18n.md`.
 | 5 | Resumen de llamadas con IA | Sí, en el plan más caro; lo prende el superadmin de cada instalación y gasta créditos de IA. **Hecho** (agente B, 2026-11-18): Instalación → Llamadas → "Resumen de llamadas con IA"; el resumen sale en la burbuja de la llamada cuando hay transcripción y el gasto va a Gastos como `call_summary`. Para F2/multitenant: atarlo al plan más caro |
 | 6 | Agente de IA que atiende llamadas | Contemplado (F7 paso 3). Lo hace el agente A junto con el 12 (2026-11-17) |
 | 7 | Etapas del contacto | Sí, con la nomenclatura de respond.io |
-| 8 | TikTok como canal de mensajes | Sí |
+| 8 | TikTok como canal de mensajes | Sí. En espera (2026-11-18): primero el dueño pide a TikTok el acceso a la Business Messaging API (revisión de seguridad; cuenta de empresa con acceso avanzado o verificada, que acepte DMs de todos). Con eso, el agente B porta el canal de TikTok de Chatwoot |
 | 9 | Llamadas de Messenger y telefonía VoIP | Sin decidir (el dueño preguntó qué es VoIP) |
 | 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
 | 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3. Calendar **hecho** (agente B, 2026-11-18): cada agente lo conecta en Mi perfil; sus citas y tareas con fecha van a su calendario, en una dirección |
