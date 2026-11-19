@@ -80,6 +80,7 @@ export const contacts: Strings<typeof es> = {
   deleteSegment: "セグメント {name} を削除",
   noResults: "「{query}」の検索結果はありません。",
   noneInCompany: "{company} の連絡先はありません。",
+  noneInStage: "この段階の連絡先はありません。",
   pageOfOne: "{pages} ページ中 {n} ページ · 連絡先 {count} 件",
   pageOfMany: "{pages} ページ中 {n} ページ · 連絡先 {count} 件",
   deleteConfirm: "連絡先「{name}」を削除しますか？",

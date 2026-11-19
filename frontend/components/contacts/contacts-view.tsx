@@ -26,6 +26,8 @@ import {
 } from "@/lib/api/custom-views";
 import { cn } from "@/lib/utils";
 
+import { useLifecycleReport } from "@/lib/api/lifecycle";
+
 import { ContactFilters } from "./contact-filters";
 import { useT } from "@/lib/i18n/provider";
 
@@ -36,6 +38,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [company, setCompany] = useState<string | null>(null);
+  const [stage, setStage] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterCondition[]>([]);
   const [filterMatch, setFilterMatch] = useState<"AND" | "OR">("AND");
   const [showFilters, setShowFilters] = useState(false);
@@ -50,7 +53,8 @@ export function ContactsView({ accountId }: { accountId: string }) {
   const deleteSegment = useDeleteCustomView(accountId);
 
   // Priority: search > advanced filter > company/index — one at a time.
-  const indexQ = useContacts(accountId, page, company ?? undefined);
+  const indexQ = useContacts(accountId, page, company ?? undefined, stage ?? undefined);
+  const stages = useLifecycleReport(accountId, 30);
   const searchQ = useSearchContacts(accountId, trimmed, page);
   const filterQ = useFilterContacts(accountId, filters, page);
   const active = searching ? searchQ : filtering ? filterQ : indexQ;
@@ -60,6 +64,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
     setFilterMatch(match);
     setQ("");
     setCompany(null);
+    setStage(null);
     setPage(1);
     setShowFilters(false);
   }
@@ -187,6 +192,37 @@ export function ContactsView({ accountId }: { accountId: string }) {
         </div>
       ) : null}
 
+      {!searching && !filtering && stages.data?.enabled ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-fg-muted">{t("lifecycle.stages")}</span>
+          {stages.data.stages.map((s) => {
+            const on = stage === s.key;
+            return (
+              <button
+                key={s.key}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  setStage(on ? null : s.key);
+                  setPage(1);
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-pill border px-2.5 py-0.5 text-xs transition-colors",
+                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
+                  on
+                    ? "border-neon bg-focused font-medium text-lit"
+                    : "border-glass bg-field text-fg-muted hover:bg-hover-glass",
+                )}
+              >
+                {s.emoji ? `${s.emoji} ${s.name}` : s.name}
+                <span className="font-numeric tabular-nums text-fg-muted">{s.count}</span>
+                {on ? <X className="h-3 w-3" aria-hidden /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
       {!searching && !filtering && (companies.data?.length ?? 0) > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-fg-muted">{t("contacts.companies")}</span>
@@ -235,7 +271,9 @@ export function ContactsView({ accountId }: { accountId: string }) {
                 ? t("contacts.noMatches")
                 : company
                   ? t("contacts.noneInCompany", { company })
-                  : t("contacts.empty")}
+                  : stage
+                    ? t("contacts.noneInStage")
+                    : t("contacts.empty")}
           </p>
         ) : (
           <ul className="divide-y divide-glass">

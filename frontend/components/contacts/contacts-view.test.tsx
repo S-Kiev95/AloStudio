@@ -43,6 +43,7 @@ const contacts = [
 ];
 
 let lastCompany: string | null = null;
+let lastStage: string | null = null;
 let filterPayload: unknown = null;
 
 const contactSegments = [
@@ -78,8 +79,19 @@ const server = setupServer(
       payload: [contacts[0]],
     });
   }),
+  http.get("*/lifecycle/report", () =>
+    HttpResponse.json({
+      days: 30,
+      enabled: true,
+      stages: [
+        { key: "new_lead", name: "Nuevo interesado", emoji: "🆕", kind: "stage", count: 4, entered: 4 },
+        { key: "hot_lead", name: "Muy interesado", emoji: "🔥", kind: "stage", count: 1, entered: 2 },
+      ],
+    }),
+  ),
   http.get("*/contacts", ({ request }) => {
     lastCompany = new URL(request.url).searchParams.get("company");
+    lastStage = new URL(request.url).searchParams.get("stage");
     return HttpResponse.json({
       meta: { count: 2, current_page: 1 },
       payload: contacts,
@@ -91,6 +103,7 @@ beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
 afterEach(() => {
   server.resetHandlers();
   lastCompany = null;
+  lastStage = null;
   filterPayload = null;
 });
 afterAll(() => server.close());
@@ -114,6 +127,17 @@ describe("ContactsView", () => {
     expect(screen.getByText("Bloqueado")).toBeInTheDocument();
     // Pagination footer shows the count.
     expect(screen.getByText(/2 contactos/i)).toBeInTheDocument();
+  });
+
+  it("filters the list by lifecycle stage", async () => {
+    renderWithQuery(<ContactsView accountId="1" />);
+    const hot = await screen.findByRole("button", { name: /Muy interesado/ });
+    expect(hot).toHaveTextContent("🔥 Muy interesado1");
+    fireEvent.click(hot);
+    await waitFor(() => expect(lastStage).toBe("hot_lead"));
+    expect(hot).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(hot);
+    await waitFor(() => expect(lastStage).toBeNull());
   });
 
   it("filters the list when a company chip is clicked", async () => {

@@ -80,6 +80,7 @@ export const contacts: Strings<typeof es> = {
   deleteSegment: "Supprimer le segment {name}",
   noResults: "Aucun résultat pour « {query} ».",
   noneInCompany: "Aucun contact chez {company}.",
+  noneInStage: "Aucun contact à cette étape.",
   pageOfOne: "Page {n} sur {pages} · {count} contact",
   pageOfMany: "Page {n} sur {pages} · {count} contacts",
   deleteConfirm: "Supprimer le contact « {name} » ?",
