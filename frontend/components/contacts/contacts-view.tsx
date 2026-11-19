@@ -214,7 +214,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
                     : "border-glass bg-field text-fg-muted hover:bg-hover-glass",
                 )}
               >
-                {s.emoji ? `${s.emoji} ${s.name}` : s.name}
+                {s.name}
                 <span className="font-numeric tabular-nums text-fg-muted">{s.count}</span>
                 {on ? <X className="h-3 w-3" aria-hidden /> : null}
               </button>

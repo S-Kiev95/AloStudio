@@ -208,7 +208,7 @@ async def test_moving_a_contact_leaves_a_line_and_the_history(client, db_session
     ).all()
     hot = t(DEFAULT_LOCALE, "lifecycle.default.hot_lead.name")
     assert lines[-2:] == [
-        t(DEFAULT_LOCALE, "lifecycle.activity", name="Sofía", stage=f"🔥 {hot}"),
+        t(DEFAULT_LOCALE, "lifecycle.activity", name="Sofía", stage=hot),
         t(DEFAULT_LOCALE, "lifecycle.activity_cleared", name="Sofía"),
     ]
     history = (
@@ -305,3 +305,16 @@ async def test_the_contacts_list_filters_by_stage(client, db_session, seeded):
     assert (await client.get(f"{url}?stage=customer", headers=headers)).json()["payload"] == []
     everyone = (await client.get(url, headers=headers)).json()
     assert {c["name"] for c in everyone["payload"]} >= {"Lucía Pereira", "Pedro Gómez"}
+
+
+async def test_stages_carry_no_emojis(client, db_session, seeded):
+    admin_h = await _headers(db_session, seeded["admin"])
+    url = f"{seeded['base']}/settings"
+    shown = (await client.get(url, headers=admin_h)).json()
+    assert {s["emoji"] for s in shown["stages"]} == {""}
+    saved = await client.put(
+        url,
+        json={"enabled": True, "stages": [{**shown["stages"][0], "emoji": "🎓"}]},
+        headers=admin_h,
+    )
+    assert saved.json()["stages"][0]["emoji"] == ""

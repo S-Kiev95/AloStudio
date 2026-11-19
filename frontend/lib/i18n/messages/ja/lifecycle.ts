@@ -14,7 +14,6 @@ export const lifecycle: Strings<typeof es> = {
     enabled: "ステージを使う",
     enabledHint: "会話と連絡先のページにステージを表示します。初めて連絡してきた人は最初のステージに入ります。",
     stagesHint: "最大20件、順番どおり。失注ステージは離脱した人の行き先で、進捗には数えません。名前を変えても、連絡先はそのステージのままです。",
-    emoji: "ステージ{n}の絵文字",
     name: "ステージ{n}の名前",
     kind: "ステージ{n}の種類",
     description: "ステージ{n}の説明",

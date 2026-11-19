@@ -14,7 +14,6 @@ export const lifecycle: Strings<typeof es> = {
     enabled: "Utiliser les étapes",
     enabledHint: "Affiche l'étape dans la conversation et sur la fiche du contact. Un contact qui écrit pour la première fois entre dans l'étape de départ.",
     stagesHint: "Jusqu'à 20, dans l'ordre. Les étapes perdues sont celles où les gens abandonnent : elles ne comptent pas comme un progrès. Si vous en renommez une, ses contacts y restent.",
-    emoji: "Emoji de l'étape {n}",
     name: "Nom de l'étape {n}",
     kind: "Type de l'étape {n}",
     description: "Description de l'étape {n}",
