@@ -1,6 +1,14 @@
 "use client";
 
-import { Megaphone, Search, SlidersHorizontal, X } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronsRight,
+  type LucideIcon,
+  Megaphone,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
@@ -33,6 +41,7 @@ import { ConversationFilters } from "./conversation-filters";
 import { Highlighted } from "./highlighted";
 import { PanelLeftClose, useInboxPanels } from "./inbox-shell";
 import { useLocale, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 const STATUS_PILLS = [
   { key: "open", label: "conversations.list.status.open" },
@@ -666,6 +675,28 @@ function FilterButton({
   );
 }
 
+// The conversation's priority, as an arrow before the date (the director
+// sorts chats for the team): its color says how much it matters, and
+// Urgente gets a double one. Nothing when it has none.
+const PRIORITY_MARKS: Record<string, { Icon: LucideIcon; className: string; label: MessageKey }> = {
+  urgent: { Icon: ChevronsRight, className: "text-danger", label: "conversations.priority.urgent" },
+  high: { Icon: ChevronRight, className: "text-warning", label: "conversations.priority.high" },
+  medium: { Icon: ChevronRight, className: "text-fg", label: "conversations.priority.medium" },
+  low: { Icon: ChevronRight, className: "text-fg-muted", label: "conversations.priority.low" },
+};
+
+function PriorityMark({ priority }: { priority: string | null }) {
+  const t = useT();
+  const mark = priority ? PRIORITY_MARKS[priority] : undefined;
+  if (!mark) return null;
+  const label = t("conversations.list.priority", { level: t(mark.label) });
+  return (
+    <mark.Icon className={cn("h-4 w-4 shrink-0", mark.className)} strokeWidth={2.5} aria-label={label}>
+      <title>{label}</title>
+    </mark.Icon>
+  );
+}
+
 function ConversationRow({
   accountId,
   conv,
@@ -756,6 +787,7 @@ function ConversationRow({
                 </title>
               </Megaphone>
             ) : null}
+            <PriorityMark priority={conv.priority} />
             <span className="shrink-0 font-numeric text-[11px] tabular-nums text-fg-muted">
               {shortDate(conv.last_activity_at || conv.timestamp, locale)}
             </span>

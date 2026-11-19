@@ -135,6 +135,7 @@ export const conversations: Strings<typeof es> = {
     select: "Select {name}",
     cameFrom: "Came from {source}",
     anAd: "an ad",
+    priority: "Priority: {level}",
     privateNote: "Private note",
     related: "Related",
   },
