@@ -38,7 +38,7 @@ En la conversación, arriba, el campo Asignado elige el agente y el campo Equipo
 
 ## Etiquetas y prioridad
 pantallas: bandeja, ajustes_etiquetas
-En la conversación, arriba, + Etiqueta agrega una etiqueta y Prioridad marca la urgencia. Las etiquetas se crean en Ajustes → Etiquetas (administradores).
+En la conversación, arriba, + Etiqueta agrega una etiqueta y Prioridad marca la urgencia. En la lista de conversaciones, la flecha al lado de la fecha muestra la prioridad: roja y doble es Urgente, amarilla Alta, normal Media y gris Baja; sin prioridad no hay flecha. Las etiquetas se crean en Ajustes → Etiquetas (administradores).
 
 ## Resolver y reabrir
 pantallas: bandeja
