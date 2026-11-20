@@ -2,9 +2,10 @@
 # The local model behind the help assistant (Ayuda), as a Docker container.
 #
 #   bash ops/llm/levantar.sh            # Qwen3 4B Instruct, the one evaluated
+#   THREADS=3 bash ops/llm/levantar.sh  # leave a core for the rest (CTC)
 #
 # Then set LOCAL_LLM_URL=http://127.0.0.1:8092 in Ajustes → Instalación.
-# It uses 4 CPUs and about 5 GB of RAM. Two slots of 6144 tokens each: the
+# It uses 4 CPUs (THREADS) and about 5 GB of RAM. Two slots of 6144 tokens each: the
 # help keeps its long beginning read in slot 0 (about 3 minutes the first
 # time; the worker re-reads it every 5 minutes if needed) and classifying
 # conversations (F10) uses slot 1, so it never evicts the help.
@@ -12,6 +13,7 @@
 set -euo pipefail
 
 MODELS="${MODELS:-$HOME/llm/models}"
+THREADS="${THREADS:-4}"
 REPO="unsloth/Qwen3-4B-Instruct-2507-GGUF"
 FILE="Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 # The llama.cpp build that was evaluated (build 12464, commit d3c3e242c).
@@ -25,9 +27,9 @@ if [ ! -s "$MODELS/$FILE" ]; then
 fi
 
 docker rm -f alostudio-llm >/dev/null 2>&1 || true
-docker run -d --name alostudio-llm --restart unless-stopped --cpus=4 \
+docker run -d --name alostudio-llm --restart unless-stopped --cpus="$THREADS" \
   -p 127.0.0.1:8092:8080 -v "$MODELS":/models:ro "$IMAGE" \
-  -m "/models/$FILE" -t 4 -c 12288 -np 2 --jinja >/dev/null
+  -m "/models/$FILE" -t "$THREADS" -c 12288 -np 2 --jinja >/dev/null
 
 for _ in $(seq 1 90); do
   if curl -sf http://127.0.0.1:8092/health >/dev/null; then
