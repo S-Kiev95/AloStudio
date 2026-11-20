@@ -316,6 +316,15 @@ async def _on_terminate(
     )
 
 
+# Meta's reference says ``call_transcription_available``; what it really
+# sends (staging, 2026-11-20) is ``call_transcript_available``. Both count.
+_MEDIA_EVENTS = (
+    "call_recording_available",
+    "call_transcript_available",
+    "call_transcription_available",
+)
+
+
 async def process_calls_value(
     session: AsyncSession,
     *,
@@ -357,7 +366,7 @@ async def process_calls_value(
                     )
                 elif event == "terminate":
                     await _on_terminate(session, item=item, errors=errors or [])
-                elif event in ("call_recording_available", "call_transcription_available"):
+                elif event in _MEDIA_EVENTS:
                     await _on_media(session, channel=channel, item=item)
         except Exception:
             log.exception(
