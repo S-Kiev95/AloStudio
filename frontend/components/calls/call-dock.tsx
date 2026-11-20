@@ -139,6 +139,9 @@ export function CallDock({ accountId }: { accountId: string }) {
     (c) =>
       c.status === "ringing" &&
       c.can_answer &&
+      // The one I am answering: it shows as my call already, even before
+      // Meta confirms it, so its "Atender" card goes at once.
+      c.id !== session?.callId &&
       !ignored.includes(c.id) &&
       ringsForMe(c, me, busy),
   );
