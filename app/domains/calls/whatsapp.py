@@ -337,6 +337,14 @@ async def process_calls_value(
         if not isinstance(item, dict):
             continue
         event = item.get("event")
+        # What Meta sends for each call (no audio, text or numbers): enough
+        # to tell a missing transcript from one we failed to read.
+        log.info(
+            "calls.whatsapp.event event=%s call=%s fields=%s",
+            event,
+            item.get("id"),
+            ",".join(sorted(k for k in item if k not in ("from", "to", "session"))),
+        )
         try:
             async with session.begin_nested():
                 if event == "connect":
