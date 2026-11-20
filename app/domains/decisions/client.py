@@ -47,7 +47,8 @@ class Decisions:
     answers: dict[str, Answer] = field(default_factory=dict)
     input_tokens: int = 0
     output_tokens: int = 0
-    # Why it picked the urgency, when the model says (the local one does).
+    # What the customer wants, in a few words, when the model says it (the
+    # local one does, before it picks; it goes into the priority's line).
     reason: str = ""
 
 

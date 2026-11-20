@@ -2,8 +2,8 @@
 
 Enqueued, deferred, when a customer writes; see
 :mod:`app.domains.decisions.service`. The conversation is read, then the
-session is closed while the service or the model answers (a minute on the
-local one), and the answers are stored in a new one. The local model decides
+session is closed while the service or the model answers (half a minute on
+the local one), and the answers are stored in a new one. The local model decides
 one conversation at a time: the next one is tried again later (ARQ
 ``Retry``) instead of waiting in a worker slot. If the customer wrote while
 it was deciding, it decides again with that.

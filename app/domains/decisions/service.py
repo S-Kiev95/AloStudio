@@ -68,7 +68,7 @@ STATE_MAX_CHARS = 6000
 # The local model reads ~12 tokens a second: a shorter end of the chat.
 LOCAL_STATE_MAX_CHARS = 2500
 # A burst of messages is decided once, this long after the first (longer
-# for the local model, which takes a minute per conversation).
+# for the local model, which decides one conversation at a time).
 DECIDE_DELAY_SECONDS = 45
 LOCAL_DECIDE_DELAY_SECONDS = 120
 
@@ -279,7 +279,7 @@ def _cost(model: str | None, input_tokens: int) -> Decimal | None:
 @dataclass
 class Prepared:
     """What a decision needs, read before asking: the database is not held
-    while the model thinks (a minute on the local one)."""
+    while the model thinks (up to half a minute on the local one)."""
 
     account_id: int
     conversation_id: int

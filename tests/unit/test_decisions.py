@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.domains.decisions import local
 from app.domains.decisions.anonymize import anonymize
 from app.domains.decisions.client import parse
 from app.domains.decisions.questions import (
@@ -110,3 +111,33 @@ def test_speaker_labels_survive_a_user_called_cliente():
     ]
     text = _transcript(messages, ["Cliente Demo", "Ana"])  # type: ignore[arg-type]
     assert text.splitlines() == ["Cliente: Hola, soy [nombre]. ¿Precio?", "Agente: Hola [nombre], te paso el precio"]
+
+
+def test_the_local_model_reads_the_urgency_from_the_most_urgent():
+    criteria = {"baja": "b", "otra": "o", "media": "m", "urgente": "u", "nada": "n", "alta": "a"}
+    listed = [k for k, _ in local._listed("urgency", criteria)]
+    # Those that set no priority after them, in their order.
+    assert listed == ["urgente", "alta", "media", "baja", "otra", "nada"]
+    assert [k for k, _ in local._listed("intent", criteria)] == list(criteria)
+
+
+def test_the_local_reason_ends_at_a_whole_word():
+    assert local._reason(None) == ""
+    assert local._reason("  Quiere   anotarse ") == "Quiere anotarse"
+    words = "Quiere anotarse el año que viene y pregunta por cupos " * 3
+    # Stopped at the limit in the middle of a word, with a stray character.
+    cut = words[: local.REASON_MAX - 1] + "亟"
+    assert local._reason(cut) == words[: local.REASON_MAX - 1].rsplit(" ", 1)[0] + "…"
+    # A doubled space does not hide that it was stopped.
+    spaced = local._reason(("Quiere  anotarse " + words)[: local.REASON_MAX - 1] + "亟")
+    assert spaced.endswith("…") and "亟" not in spaced
+    # With no space to cut at.
+    assert local._reason("報" * local.REASON_MAX) == "報" * (local.REASON_MAX - 1) + "…"
+
+
+def test_a_phone_the_cut_would_shorten_still_comes_out():
+    tail = " al 099 123 45"
+    reason = ("Pide que lo llamen por la inscripción " * 4)[: local.REASON_MAX - len(tail)] + tail
+    assert len(reason) == local.REASON_MAX
+    out = local._reason(reason)
+    assert "099" not in out and "123" not in out and out.endswith("…")

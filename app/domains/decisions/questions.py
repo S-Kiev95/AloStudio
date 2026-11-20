@@ -56,7 +56,7 @@ DEFAULT_QUESTIONS: list[dict[str, Any]] = [
     {
         "key": "urgency",
         "enabled": True,
-        "instructions": "¿Qué tan urgente es responderle?",
+        "instructions": "Según las reglas de cada opción, ¿qué prioridad tiene esta conversación?",
         "options": [
             {"key": "baja", "description": "Puede esperar a mañana"},
             {"key": "media", "description": "Conviene responder hoy"},

@@ -331,6 +331,9 @@ function Setup({ accountId }: { accountId: string }) {
                   {t("decisions.addOption")}
                 </Button>
                 <p className="text-xs text-fg-muted">{t("decisions.optionsHint")}</p>
+                {provider === "local" && q.key === URGENCY_QUESTION ? (
+                  <p className="text-xs text-fg-muted">{t("decisions.urgencyRulesHint")}</p>
+                ) : null}
               </div>
             )}
           </CardContent>

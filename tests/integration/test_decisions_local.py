@@ -221,15 +221,19 @@ async def test_the_local_model_decides_in_its_slot_with_the_business_context(db_
     sent = json.loads(route.calls[0].request.content)
     # Its own slot: the help assistant keeps slot 0.
     assert sent["id_slot"] == 1
+    # No sampling: the same conversation gets the same pick.
+    assert sent["temperature"] == 0
     system, user = sent["messages"][0]["content"], sent["messages"][1]["content"]
     assert "las inscripciones para el año siguiente son urgentes" in system
-    assert "- urgente:" in system
+    # The urgency from the most to the least urgent.
+    assert system.index("- urgente:") < system.index("- alta:") < system.index("- media:") < system.index("- baja:")
     assert user.startswith("Hoy es ")
     # Anonymized, like for the decisions service.
     assert "Lucía" not in user and "Cliente:" in user
     schema = sent["response_format"]["json_schema"]["schema"]
     assert schema["properties"]["urgency"]["enum"] == ["baja", "media", "alta", "urgente"]
-    assert "Motivo" in schema["required"]
+    # The reason first: the model says what the customer wants, then picks.
+    assert next(iter(schema["properties"])) == "Motivo" and schema["required"][0] == "Motivo"
     usage = (
         await db_session.exec(
             select(UsageRecord).where(UsageRecord.account_id == seeded["owner"].account.id)
@@ -267,6 +271,23 @@ async def test_a_question_called_motivo_still_gets_its_answer(db_session, seeded
     schema = json.loads(route.calls[0].request.content)["response_format"]["json_schema"]["schema"]
     assert schema["properties"]["motivo"]["enum"] == ["consulta", "queja"]
     assert {d.question: d.answer for d in stored}["motivo"] == "consulta"
+
+
+@respx.mock
+async def test_a_reason_cut_by_the_grammar_ends_at_a_whole_word(db_session, seeded, qwen):
+    await _turn_on(db_session, seeded, apply_priority=True)
+    _two_slots()
+    # Stopped at the limit in the middle of a word, with a stray character.
+    cut = ("Quiere anotarse el año que viene y pregunta por cupos " * 3)[: local.REASON_MAX - 1] + "亟"
+    respx.post(LLM).mock(return_value=_qwen_says(**_answers("urgente", cut)))
+    conversation = seeded["conversation"]
+
+    await decisions.decide(db_session, conversation)
+
+    line = next(x for x in await _activities(db_session, conversation) if x.startswith("La IA"))
+    reason = line.split(": ", 1)[1]
+    assert reason.endswith("cupos Quiere…") and "亟" not in reason
+    assert cut.startswith(reason[:-1])
 
 
 @respx.mock

@@ -677,10 +677,32 @@ dentro de la rama.
     - Cuatro ejemplos en el contexto («me quiero anotar al taller…» →
       urgente): 13 de 14, unos 11 s (la primera, 25 a 55 s: lee las
       reglas).
-  - **Falta:** pasar al código lo que funcionó (motivo primero y corto,
-    recortado en una palabra entera; urgencia de mayor a menor); en
-    Ajustes, guiar a escribir las reglas en cada opción y ejemplos en el
-    contexto; medir con conversaciones reales contra lo que marca el
+  - **En el código (2026-11-20):** el motivo va primero, en una frase
+    corta, y se recorta en una palabra entera después de tapar números,
+    correos y enlaces; la urgencia se le muestra de mayor a menor; clasifica
+    sin azar (temperatura 0: la misma conversación da lo mismo y la
+    prioridad no salta cada vez que el cliente escribe); la pregunta de
+    urgencia de fábrica pasa a ser "Según las reglas de cada opción, ¿qué
+    prioridad tiene esta conversación?". En Ajustes, con el modelo local,
+    una nota pide escribir la regla en cada opción de urgencia y el
+    contexto pide la temporada y ejemplos. Verificado con el Qwen real en
+    el servidor de pruebas: siguiendo esas notas, 12 de 14 (las dudosas,
+    repetidas, dan siempre lo mismo); con las reglas solo en el contexto,
+    11 de 14. Sigue fallando "quiero anotarme en el curso de Excel que
+    empieza en marzo" y "¿qué carreras tienen? Estoy viendo opciones para
+    el año que viene" (las dos, media). Con un "Hola" solo, el motivo puede
+    ser inventado ("Pide información sobre horarios de clases").
+  - Las cuentas que ya guardaron la clasificación conservan la pregunta de
+    urgencia vieja (la cuenta 1 del servidor de pruebas; CTC, si ya la
+    guardó, porque `main` tiene la clasificación): si pasan al
+    modelo local, cambiarla a mano. El acuerdo de 30 días de Resultados
+    mezcla decisiones de antes y de después del cambio. Etiquetar y
+    Resultados no muestran qué prioridad pone cada opción de urgencia
+    (`setsPriority`, como en Configuración).
+  - **Para el agente B:** el texto de la pregunta de urgencia de fábrica
+    cambió (solo para las cuentas que no guardaron la suya); Jev la recibe
+    así en esas cuentas.
+  - **Falta:** medir con conversaciones reales contra lo que marca el
     director; para CTC, llevar la Ayuda con Qwen a `main` e instalar el
     modelo allá (unos 5 GB de RAM de los 6,5 libres). Mirar ahí la CPU:
     con el mismo largo, una clasificación tardó de 7 a 34 s según lo que

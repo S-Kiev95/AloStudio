@@ -1,11 +1,13 @@
 """Decisions by the small model running next to AloStudio (F10).
 
 Qwen (:mod:`app.core.local_llm`) instead of the decisions service: free and
-slower (about a minute a conversation on a 4-core VPS). Unlike the service,
-it reads what the account says about its business and today's date, so a
-seasonal rule holds ("in November and December, enrolling for next year is
-urgent"). A grammar forces the answer: one of the options per question, and
-a short reason that goes into the conversation when it sets the priority.
+slower (10 to 30 seconds a conversation on a 4-core VPS; the first one, up to
+a minute, reads the rules). Unlike the service, it reads what the account
+says about its business and today's date, so a seasonal rule holds ("in
+November and December, enrolling for next year is urgent"). A grammar forces
+the answer: first a short reason (what the customer wants: having said it,
+the model picks better; it goes into the conversation when it sets the
+priority), then one of the options per question.
 
 It works in its own slot of llama-server, so the help assistant keeps its
 long prompt read in the other (a server with one slot is refused at once:
@@ -22,7 +24,10 @@ from typing import Any
 
 from app.core import local_llm
 from app.core.config import get_settings
+from app.domains.conversations.models import conversation_priority_from_str
+from app.domains.decisions.anonymize import anonymize
 from app.domains.decisions.client import Answer, Decisions, DecisionsError
+from app.domains.decisions.questions import PRIORITY_BY_URGENCY, URGENCY_QUESTION
 
 REASON_MAX = 120
 MAX_TOKENS = 200
@@ -58,29 +63,62 @@ def _system(context: str, questions: dict[str, dict[str, Any]]) -> str:
         "Clasificás conversaciones de atención al cliente de un negocio.",
         "Para cada pregunta elegí la opción que mejor describe la conversación. "
         "La descripción de cada opción es la regla del negocio: seguila.",
-        f'En "{REASON_KEY}" decí en pocas palabras por qué elegiste la urgencia, '
-        "sin nombres ni datos del cliente.",
+        f'Primero, en "{REASON_KEY}", decí en una frase corta (menos de 15 palabras) '
+        "qué pide el cliente y qué regla aplica, sin nombres ni datos del cliente. "
+        "Después elegí las opciones.",
     ]
     if context:
         lines += ["", "Lo que tenés que saber del negocio:", context]
     for key, question in questions.items():
         lines += ["", f"Pregunta {key}: {question['instructions']}"]
-        lines += [f"- {option}: {text}" for option, text in question["criteria"].items()]
+        lines += [f"- {option}: {text}" for option, text in _listed(key, question["criteria"])]
     return "\n".join(lines)
 
 
+def _listed(key: str, criteria: dict[str, str]) -> list[tuple[str, str]]:
+    """The options as the model reads them. The urgency's go from the most to
+    the least urgent: listed the other way, it hardly ever picked the top one.
+    Those that set no priority go after them, in their order."""
+    options = list(criteria.items())
+    if key != URGENCY_QUESTION:
+        return options
+
+    def rank(option: tuple[str, str]) -> int:
+        level = conversation_priority_from_str(PRIORITY_BY_URGENCY.get(option[0]))
+        return -level if level is not None else 1
+
+    return sorted(options, key=rank)
+
+
 def _schema(questions: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    properties: dict[str, Any] = {
-        key: {"type": "string", "enum": list(question["criteria"])}
-        for key, question in questions.items()
-    }
-    properties[REASON_KEY] = {"type": "string", "maxLength": REASON_MAX}
+    # The reason first (the grammar writes the keys in this order): having
+    # said what the customer wants, the model picks better, and writes less.
+    properties: dict[str, Any] = {REASON_KEY: {"type": "string", "maxLength": REASON_MAX}}
+    for key, question in questions.items():
+        properties[key] = {"type": "string", "enum": list(question["criteria"])}
     return {
         "type": "object",
         "properties": properties,
-        "required": [*questions, REASON_KEY],
+        "required": [REASON_KEY, *questions],
         "additionalProperties": False,
     }
+
+
+def _reason(raw: Any) -> str:
+    """On one line. The grammar stops it at ``REASON_MAX``, maybe in the
+    middle of a word (and the model squeezes a stray character in, even a
+    Chinese one): back to the last whole word. Long numbers, emails and links
+    come out first, so a phone the cut shortens is still caught (the names
+    come out in ``service.store``)."""
+    text = str(raw or "")
+    cut = len(text) >= REASON_MAX
+    text = " ".join(anonymize(text).split())
+    if not cut:
+        return text
+    head, space, _ = text.rpartition(" ")
+    if not space:
+        head = text[: REASON_MAX - 1]
+    return head.rstrip(",;:. ") + "…"
 
 
 async def ask(
@@ -104,6 +142,9 @@ async def ask(
             raw, timings = await local_llm.chat(
                 messages,
                 max_tokens=MAX_TOKENS,
+                # The same conversation, the same pick: the priority does not
+                # go back and forth each time the customer writes.
+                temperature=0.0,
                 json_schema=_schema(questions),
                 slot=local_llm.DECISIONS_SLOT,
             )
@@ -120,7 +161,7 @@ async def ask(
         },
         input_tokens=int(timings.get("prompt_n") or 0) + int(timings.get("cache_n") or 0),
         output_tokens=int(timings.get("predicted_n") or 0),
-        reason=" ".join(str(reply.get(REASON_KEY) or "").split())[:REASON_MAX],
+        reason=_reason(reply.get(REASON_KEY)),
     )
 
 

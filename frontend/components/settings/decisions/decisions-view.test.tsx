@@ -142,7 +142,18 @@ describe("DecisionsView", () => {
           model: "jev-latest",
           context: "",
           apply_priority: false,
-          questions: [urgency],
+          questions: [
+            {
+              key: "intent",
+              enabled: true,
+              instructions: "¿Qué quiere el cliente?",
+              options: [
+                { key: "precios", description: "Pregunta precios" },
+                { key: "otro", description: "Otra cosa" },
+              ],
+            },
+            urgency,
+          ],
         }),
       ),
     );
@@ -153,8 +164,12 @@ describe("DecisionsView", () => {
     expect(screen.getByText("Prioridad Baja")).toBeInTheDocument();
     // Jev isn't set up here: said next to it.
     expect(screen.getByText("No está configurado")).toBeInTheDocument();
+    expect(screen.queryByText(/escribí en cada opción qué conversaciones van ahí/)).toBeNull();
 
     fireEvent.click(screen.getByRole("radio", { name: /Modelo local \(Qwen/ }));
+    // The local model follows each urgency option as a rule: said there,
+    // and only there (getByText fails on two).
+    expect(screen.getByText(/escribí en cada opción qué conversaciones van ahí/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Lo que la IA tiene que saber del negocio"), {
       target: { value: "En enero el instituto está cerrado." },
     });
