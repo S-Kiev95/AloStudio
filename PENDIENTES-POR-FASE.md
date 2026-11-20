@@ -657,13 +657,36 @@ dentro de la rama.
   líneas de actividad (como Chatwoot). Migración `d3f5b7c9e1a2`. Para el
   agente B: toca `local_llm.chat` (`slot`, `slot_count`), la Ayuda (lugar
   0) y `levantar.sh` (dos lugares, ver `ops/llm/README.md`).
-  - **Falta:** volver a levantar Qwen con dos lugares en el servidor de
-    pruebas, probar con conversaciones reales y medir contra lo que marca
-    el director; para CTC, llevar la Ayuda con Qwen a `main` e instalar el
-    modelo allá (unos 5 GB de RAM de los 6,5 libres). Mirar ahí la CPU
-    (cada clasificación usa los 4 núcleos un minuto: quizás `-t 3`) y la
-    memoria de llama-server (`docker stats`). Si la bandeja no tiene zona
-    horaria, "hoy" es el de UTC (de 21 a 24 en Uruguay, ya es mañana).
+  - **Probado en el servidor de pruebas (2026-11-20, `6c14033`):** Qwen
+    con dos lugares (`total_slots` 2, 4,8 GiB en `docker stats`). La Ayuda
+    no pierde lo leído mientras se clasifica: sus 2945 tokens del principio
+    salen del caché y lee de nuevo solo la pregunta. Contesta en unos 30 s,
+    y en 78 s si justo se está clasificando (escribe a menos de 2 tokens
+    por segundo). Con 14 conversaciones inventadas tipo CTC (guiones y
+    resultados en `~/pruebas/prioridad` del servidor), cada ajuste sumado
+    al anterior:
+    - Tal como quedó, con las reglas en el contexto: 7 de 14. Nunca elige
+      `urgente` (el director la usa en 12 de 15), tarda unos 16 s por
+      conversación y el motivo se corta a los 120 caracteres a mitad de
+      palabra, a veces con un carácter chino (`亟`, `價`).
+    - Las reglas en la descripción de cada opción de urgencia: 9 de 14.
+    - El motivo primero, en una frase corta: 9 de 14, unos 12 s, sin cortes.
+    - Las opciones de mayor a menor y la pregunta "Según las reglas de cada
+      opción, ¿qué prioridad tiene esta conversación?": 11 de 14, ya elige
+      `urgente`.
+    - Cuatro ejemplos en el contexto («me quiero anotar al taller…» →
+      urgente): 13 de 14, unos 11 s (la primera, 25 a 55 s: lee las
+      reglas).
+  - **Falta:** pasar al código lo que funcionó (motivo primero y corto,
+    recortado en una palabra entera; urgencia de mayor a menor); en
+    Ajustes, guiar a escribir las reglas en cada opción y ejemplos en el
+    contexto; medir con conversaciones reales contra lo que marca el
+    director; para CTC, llevar la Ayuda con Qwen a `main` e instalar el
+    modelo allá (unos 5 GB de RAM de los 6,5 libres). Mirar ahí la CPU:
+    con el mismo largo, una clasificación tardó de 7 a 34 s según lo que
+    hacía el resto del servidor (quizás `-t 3`). Mirar también la memoria
+    de llama-server. Si la bandeja no tiene zona horaria, "hoy" es el de
+    UTC (de 21 a 24 en Uruguay, ya es mañana).
   - **Al mezclar `feat/agente-ia` a `develop`:** su migración
     `b1d3f5a7c9e2` también cuelga de `b1c2d3e4f5a8`; encadenarla detrás de
     `d3f5b7c9e1a2` para que quede una sola cabeza.
