@@ -702,13 +702,20 @@ dentro de la rama.
   - **Para el agente B:** el texto de la pregunta de urgencia de fábrica
     cambió (solo para las cuentas que no guardaron la suya); Jev la recibe
     así en esas cuentas.
+  - **En CTC desde el 2026-11-20 (01:48, con respaldo
+    `~/backups/alostudio-antes-qwen-20261120-0148.dump`), experimental con
+    aviso al director:** develop entero a `main` (`eb423fa`; trae también
+    el botón IA de la caja de texto, apagado hasta que lo prenda el
+    superadmin). Qwen con `THREADS=3 bash ops/llm/levantar.sh` (dos
+    lugares, 3,5 GiB; quedan unos 3 GiB libres) y `LOCAL_LLM_URL` en
+    Instalación. La clasificación la prende el director en Ajustes →
+    Clasificación; el «?» ya ofrece Free (Qwen) y Fast (OpenAI, con
+    permiso del administrador). El Agente de la barra lateral sigue con
+    OpenAI: Qwen 4B no maneja bien las herramientas.
   - **Falta:** medir con conversaciones reales contra lo que marca el
-    director; para CTC, llevar la Ayuda con Qwen a `main` e instalar el
-    modelo allá (unos 5 GB de RAM de los 6,5 libres). Mirar ahí la CPU:
-    con el mismo largo, una clasificación tardó de 7 a 34 s según lo que
-    hacía el resto del servidor (quizás `-t 3`). Mirar también la memoria
-    de llama-server. Si la bandeja no tiene zona horaria, "hoy" es el de
-    UTC (de 21 a 24 en Uruguay, ya es mañana).
+    director (Resultados, y las correcciones). Mirar la CPU y la memoria
+    de llama-server en CTC estos días. Si la bandeja no tiene zona
+    horaria, "hoy" es el de UTC (de 21 a 24 en Uruguay, ya es mañana).
   - **Al mezclar `feat/agente-ia` a `develop`:** su migración
     `b1d3f5a7c9e2` también cuelga de `b1c2d3e4f5a8`; encadenarla detrás de
     `d3f5b7c9e1a2` para que quede una sola cabeza.
