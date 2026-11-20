@@ -75,6 +75,7 @@ const server = setupServer(
         },
       ],
       month: { calls: 4, cost_usd: 0.000084 },
+      priority: { set_by_ai: 5, changed_by_others: 1 },
     }),
   ),
 );
@@ -121,6 +122,100 @@ describe("DecisionsView", () => {
     expect(body.questions[1].options).toEqual([]);
   });
 
+  it("lets the local model classify with the business context and set the priority", async () => {
+    const urgency = {
+      key: "urgency",
+      enabled: true,
+      instructions: "¿Qué tan urgente es responderle?",
+      options: [
+        { key: "baja", description: "Puede esperar a mañana" },
+        { key: "urgente", description: "Inscripciones para 2027" },
+      ],
+    };
+    server.use(
+      http.get("*/decisions/settings", () =>
+        HttpResponse.json({
+          enabled: true,
+          provider: "api",
+          providers: { api: false, local: true },
+          configured: false,
+          model: "jev-latest",
+          context: "",
+          apply_priority: false,
+          questions: [
+            {
+              key: "intent",
+              enabled: true,
+              instructions: "¿Qué quiere el cliente?",
+              options: [
+                { key: "precios", description: "Pregunta precios" },
+                { key: "otro", description: "Otra cosa" },
+              ],
+            },
+            urgency,
+          ],
+        }),
+      ),
+    );
+    renderView();
+
+    // The urgency options say which priority they set.
+    expect(await screen.findByText("Prioridad Urgente")).toBeInTheDocument();
+    expect(screen.getByText("Prioridad Baja")).toBeInTheDocument();
+    // Jev isn't set up here: said next to it.
+    expect(screen.getByText("No está configurado")).toBeInTheDocument();
+    expect(screen.queryByText(/escribí en cada opción qué conversaciones van ahí/)).toBeNull();
+
+    fireEvent.click(screen.getByRole("radio", { name: /Modelo local \(Qwen/ }));
+    // The local model follows each urgency option as a rule: said there,
+    // and only there (getByText fails on two).
+    expect(screen.getByText(/escribí en cada opción qué conversaciones van ahí/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Lo que la IA tiene que saber del negocio"), {
+      target: { value: "En enero el instituto está cerrado." },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Poner la prioridad de la conversación/ }));
+    // The urgency question can set it: no warning.
+    expect(screen.queryByText(/Para poner la prioridad/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(await screen.findByText("Guardado.")).toBeInTheDocument();
+    expect(savedSettings).toMatchObject({
+      enabled: true,
+      provider: "local",
+      context: "En enero el instituto está cerrado.",
+      apply_priority: true,
+    });
+  });
+
+  it("warns when the urgency question can't set the priority", async () => {
+    server.use(
+      http.get("*/decisions/settings", () =>
+        HttpResponse.json({
+          enabled: true,
+          provider: "local",
+          providers: { api: false, local: true },
+          configured: true,
+          model: "qwen3-4b",
+          context: "",
+          apply_priority: true,
+          questions: [
+            {
+              key: "urgency",
+              enabled: false,
+              instructions: "¿Qué tan urgente es responderle?",
+              options: [
+                { key: "baja", description: "Puede esperar" },
+                { key: "urgente", description: "Ya" },
+              ],
+            },
+          ],
+        }),
+      ),
+    );
+    renderView();
+    expect(await screen.findByText(/Para poner la prioridad, la pregunta de urgencia/)).toBeInTheDocument();
+  });
+
   it("labels a conversation without showing the service's answer", async () => {
     renderView();
     fireEvent.click(await screen.findByRole("tab", { name: "Etiquetar" }));
@@ -148,5 +243,8 @@ describe("DecisionsView", () => {
     expect(screen.getByText(/Pregunta precios, cuotas o formas de pago · 3/)).toBeInTheDocument();
     expect(screen.getByText("Costo del mes (4 consultas)")).toBeInTheDocument();
     expect(screen.getByText(/menos de US\$\s?0,01/)).toBeInTheDocument();
+    expect(
+      screen.getByText("La IA puso la prioridad en 5 conversaciones; una persona o una regla la cambió en 1."),
+    ).toBeInTheDocument();
   });
 });

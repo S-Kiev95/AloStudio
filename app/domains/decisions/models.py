@@ -2,7 +2,12 @@
 
 A decisions service (TypeSafe's Jev today, a local Laya later: both answer
 ``POST /v1/systemone``) reads a conversation and picks, for each question the
-account asks, one of a few options: intent, sentiment, urgency, team.
+account asks, one of a few options: intent, sentiment, urgency, team. Or the
+small model running next to AloStudio (Qwen, ``app.core.local_llm``), free,
+which also reads what the account says about its business.
+
+With ``apply_priority`` the urgency it picks becomes the conversation's
+priority, until someone else changes it (:class:`PriorityOwner`).
 
 It runs in shadow first: decisions are stored and measured, nothing in the
 conversation changes. People label conversations themselves, without seeing
@@ -24,6 +29,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlmodel import Field
@@ -49,6 +55,18 @@ class DecisionSettings(TimestampMixin, table=True):
     # means the defaults (:mod:`app.domains.decisions.questions`).
     questions: list[dict[str, Any]] | None = Field(
         default=None, sa_column=Column(JSON(none_as_null=True), nullable=True)
+    )
+    # Who decides: ``api`` (the decisions service: Jev or Laya) or ``local``
+    # (the model on this server).
+    provider: str = Field(
+        default="api", sa_column=Column(String(16), nullable=False, server_default="api")
+    )
+    # What the local model has to know about the business (seasons, rules).
+    context: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    # The urgency it picks sets the conversation's priority (never one a
+    # person set).
+    apply_priority: bool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default="false")
     )
 
 
@@ -83,6 +101,44 @@ class ConversationDecision(TimestampMixin, table=True):
         default=None, sa_column=Column(JSON(none_as_null=True), nullable=True)
     )
     model: str | None = Field(default=None, sa_column=Column(String(128), nullable=True))
+
+
+OWNER_AI = "ai"
+OWNER_OTHER = "other"
+
+
+class PriorityOwner(TimestampMixin, table=True):
+    """Who last set a conversation's priority, for the automatic priority.
+
+    ``ai``: the AI set ``ai_level`` and nobody changed it since, so it may
+    adjust it. ``other``: a person, a rule or a tool changed or cleared it;
+    the AI never touches it again. No row: nobody changed it while this was
+    on, and a priority already there counts as someone else's.
+    ``corrected`` marks that someone changed the AI's priority (to
+    ``corrected_level``; None when cleared): how often is how wrong it is.
+    """
+
+    __tablename__ = "conversation_priority_owners"
+    __table_args__ = (Index("index_conversation_priority_owners_on_account", "account_id"),)
+
+    conversation_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("conversations.id", ondelete="CASCADE"), primary_key=True
+        )
+    )
+    account_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+        )
+    )
+    owner: str = Field(sa_column=Column(String(8), nullable=False))
+    ai_level: str | None = Field(default=None, sa_column=Column(String(16), nullable=True))
+    corrected: bool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default="false")
+    )
+    corrected_level: str | None = Field(
+        default=None, sa_column=Column(String(16), nullable=True)
+    )
 
 
 class HumanDecision(TimestampMixin, table=True):

@@ -174,5 +174,13 @@ export const settingsInstall: Strings<typeof es> = {
       title: "Modèle de l’agent",
       description: "Le modèle OpenAI qu’utilise l’agent de chat, par exemple gpt-5.4-mini (rapide et économique) ou gpt-5.5 (plus performant).",
     },
+    LOCAL_LLM_URL: {
+      title: "IA locale : adresse",
+      description: "L’adresse du modèle qui tourne sur ce serveur (llama.cpp), par exemple http://127.0.0.1:8092. Avec elle apparaît le bouton Aide, qui guide dans AloStudio sans dépenser chez OpenAI. Vide : désactivé.",
+    },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "Aide de l’IA à la rédaction",
+      description: "Ajoute à la zone de saisie un bouton d’IA qui améliore, corrige, change le ton, raccourcit ou traduit ce qu’écrit l’agent, et résume la conversation. Il utilise la clé et le modèle de l’agent ; la dépense apparaît dans Dépenses de chaque compte.",
+    },
   },
 };

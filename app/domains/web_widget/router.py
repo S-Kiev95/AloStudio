@@ -43,6 +43,7 @@ from app.domains.conversations.events import (
 )
 from app.domains.conversations.models import (
     CONVERSATION_STATUS_RESOLVED,
+    MESSAGE_TYPE_ACTIVITY,
     Conversation,
     Message,
 )
@@ -372,7 +373,10 @@ async def widget_messages_index(
 ) -> dict[str, Any]:
     """Mirror ``Api::V1::Widget::MessagesController#index``.
 
-    Filters internal (private) messages — the widget never shows them.
+    Filters internal messages — private notes and activity lines (who
+    assigned, priorities, the AI's notes) — like Chatwoot's MessageFinder
+    with ``filter_internal_messages``; the realtime layer already keeps them
+    from the contact.
     Returns ``[]`` when the visitor has no conversation yet (Rails
     short-circuits with ``conversation.nil? ? [] : ...``).
     """
@@ -383,6 +387,7 @@ async def widget_messages_index(
     stmt = select(Message).where(
         Message.conversation_id == conv.id,
         Message.private.is_(False),
+        Message.message_type != MESSAGE_TYPE_ACTIVITY,
     )
     if before is not None:
         stmt = stmt.where(Message.id < before)  # type: ignore[operator]

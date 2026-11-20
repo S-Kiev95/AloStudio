@@ -18,6 +18,15 @@ from typing import Any
 MAX_OPTIONS = 12
 TEAM_QUESTION = "team"
 NO_TEAM = "ninguno"
+URGENCY_QUESTION = "urgency"
+# The urgency options that set a conversation's priority (``apply_priority``).
+PRIORITY_BY_URGENCY: dict[str, str] = {
+    "baja": "low",
+    "media": "medium",
+    "alta": "high",
+    "urgente": "urgent",
+}
+URGENCY_BY_PRIORITY: dict[str, str] = {v: k for k, v in PRIORITY_BY_URGENCY.items()}
 
 DEFAULT_QUESTIONS: list[dict[str, Any]] = [
     {
@@ -47,11 +56,12 @@ DEFAULT_QUESTIONS: list[dict[str, Any]] = [
     {
         "key": "urgency",
         "enabled": True,
-        "instructions": "¿Qué tan urgente es responderle?",
+        "instructions": "Según las reglas de cada opción, ¿qué prioridad tiene esta conversación?",
         "options": [
             {"key": "baja", "description": "Puede esperar a mañana"},
             {"key": "media", "description": "Conviene responder hoy"},
             {"key": "alta", "description": "Necesita respuesta ya (plazo que vence, problema serio)"},
+            {"key": "urgente", "description": "Lo más urgente: hay que responder antes que todo lo demás"},
         ],
     },
     {
@@ -154,7 +164,10 @@ __all__ = [
     "DEFAULT_QUESTIONS",
     "MAX_OPTIONS",
     "NO_TEAM",
+    "PRIORITY_BY_URGENCY",
     "TEAM_QUESTION",
+    "URGENCY_BY_PRIORITY",
+    "URGENCY_QUESTION",
     "as_service_questions",
     "clean",
     "defaults",

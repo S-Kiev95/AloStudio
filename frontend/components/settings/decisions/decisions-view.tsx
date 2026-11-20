@@ -8,9 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
+  type DecisionProvider,
   type DecisionQuestion,
+  PRIORITY_BY_URGENCY,
   TEAM_QUESTION,
+  URGENCY_QUESTION,
   useDecisionReport,
   useDecisionSettings,
   useNextToLabel,
@@ -18,7 +22,7 @@ import {
   useSaveLabels,
 } from "@/lib/api/decisions";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
-import { translateOr } from "@/lib/i18n/translate";
+import { type MessageKey, translateOr } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 type Tab = "setup" | "label" | "results";
@@ -77,12 +81,18 @@ function Setup({ accountId }: { accountId: string }) {
   const settings = useDecisionSettings(accountId);
   const save = useSaveDecisionSettings(accountId);
   const [enabled, setEnabled] = useState(false);
+  const [provider, setProvider] = useState<DecisionProvider>("api");
+  const [context, setContext] = useState("");
+  const [applyPriority, setApplyPriority] = useState(false);
   const [questions, setQuestions] = useState<DecisionQuestion[]>([]);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!settings.data) return;
     setEnabled(settings.data.enabled);
+    setProvider(settings.data.provider ?? "api");
+    setContext(settings.data.context ?? "");
+    setApplyPriority(settings.data.apply_priority ?? false);
     setQuestions(settings.data.questions);
   }, [settings.data]);
 
@@ -96,6 +106,9 @@ function Setup({ accountId }: { accountId: string }) {
     try {
       await save.mutateAsync({
         enabled,
+        provider,
+        context,
+        apply_priority: applyPriority,
         // Options without text are dropped; the team's come from the teams.
         questions: questions.map((q) =>
           q.key === TEAM_QUESTION
@@ -109,6 +122,13 @@ function Setup({ accountId }: { accountId: string }) {
     }
   }
 
+  // The automatic priority needs the urgency question on, with options it
+  // can turn into a priority (baja, media, alta, urgente).
+  const urgency = questions.find((q) => q.key === URGENCY_QUESTION);
+  const priorityReady = Boolean(
+    urgency?.enabled && urgency.options.some((o) => PRIORITY_BY_URGENCY[o.key]),
+  );
+
   if (settings.isLoading) return <p className="text-sm text-fg-muted">{t("decisions.loading")}</p>;
   if (settings.error || !settings.data) {
     return (
@@ -120,9 +140,9 @@ function Setup({ accountId }: { accountId: string }) {
 
   return (
     <div className="space-y-4">
-      {!settings.data.configured ? (
+      {!(settings.data.providers?.[provider] ?? settings.data.configured) ? (
         <p role="status" className="rounded-panel border border-warning bg-surface-2 p-3 text-sm text-warning">
-          {t("decisions.notConfigured")}{" "}
+          {provider === "local" ? t("decisions.notConfiguredLocal") : t("decisions.notConfigured")}{" "}
           <Link
             href={`/accounts/${accountId}/settings/installation`}
             className="text-lit underline-offset-2 hover:underline"
@@ -146,8 +166,85 @@ function Setup({ accountId }: { accountId: string }) {
             <span>
               <span className="block text-sm font-medium text-fg">{t("decisions.shadow")}</span>
               <span className="block text-xs text-fg-muted">
-                {t("decisions.shadowHint", { model: settings.data.model })}
+                {t("decisions.shadowHint", {
+                  model: settings.data.models?.[provider] ?? settings.data.model,
+                })}
               </span>
+            </span>
+          </label>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("decisions.who")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div role="radiogroup" aria-label={t("decisions.who")} className="space-y-2">
+            {(["api", "local"] as const).map((p) => (
+              <label key={p} className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="radio"
+                  name="decisions-provider"
+                  className="mt-0.5 h-4 w-4 accent-neon"
+                  checked={provider === p}
+                  onChange={() => {
+                    setSaved(false);
+                    setProvider(p);
+                  }}
+                />
+                <span>
+                  <span className="block text-sm font-medium text-fg">
+                    {p === "api" ? t("decisions.providerApi") : t("decisions.providerLocal")}
+                    {settings.data?.providers && !settings.data.providers[p] ? (
+                      <span className="ml-2 text-xs font-normal text-warning">
+                        {t("decisions.unavailable")}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="block text-xs text-fg-muted">
+                    {p === "api" ? t("decisions.providerApiHint") : t("decisions.providerLocalHint")}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {provider === "local" ? (
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-fg-muted" htmlFor="decisions-context">
+                {t("decisions.context")}
+              </label>
+              <Textarea
+                id="decisions-context"
+                rows={4}
+                maxLength={2000}
+                value={context}
+                onChange={(e) => {
+                  setSaved(false);
+                  setContext(e.target.value);
+                }}
+              />
+              <p className="text-xs text-fg-muted">{t("decisions.contextHint")}</p>
+            </div>
+          ) : null}
+          <label className="flex cursor-pointer items-start gap-3 border-t border-glass pt-3">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-neon"
+              checked={applyPriority}
+              onChange={() => {
+                setSaved(false);
+                setApplyPriority((v) => !v);
+              }}
+            />
+            <span>
+              <span className="block text-sm font-medium text-fg">{t("decisions.applyPriority")}</span>
+              <span className="block text-xs text-fg-muted">{t("decisions.applyPriorityHint")}</span>
+              {applyPriority && !priorityReady ? (
+                <span role="status" className="mt-1 block text-xs text-warning">
+                  {t("decisions.priorityNotReady")}
+                </span>
+              ) : null}
             </span>
           </label>
         </CardContent>
@@ -204,6 +301,13 @@ function Setup({ accountId }: { accountId: string }) {
                         })
                       }
                     />
+                    {q.key === URGENCY_QUESTION && PRIORITY_BY_URGENCY[o.key] ? (
+                      <span className="shrink-0 text-xs text-fg-muted">
+                        {t("decisions.setsPriority", {
+                          level: t(`conversations.priority.${PRIORITY_BY_URGENCY[o.key]}` as MessageKey),
+                        })}
+                      </span>
+                    ) : null}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -227,6 +331,9 @@ function Setup({ accountId }: { accountId: string }) {
                   {t("decisions.addOption")}
                 </Button>
                 <p className="text-xs text-fg-muted">{t("decisions.optionsHint")}</p>
+                {provider === "local" && q.key === URGENCY_QUESTION ? (
+                  <p className="text-xs text-fg-muted">{t("decisions.urgencyRulesHint")}</p>
+                ) : null}
               </div>
             )}
           </CardContent>
@@ -371,6 +478,14 @@ function Results({ accountId }: { accountId: string }) {
         <Stat label={t("decisions.stats.cost", { calls: data.month.calls })} value={usd} />
       </div>
       <p className="text-xs text-fg-muted">{t("decisions.resultsHint")}</p>
+      {data.priority && data.priority.set_by_ai > 0 ? (
+        <p className="text-sm text-fg">
+          {t("decisions.priorityStats", {
+            set: data.priority.set_by_ai,
+            changed: data.priority.changed_by_others,
+          })}
+        </p>
+      ) : null}
       {data.questions.map((q) => {
         const names = Object.fromEntries(q.options.map((o) => [o.key, o.description]));
         const top = Object.entries(q.answers).sort((a, b) => b[1] - a[1]);

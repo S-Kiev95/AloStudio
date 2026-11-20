@@ -17,9 +17,10 @@ import { ConversationList } from "./conversation-list";
 // The list drives its state off the URL; stub the App Router hooks so the
 // component renders outside a Next.js router (empty params → defaults).
 let mockParams = new URLSearchParams();
+const mockReplace = vi.fn();
 vi.mock("next/navigation", () => ({
   useSearchParams: () => mockParams,
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: mockReplace }),
   usePathname: () => "/accounts/1/conversations",
 }));
 
@@ -72,6 +73,24 @@ function renderWithQuery(ui: React.ReactElement) {
 }
 
 describe("ConversationList", () => {
+  it("keeps every letter typed in the search and updates the URL once typing stops", async () => {
+    mockReplace.mockClear();
+    renderWithQuery(<ConversationList accountId="1" />);
+    const input = screen.getByPlaceholderText("Buscar en los mensajes…");
+    for (const value of ["e", "ez", "eze"]) {
+      fireEvent.change(input, { target: { value } });
+    }
+    // The box shows what was typed right away, whatever the URL says.
+    expect(input).toHaveValue("eze");
+    expect(mockReplace).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith("/accounts/1/conversations?q=eze", {
+        scroll: false,
+      }),
+    );
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+  });
+
   it("offers one channel option per channel the account has", async () => {
     server.use(
       http.get("*/inboxes", () =>

@@ -174,5 +174,13 @@ export const settingsInstall: Strings<typeof es> = {
       title: "Modell des Agenten",
       description: "Das OpenAI-Modell, das der Chat-Agent verwendet, zum Beispiel gpt-5.4-mini (schnell und günstig) oder gpt-5.5 (leistungsfähiger).",
     },
+    LOCAL_LLM_URL: {
+      title: "Lokale KI: Adresse",
+      description: "Die Adresse des Modells, das auf diesem Server läuft (llama.cpp), zum Beispiel http://127.0.0.1:8092. Damit erscheint die Hilfe-Schaltfläche, die durch AloStudio führt, ohne Kosten bei OpenAI. Leer: aus.",
+    },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "KI-Schreibhilfe",
+      description: "Fügt dem Eingabefeld eine KI-Schaltfläche hinzu, die verbessert, korrigiert, den Ton ändert, kürzt oder übersetzt, was der Agent schreibt, und die Unterhaltung zusammenfasst. Sie nutzt den Schlüssel und das Modell des Agenten; die Ausgaben stehen unter Kosten jedes Kontos.",
+    },
   },
 };

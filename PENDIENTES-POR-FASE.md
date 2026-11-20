@@ -147,7 +147,7 @@ anota en esta sección y lo decide el dueño.
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
-| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en develop y en staging (2026-11-17). Resumen de llamadas con IA en develop y en staging (2026-11-18, apagado hasta que el superadmin lo prenda). Filtro de contactos por etapa en develop y en staging (2026-11-18). Google Calendar por agente en develop y en staging (2026-11-18): falta sumar la redirección /google-calendar/callback en el cliente de Google y probarlo con una cuenta real. Agente de IA de clientes y de voz (12 y 6): agente A, rama `feat/agente-ia` (2026-11-17). Falta acordar los workflows y repartir el resto |
+| F17 Funciones de respond.io | — | Decididas por el dueño (2026-11-16). **En CTC desde el 2026-11-18 (22:27, con respaldo):** llamadas simultáneas (F7), notas de cierre, Conversions API, etapas sin emojis, filtro por etapa, resumen de llamadas con IA y Google Calendar; los que gastan o dependen de terceros siguen apagados hasta prenderlos. Notas de cierre en develop y en staging; Conversions API de Meta en develop y en staging (agente B, 2026-11-17; Meta tiene que aprobar el permiso); etapas del contacto en develop y en staging (2026-11-17). Resumen de llamadas con IA en develop y en staging (2026-11-18, apagado hasta que el superadmin lo prenda). Filtro de contactos por etapa en develop y en staging (2026-11-18). Google Calendar por agente en develop y en staging (2026-11-18): falta sumar la redirección /google-calendar/callback en el cliente de Google y probarlo con una cuenta real. Botón Ayuda con IA local (Qwen3 4B en la VPS, sin OpenAI) en develop y en staging (2026-11-19): 29 de 30 en la evaluación, ~22 s por respuesta; mediciones en ops/llm/README.md. Para CTC: levantar el modelo con ops/llm/levantar.sh (4,5 GB de RAM) y cargar LOCAL_LLM_URL. Agente de IA de clientes y de voz (12 y 6): agente A, rama `feat/agente-ia` (2026-11-17). Falta acordar los workflows y repartir el resto |
 
 ### Reglas para no pisarse
 
@@ -637,6 +637,104 @@ dentro de la rama.
   cargar la clave de Jev en su Instalación y prender el modo sombra en
   Ajustes → Clasificación. La pregunta del equipo usa los equipos de la
   cuenta; si no hay equipos, no se hace.
+- **Prioridad automática con Qwen (agente A, 2026-11-19, rama
+  `feat/prioridad-qwen`; pedido del dueño):** en Ajustes → Clasificación se
+  elige quién clasifica: el servicio de decisiones (Jev o Laya) o el modelo
+  local (Qwen, gratis, ~1 minuto por conversación, de a una, en su propio
+  lugar de llama-server). El local lee "lo que la IA tiene que saber del
+  negocio" (campo nuevo) y la fecha de hoy. La urgencia suma la opción
+  `urgente`. Con "Poner la prioridad según la urgencia" (apagado al
+  principio) la urgencia pasa a ser la prioridad de la conversación, con
+  una línea y el motivo (anonimizado), mientras la prioridad sea de la IA
+  (tabla `conversation_priority_owners`): una que ya estaba, o que una
+  persona, una regla o una herramienta cambia o borra, no la vuelve a
+  tocar. La que una persona pone por su cuenta es su etiqueta de urgencia;
+  cambiar la de la IA es una corrección y Resultados la cuenta aparte. El
+  worker lee, suelta la base mientras el modelo piensa, guarda y vuelve a
+  decidir si el cliente escribió mientras tanto; el local va de a una
+  conversación (las demás reintentan con `Retry`) y se niega enseguida si
+  llama-server tiene un solo lugar. El historial del widget ya no muestra
+  líneas de actividad (como Chatwoot). Migración `d3f5b7c9e1a2`. Para el
+  agente B: toca `local_llm.chat` (`slot`, `slot_count`), la Ayuda (lugar
+  0) y `levantar.sh` (dos lugares, ver `ops/llm/README.md`).
+  - **Probado en el servidor de pruebas (2026-11-20, `6c14033`):** Qwen
+    con dos lugares (`total_slots` 2, 4,8 GiB en `docker stats`). La Ayuda
+    no pierde lo leído mientras se clasifica: sus 2945 tokens del principio
+    salen del caché y lee de nuevo solo la pregunta. Contesta en unos 30 s,
+    y en 78 s si justo se está clasificando (escribe a menos de 2 tokens
+    por segundo). Con 14 conversaciones inventadas tipo CTC (guiones y
+    resultados en `~/pruebas/prioridad` del servidor), cada ajuste sumado
+    al anterior:
+    - Tal como quedó, con las reglas en el contexto: 7 de 14. Nunca elige
+      `urgente` (el director la usa en 12 de 15), tarda unos 16 s por
+      conversación y el motivo se corta a los 120 caracteres a mitad de
+      palabra, a veces con un carácter chino (`亟`, `價`).
+    - Las reglas en la descripción de cada opción de urgencia: 9 de 14.
+    - El motivo primero, en una frase corta: 9 de 14, unos 12 s, sin cortes.
+    - Las opciones de mayor a menor y la pregunta "Según las reglas de cada
+      opción, ¿qué prioridad tiene esta conversación?": 11 de 14, ya elige
+      `urgente`.
+    - Cuatro ejemplos en el contexto («me quiero anotar al taller…» →
+      urgente): 13 de 14, unos 11 s (la primera, 25 a 55 s: lee las
+      reglas).
+  - **En el código (2026-11-20):** el motivo va primero, en una frase
+    corta, y se recorta en una palabra entera después de tapar números,
+    correos y enlaces; la urgencia se le muestra de mayor a menor; clasifica
+    sin azar (temperatura 0: la misma conversación da lo mismo y la
+    prioridad no salta cada vez que el cliente escribe); la pregunta de
+    urgencia de fábrica pasa a ser "Según las reglas de cada opción, ¿qué
+    prioridad tiene esta conversación?". En Ajustes, con el modelo local,
+    una nota pide escribir la regla en cada opción de urgencia y el
+    contexto pide la temporada y ejemplos. Verificado con el Qwen real en
+    el servidor de pruebas: siguiendo esas notas, 12 de 14 (las dudosas,
+    repetidas, dan siempre lo mismo); con las reglas solo en el contexto,
+    11 de 14. Sigue fallando "quiero anotarme en el curso de Excel que
+    empieza en marzo" y "¿qué carreras tienen? Estoy viendo opciones para
+    el año que viene" (las dos, media). Con un "Hola" solo, el motivo puede
+    ser inventado ("Pide información sobre horarios de clases").
+  - Las cuentas que ya guardaron la clasificación conservan la pregunta de
+    urgencia vieja (la cuenta 1 del servidor de pruebas; CTC, si ya la
+    guardó, porque `main` tiene la clasificación): si pasan al
+    modelo local, cambiarla a mano. El acuerdo de 30 días de Resultados
+    mezcla decisiones de antes y de después del cambio. Etiquetar y
+    Resultados no muestran qué prioridad pone cada opción de urgencia
+    (`setsPriority`, como en Configuración).
+  - **Para el agente B:** el texto de la pregunta de urgencia de fábrica
+    cambió (solo para las cuentas que no guardaron la suya); Jev la recibe
+    así en esas cuentas.
+  - **Falta:** medir con conversaciones reales contra lo que marca el
+    director; para CTC, llevar la Ayuda con Qwen a `main` e instalar el
+    modelo allá (unos 5 GB de RAM de los 6,5 libres). Mirar ahí la CPU:
+    con el mismo largo, una clasificación tardó de 7 a 34 s según lo que
+    hacía el resto del servidor (quizás `-t 3`). Mirar también la memoria
+    de llama-server. Si la bandeja no tiene zona horaria, "hoy" es el de
+    UTC (de 21 a 24 en Uruguay, ya es mañana).
+  - **Al mezclar `feat/agente-ia` a `develop`:** su migración
+    `b1d3f5a7c9e2` también cuelga de `b1c2d3e4f5a8`; encadenarla detrás de
+    `d3f5b7c9e1a2` para que quede una sola cabeza.
+  - Una persona que vuelve a elegir el mismo valor que puso la IA no la
+    "toma" (no hay cambio): para fijarla, cambiarla y volver a ponerla.
+- **Para el agente B: prioridad automática (dueño, 2026-11-19; nota del
+  agente A).** El director de CTC marca a mano la prioridad de cada chat
+  para Sofía (el 19/11: 12 Urgente, 2 Alta, 1 Media de 74; sin etiquetas
+  para eso) y ahora la ve como flecha en la lista (rama
+  `feat/flecha-prioridad`). El dueño quiere que Jev la ponga sola y, con lo
+  acumulado, entrenar a Laya. Se le recordó que las respuestas de Jev no
+  pueden entrenar a Laya (2.3(b) de TypeSafe): sirven las que una persona
+  puso o cambió por su cuenta. Propuesta, a decidir con el dueño:
+  - Que la decisión de urgencia (sumando "urgente") se escriba en
+    `conversation.priority`, marcada como puesta por Jev, sin pisar nunca
+    la que puso una persona.
+  - Que la prioridad que una persona pone a mano cuente como etiqueta
+    humana, como ya cuenta el equipo que asigna un agente. Las que puso Jev
+    y nadie tocó no son etiquetas.
+  - Para Laya: que el modelo clasifique la intención (estable todo el año)
+    y la prioridad salga de reglas del director con la fecha ("noviembre y
+    diciembre: inscripción → Urgente"), así la temporada no se aprende ni
+    obliga a reentrenar.
+  - Cantidad estimada para entrenar: 300 a 500 conversaciones etiquetadas
+    por personas, más 50 a 100 apartadas para medir (en CTC, unos 5 chats
+    por día).
 
 ## F11. CRM (Krayin)
 
@@ -780,7 +878,7 @@ Detalle en `PLAN.i18n.md`.
 
 | # | Función | Decisión del dueño |
 |---|---|---|
-| 1 | Ayuda de IA al escribir: reformular, traducir, resumir | Sí. Con modelo de un proveedor, en el plan más caro y con créditos de IA; con un modelo liviano en la VPS, para todos |
+| 1 | Ayuda de IA al escribir: reformular, traducir, resumir | Sí. Con modelo de un proveedor, en el plan más caro y con créditos de IA; con un modelo liviano en la VPS, para todos. **Hecho** (agente B, 2026-11-18), en develop y staging: botón IA en la caja de texto (mejorar, corregir, tono, acortar, traducir, resumir la conversación); lo prende el superadmin (AI_WRITING_ASSIST_ENABLED). Para F2/multitenant: atarlo al plan más caro |
 | 2 | Conversions API de Meta (avisarle a Meta qué chats de anuncios terminan en venta) | Sí, le sirve a CTC |
 | 3 | Workflows visuales: preguntar y esperar la respuesta, ramas, esperas | A acordar entre el dueño y el agente B: propios o con n8n |
 | 4 | Notas de cierre (motivo al cerrar una conversación, para reportes) | Sí |
@@ -792,7 +890,7 @@ Detalle en `PLAN.i18n.md`.
 | 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
 | 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3. Calendar **hecho** (agente B, 2026-11-18): cada agente lo conecta en Mi perfil; sus citas y tareas con fecha van a su calendario, en una dirección |
 | — | 2FA y SSO; apps nativas | Sin decidir |
-| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Paso 1 hecho en la rama: el asistente del equipo usa todas las herramientas que el rol permite (un agente, solo sus bandejas). Paso 2a hecho en la rama (2026-11-18): responsable de derivación por chat, etiqueta, bandeja o cuenta (Ajustes → Derivación). Paso 2b.1 hecho en la rama (2026-11-18): la IA de AloStudio atiende en modo sombra (sugiere arriba de la caja de texto) o en vivo, con Centro de ayuda, productos y derivación con resumen. Siguen Agenda y CRM (2b.2), la comparación con Claude (2b.3) y después la voz |
+| 12 | Agente de IA que atiende al cliente por chat y hace cosas: responde, recomienda productos, agenda en la Agenda, carga datos en el CRM, califica y deriva a una persona | En curso, agente A (2026-11-17): rama `feat/agente-ia`, plan en `PLAN.agente-ia.md`. Paso 1 hecho en la rama: el asistente del equipo usa todas las herramientas que el rol permite (un agente, solo sus bandejas). Paso 2a hecho en la rama (2026-11-18): responsable de derivación por chat, etiqueta, bandeja o cuenta (Ajustes → Derivación). Paso 2b.1 hecho en la rama (2026-11-18): la IA de AloStudio atiende en modo sombra (sugiere arriba de la caja de texto) o en vivo, con Centro de ayuda, productos y derivación con resumen. Paso 2b.2 hecho en la rama (2026-11-19): agenda y carga datos en el CRM, apagado hasta que el administrador lo prende en el bot. El «?» y el Agente ya son un solo asistente con Free y Fast (en la rama). Siguen la comparación con Claude (2b.3) y después la voz |
 | 13 | Saldo de WhatsApp recargable desde AloStudio (respond.io cobra los mensajes de Meta así) | El dueño pidió anotarlo (2026-11-17, agente A). Depende de F2: hoy, con Embedded Signup, Meta le cobra directo al cliente |
 
 - **12, paso 1 (agente A, 2026-11-17, rama `feat/agente-ia`, sin mezclar):**
@@ -822,6 +920,54 @@ Detalle en `PLAN.i18n.md`.
   Aparte: en esta copia fallan 6 tests de entrega de webhooks
   (`test_agent_bot_listener`, `test_webhook_retries`, `test_webhooks_router`)
   también sin estos cambios; quedan por revisar.
+- **Para el agente A: unir el «?» (Ayuda) y el Agente (dueño, 2026-11-19; nota del
+  agente B).** El dueño quiere un solo asistente de IA: el Agente del menú y el «?»
+  de la barra de arriba. Con modo **Free** (el Qwen local, sin costo) y **Fast**
+  (OpenAI, gasta). Lo que ya está, del agente B (rama `feat/ayuda-free-fast`,
+  falta pasarla a develop):
+  - `app/domains/help_assistant/`: la ayuda de AloStudio (`ayuda.md`, también es
+    la documentación), el mapa de pantallas reales (`screens.py`, un test verifica
+    que cada ruta exista), la parte fija del pedido que llama.cpp reutiliza
+    (`knowledge.prefix_messages`), respuesta con forma fija y controles
+    (`invented_menus`, `invented_quotes`). Modos: `service.modes(account)`; Fast lo
+    permite un administrador (`accounts.settings["help_assistant"]["fast"]`) y gasta
+    como `help_assistant`.
+  - `app/core/local_llm.py` (cliente de llama-server) y `app/core/llm.py`:
+    `chat_completion(..., response_format=...)`.
+  - Panel: `components/shell/help-button.tsx` (el «?», con el selector Free/Fast).
+  - Mediciones: `ops/llm/README.md` (Qwen3 4B: 29 de 30, ~22 s; leer cuesta ~12
+    tokens/s y escribir ~4 en 4 núcleos).
+  Lo que falta, cuando `feat/agente-ia` pase a develop:
+  1. **Fast = el Agente.** Sumarle al Agente la ayuda como fuente: una herramienta
+     `buscar_en_la_ayuda` que devuelva secciones de `knowledge.sections()`, o la
+     ayuda entera en el system prompt, más la regla de usar las claves de
+     `SCREENS` para los enlaces. Así guía y además hace cosas.
+  2. **Free = solo guía.** Qwen en 4 núcleos no puede usar herramientas: leer sus
+     definiciones lleva minutos. En Free el Agente llama a `help_assistant.service.ask`
+     (sin herramientas), y si la persona pide una acción, le explica cómo hacerla a
+     mano y le ofrece pasar a Fast.
+  3. **El «?» abre el Agente** en un panel (el mismo chat y la misma historia), con
+     la pantalla donde está la persona (`page`, ver `service.screen_for`). Después
+     `help-button.tsx` se puede reemplazar o pasar a ser ese panel.
+  4. El selector Free/Fast y el permiso del administrador ya existen en la Ayuda:
+     reutilizar `GET/PUT /help_assistant` o moverlos al Agente.
+  Al agente B le avisan si hace falta algo de la Ayuda.
+  - **Hecho por el agente A (2026-11-19, rama `feat/agente-ia`, sin mezclar a
+    develop):** develop se mezcló en la rama; los puntos 1 a 3 están. Fast es el
+    Agente con la ayuda y las pantallas al principio de sus instrucciones;
+    Free llama a `help_assistant.service.ask`; el «?» (`help-button.tsx`) abre
+    el chat del Agente en un panel, con la pantalla actual y Free por defecto.
+    Para el agente B: `frontend/lib/api/help-assistant.ts` salió (sin uso); el
+    router `/help_assistant` y `fast_allowed` / `allow_fast` siguen, sin uso
+    desde el panel, salvo `PUT /help_assistant/settings`: el dueño decidió
+    (2026-11-19) que Fast lo habilite un administrador, también en el menú
+    Agente, con ese mismo permiso (se prende arriba del chat). Las claves
+    `helpAssistant.*` que ya no se usan quedan para limpiar.
+- **12, paso 2b.2 (agente A, 2026-11-19, rama `feat/agente-ia`, sin mezclar):**
+  la IA que atiende clientes puede agendar (horario de la bandeja, una cita
+  futura por cliente) y completar datos del CRM (nombre, email, etapa,
+  etiqueta, oportunidad). Apagado por defecto; se prende en Ajustes → Bots.
+  En sombra solo lo propone. Las etapas que mueve la IA no se avisan a Meta.
 - **12 y 13, segunda comparación (agente A, 2026-11-17):** al repasar
   respond.io quedaron estas dos que no estaban en la tabla.
   - 12: es distinto del 1 (ayuda al agente humano) y del 6 (voz). Ya están
@@ -922,3 +1068,11 @@ Detalle en `PLAN.i18n.md`.
   test fuerce la entrega inmediata.
 - **Colores con transparencia** (`bg-x/NN` sobre colores del tema) no generan
   CSS: falta el arreglo central en la configuración de Tailwind.
+- **Flecha de prioridad en la Bandeja (pedido del director de CTC,
+  2026-11-19, agente A):** al lado de la fecha, roja y doble Urgente,
+  amarilla Alta, normal Media, gris Baja. En `main` (dda6ed4) y en
+  `develop` (bbda3d2, cherry-pick); en CTC desde el 2026-11-19 a las 16:08
+  (panel compilado en horario, con el OK del dueño). La Ayuda la explica.
+- **Tests del panel que tardan:** `templates-panel.test.tsx` y
+  `autoposts-view.test.tsx` pasan solos pero se pasan de los 5 s cuando
+  corre toda la suite (visto en `main` el 2026-11-19).

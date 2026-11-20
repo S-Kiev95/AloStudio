@@ -87,6 +87,15 @@ class Settings(BaseSettings):
     # Model behind the agent chat (``app.domains.agent``): it calls the
     # publishing MCP tools, so it has to be good at function calling.
     openai_agent_model: str = "gpt-5.4-mini"
+    # AI help while writing (F17): the composer's AI button rewrites the
+    # agent's draft and summarizes the conversation with the agent model.
+    # Off until the operator turns it on, since every use costs money.
+    ai_writing_assist_enabled: bool = False
+    # A small model on this server (llama.cpp's llama-server, OpenAI-style
+    # API), for the help assistant: free, nothing leaves the server. Empty
+    # → off. ``local_llm_model`` only names it in the logs.
+    local_llm_url: str = ""
+    local_llm_model: str = ""
 
     # --- local embeddings (EmbeddingGemma 2, F9)
     # Base URL of the embeddings service (``app.embeddings_service``), a

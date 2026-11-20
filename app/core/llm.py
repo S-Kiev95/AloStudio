@@ -149,12 +149,15 @@ async def chat_completion(
     messages: list[dict[str, Any]],
     tools: list[dict[str, Any]] | None = None,
     tool_choice: str | None = None,
+    response_format: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """One step of the agent chat: the assistant message the model returns,
     with ``content`` and, when it wants to run tools, ``tool_calls``.
 
     One tool call per step (``parallel_tool_calls: false``) so a write the
     user has to confirm never travels next to another call.
+    ``response_format`` (OpenAI's structured outputs) forces the answer's
+    shape.
     """
     await _check_budget()
     settings = get_settings()
@@ -168,6 +171,8 @@ async def chat_completion(
         payload["parallel_tool_calls"] = False
         if tool_choice:
             payload["tool_choice"] = tool_choice
+    if response_format:
+        payload["response_format"] = response_format
     try:
         async with httpx.AsyncClient(timeout=_CHAT_TIMEOUT) as client:
             resp = await client.post(
