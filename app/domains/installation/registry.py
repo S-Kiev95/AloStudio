@@ -162,7 +162,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         title="URL de retorno al conectar redes",
         description=(
             "Una sola URL para todas las redes que se conectan desde el "
-            "calendario (Threads, LinkedIn, TikTok, X y las que se sumen): adónde vuelve "
+            "calendario (Threads, LinkedIn, TikTok, X, YouTube y las que se sumen): adónde vuelve "
             "el navegador después de autorizar. Es "
             "https://<tu dominio>/api/v1/publishing/oauth/callback y se carga "
             "igual en la app de desarrollador de cada red."
@@ -293,7 +293,9 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "Del ID de cliente OAuth (aplicación web) en console.cloud.google.com. "
             "Con este dato y el secret, la pantalla de ingreso muestra «Entrar con "
             "Google». Solo entran usuarios ya invitados. URL de redirección "
-            "autorizada: https://<dominio>/auth/google/callback."
+            "autorizada: https://<dominio>/auth/google/callback. El mismo cliente sirve "
+            "para Google Calendar y para publicar en YouTube (sumá también la URL de "
+            "retorno al conectar redes y activá YouTube Data API v3)."
         ),
         group=ACCESS_GROUP,
     ),

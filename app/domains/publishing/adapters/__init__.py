@@ -29,6 +29,7 @@ from app.domains.publishing.adapters.telegram import TelegramAdapter
 from app.domains.publishing.adapters.threads import ThreadsAdapter
 from app.domains.publishing.adapters.tiktok import TikTokAdapter
 from app.domains.publishing.adapters.x import XAdapter
+from app.domains.publishing.adapters.youtube import YouTubeAdapter
 
 _ADAPTERS: tuple[PublishingAdapter, ...] = (
     InstagramAdapter(),
@@ -36,6 +37,7 @@ _ADAPTERS: tuple[PublishingAdapter, ...] = (
     ThreadsAdapter(),
     LinkedInAdapter(),
     TikTokAdapter(),
+    YouTubeAdapter(),
     XAdapter(),
     TelegramAdapter(),
     DiscordAdapter(),
