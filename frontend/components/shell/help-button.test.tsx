@@ -27,6 +27,7 @@ function info() {
     fast_allowed: fastAllowed,
     can_manage: canManage,
     question_max: 300,
+    media: true,
   };
 }
 
@@ -127,5 +128,40 @@ describe("HelpButton", () => {
     expect(await screen.findByText("Tocá Resolver.")).toBeInTheDocument();
     expect((asked as { mode: string }).mode).toBe("fast");
     expect(window.localStorage.getItem("alostudio:help-mode")).toBe("fast");
+  });
+
+  it("sends a screenshot with the question and says what it saw", async () => {
+    reply = {
+      known: true,
+      answer: "Tocá Resolver.",
+      screen: null,
+      note: null,
+      seconds: 1.2,
+      mode: "free",
+      heard: null,
+      seen: "La Bandeja de AloStudio con una conversación abierta.",
+    };
+    renderButton();
+    fireEvent.click((await screen.findAllByLabelText("Ayuda"))[0]);
+    const file = new File([new Uint8Array([137, 80, 78, 71])], "pantalla.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText(/Adjuntar una captura/, { selector: "input" }), {
+      target: { files: [file] },
+    });
+    expect(await screen.findByText("pantalla.png")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Preguntar" }));
+    expect(await screen.findByText(/En la captura: La Bandeja de AloStudio/)).toBeInTheDocument();
+    expect((asked as { image: string }).image).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it("says when the AI services are down", async () => {
+    status = 503;
+    reply = { message: "ai_down", code: "help_assistant.ai_down" };
+    renderButton();
+    await askQuestion("hola");
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Servicios de AI temporalmente fuera, intenta mañana.",
+      ),
+    );
   });
 });

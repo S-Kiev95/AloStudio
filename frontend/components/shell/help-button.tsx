@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CircleHelp, Loader2 } from "lucide-react";
+import { ArrowRight, CircleHelp, ImagePlus, Loader2, Mic, Square, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -19,8 +19,13 @@ import { translateOr } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 type Turn = { question: string; answer: HelpAnswer };
+type Attached = { dataUrl: string; label: string };
 
 const MODE_KEY = "alostudio:help-mode";
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+// A voice question, not a voice note: a minute is plenty.
+const RECORD_MAX_SECONDS = 60;
 
 function readMode(): HelpMode | null {
   try {
@@ -31,10 +36,20 @@ function readMode(): HelpMode | null {
   }
 }
 
+function asDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 /** Topbar "?" button: ask how to do something in AloStudio, from AloStudio's
- *  own help. Free uses the server's local model (no cost, slower); Fast uses
- *  OpenAI when an administrator allowed it. Hidden while neither is set up,
- *  except for an administrator who can allow Fast. */
+ *  own help, by writing, with a screenshot or by voice. Free uses the free
+ *  model (no cost); Fast uses OpenAI when an administrator allowed it.
+ *  Hidden while neither is set up, except for an administrator who can
+ *  allow Fast. */
 export function HelpButton({ accountId }: { accountId: string }) {
   const t = useT();
   const pathname = usePathname() ?? "";
@@ -46,8 +61,14 @@ export function HelpButton({ accountId }: { accountId: string }) {
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
+  const [image, setImage] = useState<Attached | null>(null);
+  const [audio, setAudio] = useState<Attached | null>(null);
+  const [recordingFor, setRecordingFor] = useState<number | null>(null);
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const secondsRef = useRef(0);
 
   useEffect(() => {
     if (!open) return;
@@ -62,12 +83,28 @@ export function HelpButton({ accountId }: { accountId: string }) {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [open]);
 
+  // Seconds counter while recording; it stops by itself at the limit.
+  useEffect(() => {
+    if (recordingFor === null) return;
+    secondsRef.current = recordingFor;
+    if (recordingFor >= RECORD_MAX_SECONDS) {
+      recorderRef.current?.stop();
+      return;
+    }
+    const id = window.setTimeout(
+      () => setRecordingFor((s) => (s === null ? s : s + 1)),
+      1000,
+    );
+    return () => window.clearTimeout(id);
+  }, [recordingFor]);
+
   const data = info.data;
   if (!data || !(data.enabled || (data.can_manage && data.fast_possible))) return null;
   const max = data.question_max;
   const wanted = picked ?? (open ? readMode() : null);
   const mode: HelpMode | null =
     wanted && data.modes.includes(wanted) ? wanted : (data.modes[0] ?? null);
+  const recording = recordingFor !== null;
 
   function pick(next: HelpMode) {
     setPicked(next);
@@ -78,22 +115,78 @@ export function HelpButton({ accountId }: { accountId: string }) {
     }
   }
 
+  async function takeImage(file: File | null | undefined) {
+    if (!file) return;
+    if (!IMAGE_TYPES.includes(file.type)) {
+      setProblem("helpAssistant.problems.media_type");
+      return;
+    }
+    if (file.size > IMAGE_MAX_BYTES) {
+      setProblem("helpAssistant.problems.media_size");
+      return;
+    }
+    setProblem(null);
+    setImage({ dataUrl: await asDataUrl(file), label: file.name || t("helpAssistant.screenshot") });
+  }
+
+  async function startRecording() {
+    setProblem(null);
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setProblem("helpAssistant.problems.microphone");
+      return;
+    }
+    const recorder = new MediaRecorder(stream);
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.onstop = async () => {
+      stream.getTracks().forEach((track) => track.stop());
+      const seconds = Math.max(1, secondsRef.current);
+      setRecordingFor(null);
+      recorderRef.current = null;
+      const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+      setAudio({
+        dataUrl: await asDataUrl(blob),
+        label: t("helpAssistant.audioLabel", { seconds: String(seconds) }),
+      });
+    };
+    recorderRef.current = recorder;
+    recorder.start();
+    setRecordingFor(0);
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const text = question.trim();
-    if (!text || ask.isPending || !mode) return;
+    if ((!text && !image && !audio) || ask.isPending || !mode || recording) return;
     setProblem(null);
+    const imageLabel = image?.label;
     ask.mutate(
-      { question: text, page: pathname, mode },
+      { question: text, page: pathname, mode, image: image?.dataUrl, audio: audio?.dataUrl },
       {
         onSuccess: (answer) => {
-          setTurns((prev) => [...prev, { question: text, answer }].slice(-5));
+          const shown = [
+            answer.heard ? `«${answer.heard}»` : "",
+            text,
+            imageLabel ? `📷 ${imageLabel}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          setTurns((prev) => [...prev, { question: shown, answer }].slice(-5));
           setQuestion("");
+          setImage(null);
+          setAudio(null);
         },
         onError: (err) => setProblem(helpProblemKey(err)),
       },
     );
   }
+
+  const attached: Array<[string, Attached, () => void]> = [];
+  if (image) attached.push(["image", image, () => setImage(null)]);
+  if (audio) attached.push(["audio", audio, () => setAudio(null)]);
 
   return (
     <details
@@ -178,6 +271,11 @@ export function HelpButton({ accountId }: { accountId: string }) {
               {turn.answer.note ? (
                 <p className="text-xs text-fg-muted">{turn.answer.note}</p>
               ) : null}
+              {turn.answer.seen ? (
+                <p className="text-[11px] text-fg-muted">
+                  {t("helpAssistant.seen", { text: turn.answer.seen })}
+                </p>
+              ) : null}
             </div>
           ))}
           {ask.isPending ? (
@@ -205,17 +303,98 @@ export function HelpButton({ accountId }: { accountId: string }) {
           </label>
         ) : null}
 
+        {attached.length || recording ? (
+          <div className="flex flex-wrap gap-1.5 border-t border-glass px-2 pt-2 text-xs">
+            {recording ? (
+              <span className="inline-flex items-center gap-1 px-1 text-danger" role="status">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-danger-solid" aria-hidden />
+                {t("helpAssistant.recording", { seconds: String(recordingFor) })}
+              </span>
+            ) : null}
+            {attached.map(([kind, item, remove]) => (
+              <span
+                key={kind}
+                className="inline-flex max-w-[14rem] items-center gap-1 rounded-pill border border-glass bg-field px-2 py-0.5"
+              >
+                <span className="truncate">{item.label}</span>
+                <button
+                  type="button"
+                  onClick={remove}
+                  aria-label={t("helpAssistant.remove", { item: item.label })}
+                  className="text-fg-muted hover:text-fg"
+                >
+                  <X className="h-3 w-3" aria-hidden />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+
         <form onSubmit={submit} className="flex gap-2 border-t border-glass p-2">
+          {data.media ? (
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept={IMAGE_TYPES.join(",")}
+                className="hidden"
+                tabIndex={-1}
+                aria-label={t("helpAssistant.attachImage")}
+                onChange={(e) => {
+                  void takeImage(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                aria-label={t("helpAssistant.attachImage")}
+                title={t("helpAssistant.attachImage")}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control text-fg-muted hover:bg-hover-glass hover:text-fg"
+              >
+                <ImagePlus className="h-4 w-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => (recording ? recorderRef.current?.stop() : void startRecording())}
+                aria-label={recording ? t("helpAssistant.stopRecording") : t("helpAssistant.record")}
+                title={recording ? t("helpAssistant.stopRecording") : t("helpAssistant.record")}
+                aria-pressed={recording}
+                className={cn(
+                  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control hover:bg-hover-glass",
+                  recording ? "text-danger" : "text-fg-muted hover:text-fg",
+                )}
+              >
+                {recording ? (
+                  <Square className="h-4 w-4" aria-hidden />
+                ) : (
+                  <Mic className="h-4 w-4" aria-hidden />
+                )}
+              </button>
+            </>
+          ) : null}
           <input
             ref={inputRef}
             value={question}
             maxLength={max}
             onChange={(e) => setQuestion(e.target.value)}
+            onPaste={(e) => {
+              if (!data.media) return;
+              const file = [...e.clipboardData.files].find((f) => f.type.startsWith("image/"));
+              if (file) {
+                e.preventDefault();
+                void takeImage(file);
+              }
+            }}
             aria-label={t("helpAssistant.question")}
             placeholder={t("helpAssistant.placeholder")}
             className="glass-field h-9 min-w-0 flex-1 rounded-control border border-glass bg-field px-2.5 text-xs text-fg placeholder:text-fg-muted"
           />
-          <Button type="submit" size="sm" disabled={!question.trim() || ask.isPending || !mode}>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={(!question.trim() && !image && !audio) || ask.isPending || !mode || recording}
+          >
             {t("helpAssistant.ask")}
           </Button>
         </form>

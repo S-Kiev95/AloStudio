@@ -19,6 +19,8 @@ export type HelpInfo = {
   /** The user is an administrator (can allow or stop Fast). */
   can_manage: boolean;
   question_max: number;
+  /** Screenshots and voice questions can be read (NVIDIA or Groq keys). */
+  media: boolean;
 };
 
 export type HelpAnswer = {
@@ -31,6 +33,10 @@ export type HelpAnswer = {
   note: string | null;
   seconds: number;
   mode: HelpMode;
+  /** What the voice question said, when there was one. */
+  heard: string | null;
+  /** What the screenshot shows, when there was one. */
+  seen: string | null;
 };
 
 function base(accountId: string): string {
@@ -51,7 +57,15 @@ export function useHelpAssistant(accountId: string) {
 
 export function useAskHelp(accountId: string) {
   return useMutation({
-    mutationFn: (input: { question: string; page?: string; mode?: HelpMode }) =>
+    mutationFn: (input: {
+      question: string;
+      page?: string;
+      mode?: HelpMode;
+      /** ``data:image/…;base64,…`` */
+      image?: string;
+      /** ``data:audio/…;base64,…`` */
+      audio?: string;
+    }) =>
       apiFetch<HelpAnswer>(base(accountId), {
         method: "POST",
         body: JSON.stringify(input),
