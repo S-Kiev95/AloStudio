@@ -194,6 +194,18 @@ export const publications: Strings<typeof es> = {
     all: "전체",
     pending: "대기",
   },
+  youtube: {
+    title: "동영상 제목",
+    titlePlaceholder: "최대 100자",
+    whoCanSee: "공개 범위",
+    privacy: {
+      public: "공개",
+      unlisted: "일부 공개 (링크만)",
+      private: "비공개",
+    },
+    madeForKids: "아동용 콘텐츠",
+    descriptionNote: "게시물 본문이 설명이 됩니다. Google이 앱을 승인할 때까지 동영상은 비공개로 유지됩니다.",
+  },
   tiktok: {
     privacy: {
       PUBLIC_TO_EVERYONE: "모두",
@@ -253,5 +265,9 @@ export const publications: Strings<typeof es> = {
     tiktokPickPrivacy: "{label} (TikTok): 게시물 공개 범위를 선택하세요.",
     tiktokDisclosure: "{label} (TikTok): 콘텐츠가 내 브랜드, 제3자 또는 둘 다를 홍보하는지 선택하세요.",
     tiktokBrandSelfOnly: "{label} (TikTok): 브랜드 콘텐츠는 “나만 보기”로 설정할 수 없습니다.",
+    youtubeOneVideo: "{label} (YouTube): 사진 없이 동영상 하나만 필요합니다.",
+    youtubeTitle: "{label} (YouTube): 동영상 제목을 입력하세요.",
+    youtubeTitleTooLong: "{label} (YouTube): 제목은 100자를 넘을 수 없습니다.",
+    youtubeNoAngles: "{label} (YouTube): 제목과 설명에 < 또는 >를 쓸 수 없습니다.",
   },
 };

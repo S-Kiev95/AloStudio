@@ -133,7 +133,7 @@ anota en esta sección y lo decide el dueño.
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
 | F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; paso 3 (Polar) con backend y planes en sandbox (2026-11-15). Todo se prueba en sandbox antes de pasar a producción |
-| F3 Redes que faltan | B | Sin empezar |
+| F3 Redes que faltan | B | YouTube en develop (2026-11-21): subir videos con el cliente de Google de Calendar; falta que el dueño active la API y la URL de retorno en Google Cloud. TikTok espera el correo de empresa |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En CTC (2026-11-15, pasó con el resto de develop): WhatsApp (costo de Meta) e IA |
@@ -237,6 +237,23 @@ dentro de la rama.
   YouTube, LinkedIn página de empresa y TikTok Business primero.
 - Después: X (cobra por uso, entra con F6), Google Business Profile, Slack
   y Twitch.
+- **YouTube (agente B, 2026-11-21), en develop:** `adapters/youtube.py`. Se
+  conecta desde Publicaciones → conectar red, con el mismo cliente OAuth de
+  Google que el ingreso y Calendar (`GOOGLE_CLIENT_ID/SECRET`), permisos
+  `youtube.upload` y `youtube.readonly`. Sube un video por publicación (carga
+  reanudable, hasta 2 GB) con título, privacidad (privado por defecto) y «hecho
+  para chicos»; el texto va como descripción. Lee vistas, me gusta, comentarios
+  y suscriptores. Probado con Google simulado, no con una cuenta real.
+  **Para el dueño, en console.cloud.google.com, en el proyecto de ese cliente:**
+  1. APIs y servicios → Biblioteca → activar **YouTube Data API v3**.
+  2. Credenciales → el ID de cliente web → sumar en URIs de redirección
+     `https://<dominio>/api/v1/publishing/oauth/callback` (staging y CTC).
+  3. Pantalla de consentimiento → permisos: sumar `youtube.upload` y
+     `youtube.readonly`; mientras esté en «Prueba», sumar la cuenta de Google
+     del canal como usuario de prueba (en ese modo el acceso vence a los 7 días).
+  4. Para videos públicos: verificar la app en Google y pedir la auditoría de
+     la API de YouTube (hasta entonces los videos suben privados). La cuota
+     gratis alcanza para unos 6 videos por día.
 
 ## F4. Herramientas que le faltan al MCP
 
