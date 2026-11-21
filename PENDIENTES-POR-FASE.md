@@ -991,6 +991,13 @@ Detalle en `PLAN.i18n.md`.
   local sino Groq (`openai/gpt-oss-20b`) con NVIDIA (`minimaxai/minimax-m3.1-flash`)
   de respaldo (`app/core/local_llm.py`, proveedores con clave); con un proveedor
   así no hay lugares ni precalentado, y el contenedor de Qwen en CTC se borró.
+- **Agente sin OpenAI (agente B, 2026-11-21, a pedido del dueño).** La página
+  Agente ya no queda "no configurado" cuando no hay clave de OpenAI: si hay modelo
+  Free (`local_llm.configured()`), cada mensaje se contesta con
+  `help_assistant.ask` (solo guía, sin herramientas) y la pantalla va como
+  "Dónde: …" (`_run_free` en `app/domains/agent/service.py`). Con OpenAI todo sigue
+  igual. **Agente A:** al mezclar `feat/agente-ia`, tu modo Free reemplaza a
+  `_run_free`; quedate con el tuyo.
 - **12 y 13, segunda comparación (agente A, 2026-11-17):** al repasar
   respond.io quedaron estas dos que no estaban en la tabla.
   - 12: es distinto del 1 (ayuda al agente humano) y del 6 (voz). Ya están
