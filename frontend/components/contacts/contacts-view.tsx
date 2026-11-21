@@ -4,6 +4,10 @@ import { ChevronLeft, ChevronRight, Compass, Mail, Phone, Plus, Search, SlidersH
 import Link from "next/link";
 import { useState } from "react";
 
+import {
+  RubberLogoMargins,
+  type RubberLogoName,
+} from "@/components/brand/rubber-logos";
 import { useOriginSummary } from "@/components/crm/contact-origin-card";
 import { PageHeader } from "@/components/shell/page-header";
 import { Avatar } from "@/components/ui/avatar";
@@ -32,6 +36,12 @@ import { ContactFilters } from "./contact-filters";
 import { useT } from "@/lib/i18n/provider";
 
 const PAGE_SIZE = 15; // mirrors backend RESULTS_PER_PAGE
+const LEFT_RUBBER_LOGOS: readonly RubberLogoName[] = [
+  "facebook",
+  "instagram",
+  "whatsapp",
+];
+const RIGHT_RUBBER_LOGOS: readonly RubberLogoName[] = ["tiktok", "telegram"];
 
 export function ContactsView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -100,7 +110,11 @@ export function ContactsView({ accountId }: { accountId: string }) {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <RubberLogoMargins
+      leftLogos={LEFT_RUBBER_LOGOS}
+      rightLogos={RIGHT_RUBBER_LOGOS}
+      contentClassName="mx-auto max-w-4xl space-y-4"
+    >
       <PageHeader
         title={t("contacts.title")}
         actions={
@@ -318,7 +332,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
           </div>
         </div>
       ) : null}
-    </div>
+    </RubberLogoMargins>
   );
 }
 

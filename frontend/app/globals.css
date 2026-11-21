@@ -542,6 +542,28 @@
     animation: orbit-ccw var(--orbit-duration, 58s) linear
       var(--orbit-delay, 0s) infinite;
   }
+
+  /* Idle gentle float for the 3D rubber logo side strips: GPU compositor only,
+     zero JS or WebGL redraws while still, paused immediately during drag. */
+  .rubber-strip-idle {
+    animation: rubber-strip-float 7.5s ease-in-out infinite;
+  }
+  .rubber-strip-idle[data-rubber-strip="right"] {
+    animation-delay: -3.2s;
+  }
+  .rubber-strip-idle[data-rubber-state="dragging"] {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes rubber-strip-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 @keyframes orbit-cw {
@@ -854,6 +876,7 @@
   .orbit-bubble,
   .orbit-bubble-cw,
   .orbit-bubble-ccw,
+  .rubber-strip-idle,
   .glass-field {
     animation: none !important;
     transition: none !important;
