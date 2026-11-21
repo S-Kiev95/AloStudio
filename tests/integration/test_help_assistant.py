@@ -261,3 +261,74 @@ async def test_without_the_local_model_only_fast_is_offered(
     await client.put(f"{seeded['url']}/settings", json={"fast": True}, headers=admin_h)
     shown = (await client.get(seeded["url"], headers=admin_h)).json()
     assert shown["enabled"] is True and shown["modes"] == ["fast"]
+
+
+GROQ_LLM = "https://api.groq.com/openai/v1/chat/completions"
+NVIDIA_LLM = "https://integrate.api.nvidia.com/v1/chat/completions"
+
+
+@pytest.fixture
+def hosted_free(monkeypatch):
+    s = get_settings()
+    monkeypatch.setattr(s, "local_llm_url", "https://api.groq.com/openai")
+    monkeypatch.setattr(s, "local_llm_api_key", "gsk-test")
+    monkeypatch.setattr(s, "local_llm_model", "openai/gpt-oss-20b")
+    monkeypatch.setattr(s, "local_llm_fallback_url", "https://integrate.api.nvidia.com")
+    monkeypatch.setattr(s, "local_llm_fallback_api_key", "nvapi-test")
+    monkeypatch.setattr(s, "local_llm_fallback_model", "minimaxai/minimax-m3.1-flash")
+
+
+def _said(text: str) -> httpx.Response:
+    return httpx.Response(200, json={"choices": [{"message": {"content": text}}]})
+
+
+async def test_a_voice_question_with_a_screenshot(client, db_session, seeded, hosted_free):
+    headers = await _headers(db_session, seeded["admin"])
+    heard = "como hago que pidan motivo al cerrar"
+    seen = "La pantalla de Ajustes → Notas de cierre de AloStudio."
+
+    def nvidia(request: httpx.Request) -> httpx.Response:
+        parts = json.loads(request.content)["messages"][0]["content"]
+        return _said(heard if parts[1]["type"] == "input_audio" else seen)
+
+    with respx.mock(assert_all_called=False) as mock:
+        mock.post(NVIDIA_LLM).mock(side_effect=nvidia)
+        groq = mock.post(GROQ_LLM).mock(return_value=_said(json.dumps(CLOSING)))
+        done = await client.post(
+            seeded["url"],
+            json={
+                "audio": "data:audio/webm;codecs=opus;base64,T2dnUw==",
+                "image": "data:image/png;base64,iVBORw0KGgo=",
+            },
+            headers=headers,
+        )
+    assert done.status_code == 200, done.text
+    body = done.json()
+    assert body["heard"] == heard and body["seen"] == seen
+    assert body["screen"]["key"] == "ajustes_notas_cierre"
+    question = json.loads(groq.calls[-1].request.content)["messages"][-1]["content"]
+    assert (
+        question.startswith(heard) and f"(Captura de la pantalla de la persona: {seen})" in question
+    )
+
+
+async def test_when_no_free_provider_answers_it_says_so(client, db_session, seeded, hosted_free):
+    headers = await _headers(db_session, seeded["admin"])
+    with respx.mock(assert_all_called=False) as mock:
+        mock.post(NVIDIA_LLM).mock(return_value=httpx.Response(429))
+        mock.post(GROQ_LLM).mock(return_value=httpx.Response(429))
+        mock.post("https://api.groq.com/openai/v1/audio/transcriptions").mock(
+            return_value=httpx.Response(429)
+        )
+        text_only = await client.post(seeded["url"], json={"question": "hola"}, headers=headers)
+        with_audio = await client.post(
+            seeded["url"], json={"audio": "data:audio/webm;base64,T2dnUw=="}, headers=headers
+        )
+    for response in (text_only, with_audio):
+        assert response.status_code == 503
+        assert response.json()["code"] == "help_assistant.ai_down"
+
+    bad = await client.post(
+        seeded["url"], json={"image": "data:image/gif;base64,R0lGOD=="}, headers=headers
+    )
+    assert bad.json()["code"] == "help_assistant.media_type"
