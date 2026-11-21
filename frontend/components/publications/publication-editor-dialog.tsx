@@ -42,6 +42,7 @@ import {
   type PublicationSet,
   type TargetIn,
   type TikTokSettings,
+  type YouTubeSettings,
   useCreatePublication,
   useCreatePublicationSet,
   usePublicationSets,
@@ -67,6 +68,11 @@ import {
   TikTokConsent,
   TikTokTargetSettings,
 } from "./tiktok-target-settings";
+import {
+  EMPTY_YOUTUBE_SETTINGS,
+  normalizeYouTubeSettings,
+  YouTubeTargetSettings,
+} from "./youtube-target-settings";
 import { INTL_TAGS } from "@/lib/i18n/config";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
@@ -81,6 +87,7 @@ type SelectedMediaItem = {
 type PerChannelConfig = {
   postType: InstagramPostType;
   tiktok: TikTokSettings;
+  youtube: YouTubeSettings;
   customizeText: boolean;
   customText: string;
 };
@@ -250,6 +257,7 @@ export function PublicationEditorDialog({
           cfgs[ch.id] = {
             postType: normalizePostType(t.settings?.post_type),
             tiktok: normalizeTikTokSettings(t.settings),
+            youtube: normalizeYouTubeSettings(t.settings),
             customizeText: t.content_override !== null,
             customText: t.content_override ?? "",
           };
@@ -282,6 +290,7 @@ export function PublicationEditorDialog({
         cfgs[t.channel.id] = {
           postType: normalizePostType(t.settings?.post_type),
           tiktok: normalizeTikTokSettings(t.settings),
+            youtube: normalizeYouTubeSettings(t.settings),
           customizeText: t.content_override !== null,
           customText: t.content_override ?? "",
         };
@@ -349,6 +358,7 @@ export function PublicationEditorDialog({
       channelConfigs[channelId] ?? {
         postType: "feed",
         tiktok: EMPTY_TIKTOK_SETTINGS,
+        youtube: EMPTY_YOUTUBE_SETTINGS,
         customizeText: false,
         customText: "",
       }
@@ -394,6 +404,7 @@ export function PublicationEditorDialog({
       nextConfigs[ch.id] = {
         postType: normalizePostType(t.settings?.post_type),
         tiktok: normalizeTikTokSettings(t.settings),
+            youtube: normalizeYouTubeSettings(t.settings),
         customizeText: t.content_override !== null,
         customText: t.content_override ?? "",
       };
@@ -482,6 +493,7 @@ export function PublicationEditorDialog({
           channel: ch,
           postType: cfg?.postType ?? "feed",
           tiktok: cfg?.tiktok ?? EMPTY_TIKTOK_SETTINGS,
+          youtube: cfg?.youtube ?? EMPTY_YOUTUBE_SETTINGS,
           customContent: cfg?.customizeText ? cfg.customText : null,
         };
       }),
@@ -555,6 +567,8 @@ export function PublicationEditorDialog({
         target.settings = { post_type: cfg.postType };
       } else if (ch.network === "tiktok") {
         target.settings = { ...cfg.tiktok };
+      } else if (ch.network === "youtube") {
+        target.settings = { ...cfg.youtube };
       }
       if (cfg.customizeText) {
         target.content_override = cfg.customText;
@@ -1278,6 +1292,17 @@ export function PublicationEditorDialog({
                         }
                         onProblemChange={(problem) =>
                           reportPanelProblem(ch.id, problem)
+                        }
+                      />
+                    ) : null}
+
+                    {ch.network === "youtube" ? (
+                      <YouTubeTargetSettings
+                        value={cfg.youtube}
+                        onChange={(patch) =>
+                          updateConfig(ch.id, {
+                            youtube: { ...cfg.youtube, ...patch },
+                          })
                         }
                       />
                     ) : null}

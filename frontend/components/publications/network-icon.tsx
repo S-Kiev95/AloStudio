@@ -12,6 +12,7 @@ import {
   Threads,
   TikTok,
   XLogo,
+  YouTube,
 } from "@/components/ui/brand-icons";
 import type { Channel } from "@/lib/api/publications";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,11 @@ const KNOWN_NETWORKS: Record<
     label: "TikTok",
     icon: TikTok,
     colorClass: "text-fg",
+  },
+  youtube: {
+    label: "YouTube",
+    icon: YouTube,
+    colorClass: "text-[#FF0000]",
   },
   x: {
     label: "X",
