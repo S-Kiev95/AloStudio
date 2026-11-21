@@ -316,6 +316,15 @@ async def _on_terminate(
     )
 
 
+# Meta's reference says ``call_transcription_available``; what it really
+# sends (staging, 2026-11-20) is ``call_transcript_available``. Both count.
+_MEDIA_EVENTS = (
+    "call_recording_available",
+    "call_transcript_available",
+    "call_transcription_available",
+)
+
+
 async def process_calls_value(
     session: AsyncSession,
     *,
@@ -337,6 +346,14 @@ async def process_calls_value(
         if not isinstance(item, dict):
             continue
         event = item.get("event")
+        # What Meta sends for each call (no audio, text or numbers): enough
+        # to tell a missing transcript from one we failed to read.
+        log.info(
+            "calls.whatsapp.event event=%s call=%s fields=%s",
+            event,
+            item.get("id"),
+            ",".join(sorted(k for k in item if k not in ("from", "to", "session"))),
+        )
         try:
             async with session.begin_nested():
                 if event == "connect":
@@ -349,7 +366,7 @@ async def process_calls_value(
                     )
                 elif event == "terminate":
                     await _on_terminate(session, item=item, errors=errors or [])
-                elif event in ("call_recording_available", "call_transcription_available"):
+                elif event in _MEDIA_EVENTS:
                     await _on_media(session, channel=channel, item=item)
         except Exception:
             log.exception(

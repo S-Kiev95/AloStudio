@@ -174,7 +174,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         setting="threads_app_id",
         title="App ID de Threads",
         description=(
-            "El \"Threads App ID\" de la app de Meta (Configuración básica), "
+            'El "Threads App ID" de la app de Meta (Configuración básica), '
             "distinto del App ID de Facebook y del de Instagram."
         ),
         group=PUBLISHING_GROUP,
@@ -387,12 +387,63 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
     ConfigSpec(
         name="LOCAL_LLM_URL",
         setting="local_llm_url",
-        title="IA local: dirección",
+        title="IA Free: dirección",
         description=(
-            "La dirección del modelo que corre en este servidor (llama.cpp), "
-            "por ejemplo http://127.0.0.1:8092. Con ella aparece el botón "
-            "Ayuda, que guía por AloStudio sin gastar en OpenAI. Vacío: apagado."
+            "El modelo del modo Free de la Ayuda y de la clasificación. Uno en "
+            "este servidor (llama.cpp, por ejemplo http://127.0.0.1:8092) o uno "
+            "gratis en internet: https://api.groq.com/openai (Groq) o "
+            "https://integrate.api.nvidia.com (NVIDIA). Vacío: apagado."
         ),
+        group=AI_GROUP,
+    ),
+    ConfigSpec(
+        name="LOCAL_LLM_API_KEY",
+        setting="local_llm_api_key",
+        title="IA Free: clave",
+        description=(
+            "Solo para Groq o NVIDIA: la clave de su consola. Con el modelo "
+            "en este servidor queda vacía."
+        ),
+        group=AI_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="LOCAL_LLM_MODEL",
+        setting="local_llm_model",
+        title="IA Free: modelo",
+        description=(
+            "El nombre del modelo en ese proveedor, por ejemplo "
+            "openai/gpt-oss-20b en Groq. Con el modelo en este servidor "
+            "puede quedar vacío."
+        ),
+        group=AI_GROUP,
+    ),
+    ConfigSpec(
+        name="LOCAL_LLM_FALLBACK_URL",
+        setting="local_llm_fallback_url",
+        title="IA Free de respaldo: dirección",
+        description=(
+            "Otro proveedor que contesta cuando el primero llega a su límite "
+            "gratis o falla, por ejemplo https://integrate.api.nvidia.com. "
+            "Opcional."
+        ),
+        group=AI_GROUP,
+    ),
+    ConfigSpec(
+        name="LOCAL_LLM_FALLBACK_API_KEY",
+        setting="local_llm_fallback_api_key",
+        title="IA Free de respaldo: clave",
+        description="La clave del proveedor de respaldo.",
+        group=AI_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="LOCAL_LLM_FALLBACK_MODEL",
+        setting="local_llm_fallback_model",
+        title="IA Free de respaldo: modelo",
+        description="El nombre del modelo en el proveedor de respaldo.",
         group=AI_GROUP,
     ),
     ConfigSpec(

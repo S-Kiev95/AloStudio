@@ -681,7 +681,8 @@ async def test_an_inbox_that_records_gets_the_audio_and_the_transcript(
 
     for event, media_id in (
         ("call_recording_available", "rec-1"),
-        ("call_transcription_available", "doc-1"),
+        # The name Meta really sends (its reference says "transcription").
+        ("call_transcript_available", "doc-1"),
     ):
         await process_cloud_webhook(
             db_session,

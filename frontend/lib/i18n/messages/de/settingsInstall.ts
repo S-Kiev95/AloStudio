@@ -175,8 +175,8 @@ export const settingsInstall: Strings<typeof es> = {
       description: "Das OpenAI-Modell, das der Chat-Agent verwendet, zum Beispiel gpt-5.4-mini (schnell und günstig) oder gpt-5.5 (leistungsfähiger).",
     },
     LOCAL_LLM_URL: {
-      title: "Lokale KI: Adresse",
-      description: "Die Adresse des Modells, das auf diesem Server läuft (llama.cpp), zum Beispiel http://127.0.0.1:8092. Damit erscheint die Hilfe-Schaltfläche, die durch AloStudio führt, ohne Kosten bei OpenAI. Leer: aus.",
+      title: "Free-KI: Adresse",
+      description: "Das Modell für den Free-Modus der Hilfe und die Klassifizierung. Eines auf diesem Server (llama.cpp, zum Beispiel http://127.0.0.1:8092) oder ein kostenloses im Internet: https://api.groq.com/openai (Groq) oder https://integrate.api.nvidia.com (NVIDIA). Leer: aus.",
     },
     AI_WRITING_ASSIST_ENABLED: {
       title: "KI-Schreibhilfe",

@@ -18,6 +18,7 @@ export const helpAssistant: Strings<typeof es> = {
   thinkingFast: "Recherche dans l’aide…",
   allowFast: "Autoriser le mode Fast dans ce compte (dépense chez OpenAI)",
   problems: {
+    limit: "L’IA gratuite a atteint sa limite pour le moment. Réessayez plus tard ou utilisez le mode Fast.",
     mode: "Ce mode n’est pas disponible dans ce compte.",
     budget: "Le plafond de dépenses d’IA de ce mois est atteint. Utilisez le mode Free.",
     disabled: "L’aide n’est pas activée sur cette installation.",

@@ -702,13 +702,20 @@ dentro de la rama.
   - **Para el agente B:** el texto de la pregunta de urgencia de fábrica
     cambió (solo para las cuentas que no guardaron la suya); Jev la recibe
     así en esas cuentas.
+  - **En CTC desde el 2026-11-20 (01:48, con respaldo
+    `~/backups/alostudio-antes-qwen-20261120-0148.dump`), experimental con
+    aviso al director:** develop entero a `main` (`eb423fa`; trae también
+    el botón IA de la caja de texto, apagado hasta que lo prenda el
+    superadmin). Qwen con `THREADS=3 bash ops/llm/levantar.sh` (dos
+    lugares, 3,5 GiB; quedan unos 3 GiB libres) y `LOCAL_LLM_URL` en
+    Instalación. La clasificación la prende el director en Ajustes →
+    Clasificación; el «?» ya ofrece Free (Qwen) y Fast (OpenAI, con
+    permiso del administrador). El Agente de la barra lateral sigue con
+    OpenAI: Qwen 4B no maneja bien las herramientas.
   - **Falta:** medir con conversaciones reales contra lo que marca el
-    director; para CTC, llevar la Ayuda con Qwen a `main` e instalar el
-    modelo allá (unos 5 GB de RAM de los 6,5 libres). Mirar ahí la CPU:
-    con el mismo largo, una clasificación tardó de 7 a 34 s según lo que
-    hacía el resto del servidor (quizás `-t 3`). Mirar también la memoria
-    de llama-server. Si la bandeja no tiene zona horaria, "hoy" es el de
-    UTC (de 21 a 24 en Uruguay, ya es mañana).
+    director (Resultados, y las correcciones). Mirar la CPU y la memoria
+    de llama-server en CTC estos días. Si la bandeja no tiene zona
+    horaria, "hoy" es el de UTC (de 21 a 24 en Uruguay, ya es mañana).
   - **Al mezclar `feat/agente-ia` a `develop`:** su migración
     `b1d3f5a7c9e2` también cuelga de `b1c2d3e4f5a8`; encadenarla detrás de
     `d3f5b7c9e1a2` para que quede una sola cabeza.
@@ -885,7 +892,7 @@ Detalle en `PLAN.i18n.md`.
 | 5 | Resumen de llamadas con IA | Sí, en el plan más caro; lo prende el superadmin de cada instalación y gasta créditos de IA. **Hecho** (agente B, 2026-11-18): Instalación → Llamadas → "Resumen de llamadas con IA"; el resumen sale en la burbuja de la llamada cuando hay transcripción y el gasto va a Gastos como `call_summary`. Para F2/multitenant: atarlo al plan más caro |
 | 6 | Agente de IA que atiende llamadas | Contemplado (F7 paso 3). Lo hace el agente A junto con el 12 (2026-11-17) |
 | 7 | Etapas del contacto | Sí, con la nomenclatura de respond.io |
-| 8 | TikTok como canal de mensajes | Sí. En espera (2026-11-18): primero el dueño pide a TikTok el acceso a la Business Messaging API (revisión de seguridad; cuenta de empresa con acceso avanzado o verificada, que acepte DMs de todos). Con eso, el agente B porta el canal de TikTok de Chatwoot |
+| 8 | TikTok como canal de mensajes | Sí. En espera (2026-11-18): primero el dueño pide a TikTok el acceso a la Business Messaging API. 2026-11-20: con la cuenta de TikTok for Business de CTC ya se aceptó la política de anuncios; el registro de desarrollador (business-api.tiktok.com) quedó frenado porque pide un correo de empresa, no Gmail (revisión de seguridad; cuenta de empresa con acceso avanzado o verificada, que acepte DMs de todos). Con eso, el agente B porta el canal de TikTok de Chatwoot |
 | 9 | Llamadas de Messenger y telefonía VoIP | Sin decidir (el dueño preguntó qué es VoIP) |
 | 10 | Ocultar el teléfono y el correo del cliente a los agentes | Tentativo |
 | 11 | Integraciones | Google, login y Calendar: sí. HubSpot, Salesforce, Zapier y Make: no. n8n: ver el 3. Calendar **hecho** (agente B, 2026-11-18): cada agente lo conecta en Mi perfil; sus citas y tareas con fecha van a su calendario, en una dirección |

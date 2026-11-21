@@ -200,7 +200,8 @@ async def warm() -> bool:
     """Read the fixed beginning so the first real question does not have to
     (after a restart, or after someone else used the model). Cheap when it
     is already cached: only the probe's few words are new."""
-    if not enabled():
+    if not enabled() or local_llm.hosted():
+        # A hosted provider keeps nothing read between requests.
         return False
     messages = [*knowledge.prefix_messages(), {"role": "user", "content": "hola"}]
     await local_llm.chat(messages, max_tokens=1, slot=local_llm.HELP_SLOT)

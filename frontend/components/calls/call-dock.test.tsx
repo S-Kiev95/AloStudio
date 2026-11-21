@@ -136,6 +136,12 @@ function renderDock() {
 
 describe("CallDock", () => {
   it("rings, answers from the browser and hangs up", async () => {
+    // As the backend sends it: the call rings for me (Sofía, id 5).
+    server.use(
+      http.get("*/calls/active", () =>
+        HttpResponse.json({ payload: [{ ...ringing, ring_user_ids: [5] }] }),
+      ),
+    );
     renderDock();
     expect(await screen.findByText("Lucía Pereira")).toBeInTheDocument();
     expect(screen.getByText("Llamada de WhatsApp · WhatsApp CTC")).toBeInTheDocument();
@@ -143,6 +149,8 @@ describe("CallDock", () => {
     fireEvent.click(screen.getByRole("button", { name: "Atender" }));
 
     expect(await screen.findByRole("button", { name: /Colgar/ })).toBeInTheDocument();
+    // Never both: the list still says "ringing" until Meta confirms.
+    expect(screen.queryByRole("button", { name: "Atender" })).not.toBeInTheDocument();
     await waitFor(() => expect(audio.startSending).toHaveBeenCalled());
     expect(answerOffer).toHaveBeenCalledWith("OFFER-SDP", expect.anything());
     expect(steps.map((s) => s.step)).toEqual(["pre_accept", "accept"]);

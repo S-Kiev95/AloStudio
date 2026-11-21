@@ -175,8 +175,8 @@ export const settingsInstall: Strings<typeof es> = {
       description: "채팅 에이전트가 쓰는 OpenAI 모델입니다. 예: gpt-5.4-mini(빠르고 저렴) 또는 gpt-5.5(더 뛰어남).",
     },
     LOCAL_LLM_URL: {
-      title: "로컬 AI: 주소",
-      description: "이 서버에서 실행되는 모델(llama.cpp)의 주소입니다. 예: http://127.0.0.1:8092. 설정하면 도움말 버튼이 나타나 OpenAI 비용 없이 AloStudio를 안내합니다. 비워 두면 꺼집니다.",
+      title: "Free AI: 주소",
+      description: "도움말 Free 모드와 대화 분류에 쓰는 모델입니다. 이 서버의 모델(llama.cpp, 예: http://127.0.0.1:8092) 또는 인터넷의 무료 모델: https://api.groq.com/openai (Groq) 또는 https://integrate.api.nvidia.com (NVIDIA). 비워 두면 꺼집니다.",
     },
     AI_WRITING_ASSIST_ENABLED: {
       title: "AI 작성 도움",

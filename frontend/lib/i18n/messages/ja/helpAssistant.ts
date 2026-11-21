@@ -18,6 +18,7 @@ export const helpAssistant: Strings<typeof es> = {
   thinkingFast: "ヘルプを検索しています…",
   allowFast: "このアカウントで Fast モードを許可 (OpenAI の費用がかかります)",
   problems: {
+    limit: "無料の AI は現在上限に達しています。しばらくしてから試すか、Fast モードを使ってください。",
     mode: "このアカウントではそのモードは使えません。",
     budget: "今月の AI 利用上限に達しました。Free モードを使ってください。",
     disabled: "このインストールではヘルプがオンになっていません。",

@@ -172,8 +172,8 @@ export const settingsInstall = {
       description: "El modelo de OpenAI que usa el agente con chat, por ejemplo gpt-5.4-mini (rápido y barato) o gpt-5.5 (más capaz).",
     },
     LOCAL_LLM_URL: {
-      title: "IA local: dirección",
-      description: "La dirección del modelo que corre en este servidor (llama.cpp), por ejemplo http://127.0.0.1:8092. Con ella aparece el botón Ayuda, que guía por AloStudio sin gastar en OpenAI. Vacío: apagado.",
+      title: "IA Free: dirección",
+      description: "El modelo del modo Free de la Ayuda y de la clasificación. Uno en este servidor (llama.cpp, por ejemplo http://127.0.0.1:8092) o uno gratis en internet: https://api.groq.com/openai (Groq) o https://integrate.api.nvidia.com (NVIDIA). Vacío: apagado.",
     },
     AI_WRITING_ASSIST_ENABLED: {
       title: "Ayuda de IA al escribir",

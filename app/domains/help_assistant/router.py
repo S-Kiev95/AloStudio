@@ -99,6 +99,7 @@ async def ask(
     except ValueError as exc:
         raise _fail(str(exc)) from exc
     except local_llm.LocalLlmError as exc:
-        raise _fail("busy" if exc.code == "timeout" else "failed", 503) from exc
+        code = {"timeout": "busy", "rate_limited": "limit"}.get(exc.code, "failed")
+        raise _fail(code, 503) from exc
     except llm.LlmError as exc:
         raise _fail("failed", 503) from exc
