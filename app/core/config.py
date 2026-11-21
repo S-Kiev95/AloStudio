@@ -96,6 +96,14 @@ class Settings(BaseSettings):
     # → off. ``local_llm_model`` only names it in the logs.
     local_llm_url: str = ""
     local_llm_model: str = ""
+    # With a key, ``local_llm_url`` is a free hosted API instead (Groq:
+    # https://api.groq.com/openai, NVIDIA NIM: https://integrate.api.nvidia.com)
+    # and ``local_llm_model`` is required. The fallback provider answers when
+    # the main one refuses (rate limit, error).
+    local_llm_api_key: str = ""
+    local_llm_fallback_url: str = ""
+    local_llm_fallback_api_key: str = ""
+    local_llm_fallback_model: str = ""
 
     # --- local embeddings (EmbeddingGemma 2, F9)
     # Base URL of the embeddings service (``app.embeddings_service``), a

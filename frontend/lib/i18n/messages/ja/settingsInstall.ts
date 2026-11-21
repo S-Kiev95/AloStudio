@@ -175,8 +175,8 @@ export const settingsInstall: Strings<typeof es> = {
       description: "チャットエージェントが使う OpenAI のモデル。例: gpt-5.4-mini (高速で安価) や gpt-5.5 (より高性能)。",
     },
     LOCAL_LLM_URL: {
-      title: "ローカル AI: アドレス",
-      description: "このサーバーで動くモデル (llama.cpp) のアドレス。例: http://127.0.0.1:8092。設定するとヘルプボタンが表示され、OpenAI の費用なしで AloStudio を案内します。空欄: オフ。",
+      title: "Free AI: アドレス",
+      description: "ヘルプの Free モードと会話の分類に使うモデル。このサーバー上のもの (llama.cpp、例: http://127.0.0.1:8092) か、インターネット上の無料のもの: https://api.groq.com/openai (Groq) または https://integrate.api.nvidia.com (NVIDIA)。空欄: オフ。",
     },
     AI_WRITING_ASSIST_ENABLED: {
       title: "AI 文章作成アシスト",

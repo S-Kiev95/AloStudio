@@ -18,6 +18,7 @@ export const helpAssistant: Strings<typeof es> = {
   thinkingFast: "도움말을 찾는 중…",
   allowFast: "이 계정에서 Fast 모드 허용 (OpenAI 비용 발생)",
   problems: {
+    limit: "무료 AI가 지금은 한도에 도달했습니다. 잠시 후 다시 시도하거나 Fast 모드를 사용하세요.",
     mode: "이 계정에서는 해당 모드를 쓸 수 없습니다.",
     budget: "이번 달 AI 지출 한도에 도달했습니다. Free 모드를 사용하세요.",
     disabled: "이 설치에서는 도움말이 켜져 있지 않습니다.",
