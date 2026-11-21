@@ -77,6 +77,8 @@ def _present(ctx: AccountContext) -> dict[str, Any]:
         "fast_allowed": service.fast_allowed(ctx.account),
         "can_manage": ctx.is_administrator,
         "question_max": service.QUESTION_MAX,
+        # Screenshots and voice questions (NVIDIA or Groq keys set).
+        "media": media_ai.available(),
     }
 
 
