@@ -975,6 +975,22 @@ Detalle en `PLAN.i18n.md`.
   futura por cliente) y completar datos del CRM (nombre, email, etapa,
   etiqueta, oportunidad). Apagado por defecto; se prende en Ajustes → Bots.
   En sombra solo lo propone. Las etapas que mueve la IA no se avisan a Meta.
+- **Para el agente A: capturas y voz en el asistente (dueño, 2026-11-20; nota del
+  agente B).** El dueño quiere que el «?» y el Agente acepten capturas de pantalla
+  y preguntas por voz, procesadas solas. En la Ayuda ya está en develop:
+  `app/core/media_ai.py` pasa una imagen a descripción (`describe`) y un audio a
+  texto (`transcribe`) con NVIDIA primero (`nemotron-3-nano-omni`) y Groq de
+  respaldo (`qwen3.8-27b` para imágenes, `whisper-large-v3-turbo` para audio); si
+  ninguno contesta, `MediaAiDown` → código `ai_down` ("Servicios de AI
+  temporalmente fuera, intenta mañana"). El texto resultante se le pregunta al
+  modelo de siempre, así sirve para Free y Fast. En el panel, `help-button.tsx`
+  tiene el botón de captura (también Ctrl+V) y el de grabar (hasta un minuto).
+  Cuando el asistente unificado de `feat/agente-ia` pase a develop, usar lo mismo
+  en el Agente: `media_ai.check` + `describe`/`transcribe` antes de mandarle el
+  mensaje al modelo. Además, desde el 2026-11-20 el modo Free de CTC ya no es Qwen
+  local sino Groq (`openai/gpt-oss-20b`) con NVIDIA (`minimaxai/minimax-m3.1-flash`)
+  de respaldo (`app/core/local_llm.py`, proveedores con clave); con un proveedor
+  así no hay lugares ni precalentado, y el contenedor de Qwen en CTC se borró.
 - **12 y 13, segunda comparación (agente A, 2026-11-17):** al repasar
   respond.io quedaron estas dos que no estaban en la tabla.
   - 12: es distinto del 1 (ayuda al agente humano) y del 6 (voz). Ya están
