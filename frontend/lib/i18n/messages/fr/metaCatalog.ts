@@ -20,6 +20,13 @@ export const metaCatalog: Strings<typeof es> = {
   publish: "Publier dans le catalogue Meta",
   publishHint: "Meta demande une description, un prix avec devise, un lien et une image. Décochez pour le retirer du catalogue.",
   lastError: "La dernière synchronisation automatique a échoué : {error}",
+  connectFacebook: "Se connecter avec Facebook",
+  pasteToken: "Coller l’ID et le jeton",
+  orManual: "Ou collez à la main l’ID du catalogue et le jeton d’un utilisateur système :",
+  whichCatalog: "Quel catalogue voulez-vous connecter ?",
+  connectedNotice: "Catalogue connecté.",
+  viaFacebook: "Connecté avec Facebook.",
+  viaFacebookUntil: "Connecté avec Facebook. L’accès expire le {date} ; reconnectez-vous ensuite.",
   synced: "Terminé : {sent} envoyés, {removed} retirés, {skipped} incomplets, {failed} refusés par Meta.",
   state: {
     synced: "Chez Meta",
@@ -40,5 +47,9 @@ export const metaCatalog: Strings<typeof es> = {
     refused: "Meta a refusé la demande.",
     unreachable: "Impossible de joindre Meta. Réessayez plus tard.",
     not_connected: "Connectez d’abord un catalogue.",
+    cancelled: "La connexion a été annulée avant d’autoriser le catalogue.",
+    no_catalogs: "Meta n’a renvoyé aucun catalogue. Vérifiez que votre entreprise en a un dans Commerce Manager et choisissez-le sur l’écran de Facebook.",
+    pick_expired: "Le choix a expiré. Reconnectez-vous avec Facebook.",
+    login_unavailable: "Cette installation n’a pas la connexion avec Facebook configurée.",
   },
 };

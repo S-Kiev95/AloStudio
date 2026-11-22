@@ -20,6 +20,13 @@ export const metaCatalog: Strings<typeof es> = {
   publish: "Meta カタログに掲載",
   publishHint: "Meta では説明、通貨付きの価格、リンク、画像が必要です。チェックを外すとカタログから削除されます。",
   lastError: "前回の自動同期に失敗しました: {error}",
+  connectFacebook: "Facebook で接続",
+  pasteToken: "ID とトークンを貼り付け",
+  orManual: "または、カタログ ID とシステムユーザーのトークンを手動で貼り付けます:",
+  whichCatalog: "どのカタログを接続しますか？",
+  connectedNotice: "カタログを接続しました。",
+  viaFacebook: "Facebook で接続済みです。",
+  viaFacebookUntil: "Facebook で接続済みです。アクセスは {date} に期限切れになります。その後は再接続してください。",
   synced: "完了: 送信 {sent} 件、削除 {removed} 件、情報不足 {skipped} 件、Meta が拒否 {failed} 件。",
   state: {
     synced: "Meta に掲載中",
@@ -40,5 +47,9 @@ export const metaCatalog: Strings<typeof es> = {
     refused: "Meta がリクエストを拒否しました。",
     unreachable: "Meta に接続できませんでした。しばらくしてからもう一度お試しください。",
     not_connected: "先にカタログを接続してください。",
+    cancelled: "カタログを承認する前に接続がキャンセルされました。",
+    no_catalogs: "Meta からカタログが返されませんでした。コマースマネージャにカタログがあることを確認し、Facebook の画面で選択してください。",
+    pick_expired: "選択の期限が切れました。もう一度 Facebook で接続してください。",
+    login_unavailable: "このインストールでは Facebook ログインが設定されていません。",
   },
 };

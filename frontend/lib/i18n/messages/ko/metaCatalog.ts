@@ -20,6 +20,13 @@ export const metaCatalog: Strings<typeof es> = {
   publish: "Meta 카탈로그에 게시",
   publishHint: "Meta에는 설명, 통화가 포함된 가격, 링크, 이미지가 필요합니다. 선택을 해제하면 카탈로그에서 삭제됩니다.",
   lastError: "마지막 자동 동기화에 실패했습니다: {error}",
+  connectFacebook: "Facebook으로 연결",
+  pasteToken: "ID와 토큰 붙여넣기",
+  orManual: "또는 카탈로그 ID와 시스템 사용자 토큰을 직접 붙여넣으세요:",
+  whichCatalog: "어떤 카탈로그를 연결할까요?",
+  connectedNotice: "카탈로그가 연결되었습니다.",
+  viaFacebook: "Facebook으로 연결되었습니다.",
+  viaFacebookUntil: "Facebook으로 연결되었습니다. 액세스는 {date}에 만료되며, 그 후 다시 연결하세요.",
   synced: "완료: {sent}개 전송, {removed}개 삭제, {skipped}개 정보 부족, {failed}개 Meta 거부.",
   state: {
     synced: "Meta에 등록됨",
@@ -40,5 +47,9 @@ export const metaCatalog: Strings<typeof es> = {
     refused: "Meta가 요청을 거부했습니다.",
     unreachable: "Meta에 연결할 수 없습니다. 잠시 후 다시 시도하세요.",
     not_connected: "먼저 카탈로그를 연결하세요.",
+    cancelled: "카탈로그를 승인하기 전에 연결이 취소되었습니다.",
+    no_catalogs: "Meta에서 카탈로그를 반환하지 않았습니다. 커머스 관리자에 카탈로그가 있는지 확인하고 Facebook 화면에서 선택하세요.",
+    pick_expired: "선택 시간이 만료되었습니다. Facebook으로 다시 연결하세요.",
+    login_unavailable: "이 설치에는 Facebook 로그인이 설정되어 있지 않습니다.",
   },
 };

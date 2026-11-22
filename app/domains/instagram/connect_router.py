@@ -22,6 +22,8 @@ from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import AccountContext, require_admin
 from app.core.errors import ChatwootHTTPException
+from app.domains.crm import meta_catalog as crm_catalog
+from app.domains.crm import meta_catalog_connect as catalog_connect
 from app.domains.facebook import connect_service as facebook_connect
 from app.domains.instagram import connect_service
 from app.domains.instagram.schemas import InstagramManualConnect
@@ -146,6 +148,34 @@ async def _facebook_page_callback(
     return _back_to_facebook(account_id, inbox_id=result["inbox_id"])
 
 
+def _back_to_products(account_id: int, **params: str) -> RedirectResponse:
+    """Back from connecting the Meta catalogue: CRM → Productos, with the
+    outcome (``catalog``, ``catalog_pick`` or ``catalog_error``, a code)."""
+    base = get_settings().app_base_url.rstrip("/")
+    return RedirectResponse(
+        f"{base}/accounts/{account_id}/products?{urlencode(params)}", status_code=303
+    )
+
+
+async def _catalog_callback(
+    session: AsyncSession,
+    *,
+    account_id: int,
+    code: str | None,
+    state: str,
+    error: str | None,
+) -> Response:
+    if error or not code:
+        return _back_to_products(account_id, catalog_error="cancelled")
+    try:
+        result = await catalog_connect.complete_oauth(session, code=code, state=state)
+    except crm_catalog.CatalogError as exc:
+        return _back_to_products(account_id, catalog_error=exc.code)
+    if result.get("pick"):
+        return _back_to_products(account_id, catalog_pick=result["pick"])
+    return _back_to_products(account_id, catalog="connected")
+
+
 @callback_router.get("/api/v1/instagram/oauth/callback")
 async def oauth_callback(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -179,6 +209,10 @@ async def oauth_callback(
         )
     if flow == facebook_connect.FLOW:
         return await _facebook_page_callback(
+            session, account_id=account_id, code=code, state=state, error=error
+        )
+    if flow == catalog_connect.FLOW:
+        return await _catalog_callback(
             session, account_id=account_id, code=code, state=state, error=error
         )
     if error:

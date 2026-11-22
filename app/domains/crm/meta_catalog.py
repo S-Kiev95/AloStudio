@@ -35,6 +35,7 @@ import httpx
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.domains.accounts.models import Account
 from app.domains.instagram.graph import graph_base
 from app.domains.integrations.models import IntegrationsHook
@@ -101,11 +102,27 @@ async def _graph(
     return body if isinstance(body, dict) else {}
 
 
+def login_available() -> bool:
+    """Whether this installation can connect the catalogue by logging in
+    with Facebook (``meta_catalog_connect``): its Meta app is configured."""
+    settings = get_settings()
+    return bool(
+        settings.meta_app_id and settings.meta_app_secret and settings.meta_oauth_redirect_uri
+    )
+
+
 async def connect(
-    session: AsyncSession, *, account_id: int, catalog_id: str, access_token: str | None
+    session: AsyncSession,
+    *,
+    account_id: int,
+    catalog_id: str,
+    access_token: str | None,
+    login: dict[str, Any] | None = None,
 ) -> IntegrationsHook:
     """Check the catalogue answers with this token, then keep the link.
-    Without a new token, the stored one is reused (changing the id only)."""
+    Without a new token, the stored one is reused (changing the id only).
+    ``login`` says the token came from logging in with Facebook (and when
+    it expires); a pasted token clears it."""
     catalog_id = catalog_id.strip()
     if not catalog_id.isdigit():
         raise CatalogError("catalog_id")
@@ -120,6 +137,11 @@ async def connect(
     if settings.get("catalog_id") != catalog_id:
         settings.pop("last_sync", None)
     settings.update({"catalog_id": catalog_id, "catalog_name": info.get("name")})
+    if login is not None:
+        settings["login"] = login
+    elif (access_token or "").strip():
+        settings.pop("login", None)
+    settings.pop("last_error", None)
     hook.settings = settings
     hook.reference_id = catalog_id
     hook.access_token = token
@@ -317,8 +339,6 @@ SYNC_DELAY_SECONDS = 30
 async def enqueue_sync(account_id: int) -> None:
     """Sync the account's catalogue shortly, off the request. Best-effort:
     without a worker the next manual sync catches up."""
-    from app.core.config import get_settings
-
     settings = get_settings()
     if settings.app_env == "test":
         return
@@ -375,11 +395,15 @@ async def product_changed(
 
 
 def present_link(hook: IntegrationsHook | None) -> dict[str, Any]:
+    can_login = login_available()
     if hook is None:
-        return {"connected": False}
+        return {"connected": False, "can_login": can_login}
     settings = _settings(hook)
     return {
         "connected": True,
+        "can_login": can_login,
+        # Connected by logging in with Facebook: when that token expires.
+        "login": settings.get("login"),
         "catalog_id": settings.get("catalog_id"),
         "catalog_name": settings.get("catalog_name"),
         "last_sync": settings.get("last_sync"),
@@ -395,6 +419,7 @@ __all__ = [
     "disconnect",
     "enqueue_sync",
     "get_link",
+    "login_available",
     "missing_fields",
     "present_link",
     "product_changed",
