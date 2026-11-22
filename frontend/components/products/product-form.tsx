@@ -8,14 +8,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Product, ProductInput } from "@/lib/api/products";
 import { useT } from "@/lib/i18n/provider";
+import { translateOr } from "@/lib/i18n/translate";
+
+const isLink = (value: string) => /^https?:\/\//.test(value.trim());
 
 export function ProductForm({
   initial,
+  catalogConnected = false,
   submitting,
   onSubmit,
   onCancel,
 }: {
   initial?: Product;
+  /** The account has a Meta catalogue: offer to publish the product there. */
+  catalogConnected?: boolean;
   submitting?: boolean;
   onSubmit: (input: ProductInput) => Promise<void> | void;
   onCancel: () => void;
@@ -31,6 +37,9 @@ export function ProductForm({
   const [url, setUrl] = useState(initial?.url ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.image_url ?? "");
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
+  const [metaSync, setMetaSync] = useState(initial?.meta_sync ?? false);
+  // What Meta needs of every item, asked only when it goes to the catalogue.
+  const forMeta = catalogConnected && metaSync;
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
@@ -42,6 +51,20 @@ export function ProductForm({
       if (Number.isNaN(n) || n < 0) return setError(t("products.form.priceInvalid"));
       priceValue = n;
     }
+    if (forMeta) {
+      const missing = [
+        !description.trim() && "description",
+        (priceValue == null || !currency.trim()) && "price",
+        !isLink(url) && "url",
+        !isLink(imageUrl) && "image_url",
+      ].filter((f): f is string => Boolean(f));
+      if (missing.length) {
+        const fields = missing
+          .map((f) => translateOr(t, `metaCatalog.fields.${f}`, f))
+          .join(", ");
+        return setError(t("products.form.metaMissing", { fields }));
+      }
+    }
 
     const input: ProductInput = {
       name: name.trim(),
@@ -52,6 +75,8 @@ export function ProductForm({
       url: url.trim() || null,
       image_url: imageUrl.trim() || null,
       enabled,
+      // Without a catalogue the choice isn't shown, so it isn't touched.
+      ...(catalogConnected ? { meta_sync: metaSync } : {}),
     };
 
     try {
@@ -84,7 +109,9 @@ export function ProductForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="p-desc">{t("products.form.description")}</Label>
+        <Label htmlFor="p-desc" required={forMeta}>
+          {t("products.form.description")}
+        </Label>
         <Textarea
           id="p-desc"
           rows={3}
@@ -95,7 +122,9 @@ export function ProductForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label htmlFor="p-price">{t("products.form.price")}</Label>
+          <Label htmlFor="p-price" required={forMeta}>
+            {t("products.form.price")}
+          </Label>
           <Input
             id="p-price"
             type="number"
@@ -106,7 +135,9 @@ export function ProductForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="p-currency">{t("products.form.currency")}</Label>
+          <Label htmlFor="p-currency" required={forMeta}>
+            {t("products.form.currency")}
+          </Label>
           <Input
             id="p-currency"
             value={currency}
@@ -122,7 +153,9 @@ export function ProductForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="p-url">{t("products.form.productUrl")}</Label>
+        <Label htmlFor="p-url" required={forMeta}>
+          {t("products.form.productUrl")}
+        </Label>
         <Input
           id="p-url"
           type="url"
@@ -133,7 +166,9 @@ export function ProductForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="p-img">{t("products.form.imageUrl")}</Label>
+        <Label htmlFor="p-img" required={forMeta}>
+          {t("products.form.imageUrl")}
+        </Label>
         <Input
           id="p-img"
           type="url"
@@ -151,6 +186,20 @@ export function ProductForm({
         />
         {t("products.form.active")}
       </label>
+
+      {catalogConnected ? (
+        <div className="space-y-1">
+          <label className="flex items-center gap-2 text-sm text-fg">
+            <input
+              type="checkbox"
+              checked={metaSync}
+              onChange={(e) => setMetaSync(e.target.checked)}
+            />
+            {t("metaCatalog.publish")}
+          </label>
+          <p className="pl-6 text-xs text-fg-muted">{t("metaCatalog.publishHint")}</p>
+        </div>
+      ) : null}
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={submitting}>

@@ -13,6 +13,7 @@ from app.domains.appointments.presenters import (
     present_appointments,
     present_one_appointment,
 )
+from app.domains.crm import meta_catalog
 from app.domains.products import service as psvc
 from app.domains.products.presenters import present_product
 from app.mcp.context import current_mcp_context
@@ -54,9 +55,11 @@ def register(mcp: FastMCP) -> None:
         url: str | None = None,
         image_url: str | None = None,
         enabled: bool = True,
+        meta_sync: bool = False,
     ) -> dict[str, Any]:
         """Add a product or service to the account's catalogue (the one
-        appointments and Instagram posts can point to)."""
+        appointments and Instagram posts can point to). ``meta_sync`` also
+        sends it to the account's Meta catalogue, if one is linked."""
         ctx = current_mcp_context()
         assert ctx.account.id is not None
         product = await psvc.create_product(
@@ -71,8 +74,10 @@ def register(mcp: FastMCP) -> None:
                 "url": url,
                 "image_url": image_url,
                 "enabled": enabled,
+                "meta_sync": meta_sync,
             },
         )
+        await meta_catalog.product_changed(ctx.session, product)
         return present_product(product)
 
     @mcp.tool(name="update_product")
@@ -87,9 +92,11 @@ def register(mcp: FastMCP) -> None:
         url: str | None = None,
         image_url: str | None = None,
         enabled: bool | None = None,
+        meta_sync: bool | None = None,
     ) -> dict[str, Any]:
         """Change a product; fields left out stay as they are. ``enabled``
-        false hides it from the catalogue without deleting it."""
+        false hides it from the catalogue without deleting it; ``meta_sync``
+        sends it to (or takes it out of) the linked Meta catalogue."""
         ctx = current_mcp_context()
         assert ctx.account.id is not None
         product = await psvc.get_product(
@@ -108,12 +115,14 @@ def register(mcp: FastMCP) -> None:
                 ("url", url),
                 ("image_url", image_url),
                 ("enabled", enabled),
+                ("meta_sync", meta_sync),
             )
             if value is not None
         }
         if not payload:
             raise ValueError("nothing to update")
         updated = await psvc.update_product(ctx.session, product=product, payload=payload)
+        await meta_catalog.product_changed(ctx.session, updated)
         return present_product(updated)
 
     @mcp.tool(name="list_appointments")

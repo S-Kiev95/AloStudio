@@ -4,7 +4,7 @@ Lista viva: qué falta de cada fase de `PLAN.fases-futuras.md`. Se actualiza
 al cerrar cada trabajo. El detalle de cada fase está en ese plan; acá solo
 el estado y lo que queda.
 
-Última actualización: 2026-11-15.
+Última actualización: 2026-11-22.
 
 ## Reparto entre los dos agentes
 
@@ -829,6 +829,20 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     **Arreglado el 2026-11-15** (en develop, todavía no en CTC): después de
     una sincronización, los cambios de la hora siguiente se perdían (ARQ
     no acepta el mismo id de trabajo mientras guarda su resultado).
+    **Producto por producto — hecho el 2026-11-22** (rama
+    `feat/crm-catalogo-meta`, esperando el OK del dueño para develop): ya no
+    se mandan todos los activos, sino los que tienen tildado "Publicar en el
+    catálogo de Meta" en su ficha (columna `products.meta_sync`; la casilla
+    solo aparece si la cuenta tiene catálogo conectado, y al tildarla la
+    ficha pide descripción, precio con moneda, enlace e imagen). Destildarlo
+    o desactivar el producto lo quita de Meta; borrarlo también. Manda el
+    CRM: lo que se edite en Commerce Manager se pisa en la próxima
+    sincronización. Si la sincronización automática falla (token vencido,
+    permiso), la tarjeta del catálogo lo muestra (`last_error`). El agente
+    (MCP `create_product` / `update_product`, con `meta_sync`) ahora también
+    dispara la sincronización. WhatsApp solo ofrece los productos tildados.
+    Migración `e4a6c8b0d2f4`: deja tildados los productos que ya estaban en
+    Meta; en CTC, aplicarla con respaldo previo.
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
     Productos en la Bandeja, pedidos por el webhook que abren una
     oportunidad y pestaña Catálogo en la sección WhatsApp (ver F5).

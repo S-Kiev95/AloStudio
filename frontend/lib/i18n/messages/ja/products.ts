@@ -11,6 +11,7 @@ export const products: Strings<typeof es> = {
     currency: "通貨",
     productUrl: "商品 URL",
     imageUrl: "画像 URL",
+    metaMissing: "Meta に掲載するには次が必要です: {fields}。",
     active: "有効 (カタログに表示)",
     create: "商品を作成",
   },

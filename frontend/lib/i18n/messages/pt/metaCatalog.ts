@@ -3,7 +3,7 @@ import type { Strings } from "../types";
 
 export const metaCatalog: Strings<typeof es> = {
   title: "Catálogo da Meta",
-  intro: "Conecte um catálogo do Commerce Manager e os produtos ativos são enviados para lá, prontos para aparecer no WhatsApp, Instagram e Facebook.",
+  intro: "Conecte um catálogo do Commerce Manager e escolha quais produtos são publicados lá, prontos para aparecer no WhatsApp, Instagram e Facebook.",
   howTo: "O ID está no Commerce Manager → seu catálogo → Configurações. O token é de um usuário do sistema (Configurações do negócio → Usuários do sistema) com a permissão catalog_management e acesso ao catálogo.",
   catalogId: "ID do catálogo",
   token: "Token de acesso",
@@ -16,7 +16,10 @@ export const metaCatalog: Strings<typeof es> = {
   neverSynced: "Ainda não foi sincronizado.",
   lastSync: "Última sincronização: {date} · {sent} enviados, {failed} com problemas",
   stillChecking: "A Meta ainda estava revisando o envio; se algo falhar, você verá na próxima sincronização.",
-  autoSync: "Cada alteração num produto é enviada sozinha, poucos segundos depois.",
+  autoSync: "As alterações nos produtos publicados são enviadas sozinhas, poucos segundos depois. O que for editado no Commerce Manager é substituído pelo CRM.",
+  publish: "Publicar no catálogo da Meta",
+  publishHint: "A Meta pede descrição, preço com moeda, link e imagem. Se desmarcar, ele sai do catálogo.",
+  lastError: "A última sincronização automática falhou: {error}",
   synced: "Pronto: {sent} enviados, {removed} removidos, {skipped} incompletos, {failed} recusados pela Meta.",
   state: {
     synced: "Na Meta",
