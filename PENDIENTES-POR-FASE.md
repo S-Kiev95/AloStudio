@@ -870,8 +870,8 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     **Corrección:** el acceso que da Facebook no vence (`expires_at` 0); lo
     que vence es el acceso a los datos, a los 90 días (`data_access_expires_at`,
     hoy 2027-02-20), salvo que la persona vuelva a entrar. La tarjeta dice
-    "Conectado con Facebook." sin fecha. Pendiente chico: leer esa fecha con
-    `debug_token` al conectar y mostrarla. Falta probar los mensajes de
+    "Conectado con Facebook. El acceso vence el …" con esa fecha (se lee con
+    `debug_token` al conectar; hecho y probado el 2026-11-22). Falta probar los mensajes de
     producto por WhatsApp con un producto tildado (necesita un contacto que
     haya escrito en las últimas 24 h).
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
