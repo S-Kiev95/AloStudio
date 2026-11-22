@@ -39,6 +39,7 @@ from app.domains.contacts.models import Contact
 from app.domains.crm import activities as act
 from app.domains.crm import companies as comp
 from app.domains.crm import meta_catalog as catalog
+from app.domains.crm import meta_catalog_connect as catalog_login
 from app.domains.crm import origin as org
 from app.domains.crm import service as svc
 from app.domains.crm.models import CrmActivity, CrmCompany, CrmOpportunity, CrmPipeline
@@ -479,6 +480,46 @@ async def disconnect_meta_catalog(
 ) -> dict[str, Any]:
     await catalog.disconnect(session, _account_id(ctx))
     return catalog.present_link(None)
+
+
+@router.get("/meta-catalog/connect/start")
+async def start_meta_catalog_login(
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+) -> dict[str, Any]:
+    """The Facebook dialog URL to connect the catalogue by logging in;
+    Facebook sends the browser back to the shared Meta callback."""
+    try:
+        return {"authorize_url": catalog_login.start_oauth(_account_id(ctx))}
+    except catalog.CatalogError as exc:
+        raise _catalog_error(exc) from exc
+
+
+@router.get("/meta-catalog/pending/{nonce}")
+async def pending_meta_catalogs(
+    nonce: Annotated[str, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+) -> list[dict[str, Any]]:
+    """The catalogues to choose from after logging in (no token)."""
+    try:
+        return await catalog_login.pending_catalogs(account_id=_account_id(ctx), nonce=nonce)
+    except catalog.CatalogError as exc:
+        raise _catalog_error(exc) from exc
+
+
+@router.post("/meta-catalog/pending/{nonce}/{catalog_id}")
+async def connect_pending_meta_catalog(
+    nonce: Annotated[str, Path()],
+    catalog_id: Annotated[str, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    try:
+        hook = await catalog_login.connect_pending(
+            session, account_id=_account_id(ctx), nonce=nonce, catalog_id=catalog_id
+        )
+    except catalog.CatalogError as exc:
+        raise _catalog_error(exc) from exc
+    return catalog.present_link(hook)
 
 
 @router.post("/meta-catalog/sync")

@@ -86,8 +86,11 @@ async def test_connecting_checks_the_catalogue_and_keeps_the_token(client, seede
         base, json={"catalog_id": "123456", "access_token": "EAAsecret"}, headers=headers
     )
     assert res.status_code == 200, res.text
-    assert res.json() == {
+    shown = res.json()
+    assert shown.pop("can_login") in (True, False)
+    assert shown == {
         "connected": True,
+        "login": None,
         "catalog_id": "123456",
         "catalog_name": "Cursos CTC",
         "last_sync": None,

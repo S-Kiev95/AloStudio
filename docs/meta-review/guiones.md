@@ -99,13 +99,10 @@ falta para conectar catálogos de otros negocios). No entra en la revisión
 enviada el 2026-11-07: Meta no deja sumar nada mientras está en revisión.
 Pedirlo en una revisión nueva cuando termine esa.
 
-**Antes de grabar, falta un paso en AloStudio:** hoy el catálogo se conecta
-pegando el ID y el token de un usuario del sistema. Meta pide ver en el
-video la pantalla donde la persona le da el permiso a la app, así que
-conviene sumar un botón "Conectar con Facebook" en CRM → Productos →
-Catálogo de Meta (inicio de sesión de Facebook con `catalog_management`,
-elegir el catálogo de una lista) antes de grabar. Sin eso, lo más probable
-es que lo rechacen.
+El botón "Conectar con Facebook" de la tarjeta pide `catalog_management` y
+`business_management` (para listar los catálogos del negocio), y muestra la
+pantalla de permisos que Meta quiere ver en el video. Pegar el ID y el token
+queda como alternativa, pero no se usa en el video.
 
 1. Entrar a AloStudio y abrir CRM → Productos.
 2. En la tarjeta "Catálogo de Meta", conectar con Facebook, mostrar la

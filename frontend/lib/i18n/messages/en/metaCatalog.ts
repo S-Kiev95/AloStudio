@@ -20,6 +20,13 @@ export const metaCatalog: Strings<typeof es> = {
   publish: "Publish in the Meta catalog",
   publishHint: "Meta needs a description, a price with currency, a link and an image. Untick it to remove it from the catalog.",
   lastError: "The last automatic sync failed: {error}",
+  connectFacebook: "Connect with Facebook",
+  pasteToken: "Paste ID and token",
+  orManual: "Or paste the catalog ID and a system user's token by hand:",
+  whichCatalog: "Which catalog do you want to connect?",
+  connectedNotice: "Catalog connected.",
+  viaFacebook: "Connected with Facebook.",
+  viaFacebookUntil: "Connected with Facebook. Access expires on {date}; connect again after that.",
   synced: "Done: {sent} sent, {removed} removed, {skipped} incomplete, {failed} refused by Meta.",
   state: {
     synced: "In Meta",
@@ -40,5 +47,9 @@ export const metaCatalog: Strings<typeof es> = {
     refused: "Meta refused the request.",
     unreachable: "Couldn't reach Meta. Try again in a while.",
     not_connected: "Connect a catalog first.",
+    cancelled: "The connection was cancelled before authorizing the catalog.",
+    no_catalogs: "Meta returned no catalog. Check that your business has one in Commerce Manager and pick it on the Facebook screen.",
+    pick_expired: "The choice expired. Connect with Facebook again.",
+    login_unavailable: "This installation doesn't have Facebook Login set up.",
   },
 };

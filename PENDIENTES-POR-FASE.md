@@ -847,9 +847,19 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     `catalog_management` solo con acceso estándar (alcanza para catálogos
     propios, como el de CTC). Para catálogos de clientes hace falta el
     avanzado, en una revisión nueva cuando Meta termine la enviada el
-    2026-11-07 (mientras tanto no se puede sumar nada). Antes de grabar,
-    sumar "Conectar con Facebook" al catálogo en vez de pegar el token.
-    Guion y texto en `docs/meta-review/guiones.md`, video 6.
+    2026-11-07 (mientras tanto no se puede sumar nada). Guion y texto en
+    `docs/meta-review/guiones.md`, video 6.
+    **Conectar con Facebook — hecho el 2026-11-22** (rama
+    `feat/catalogo-login-facebook`): botón en la tarjeta del catálogo, con el
+    inicio de sesión de Facebook (`catalog_management` +
+    `business_management`), por la misma vuelta que las Páginas
+    (`/api/v1/instagram/oauth/callback`, flujo `meta_catalog`). Un catálogo se
+    conecta solo; varios se eligen de una lista (diez minutos en Redis, sin
+    mostrar el token). El token de usuario dura unos 60 días: la tarjeta
+    muestra cuándo vence y, si vence, el error de la sincronización
+    automática pide reconectar. Pegar ID y token sigue como alternativa. El
+    botón solo aparece si la instalación tiene `META_APP_ID`, `_SECRET` y
+    `META_OAUTH_REDIRECT_URI`. Código en `app/domains/crm/meta_catalog_connect.py`.
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
     Productos en la Bandeja, pedidos por el webhook que abren una
     oportunidad y pestaña Catálogo en la sección WhatsApp (ver F5).

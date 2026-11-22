@@ -17,6 +17,13 @@ export const metaCatalog = {
   publish: "Publicar en el catálogo de Meta",
   publishHint: "Meta pide descripción, precio con moneda, enlace e imagen. Si lo destildás, se quita del catálogo.",
   lastError: "La última sincronización automática falló: {error}",
+  connectFacebook: "Conectar con Facebook",
+  pasteToken: "Pegar ID y token",
+  orManual: "O pegá a mano el ID del catálogo y el token de un usuario del sistema:",
+  whichCatalog: "¿Qué catálogo conectás?",
+  connectedNotice: "Catálogo conectado.",
+  viaFacebook: "Conectado con Facebook.",
+  viaFacebookUntil: "Conectado con Facebook. El acceso vence el {date}: después, volvé a conectar.",
   synced: "Listo: {sent} enviados, {removed} quitados, {skipped} incompletos, {failed} rechazados por Meta.",
   state: {
     synced: "En Meta",
@@ -37,5 +44,9 @@ export const metaCatalog = {
     refused: "Meta rechazó el pedido.",
     unreachable: "No se pudo conectar con Meta. Probá de nuevo en un rato.",
     not_connected: "Primero conectá un catálogo.",
+    cancelled: "La conexión se canceló antes de autorizar el catálogo.",
+    no_catalogs: "Meta no devolvió ningún catálogo. Revisá que tu negocio tenga uno en Commerce Manager y elegilo en la pantalla de Facebook.",
+    pick_expired: "La elección venció. Volvé a conectar con Facebook.",
+    login_unavailable: "Esta instalación no tiene configurado el inicio de sesión con Facebook.",
   },
 };

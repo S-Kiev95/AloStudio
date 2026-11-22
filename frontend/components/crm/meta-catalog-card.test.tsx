@@ -1,10 +1,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { MetaCatalogCard, useProductCatalogState } from "./meta-catalog-card";
+
+const replace = vi.fn();
+let search = "";
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace }),
+  usePathname: () => "/accounts/1/products",
+  useSearchParams: () => new URLSearchParams(search),
+}));
 
 let sent: unknown = null;
 const server = setupServer(
@@ -30,6 +38,8 @@ beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
 afterEach(() => {
   server.resetHandlers();
   sent = null;
+  search = "";
+  replace.mockClear();
 });
 afterAll(() => server.close());
 
@@ -72,6 +82,70 @@ describe("MetaCatalogCard", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "La última sincronización automática falló: Meta no aceptó el token",
     );
+  });
+});
+
+describe("MetaCatalogCard — connecting with Facebook", () => {
+  it("offers Facebook first and keeps pasting the token as the other way", () => {
+    renderCard({ connected: false, can_login: true });
+    expect(screen.getByRole("button", { name: "Conectar con Facebook" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Pegar ID y token" }));
+    expect(screen.getByLabelText("ID del catálogo")).toBeInTheDocument();
+  });
+
+  it("hides the Facebook button when the installation can't log in", () => {
+    renderCard({ connected: false, can_login: false });
+    expect(screen.queryByRole("button", { name: "Conectar con Facebook" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Conectar catálogo" })).toBeInTheDocument();
+  });
+
+  it("lets the admin pick a catalogue after logging in", async () => {
+    search = "catalog_pick=N1";
+    let chosen = "";
+    server.use(
+      http.get("*/crm/meta-catalog/pending/N1", () =>
+        HttpResponse.json([
+          { id: "555", name: "Cursos", business: "CTC Salto" },
+          { id: "666", name: "Tienda", business: "Agencia" },
+        ]),
+      ),
+      http.post("*/crm/meta-catalog/pending/N1/:id", ({ params }) => {
+        chosen = String(params.id);
+        return HttpResponse.json({
+          connected: true,
+          can_login: true,
+          login: { via: "facebook", expires_at: 1_800_000_000 },
+          catalog_id: "666",
+          catalog_name: "Tienda",
+          last_sync: null,
+        });
+      }),
+    );
+    renderCard({ connected: false, can_login: true });
+    expect(await screen.findByText("¿Qué catálogo conectás?")).toBeInTheDocument();
+    expect(replace).toHaveBeenCalledWith("/accounts/1/products");
+    fireEvent.click(await screen.findByRole("button", { name: /Tienda/ }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Catálogo conectado.");
+    expect(chosen).toBe("666");
+  });
+
+  it("says why the connection didn't go through", async () => {
+    search = "catalog_error=no_catalogs";
+    renderCard({ connected: false, can_login: true });
+    expect(screen.getByRole("alert")).toHaveTextContent("Meta no devolvió ningún catálogo");
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+  });
+
+  it("shows when the Facebook access expires", () => {
+    renderCard({
+      connected: true,
+      can_login: true,
+      login: { via: "facebook", expires_at: 1_800_000_000 },
+      catalog_id: "555",
+      catalog_name: "Cursos CTC",
+      last_sync: null,
+    });
+    expect(screen.getByText(/Conectado con Facebook\. El acceso vence el/)).toBeInTheDocument();
   });
 });
 

@@ -20,6 +20,13 @@ export const metaCatalog: Strings<typeof es> = {
   publish: "Im Meta-Katalog veröffentlichen",
   publishHint: "Meta verlangt Beschreibung, Preis mit Währung, Link und Bild. Abgewählt wird es aus dem Katalog entfernt.",
   lastError: "Die letzte automatische Synchronisierung ist fehlgeschlagen: {error}",
+  connectFacebook: "Mit Facebook verbinden",
+  pasteToken: "ID und Token einfügen",
+  orManual: "Oder füge die Katalog-ID und das Token eines Systembenutzers von Hand ein:",
+  whichCatalog: "Welchen Katalog möchtest du verbinden?",
+  connectedNotice: "Katalog verbunden.",
+  viaFacebook: "Mit Facebook verbunden.",
+  viaFacebookUntil: "Mit Facebook verbunden. Der Zugriff läuft am {date} ab; verbinde dich danach erneut.",
   synced: "Fertig: {sent} gesendet, {removed} entfernt, {skipped} unvollständig, {failed} von Meta abgelehnt.",
   state: {
     synced: "Bei Meta",
@@ -40,5 +47,9 @@ export const metaCatalog: Strings<typeof es> = {
     refused: "Meta hat die Anfrage abgelehnt.",
     unreachable: "Meta ist nicht erreichbar. Versuche es später noch einmal.",
     not_connected: "Verbinde zuerst einen Katalog.",
+    cancelled: "Die Verbindung wurde abgebrochen, bevor der Katalog freigegeben wurde.",
+    no_catalogs: "Meta hat keinen Katalog zurückgegeben. Prüfe, ob dein Unternehmen einen im Commerce Manager hat, und wähle ihn im Facebook-Fenster aus.",
+    pick_expired: "Die Auswahl ist abgelaufen. Verbinde dich erneut mit Facebook.",
+    login_unavailable: "Diese Installation hat die Facebook-Anmeldung nicht eingerichtet.",
   },
 };
