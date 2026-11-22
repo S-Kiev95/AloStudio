@@ -877,11 +877,23 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     **Video 6 grabado** (`AloStudio-archivos\videos-meta-skiev\video6-catalog.mp4`):
     falta que Meta termine la revisión del 2026-11-07 para pedir
     `catalog_management` avanzado con este video (lo envía el dueño).
-    **Para más adelante:** Facebook Login for Business con una configuración
-    de "token de usuario del sistema" (BISU) da un token del negocio que no
-    depende de los 90 días de acceso a los datos; serviría para el catálogo y
-    para las Páginas. Requiere crear la configuración en la app de Meta
-    (`config_id`) y pasarla en el login.
+    **Login para empresas (token del negocio) — hecho el 2026-11-22**, en
+    develop y en vmi3426238: tres configuraciones de Facebook Login for
+    Business en la app AloStudio (token de usuario del sistema, nunca vence):
+    catálogo 3008222432871744, Páginas 1782950539835487, Instagram
+    1433754675409886. Se cargan en Ajustes → Instalación
+    (`META_CATALOG_CONFIG_ID`, `META_PAGES_CONFIG_ID`,
+    `META_INSTAGRAM_CONFIG_ID`); vacías, todo sigue con el login de usuario
+    (CTC no las tiene: su app es otra y habría que crearlas allá). Con una
+    cargada, el conector pide la configuración y usa el token del sistema tal
+    cual. El catálogo lee los catálogos asignados al usuario del sistema
+    (`/{id}/assigned_product_catalogs`; desde la cartera da 403). Probado con
+    Meta: catálogo de Skiev Dev y Página de Ingenia Labs reconectados;
+    `debug_token` dice SYSTEM_USER / PAGE con `expires_at` 0 y
+    `data_access_expires_at` 0, y la Página sigue suscripta. **Falta:**
+    reconectar en vivo un Instagram con Facebook (mismo camino, con prueba
+    automática); y la pantalla de Bandejas → Facebook muestra la clave sin
+    traducir `channelCatalog.facebook.blurb` (viene de antes).
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
     Productos en la Bandeja, pedidos por el webhook que abren una
     oportunidad y pestaña Catálogo en la sección WhatsApp (ver F5).
