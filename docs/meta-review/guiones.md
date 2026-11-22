@@ -99,6 +99,13 @@ falta para conectar catálogos de otros negocios). No entra en la revisión
 enviada el 2026-11-07: Meta no deja sumar nada mientras está en revisión.
 Pedirlo en una revisión nueva cuando termine esa.
 
+**Grabado el 2026-11-22:** `Desktop\AloStudio-archivos\videos-meta-skiev\video6-catalog.mp4`
+(84 s, mismo formato que los otros: capturas con subtítulos en inglés). Muestra
+la conexión con Facebook (permisos, negocios, condiciones), elegir el catálogo,
+crear un producto tildado y verlo en Commerce Manager, cambiar el precio y verlo
+actualizado, y destildarlo y ver que sale del catálogo. Los textos de Meta
+salen en español; los subtítulos lo explican en inglés.
+
 El botón "Conectar con Facebook" de la tarjeta pide `catalog_management` y
 `business_management` (para listar los catálogos del negocio), y muestra la
 pantalla de permisos que Meta quiere ver en el video. Pegar el ID y el token

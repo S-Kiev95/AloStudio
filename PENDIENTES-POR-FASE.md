@@ -871,9 +871,17 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     que vence es el acceso a los datos, a los 90 días (`data_access_expires_at`,
     hoy 2027-02-20), salvo que la persona vuelva a entrar. La tarjeta dice
     "Conectado con Facebook. El acceso vence el …" con esa fecha (se lee con
-    `debug_token` al conectar; hecho y probado el 2026-11-22). Falta probar los mensajes de
-    producto por WhatsApp con un producto tildado (necesita un contacto que
-    haya escrito en las últimas 24 h).
+    `debug_token` al conectar; hecho y probado el 2026-11-22). Mensaje de
+    WhatsApp con los productos tildados (lista de 3) probado el 2026-11-22
+    en la bandeja TestWhatsapp: Meta lo aceptó.
+    **Video 6 grabado** (`AloStudio-archivos\videos-meta-skiev\video6-catalog.mp4`):
+    falta que Meta termine la revisión del 2026-11-07 para pedir
+    `catalog_management` avanzado con este video (lo envía el dueño).
+    **Para más adelante:** Facebook Login for Business con una configuración
+    de "token de usuario del sistema" (BISU) da un token del negocio que no
+    depende de los 90 días de acceso a los datos; serviría para el catálogo y
+    para las Páginas. Requiere crear la configuración en la app de Meta
+    (`config_id`) y pasarla en el login.
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
     Productos en la Bandeja, pedidos por el webhook que abren una
     oportunidad y pestaña Catálogo en la sección WhatsApp (ver F5).
