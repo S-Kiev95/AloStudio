@@ -64,30 +64,38 @@ def start_oauth(account_id: int) -> str:
 _CATALOG_FIELDS = "id,name,owned_product_catalogs{id,name},client_product_catalogs{id,name}"
 
 
-async def _businesses(token: str, *, business_login: bool) -> list[dict[str, Any]]:
-    """The businesses whose catalogues the token reaches: the one that
-    connected (a system-user token from a business login), or every
-    business the person granted (a user token)."""
-    if business_login:
-        me = await catalog._graph("GET", "me", token=token, params={"fields": "client_business_id"})
-        business_id = me.get("client_business_id")
-        if not business_id:
-            return []
-        return [
-            await catalog._graph(
-                "GET", str(business_id), token=token, params={"fields": _CATALOG_FIELDS}
-            )
-        ]
+async def _assigned_catalogs(token: str) -> list[dict[str, Any]]:
+    """The catalogues a business login assigned to its system user. Reading
+    them through the business (``owned_product_catalogs``) is refused (403)
+    with that token."""
     body = await catalog._graph(
-        "GET", "me/businesses", token=token, params={"fields": _CATALOG_FIELDS, "limit": "100"}
+        "GET",
+        "me/assigned_product_catalogs",
+        token=token,
+        params={"fields": "id,name,business{name}", "limit": "100"},
     )
-    return [row for row in body.get("data") or [] if isinstance(row, dict)]
+    return [
+        {
+            "id": str(row["id"]),
+            "name": row.get("name"),
+            "business": (row.get("business") or {}).get("name"),
+        }
+        for row in body.get("data") or []
+        if isinstance(row, dict) and row.get("id")
+    ]
 
 
 async def list_catalogs(token: str, *, business_login: bool = False) -> list[dict[str, Any]]:
-    """The catalogues the token can manage."""
+    """The catalogues the token can manage: the ones the business assigned
+    (a system-user token from a business login), or those of every business
+    the person granted (a user token)."""
+    if business_login:
+        return await _assigned_catalogs(token)
+    body = await catalog._graph(
+        "GET", "me/businesses", token=token, params={"fields": _CATALOG_FIELDS, "limit": "100"}
+    )
     found: dict[str, dict[str, Any]] = {}
-    for business in await _businesses(token, business_login=business_login):
+    for business in [row for row in body.get("data") or [] if isinstance(row, dict)]:
         for edge in ("owned_product_catalogs", "client_product_catalogs"):
             rows = (business.get(edge) or {}).get("data") or []
             for row in rows:

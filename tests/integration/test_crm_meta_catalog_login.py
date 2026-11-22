@@ -261,23 +261,16 @@ async def test_a_business_configuration_gets_a_token_that_does_not_expire(
                 200, json={"data": {"is_valid": True, "expires_at": 0, "data_access_expires_at": 0}}
             )
         )
-        respx.get(f"{GRAPH}/me").mock(
-            return_value=httpx.Response(200, json={"client_business_id": "77", "id": "SU"})
+        # Through the business (owned_product_catalogs) Meta answers 403
+        # to a system-user token; its assigned catalogues are the way.
+        respx.get(f"{GRAPH}/me/assigned_product_catalogs").mock(
+            return_value=httpx.Response(
+                200, json={"data": [{"id": "555", "name": "Cursos", "business": {"name": "CTC"}}]}
+            )
         )
-
-        def graph_object(request):
-            if request.url.path.endswith("/77"):
-                return httpx.Response(
-                    200,
-                    json={
-                        "id": "77",
-                        "name": "CTC Salto",
-                        "owned_product_catalogs": _catalogs(("555", "Cursos")),
-                    },
-                )
-            return httpx.Response(200, json={"id": "555", "name": "Cursos"})
-
-        respx.get(url__regex=rf"{GRAPH}/\d+(\?|$)").mock(side_effect=graph_object)
+        respx.get(url__regex=rf"{GRAPH}/555(\?|$)").mock(
+            return_value=httpx.Response(200, json={"id": "555", "name": "Cursos"})
+        )
         r = await client.get(CALLBACK, params={"code": "C", "state": query["state"][0]})
     finally:
         meta_config.meta_catalog_config_id = ""
