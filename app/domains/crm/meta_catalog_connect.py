@@ -67,19 +67,19 @@ _CATALOG_FIELDS = "id,name,owned_product_catalogs{id,name},client_product_catalo
 async def _assigned_catalogs(token: str) -> list[dict[str, Any]]:
     """The catalogues a business login assigned to its system user. Reading
     them through the business (``owned_product_catalogs``) is refused (403)
-    with that token."""
+    with that token, and the edge hangs from the system user's id, not
+    ``me``."""
+    me = await catalog._graph("GET", "me", token=token, params={"fields": "id"})
+    if not me.get("id"):
+        return []
     body = await catalog._graph(
         "GET",
-        "me/assigned_product_catalogs",
+        f"{me['id']}/assigned_product_catalogs",
         token=token,
-        params={"fields": "id,name,business{name}", "limit": "100"},
+        params={"fields": "id,name", "limit": "100"},
     )
     return [
-        {
-            "id": str(row["id"]),
-            "name": row.get("name"),
-            "business": (row.get("business") or {}).get("name"),
-        }
+        {"id": str(row["id"]), "name": row.get("name"), "business": None}
         for row in body.get("data") or []
         if isinstance(row, dict) and row.get("id")
     ]

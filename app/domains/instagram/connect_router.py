@@ -11,6 +11,7 @@ Route map:
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated, Any
 from urllib.parse import urlencode
 
@@ -36,6 +37,8 @@ router = APIRouter(
 # OAuth callback is account-less (Meta redirects to one fixed URI; the
 # account travels in the signed ``state``). Separate router, no prefix.
 callback_router = APIRouter(tags=["instagram-connect"])
+
+log = logging.getLogger(__name__)
 
 
 @router.post("/connect_manual", status_code=status.HTTP_200_OK)
@@ -170,6 +173,13 @@ async def _catalog_callback(
     try:
         result = await catalog_connect.complete_oauth(session, code=code, state=state)
     except crm_catalog.CatalogError as exc:
+        # Meta's own message (no token in it) says which call it refused.
+        log.warning(
+            "crm.meta_catalog.login_failed account_id=%s code=%s message=%s",
+            account_id,
+            exc.code,
+            str(exc)[:300],
+        )
         return _back_to_products(account_id, catalog_error=exc.code)
     if result.get("pick"):
         return _back_to_products(account_id, catalog_pick=result["pick"])
