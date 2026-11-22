@@ -4,6 +4,7 @@ reaches a URL. Meta is mocked with respx."""
 
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncIterator
 from urllib.parse import parse_qs, urlparse
 
@@ -77,9 +78,26 @@ async def _seed(db_session, suffix: str):
     return owner.account, headers.as_response_headers()
 
 
-def _mock_meta(*businesses: dict) -> None:
+DATA_ACCESS_UNTIL = 1_803_098_990
+
+
+def _mock_meta(*businesses: dict, debug: httpx.Response | None = None) -> None:
     respx.get(f"{GRAPH}/oauth/access_token").mock(
         return_value=httpx.Response(200, json={"access_token": "USER", "expires_in": 5_184_000})
+    )
+    # A Business Login token: never expires, its data access does.
+    respx.get(f"{GRAPH}/debug_token").mock(
+        return_value=debug
+        or httpx.Response(
+            200,
+            json={
+                "data": {
+                    "is_valid": True,
+                    "expires_at": 0,
+                    "data_access_expires_at": DATA_ACCESS_UNTIL,
+                }
+            },
+        )
     )
     respx.get(f"{GRAPH}/me/businesses").mock(
         return_value=httpx.Response(200, json={"data": list(businesses)})
@@ -118,7 +136,8 @@ async def test_one_catalogue_connects_right_away(client, db_session, meta_config
     assert hook is not None and hook.access_token == "USER"
     assert hook.settings["catalog_id"] == "555"
     assert hook.settings["login"]["via"] == "facebook"
-    assert hook.settings["login"]["expires_at"] > 0
+    # When the data access ends, not the never-expiring token.
+    assert hook.settings["login"]["expires_at"] == DATA_ACCESS_UNTIL
 
     shown = (
         await client.get(f"/api/v1/accounts/{account.id}/crm/meta-catalog", headers=headers)
@@ -199,3 +218,21 @@ async def test_without_the_meta_app_the_button_is_not_offered(client, db_session
     )
     assert start.status_code == 422
     assert start.json()["code"] == "meta_catalog.login_unavailable"
+
+
+@respx.mock
+async def test_without_debug_token_the_expiry_comes_from_the_exchange(
+    client, db_session, meta_config
+):
+    account, _ = await _seed(db_session, "-nodebug")
+    respx.route(host="test").pass_through()
+    _mock_meta(
+        {"id": "9", "name": "CTC Salto", "owned_product_catalogs": _catalogs(("555", "Cursos"))},
+        debug=httpx.Response(400, json={"error": {"code": 100, "message": "nope"}}),
+    )
+    await client.get(CALLBACK, params={"code": "C", "state": _state(account.id)})
+    hook = await meta_catalog.get_link(db_session, account.id)
+    assert hook is not None
+    expires_at = hook.settings["login"]["expires_at"]
+    # expires_in of the long-lived exchange (60 days) from now.
+    assert 5_000_000 < expires_at - time.time() < 5_200_000
