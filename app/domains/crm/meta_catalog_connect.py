@@ -6,11 +6,16 @@ catalogues of the businesses that user granted. One catalogue connects right
 away. Several wait in Redis for ten minutes, token included, until the admin
 picks one, so no token ever reaches the browser or a URL.
 
-A token from this login doesn't expire, but its access to data does, 90
+A user token from this login doesn't expire, but its access to data does, 90
 days after the person last logged in (``data_access_expires_at``): that date
 is kept and shown, and when Meta stops accepting the token the background
 sync keeps the error and the panel asks to connect again. Pasting
 a system user's token (``meta_catalog.connect``) stays as the manual way.
+
+With ``META_CATALOG_CONFIG_ID`` (a Facebook Login for Business
+configuration) the login hands over the connecting business's system-user
+token instead: it doesn't expire, needs no long-lived exchange and only
+reaches the catalogues that business granted (``client_business_id``).
 """
 
 from __future__ import annotations
@@ -47,28 +52,42 @@ def start_oauth(account_id: int) -> str:
     """The Facebook dialog URL for connecting the catalogue."""
     if not catalog.login_available():
         raise catalog.CatalogError("login_unavailable")
+    settings = get_settings()
     return oauth.build_facebook_login_url(
-        redirect_uri=get_settings().meta_oauth_redirect_uri,
+        redirect_uri=settings.meta_oauth_redirect_uri,
         state=sign_oauth_state(account_id, flow=FLOW),
         scopes=SCOPES,
+        config_id=settings.meta_catalog_config_id or None,
     )
 
 
-async def list_catalogs(user_token: str) -> list[dict[str, Any]]:
-    """The catalogues the user can manage, from every business they granted."""
+_CATALOG_FIELDS = "id,name,owned_product_catalogs{id,name},client_product_catalogs{id,name}"
+
+
+async def _businesses(token: str, *, business_login: bool) -> list[dict[str, Any]]:
+    """The businesses whose catalogues the token reaches: the one that
+    connected (a system-user token from a business login), or every
+    business the person granted (a user token)."""
+    if business_login:
+        me = await catalog._graph("GET", "me", token=token, params={"fields": "client_business_id"})
+        business_id = me.get("client_business_id")
+        if not business_id:
+            return []
+        return [
+            await catalog._graph(
+                "GET", str(business_id), token=token, params={"fields": _CATALOG_FIELDS}
+            )
+        ]
     body = await catalog._graph(
-        "GET",
-        "me/businesses",
-        token=user_token,
-        params={
-            "fields": "id,name,owned_product_catalogs{id,name},client_product_catalogs{id,name}",
-            "limit": "100",
-        },
+        "GET", "me/businesses", token=token, params={"fields": _CATALOG_FIELDS, "limit": "100"}
     )
+    return [row for row in body.get("data") or [] if isinstance(row, dict)]
+
+
+async def list_catalogs(token: str, *, business_login: bool = False) -> list[dict[str, Any]]:
+    """The catalogues the token can manage."""
     found: dict[str, dict[str, Any]] = {}
-    for business in body.get("data") or []:
-        if not isinstance(business, dict):
-            continue
+    for business in await _businesses(token, business_login=business_login):
         for edge in ("owned_product_catalogs", "client_product_catalogs"):
             rows = (business.get(edge) or {}).get("data") or []
             for row in rows:
@@ -114,13 +133,14 @@ async def _connect(
     catalog_id: str,
     user_token: str,
     expires_at: int | None,
+    via: str = "facebook",
 ) -> IntegrationsHook:
     return await catalog.connect(
         session,
         account_id=account_id,
         catalog_id=catalog_id,
         access_token=user_token,
-        login={"via": "facebook", "expires_at": expires_at},
+        login={"via": via, "expires_at": expires_at},
     )
 
 
@@ -131,11 +151,20 @@ async def complete_oauth(session: AsyncSession, *, code: str, state: str) -> dic
     if payload.get("flow") != FLOW:
         raise catalog.CatalogError("refused")
     account_id = int(payload["account_id"])
-    redirect_uri = get_settings().meta_oauth_redirect_uri
-    short = await oauth.exchange_code_for_token(code=code, redirect_uri=redirect_uri)
+    settings = get_settings()
+    business_login = bool(settings.meta_catalog_config_id)
+    short = await oauth.exchange_code_for_token(
+        code=code, redirect_uri=settings.meta_oauth_redirect_uri
+    )
     if not short.ok or not short.access_token:
         raise catalog.CatalogError("refused", short.error_message)
-    long = await oauth.exchange_for_long_lived(short_token=short.access_token)
+    # A business login hands over the business's system-user token, which
+    # doesn't expire: there is nothing to extend.
+    long = (
+        short
+        if business_login
+        else await oauth.exchange_for_long_lived(short_token=short.access_token)
+    )
     if not long.ok or not long.access_token:
         raise catalog.CatalogError("refused", long.error_message)
     expires_at = await access_expires_at(
@@ -144,7 +173,8 @@ async def complete_oauth(session: AsyncSession, *, code: str, state: str) -> dic
             int(datetime.now(UTC).timestamp()) + int(long.expires_in) if long.expires_in else None
         ),
     )
-    catalogs = await list_catalogs(long.access_token)
+    via = "facebook_business" if business_login else "facebook"
+    catalogs = await list_catalogs(long.access_token, business_login=business_login)
     if not catalogs:
         raise catalog.CatalogError("no_catalogs")
     if len(catalogs) == 1:
@@ -154,6 +184,7 @@ async def complete_oauth(session: AsyncSession, *, code: str, state: str) -> dic
             catalog_id=catalogs[0]["id"],
             user_token=long.access_token,
             expires_at=expires_at,
+            via=via,
         )
         return {"connected": True}
     nonce = secrets.token_urlsafe(16)
@@ -162,7 +193,12 @@ async def complete_oauth(session: AsyncSession, *, code: str, state: str) -> dic
         await client.set(
             _pending_key(account_id, nonce),
             json.dumps(
-                {"user_token": long.access_token, "expires_at": expires_at, "catalogs": catalogs}
+                {
+                    "user_token": long.access_token,
+                    "expires_at": expires_at,
+                    "via": via,
+                    "catalogs": catalogs,
+                }
             ),
             ex=PENDING_SECONDS,
         )
@@ -199,6 +235,7 @@ async def connect_pending(
         catalog_id=catalog_id,
         user_token=pending["user_token"],
         expires_at=pending.get("expires_at"),
+        via=pending.get("via") or "facebook",
     )
     client = _redis()
     try:

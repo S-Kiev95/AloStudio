@@ -27,6 +27,7 @@ export const metaCatalog: Strings<typeof es> = {
   connectedNotice: "Katalog verbunden.",
   viaFacebook: "Mit Facebook verbunden.",
   viaFacebookUntil: "Mit Facebook verbunden. Der Zugriff läuft am {date} ab; verbinde dich danach erneut.",
+  viaBusiness: "Mit dem Unternehmen auf Facebook verbunden: Der Zugriff läuft nicht ab.",
   synced: "Fertig: {sent} gesendet, {removed} entfernt, {skipped} unvollständig, {failed} von Meta abgelehnt.",
   state: {
     synced: "Bei Meta",

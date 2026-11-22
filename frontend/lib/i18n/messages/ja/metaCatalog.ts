@@ -27,6 +27,7 @@ export const metaCatalog: Strings<typeof es> = {
   connectedNotice: "カタログを接続しました。",
   viaFacebook: "Facebook で接続済みです。",
   viaFacebookUntil: "Facebook で接続済みです。アクセスは {date} に期限切れになります。その後は再接続してください。",
+  viaBusiness: "Facebook のビジネスとして接続済みです。アクセスの期限はありません。",
   synced: "完了: 送信 {sent} 件、削除 {removed} 件、情報不足 {skipped} 件、Meta が拒否 {failed} 件。",
   state: {
     synced: "Meta に掲載中",

@@ -147,6 +147,20 @@ describe("MetaCatalogCard — connecting with Facebook", () => {
     });
     expect(screen.getByText(/Conectado con Facebook\. El acceso vence el/)).toBeInTheDocument();
   });
+
+  it("says a business connection doesn't expire", () => {
+    renderCard({
+      connected: true,
+      can_login: true,
+      login: { via: "facebook_business", expires_at: null },
+      catalog_id: "555",
+      catalog_name: "Cursos CTC",
+      last_sync: null,
+    });
+    expect(
+      screen.getByText("Conectado con el negocio en Facebook: el acceso no vence."),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("useProductCatalogState", () => {

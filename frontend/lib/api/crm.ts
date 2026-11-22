@@ -422,8 +422,10 @@ export type MetaCatalog =
   | {
       connected: true;
       can_login?: boolean;
-      /** Connected by logging in with Facebook; when that access expires. */
-      login?: { via: "facebook"; expires_at: number | null } | null;
+      /** Connected by logging in with Facebook (as a person, or as the
+       *  business with a system-user token that doesn't expire); when that
+       *  access expires. */
+      login?: { via: "facebook" | "facebook_business"; expires_at: number | null } | null;
       catalog_id: string;
       catalog_name: string | null;
       last_sync: MetaCatalogSync | null;
