@@ -6,8 +6,11 @@ link lives in an ``integrations_hooks`` row (``app_id="meta_catalog"``),
 like the Meta Ads one: ``settings`` keeps the catalogue id and name, the
 last sync's outcome and the items waiting to be removed.
 
-A sync sends every product in one ``items_batch`` call: enabled ones are
-upserted, disabled or deleted ones removed. Meta validates the batch after
+Each product is sent only if it was chosen for the catalogue
+(``Product.meta_sync``). A sync sends them in one ``items_batch`` call:
+chosen and enabled ones are upserted; disabled, unchosen or deleted ones
+removed. The CRM is the source: an item edited in Commerce Manager is
+overwritten by the next sync. Meta validates the batch after
 answering, so the outcome is read back from ``check_batch_request_status``
 for a few seconds; whatever is still pending then shows as sent.
 
@@ -241,7 +244,7 @@ async def sync(session: AsyncSession, account_id: int) -> SyncResult:
         (await session.exec(select(Product).where(Product.account_id == account_id))).all()
     )
     for product in products:
-        if not product.enabled:
+        if not (product.enabled and product.meta_sync):
             if product.meta_retailer_id:
                 requests.append({"method": "DELETE", "data": {"id": product.meta_retailer_id}})
                 product.meta_retailer_id = None
@@ -293,6 +296,7 @@ async def sync(session: AsyncSession, account_id: int) -> SyncResult:
         session.add(product)
 
     settings["pending_removals"] = []
+    settings.pop("last_error", None)
     settings["last_sync"] = {
         "at": int(now.timestamp()),
         "validated": errors is not None,
@@ -340,10 +344,26 @@ async def enqueue_sync(account_id: int) -> None:
         )
 
 
+async def record_error(session: AsyncSession, account_id: int, code: str) -> None:
+    """Keep why a background sync failed (an expired token, a lost
+    permission) so the panel shows it. The caller commits."""
+    hook = await get_link(session, account_id)
+    if hook is None:
+        return
+    settings = _settings(hook)
+    settings["last_error"] = {"code": code, "at": int(datetime.now(UTC).timestamp())}
+    hook.settings = settings
+    session.add(hook)
+    await session.flush()
+
+
 async def product_changed(
     session: AsyncSession, product: Product, *, deleted: bool = False
 ) -> None:
-    """After a product is saved or deleted: keep the catalogue in step."""
+    """After a product is saved or deleted: keep the catalogue in step.
+    Products never sent and not chosen don't touch it."""
+    if not (product.meta_sync or product.meta_retailer_id):
+        return
     hook = await get_link(session, product.account_id)
     if hook is None:
         return
@@ -363,6 +383,7 @@ def present_link(hook: IntegrationsHook | None) -> dict[str, Any]:
         "catalog_id": settings.get("catalog_id"),
         "catalog_name": settings.get("catalog_name"),
         "last_sync": settings.get("last_sync"),
+        "last_error": settings.get("last_error"),
     }
 
 
@@ -378,5 +399,6 @@ __all__ = [
     "present_link",
     "product_changed",
     "queue_removal",
+    "record_error",
     "sync",
 ]

@@ -423,6 +423,8 @@ export type MetaCatalog =
       catalog_id: string;
       catalog_name: string | null;
       last_sync: MetaCatalogSync | null;
+      /** Why the last background sync failed (token, permission…). */
+      last_error?: { code: string; at: number } | null;
     };
 
 const catalogKey = (accountId: string) => ["meta-catalog", accountId] as const;

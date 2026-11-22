@@ -58,6 +58,7 @@ def is_sendable(product: Product) -> bool:
     """In the catalogue and accepted by Meta."""
     return bool(
         product.enabled
+        and product.meta_sync
         and product.meta_retailer_id
         and product.meta_synced_at
         and not product.meta_sync_error

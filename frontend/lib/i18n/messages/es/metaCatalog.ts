@@ -1,6 +1,6 @@
 export const metaCatalog = {
   title: "Catálogo de Meta",
-  intro: "Conectá un catálogo de Commerce Manager y los productos activos se envían ahí: después se pueden mostrar en WhatsApp, Instagram y Facebook.",
+  intro: "Conectá un catálogo de Commerce Manager y elegí qué productos se publican ahí: después se pueden mostrar en WhatsApp, Instagram y Facebook.",
   howTo: "El ID está en Commerce Manager → tu catálogo → Configuración. El token es el de un usuario del sistema (Configuración del negocio → Usuarios del sistema) con el permiso catalog_management y acceso al catálogo.",
   catalogId: "ID del catálogo",
   token: "Token de acceso",
@@ -13,7 +13,10 @@ export const metaCatalog = {
   neverSynced: "Todavía no se sincronizó.",
   lastSync: "Última sincronización: {date} · {sent} enviados, {failed} con problemas",
   stillChecking: "Meta seguía revisando el envío; si algo falla, lo verás en la próxima sincronización.",
-  autoSync: "Cada cambio en un producto se envía solo, a los pocos segundos.",
+  autoSync: "Los cambios en los productos publicados se envían solos, a los pocos segundos. Lo que se edite en Commerce Manager se pisa con lo del CRM.",
+  publish: "Publicar en el catálogo de Meta",
+  publishHint: "Meta pide descripción, precio con moneda, enlace e imagen. Si lo destildás, se quita del catálogo.",
+  lastError: "La última sincronización automática falló: {error}",
   synced: "Listo: {sent} enviados, {removed} quitados, {skipped} incompletos, {failed} rechazados por Meta.",
   state: {
     synced: "En Meta",

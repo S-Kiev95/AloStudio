@@ -11,6 +11,7 @@ export const products: Strings<typeof es> = {
     currency: "Currency",
     productUrl: "Product URL",
     imageUrl: "Image URL",
+    metaMissing: "To publish it on Meta it still needs: {fields}.",
     active: "Active (shown in the catalog)",
     create: "Create product",
   },

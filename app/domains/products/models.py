@@ -80,6 +80,11 @@ class Product(TimestampMixin, table=True):
     )
 
     # ------- Meta catalogue sync (F11); see app/domains/crm/meta_catalog.py
+    # Chosen product by product: only these go to the account's catalogue.
+    meta_sync: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="false"),
+    )
     # The id the item has in the catalogue (``retailer_id``), kept once sent
     # so a later SKU change doesn't leave the old item behind.
     meta_retailer_id: str | None = Field(

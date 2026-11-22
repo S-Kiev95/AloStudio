@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { MetaCatalogCard } from "./meta-catalog-card";
+import { MetaCatalogCard, useProductCatalogState } from "./meta-catalog-card";
 
 let sent: unknown = null;
 const server = setupServer(
@@ -59,5 +59,31 @@ describe("MetaCatalogCard", () => {
     expect(screen.getByText("Todavía no se sincronizó.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Sincronizar ahora" }));
     expect(await screen.findByRole("status")).toHaveTextContent("3 enviados");
+  });
+
+  it("says why the last background sync failed", () => {
+    renderCard({
+      connected: true,
+      catalog_id: "123",
+      catalog_name: "Cursos CTC",
+      last_sync: null,
+      last_error: { code: "token", at: 1_700_000_000 },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "La última sincronización automática falló: Meta no aceptó el token",
+    );
+  });
+});
+
+describe("useProductCatalogState", () => {
+  it("only shows a state for the products chosen for the catalogue", () => {
+    const { result } = renderHook(() => useProductCatalogState());
+    const state = result.current;
+    expect(state({ enabled: true, meta_sync: false, meta_synced_at: 1 })).toBeNull();
+    expect(state({ enabled: false, meta_sync: true, meta_synced_at: 1 })).toBeNull();
+    expect(state({ enabled: true, meta_sync: true, meta_synced_at: 1 })?.label).toBe("En Meta");
+    expect(state({ enabled: true, meta_sync: true, meta_sync_error: "missing:url" })?.label).toBe(
+      "No se envía a Meta, falta: enlace",
+    );
   });
 });

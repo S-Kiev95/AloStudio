@@ -85,6 +85,7 @@ export function MetaCatalogCard({
   }
 
   const last = catalog.connected ? catalog.last_sync : null;
+  const lastError = catalog.connected ? catalog.last_error : null;
 
   return (
     <Card>
@@ -176,6 +177,17 @@ export function MetaCatalogCard({
                   })
                 : t("metaCatalog.neverSynced")}
             </p>
+            {lastError ? (
+              <p role="alert" className="text-xs text-warning">
+                {t("metaCatalog.lastError", {
+                  error: translateOr(
+                    t,
+                    `metaCatalog.errors.${lastError.code}`,
+                    t("metaCatalog.errors.refused"),
+                  ),
+                })}
+              </p>
+            ) : null}
             {last && !last.validated ? (
               <p className="text-xs text-fg-muted">{t("metaCatalog.stillChecking")}</p>
             ) : null}
@@ -199,10 +211,12 @@ export function useProductCatalogState() {
   const t = useT();
   return (product: {
     enabled: boolean;
+    meta_sync?: boolean;
     meta_synced_at?: number | null;
     meta_sync_error?: string | null;
   }): { label: string; tone: "ok" | "warn" | "muted"; detail?: string } | null => {
-    if (!product.enabled) return null;
+    // Only the products chosen for the catalogue have a state there.
+    if (!product.enabled || !product.meta_sync) return null;
     const err = product.meta_sync_error;
     if (err?.startsWith("missing:")) {
       const fields = err

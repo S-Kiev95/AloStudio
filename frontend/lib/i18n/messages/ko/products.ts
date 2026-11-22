@@ -11,6 +11,7 @@ export const products: Strings<typeof es> = {
     currency: "통화",
     productUrl: "상품 URL",
     imageUrl: "이미지 URL",
+    metaMissing: "Meta에 게시하려면 다음이 필요합니다: {fields}.",
     active: "활성 (카탈로그에 표시)",
     create: "상품 만들기",
   },
