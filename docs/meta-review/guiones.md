@@ -100,11 +100,15 @@ enviada el 2026-11-07: Meta no deja sumar nada mientras está en revisión.
 Pedirlo en una revisión nueva cuando termine esa.
 
 **Grabado el 2026-11-22:** `Desktop\AloStudio-archivos\videos-meta-skiev\video6-catalog.mp4`
-(84 s, mismo formato que los otros: capturas con subtítulos en inglés). Muestra
-la conexión con Facebook (permisos, negocios, condiciones), elegir el catálogo,
-crear un producto tildado y verlo en Commerce Manager, cambiar el precio y verlo
-actualizado, y destildarlo y ver que sale del catálogo. Los textos de Meta
-salen en español; los subtítulos lo explican en inglés.
+(81 s, mismo formato que los otros: capturas con subtítulos en inglés).
+Regrabada la conexión el mismo día con el login para empresas que usa ahora el
+botón (configuración `META_CATALOG_CONFIG_ID`): elegir cartera y catálogo, la
+pantalla con `catalog_management` y `business_management`, y la tarjeta
+"Conectado con el negocio en Facebook: el acceso no vence". Después, crear un
+producto tildado y verlo en Commerce Manager, cambiar el precio y verlo
+actualizado, y destildarlo y ver que sale del catálogo (esas tomas son de antes
+del cambio: la tarjeta todavía dice "El acceso vence el 20 feb."). Los textos de
+Meta salen en español; los subtítulos lo explican en inglés.
 
 El botón "Conectar con Facebook" de la tarjeta pide `catalog_management` y
 `business_management` (para listar los catálogos del negocio), y muestra la
