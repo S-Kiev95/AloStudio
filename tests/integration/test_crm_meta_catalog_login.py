@@ -262,11 +262,11 @@ async def test_a_business_configuration_gets_a_token_that_does_not_expire(
             )
         )
         # Through the business (owned_product_catalogs) Meta answers 403
-        # to a system-user token; its assigned catalogues are the way.
-        respx.get(f"{GRAPH}/me/assigned_product_catalogs").mock(
-            return_value=httpx.Response(
-                200, json={"data": [{"id": "555", "name": "Cursos", "business": {"name": "CTC"}}]}
-            )
+        # to a system-user token; the catalogues assigned to the system user
+        # (by its id, not ``me``) are the way.
+        respx.get(f"{GRAPH}/me").mock(return_value=httpx.Response(200, json={"id": "6001"}))
+        respx.get(f"{GRAPH}/6001/assigned_product_catalogs").mock(
+            return_value=httpx.Response(200, json={"data": [{"id": "555", "name": "Cursos"}]})
         )
         respx.get(url__regex=rf"{GRAPH}/555(\?|$)").mock(
             return_value=httpx.Response(200, json={"id": "555", "name": "Cursos"})
