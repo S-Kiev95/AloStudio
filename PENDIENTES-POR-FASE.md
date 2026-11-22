@@ -843,6 +843,13 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     dispara la sincronización. WhatsApp solo ofrece los productos tildados.
     Migración `e4a6c8b0d2f4`: deja tildados los productos que ya estaban en
     Meta; en CTC, aplicarla con respaldo previo.
+    **Permiso para vender:** la app AloStudio (Skiev Dev) tiene
+    `catalog_management` solo con acceso estándar (alcanza para catálogos
+    propios, como el de CTC). Para catálogos de clientes hace falta el
+    avanzado, en una revisión nueva cuando Meta termine la enviada el
+    2026-11-07 (mientras tanto no se puede sumar nada). Antes de grabar,
+    sumar "Conectar con Facebook" al catálogo en vez de pegar el token.
+    Guion y texto en `docs/meta-review/guiones.md`, video 6.
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
     Productos en la Bandeja, pedidos por el webhook que abren una
     oportunidad y pestaña Catálogo en la sección WhatsApp (ver F5).

@@ -92,6 +92,38 @@ Subtítulos:
 - "A rule replies to the user's own post when it reaches a number of likes."
 - "The user sees the performance of their posts in AloStudio's analytics."
 
+## Video 6: catálogo de productos (próxima revisión)
+
+Permiso: `catalog_management` (hoy solo acceso estándar; el avanzado hace
+falta para conectar catálogos de otros negocios). No entra en la revisión
+enviada el 2026-11-07: Meta no deja sumar nada mientras está en revisión.
+Pedirlo en una revisión nueva cuando termine esa.
+
+**Antes de grabar, falta un paso en AloStudio:** hoy el catálogo se conecta
+pegando el ID y el token de un usuario del sistema. Meta pide ver en el
+video la pantalla donde la persona le da el permiso a la app, así que
+conviene sumar un botón "Conectar con Facebook" en CRM → Productos →
+Catálogo de Meta (inicio de sesión de Facebook con `catalog_management`,
+elegir el catálogo de una lista) antes de grabar. Sin eso, lo más probable
+es que lo rechacen.
+
+1. Entrar a AloStudio y abrir CRM → Productos.
+2. En la tarjeta "Catálogo de Meta", conectar con Facebook, mostrar la
+   pantalla de permisos completa y aceptar. Elegir el catálogo de prueba.
+3. Abrir un producto, tildar "Publicar en el catálogo de Meta", completar
+   descripción, precio, enlace e imagen, y guardar.
+4. Tocar "Sincronizar ahora" y mostrar el estado "En Meta" en el producto.
+5. Abrir Commerce Manager y mostrar el producto en el catálogo.
+6. Cambiar el precio en AloStudio, sincronizar y mostrar el precio nuevo en
+   Commerce Manager.
+7. Destildar el producto, sincronizar y mostrar que ya no está en el
+   catálogo.
+
+Subtítulos:
+- "The business connects its own Meta catalog to AloStudio."
+- "The business chooses which of its products are published in the catalog."
+- "Changes made in AloStudio are applied to the catalog, and unpublished products are removed."
+
 ## Textos para el formulario
 
 Descripción general:
@@ -165,5 +197,9 @@ Descripción general:
 `threads_manage_insights`:
 
 > Used to show the user the metrics of their own Threads posts in AloStudio's analytics.
+
+`catalog_management` (próxima revisión):
+
+> Used to create, update and remove items in the business's own Meta catalog, for the products the business chooses to publish from AloStudio's product list, so they can be shown and sent on WhatsApp, Instagram and Facebook.
 
 Instrucciones para los revisores: completar con la URL, y con un usuario y una contraseña de prueba creados para esto, sin datos de clientes.
