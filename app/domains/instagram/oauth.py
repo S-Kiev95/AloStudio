@@ -215,19 +215,26 @@ def build_facebook_login_url(
     redirect_uri: str,
     state: str,
     scopes: tuple[str, ...] = FACEBOOK_LOGIN_SCOPES,
+    config_id: str | None = None,
 ) -> str:
-    """The Facebook Login dialog URL the admin's browser is sent to."""
+    """The Facebook Login dialog URL the admin's browser is sent to.
+
+    With ``config_id`` (a Facebook Login for Business configuration) the
+    configuration replaces the scope list, and the code grant has to be
+    forced: the code then exchanges for the business's system-user token,
+    which doesn't expire and needs no long-lived exchange."""
     settings = get_settings()
-    query = urlencode(
-        {
-            "client_id": settings.meta_app_id,
-            "redirect_uri": redirect_uri,
-            "state": state,
-            "response_type": "code",
-            "scope": ",".join(scopes),
-        }
-    )
-    return f"{_dialog_base()}/dialog/oauth?{query}"
+    params = {
+        "client_id": settings.meta_app_id,
+        "redirect_uri": redirect_uri,
+        "state": state,
+        "response_type": "code",
+    }
+    if config_id:
+        params.update({"config_id": config_id, "override_default_response_type": "true"})
+    else:
+        params["scope"] = ",".join(scopes)
+    return f"{_dialog_base()}/dialog/oauth?{urlencode(params)}"
 
 
 # ---------------------------------------------------------------------------

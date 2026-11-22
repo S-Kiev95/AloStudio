@@ -294,7 +294,9 @@ function MetaCatalogCardInner({
             ) : null}
             {catalog.login ? (
               <p className="text-xs text-fg-muted">
-                {catalog.login.expires_at
+                {catalog.login.via === "facebook_business"
+                  ? t("metaCatalog.viaBusiness")
+                  : catalog.login.expires_at
                   ? t("metaCatalog.viaFacebookUntil", {
                       date: new Date(catalog.login.expires_at * 1000).toLocaleDateString(intlTag, {
                         dateStyle: "medium",

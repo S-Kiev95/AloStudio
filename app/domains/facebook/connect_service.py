@@ -67,6 +67,7 @@ def start_page_oauth(account_id: int) -> str:
         redirect_uri=settings.meta_oauth_redirect_uri,
         state=sign_oauth_state(account_id, flow=FLOW),
         scopes=oauth.FACEBOOK_PAGE_SCOPES,
+        config_id=settings.meta_pages_config_id or None,
     )
 
 
@@ -155,7 +156,13 @@ async def complete_page_oauth(
     )
     if not short.ok or not short.access_token:
         raise _unprocessable(short.error_message or "Meta rechazó el código de autorización.")
-    long = await oauth.exchange_for_long_lived(short_token=short.access_token)
+    # A business login (configuration) hands over the business's system-user
+    # token, which doesn't expire: there is nothing to extend.
+    long = (
+        short
+        if get_settings().meta_pages_config_id
+        else await oauth.exchange_for_long_lived(short_token=short.access_token)
+    )
     if not long.ok or not long.access_token:
         raise _unprocessable(long.error_message or "Meta no renovó el acceso.")
     listed = await oauth.list_pages(user_token=long.access_token)

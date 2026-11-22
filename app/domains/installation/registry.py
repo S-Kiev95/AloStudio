@@ -68,6 +68,38 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         kind="password",
         secret=True,
     ),
+    # --- Facebook Login for Business (system-user tokens) --------------
+    ConfigSpec(
+        name="META_CATALOG_CONFIG_ID",
+        setting="meta_catalog_config_id",
+        title="Configuración de login para empresas: catálogo",
+        description=(
+            "ID de la configuración (token de usuario del sistema) para "
+            "conectar el catálogo de Meta en CRM → Productos. Con ella el "
+            "acceso queda a nombre del negocio y no vence. Vacío: login "
+            "de usuario."
+        ),
+        group=META_GROUP,
+    ),
+    ConfigSpec(
+        name="META_PAGES_CONFIG_ID",
+        setting="meta_pages_config_id",
+        title="Configuración de login para empresas: Páginas",
+        description=(
+            "Lo mismo para conectar una Página de Facebook como bandeja."
+        ),
+        group=META_GROUP,
+    ),
+    ConfigSpec(
+        name="META_INSTAGRAM_CONFIG_ID",
+        setting="meta_instagram_config_id",
+        title="Configuración de login para empresas: Instagram",
+        description=(
+            "Lo mismo para conectar Instagram con Facebook (no el login de "
+            "Instagram)."
+        ),
+        group=META_GROUP,
+    ),
     # --- Instagram Login (no Facebook Page) ----------------------------
     ConfigSpec(
         name="META_INSTAGRAM_APP_ID",

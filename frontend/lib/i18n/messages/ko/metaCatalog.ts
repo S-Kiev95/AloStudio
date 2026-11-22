@@ -27,6 +27,7 @@ export const metaCatalog: Strings<typeof es> = {
   connectedNotice: "카탈로그가 연결되었습니다.",
   viaFacebook: "Facebook으로 연결되었습니다.",
   viaFacebookUntil: "Facebook으로 연결되었습니다. 액세스는 {date}에 만료되며, 그 후 다시 연결하세요.",
+  viaBusiness: "Facebook 비즈니스로 연결되었습니다. 액세스가 만료되지 않습니다.",
   synced: "완료: {sent}개 전송, {removed}개 삭제, {skipped}개 정보 부족, {failed}개 Meta 거부.",
   state: {
     synced: "Meta에 등록됨",

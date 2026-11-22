@@ -317,7 +317,9 @@ def start_facebook_oauth(account_id: int) -> str:
         )
     state = sign_oauth_state(account_id, flow="facebook")
     return oauth.build_facebook_login_url(
-        redirect_uri=settings.meta_oauth_redirect_uri, state=state
+        redirect_uri=settings.meta_oauth_redirect_uri,
+        state=state,
+        config_id=settings.meta_instagram_config_id or None,
     )
 
 
@@ -435,8 +437,12 @@ async def complete_facebook_oauth(
                 "code": short.error_code,
             },
         )
-    long = await oauth.exchange_for_long_lived(
-        short_token=short.access_token
+    # A business login (configuration) hands over the business's system-user
+    # token, which doesn't expire: there is nothing to extend.
+    long = (
+        short
+        if get_settings().meta_instagram_config_id
+        else await oauth.exchange_for_long_lived(short_token=short.access_token)
     )
     if not long.ok or not long.access_token:
         raise ChatwootHTTPException(

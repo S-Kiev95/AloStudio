@@ -1241,3 +1241,59 @@ async def test_a_partly_configured_flow_only_names_the_gap(
     message = resp.json()["message"]
     assert "META_APP_SECRET" in message
     assert "META_APP_ID" not in message
+
+
+def test_build_facebook_login_url_with_a_business_configuration(meta_oauth_config):
+    """A Facebook Login for Business configuration replaces the scopes and
+    forces the code grant (the system-user token only comes that way)."""
+    url = ig_oauth.build_facebook_login_url(
+        redirect_uri="https://app.example.com/cb", state="ST8", config_id="CFG1"
+    )
+    assert "config_id=CFG1" in url
+    assert "override_default_response_type=true" in url
+    assert "response_type=code" in url
+    assert "scope=" not in url
+
+
+@respx.mock
+async def test_complete_facebook_oauth_with_a_business_configuration(
+    db_session, meta_oauth_config
+):
+    """The code exchanges for the business's system-user token, which
+    doesn't expire: no long-lived exchange after it."""
+    owner, _ = await _seed(db_session, "-fbbiz")
+    settings = get_settings()
+    settings.meta_instagram_config_id = "CFG-IG"
+    try:
+        assert "config_id=CFG-IG" in csvc.start_facebook_oauth(owner.account.id)
+        exchange = respx.get(f"{GRAPH}/oauth/access_token").mock(
+            return_value=httpx.Response(200, json={"access_token": "BISU"})
+        )
+        accounts = respx.get(f"{GRAPH}/me/accounts").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "data": [
+                        {
+                            "id": "PAGE9",
+                            "name": "Negocio",
+                            "access_token": "PAGE_TOKEN",
+                            "instagram_business_account": {"id": "17841888"},
+                        }
+                    ]
+                },
+            )
+        )
+        respx.get(f"{GRAPH}/17841888").mock(
+            return_value=httpx.Response(200, json={"username": "negocio"})
+        )
+        respx.post(f"{GRAPH}/PAGE9/subscribed_apps").mock(
+            return_value=httpx.Response(200, json={"success": True})
+        )
+        state = csvc.sign_oauth_state(owner.account.id, flow="facebook")
+        result = await csvc.complete_facebook_oauth(db_session, code="CODE", state=state)
+    finally:
+        settings.meta_instagram_config_id = ""
+    assert result["instagram_id"] == "17841888"
+    assert exchange.call_count == 1
+    assert accounts.calls.last.request.url.params["access_token"] == "BISU"

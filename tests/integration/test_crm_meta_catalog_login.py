@@ -236,3 +236,55 @@ async def test_without_debug_token_the_expiry_comes_from_the_exchange(
     expires_at = hook.settings["login"]["expires_at"]
     # expires_in of the long-lived exchange (60 days) from now.
     assert 5_000_000 < expires_at - time.time() < 5_200_000
+
+
+@respx.mock
+async def test_a_business_configuration_gets_a_token_that_does_not_expire(
+    client, db_session, meta_config
+):
+    """With META_CATALOG_CONFIG_ID the login hands over the business's
+    system-user token: no long-lived exchange, catalogues of that business
+    only, and nothing to expire."""
+    account, _ = await _seed(db_session, "-biz")
+    respx.route(host="test").pass_through()
+    meta_config.meta_catalog_config_id = "CFG-CAT"
+    try:
+        url = meta_catalog_connect.start_oauth(account.id)
+        query = parse_qs(urlparse(url).query)
+        assert query["config_id"] == ["CFG-CAT"]
+        assert "scope" not in query
+        exchange = respx.get(f"{GRAPH}/oauth/access_token").mock(
+            return_value=httpx.Response(200, json={"access_token": "BISU"})
+        )
+        respx.get(f"{GRAPH}/debug_token").mock(
+            return_value=httpx.Response(
+                200, json={"data": {"is_valid": True, "expires_at": 0, "data_access_expires_at": 0}}
+            )
+        )
+        respx.get(f"{GRAPH}/me").mock(
+            return_value=httpx.Response(200, json={"client_business_id": "77", "id": "SU"})
+        )
+
+        def graph_object(request):
+            if request.url.path.endswith("/77"):
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "77",
+                        "name": "CTC Salto",
+                        "owned_product_catalogs": _catalogs(("555", "Cursos")),
+                    },
+                )
+            return httpx.Response(200, json={"id": "555", "name": "Cursos"})
+
+        respx.get(url__regex=rf"{GRAPH}/\d+(\?|$)").mock(side_effect=graph_object)
+        r = await client.get(CALLBACK, params={"code": "C", "state": query["state"][0]})
+    finally:
+        meta_config.meta_catalog_config_id = ""
+
+    assert r.headers["location"].endswith("/products?catalog=connected")
+    assert exchange.call_count == 1
+    hook = await meta_catalog.get_link(db_session, account.id)
+    assert hook is not None and hook.access_token == "BISU"
+    assert hook.settings["catalog_id"] == "555"
+    assert hook.settings["login"] == {"via": "facebook_business", "expires_at": None}
