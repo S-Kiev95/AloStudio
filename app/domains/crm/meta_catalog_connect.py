@@ -6,8 +6,10 @@ catalogues of the businesses that user granted. One catalogue connects right
 away. Several wait in Redis for ten minutes, token included, until the admin
 picks one, so no token ever reaches the browser or a URL.
 
-The user token lasts about 60 days; when Meta stops accepting it, the
-background sync keeps the error and the panel asks to connect again. Pasting
+A token from this login doesn't expire, but its access to data does, 90
+days after the person last logged in (``data_access_expires_at``): that date
+is kept and shown, and when Meta stops accepting the token the background
+sync keeps the error and the panel asks to connect again. Pasting
 a system user's token (``meta_catalog.connect``) stays as the manual way.
 """
 
@@ -82,6 +84,29 @@ async def list_catalogs(user_token: str) -> list[dict[str, Any]]:
     return list(found.values())
 
 
+async def access_expires_at(user_token: str, *, fallback: int | None) -> int | None:
+    """When this token stops reaching the catalogue: the earliest of its own
+    expiry and its data access expiry (``0`` means never), read with
+    ``debug_token``. Best-effort: ``fallback`` when Meta doesn't say."""
+    settings = get_settings()
+    try:
+        body = await catalog._graph(
+            "GET",
+            "debug_token",
+            token=f"{settings.meta_app_id}|{settings.meta_app_secret}",
+            params={"input_token": user_token},
+        )
+    except catalog.CatalogError:
+        return fallback
+    data = body.get("data") if isinstance(body.get("data"), dict) else {}
+    dates = [
+        int(value)
+        for value in (data.get("expires_at"), data.get("data_access_expires_at"))
+        if isinstance(value, int) and value > 0
+    ]
+    return min(dates) if dates else fallback
+
+
 async def _connect(
     session: AsyncSession,
     *,
@@ -113,8 +138,11 @@ async def complete_oauth(session: AsyncSession, *, code: str, state: str) -> dic
     long = await oauth.exchange_for_long_lived(short_token=short.access_token)
     if not long.ok or not long.access_token:
         raise catalog.CatalogError("refused", long.error_message)
-    expires_at = (
-        int(datetime.now(UTC).timestamp()) + int(long.expires_in) if long.expires_in else None
+    expires_at = await access_expires_at(
+        long.access_token,
+        fallback=(
+            int(datetime.now(UTC).timestamp()) + int(long.expires_in) if long.expires_in else None
+        ),
     )
     catalogs = await list_catalogs(long.access_token)
     if not catalogs:
@@ -183,6 +211,7 @@ async def connect_pending(
 __all__ = [
     "FLOW",
     "SCOPES",
+    "access_expires_at",
     "complete_oauth",
     "connect_pending",
     "list_catalogs",
