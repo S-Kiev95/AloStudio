@@ -890,10 +890,12 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     (`/{id}/assigned_product_catalogs`; desde la cartera da 403). Probado con
     Meta: catálogo de Skiev Dev y Página de Ingenia Labs reconectados;
     `debug_token` dice SYSTEM_USER / PAGE con `expires_at` 0 y
-    `data_access_expires_at` 0, y la Página sigue suscripta. **Falta:**
-    reconectar en vivo un Instagram con Facebook (mismo camino, con prueba
-    automática); y la pantalla de Bandejas → Facebook muestra la clave sin
-    traducir `channelCatalog.facebook.blurb` (viene de antes).
+    `data_access_expires_at` 0, y la Página sigue suscripta. Instagram con
+    Facebook también: `ctcsalto_demobot` reconectada (sin elegir Página,
+    porque la Página Ingenia Labs pide "control total" de la cartera) queda
+    con un token de Página sin vencimiento y lee la cuenta. **Falta:** la
+    pantalla de Bandejas → Facebook muestra la clave sin traducir
+    `channelCatalog.facebook.blurb` (viene de antes).
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
     Productos en la Bandeja, pedidos por el webhook que abren una
     oportunidad y pestaña Catálogo en la sección WhatsApp (ver F5).
