@@ -860,6 +860,20 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     automática pide reconectar. Pegar ID y token sigue como alternativa. El
     botón solo aparece si la instalación tiene `META_APP_ID`, `_SECRET` y
     `META_OAUTH_REDIRECT_URI`. Código en `app/domains/crm/meta_catalog_connect.py`.
+    **Probado en develop (vmi3426238) el 2026-11-22**, con Meta de verdad y
+    el catálogo "AloStudio develop (prueba)": destildar un curso lo saca del
+    catálogo con la sincronización automática; volver a tildarlo y
+    "Sincronizar ahora" lo sube; "Conectar con Facebook" pasa por la
+    pantalla de permisos, la elección de negocios (Ingenia Labs y Skiev Dev)
+    y las condiciones de catálogo de Meta, vuelve con la lista de dos
+    catálogos y conecta el elegido; la sincronización anda con ese acceso.
+    **Corrección:** el acceso que da Facebook no vence (`expires_at` 0); lo
+    que vence es el acceso a los datos, a los 90 días (`data_access_expires_at`,
+    hoy 2027-02-20), salvo que la persona vuelva a entrar. La tarjeta dice
+    "Conectado con Facebook." sin fecha. Pendiente chico: leer esa fecha con
+    `debug_token` al conectar y mostrarla. Falta probar los mensajes de
+    producto por WhatsApp con un producto tildado (necesita un contacto que
+    haya escrito en las últimas 24 h).
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
     Productos en la Bandeja, pedidos por el webhook que abren una
     oportunidad y pestaña Catálogo en la sección WhatsApp (ver F5).
