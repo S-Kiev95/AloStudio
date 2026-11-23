@@ -1209,9 +1209,10 @@ Detalle en `PLAN.i18n.md`.
       `frontend/components/brand/floating-logos.tsx`. Fractura de campos hacia
       el centro, colapso de la tarjeta a esfera negra con disco de acreción azul
       cobalto GLSL procedural, estiramiento "chicle" sobre los modelos `.glb` 3D
-      reales y caída de cámara al Inicio en `2,5 s`, con `router.prefetch`,
-      fallback CSS sin WebGL, soporte móvil y transición simple (`220 ms`) bajo
-      `prefers-reduced-motion: reduce`. Texto `auth.login.entering` en los 7 idiomas.
+      reales y caída de cámara al Inicio en `5 s` (fases escaladas en
+      proporción), con `router.prefetch`, fallback CSS sin WebGL, soporte móvil
+      y transición simple (`220 ms`) bajo `prefers-reduced-motion: reduce`.
+      Texto `auth.login.entering` en los 7 idiomas.
     - **P0 #1 — Opacidad central Tailwind (`<alpha-value>`):** canales RGB en
       `frontend/app/globals.css` + `frontend/tailwind.config.ts`.
     - **P0 #2 — Barra superior en celular y popovers fijos:** `dashboard-shell.tsx`

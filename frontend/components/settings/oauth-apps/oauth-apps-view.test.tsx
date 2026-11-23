@@ -20,6 +20,7 @@ import { OAuthAppsView } from "./oauth-apps-view";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/accounts/1/settings/oauth_apps",
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
 const ADMIN_PROFILE = {

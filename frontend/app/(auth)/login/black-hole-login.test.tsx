@@ -117,35 +117,38 @@ describe("LoginPage con agujero negro (Anime.js v4)", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("dispara la secuencia de agujero negro solo con login correcto y navega en <= 3s", async () => {
-    const { container } = renderLoginInShell();
-    submitCredentials();
+  it(
+    "dispara la secuencia de agujero negro (~5s) solo con login correcto y navega al terminar",
+    async () => {
+      const { container } = renderLoginInShell();
+      submitCredentials();
 
-    await waitFor(() => {
-      expect(container.querySelector("[data-singularity]")).toHaveAttribute(
-        "data-singularity",
-        "active",
+      await waitFor(() => {
+        expect(container.querySelector("[data-singularity]")).toHaveAttribute(
+          "data-singularity",
+          "active",
+        );
+      });
+      expect(prefetch).toHaveBeenCalledWith("/accounts/7");
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Entrando a AloStudio…",
       );
-    });
-    expect(prefetch).toHaveBeenCalledWith("/accounts/7");
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Entrando a AloStudio…",
-    );
-    // Does not jump immediately before the animation finishes.
-    expect(push).not.toHaveBeenCalled();
+      // Does not jump immediately before the animation finishes.
+      expect(push).not.toHaveBeenCalled();
 
-    // Completes within 2–3 seconds (BLACK_HOLE_DURATION_MS = 2500ms).
-    expect(BLACK_HOLE_DURATION_MS).toBeGreaterThanOrEqual(2000);
-    expect(BLACK_HOLE_DURATION_MS).toBeLessThanOrEqual(3000);
+      // Completes in ~5 seconds (BLACK_HOLE_DURATION_MS = 5000ms).
+      expect(BLACK_HOLE_DURATION_MS).toBe(5000);
 
-    await waitFor(
-      () => {
-        expect(push).toHaveBeenCalledWith("/accounts/7");
-      },
-      { timeout: 3500 },
-    );
-    expect(refresh).toHaveBeenCalled();
-  });
+      await waitFor(
+        () => {
+          expect(push).toHaveBeenCalledWith("/accounts/7");
+        },
+        { timeout: 6500 },
+      );
+      expect(refresh).toHaveBeenCalled();
+    },
+    10000,
+  );
 
   it("reemplaza el agujero negro por una transición simple con prefers-reduced-motion", async () => {
     mockReducedMotion(true);

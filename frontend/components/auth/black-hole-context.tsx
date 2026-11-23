@@ -16,8 +16,8 @@ import {
 import { NEON_ENTER_MS, prefersReducedMotion } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
-/** Total duration of the black-hole login transition (within 2–3s). */
-export const BLACK_HOLE_DURATION_MS = 2500;
+/** Total duration of the black-hole login transition (~5 seconds). */
+export const BLACK_HOLE_DURATION_MS = 5000;
 /** Simple fade duration when `prefers-reduced-motion: reduce` is active. */
 export const REDUCED_TRANSITION_MS = NEON_ENTER_MS;
 
@@ -185,20 +185,20 @@ export function AuthSingularityShell({
       onComplete: finish,
     });
 
-    // 1. Cracks flash on the glass panel (0 -> 660ms)
+    // 1. Cracks flash on the glass panel (0 -> 1320ms)
     if (cracksEl) {
       tl.add(
         cracksEl,
         {
           opacity: [0, 0.92, 0],
-          duration: 660,
+          duration: 1320,
           ease: "inOutQuad",
         },
         0,
       );
     }
 
-    // 2. Form fields & elements fracture and fall toward card center (0 -> 740ms)
+    // 2. Form fields & elements fracture and fall toward card center (0 -> 1600ms)
     const shards = cardEl
       ? Array.from(cardEl.querySelectorAll<HTMLElement>("[data-bh-shard]"))
       : [];
@@ -220,14 +220,14 @@ export function AuthSingularityShell({
           skewX: [0, cfg.skew],
           scale: [1, 0.08],
           opacity: [1, 0],
-          duration: 560,
+          duration: 1120,
           ease: "inExpo",
         },
-        idx * 34,
+        idx * 68,
       );
     });
 
-    // 3. Card shell contracts into a pitch-black sphere with cobalt rim (160 -> 880ms)
+    // 3. Card shell contracts into a pitch-black sphere with cobalt rim (320 -> 1800ms)
     if (shellEl) {
       const cardW = rect.width > 0 ? rect.width : 420;
       const cardH = rect.height > 0 ? rect.height : 490;
@@ -243,19 +243,19 @@ export function AuthSingularityShell({
           backgroundColor: "#000000",
           boxShadow:
             "inset 0 0 0 2px rgba(219, 228, 255, 0.9), 0 0 44px rgba(61, 107, 255, 0.78)",
-          duration: 640,
+          duration: 1280,
           ease: "inOutCubic",
         },
-        160,
+        320,
       );
       tl.add(
         shellEl,
         {
           opacity: [1, 0],
-          duration: 220,
+          duration: 440,
           ease: "outQuad",
         },
-        680,
+        1360,
       );
     }
 
@@ -264,46 +264,46 @@ export function AuthSingularityShell({
       st,
       {
         disk: [0, 1],
-        duration: 680,
+        duration: 1360,
         ease: "outExpo",
       },
-      360,
+      720,
     );
     tl.add(
       st,
       {
         horizon: [0, 1],
-        duration: 300,
+        duration: 600,
         ease: "outQuad",
       },
-      440,
+      880,
     );
     tl.add(
       st,
       {
         pull: [0, 1],
-        duration: 1380,
+        duration: 2760,
         ease: "inOutQuad",
       },
-      480,
+      960,
     );
     tl.add(
       st,
       {
         dive: [0, 1],
-        duration: 660,
+        duration: 1320,
         ease: "inExpo",
       },
-      1800,
+      3600,
     );
     tl.add(
       st,
       {
         veil: [0, 1],
-        duration: 460,
+        duration: 920,
         ease: "inCubic",
       },
-      2000,
+      4000,
     );
 
     // CSS fallback accretion disk when WebGL is unavailable
@@ -313,33 +313,33 @@ export function AuthSingularityShell({
         {
           opacity: [0, 1],
           scale: [0.35, 1],
-          duration: 640,
+          duration: 1280,
           ease: "outExpo",
         },
-        380,
+        760,
       );
       tl.add(
         fallbackDiskEl,
         {
           scale: [1, 10],
-          duration: 660,
+          duration: 1320,
           ease: "inExpo",
         },
-        1800,
+        3600,
       );
     }
 
-    // 5. Camera rig plunge + final blackout veil (1800 -> 2500ms)
+    // 5. Camera rig plunge + final blackout veil (3640 -> 5000ms)
     if (rigEl) {
       tl.add(
         rigEl,
         {
           scale: [1, 4.2],
           opacity: [1, 0],
-          duration: 640,
+          duration: 1280,
           ease: "inExpo",
         },
-        1820,
+        3640,
       );
     }
     if (veilEl) {
@@ -347,15 +347,15 @@ export function AuthSingularityShell({
         veilEl,
         {
           opacity: [0, 1],
-          duration: 440,
+          duration: 880,
           ease: "inCubic",
         },
-        2020,
+        4040,
       );
     }
 
-    // Safety cap so navigation never hangs beyond 2.75s even if rAF is throttled
-    const safety = window.setTimeout(finish, BLACK_HOLE_DURATION_MS + 250);
+    // Safety cap so navigation never hangs if rAF is throttled
+    const safety = window.setTimeout(finish, BLACK_HOLE_DURATION_MS + 350);
     cancelRef.current = () => {
       window.clearTimeout(safety);
       tl.cancel();
