@@ -1251,10 +1251,43 @@ Detalle en `PLAN.i18n.md`.
       popovers (incluidos `channels-panel.tsx` y los 2 menús de
       `publication-editor-dialog.tsx`), y área táctil ≥ 44×44 px en botones de
       ícono de alertas, búsqueda, chat, notas y las 22 vistas de Ajustes.
-    - Pruebas nuevas y actualizadas (`confirm-dialog.test.tsx`,
-      `error-state.test.tsx`, `use-dismiss.test.tsx`, `account-overview.test.tsx`,
-      `whatsapp-panels.test.tsx`, `black-hole-login.test.tsx`,
-      `settings-sidebar.test.tsx`, `dashboard-shell.test.tsx`, `tabs.test.tsx`:
-      126 archivos, 567 tests en verde; `tsc --noEmit` y `eslint` limpios) y
-      capturas antes/después en `docs/neon/capturas/despues-*.png`.
+    - **P2 (puntos 8 a 12 del informe UI/UX):**
+      - Geometría y sombras según `DESIGN.md`: columnas Kanban y skeletons en
+        `rounded-md`, selector táctil de etapa en tarjetas de `OpportunitiesView`
+        para celular/pantallas táctiles, eliminación de `shadow-lg`/`shadow-sm` y
+        `rounded-2xl` en paneles de WhatsApp, `CallButton`/`CallDock` en
+        `shadow-menu` + `rounded-md`, `<select>` crudos migrados a `selectClassName()`,
+        tarjetas internas de `lifecycle` y `decisions` en `rounded-md`, y
+        `LanguageSwitcher` con `border-glass bg-surface/80 backdrop-blur-sm` para
+        contraste sobre los logos 3D en login.
+      - Voz rioplatense pareja y nomenclatura unificada en los 7 idiomas:
+        saludo personal/neutro (`Hola, {name}` / `Hola` vía `useProfile()`),
+        acceso rápido «Bandeja» unificado, «Centro de ayuda» en la barra lateral,
+        «o con tu email» en login y ajuste gramatical en sugerencias del Agente.
+      - Contraste en tarjetas densas y filtros compactos: eliminación de
+        `opacity-80`/`opacity-60` sobre `text-fg-muted` en `HelpButton` y
+        `SettingsSidebar`, y cabecera de filtros de `ConversationList` compactada
+        con Canal y Bandeja lado a lado en una sola fila.
+    - **P3 (Anime.js v4 en el resto del panel según `propuesta-animejs-v4.md`):**
+      - Módulo compartido `frontend/lib/motion/neon-motion.ts` con `createScope`
+        (`useNeonScope`), `prefersReducedMotion()`/`usePrefersReducedMotion()` y
+        helpers GPU-only respetando *The Ignition Rule* y `prefers-reduced-motion`.
+      - Tubo cobalto deslizante de `180 ms` en `Tabs` y `NavTabs` (`tabs.tsx`).
+      - Entradas escalonadas de una sola vez (cap `240 ms`) en Inicio, columnas
+        Kanban de Oportunidades y grilla de Medios, más contador animado (`420 ms`,
+        `tabular-nums`) en el primer render de las 4 tarjetas «Ahora mismo».
+      - Entrada suave (`180 ms`) en el cajón móvil, en todos los popovers del
+        topbar (`NotificationBell`, `HelpButton`, `AccountSwitcher`, `AgentMenu`),
+        en `WritingAssist` y en los 11 modales `<dialog>` del panel.
+      - Microinteracciones en el Agente IA (entrada suave de mensajes nuevos y
+        `PendingActionCard` + 3 puntos Electrode Orange con `stagger(120)` en
+        «Pensando…») y destello cobalto único (`360 ms`) al llegar una nueva
+        conversación en `ConversationList`.
+    - Pruebas nuevas y actualizadas (`neon-motion.test.tsx`, `opportunities-view.test.tsx`,
+      `account-overview.test.tsx`, `nav.test.tsx`, `confirm-dialog.test.tsx`,
+      `error-state.test.tsx`, `use-dismiss.test.tsx`, `whatsapp-panels.test.tsx`,
+      `black-hole-login.test.tsx`, `settings-sidebar.test.tsx`,
+      `dashboard-shell.test.tsx`, `tabs.test.tsx`: **127 archivos, 572 tests en
+      verde**; `npm run typecheck` y `npx eslint .` con 0 errores) y capturas
+      antes/después en `docs/neon/capturas/despues-*.png`.
     - Pendiente de OK del dueño para pushear/mezclar `feat/neon-ux`.

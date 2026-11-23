@@ -147,3 +147,55 @@ Capturas reales tomadas sobre la aplicación levantada en Next.js (`1440×900` e
 - **Después (sección WhatsApp renderizada 100% en inglés con `alo_locale=en`, demostrando paridad en `es`, `en`, `pt`, `fr`, `de`, `ja`, `ko`):**
 
 ![Después: WhatsApp completamente traducido al inglés](./capturas/despues-p1-whatsapp-en.png)
+
+---
+
+## 10. P2 — Inicio personal/neutro, tarjetas «Ahora mismo» cliqueables y voz rioplatense pareja
+
+- **Después (`Hola, Sofía` conectado a `useProfile()`, «Centro de ayuda» unificado en la barra lateral, acceso rápido «Bandeja», y las 4 tarjetas «Ahora mismo» con contadores animados Anime.js v4 que filtran directo en la Bandeja):**
+
+![Después P2: Inicio con saludo personal, tarjetas cliqueables y Centro de ayuda](./capturas/despues-p2-inicio-desktop.png)
+
+---
+
+## 11. P2 — Filtros compactos en la Bandeja (`1440×900`)
+
+- **Después (selectores de Canal y Bandeja lado a lado en una sola fila con grilla compacta y pills ajustados, liberando altura para la lista de chats):**
+
+![Después P2: Bandeja con filtros compactos](./capturas/despues-p2-bandeja-filtros.png)
+
+---
+
+## 12. P2 — Geometría `rounded-md` y Kanban táctil en Oportunidades
+
+### Escritorio (`1440×900`)
+- **Después (columnas `rounded-md` según `DESIGN.md`, entrada escalonada Anime.js v4 y barra CRM con tubo cobalto deslizante):**
+
+![Después P2: Oportunidades Kanban en escritorio](./capturas/despues-p2-oportunidades-kanban.png)
+
+### Celular (`390×844`)
+- **Después (selector táctil de etapa en el pie de cada tarjeta para mover oportunidades sin drag & drop):**
+
+![Después P2: Oportunidades Kanban táctil en celular](./capturas/despues-p2-oportunidades-mobile.png)
+
+---
+
+## 13. P2 — Selector de idioma con contraste en Login
+
+- **Después (`LanguageSwitcher` con borde `border-glass` y superficie translúcida `bg-surface/80 backdrop-blur-sm` legible sobre los logos 3D flotantes):**
+
+![Después P2: Login con selector de idioma legible](./capturas/despues-p2-login-selector.png)
+
+---
+
+## 14. P3 — Microinteracciones con Anime.js v4 (Agente IA y popovers con mejor contraste)
+
+### Agente IA en estado «Pensando…» (`1440×900`)
+- **Después (3 puntos Electrode Orange animados con `stagger(120)` vía Anime.js v4, burbujas con entrada suave y respeto a `prefers-reduced-motion`):**
+
+![Después P3: Agente IA pensando con puntos Electrode Orange](./capturas/despues-p3-agente-pensando.png)
+
+### Popover de Ayuda animado + contraste limpio en metadatos (`1440×900`)
+- **Después (popover de Ayuda con entrada `animatePopoverIn`, subtítulos de modo sin `opacity-80` lavado y barra lateral de Ajustes con texto legible):**
+
+![Después P3: Popover de Ayuda abierto sobre Ajustes](./capturas/despues-p3-popover-ayuda.png)
