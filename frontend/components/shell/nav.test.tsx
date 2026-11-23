@@ -28,6 +28,9 @@ vi.mock("@/lib/api/inboxes", () => ({
   useHasWhatsappInbox: () => true,
 }));
 
+vi.mock("./help-button", () => ({
+  HelpButton: () => null,
+}));
 vi.mock("./notification-bell", () => ({
   NotificationBell: () => <div data-testid="notification-bell" />,
 }));

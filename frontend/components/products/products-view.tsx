@@ -77,6 +77,7 @@ export function ProductsView({ accountId }: { accountId: string }) {
           </CardHeader>
           <CardContent>
             <ProductForm
+              catalogConnected={catalogConnected}
               submitting={create.isPending}
               onSubmit={handleCreate}
               onCancel={() => setCreating(false)}
@@ -93,6 +94,7 @@ export function ProductsView({ accountId }: { accountId: string }) {
           <CardContent>
             <ProductForm
               initial={editing}
+              catalogConnected={catalogConnected}
               submitting={update.isPending}
               onSubmit={handleUpdate}
               onCancel={() => setEditing(null)}

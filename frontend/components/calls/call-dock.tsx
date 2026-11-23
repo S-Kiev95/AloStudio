@@ -15,6 +15,7 @@ import {
   useActiveCalls,
   useCall,
 } from "@/lib/api/calls";
+import { useProfile } from "@/lib/api/profile";
 import { useT } from "@/lib/i18n/provider";
 import { translateOr } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
@@ -64,6 +65,14 @@ function clock(seconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/** Whether a ringing call sounds for me. The backend says who: the people
+ *  free, or everybody when nobody is. Without its word (an older backend,
+ *  my profile still loading), as before: when I am not on a call. */
+function ringsForMe(call: Call, me: number | undefined, busy: boolean): boolean {
+  if (call.ring_user_ids === undefined || me === undefined) return !busy;
+  return call.ring_user_ids.includes(me);
+}
+
 /** Our wording for what went wrong, by the code the backend sends. */
 function problemKey(err: unknown): string {
   if (err instanceof MicrophoneBlocked) return "calls.problems.microphone";
@@ -83,6 +92,7 @@ export function CallDock({ accountId }: { accountId: string }) {
   const t = useT();
   const qc = useQueryClient();
   const { data: calls = [] } = useActiveCalls(accountId);
+  const me = useProfile().data?.id;
   const api = useRef(callApi(accountId));
   const speaker = useRef<HTMLAudioElement | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -124,16 +134,24 @@ export function CallDock({ accountId }: { accountId: string }) {
     calls.find((c) => c.id === session?.callId) ??
     session?.call ??
     undefined;
+  const busy = session !== null;
   const ringing = calls.filter(
-    (c) => c.status === "ringing" && c.can_answer && !ignored.includes(c.id),
+    (c) =>
+      c.status === "ringing" &&
+      c.can_answer &&
+      // The one I am answering: it shows as my call already, even before
+      // Meta confirms it, so its "Atender" card goes at once.
+      c.id !== session?.callId &&
+      !ignored.includes(c.id) &&
+      ringsForMe(c, me, busy),
   );
-  const otherRinging = session ? [] : ringing;
 
-  // Ring while somebody calls and I am free.
+  // Ring while somebody calls me; softly while I am on another call (it only
+  // rings for me then because nobody else is free).
   useEffect(() => {
-    if (otherRinging.length === 0) return;
-    return startRingtone();
-  }, [otherRinging.length]);
+    if (ringing.length === 0) return;
+    return startRingtone(busy);
+  }, [ringing.length, busy]);
 
   // The call ended on the other side (or another tab hung up).
   useEffect(() => {
@@ -320,7 +338,7 @@ export function CallDock({ accountId }: { accountId: string }) {
   }
 
   const unknown = t("calls.unknownCaller");
-  const showPanel = Boolean(session) || otherRinging.length > 0 || problem || notice;
+  const showPanel = Boolean(session) || ringing.length > 0 || problem || notice;
 
   return (
     <>
@@ -341,7 +359,7 @@ export function CallDock({ accountId }: { accountId: string }) {
               onToggleMute={toggleMute}
             />
           ) : null}
-          {otherRinging.map((call) => (
+          {ringing.map((call) => (
             <div
               key={call.id}
               role="dialog"
@@ -379,6 +397,7 @@ export function CallDock({ accountId }: { accountId: string }) {
                 <Button
                   size="sm"
                   onClick={() => void answer(call)}
+                  disabled={busy}
                   aria-label={t("calls.answer")}
                   className="flex-1 bg-success text-white"
                 >
@@ -386,6 +405,7 @@ export function CallDock({ accountId }: { accountId: string }) {
                   {t("calls.answer")}
                 </Button>
               </div>
+              {busy ? <p className="text-xs text-fg-muted">{t("calls.waiting")}</p> : null}
             </div>
           ))}
           {problem ? (

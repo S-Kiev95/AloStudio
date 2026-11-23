@@ -6,8 +6,11 @@ link lives in an ``integrations_hooks`` row (``app_id="meta_catalog"``),
 like the Meta Ads one: ``settings`` keeps the catalogue id and name, the
 last sync's outcome and the items waiting to be removed.
 
-A sync sends every product in one ``items_batch`` call: enabled ones are
-upserted, disabled or deleted ones removed. Meta validates the batch after
+Each product is sent only if it was chosen for the catalogue
+(``Product.meta_sync``). A sync sends them in one ``items_batch`` call:
+chosen and enabled ones are upserted; disabled, unchosen or deleted ones
+removed. The CRM is the source: an item edited in Commerce Manager is
+overwritten by the next sync. Meta validates the batch after
 answering, so the outcome is read back from ``check_batch_request_status``
 for a few seconds; whatever is still pending then shows as sent.
 
@@ -32,6 +35,7 @@ import httpx
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.domains.accounts.models import Account
 from app.domains.instagram.graph import graph_base
 from app.domains.integrations.models import IntegrationsHook
@@ -98,11 +102,27 @@ async def _graph(
     return body if isinstance(body, dict) else {}
 
 
+def login_available() -> bool:
+    """Whether this installation can connect the catalogue by logging in
+    with Facebook (``meta_catalog_connect``): its Meta app is configured."""
+    settings = get_settings()
+    return bool(
+        settings.meta_app_id and settings.meta_app_secret and settings.meta_oauth_redirect_uri
+    )
+
+
 async def connect(
-    session: AsyncSession, *, account_id: int, catalog_id: str, access_token: str | None
+    session: AsyncSession,
+    *,
+    account_id: int,
+    catalog_id: str,
+    access_token: str | None,
+    login: dict[str, Any] | None = None,
 ) -> IntegrationsHook:
     """Check the catalogue answers with this token, then keep the link.
-    Without a new token, the stored one is reused (changing the id only)."""
+    Without a new token, the stored one is reused (changing the id only).
+    ``login`` says the token came from logging in with Facebook (and when
+    it expires); a pasted token clears it."""
     catalog_id = catalog_id.strip()
     if not catalog_id.isdigit():
         raise CatalogError("catalog_id")
@@ -117,6 +137,11 @@ async def connect(
     if settings.get("catalog_id") != catalog_id:
         settings.pop("last_sync", None)
     settings.update({"catalog_id": catalog_id, "catalog_name": info.get("name")})
+    if login is not None:
+        settings["login"] = login
+    elif (access_token or "").strip():
+        settings.pop("login", None)
+    settings.pop("last_error", None)
     hook.settings = settings
     hook.reference_id = catalog_id
     hook.access_token = token
@@ -241,7 +266,7 @@ async def sync(session: AsyncSession, account_id: int) -> SyncResult:
         (await session.exec(select(Product).where(Product.account_id == account_id))).all()
     )
     for product in products:
-        if not product.enabled:
+        if not (product.enabled and product.meta_sync):
             if product.meta_retailer_id:
                 requests.append({"method": "DELETE", "data": {"id": product.meta_retailer_id}})
                 product.meta_retailer_id = None
@@ -293,6 +318,7 @@ async def sync(session: AsyncSession, account_id: int) -> SyncResult:
         session.add(product)
 
     settings["pending_removals"] = []
+    settings.pop("last_error", None)
     settings["last_sync"] = {
         "at": int(now.timestamp()),
         "validated": errors is not None,
@@ -313,8 +339,6 @@ SYNC_DELAY_SECONDS = 30
 async def enqueue_sync(account_id: int) -> None:
     """Sync the account's catalogue shortly, off the request. Best-effort:
     without a worker the next manual sync catches up."""
-    from app.core.config import get_settings
-
     settings = get_settings()
     if settings.app_env == "test":
         return
@@ -340,10 +364,26 @@ async def enqueue_sync(account_id: int) -> None:
         )
 
 
+async def record_error(session: AsyncSession, account_id: int, code: str) -> None:
+    """Keep why a background sync failed (an expired token, a lost
+    permission) so the panel shows it. The caller commits."""
+    hook = await get_link(session, account_id)
+    if hook is None:
+        return
+    settings = _settings(hook)
+    settings["last_error"] = {"code": code, "at": int(datetime.now(UTC).timestamp())}
+    hook.settings = settings
+    session.add(hook)
+    await session.flush()
+
+
 async def product_changed(
     session: AsyncSession, product: Product, *, deleted: bool = False
 ) -> None:
-    """After a product is saved or deleted: keep the catalogue in step."""
+    """After a product is saved or deleted: keep the catalogue in step.
+    Products never sent and not chosen don't touch it."""
+    if not (product.meta_sync or product.meta_retailer_id):
+        return
     hook = await get_link(session, product.account_id)
     if hook is None:
         return
@@ -355,14 +395,19 @@ async def product_changed(
 
 
 def present_link(hook: IntegrationsHook | None) -> dict[str, Any]:
+    can_login = login_available()
     if hook is None:
-        return {"connected": False}
+        return {"connected": False, "can_login": can_login}
     settings = _settings(hook)
     return {
         "connected": True,
+        "can_login": can_login,
+        # Connected by logging in with Facebook: when that token expires.
+        "login": settings.get("login"),
         "catalog_id": settings.get("catalog_id"),
         "catalog_name": settings.get("catalog_name"),
         "last_sync": settings.get("last_sync"),
+        "last_error": settings.get("last_error"),
     }
 
 
@@ -374,9 +419,11 @@ __all__ = [
     "disconnect",
     "enqueue_sync",
     "get_link",
+    "login_available",
     "missing_fields",
     "present_link",
     "product_changed",
     "queue_removal",
+    "record_error",
     "sync",
 ]

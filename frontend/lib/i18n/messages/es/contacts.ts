@@ -77,6 +77,7 @@ export const contacts = {
   deleteSegment: "Eliminar segmento {name}",
   noResults: "No hay resultados para \"{query}\".",
   noneInCompany: "No hay contactos en {company}.",
+  noneInStage: "No hay contactos en esta etapa.",
   pageOfOne: "Página {n} de {pages} · {count} contacto",
   pageOfMany: "Página {n} de {pages} · {count} contactos",
   deleteConfirm: "¿Eliminar el contacto \"{name}\"?",

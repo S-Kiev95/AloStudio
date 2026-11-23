@@ -16,6 +16,7 @@ const audio = {
 };
 const answerOffer = vi.fn(async () => audio);
 const stopRing = vi.fn();
+const ringtone = vi.fn();
 const outgoing = {
   offerSdp: "OFFER-FROM-BROWSER",
   applyAnswer: vi.fn(async () => undefined),
@@ -30,7 +31,10 @@ const placeCall = vi.fn(async () => outgoing);
 vi.mock("./call-audio", () => ({
   answerOffer: (...args: unknown[]) => answerOffer(...(args as [])),
   placeCall: (...args: unknown[]) => placeCall(...(args as [])),
-  startRingtone: () => stopRing,
+  startRingtone: (...args: unknown[]) => {
+    ringtone(...args);
+    return stopRing;
+  },
   MicrophoneBlocked: class extends Error {},
 }));
 
@@ -82,6 +86,7 @@ const placed: Call = {
 };
 
 const server = setupServer(
+  http.get("*/api/v1/profile", () => HttpResponse.json({ data: { id: 5, name: "Sofía" } })),
   http.get("*/calls/active", () => HttpResponse.json({ payload: [ringing] })),
   http.post("*/api/v1/accounts/1/calls", async ({ request }) => {
     placedBody = await request.json();
@@ -131,6 +136,12 @@ function renderDock() {
 
 describe("CallDock", () => {
   it("rings, answers from the browser and hangs up", async () => {
+    // As the backend sends it: the call rings for me (Sofía, id 5).
+    server.use(
+      http.get("*/calls/active", () =>
+        HttpResponse.json({ payload: [{ ...ringing, ring_user_ids: [5] }] }),
+      ),
+    );
     renderDock();
     expect(await screen.findByText("Lucía Pereira")).toBeInTheDocument();
     expect(screen.getByText("Llamada de WhatsApp · WhatsApp CTC")).toBeInTheDocument();
@@ -138,6 +149,8 @@ describe("CallDock", () => {
     fireEvent.click(screen.getByRole("button", { name: "Atender" }));
 
     expect(await screen.findByRole("button", { name: /Colgar/ })).toBeInTheDocument();
+    // Never both: the list still says "ringing" until Meta confirms.
+    expect(screen.queryByRole("button", { name: "Atender" })).not.toBeInTheDocument();
     await waitFor(() => expect(audio.startSending).toHaveBeenCalled());
     expect(answerOffer).toHaveBeenCalledWith("OFFER-SDP", expect.anything());
     expect(steps.map((s) => s.step)).toEqual(["pre_accept", "accept"]);
@@ -179,6 +192,43 @@ describe("CallDock", () => {
     );
     expect(audio.close).toHaveBeenCalled();
     expect(steps.map((s) => s.step)).toEqual(["pre_accept"]);
+  });
+
+  it("rings only for the people the call rings for", async () => {
+    const other: Call = {
+      ...ringing,
+      id: 9,
+      contact: { id: 10, name: "Pedro Gómez", phone_number: "+59891111111" },
+      ring_user_ids: [99],
+    };
+    server.use(
+      http.get("*/calls/active", () =>
+        HttpResponse.json({ payload: [{ ...ringing, ring_user_ids: [5, 99] }, other] }),
+      ),
+    );
+    renderDock();
+    expect(await screen.findByText("Lucía Pereira")).toBeInTheDocument();
+    expect(screen.queryByText("Pedro Gómez")).not.toBeInTheDocument();
+  });
+
+  it("rings softly while I am on a call and nobody else is free", async () => {
+    const qc = renderDock();
+    fireEvent.click(await screen.findByRole("button", { name: "Atender" }));
+    expect(await screen.findByRole("button", { name: /Colgar/ })).toBeInTheDocument();
+
+    upsertActiveCall(qc, "1", {
+      ...ringing,
+      id: 9,
+      contact: { id: 10, name: "Pedro Gómez", phone_number: "+59891111111" },
+      ring_user_ids: [5],
+    });
+
+    expect(await screen.findByText("Pedro Gómez")).toBeInTheDocument();
+    expect(
+      screen.getByText("Estás en otra llamada y no hay nadie más libre: cortá para atender."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Atender" })).toBeDisabled();
+    await waitFor(() => expect(ringtone).toHaveBeenLastCalledWith(true));
   });
 
   it("stops ringing for me when I ignore it", async () => {

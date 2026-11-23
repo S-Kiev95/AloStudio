@@ -142,18 +142,31 @@ async def maybe_run_auto_assignment(
         return None
 
     prev_id = conversation.assignee_id
-    try:
-        broadcaster = await get_broadcaster()
-        chosen = await _agent_assignment_perform(
-            broadcaster.redis,
-            session,
-            conversation=conversation,
-            allowed_agent_ids=candidates,
-        )
-    except Exception:
-        # A Redis flake or schema drift must not break the request.
-        log.exception("auto_assignment.error conversation_id=%s", conversation.id)
-        return None
+    # The inbox's default assignee (Ajustes → Bandejas, "Responsable por
+    # defecto"), when it is a member, takes every new conversation instead
+    # of the round robin: the others keep access, one person owns them.
+    inbox = await session.get(Inbox, conversation.inbox_id)
+    default_id = inbox.handoff_assignee_id if inbox is not None else None
+    if default_id is not None and default_id in candidates:
+        chosen: int | None = default_id
+        if chosen != prev_id:
+            conversation.assignee_id = chosen
+            session.add(conversation)
+            await session.flush()
+            await session.refresh(conversation)
+    else:
+        try:
+            broadcaster = await get_broadcaster()
+            chosen = await _agent_assignment_perform(
+                broadcaster.redis,
+                session,
+                conversation=conversation,
+                allowed_agent_ids=candidates,
+            )
+        except Exception:
+            # A Redis flake or schema drift must not break the request.
+            log.exception("auto_assignment.error conversation_id=%s", conversation.id)
+            return None
 
     if chosen is None or chosen == prev_id:
         return chosen

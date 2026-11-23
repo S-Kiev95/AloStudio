@@ -16,6 +16,8 @@ class ProductCreate(BaseModel):
     url: str | None = None
     image_url: str | None = None
     enabled: bool = True
+    # Send it to the account's Meta catalogue (when one is linked).
+    meta_sync: bool = False
 
 
 class ProductUpdate(BaseModel):
@@ -29,6 +31,7 @@ class ProductUpdate(BaseModel):
     url: str | None = None
     image_url: str | None = None
     enabled: bool | None = None
+    meta_sync: bool | None = None
 
 
 __all__ = ["ProductCreate", "ProductUpdate"]

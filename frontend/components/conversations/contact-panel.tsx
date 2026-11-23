@@ -11,6 +11,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
+import { ContactStage } from "@/components/lifecycle/contact-stage";
 import { useContact, useContactNotes } from "@/lib/api/contacts";
 import { useConversations } from "@/lib/api/conversations";
 import { useCustomAttributes } from "@/lib/api/custom-attributes";
@@ -225,6 +226,13 @@ export function ContactPanel({
             <ExternalLink className="h-3 w-3" aria-hidden />
           </Link>
         </div>
+
+        {/* Lifecycle stage (F17); nothing while the account does not use stages */}
+        <ContactStage
+          accountId={accountId}
+          contactId={c.id}
+          conversationId={currentDisplayId}
+        />
 
         {/* Contact methods */}
         <div className="space-y-3 border-t border-glass pt-4 text-sm">

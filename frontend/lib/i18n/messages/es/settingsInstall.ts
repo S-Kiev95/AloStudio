@@ -23,6 +23,10 @@ export const settingsInstall = {
     ai: "Inteligencia artificial",
   },
   items: {
+    AI_CALL_SUMMARY_ENABLED: {
+      title: "Resumen de llamadas con IA",
+      description: "Cuando una llamada tiene transcripción, la IA escribe un resumen corto (motivo, qué se acordó y qué sigue) en la burbuja de la llamada. Usa la clave y el modelo del agente; el gasto queda en Gastos de cada cuenta.",
+    },
     DECISIONS_API_KEY: {
       title: "Servicio de decisiones: clave",
       description: "Clasifica las conversaciones (intención, sentimiento, urgencia y equipo). La clave de TypeSafe (Jev) sale de su consola; con Laya local, la que le hayas puesto al servidor.",
@@ -166,6 +170,14 @@ export const settingsInstall = {
     OPENAI_AGENT_MODEL: {
       title: "Modelo del agente",
       description: "El modelo de OpenAI que usa el agente con chat, por ejemplo gpt-5.4-mini (rápido y barato) o gpt-5.5 (más capaz).",
+    },
+    LOCAL_LLM_URL: {
+      title: "IA Free: dirección",
+      description: "El modelo del modo Free de la Ayuda y de la clasificación. Uno en este servidor (llama.cpp, por ejemplo http://127.0.0.1:8092) o uno gratis en internet: https://api.groq.com/openai (Groq) o https://integrate.api.nvidia.com (NVIDIA). Vacío: apagado.",
+    },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "Ayuda de IA al escribir",
+      description: "Suma a la caja de texto un botón de IA que mejora, corrige, cambia el tono, acorta o traduce lo que escribe el agente, y resume la conversación. Usa la clave y el modelo del agente; el gasto queda en Gastos de cada cuenta.",
     },
   },
 };

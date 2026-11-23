@@ -190,10 +190,55 @@ async def test_status_follows_the_key_and_the_role(client, db_session, monkeypat
     assert (await client.get(base, headers=agent_h)).json()["can_write"] is False
 
     monkeypatch.setattr(settings, "openai_api_key", "")
+    monkeypatch.setattr(settings, "local_llm_url", "")
     assert (await client.get(base, headers=h)).json()["enabled"] is False
     r = await client.post(f"{base}/threads", headers=h, json={"content": "Hola"})
     assert r.status_code == 503
     assert "OpenAI" in r.json()["message"]
+
+
+async def test_without_openai_the_free_help_model_answers(client, db_session, monkeypatch):
+    """No OpenAI key: the Agent answers with the same free model as the «?»."""
+    from app.core import local_llm
+    from app.domains.help_assistant import service as help_service
+
+    owner, h = await _seed(db_session, "-free")
+    base = f"/api/v1/accounts/{owner.account.id}/agent"
+    settings = get_settings()
+    monkeypatch.setattr(settings, "openai_api_key", "")
+    monkeypatch.setattr(settings, "local_llm_url", "https://api.groq.com/openai")
+    monkeypatch.setattr(settings, "local_llm_api_key", "gsk-test")
+    asked: list[str] = []
+
+    async def fake_ask(question, **kwargs):
+        asked.append(question)
+        return {
+            "known": True,
+            "answer": "Entrá a tu perfil y cambiala ahí.",
+            "screen": {"key": "perfil", "label": "Perfil", "path": "profile"},
+            "note": None,
+        }
+
+    monkeypatch.setattr(help_service, "ask", fake_ask)
+    assert (await client.get(base, headers=h)).json()["enabled"] is True
+    r = await client.post(
+        f"{base}/threads", headers=h, json={"content": "¿Cómo cambio mi contraseña?"}
+    )
+    assert r.status_code == 200, r.text
+    items = r.json()["items"]
+    assert asked == ["¿Cómo cambio mi contraseña?"]
+    assert items[-1]["content"] == "Entrá a tu perfil y cambiala ahí.\n\nDónde: Perfil"
+
+    async def down(question, **kwargs):
+        raise local_llm.LocalLlmError("rate_limited")
+
+    monkeypatch.setattr(help_service, "ask", down)
+    thread_id = r.json()["id"]
+    r = await client.post(
+        f"{base}/threads/{thread_id}/messages", headers=h, json={"content": "¿Y el correo?"}
+    )
+    assert r.status_code == 502
+    assert r.json()["message"] == "Servicios de AI temporalmente fuera, intenta mañana."
 
 
 async def test_a_read_tool_runs_and_the_agent_answers(client, db_session, openai):
@@ -280,9 +325,7 @@ async def test_a_publication_waits_for_confirmation(client, db_session, openai):
     assert threads[0]["has_pending_action"] is True
 
     openai.queue(say("Listo, quedó programada."))
-    r = await client.post(
-        f"{base}/threads/{chat['id']}/actions/call_pub/confirm", headers=h
-    )
+    r = await client.post(f"{base}/threads/{chat['id']}/actions/call_pub/confirm", headers=h)
     assert r.status_code == 200, r.text
     chat = r.json()
     assert chat["pending_action"] is None

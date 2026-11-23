@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -18,6 +18,8 @@ const off = {
   transcribe: false,
   purpose: "control de calidad y seguimiento de tu consulta",
   announcement_language: "es",
+  missed_call_reply: true,
+  missed_call_text: "¡Hola! Vimos tu llamada y no pudimos atenderla. Te llamamos en unos minutos.",
 };
 
 const server = setupServer(
@@ -61,7 +63,28 @@ describe("WhatsappCallsCard", () => {
       call_icon_visible: true,
       callback_requests: false,
       business_hours: true,
+      missed_call_reply: true,
+      missed_call_text: off.missed_call_text,
     });
+  });
+
+  it("changes what a customer nobody answered reads, or turns it off", async () => {
+    server.use(http.get("*/calls/settings/3", () => HttpResponse.json({ ...off, enabled: true })));
+    renderCard();
+    const text = await screen.findByLabelText("Mensaje");
+    expect(text).toHaveValue(off.missed_call_text);
+    fireEvent.change(text, { target: { value: "Ya te llamamos, gracias por esperar." } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByText("Guardado en Meta.")).toBeInTheDocument();
+    expect(sent).toMatchObject({
+      missed_call_reply: true,
+      missed_call_text: "Ya te llamamos, gracias por esperar.",
+    });
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /Avisarle al cliente que lo llamamos/ }));
+    expect(screen.getByLabelText("Mensaje")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(sent).toMatchObject({ missed_call_reply: false }));
   });
 
   it("keeps recording off until the installation allows it", async () => {
@@ -99,6 +122,8 @@ describe("WhatsappCallsCard", () => {
       transcribe: true,
       purpose: "seguimiento de tu inscripción",
       announcement_language: "es",
+      missed_call_reply: true,
+      missed_call_text: off.missed_call_text,
     });
   });
 

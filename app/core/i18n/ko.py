@@ -74,4 +74,37 @@ MESSAGES: dict[str, str] = {
     "calls.permission.accepted_always": "WhatsApp 통화를 허락했습니다(항상)",
     "calls.permission.accepted_by_calling": "전화를 걸어 7일 동안 회신 통화를 허락했습니다",
     "calls.permission.rejected": "WhatsApp 통화를 원하지 않습니다",
+    # A call nobody answered (F7): what the customer reads, and the label
+    # that marks the conversation to call back
+    "calls.missed.reply": "안녕하세요! 전화를 받지 못했어요. 몇 분 안에 다시 전화드릴게요.",
+    "calls.missed.label": "부재중-전화",
+    # Why a conversation closed (F17): the default categories, and the
+    # title of the private note a closing leaves
+    "closing.default.answered": "문의 답변 완료",
+    "closing.default.enrolled": "등록함",
+    "closing.default.not_interested": "관심 없음",
+    "closing.default.no_reply": "고객 응답 없음",
+    "closing.default.spam": "스팸 또는 잘못된 번호",
+    "closing.note_title": "종료 메모",
+    # Contact lifecycle (F17): the default stages, and the line a move
+    # leaves in the conversation
+    "lifecycle.default.new_lead.name": "신규 리드",
+    "lifecycle.default.new_lead.description": "처음 연락했어요.",
+    "lifecycle.default.hot_lead.name": "유망 리드",
+    "lifecycle.default.hot_lead.description": "진행하고 싶어 해요.",
+    "lifecycle.default.payment.name": "결제 중",
+    "lifecycle.default.payment.description": "결제 중이거나 곧 결제해요.",
+    "lifecycle.default.customer.name": "고객",
+    "lifecycle.default.customer.description": "구매했어요.",
+    "lifecycle.default.cold_lead.name": "식은 리드",
+    "lifecycle.default.cold_lead.description": "응답이 없거나 관심을 잃었어요.",
+    "lifecycle.activity": "{name}님이 단계를 {stage}(으)로 바꿨어요",
+    "lifecycle.activity_cleared": "{name}님이 연락처의 단계를 뺐어요",
+    "lifecycle.someone": "누군가",
+    "decisions.priority_set": "AI({model})가 우선순위를 {level}(으)로 설정했습니다",
+    "decisions.priority_set_because": "AI({model})가 우선순위를 {level}(으)로 설정했습니다: {reason}",
+    "decisions.level.low": "낮음",
+    "decisions.level.medium": "보통",
+    "decisions.level.high": "높음",
+    "decisions.level.urgent": "긴급",
 }

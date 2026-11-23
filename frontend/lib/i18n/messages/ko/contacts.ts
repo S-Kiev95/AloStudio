@@ -80,6 +80,7 @@ export const contacts: Strings<typeof es> = {
   deleteSegment: "{name} 세그먼트 삭제",
   noResults: "“{query}”에 대한 결과가 없습니다.",
   noneInCompany: "{company}에 연락처가 없습니다.",
+  noneInStage: "이 단계의 연락처가 없습니다.",
   pageOfOne: "{pages}페이지 중 {n}페이지 · 연락처 {count}개",
   pageOfMany: "{pages}페이지 중 {n}페이지 · 연락처 {count}개",
   deleteConfirm: "“{name}” 연락처를 삭제할까요?",

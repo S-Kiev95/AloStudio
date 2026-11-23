@@ -280,7 +280,8 @@ describe("PublicationEditorDialog — armado del cuerpo, reglas y 422", () => {
     const whenGroup = screen.getByRole("group", { name: "Cuándo publicar" });
     fireEvent.click(within(whenGroup).getByRole("button", { name: "Programar" }));
 
-    const localInput = "2026-11-15T18:30";
+    // Always ahead: the dialog does not schedule in the past.
+    const localInput = `${new Date().getFullYear() + 1}-11-15T18:30`;
     fireEvent.change(screen.getByLabelText("Fecha y hora de publicación"), {
       target: { value: localInput },
     });

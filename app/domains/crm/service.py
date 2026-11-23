@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -20,6 +21,8 @@ from app.domains.crm.models import (
 )
 from app.domains.products.models import Product
 from app.domains.users.models import AccountUser
+
+log = logging.getLogger(__name__)
 
 # The pipeline every account starts with. Names come from the dashboard's
 # dictionary by ``code``; probabilities are the usual sales-funnel guesses.
@@ -338,18 +341,41 @@ async def save_opportunity(
         opportunity.expected_close_on = _parse_date(payload["expected_close_on"])
     if "position" in payload and isinstance(payload["position"], int | float):
         opportunity.position = float(payload["position"])
+    entered: CrmStage | None = None
     if "stage_id" in payload and not creating:
         stage, _ = await _stage_in_account(
             session, account_id=account_id, stage_id=payload["stage_id"]
         )
+        if opportunity.stage_id != stage.id:
+            entered = stage
         _apply_stage(opportunity, stage)
     elif creating:
         _apply_stage(opportunity, stage)
         opportunity.stage_changed_at = _now()
+        entered = stage
     session.add(opportunity)
     await session.flush()
     await session.refresh(opportunity)
+    await _tell_meta(session, opportunity, created=creating, entered=entered)
     return opportunity
+
+
+async def _tell_meta(
+    session: AsyncSession,
+    opportunity: CrmOpportunity,
+    *,
+    created: bool,
+    entered: CrmStage | None,
+) -> None:
+    """Conversions API (F17): an opportunity opened, qualified or won is
+    reported to Meta when it came from an ad. Never in the way of saving."""
+    from app.domains.conversions.service import on_opportunity
+
+    try:
+        async with session.begin_nested():
+            await on_opportunity(session, opportunity=opportunity, created=created, entered=entered)
+    except Exception:
+        log.exception("crm.conversions_failed opportunity_id=%s", opportunity.id)
 
 
 async def list_opportunities(

@@ -219,4 +219,28 @@ describe("network-rules", () => {
       )[0],
     ).toMatch(/Instagram Story.*exactamente 1/i);
   });
+
+  it("valida las reglas de YouTube", () => {
+    const yt = ch(1, "youtube", "YT");
+    const video = { type: "video" as const, url: "https://s3/clip.mp4" };
+    const photo = { type: "image" as const, url: "https://s3/1.jpg" };
+    const target = (title: string) => [
+      {
+        channel: yt,
+        postType: "feed" as const,
+        customContent: null,
+        youtube: { title, privacy_status: "private" as const, made_for_kids: false },
+      },
+    ];
+
+    expect(validatePublicationTargets("Descripción", [video], target("Mi video"))).toEqual([]);
+    expect(validatePublicationTargets("Hola", [photo], target("Mi video"))).toEqual([
+      "YT (YouTube): necesita un solo video, sin fotos.",
+    ]);
+    expect(validatePublicationTargets("Hola", [video], target(" "))).toEqual([
+      "YT (YouTube): poné el título del video.",
+    ]);
+    expect(validatePublicationTargets("<b>", [video], target("Mi video"))[0]).toMatch(/< ni >/);
+    expect(channelCharLimit("youtube", [video])).toBe(5000);
+  });
 });

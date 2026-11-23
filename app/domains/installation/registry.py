@@ -69,6 +69,38 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         kind="password",
         secret=True,
     ),
+    # --- Facebook Login for Business (system-user tokens) --------------
+    ConfigSpec(
+        name="META_CATALOG_CONFIG_ID",
+        setting="meta_catalog_config_id",
+        title="Configuración de login para empresas: catálogo",
+        description=(
+            "ID de la configuración (token de usuario del sistema) para "
+            "conectar el catálogo de Meta en CRM → Productos. Con ella el "
+            "acceso queda a nombre del negocio y no vence. Vacío: login "
+            "de usuario."
+        ),
+        group=META_GROUP,
+    ),
+    ConfigSpec(
+        name="META_PAGES_CONFIG_ID",
+        setting="meta_pages_config_id",
+        title="Configuración de login para empresas: Páginas",
+        description=(
+            "Lo mismo para conectar una Página de Facebook como bandeja."
+        ),
+        group=META_GROUP,
+    ),
+    ConfigSpec(
+        name="META_INSTAGRAM_CONFIG_ID",
+        setting="meta_instagram_config_id",
+        title="Configuración de login para empresas: Instagram",
+        description=(
+            "Lo mismo para conectar Instagram con Facebook (no el login de "
+            "Instagram)."
+        ),
+        group=META_GROUP,
+    ),
     # --- Instagram Login (no Facebook Page) ----------------------------
     ConfigSpec(
         name="META_INSTAGRAM_APP_ID",
@@ -188,7 +220,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         title="URL de retorno al conectar redes",
         description=(
             "Una sola URL para todas las redes que se conectan desde el "
-            "calendario (Threads, LinkedIn, TikTok, X y las que se sumen): adónde vuelve "
+            "calendario (Threads, LinkedIn, TikTok, X, YouTube y las que se sumen): adónde vuelve "
             "el navegador después de autorizar. Es "
             "https://<tu dominio>/api/v1/publishing/oauth/callback y se carga "
             "igual en la app de desarrollador de cada red."
@@ -200,7 +232,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         setting="threads_app_id",
         title="App ID de Threads",
         description=(
-            "El \"Threads App ID\" de la app de Meta (Configuración básica), "
+            'El "Threads App ID" de la app de Meta (Configuración básica), '
             "distinto del App ID de Facebook y del de Instagram."
         ),
         group=PUBLISHING_GROUP,
@@ -319,7 +351,9 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "Del ID de cliente OAuth (aplicación web) en console.cloud.google.com. "
             "Con este dato y el secret, la pantalla de ingreso muestra «Entrar con "
             "Google». Solo entran usuarios ya invitados. URL de redirección "
-            "autorizada: https://<dominio>/auth/google/callback."
+            "autorizada: https://<dominio>/auth/google/callback. El mismo cliente sirve "
+            "para Google Calendar y para publicar en YouTube (sumá también la URL de "
+            "retorno al conectar redes y activá YouTube Data API v3)."
         ),
         group=ACCESS_GROUP,
     ),
@@ -411,6 +445,81 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         group=AI_GROUP,
     ),
     ConfigSpec(
+        name="LOCAL_LLM_URL",
+        setting="local_llm_url",
+        title="IA Free: dirección",
+        description=(
+            "El modelo del modo Free de la Ayuda y de la clasificación. Uno en "
+            "este servidor (llama.cpp, por ejemplo http://127.0.0.1:8092) o uno "
+            "gratis en internet: https://api.groq.com/openai (Groq) o "
+            "https://integrate.api.nvidia.com (NVIDIA). Vacío: apagado."
+        ),
+        group=AI_GROUP,
+    ),
+    ConfigSpec(
+        name="LOCAL_LLM_API_KEY",
+        setting="local_llm_api_key",
+        title="IA Free: clave",
+        description=(
+            "Solo para Groq o NVIDIA: la clave de su consola. Con el modelo "
+            "en este servidor queda vacía."
+        ),
+        group=AI_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="LOCAL_LLM_MODEL",
+        setting="local_llm_model",
+        title="IA Free: modelo",
+        description=(
+            "El nombre del modelo en ese proveedor, por ejemplo "
+            "openai/gpt-oss-20b en Groq. Con el modelo en este servidor "
+            "puede quedar vacío."
+        ),
+        group=AI_GROUP,
+    ),
+    ConfigSpec(
+        name="LOCAL_LLM_FALLBACK_URL",
+        setting="local_llm_fallback_url",
+        title="IA Free de respaldo: dirección",
+        description=(
+            "Otro proveedor que contesta cuando el primero llega a su límite "
+            "gratis o falla, por ejemplo https://integrate.api.nvidia.com. "
+            "Opcional."
+        ),
+        group=AI_GROUP,
+    ),
+    ConfigSpec(
+        name="LOCAL_LLM_FALLBACK_API_KEY",
+        setting="local_llm_fallback_api_key",
+        title="IA Free de respaldo: clave",
+        description="La clave del proveedor de respaldo.",
+        group=AI_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="LOCAL_LLM_FALLBACK_MODEL",
+        setting="local_llm_fallback_model",
+        title="IA Free de respaldo: modelo",
+        description="El nombre del modelo en el proveedor de respaldo.",
+        group=AI_GROUP,
+    ),
+    ConfigSpec(
+        name="AI_WRITING_ASSIST_ENABLED",
+        setting="ai_writing_assist_enabled",
+        title="Ayuda de IA al escribir",
+        description=(
+            "Suma a la caja de texto un botón de IA que mejora, corrige, "
+            "cambia el tono, acorta o traduce lo que escribe el agente, y "
+            "resume la conversación. Usa la clave y el modelo del agente; el "
+            "gasto queda en Gastos de cada cuenta."
+        ),
+        group=AI_GROUP,
+        kind="boolean",
+    ),
+    ConfigSpec(
         name="DECISIONS_API_KEY",
         setting="decisions_api_key",
         title="Servicio de decisiones: clave",
@@ -450,6 +559,19 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "transcriban las llamadas de WhatsApp. Meta avisa a las dos "
             "partes antes de grabar y guarda el audio 7 días; AloStudio lo "
             "copia en su almacenamiento."
+        ),
+        group=CALLS_GROUP,
+        kind="boolean",
+    ),
+    ConfigSpec(
+        name="AI_CALL_SUMMARY_ENABLED",
+        setting="ai_call_summary_enabled",
+        title="Resumen de llamadas con IA",
+        description=(
+            "Cuando una llamada tiene transcripción, la IA escribe un resumen "
+            "corto (motivo, qué se acordó y qué sigue) en la burbuja de la "
+            "llamada. Usa la clave y el modelo del agente; el gasto queda en "
+            "Gastos de cada cuenta."
         ),
         group=CALLS_GROUP,
         kind="boolean",

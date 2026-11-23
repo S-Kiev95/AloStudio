@@ -26,6 +26,10 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "인공지능",
   },
   items: {
+    AI_CALL_SUMMARY_ENABLED: {
+      title: "AI 통화 요약",
+      description: "통화에 녹취록이 있으면 AI가 짧은 요약(용건, 합의 내용, 다음 할 일)을 통화 말풍선에 씁니다. 에이전트의 키와 모델을 쓰며, 지출은 각 계정의 비용에 표시됩니다.",
+    },
     DECISIONS_API_KEY: {
       title: "판단 서비스: 키",
       description: "대화를 분류합니다(의도, 감정, 긴급도, 팀). TypeSafe(Jev) 키는 콘솔에서 받습니다. 로컬 Laya라면 그 서버에 설정한 키입니다.",
@@ -169,6 +173,14 @@ export const settingsInstall: Strings<typeof es> = {
     OPENAI_AGENT_MODEL: {
       title: "에이전트 모델",
       description: "채팅 에이전트가 쓰는 OpenAI 모델입니다. 예: gpt-5.4-mini(빠르고 저렴) 또는 gpt-5.5(더 뛰어남).",
+    },
+    LOCAL_LLM_URL: {
+      title: "Free AI: 주소",
+      description: "도움말 Free 모드와 대화 분류에 쓰는 모델입니다. 이 서버의 모델(llama.cpp, 예: http://127.0.0.1:8092) 또는 인터넷의 무료 모델: https://api.groq.com/openai (Groq) 또는 https://integrate.api.nvidia.com (NVIDIA). 비워 두면 꺼집니다.",
+    },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "AI 작성 도움",
+      description: "입력창에 AI 버튼을 추가해 상담원이 쓴 내용을 다듬고, 고치고, 어조를 바꾸고, 줄이거나 번역하며 대화를 요약합니다. 에이전트의 키와 모델을 쓰며, 지출은 각 계정의 비용에 표시됩니다.",
     },
   },
 };

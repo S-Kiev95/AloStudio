@@ -17,9 +17,10 @@ from sqlmodel import delete, select
 from app.core import realtime
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.db import get_session
+from app.core.i18n import DEFAULT_LOCALE, t
 from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
 from app.domains.calls import service as calls_service
-from app.domains.calls.models import Call
+from app.domains.calls.models import Call, CallInboxSettings
 from app.domains.calls.whatsapp import retry_pending_media
 from app.domains.contacts.models import Contact
 from app.domains.conversations.models import (
@@ -141,6 +142,13 @@ async def seeded(db_session):
         ),
     ).perform()
     db_session.add(InboxMember(inbox_id=result.inbox.id, user_id=agent.user.id))
+    # An unanswered call texts the customer "we call you back"; here only the
+    # tests about it turn that on, with Meta mocked.
+    db_session.add(
+        CallInboxSettings(
+            inbox_id=result.inbox.id, account_id=owner.account.id, missed_call_reply=False
+        )
+    )
     await db_session.flush()
     return {
         "account": owner.account,
@@ -673,7 +681,8 @@ async def test_an_inbox_that_records_gets_the_audio_and_the_transcript(
 
     for event, media_id in (
         ("call_recording_available", "rec-1"),
-        ("call_transcription_available", "doc-1"),
+        # The name Meta really sends (its reference says "transcription").
+        ("call_transcript_available", "doc-1"),
     ):
         await process_cloud_webhook(
             db_session,
@@ -1010,3 +1019,296 @@ async def test_a_plan_without_calls_turns_the_call_down(db_session, seeded, monk
         monkeypatch.delenv("MULTITENANT")
         clear_settings_overlay()
         get_settings.cache_clear()
+
+
+# ---------------------------------------------------------------------------
+# Several calls at once
+# ---------------------------------------------------------------------------
+def _ring_ids(broadcasts: _Recorder, call_id: int) -> list[int]:
+    """Who the latest event about this call rings for."""
+    events = [
+        data["call"]
+        for _, event, data in broadcasts.sent
+        if event == "call.updated" and data["call"]["id"] == call_id
+    ]
+    return events[-1]["ring_user_ids"]
+
+
+async def test_a_call_rings_for_who_is_free_and_for_all_when_nobody_is(
+    db_session, seeded, broadcasts
+):
+    admin, agent = seeded["admin"].id, seeded["agent"].id
+    first = await _ring(db_session, seeded, "wacid.A")
+    second = await _ring(db_session, seeded, "wacid.B")
+    assert _ring_ids(broadcasts, second.id) == sorted([admin, agent])
+
+    # Sofía takes the first: the second stops ringing for her.
+    assert await calls_service.claim(db_session, call=first, user_id=agent)
+    assert _ring_ids(broadcasts, second.id) == [admin]
+
+    # The admin takes the second: nobody is free, so a third rings for both.
+    assert await calls_service.claim(db_session, call=second, user_id=admin)
+    third = await _ring(db_session, seeded, "wacid.C")
+    assert _ring_ids(broadcasts, third.id) == sorted([admin, agent])
+
+    # Sofía hangs up: the third rings for her alone.
+    await calls_service.mark_in_progress(db_session, call=first)
+    await calls_service.finish(db_session, call=first, status="completed")
+    assert _ring_ids(broadcasts, third.id) == [agent]
+
+
+async def test_the_panel_lists_who_hears_each_call(client, db_session, seeded):
+    call = await _ring(db_session, seeded)
+    agent_h = await _headers(db_session, seeded["agent"])
+    listed = (await client.get(f"{seeded['base']}/active", headers=agent_h)).json()["payload"]
+    assert listed[0]["id"] == call.id
+    assert listed[0]["ring_user_ids"] == sorted([seeded["admin"].id, seeded["agent"].id])
+
+
+# ---------------------------------------------------------------------------
+# A call nobody answered
+# ---------------------------------------------------------------------------
+def _mock_meta_text() -> respx.Route:
+    return respx.post(url__regex=GRAPH + r"p1/messages(\?|$)").mock(
+        return_value=httpx.Response(
+            200, json={"messaging_product": "whatsapp", "messages": [{"id": "wamid.BACK1"}]}
+        )
+    )
+
+
+async def _replies(db_session, conversation_id: int) -> list[Message]:
+    rows = (
+        await db_session.exec(
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.message_type == MESSAGE_TYPE_OUTGOING,
+            )
+            .order_by(Message.id)  # type: ignore[arg-type]
+        )
+    ).all()
+    return [m for m in rows if (m.content_attributes or {}).get("missed_call_reply")]
+
+
+async def _reply_to_missed_calls(db_session, seeded) -> None:
+    row = await db_session.get(CallInboxSettings, seeded["inbox"].id)
+    row.missed_call_reply = True
+    db_session.add(row)
+    await db_session.flush()
+
+
+async def _miss(db_session, seeded, call_id: str) -> Call:
+    call = await _ring(db_session, seeded, call_id)
+    await process_cloud_webhook(
+        db_session, channel=seeded["channel"], inbox=seeded["inbox"], payload=_terminate(call_id)
+    )
+    await db_session.refresh(call)
+    assert call.status == "missed"
+    return call
+
+
+@respx.mock
+async def test_a_missed_call_says_we_call_back_and_goes_to_the_owner(db_session, seeded):
+    texted = _mock_meta_text()
+    await _reply_to_missed_calls(db_session, seeded)
+    inbox = seeded["inbox"]
+    call = await _ring(db_session, seeded, "wacid.A")
+    conversation = await db_session.get(Conversation, call.conversation_id)
+    # Nobody owns it yet; the inbox's default assignee is Sofía.
+    conversation.assignee_id = None
+    inbox.enable_auto_assignment = True
+    inbox.handoff_assignee_id = seeded["agent"].id
+    db_session.add(conversation)
+    db_session.add(inbox)
+    await db_session.flush()
+
+    await process_cloud_webhook(
+        db_session, channel=seeded["channel"], inbox=inbox, payload=_terminate("wacid.A")
+    )
+
+    replies = await _replies(db_session, conversation.id)
+    assert [m.content for m in replies] == [t(DEFAULT_LOCALE, "calls.missed.reply")]
+    assert json.loads(texted.calls.last.request.content)["text"]["body"] == replies[0].content
+    await db_session.refresh(conversation)
+    assert "llamada-perdida" in (conversation.cached_label_list or "")
+    assert conversation.assignee_id == seeded["agent"].id
+
+    # Trying again within the hour: no second message.
+    await _miss(db_session, seeded, "wacid.B")
+    assert len(await _replies(db_session, conversation.id)) == 1
+
+    # The next call is answered: nobody needs to call back any more.
+    third = await _ring(db_session, seeded, "wacid.C")
+    assert await calls_service.claim(db_session, call=third, user_id=seeded["agent"].id)
+    await calls_service.mark_in_progress(db_session, call=third)
+    await db_session.refresh(conversation)
+    assert "llamada-perdida" not in (conversation.cached_label_list or "")
+
+
+async def test_calling_back_clears_the_mark(db_session, seeded):
+    missed = await _miss(db_session, seeded, "wacid.A")
+    conversation = await db_session.get(Conversation, missed.conversation_id)
+    contact = await db_session.get(Contact, missed.contact_id)
+    back = await calls_service.start_outbound(
+        db_session,
+        conversation=conversation,
+        contact=contact,
+        agent_id=seeded["agent"].id,
+        provider="whatsapp",
+        provider_call_id="wacid.OUT",
+        from_number="+59899000111",
+        to_number="+59891234567",
+    )
+    await calls_service.customer_answered(db_session, call=back)
+    await db_session.refresh(conversation)
+    assert "llamada-perdida" not in (conversation.cached_label_list or "")
+
+
+@respx.mock
+async def test_an_inbox_changes_or_turns_off_the_missed_call_message(client, db_session, seeded):
+    respx.route(host="test").pass_through()
+    _meta_settings_mocks()
+    texted = _mock_meta_text()
+    # An inbox nobody configured yet: on, with our text.
+    await db_session.delete(await db_session.get(CallInboxSettings, seeded["inbox"].id))
+    await db_session.flush()
+    admin_h = await _headers(db_session, seeded["admin"])
+    url = f"{seeded['base']}/settings/{seeded['inbox'].id}"
+
+    shown = (await client.get(url, headers=admin_h)).json()
+    assert shown["missed_call_reply"] is True
+    assert shown["missed_call_text"] == t(DEFAULT_LOCALE, "calls.missed.reply")
+
+    too_long = await client.put(
+        url, json={"enabled": True, "missed_call_text": "x" * 1025}, headers=admin_h
+    )
+    assert too_long.status_code == 422
+    assert too_long.json()["code"] == "calls.missed_text"
+
+    # Off: the conversation is still marked, the customer is not written to.
+    off = await client.put(url, json={"enabled": True, "missed_call_reply": False}, headers=admin_h)
+    assert off.status_code == 200, off.text
+    assert off.json()["missed_call_reply"] is False
+    first = await _miss(db_session, seeded, "wacid.A")
+    assert await _replies(db_session, first.conversation_id) == []
+    conversation = await db_session.get(Conversation, first.conversation_id)
+    assert "llamada-perdida" in (conversation.cached_label_list or "")
+    assert not texted.called
+
+    # On again, in the inbox's own words.
+    own = "Ya te llamamos, gracias por esperar."
+    on = await client.put(
+        url,
+        json={"enabled": True, "missed_call_reply": True, "missed_call_text": own},
+        headers=admin_h,
+    )
+    assert on.json()["missed_call_text"] == own
+    await _miss(db_session, seeded, "wacid.B")
+    assert [m.content for m in await _replies(db_session, first.conversation_id)] == [own]
+
+
+# ---------------------------------------------------------------------------
+# AI summary (F17)
+# ---------------------------------------------------------------------------
+_OPENAI = "https://api.openai.com/v1/chat/completions"
+
+
+def _summary_reply(content: str) -> httpx.Response:
+    return httpx.Response(
+        200,
+        json={
+            "model": "gpt-5.4-mini",
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": content}}],
+            "usage": {"prompt_tokens": 300, "completion_tokens": 60},
+        },
+    )
+
+
+async def _transcribed(db_session, seeded) -> Call:
+    call = await _ring(db_session, seeded)
+    await calls_service.save_transcript(
+        db_session,
+        call=call,
+        segments=[
+            {"speaker": "business", "text": "Buenas, CTC Salto.", "start": 0.0},
+            {"speaker": "customer", "text": "Quería anotarme al curso de inglés.", "start": 2.0},
+        ],
+        language="es",
+    )
+    return call
+
+
+async def test_the_ai_summary_needs_the_operators_switch(db_session, seeded, monkeypatch):
+    from app.core.config import get_settings
+    from app.domains.calls.tick import run as calls_tick
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    call = await _transcribed(db_session, seeded)
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.post(_OPENAI).mock(return_value=_summary_reply("- Quiere inglés."))
+        assert (await calls_tick(db_session))["summarized"] == 0
+        assert not route.called
+    await db_session.refresh(call)
+    assert call.summary is None and call.summary_attempts == 0
+
+
+async def test_a_transcribed_call_gets_its_summary_in_the_bubble(db_session, seeded, monkeypatch):
+    from app.core.config import get_settings
+    from app.domains.calls.tick import run as calls_tick
+    from app.domains.usage.models import KIND_AI, UsageRecord
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    monkeypatch.setattr(settings, "ai_call_summary_enabled", True)
+    call = await _transcribed(db_session, seeded)
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.post(_OPENAI).mock(
+            side_effect=[
+                httpx.Response(500, json={"error": {"message": "down"}}),
+                _summary_reply("- Quiere anotarse al curso de inglés.\n- Falta mandarle horarios."),
+            ]
+        )
+        assert (await calls_tick(db_session))["summarized"] == 0, "a failure is tried again"
+        assert (await calls_tick(db_session))["summarized"] == 1
+        assert (await calls_tick(db_session))["summarized"] == 0, "only once"
+        assert route.call_count == 2
+        sent = json.loads(route.calls[-1].request.content)["messages"]
+    assert "Write in Spanish" in sent[0]["content"]
+    assert sent[1]["content"] == (
+        "Agent: Buenas, CTC Salto.\nCustomer: Quería anotarme al curso de inglés."
+    )
+
+    await db_session.refresh(call)
+    assert call.summary.startswith("- Quiere anotarse") and call.summary_attempts == 2
+    message = await db_session.get(Message, call.message_id)
+    await db_session.refresh(message)
+    assert message.content_attributes["data"]["summary"] == call.summary
+    await db_session.flush()
+    usage = (
+        await db_session.exec(
+            select(UsageRecord).where(
+                UsageRecord.account_id == call.account_id, UsageRecord.kind == KIND_AI
+            )
+        )
+    ).all()
+    assert [(u.category, u.output_tokens) for u in usage] == [("call_summary", 60)]
+
+
+async def test_the_spend_cap_stops_the_summary(db_session, seeded, monkeypatch):
+    from app.core.config import get_settings
+    from app.domains.calls.summary import summarize_pending
+    from app.domains.usage.limits import set_limit
+    from app.domains.usage.models import KIND_AI
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    monkeypatch.setattr(settings, "ai_call_summary_enabled", True)
+    call = await _transcribed(db_session, seeded)
+    await set_limit(db_session, call.account_id, KIND_AI, 0)
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.post(_OPENAI).mock(return_value=_summary_reply("- x"))
+        assert await summarize_pending(db_session) == 0
+        assert not route.called
+    await db_session.refresh(call)
+    assert call.summary_attempts == 0, "waiting for the cap does not use up tries"

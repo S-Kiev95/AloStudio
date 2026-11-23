@@ -54,6 +54,7 @@ from app.domains.calls.models import (
     CALL_RINGING,
     DIRECTION_OUTBOUND,
     FINAL_STATUSES,
+    MISSED_TEXT_MAX,
     PURPOSE_MAX,
     Call,
     CallInboxSettings,
@@ -95,6 +96,9 @@ class SettingsBody(BaseModel):
     transcribe: bool | None = None
     purpose: str | None = None
     announcement_language: str | None = None
+    # A call nobody answered. Left out: unchanged.
+    missed_call_reply: bool | None = None
+    missed_call_text: str | None = None
 
 
 def _account_id(ctx: AccountContext) -> int:
@@ -168,46 +172,66 @@ async def index_active(
 # ---------------------------------------------------------------------------
 # The number's settings
 # ---------------------------------------------------------------------------
-def _recording_out(row: CallInboxSettings | None) -> dict[str, Any]:
+def _inbox_out(row: CallInboxSettings | None) -> dict[str, Any]:
     return {
         "recording_allowed": calls.recording_allowed(),
         "record": bool(row and row.record),
         "transcribe": bool(row and row.transcribe),
         "purpose": (row.purpose if row else None) or calls.default_purpose(),
         "announcement_language": (row.announcement_language if row else None) or "es",
+        "missed_call_reply": row.missed_call_reply if row is not None else True,
+        "missed_call_text": calls.missed_reply_text(row),
     }
 
 
-async def _save_recording(
+async def _save_inbox(
     session: AsyncSession, *, inbox: Inbox, body: SettingsBody
 ) -> CallInboxSettings | None:
+    """What the inbox does with its calls, ours to keep: recording (while the
+    installation allows it) and what a customer nobody answered reads."""
     row = await calls.inbox_settings(session, inbox.id)  # type: ignore[arg-type]
-    if body.record is None and body.transcribe is None and body.purpose is None and (
-        body.announcement_language is None
-    ):
+    recording = any(
+        value is not None
+        for value in (body.record, body.transcribe, body.purpose, body.announcement_language)
+    )
+    missed = body.missed_call_reply is not None or body.missed_call_text is not None
+    if not recording and not missed:
         return row
-    record = body.record if body.record is not None else bool(row and row.record)
-    transcribe = body.transcribe if body.transcribe is not None else bool(row and row.transcribe)
+    if row is None:
+        row = CallInboxSettings(inbox_id=inbox.id, account_id=inbox.account_id)
+    if recording:
+        _apply_recording(row, body)
+    if body.missed_call_reply is not None:
+        row.missed_call_reply = body.missed_call_reply
+    if body.missed_call_text is not None:
+        text = body.missed_call_text.strip()
+        if len(text) > MISSED_TEXT_MAX:
+            raise _fail(422, "missed_text")
+        # Ours, or the default when it is ours word for word.
+        row.missed_call_text = text if text and text != calls.missed_reply_text(None) else None
+    session.add(row)
+    await session.flush()
+    return row
+
+
+def _apply_recording(row: CallInboxSettings, body: SettingsBody) -> None:
+    record = body.record if body.record is not None else row.record
+    transcribe = body.transcribe if body.transcribe is not None else row.transcribe
     if (record or transcribe) and not calls.recording_allowed():
         raise _fail(422, "recording_not_allowed")
-    purpose = (body.purpose if body.purpose is not None else (row.purpose if row else None)) or ""
+    purpose = (body.purpose if body.purpose is not None else row.purpose) or ""
     purpose = purpose.strip()
     if (record or transcribe) and not purpose:
         purpose = calls.default_purpose()
     if len(purpose) > PURPOSE_MAX:
         raise _fail(422, "purpose")
-    language = body.announcement_language or (row.announcement_language if row else None) or "es"
+    language = body.announcement_language or row.announcement_language or "es"
     if language not in ANNOUNCEMENT_LANGUAGES:
         raise _fail(422, "language")
-    if row is None:
-        row = CallInboxSettings(inbox_id=inbox.id, account_id=inbox.account_id)
     row.record = record
     row.transcribe = transcribe
     row.purpose = purpose or None
     row.announcement_language = language
-    session.add(row)
-    await session.flush()
-    return row
 
 
 @router.get("/settings/{inbox_id}")
@@ -221,7 +245,7 @@ async def show_settings(
         meta = await whatsapp.read_settings(channel)
     except whatsapp.CallError as exc:
         raise _meta_fail(exc) from exc
-    return {**meta, **_recording_out(await calls.inbox_settings(session, inbox_id))}
+    return {**meta, **_inbox_out(await calls.inbox_settings(session, inbox_id))}
 
 
 @router.put("/settings/{inbox_id}")
@@ -235,7 +259,7 @@ async def update_settings(
     if body.enabled:
         await _require_calls_plan(session, ctx)
     # Ours first: a refusal here must not leave Meta half changed.
-    row = await _save_recording(session, inbox=inbox, body=body)
+    row = await _save_inbox(session, inbox=inbox, body=body)
     try:
         meta = await whatsapp.save_settings(
             session,
@@ -248,7 +272,7 @@ async def update_settings(
         )
     except whatsapp.CallError as exc:
         raise _meta_fail(exc) from exc
-    return {**meta, **_recording_out(row)}
+    return {**meta, **_inbox_out(row)}
 
 
 # ---------------------------------------------------------------------------

@@ -52,9 +52,12 @@ export const usage: Strings<typeof es> = {
   limitInvalid: "0 이상의 숫자를 입력하세요.",
   limitFailed: "한도를 저장하지 못했습니다.",
   purposes: {
+    help_assistant: "도움말",
+    call_summary: "통화 요약",
     agent: "에이전트",
     instagram_autoreply: "Instagram 자동 답장",
     help_center: "헬프 센터",
+    writing_assist: "작성 도움",
   },
   categories: {
     MARKETING: "마케팅",

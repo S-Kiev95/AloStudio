@@ -26,7 +26,7 @@ from sqlalchemy import or_, update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core import llm
+from app.core import llm, local_llm
 from app.core.config import get_settings
 from app.core.deps import AccountContext
 from app.core.errors import ChatwootHTTPException
@@ -97,8 +97,14 @@ def _mcp_server() -> FastMCP:
     return _server
 
 
-def agent_enabled() -> bool:
+def openai_ready() -> bool:
     return bool(get_settings().openai_api_key)
+
+
+def agent_enabled() -> bool:
+    """OpenAI (guides and does), or else the free help model (only guides,
+    the same one the «?» uses)."""
+    return openai_ready() or local_llm.configured()
 
 
 def allowed_tools(ctx: AccountContext) -> tuple[str, ...]:
@@ -110,8 +116,7 @@ def _unavailable() -> ChatwootHTTPException:
         status_code=503,
         detail={
             "message": (
-                "El agente no está configurado: falta la clave de OpenAI en "
-                "Ajustes → Instalación."
+                "El agente no está configurado: falta la clave de OpenAI en Ajustes → Instalación."
             )
         },
     )
@@ -132,9 +137,7 @@ def _clean_content(content: str) -> str:
     if not text:
         raise _unprocessable("Escribí un mensaje.")
     if len(text) > MAX_CONTENT_LENGTH:
-        raise _unprocessable(
-            f"El mensaje no puede pasar de {MAX_CONTENT_LENGTH} caracteres."
-        )
+        raise _unprocessable(f"El mensaje no puede pasar de {MAX_CONTENT_LENGTH} caracteres.")
     return text
 
 
@@ -171,9 +174,7 @@ async def list_threads(session: AsyncSession, ctx: AccountContext) -> list[Agent
     )
 
 
-async def get_thread(
-    session: AsyncSession, ctx: AccountContext, thread_id: int
-) -> AgentThread:
+async def get_thread(session: AsyncSession, ctx: AccountContext, thread_id: int) -> AgentThread:
     """The user's own chat, or 404 (another user's chat does not exist)."""
     thread = (
         await session.exec(
@@ -185,9 +186,7 @@ async def get_thread(
         )
     ).first()
     if thread is None:
-        raise ChatwootHTTPException(
-            status_code=404, detail={"message": "No se encontró el chat."}
-        )
+        raise ChatwootHTTPException(status_code=404, detail={"message": "No se encontró el chat."})
     return thread
 
 
@@ -377,10 +376,11 @@ async def _release(session: AsyncSession, thread: AgentThread) -> None:
         log.exception("agent: could not release thread %s", thread.id)
 
 
-async def _run_model(
-    session: AsyncSession, ctx: AccountContext, thread: AgentThread
-) -> None:
+async def _run_model(session: AsyncSession, ctx: AccountContext, thread: AgentThread) -> None:
     """Call the model until it answers in text or proposes a write."""
+    if not openai_ready():
+        await _run_free(session, ctx, thread)
+        return
     names = allowed_tools(ctx)
     tools = await _tool_specs(names)
     for step in range(MAX_MODEL_CALLS):
@@ -415,6 +415,43 @@ async def _run_model(
         await session.commit()
         if not calls or proposed:
             return
+
+
+async def _run_free(session: AsyncSession, ctx: AccountContext, thread: AgentThread) -> None:
+    """No OpenAI key: the last question goes to the free help model (Groq,
+    NVIDIA or the local one), which only explains how to do it."""
+    from app.domains.help_assistant import service as help_service
+
+    rows = await _history(session, thread.id)  # type: ignore[arg-type]
+    question = next((r.content for r in reversed(rows) if r.role == AGENT_ROLE_USER), "")
+    try:
+        answer = await help_service.ask(
+            question or "",
+            is_admin=ctx.is_administrator,
+            session=session,
+            account_id=ctx.account.id,
+        )
+    except (ValueError, local_llm.LocalLlmError) as exc:
+        log.warning("agent: thread %s free model failed: %s", thread.id, exc)
+        message = (
+            "Servicios de AI temporalmente fuera, intenta mañana."
+            if local_llm.hosted()
+            else "El agente no respondió. Probá de nuevo en un momento."
+        )
+        raise ChatwootHTTPException(status_code=502, detail={"message": message}) from exc
+    text = answer["answer"]
+    if answer.get("screen"):
+        text += f"\n\nDónde: {answer['screen']['label']}"
+    if answer.get("note"):
+        text += f"\n\n{answer['note']}"
+    session.add(
+        AgentMessage(
+            thread_id=thread.id,  # type: ignore[arg-type]
+            role=AGENT_ROLE_ASSISTANT,
+            content=text,
+        )
+    )
+    await session.commit()
 
 
 async def _handle_call(

@@ -27,6 +27,8 @@ import { BotMetricsCards } from "./bot-metrics-cards";
 import { MetricChart } from "./metric-chart";
 import { SummaryCards } from "./summary-cards";
 import { SummaryTable } from "./summary-table";
+import { ClosingReportCard } from "@/components/closing/closing-report-card";
+import { LifecycleReportCard } from "@/components/lifecycle/lifecycle-report-card";
 import { TrafficHeatmap } from "./traffic-heatmap";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 
@@ -170,6 +172,12 @@ export function ReportsView({ accountId }: { accountId: string }) {
           ) : null}
         </CardContent>
       </Card>
+
+      {/* Why conversations closed (F17) */}
+      <ClosingReportCard accountId={accountId} days={days} />
+
+      {/* Where contacts stand (F17) */}
+      <LifecycleReportCard accountId={accountId} days={days} />
 
       {/* Per-entity breakdown */}
       <Card>

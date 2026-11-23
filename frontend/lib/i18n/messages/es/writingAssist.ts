@@ -1,0 +1,28 @@
+export const writingAssist = {
+  button: "IA",
+  working: "Escribiendo…",
+  menu: "Ayuda de IA",
+  actions: {
+    improve: "Mejorar el texto",
+    fix: "Corregir la ortografía",
+    formal: "Más formal",
+    friendly: "Más cercano",
+    shorter: "Más corto",
+    translate: "Traducir a…",
+    summarize: "Resumir la conversación",
+  },
+  summarizeHint: "Queda como nota privada",
+  back: "Volver",
+  writeFirst: "Escribí algo para mejorarlo o traducirlo.",
+  tooLong: "El texto es muy largo: hasta {max} caracteres.",
+  undo: "Deshacer",
+  problems: {
+    disabled: "La ayuda de IA está apagada en esta instalación.",
+    action: "La IA no sabe hacer eso.",
+    text: "El texto está vacío o es muy largo.",
+    language: "Elegí un idioma de la lista.",
+    conversation: "La conversación todavía no tiene mensajes para resumir.",
+    budget: "Se llegó al tope de gasto en IA de este mes.",
+    failed: "La IA no respondió. Probá de nuevo.",
+  },
+};

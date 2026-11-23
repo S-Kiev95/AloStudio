@@ -13,12 +13,33 @@ export type DecisionQuestion = {
   options: DecisionOption[];
 };
 
+/** Who decides: the decisions service (Jev, or Laya later) or the model
+ *  running on this server (Qwen: free, slower, reads the business context). */
+export type DecisionProvider = "api" | "local";
+
 export type DecisionSettings = {
   enabled: boolean;
-  /** The installation has a decisions service (Jev or Laya) set up. */
+  provider?: DecisionProvider;
+  /** What the installation has set up, per provider. */
+  providers?: Record<DecisionProvider, boolean>;
+  /** The chosen provider is set up. */
   configured: boolean;
   model: string;
+  /** The model each provider uses (the chosen one's is shown). */
+  models?: Partial<Record<DecisionProvider, string | null>>;
+  /** What the local model has to know about the business. */
+  context?: string;
+  /** The urgency sets the conversation's priority (never a person's). */
+  apply_priority?: boolean;
   questions: DecisionQuestion[];
+};
+
+export type DecisionSettingsInput = {
+  enabled: boolean;
+  questions?: DecisionQuestion[];
+  provider?: DecisionProvider;
+  context?: string;
+  apply_priority?: boolean;
 };
 
 export type DecisionReport = {
@@ -37,6 +58,9 @@ export type DecisionReport = {
     answers: Record<string, number>;
   }>;
   month: { calls: number; cost_usd: number };
+  /** The automatic priority: conversations where the AI set it, and where
+   *  someone (a person, a rule) changed it afterwards. */
+  priority?: { set_by_ai: number; changed_by_others: number };
 };
 
 export type LabelingItem = {
@@ -48,6 +72,15 @@ export type LabelingItem = {
 
 /** The team question's key: its options are the account's teams. */
 export const TEAM_QUESTION = "team";
+
+/** The urgency options that set the conversation's priority. */
+export const URGENCY_QUESTION = "urgency";
+export const PRIORITY_BY_URGENCY: Record<string, "low" | "medium" | "high" | "urgent"> = {
+  baja: "low",
+  media: "medium",
+  alta: "high",
+  urgente: "urgent",
+};
 
 function base(accountId: string): string {
   return `/api/v1/accounts/${accountId}/decisions`;
@@ -64,7 +97,7 @@ export function useDecisionSettings(accountId: string) {
 export function useSaveDecisionSettings(accountId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { enabled: boolean; questions?: DecisionQuestion[] }) =>
+    mutationFn: (body: DecisionSettingsInput) =>
       apiFetch<DecisionSettings>(`${base(accountId)}/settings`, {
         method: "PUT",
         body: JSON.stringify(body),

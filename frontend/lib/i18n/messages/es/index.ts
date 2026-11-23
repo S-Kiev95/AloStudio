@@ -13,9 +13,15 @@ import { companies } from "./companies";
 import { activities } from "./activities";
 import { metaCatalog } from "./metaCatalog";
 import { calls } from "./calls";
+import { closing } from "./closing";
+import { conversions } from "./conversions";
+import { lifecycle } from "./lifecycle";
 import { decisions } from "./decisions";
 import { usage } from "./usage";
 import { billing } from "./billing";
+import { helpAssistant } from "./helpAssistant";
+import { googleCalendar } from "./googleCalendar";
+import { writingAssist } from "./writingAssist";
 import { opportunities } from "./opportunities";
 import { origin } from "./origin";
 import { igCapabilities } from "./igCapabilities";
@@ -73,8 +79,14 @@ export const es = {
   metaCatalog,
   calls,
   decisions,
+  closing,
+  conversions,
+  lifecycle,
   usage,
   billing,
+  helpAssistant,
+  googleCalendar,
+  writingAssist,
 
   opportunities,
 

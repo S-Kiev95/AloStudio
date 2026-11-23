@@ -39,6 +39,7 @@ async def create_product(
         url=payload.get("url"),
         image_url=payload.get("image_url"),
         enabled=payload.get("enabled", True),
+        meta_sync=bool(payload.get("meta_sync") or False),
         external_id=payload.get("external_id"),
     )
     session.add(product)
@@ -94,6 +95,8 @@ async def update_product(
     ):
         if field in payload:
             setattr(product, field, payload[field])
+    if payload.get("meta_sync") is not None:
+        product.meta_sync = bool(payload["meta_sync"])
     session.add(product)
     await session.flush()
     await session.refresh(product)

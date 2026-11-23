@@ -20,7 +20,9 @@ def present_product(product: Product) -> dict[str, Any]:
         "url": product.url,
         "image_url": product.image_url,
         "enabled": product.enabled,
-        # Meta catalogue sync (F11): when it last went through, or why not.
+        # Meta catalogue sync (F11): chosen per product; when it last went
+        # through, or why not.
+        "meta_sync": product.meta_sync,
         "meta_synced_at": (
             int(product.meta_synced_at.timestamp()) if product.meta_synced_at else None
         ),

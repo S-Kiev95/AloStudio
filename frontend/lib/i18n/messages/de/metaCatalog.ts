@@ -3,7 +3,7 @@ import type { Strings } from "../types";
 
 export const metaCatalog: Strings<typeof es> = {
   title: "Meta-Katalog",
-  intro: "Verbinde einen Commerce-Manager-Katalog, und aktive Produkte werden dorthin gesendet – bereit für WhatsApp, Instagram und Facebook.",
+  intro: "Verbinde einen Commerce-Manager-Katalog und wähle, welche Produkte dort veröffentlicht werden – bereit für WhatsApp, Instagram und Facebook.",
   howTo: "Die ID steht im Commerce Manager → dein Katalog → Einstellungen. Das Token gehört einem Systemnutzer (Unternehmenseinstellungen → Systemnutzer) mit der Berechtigung catalog_management und Zugriff auf den Katalog.",
   catalogId: "Katalog-ID",
   token: "Zugriffstoken",
@@ -16,7 +16,18 @@ export const metaCatalog: Strings<typeof es> = {
   neverSynced: "Noch nicht synchronisiert.",
   lastSync: "Letzte Synchronisierung: {date} · {sent} gesendet, {failed} mit Problemen",
   stillChecking: "Meta prüfte die Sendung noch; was fehlschlägt, siehst du bei der nächsten Synchronisierung.",
-  autoSync: "Jede Änderung an einem Produkt wird nach wenigen Sekunden automatisch gesendet.",
+  autoSync: "Änderungen an veröffentlichten Produkten werden nach wenigen Sekunden automatisch gesendet. Änderungen im Commerce Manager werden vom CRM überschrieben.",
+  publish: "Im Meta-Katalog veröffentlichen",
+  publishHint: "Meta verlangt Beschreibung, Preis mit Währung, Link und Bild. Abgewählt wird es aus dem Katalog entfernt.",
+  lastError: "Die letzte automatische Synchronisierung ist fehlgeschlagen: {error}",
+  connectFacebook: "Mit Facebook verbinden",
+  pasteToken: "ID und Token einfügen",
+  orManual: "Oder füge die Katalog-ID und das Token eines Systembenutzers von Hand ein:",
+  whichCatalog: "Welchen Katalog möchtest du verbinden?",
+  connectedNotice: "Katalog verbunden.",
+  viaFacebook: "Mit Facebook verbunden.",
+  viaFacebookUntil: "Mit Facebook verbunden. Der Zugriff läuft am {date} ab; verbinde dich danach erneut.",
+  viaBusiness: "Mit dem Unternehmen auf Facebook verbunden: Der Zugriff läuft nicht ab.",
   synced: "Fertig: {sent} gesendet, {removed} entfernt, {skipped} unvollständig, {failed} von Meta abgelehnt.",
   state: {
     synced: "Bei Meta",
@@ -37,5 +48,9 @@ export const metaCatalog: Strings<typeof es> = {
     refused: "Meta hat die Anfrage abgelehnt.",
     unreachable: "Meta ist nicht erreichbar. Versuche es später noch einmal.",
     not_connected: "Verbinde zuerst einen Katalog.",
+    cancelled: "Die Verbindung wurde abgebrochen, bevor der Katalog freigegeben wurde.",
+    no_catalogs: "Meta hat keinen Katalog zurückgegeben. Prüfe, ob dein Unternehmen einen im Commerce Manager hat, und wähle ihn im Facebook-Fenster aus.",
+    pick_expired: "Die Auswahl ist abgelaufen. Verbinde dich erneut mit Facebook.",
+    login_unavailable: "Diese Installation hat die Facebook-Anmeldung nicht eingerichtet.",
   },
 };

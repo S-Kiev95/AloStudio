@@ -271,15 +271,33 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         calls_closed = (await calls_tick(calls_session))["closed"]
         await calls_session.commit()
 
+    # Conversions API (F17): tell Meta which ad conversations became leads
+    # or sales (queued as they happen, sent here).
+    from app.domains.conversions.service import send_pending as send_conversions
+
+    async with sessionmaker() as conversions_session:
+        conversions_sent = await send_conversions(conversions_session)
+        await conversions_session.commit()
+
+    # Google Calendar (F17): each connected agent's appointments and tasks.
+    from app.domains.google_calendar.service import sync_all as sync_google_calendars
+
+    async with sessionmaker() as gcal_session:
+        gcal_writes = await sync_google_calendars(gcal_session)
+        await gcal_session.commit()
+
     log.info(
         "scheduler.tick.done campaigns_fired=%s conversations_reopened=%s "
-        "instagram_posts_fired=%s publications_fired=%s crm_reminders=%s calls_closed=%s",
+        "instagram_posts_fired=%s publications_fired=%s crm_reminders=%s calls_closed=%s "
+        "conversions_sent=%s google_calendar_writes=%s",
         campaigns_fired,
         conversations_reopened,
         len(ig_fired),
         len(publications_fired),
         len(reminders),
         calls_closed,
+        conversions_sent,
+        gcal_writes,
     )
     return {
         "campaigns_fired": campaigns_fired,
@@ -288,6 +306,8 @@ async def tick_5min(ctx: dict[str, Any]) -> dict[str, int]:
         "publications_fired": len(publications_fired),
         "crm_reminders": len(reminders),
         "calls_closed": calls_closed,
+        "conversions_sent": conversions_sent,
+        "google_calendar_writes": gcal_writes,
     }
 
 
@@ -418,6 +438,7 @@ class WorkerSettings:
             refresh_contact_avatar_task,
             refresh_stale_avatars_task,
         )
+        from app.workers.decisions import MAX_TRIES as DECIDE_MAX_TRIES
         from app.workers.decisions import decide_conversation_task
         from app.workers.deliver_webhook import (
             MAX_ATTEMPTS as WEBHOOK_MAX_ATTEMPTS,
@@ -482,7 +503,8 @@ class WorkerSettings:
             # Enqueued when a customer writes, for accounts deciding their
             # conversations in shadow mode (F10). Keeps no result, same reason:
             # the next message after a decision must schedule another.
-            func(decide_conversation_task, keep_result=0),
+            # Retries itself while the local model decides another one.
+            func(decide_conversation_task, keep_result=0, max_tries=DECIDE_MAX_TRIES),
         ]
 
     # ARQ reads these off the class, so they're class-level by contract, not
@@ -504,6 +526,7 @@ class WorkerSettings:
 
         from app.workers.contact_avatars import refresh_stale_avatars_task
         from app.workers.email_poll import fetch_imap_inboxes_task
+        from app.workers.help_assistant import warm_help_assistant_task
         from app.workers.message_embeddings import embed_messages_task
         from app.workers.publishing import (
             METRICS_JOB_TIMEOUT_SECONDS,
@@ -559,6 +582,10 @@ class WorkerSettings:
             # minutes, off the 5-minute tick and the mail poll. A no-op
             # until the local embedding service is configured.
             cron(embed_messages_task, minute=set(range(2, 60, 3))),
+            # The help assistant's fixed beginning stays read in the local
+            # model (after a restart it takes minutes). A no-op until
+            # LOCAL_LLM_URL is set.
+            cron(warm_help_assistant_task, minute=set(range(4, 60, 5)), timeout=600),
             # Contact profile pictures, once a day: Meta's links expire and
             # people change their picture. Early UTC, off the other jobs.
             cron(

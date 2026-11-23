@@ -14,16 +14,19 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { CallButton } from "@/components/calls/call-button";
+import { CloseDialog } from "@/components/closing/close-dialog";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   type AdReferral,
   useConversation,
+  useMarkSeen,
   useDeleteMessage,
   useMessages,
   usePendingMessages,
   useToggleStatus,
 } from "@/lib/api/conversations";
+import { useClosingSettings } from "@/lib/api/closing";
 import { cn } from "@/lib/utils";
 
 import { AiHandoff, describeThreadControl } from "./ai-handoff";
@@ -142,6 +145,9 @@ export function ConversationView({
   }
   const pending = usePendingMessages(accountId, displayId);
   const toggle = useToggleStatus(accountId, displayId);
+  // Closing notes (F17): when the account asks why, resolving opens the dialog.
+  const closing = useClosingSettings(accountId);
+  const [closingOpen, setClosingOpen] = useState(false);
   const del = useDeleteMessage(accountId, displayId);
 
   function handleDelete(id: number) {
@@ -183,6 +189,13 @@ export function ConversationView({
   const lastScrollTop = useRef(0);
   const sentCount = useRef(0);
   const newestId = messages.data?.payload.at(-1)?.id;
+  // Seen: on opening the thread and on every message that lands while it is
+  // open, so the list only counts what nobody has looked at.
+  const markSeen = useMarkSeen(accountId, displayId);
+  useEffect(() => {
+    if (newestId !== undefined) markSeen.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, displayId, newestId]);
   useEffect(() => {
     // Opened at a search hit: stay there instead of sliding to the bottom.
     followNewest.current = !aroundId;
@@ -287,7 +300,10 @@ export function ConversationView({
             variant="secondary"
             size="sm"
             loading={toggle.isPending}
-            onClick={() => toggle.mutate(resolved ? "open" : "resolved")}
+            onClick={() => {
+              if (!resolved && closing.data?.enabled) setClosingOpen(true);
+              else toggle.mutate(resolved ? "open" : "resolved");
+            }}
           >
             {resolved ? (
               <>
@@ -299,6 +315,15 @@ export function ConversationView({
               </>
             )}
           </Button>
+          {closing.data?.enabled ? (
+            <CloseDialog
+              accountId={accountId}
+              displayId={displayId}
+              settings={closing.data}
+              open={closingOpen}
+              onClose={() => setClosingOpen(false)}
+            />
+          ) : null}
           {isWhatsapp ? (
             <CallButton
               accountId={accountId}

@@ -82,4 +82,37 @@ MESSAGES: dict[str, str] = {
     "calls.permission.accepted_always": "A accepté d’être appelé sur WhatsApp (toujours)",
     "calls.permission.accepted_by_calling": "En appelant, a permis d’être rappelé pendant 7 jours",
     "calls.permission.rejected": "Ne veut pas être appelé sur WhatsApp",
+    # A call nobody answered (F7): what the customer reads, and the label
+    # that marks the conversation to call back
+    "calls.missed.reply": "Bonjour ! Nous avons vu votre appel sans pouvoir répondre. Nous vous rappelons dans quelques minutes.",
+    "calls.missed.label": "appel-manque",
+    # Why a conversation closed (F17): the default categories, and the
+    # title of the private note a closing leaves
+    "closing.default.answered": "Question répondue",
+    "closing.default.enrolled": "S'est inscrit",
+    "closing.default.not_interested": "Pas intéressé",
+    "closing.default.no_reply": "Le client n'a pas répondu",
+    "closing.default.spam": "Spam ou mauvais numéro",
+    "closing.note_title": "Note de clôture",
+    # Contact lifecycle (F17): the default stages, and the line a move
+    # leaves in the conversation
+    "lifecycle.default.new_lead.name": "Nouveau prospect",
+    "lifecycle.default.new_lead.description": "A écrit pour la première fois.",
+    "lifecycle.default.hot_lead.name": "Prospect chaud",
+    "lifecycle.default.hot_lead.description": "Veut avancer.",
+    "lifecycle.default.payment.name": "Paiement",
+    "lifecycle.default.payment.description": "Paie ou va payer.",
+    "lifecycle.default.customer.name": "Client",
+    "lifecycle.default.customer.description": "A acheté.",
+    "lifecycle.default.cold_lead.name": "Prospect froid",
+    "lifecycle.default.cold_lead.description": "Ne répond plus ou n'est plus intéressé.",
+    "lifecycle.activity": "{name} a passé le contact à {stage}",
+    "lifecycle.activity_cleared": "{name} a retiré l'étape du contact",
+    "lifecycle.someone": "Quelqu'un",
+    "decisions.priority_set": "L'IA ({model}) a mis la priorité {level}",
+    "decisions.priority_set_because": "L'IA ({model}) a mis la priorité {level} : {reason}",
+    "decisions.level.low": "Basse",
+    "decisions.level.medium": "Moyenne",
+    "decisions.level.high": "Haute",
+    "decisions.level.urgent": "Urgente",
 }

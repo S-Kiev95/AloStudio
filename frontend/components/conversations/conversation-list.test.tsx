@@ -17,9 +17,10 @@ import { ConversationList } from "./conversation-list";
 // The list drives its state off the URL; stub the App Router hooks so the
 // component renders outside a Next.js router (empty params → defaults).
 let mockParams = new URLSearchParams();
+const mockReplace = vi.fn();
 vi.mock("next/navigation", () => ({
   useSearchParams: () => mockParams,
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: mockReplace }),
   usePathname: () => "/accounts/1/conversations",
 }));
 
@@ -72,6 +73,24 @@ function renderWithQuery(ui: React.ReactElement) {
 }
 
 describe("ConversationList", () => {
+  it("keeps every letter typed in the search and updates the URL once typing stops", async () => {
+    mockReplace.mockClear();
+    renderWithQuery(<ConversationList accountId="1" />);
+    const input = screen.getByPlaceholderText("Buscar en los mensajes…");
+    for (const value of ["e", "ez", "eze"]) {
+      fireEvent.change(input, { target: { value } });
+    }
+    // The box shows what was typed right away, whatever the URL says.
+    expect(input).toHaveValue("eze");
+    expect(mockReplace).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith("/accounts/1/conversations?q=eze", {
+        scroll: false,
+      }),
+    );
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+  });
+
   it("offers one channel option per channel the account has", async () => {
     server.use(
       http.get("*/inboxes", () =>
@@ -219,6 +238,41 @@ describe("ConversationList", () => {
     const marks = screen.getAllByLabelText(/^Vino de/);
     expect(marks).toHaveLength(1);
     expect(marks[0]).toHaveAccessibleName("Vino de 20% OFF en toda la tienda");
+  });
+
+  it("marks each row with its priority, and leaves the others unmarked", async () => {
+    server.use(
+      http.get("*/conversations", () =>
+        HttpResponse.json({
+          data: {
+            meta: { mine_count: 3, assigned_count: 3, unassigned_count: 0, all_count: 3 },
+            payload: [
+              {
+                ...conversation,
+                id: 44,
+                priority: "urgent",
+                meta: { sender: { id: 3, name: "Rosario" }, channel: "api" },
+              },
+              {
+                ...conversation,
+                id: 45,
+                priority: "low",
+                meta: { sender: { id: 4, name: "Dalila" }, channel: "api" },
+              },
+              conversation, // no priority
+            ],
+          },
+        }),
+      ),
+    );
+    renderWithQuery(<ConversationList accountId="1" />);
+
+    expect(await screen.findByText("Rosario")).toBeInTheDocument();
+    const marks = screen.getAllByLabelText(/^Prioridad:/);
+    expect(marks.map((m) => m.getAttribute("aria-label"))).toEqual([
+      "Prioridad: Urgente",
+      "Prioridad: Baja",
+    ]);
   });
 
   it("bulk-assigns selected conversations to an agent", async () => {

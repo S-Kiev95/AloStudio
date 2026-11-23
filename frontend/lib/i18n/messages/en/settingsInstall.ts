@@ -26,6 +26,10 @@ export const settingsInstall: Strings<typeof es> = {
     ai: "Artificial intelligence",
   },
   items: {
+    AI_CALL_SUMMARY_ENABLED: {
+      title: "AI call summaries",
+      description: "When a call has a transcript, the AI writes a short summary (why they called, what was agreed and what follows) in the call's bubble. It uses the agent's key and model; the spending shows in each account's Costs.",
+    },
     DECISIONS_API_KEY: {
       title: "Decisions service: key",
       description: "Classifies conversations (intent, sentiment, urgency and team). TypeSafe's (Jev) key comes from its console; with a local Laya, the one you set on its server.",
@@ -169,6 +173,14 @@ export const settingsInstall: Strings<typeof es> = {
     OPENAI_AGENT_MODEL: {
       title: "Agent model",
       description: "The OpenAI model the chat agent uses, for example gpt-5.4-mini (fast and cheap) or gpt-5.5 (more capable).",
+    },
+    LOCAL_LLM_URL: {
+      title: "Free AI: address",
+      description: "The model behind Help's Free mode and conversation classification. One on this server (llama.cpp, for example http://127.0.0.1:8092) or a free one online: https://api.groq.com/openai (Groq) or https://integrate.api.nvidia.com (NVIDIA). Empty: off.",
+    },
+    AI_WRITING_ASSIST_ENABLED: {
+      title: "AI writing help",
+      description: "Adds an AI button to the message box that improves, corrects, changes the tone of, shortens or translates what the agent writes, and summarizes the conversation. It uses the agent's key and model; the spending shows in each account's Costs.",
     },
   },
 };
