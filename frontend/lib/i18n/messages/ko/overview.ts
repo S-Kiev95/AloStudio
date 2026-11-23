@@ -9,8 +9,8 @@ export const overview: Strings<typeof es> = {
     pending: "대기",
   },
   shortcut: {
-    conversations: "대화",
-    conversationsDesc: "받은편지함",
+    conversations: "받은편지함",
+    conversationsDesc: "모든 채널의 메시지",
     instagramDesc: "DM, 게시물, 댓글",
     campaigns: "캠페인",
     campaignsDesc: "발송과 템플릿",
@@ -18,6 +18,7 @@ export const overview: Strings<typeof es> = {
     reportsDesc: "지표와 내보내기",
   },
   welcome: "환영합니다",
+  welcomeNamed: "안녕하세요, {name}님",
   intro: "모든 채널, 대화, 예약을 한곳에서. 지금 상황과 최근 7일간의 흐름입니다.",
   openInbox: "받은편지함 열기",
   goCalendar: "캘린더로 이동",

@@ -61,7 +61,7 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Bienvenido",
+        name: "Hola",
       }),
     ).toBeInTheDocument();
 
@@ -112,7 +112,7 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
   it("respeta DESIGN.md: sin doble neon-sign ni neon-nav fuera del sidebar y tarjetas clickeables a la bandeja", () => {
     const { container } = renderOverview("42");
 
-    const heading = screen.getByRole("heading", { name: "Bienvenido" });
+    const heading = screen.getByRole("heading", { name: "Hola" });
     expect(heading).not.toHaveClass("neon-sign");
 
     const liveIcons = container.querySelectorAll("[data-live-icon]");
@@ -166,5 +166,40 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
     fail = false;
     fireEvent.click(retryButtons[0]);
     expect(await screen.findByText("7")).toBeInTheDocument();
+  });
+
+  it("saluda por el primer nombre cuando el perfil está disponible y enlaza cada tarjeta Ahora mismo al filtro correcto", async () => {
+    server.use(
+      http.get("*/api/v1/profile", () =>
+        HttpResponse.json({
+          data: {
+            id: 1,
+            name: "Sofía Castro",
+            available_name: "Sofía Castro",
+            email: "sofia@ctc.edu.uy",
+          },
+        }),
+      ),
+    );
+
+    const { container } = renderOverview("42");
+
+    expect(
+      await screen.findByRole("heading", { name: "Hola, Sofía" }),
+    ).toBeInTheDocument();
+
+    const hrefs = Array.from(container.querySelectorAll("[data-live-icon]")).map(
+      (el) => el.closest("a")?.getAttribute("href"),
+    );
+    expect(hrefs).toEqual([
+      "/accounts/42/conversations?status=open",
+      "/accounts/42/conversations?status=open",
+      "/accounts/42/conversations?assignee=unassigned",
+      "/accounts/42/conversations?status=pending",
+    ]);
+
+    expect(
+      screen.getByRole("link", { name: /Bandeja/ }),
+    ).toHaveAttribute("href", "/accounts/42/conversations");
   });
 });

@@ -9,8 +9,8 @@ export const overview: Strings<typeof es> = {
     pending: "Ausstehend",
   },
   shortcut: {
-    conversations: "Konversationen",
-    conversationsDesc: "Posteingang",
+    conversations: "Posteingang",
+    conversationsDesc: "Nachrichten aus deinen Kanälen",
     instagramDesc: "DMs, Beiträge und Kommentare",
     campaigns: "Kampagnen",
     campaignsDesc: "Versände und Vorlagen",
@@ -18,6 +18,7 @@ export const overview: Strings<typeof es> = {
     reportsDesc: "Kennzahlen und Exporte",
   },
   welcome: "Willkommen",
+  welcomeNamed: "Hallo, {name}",
   intro: "Alle deine Kanäle, Konversationen und Termine an einem Ort. So sieht es gerade aus und in den letzten 7 Tagen.",
   openInbox: "Posteingang öffnen",
   goCalendar: "Zum Kalender",

@@ -9,8 +9,8 @@ export const overview: Strings<typeof es> = {
     pending: "保留",
   },
   shortcut: {
-    conversations: "会話",
-    conversationsDesc: "受信トレイ",
+    conversations: "受信トレイ",
+    conversationsDesc: "すべてのチャネルのメッセージ",
     instagramDesc: "DM、投稿、コメント",
     campaigns: "キャンペーン",
     campaignsDesc: "一斉送信とテンプレート",
@@ -18,6 +18,7 @@ export const overview: Strings<typeof es> = {
     reportsDesc: "指標とエクスポート",
   },
   welcome: "ようこそ",
+  welcomeNamed: "こんにちは、{name}さん",
   intro: "すべてのチャネル、会話、予約をひとつの場所で。現在の状況と過去 7 日間の動きです。",
   openInbox: "受信トレイを開く",
   goCalendar: "カレンダーへ",

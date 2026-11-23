@@ -6,7 +6,7 @@ export const agent = {
   },
   unconfigured: "El agente todavía no está configurado. Un operador de la instalación tiene que cargar la clave de OpenAI en Ajustes → Instalación → Inteligencia artificial.",
   readOnly: "Podés consultar publicaciones y estadísticas. Crear o borrar publicaciones lo hace un administrador.",
-  greeting: "Hola, soy el agente de AloStudio. Puedo armar y programar publicaciones en tus canales, revisar tu calendario y contarte cómo les fueron tus posts.",
+  greeting: "Hola, soy el agente de AloStudio. Puedo armar y programar publicaciones en tus canales, revisar tu calendario y contarte cómo les fue a tus posts.",
   seeInCalendar: "Ver en el calendario",
   newChat: "Nuevo chat",
   chat: "Chat",

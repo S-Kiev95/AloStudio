@@ -21,6 +21,7 @@ import type { IconComponent } from "@/components/ui/brand-icons";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
+import { useProfile } from "@/lib/api/profile";
 import {
   type LiveMetrics,
   rangeForDays,
@@ -178,12 +179,19 @@ function ActionRow({
 export function AccountOverview({ accountId }: { accountId: string }) {
   const intlTag = useIntlTag();
   const t = useT();
+  const profile = useProfile();
   const shell = useContext(PageSignContext);
   useEffect(() => {
     if (!shell) return;
     shell.setSignTitle(t("nav.home"));
     return () => shell.setSignTitle(null);
   }, [shell, t]);
+
+  const rawName = (profile.data?.available_name || profile.data?.name || "").trim();
+  const firstName = rawName.split(/\s+/)[0] || "";
+  const greeting = firstName
+    ? t("overview.welcomeNamed", { name: firstName })
+    : t("overview.welcome");
 
   // Memoized so the window doesn't drift every render and thrash the queries.
   const range = useMemo(() => rangeForDays(7), []);
@@ -196,7 +204,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
       <section className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_auto] lg:gap-8">
         <div className="min-w-0">
           <h2 className="text-2xl font-medium tracking-tight text-fg sm:text-3xl">
-            {t("overview.welcome")}
+            {greeting}
           </h2>
           <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-fg-muted">
             {t("overview.intro")}
