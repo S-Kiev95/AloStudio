@@ -9,9 +9,9 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { messageFromBody } from "@/lib/api/errors";
 import { usePublicInstallation } from "@/lib/api/installation";
 import { safeNextPath } from "@/lib/auth/next-path";
+import { signupError } from "@/lib/auth/signup-error";
 import { type SignupInput, signupSchema } from "@/lib/auth/schemas";
 
 export default function RegistroPage() {
@@ -51,7 +51,7 @@ export default function RegistroPage() {
         setFormError(msg);
         return;
       }
-      setFormError(messageFromBody(body, "No se pudo crear la cuenta."));
+      setFormError(signupError(body));
       return;
     }
 

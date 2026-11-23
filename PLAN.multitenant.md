@@ -496,8 +496,10 @@ créditos.
   mismo correo o la misma tarjeta: prender **Prevent trial abuse** en Polar
   (Ajustes de la organización → Suscripciones), en sandbox y en producción.
 - Pago rechazado y renovación en sandbox (ver arriba).
-- El registro dice solo "No se pudo crear la cuenta" cuando el correo no
-  es válido: mostrar el motivo.
+- ~~El registro dice solo "No se pudo crear la cuenta"~~ **Hecho (2026-11-23):**
+  `lib/auth/signup-error.ts` lee qué campo rechazó la validación (correo,
+  contraseña, nombres) y pasa a castellano los mensajes en inglés del alta
+  (correo ya usado, correo inválido, faltan nombres).
 - Traducir las pantallas de registro y de Embedded Signup de WhatsApp
   (siguen solo en español).
 - develop ya se trajo a la rama el 2026-11-15 (conflictos de login,
