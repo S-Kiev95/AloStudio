@@ -673,3 +673,23 @@ async def test_an_unusual_day_of_ai_spend_is_reported_once(multitenant, client, 
     assert "2.50 USD" in note.meta["title"]
     await _spend_ai(db_session, account_id, "5", "ai-spike-3")
     assert await notify_limits(db_session) == []  # once a day
+
+
+async def test_the_status_says_what_the_plan_includes(multitenant, client, db_session):
+    owner, headers = await _owner(db_session, "-allows")
+    url = f"/api/v1/accounts/{owner.account.id}/billing"
+    await _with_plan(db_session, owner.account.id, BASIC)
+    allows = (await client.get(url, headers=headers)).json()["allows"]
+    assert "telegram" not in allows["inbox_channels"] and "whatsapp" in allows["inbox_channels"]
+    assert allows["networks"] == ["facebook_page", "instagram", "threads"]
+    assert allows["whatsapp_calls"] is False
+    await _with_plan(db_session, owner.account.id, MAX)
+    allows = (await client.get(url, headers=headers)).json()["allows"]
+    assert allows == {"inbox_channels": None, "networks": None, "whatsapp_calls": True}
+
+
+async def test_a_single_tenant_install_includes_everything(client, db_session):
+    owner, headers = await _owner(db_session, "-allows-st")
+    await _with_plan(db_session, owner.account.id, BASIC)
+    allows = (await client.get(f"/api/v1/accounts/{owner.account.id}/billing", headers=headers)).json()["allows"]
+    assert allows == {"inbox_channels": None, "networks": None, "whatsapp_calls": True}

@@ -1,6 +1,7 @@
 import { type QueryClient, useQuery } from "@tanstack/react-query";
 
 import { apiFetch } from "./fetcher";
+import { usePublicInstallation } from "./installation";
 
 /** Paid plans on a multitenant install (F2 paso 3), charged through Polar.
  *  The plans are Polar's recurring products; the subscription is written
@@ -25,6 +26,9 @@ export type BillingStatus = {
   cancel_at_period_end?: boolean;
   /** The plan's monthly AI cap and the credit that extends it. */
   usage?: { cap: number; spent: number; currency: string; credit_balance: number };
+  /** What the plan includes: inbox channels and networks (null: all of
+   *  them) and WhatsApp calls. The panel dims the rest. */
+  allows?: { inbox_channels: string[] | null; networks: string[] | null; whatsapp_calls: boolean };
 };
 
 export type BillingPlan = {
@@ -65,6 +69,19 @@ export function useBillingStatus(
 }
 
 const POLL_ATTEMPTS = 20;
+
+/** What the account's plan includes (F2), to dim the rest in the panel
+ *  with a link to Facturación. Everything on a single-tenant install, and
+ *  while it loads: the API refuses what the plan doesn't include anyway. */
+export function usePlanAllows(accountId: string) {
+  const multitenant = Boolean(usePublicInstallation().data?.multitenant);
+  const allows = useBillingStatus(accountId, { enabled: multitenant }).data?.allows;
+  return {
+    channel: (type: string) => !multitenant || !allows?.inbox_channels || allows.inbox_channels.includes(type),
+    network: (network: string) => !multitenant || !allows?.networks || allows.networks.includes(network),
+    calls: !multitenant || allows?.whatsapp_calls !== false,
+  };
+}
 
 /** After a 402: the plan ran out mid-session, so the gate has to look
  *  again. Only the account's status (not the plans), and only while it

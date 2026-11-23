@@ -3,6 +3,8 @@ import type { Strings } from "../types";
 
 export const billing: Strings<typeof es> = {
   title: "Abrechnung",
+  notInPlan: "Dein Tarif enthält das nicht.",
+  seePlans: "Tarife ansehen",
   subtitle: "Dein Tarif, der Zahlungsstatus und die Rechnungen.",
   loadFailed: "Die Abrechnung konnte nicht geladen werden.",
   adminOnly: "Nur Administratoren sehen die Abrechnung.",

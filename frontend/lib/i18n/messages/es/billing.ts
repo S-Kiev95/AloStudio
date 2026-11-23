@@ -1,5 +1,7 @@
 export const billing = {
   title: "Facturación",
+  notInPlan: "Tu plan no lo incluye.",
+  seePlans: "Ver planes",
   subtitle: "Tu plan, el estado del pago y las facturas.",
   loadFailed: "No se pudo cargar la facturación.",
   adminOnly: "Solo los administradores ven la facturación.",

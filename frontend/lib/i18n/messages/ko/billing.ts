@@ -3,6 +3,8 @@ import type { Strings } from "../types";
 
 export const billing: Strings<typeof es> = {
   title: "결제",
+  notInPlan: "현재 요금제에 포함되지 않습니다.",
+  seePlans: "요금제 보기",
   subtitle: "요금제, 결제 상태, 청구서.",
   loadFailed: "결제 정보를 불러올 수 없습니다.",
   adminOnly: "결제 정보는 관리자만 볼 수 있습니다.",

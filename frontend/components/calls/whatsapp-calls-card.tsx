@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { usePlanAllows } from "@/lib/api/billing";
 import {
   ANNOUNCEMENT_LANGUAGES,
   type CallSettingsInput,
@@ -87,6 +88,7 @@ export function WhatsappCallsCard({
   const t = useT();
   const languageName = useLanguageName();
   const settings = useCallSettings(accountId, inboxId);
+  const plan = usePlanAllows(accountId);
   const save = useSaveCallSettings(accountId, inboxId);
   const [form, setForm] = useState<Form>(EMPTY);
   const [saved, setSaved] = useState(false);
@@ -166,7 +168,9 @@ export function WhatsappCallsCard({
                 checked={form.enabled}
                 onChange={() => toggle("enabled")}
                 label={t("calls.settings.enabled")}
-                hint={t("calls.settings.enabledHint")}
+                hint={plan.calls ? t("calls.settings.enabledHint") : t("billing.notInPlan")}
+                // Not in the plan (F2): they can be turned off, not on.
+                disabled={!plan.calls && !form.enabled}
               />
               <Toggle
                 checked={form.call_icon_visible}

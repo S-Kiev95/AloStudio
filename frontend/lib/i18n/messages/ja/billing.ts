@@ -3,6 +3,8 @@ import type { Strings } from "../types";
 
 export const billing: Strings<typeof es> = {
   title: "請求",
+  notInPlan: "ご利用のプランには含まれていません。",
+  seePlans: "プランを見る",
   subtitle: "プラン、支払い状況、請求書。",
   loadFailed: "請求情報を読み込めませんでした。",
   adminOnly: "請求情報は管理者のみ表示できます。",

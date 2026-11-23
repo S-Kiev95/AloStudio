@@ -481,8 +481,14 @@ créditos.
 - El control del tope suma 5 a 7 consultas por llamada a la IA y por envío
   de plantilla (solo multitenant). Si pesa, guardar el gasto del mes por
   unos minutos.
-- Ocultar en la interfaz lo que el plan no incluye (hoy se ve y al usarlo
-  responde "Tu plan no incluye esto").
+- ~~Ocultar en la interfaz lo que el plan no incluye~~ **Hecho (2026-11-23):**
+  `GET /billing` suma `allows` (canales de bandeja y redes permitidos, o
+  `null` si son todos, y llamadas). El panel (`usePlanAllows`) muestra
+  apagado lo que no entra, con "Tu plan no lo incluye" y "Ver planes":
+  los canales al crear una bandeja y las redes para publicar. El botón de
+  llamar no aparece sin llamadas, y en el número se pueden apagar pero no
+  prender. Apagado en vez de oculto, para que se vea qué da un plan mayor.
+  La API sigue rechazando igual (403).
 - Prueba gratis una sola vez: después de cancelar, los planes vuelven a
   ofrecer 30 días gratis. Revisar si Polar lo limita por cliente o
   limitarlo acá.

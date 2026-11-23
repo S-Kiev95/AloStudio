@@ -3,6 +3,8 @@ import type { Strings } from "../types";
 
 export const billing: Strings<typeof es> = {
   title: "Billing",
+  notInPlan: "Your plan doesn't include it.",
+  seePlans: "See plans",
   subtitle: "Your plan, payment status and invoices.",
   loadFailed: "Couldn't load billing.",
   adminOnly: "Only administrators can see billing.",

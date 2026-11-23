@@ -259,6 +259,19 @@ async def plan_allows_calls(session: AsyncSession, account_id: int) -> bool:
     return features is None or _text(features.get("whatsapp_calls")) in {"true", "1"}
 
 
+async def plan_allows(session: AsyncSession, account_id: int) -> dict[str, Any]:
+    """What the plan includes, for the panel to dim the rest (the API still
+    refuses it): the inbox channels and publishing networks it allows (None:
+    all of them) and WhatsApp calls. Everything on a single-tenant install."""
+    features = await _plan_features(session, account_id)
+    meta_only = _meta_only(features)
+    return {
+        "inbox_channels": sorted(_META_INBOX_CHANNELS | _OWN_INBOX_CHANNELS) if meta_only else None,
+        "networks": sorted(_META_PUBLISHING_NETWORKS) if meta_only else None,
+        "whatsapp_calls": features is None or _text(features.get("whatsapp_calls")) in {"true", "1"},
+    }
+
+
 async def plan_usage_cap(session: AsyncSession, account_id: int) -> Decimal | None:
     """The plan's monthly cap on AI spend, in USD, or None (also
     for a value that isn't a positive number)."""
@@ -309,6 +322,7 @@ __all__ = [
     "credit_purchases",
     "handle_webhook",
     "has_paid_access",
+    "plan_allows",
     "plan_allows_calls",
     "plan_allows_inbox_channel",
     "plan_allows_network",

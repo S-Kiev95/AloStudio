@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { usePlanAllows } from "@/lib/api/billing";
 import { useCallPermission, useRequestCallPermission } from "@/lib/api/calls";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import { translateOr } from "@/lib/i18n/translate";
@@ -51,6 +52,7 @@ export function CallButton({
   const panel = useRef<HTMLDivElement>(null);
   const permission = useCallPermission(accountId, conversationId, open);
   const ask = useRequestCallPermission(accountId, conversationId);
+  const plan = usePlanAllows(accountId);
 
   useEffect(() => {
     if (!open) return;
@@ -66,6 +68,9 @@ export function CallButton({
       document.removeEventListener("keydown", close);
     };
   }, [open]);
+
+  // Not in the plan (F2): no button (the API refuses the call anyway).
+  if (!plan.calls) return null;
 
   function toggle() {
     setSent(false);

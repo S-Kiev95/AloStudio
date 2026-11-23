@@ -33,6 +33,7 @@ from app.domains.billing.service import (
     credit_left_of,
     credit_purchases,
     handle_webhook,
+    plan_allows,
     plan_usage_cap,
     present_subscription,
     subscription_for,
@@ -67,6 +68,7 @@ async def billing_status(
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
     out = present_subscription(await subscription_for(session, ctx.account.id))
+    out["allows"] = await plan_allows(session, ctx.account.id)
     cap = await plan_usage_cap(session, ctx.account.id)
     if cap is not None:
         # The plan and its state matter more than the meter: a failing sum

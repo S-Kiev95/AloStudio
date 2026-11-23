@@ -3,6 +3,8 @@ import type { Strings } from "../types";
 
 export const billing: Strings<typeof es> = {
   title: "Faturamento",
+  notInPlan: "Seu plano não inclui isto.",
+  seePlans: "Ver planos",
   subtitle: "Seu plano, o status do pagamento e as faturas.",
   loadFailed: "Não foi possível carregar o faturamento.",
   adminOnly: "Só os administradores veem o faturamento.",
