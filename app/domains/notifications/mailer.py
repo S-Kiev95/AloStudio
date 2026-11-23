@@ -55,9 +55,10 @@ def build_notification_email(
         subject_key = "notif.subject.default"
     lead_key = f"notif.lead.{type_str}"
     if notification.primary_actor_type == "AccountSubscription":
-        # The plan's AI cap (F2): credit keeps the AI going, a bigger plan
-        # raises it; an admin can't just raise it in Gastos.
-        lead_key = f"notif.lead.{type_str}_plan"
+        # F2: the plan's AI cap, the AI credit or an unusual day; each says
+        # what to do about it (not "raise the cap in Gastos").
+        source = str((notification.meta or {}).get("source") or "plan")
+        lead_key = f"notif.lead.{type_str}_{source}"
     if lead_key not in CATALOGS[DEFAULT_LOCALE]:
         lead_key = "notif.lead.default"
     title = str((notification.meta or {}).get("title", ""))

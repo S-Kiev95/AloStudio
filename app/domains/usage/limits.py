@@ -320,7 +320,7 @@ async def notify_limits(session: AsyncSession) -> list[int]:
         cap.notified_month = month
         cap.notified_level = level
         session.add(cap)
-    ids += await _notify_plan_caps(session, month)
+    ids += await _notify_plan_alerts(session, month)
     await session.flush()
     return ids
 
@@ -339,13 +339,67 @@ async def _admin_ids(session: AsyncSession, account_id: int) -> list[int]:
     return [user_id for user_id in rows if user_id is not None]
 
 
-async def _notify_plan_caps(session: AsyncSession, month: str) -> list[int]:
-    """F2 multitenant: the same 80 % / 100 % alerts for the plan's AI cap,
-    once per month and level. At 100 % the AI goes on with AI credit if
-    the account has some; the mail says so (``notif.lead.usage_limit_plan``)."""
+# AI credit is "low" at this share of the latest purchase's credit or less.
+CREDIT_LOW_SHARE = Decimal("0.2")
+# A day is "unusual" at this many times the daily average of the previous
+# ``SPIKE_DAYS`` days, and at least ``SPIKE_MIN_USD`` (a few cents of AI
+# are never news).
+SPIKE_FACTOR = 3
+SPIKE_DAYS = 14
+SPIKE_MIN_USD = Decimal("1")
+
+
+async def _tell_admins(
+    session: AsyncSession, sub: AccountSubscription, *, title: str, source: str, level: int
+) -> list[int]:
     from app.domains.notifications.models import NOTIFICATION_TYPE_USAGE_LIMIT
     from app.domains.notifications.service import create_notification
 
+    ids: list[int] = []
+    for user_id in await _admin_ids(session, sub.account_id):
+        notification = await create_notification(
+            session,
+            account_id=sub.account_id,
+            user_id=user_id,
+            notification_type=NOTIFICATION_TYPE_USAGE_LIMIT,
+            primary_actor_type="AccountSubscription",
+            primary_actor_id=sub.id,  # type: ignore[arg-type]
+            meta={"title": title, "kind": KIND_AI, "level": level, "source": source},
+        )
+        assert notification.id is not None
+        ids.append(notification.id)
+    return ids
+
+
+async def _ai_spend_by_day(
+    session: AsyncSession, account_id: int, since: datetime
+) -> dict[date, Decimal]:
+    day = func.date_trunc("day", UsageRecord.occurred_at)
+    rows = (
+        await session.exec(
+            select(day, func.coalesce(func.sum(UsageRecord.cost), 0))  # type: ignore[call-overload]
+            .where(
+                UsageRecord.account_id == account_id,
+                UsageRecord.kind == KIND_AI,
+                UsageRecord.occurred_at >= since,
+            )
+            .group_by(day)
+        )
+    ).all()
+    return {d.date(): Decimal(total) for d, total in rows}
+
+
+async def _notify_plan_alerts(session: AsyncSession, month: str) -> list[int]:
+    """F2 multitenant, for each account with a plan, once per level:
+
+    * the plan's AI cap at 80 % / 100 % of the month (at 100 % the AI goes
+      on with AI credit if there is some), ``source: plan``;
+    * the AI credit low (under 20 % of the latest purchase) and used up,
+      once per purchase, ``source: credit``;
+    * a day of AI spend far above the account's usual, once a day,
+      ``source: spike``.
+
+    The mail of each says what it means (``notif.lead.usage_limit_<source>``)."""
     if not get_settings().multitenant:
         return []
     ids: list[int] = []
@@ -354,31 +408,49 @@ async def _notify_plan_caps(session: AsyncSession, month: str) -> list[int]:
             select(AccountSubscription).where(AccountSubscription.status.in_(ACTIVE_STATUSES))  # type: ignore[attr-defined]
         )
     ).all()
+    now = datetime.now(UTC)
+    today = now.date()
     for sub in subs:
-        cap = await plan_usage_cap(session, sub.account_id)
-        if cap is None:
-            continue
-        spent = await ai_month_spend(session, sub.account_id)
-        percent = spent / cap * 100
-        level = max((lvl for lvl in ALERT_LEVELS if percent >= lvl), default=0)
-        already = sub.cap_notified_level if sub.cap_notified_month == month else 0
-        if level <= already:
-            continue
-        title = f"IA / AI ({sub.plan_name or 'plan'}): {level}% ({spent:.2f} / {cap:.2f})"
-        for user_id in await _admin_ids(session, sub.account_id):
-            notification = await create_notification(
-                session,
-                account_id=sub.account_id,
-                user_id=user_id,
-                notification_type=NOTIFICATION_TYPE_USAGE_LIMIT,
-                primary_actor_type="AccountSubscription",
-                primary_actor_id=sub.id,  # type: ignore[arg-type]
-                meta={"title": title, "kind": KIND_AI, "level": level, "source": "plan"},
+        account_id = sub.account_id
+        cap = await plan_usage_cap(session, account_id)
+        if cap is not None:
+            spent = await ai_month_spend(session, account_id)
+            percent = spent / cap * 100
+            level = max((lvl for lvl in ALERT_LEVELS if percent >= lvl), default=0)
+            already = sub.cap_notified_level if sub.cap_notified_month == month else 0
+            if level > already:
+                title = f"IA / AI ({sub.plan_name or 'plan'}): {level}% ({spent:.2f} / {cap:.2f})"
+                ids += await _tell_admins(session, sub, title=title, source="plan", level=level)
+                sub.cap_notified_month = month
+                sub.cap_notified_level = level
+
+        purchases = await credit_purchases(session, account_id)
+        if purchases:
+            latest = purchases[0]
+            balance = await credit_balance(session, account_id, cap=cap, cap_known=True)
+            low = credit_left_of(latest) * CREDIT_LOW_SHARE
+            level = 100 if balance <= 0 else 20 if balance <= low else 0
+            already = (
+                sub.credit_notified_level if sub.credit_notified_purchase_id == latest.id else 0
             )
-            assert notification.id is not None
-            ids.append(notification.id)
-        sub.cap_notified_month = month
-        sub.cap_notified_level = level
+            if level > already:
+                title = f"Créditos de IA / AI credit: {balance:.2f} USD"
+                ids += await _tell_admins(session, sub, title=title, source="credit", level=level)
+                sub.credit_notified_purchase_id = latest.id
+                sub.credit_notified_level = level
+
+        if sub.spike_notified_on != today:
+            first = datetime(today.year, today.month, today.day, tzinfo=UTC) - timedelta(
+                days=SPIKE_DAYS
+            )
+            by_day = await _ai_spend_by_day(session, account_id, first)
+            today_spent = by_day.pop(today, Decimal(0))
+            average = sum(by_day.values(), Decimal(0)) / SPIKE_DAYS
+            # A new account has no usual yet: nothing to compare with.
+            if average > 0 and today_spent >= max(SPIKE_MIN_USD, average * SPIKE_FACTOR):
+                title = f"IA / AI: {today_spent:.2f} USD (≈ {average:.2f} / día-day)"
+                ids += await _tell_admins(session, sub, title=title, source="spike", level=0)
+                sub.spike_notified_on = today
         session.add(sub)
     return ids
 

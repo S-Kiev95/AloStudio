@@ -1,4 +1,5 @@
-"""billing: when the admins were told about the plan's AI cap (F2 paso 3)
+"""billing: when the admins were told about the plan's AI cap, their AI
+credit running low and an unusual day of AI spend (F2 paso 3)
 
 Revision ID: c8e0a2b4d6f1
 Revises: a6b8d0f2c4e1
@@ -28,8 +29,23 @@ def upgrade() -> None:
         "account_subscriptions",
         sa.Column("cap_notified_level", sa.Integer(), nullable=False, server_default="0"),
     )
+    op.add_column(
+        "account_subscriptions",
+        sa.Column("credit_notified_purchase_id", sa.BigInteger(), nullable=True),
+    )
+    op.add_column(
+        "account_subscriptions",
+        sa.Column("credit_notified_level", sa.Integer(), nullable=False, server_default="0"),
+    )
+    op.add_column(
+        "account_subscriptions",
+        sa.Column("spike_notified_on", sa.Date(), nullable=True),
+    )
 
 
 def downgrade() -> None:
+    op.drop_column("account_subscriptions", "spike_notified_on")
+    op.drop_column("account_subscriptions", "credit_notified_level")
+    op.drop_column("account_subscriptions", "credit_notified_purchase_id")
     op.drop_column("account_subscriptions", "cap_notified_level")
     op.drop_column("account_subscriptions", "cap_notified_month")

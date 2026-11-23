@@ -605,3 +605,71 @@ async def test_a_single_tenant_install_has_no_plan_cap_alerts(client, db_session
     await _with_plan(db_session, owner.account.id, BASIC)
     await _spend_ai(db_session, owner.account.id, "9", "ai-noalert-1")
     assert await notify_limits(db_session) == []
+
+
+async def test_the_admins_hear_when_the_ai_credit_runs_low_and_out(multitenant, client, db_session):
+    from datetime import UTC, datetime
+
+    from app.domains.notifications.models import Notification
+    from app.domains.usage.limits import notify_limits
+
+    owner, _ = await _owner(db_session, "-credit")
+    account_id = owner.account.id
+    await _with_plan(db_session, account_id, BASIC)  # USD 5 of AI
+    now = datetime.now(UTC)
+    order = {
+        "type": "order.paid",
+        "data": {
+            "id": "ord_low_1", "paid": True, "net_amount": 2000, "refunded_amount": 0,
+            "created_at": now.isoformat(),
+            "product": {"id": "prod_credits", "metadata": {"kind": "ai_credits"}},
+            "customer": {"id": "cus_low", "external_id": str(account_id)},
+            "metadata": {"account_id": str(account_id)},
+        },
+    }
+    assert (await _post(client, order, "wh_low_1")).status_code == 202  # USD 10 of credit
+
+    def sources(notes):
+        return sorted((n.meta["source"], n.meta["level"]) for n in notes)
+
+    async def alerts():
+        return [await db_session.get(Notification, i) for i in await notify_limits(db_session)]
+
+    # USD 13 of AI: 8 past the cap, USD 2 of credit left (under 20 % of 10).
+    await _spend_ai(db_session, account_id, "13", "ai-low-1")
+    assert ("credit", 20) in sources(await alerts())
+    assert all(n.meta["source"] != "credit" for n in await alerts())  # once
+
+    await _spend_ai(db_session, account_id, "3", "ai-low-2")  # used up
+    notes = [n for n in await alerts() if n.meta["source"] == "credit"]
+    assert sources(notes) == [("credit", 100)]
+    assert "0.00 USD" in notes[0].meta["title"]
+
+
+async def test_an_unusual_day_of_ai_spend_is_reported_once(multitenant, client, db_session):
+    from datetime import UTC, datetime, timedelta
+
+    from app.domains.notifications.models import Notification
+    from app.domains.usage.limits import notify_limits
+    from app.domains.usage.models import KIND_AI, UsageRecord
+
+    owner, _ = await _owner(db_session, "-spike")
+    account_id = owner.account.id
+    await _with_plan(db_session, account_id, MAX)  # USD 40: no cap alert here
+    now = datetime.now(UTC)
+    for day in range(1, 8):  # USD 0.20 a day for a week
+        db_session.add(
+            UsageRecord(account_id=account_id, kind=KIND_AI, occurred_at=now - timedelta(days=day),
+                        category="agent", cost=Decimal("0.20"), source_id=f"ai-spike-old-{day}")
+        )
+    await db_session.flush()
+    await _spend_ai(db_session, account_id, "0.50", "ai-spike-1")
+    assert await notify_limits(db_session) == []  # under USD 1: no news
+
+    await _spend_ai(db_session, account_id, "2", "ai-spike-2")
+    [spike] = await notify_limits(db_session)
+    note = await db_session.get(Notification, spike)
+    assert note is not None and note.meta["source"] == "spike"
+    assert "2.50 USD" in note.meta["title"]
+    await _spend_ai(db_session, account_id, "5", "ai-spike-3")
+    assert await notify_limits(db_session) == []  # once a day

@@ -58,6 +58,8 @@ MESSAGES: dict[str, str] = {
     "push.title.conversation_bot_handoff": "사람의 응대가 필요합니다",
     "push.title.crm_activity_due": "작업 기한",
     "notif.lead.usage_limit_plan": "요금제의 AI 한도: {title}. 100%가 되면 AI 크레딧이 있을 때만 AI가 계속됩니다(자동으로 차감). 크레딧이 없으면 다음 달이나 더 큰 요금제로 바꿀 때까지 멈춥니다.",
+    "notif.lead.usage_limit_credit": "AI 크레딧: {title}. 얼마 남지 않았거나 모두 사용했습니다. 크레딧이 없으면 요금제 한도를 넘는 AI가 멈춥니다. 결제에서 충전하세요.",
+    "notif.lead.usage_limit_spike": "오늘 AI 지출이 평소보다 훨씬 많습니다: {title}. 무엇이 사용하는지 지출에서 확인하세요.",
     "push.title.usage_limit": "지출 한도",
     "push.title.default": "알림",
     "push.body": "대화 #{n}",

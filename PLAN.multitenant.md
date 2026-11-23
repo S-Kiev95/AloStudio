@@ -462,8 +462,15 @@ créditos.
 
 ### Falta
 
-- Créditos: avisos de saldo bajo y de "seguís con créditos"; alerta si
-  un día gasta mucho más que el promedio.
+- ~~Créditos: avisos de saldo bajo y de "seguís con créditos"; alerta si
+  un día gasta mucho más que el promedio.~~ **Hecho (2026-11-23):** con el
+  mismo aviso de "tope de gasto" (`meta.source`: `plan`, `credit`,
+  `spike`), cada uno con su texto en el correo. Créditos: al quedar en el
+  20 % o menos de la última compra y al terminarse, una vez por compra
+  ("seguís con créditos" va en el aviso del 100 % del tope del plan). Día
+  fuera de lo normal: el gasto de IA de hoy llega a 3 veces el promedio de
+  los 14 días anteriores y a USD 1 como mínimo, una vez por día; una cuenta
+  sin historial no avisa. Columnas en la misma migración `c8e0a2b4d6f1`.
 - ~~Avisos al 80 % y 100 % del tope del plan~~ **Hecho (2026-11-23):** el
   mismo aviso de "tope de gasto" (así llega a quien ya tiene sus
   preferencias guardadas), una vez por nivel y mes, con el gasto de IA del

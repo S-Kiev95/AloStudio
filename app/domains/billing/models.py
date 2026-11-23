@@ -80,6 +80,18 @@ class AccountSubscription(TimestampMixin, table=True):
     cap_notified_level: int = Field(
         default=0, sa_column=Column(Integer, nullable=False, server_default="0")
     )
+    # The AI credit alerts: which purchase they were about (a new one starts
+    # them over) and how far it got (20 = low, 100 = used up).
+    credit_notified_purchase_id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
+    )
+    credit_notified_level: int = Field(
+        default=0, sa_column=Column(Integer, nullable=False, server_default="0")
+    )
+    # The day an unusually high AI spend was last reported (once a day).
+    spike_notified_on: date | None = Field(
+        default=None, sa_column=Column(Date, nullable=True)
+    )
 
 
 class BillingEvent(TimestampMixin, table=True):
