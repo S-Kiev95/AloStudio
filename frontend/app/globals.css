@@ -491,6 +491,9 @@
   .neon-tab-active {
     color: var(--neon-lit-text);
   }
+  .neon-tab-rail[data-gliding="true"] .neon-tab-active::after {
+    opacity: 0;
+  }
   .neon-tab-active::after {
     content: "";
     position: absolute;

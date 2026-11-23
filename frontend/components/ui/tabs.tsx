@@ -12,6 +12,61 @@ import {
 } from "react";
 
 import { cn } from "@/lib/utils";
+import { animateTabTube, prefersReducedMotion } from "@/lib/motion/neon-motion";
+
+const TAB_TUBE_INSET_PX = 14;
+
+/**
+ * Animates a 2px glowing cobalt indicator bar smoothly from the previously
+ * active tab to the newly active one using Anime.js v4 (180ms, NEON_EASE).
+ * Falls back cleanly to the CSS `::after` bar on SSR, jsdom (zero-width rects)
+ * and when `prefers-reduced-motion: reduce` is enabled.
+ */
+function useTabTubeGlide(
+  railRef: React.RefObject<HTMLElement | null>,
+  tubeRef: React.RefObject<HTMLSpanElement | null>,
+  activeKey: string | null,
+  activeSelector: string,
+) {
+  const prevRectRef = useRef<{ left: number; width: number } | null>(null);
+
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const activeEl = rail.querySelector<HTMLElement>(activeSelector);
+    if (!activeEl) return;
+
+    const railRect = rail.getBoundingClientRect();
+    const elRect = activeEl.getBoundingClientRect();
+    const next = {
+      left:
+        elRect.left - railRect.left + rail.scrollLeft + TAB_TUBE_INSET_PX,
+      width: Math.max(0, elRect.width - TAB_TUBE_INSET_PX * 2),
+    };
+    const prev = prevRectRef.current;
+    prevRectRef.current = next;
+
+    if (
+      !prev ||
+      prev.width <= 0 ||
+      next.width <= 0 ||
+      (Math.abs(prev.left - next.left) < 1 &&
+        Math.abs(prev.width - next.width) < 1) ||
+      prefersReducedMotion()
+    ) {
+      return;
+    }
+
+    rail.setAttribute("data-gliding", "true");
+    const cancel = animateTabTube(tubeRef.current, prev, next, () => {
+      rail.removeAttribute("data-gliding");
+    });
+    return () => {
+      cancel();
+      rail.removeAttribute("data-gliding");
+    };
+  }, [activeKey, activeSelector, railRef, tubeRef]);
+}
 
 /**
  * Tabs — section tab rail (DESIGN.md §Tabs).
@@ -57,8 +112,20 @@ export function Tabs({
 export function TabsList({
   className,
   onKeyDown,
+  children,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
+  const ctx = useContext(TabsContext);
+  const railRef = useRef<HTMLDivElement>(null);
+  const tubeRef = useRef<HTMLSpanElement>(null);
+
+  useTabTubeGlide(
+    railRef,
+    tubeRef,
+    ctx?.value ?? null,
+    '[role="tab"][aria-selected="true"]',
+  );
+
   function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     onKeyDown?.(e);
     if (e.defaultPrevented) return;
@@ -91,14 +158,24 @@ export function TabsList({
 
   return (
     <div
+      ref={railRef}
       role="tablist"
       onKeyDown={handleKeyDown}
       className={cn(
-        "neon-tab-rail flex flex-nowrap items-center gap-1 overflow-x-auto border-b border-glass sm:flex-wrap sm:overflow-visible",
+        "neon-tab-rail relative flex flex-nowrap items-center gap-1 overflow-x-auto border-b border-glass sm:flex-wrap sm:overflow-visible",
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+      <span
+        ref={tubeRef}
+        aria-hidden="true"
+        data-tab-glide=""
+        className="pointer-events-none absolute bottom-0 left-0 h-[2px] rounded-[2px] bg-neon opacity-0"
+        style={{ boxShadow: "var(--neon-tube-shadow)" }}
+      />
+    </div>
   );
 }
 
@@ -152,17 +229,17 @@ export function NavTabs({
   className?: string;
 }) {
   const navRef = useRef<HTMLElement>(null);
+  const tubeRef = useRef<HTMLSpanElement>(null);
   const activeHref = items.find((i) => i.active)?.href ?? null;
+
+  useTabTubeGlide(navRef, tubeRef, activeHref, '[aria-current="page"]');
 
   useEffect(() => {
     const activeEl = navRef.current?.querySelector<HTMLElement>(
       '[aria-current="page"]',
     );
     if (!activeEl || typeof activeEl.scrollIntoView !== "function") return;
-    const reduced =
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = prefersReducedMotion();
     activeEl.scrollIntoView({
       inline: "nearest",
       block: "nearest",
@@ -175,7 +252,7 @@ export function NavTabs({
       ref={navRef}
       aria-label={ariaLabel}
       className={cn(
-        "neon-tab-rail flex flex-nowrap items-center gap-1 overflow-x-auto border-b border-glass sm:flex-wrap sm:overflow-visible",
+        "neon-tab-rail relative flex flex-nowrap items-center gap-1 overflow-x-auto border-b border-glass sm:flex-wrap sm:overflow-visible",
         className,
       )}
     >
@@ -189,6 +266,13 @@ export function NavTabs({
           {item.label}
         </Link>
       ))}
+      <span
+        ref={tubeRef}
+        aria-hidden="true"
+        data-tab-glide=""
+        className="pointer-events-none absolute bottom-0 left-0 h-[2px] rounded-[2px] bg-neon opacity-0"
+        style={{ boxShadow: "var(--neon-tube-shadow)" }}
+      />
     </nav>
   );
 }
