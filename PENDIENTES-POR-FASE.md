@@ -1190,3 +1190,18 @@ Detalle en `PLAN.i18n.md`.
 - **Tests del panel que tardan:** `templates-panel.test.tsx` y
   `autoposts-view.test.tsx` pasan solos pero se pasan de los 5 s cuando
   corre toda la suite (visto en `main` el 2026-11-19).
+- **Auditoría estética neón, propuesta Anime.js v4 y prototipo de login con
+  agujero negro (2026-11-23, rama `feat/neon-ux`):**
+  - Informe completo de UI/UX ordenado por impacto con 14 hallazgos, capturas
+    reales (escritorio y móvil) y referencias `archivo:línea` en
+    `docs/neon/informe-ui-ux.md` (sin cambios de código).
+  - Propuesta de integración de **Anime.js v4** (`animejs`) respetando
+    *The Ignition Rule* y `prefers-reduced-motion` en
+    `docs/neon/propuesta-animejs-v4.md`. Nota: `npx skills add
+    https://github.com/heygen-com/hyperframes --skill animejs` respondió que
+    la skill `animejs` ya no existe con ese nombre en el repo de `hyperframes`.
+  - Boceto técnico, capturas cuadro a cuadro y prototipo interactivo navegable
+    del login con agujero negro en `docs/neon/propuesta-login-agujero-negro.md`
+    y `docs/neon/prototipo-agujero-negro.html`. **Esperando OK del dueño**
+    antes de implementar en `frontend/` (y antes de tocar los pendientes del
+    informe).
