@@ -3,7 +3,7 @@
 import { Ban, Check, Clock, MessageSquare, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
@@ -30,6 +30,7 @@ import { formatLocalClock } from "./agent-time";
 import { PendingActionCard } from "./pending-action-card";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { animateElectrodeDots, animateMessageIn } from "@/lib/motion/neon-motion";
 
 const WRITE_SUGGESTION: MessageKey =
   "agent.suggestions.write";
@@ -47,6 +48,48 @@ const READ_ONLY_NOTICE: MessageKey =
 
 const EMPTY_GREETING: MessageKey =
   "agent.greeting";
+
+function ThinkingDots() {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const dots = ref.current?.querySelectorAll<HTMLElement>(
+      "[data-electrode-dot]",
+    );
+    if (!dots || dots.length === 0) return;
+    return animateElectrodeDots(dots);
+  }, []);
+  return (
+    <span ref={ref} aria-hidden className="inline-flex items-center gap-1">
+      <span
+        data-electrode-dot
+        className="h-1.5 w-1.5 rounded-full bg-electrode"
+      />
+      <span
+        data-electrode-dot
+        className="h-1.5 w-1.5 rounded-full bg-electrode"
+      />
+      <span
+        data-electrode-dot
+        className="h-1.5 w-1.5 rounded-full bg-electrode"
+      />
+    </span>
+  );
+}
+
+function AnimatedMessageSlot({
+  animateIn = true,
+  children,
+}: {
+  animateIn?: boolean;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!animateIn) return;
+    return animateMessageIn(ref.current);
+  }, [animateIn]);
+  return <div ref={ref}>{children}</div>;
+}
 
 function ToolStatusIcon({ status }: { status: AgentToolItem["status"] }) {
   switch (status) {
@@ -188,7 +231,10 @@ export function AgentChatView({
   const isActing = confirmAction.isPending || rejectAction.isPending;
   const isBusy = isSending || isActing;
 
-  const items = threadQuery.data?.items ?? [];
+  const items = useMemo(
+    () => threadQuery.data?.items ?? [],
+    [threadQuery.data?.items],
+  );
   const rawPendingAction = threadQuery.data?.pending_action ?? null;
   // Hide any prior pending card while the user has sent a follow-up message
   // (which discards the pending proposal on the backend).
@@ -196,6 +242,33 @@ export function AgentChatView({
 
   const lastItemId = items.length > 0 ? items[items.length - 1]?.id ?? 0 : 0;
   const scrollTrigger = `${effectiveThreadId ?? "new"}|${items.length}|${lastItemId}|${visiblePendingAction?.id ?? ""}|${optimisticUserMessage ?? ""}|${actionError ?? ""}`;
+
+  // Track which message IDs were already present on initial thread load so
+  // only newly appended messages animate softly into place.
+  const seenItemsThreadRef = useRef<number | null>(null);
+  const seenItemIdsRef = useRef<Set<number> | null>(null);
+  const newlyAddedIds = new Set<number>();
+  if (seenItemsThreadRef.current !== effectiveThreadId) {
+    seenItemsThreadRef.current = effectiveThreadId;
+    seenItemIdsRef.current = null;
+  }
+  if (!threadQuery.isLoading && items.length > 0) {
+    if (seenItemIdsRef.current === null) {
+      seenItemIdsRef.current = new Set(items.map((it) => it.id));
+    } else {
+      for (const it of items) {
+        if (!seenItemIdsRef.current.has(it.id)) {
+          newlyAddedIds.add(it.id);
+        }
+      }
+    }
+  }
+  useEffect(() => {
+    if (!seenItemIdsRef.current) return;
+    for (const it of items) {
+      seenItemIdsRef.current.add(it.id);
+    }
+  }, [items]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -422,45 +495,52 @@ export function AgentChatView({
         ) : (
           <div className="space-y-3">
             {items.map((item) => (
-              <AgentItemRow
+              <AnimatedMessageSlot
                 key={item.id}
-                accountId={accountId}
-                item={item}
-              />
+                animateIn={newlyAddedIds.has(item.id)}
+              >
+                <AgentItemRow accountId={accountId} item={item} />
+              </AnimatedMessageSlot>
             ))}
 
             {optimisticUserMessage !== null ? (
               <>
-                <div className="flex flex-col items-end">
-                  <div className="max-w-[80%] min-w-0 rounded-panel rounded-br-sm bg-primary px-3.5 py-2 text-sm text-primary-fg">
-                    <p className="whitespace-pre-wrap break-words">
-                      {optimisticUserMessage}
-                    </p>
+                <AnimatedMessageSlot>
+                  <div className="flex flex-col items-end">
+                    <div className="max-w-[80%] min-w-0 rounded-panel rounded-br-sm bg-primary px-3.5 py-2 text-sm text-primary-fg">
+                      <p className="whitespace-pre-wrap break-words">
+                        {optimisticUserMessage}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex flex-col items-start">
-                  <div className="max-w-[80%] min-w-0 rounded-panel rounded-bl-sm border border-electrode/40 bg-surface-2 px-3.5 py-2 text-sm text-fg-muted">
-                    <p className="inline-flex items-center gap-1.5 animate-pulse motion-reduce:animate-none">
-                      <Sparkles className="h-3.5 w-3.5 text-electrode" aria-hidden />
-                      {t("agent.thinking")}
-                    </p>
+                </AnimatedMessageSlot>
+                <AnimatedMessageSlot>
+                  <div className="flex flex-col items-start">
+                    <div className="max-w-[80%] min-w-0 rounded-panel rounded-bl-sm border border-electrode/40 bg-surface-2 px-3.5 py-2 text-sm text-fg-muted">
+                      <p className="inline-flex items-center gap-1.5 animate-pulse motion-reduce:animate-none">
+                        <Sparkles className="h-3.5 w-3.5 text-electrode" aria-hidden />
+                        {t("agent.thinking")}
+                        <ThinkingDots />
+                      </p>
+                    </div>
                   </div>
-                </div>
+                </AnimatedMessageSlot>
               </>
             ) : null}
 
             {visiblePendingAction ? (
-              <PendingActionCard
-                key={visiblePendingAction.id}
-                action={visiblePendingAction}
-                canWrite={canWrite}
-                disabled={agentDisabled}
-                isConfirming={confirmAction.isPending}
-                isRejecting={rejectAction.isPending}
-                error={actionError}
-                onConfirm={() => void handleConfirm(visiblePendingAction)}
-                onReject={() => void handleReject(visiblePendingAction)}
-              />
+              <AnimatedMessageSlot key={visiblePendingAction.id}>
+                <PendingActionCard
+                  action={visiblePendingAction}
+                  canWrite={canWrite}
+                  disabled={agentDisabled}
+                  isConfirming={confirmAction.isPending}
+                  isRejecting={rejectAction.isPending}
+                  error={actionError}
+                  onConfirm={() => void handleConfirm(visiblePendingAction)}
+                  onReject={() => void handleReject(visiblePendingAction)}
+                />
+              </AnimatedMessageSlot>
             ) : actionError ? (
               <div
                 role="alert"

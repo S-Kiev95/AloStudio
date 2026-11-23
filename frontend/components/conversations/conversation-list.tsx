@@ -42,6 +42,7 @@ import { Highlighted } from "./highlighted";
 import { PanelLeftClose, useInboxPanels } from "./inbox-shell";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { animateRowIgnite } from "@/lib/motion/neon-motion";
 
 const STATUS_PILLS = [
   { key: "open", label: "conversations.list.status.open" },
@@ -152,11 +153,47 @@ export function ConversationList({ accountId }: { accountId: string }) {
   );
   const active = searching ? searchQ : filtering ? filterQ : indexQ;
 
-  const items: Conversation[] = searching
-    ? []
-    : filtering
-      ? (filterQ.data?.payload ?? [])
-      : (indexQ.data?.data.payload ?? []);
+  const items: Conversation[] = useMemo(
+    () =>
+      searching
+        ? []
+        : filtering
+          ? (filterQ.data?.payload ?? [])
+          : (indexQ.data?.data.payload ?? []),
+    [searching, filtering, filterQ.data?.payload, indexQ.data?.data.payload],
+  );
+
+  // Flash newly arrived realtime rows once with the Ignition Rule cobalt glow
+  // without lighting up the initial fetch or filter changes.
+  const listRef = useRef<HTMLUListElement>(null);
+  const seenConvIdsRef = useRef<Set<number> | null>(null);
+  const listFilterKeyRef = useRef<string>("");
+  const listFilterKey = `${accountId}|${status}|${assigneeType ?? ""}|${inboxId ?? ""}|${channelType ?? ""}|${page}|${filtering ? JSON.stringify(filters) : ""}`;
+
+  useEffect(() => {
+    if (listFilterKeyRef.current !== listFilterKey) {
+      listFilterKeyRef.current = listFilterKey;
+      seenConvIdsRef.current = null;
+    }
+    if (active.isLoading || searching) return;
+    if (seenConvIdsRef.current === null) {
+      seenConvIdsRef.current = new Set(items.map((c) => c.id));
+      return;
+    }
+    const cleanups: (() => void)[] = [];
+    for (const c of items) {
+      if (!seenConvIdsRef.current.has(c.id)) {
+        seenConvIdsRef.current.add(c.id);
+        const rowEl = listRef.current?.querySelector<HTMLElement>(
+          `[data-conversation-row="${c.id}"]`,
+        );
+        if (rowEl) cleanups.push(animateRowIgnite(rowEl));
+      }
+    }
+    return () => {
+      for (const cancel of cleanups) cancel();
+    };
+  }, [items, active.isLoading, searching, listFilterKey]);
 
   const meta = searching
     ? undefined // message hits have no per-assignee counts
@@ -622,7 +659,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
                 : t("conversations.list.emptyFilter")}
           </p>
         ) : (
-          <ul className="divide-y divide-glass">
+          <ul ref={listRef} className="divide-y divide-glass">
             {items.map((c) => (
               <ConversationRow
                 key={c.id}
@@ -759,6 +796,7 @@ function ConversationRow({
 
   return (
     <li
+      data-conversation-row={conv.id}
       className={cn(
         "group flex items-center transition-colors",
         active ? "bg-focused" : "hover:bg-hover-glass",
