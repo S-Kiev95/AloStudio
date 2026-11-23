@@ -2,17 +2,18 @@
 
 import { useEffect, useRef } from "react";
 
+import { useAuthSingularity } from "@/components/auth/black-hole-context";
+
 /**
  * 3D channel logos drifting in the empty space of their parent, bouncing off
  * its edges, off each other and off every `[data-bounce]` element inside it,
  * with a rubber squash-and-stretch on each impact.
  *
- * Mount it as a child of a positioned element (`relative`): it fills that
- * element, behind its content, and never takes pointer events.
- *
- * The physics is 2D and runs in CSS pixels; three.js only draws. The camera is
- * orthographic at one unit per pixel, so a body's position is its screen
- * position and DOM rects can be used as obstacles as they are.
+ * Inside `AuthSingularityShell` (login screen), when authentication succeeds,
+ * the same WebGL scene switches into singularity mode: a procedural GLSL
+ * cobalt accretion disk and pitch-black event horizon ignite at the login
+ * card's center, every 3D `.glb` logo spirals inward while stretching like
+ * gum (`squash` group), and the camera plunges into the black hole.
  */
 
 const MODELS = [
@@ -43,6 +44,87 @@ const MAX_TILT = 0.55;
 /** Share of the free space the logos may cover between them. */
 const COVERAGE = 0.2;
 
+const ACCRETION_VERT = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const ACCRETION_FRAG = /* glsl */ `
+  precision highp float;
+  varying vec2 vUv;
+  uniform float uTime;
+  uniform float uDisk;
+  uniform float uHorizon;
+  uniform float uDive;
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+  }
+
+  float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  }
+
+  void main() {
+    vec2 p = (vUv - 0.5) * 2.0;
+    float r = length(p);
+    float rH = 0.21;
+
+    // 1. Deep cobalt gravitational ambient glow
+    float ambient = exp(-pow(max(0.0, r - rH) * 2.4, 1.45)) * 0.72;
+
+    // 2. Gravitationally-lensed upper/lower photon halo (Gargantua arc)
+    float lensedHalo = exp(-pow(max(0.0, r - rH) / 0.14, 1.6)) * 0.92;
+    float photonRing = exp(-pow((r - rH * 1.02) / 0.017, 2.0)) * 1.65;
+
+    // 3. Tilted swirling equatorial accretion disk
+    float c = cos(0.22);
+    float s = sin(0.22);
+    vec2 rp = mat2(c, -s, s, c) * p;
+    vec2 ep = vec2(rp.x, rp.y * 3.55);
+    float er = length(ep);
+    float ang = atan(ep.y, ep.x);
+    float swirl = ang - uTime * 3.8 + 4.2 / (er + 0.22);
+    float n = noise(vec2(cos(swirl) * 2.0 + er * 4.5, sin(swirl) * 2.0 - uTime * 1.2));
+    float bands = 0.55 + 0.45 * sin(er * 48.0 - uTime * 5.0 + n * 3.2);
+    float streaks = 0.65 + 0.35 * sin(swirl * 3.0 + er * 14.0);
+    float diskMask = smoothstep(rH * 0.92, rH * 1.15, er) * smoothstep(0.96, 0.26, er);
+    float diskGlow = diskMask * bands * streaks * 1.35;
+
+    vec3 deepCobalt = vec3(0.114, 0.306, 0.847);   // #1d4ed8
+    vec3 neonCore   = vec3(0.239, 0.420, 1.000);   // #3d6bff
+    vec3 litWhite   = vec3(0.859, 0.894, 1.000);   // #dbe4ff
+
+    vec3 col = deepCobalt * ambient;
+    col += mix(neonCore, litWhite, clamp(exp(-max(0.0, r - rH) * 9.0), 0.0, 1.0)) * lensedHalo;
+    col += mix(neonCore, litWhite, clamp(bands * smoothstep(0.7, 0.22, er), 0.0, 1.0)) * diskGlow;
+    col += litWhite * photonRing;
+
+    float glowAlpha = clamp((ambient + lensedHalo + diskGlow + photonRing) * uDisk, 0.0, 1.0);
+
+    // 4. Event horizon pitch-black sphere occluding the center
+    float sphereEdge = 1.0 - smoothstep(rH - 0.008, rH + 0.008, r);
+    float horizonAlpha = sphereEdge * uHorizon;
+
+    vec3 finalRgb = mix(col * uDisk, vec3(0.0), horizonAlpha);
+    float finalAlpha = max(glowAlpha, horizonAlpha);
+
+    // Fade outer quad edge to zero so no bounding box ever shows
+    finalAlpha *= smoothstep(1.0, 0.88, r);
+    gl_FragColor = vec4(finalRgb, finalAlpha);
+  }
+`;
+
 interface Body {
   x: number;
   y: number;
@@ -59,6 +141,10 @@ interface Body {
   tvx: number;
   tvy: number;
   phase: number;
+  /** Snapshot at singularity start for deterministic spaghettification spiral. */
+  sx: number;
+  sy: number;
+  absorbDelay: number;
 }
 
 interface Rect {
@@ -66,6 +152,10 @@ interface Rect {
   top: number;
   right: number;
   bottom: number;
+}
+
+function clamp01(v: number) {
+  return Math.max(0, Math.min(1, v));
 }
 
 function squashHit(b: Body, nx: number, ny: number, impact: number) {
@@ -102,8 +192,6 @@ function collideRect(b: Body, o: Rect) {
     reflect(b, dx, dy);
     return;
   }
-  // Centre inside the rect (it grew, or the window shrank): leave by the
-  // nearest edge.
   const exits = [
     { d: b.x - o.left, nx: -1, ny: 0 },
     { d: o.right - b.x, nx: 1, ny: 0 },
@@ -151,7 +239,6 @@ function step(
   dt: number,
 ) {
   for (const b of bodies) {
-    // Ease the speed back to cruise: impacts die down, nothing ever stalls.
     const speed = Math.hypot(b.vx, b.vy);
     if (speed < 1) {
       const a = Math.random() * Math.PI * 2;
@@ -200,7 +287,6 @@ function step(
     b.s = Math.max(-0.3, Math.min(0.42, b.s + b.sv * dt));
     b.tvx += (-14 * b.tx - 2.2 * b.tvx) * dt;
     b.tvy += (-14 * b.ty - 2.2 * b.tvy) * dt;
-    // Never past a three-quarter view: edge-on, a logo is just a slab.
     b.tx = Math.max(-MAX_TILT, Math.min(MAX_TILT, b.tx + b.tvx * dt));
     b.ty = Math.max(-MAX_TILT, Math.min(MAX_TILT, b.ty + b.tvy * dt));
     if (Math.abs(b.tx) === MAX_TILT) b.tvx = 0;
@@ -245,6 +331,9 @@ function spawn(r: number, w: number, h: number, obstacles: Rect[], others: Body[
 
 export function FloatingLogos() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const singularity = useAuthSingularity();
+  const singularityRef = useRef(singularity);
+  singularityRef.current = singularity;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -269,11 +358,10 @@ export function FloatingLogos() {
           antialias: true,
         });
       } catch {
-        return; // No WebGL: the page simply has no decoration.
+        singularityRef.current?.registerWebGL(false);
+        return; // No WebGL: fallback CSS handles singularity if active.
       }
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1;
+      singularityRef.current?.registerWebGL(true);
 
       const scene = new THREE.Scene();
       const pmrem = new THREE.PMREMGenerator(renderer);
@@ -291,6 +379,9 @@ export function FloatingLogos() {
         origin = canvas.getBoundingClientRect();
         w = Math.max(1, origin.width);
         h = Math.max(1, origin.height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, w < 480 ? 1.5 : 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1;
         renderer.setSize(w, h, false);
         camera.left = -w / 2;
         camera.right = w / 2;
@@ -299,6 +390,48 @@ export function FloatingLogos() {
         camera.updateProjectionMatrix();
       };
       resize();
+
+      // Procedural GLSL accretion disk + photon ring + black sphere horizon
+      const diskUniforms = {
+        uTime: { value: 0 },
+        uDisk: { value: 0 },
+        uHorizon: { value: 0 },
+        uDive: { value: 0 },
+      };
+      const diskGeo = new THREE.PlaneGeometry(1, 1);
+      const diskMat = new THREE.ShaderMaterial({
+        vertexShader: ACCRETION_VERT,
+        fragmentShader: ACCRETION_FRAG,
+        uniforms: diskUniforms,
+        transparent: true,
+        depthWrite: false,
+      });
+      const diskMesh = new THREE.Mesh(diskGeo, diskMat);
+      diskMesh.visible = false;
+      diskMesh.position.set(0, 0, -140);
+      scene.add(diskMesh);
+
+      // Radial warp streaks for Phase 4 camera plunge
+      const STAR_COUNT = w < 480 ? 40 : 72;
+      const starSeeds = Array.from({ length: STAR_COUNT }, (_, i) => ({
+        angle: (i * 2.399963) % (Math.PI * 2),
+        dist: 70 + (((i * 73) % 100) / 100) * Math.hypot(w, h) * 0.52,
+      }));
+      const starPositions = new Float32Array(STAR_COUNT * 2 * 3);
+      const starGeo = new THREE.BufferGeometry();
+      starGeo.setAttribute(
+        "position",
+        new THREE.BufferAttribute(starPositions, 3),
+      );
+      const starMat = new THREE.LineBasicMaterial({
+        color: 0x93c5fd,
+        transparent: true,
+        opacity: 0,
+      });
+      const starLines = new THREE.LineSegments(starGeo, starMat);
+      starLines.visible = false;
+      starLines.position.set(0, 0, 120);
+      scene.add(starLines);
 
       // A narrow area has room for about half of them.
       const names = w < 480 ? MODELS.slice(0, 6) : MODELS;
@@ -312,6 +445,11 @@ export function FloatingLogos() {
         ),
       );
       if (disposed) {
+        diskGeo.dispose();
+        diskMat.dispose();
+        starGeo.dispose();
+        starMat.dispose();
+        pmrem.dispose();
         renderer.dispose();
         return;
       }
@@ -323,8 +461,6 @@ export function FloatingLogos() {
         unsquash: import("three").Group;
         model: import("three").Object3D;
       }[] = [];
-      // Sized by the screen, then held back so a crowded page still has room
-      // for them to travel.
       const free =
         w * h -
         obstacles.reduce(
@@ -341,15 +477,9 @@ export function FloatingLogos() {
       loaded.forEach((model, i) => {
         if (!model) return;
         const size = base * (0.85 + ((i * 37) % 30) / 100);
-        // Normalise: centred, bounding sphere of radius `size`.
         const box = new THREE.Box3().setFromObject(model);
         const sphere = box.getBoundingSphere(new THREE.Sphere());
         const scale = size / sphere.radius;
-        // The body that collides is the logo's outline as seen from the
-        // front, not that sphere, which also wraps its depth and would keep
-        // the logos visibly apart. Halfway between the circle inside the
-        // outline and the one around it: a disc touches exactly, a tile gives
-        // a little at the corners.
         let around = 0;
         const v = new THREE.Vector3();
         model.traverse((o) => {
@@ -364,7 +494,8 @@ export function FloatingLogos() {
             );
           }
         });
-        const inside = Math.max(box.max.x - box.min.x, box.max.y - box.min.y) / 2;
+        const inside =
+          Math.max(box.max.x - box.min.x, box.max.y - box.min.y) / 2;
         const r = ((inside + around) / 2) * scale;
         const holder = new THREE.Group();
         model.position.sub(sphere.center);
@@ -379,8 +510,9 @@ export function FloatingLogos() {
         nodes.push({ squash, unsquash, model: holder });
 
         const a = Math.random() * Math.PI * 2;
+        const spot = spawn(r, w, h, obstacles, bodies);
         bodies.push({
-          ...spawn(r, w, h, obstacles, bodies),
+          ...spot,
           vx: Math.cos(a) * CRUISE,
           vy: Math.sin(a) * CRUISE,
           r,
@@ -392,6 +524,9 @@ export function FloatingLogos() {
           tvx: 0,
           tvy: 0,
           phase: Math.random() * Math.PI * 2,
+          sx: spot.x,
+          sy: spot.y,
+          absorbDelay: (i / Math.max(1, names.length)) * 0.28,
         });
       });
 
@@ -405,10 +540,123 @@ export function FloatingLogos() {
         pointer.active = false;
       };
 
+      let capturedSingularity = false;
+
       const draw = (t: number) => {
+        const singState = singularityRef.current?.stateRef.current;
+
+        if (singState?.active) {
+          if (!capturedSingularity) {
+            capturedSingularity = true;
+            for (const b of bodies) {
+              b.sx = b.x;
+              b.sy = b.y;
+            }
+          }
+
+          const bhX = singState.cx - origin.left;
+          const bhY = singState.cy - origin.top;
+          const worldBhX = bhX - w / 2;
+          const worldBhY = h / 2 - bhY;
+
+          // Bring canvas above the fading card once the accretion disk ignites
+          if (singState.disk > 0.04) {
+            canvas.style.zIndex = "15";
+          }
+
+          // Update procedural GLSL accretion disk + horizon mesh
+          const diskSize = singState.radius * 9.4;
+          diskMesh.visible = singState.disk > 0.001 || singState.horizon > 0.001;
+          diskMesh.position.set(worldBhX, worldBhY, -140);
+          diskMesh.scale.set(
+            diskSize * (0.45 + 0.55 * singState.disk),
+            diskSize * (0.45 + 0.55 * singState.disk),
+            1,
+          );
+          diskUniforms.uTime.value = t % 1000;
+          diskUniforms.uDisk.value = singState.disk;
+          diskUniforms.uHorizon.value = singState.horizon;
+          diskUniforms.uDive.value = singState.dive;
+
+          // Spiral + gum-stretch ("como chicle") every 3D .glb logo into the black hole
+          const pull = singState.pull;
+          bodies.forEach((b, i) => {
+            const n = nodes[i]!;
+            const localT = clamp01(
+              (pull - b.absorbDelay) / Math.max(0.2, 1 - b.absorbDelay),
+            );
+            const e = localT * localT * localT;
+            const dx0 = b.sx - bhX;
+            const dy0 = b.sy - bhY;
+            const dist0 = Math.hypot(dx0, dy0);
+            const ang0 = Math.atan2(dy0, dx0);
+            const spiralAng = ang0 + e * 3.6;
+            const dist = dist0 * (1 - e * 0.99);
+            const x = bhX + Math.cos(spiralAng) * dist;
+            const y = bhY + Math.sin(spiralAng) * dist;
+
+            const toCenterAxis = -Math.atan2(bhY - y, bhX - x);
+            const stretchX = 1 + Math.pow(localT, 1.25) * 4.6;
+            const stretchY = Math.max(0.16, 1 - Math.pow(localT, 1.15) * 0.82);
+            const stretchZ = Math.max(0.35, 1 - localT * 0.65);
+            const vanish =
+              localT > 0.78 ? 1 - clamp01((localT - 0.78) / 0.22) : 1;
+
+            n.squash.visible = vanish > 0.01;
+            n.squash.position.set(x - w / 2, h / 2 - y, 20);
+            n.squash.rotation.z = toCenterAxis;
+            n.squash.scale.set(
+              stretchX * vanish,
+              stretchY * vanish,
+              stretchZ * vanish,
+            );
+            n.unsquash.rotation.z = -toCenterAxis;
+            n.model.rotation.set(
+              b.tx + localT * 1.4,
+              b.ty + localT * 2.4,
+              localT * 0.9,
+            );
+          });
+
+          // Phase 4: Camera plunges straight into the black hole + radial warp streaks
+          const dive = singState.dive;
+          if (dive > 0.001) {
+            camera.position.set(worldBhX * dive, worldBhY * dive, 0);
+            camera.zoom = 1 + dive * 10.5;
+            camera.updateProjectionMatrix();
+
+            starLines.visible = true;
+            starMat.opacity = Math.min(0.85, dive * 1.35);
+            const posAttr = starGeo.getAttribute(
+              "position",
+            ) as import("three").BufferAttribute;
+            const arr = posAttr.array as Float32Array;
+            for (let i = 0; i < starSeeds.length; i++) {
+              const s = starSeeds[i]!;
+              const d1 = s.dist * (1 + dive * 1.8);
+              const len = 12 + dive * 160;
+              const cosA = Math.cos(s.angle);
+              const sinA = Math.sin(s.angle);
+              const idx = i * 6;
+              arr[idx] = worldBhX + cosA * d1;
+              arr[idx + 1] = worldBhY + sinA * d1;
+              arr[idx + 2] = 0;
+              arr[idx + 3] = worldBhX + cosA * (d1 + len);
+              arr[idx + 4] = worldBhY + sinA * (d1 + len);
+              arr[idx + 5] = 0;
+            }
+            posAttr.needsUpdate = true;
+          } else {
+            starLines.visible = false;
+          }
+
+          renderer.render(scene, camera);
+          return;
+        }
+
+        // Normal idle bouncing mode
         bodies.forEach((b, i) => {
           const n = nodes[i]!;
-          // Screen y grows downwards, world y upwards.
           const axis = -b.axis;
           n.squash.position.set(b.x - w / 2, h / 2 - b.y, 0);
           n.squash.rotation.z = axis;
@@ -423,7 +671,9 @@ export function FloatingLogos() {
         renderer.render(scene, camera);
       };
 
-      const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const still = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
       let raf = 0;
       let last = performance.now();
       let sinceRects = 0;
@@ -431,16 +681,17 @@ export function FloatingLogos() {
         raf = requestAnimationFrame(frame);
         const dt = Math.min(0.033, (now - last) / 1000);
         last = now;
-        sinceRects += dt;
-        if (sinceRects > 0.3) {
-          sinceRects = 0;
-          // Scrolling moves the canvas on screen, so its origin is re-read too.
-          origin = canvas.getBoundingClientRect();
-          obstacles = readObstacles(host, origin);
+        const singActive = Boolean(singularityRef.current?.stateRef.current.active);
+        if (!singActive) {
+          sinceRects += dt;
+          if (sinceRects > 0.3) {
+            sinceRects = 0;
+            origin = canvas.getBoundingClientRect();
+            obstacles = readObstacles(host, origin);
+          }
+          step(bodies, obstacles, w, h, pointer, dt / 2);
+          step(bodies, obstacles, w, h, pointer, dt / 2);
         }
-        // Two substeps keep fast rebounds from tunnelling through thin edges.
-        step(bodies, obstacles, w, h, pointer, dt / 2);
-        step(bodies, obstacles, w, h, pointer, dt / 2);
         draw(now / 1000);
       };
       const onVisibility = () => {
@@ -471,6 +722,10 @@ export function FloatingLogos() {
         window.removeEventListener("pointermove", onMove);
         document.removeEventListener("pointerleave", onLeave);
         document.removeEventListener("visibilitychange", onVisibility);
+        diskGeo.dispose();
+        diskMat.dispose();
+        starGeo.dispose();
+        starMat.dispose();
         scene.traverse((o) => {
           const mesh = o as import("three").Mesh;
           mesh.geometry?.dispose();

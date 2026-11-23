@@ -1180,8 +1180,10 @@ Detalle en `PLAN.i18n.md`.
 - **Tests de webhooks** (`test_webhooks_router.py`): dos fallan cuando hay
   Redis al alcance, porque la entrega se encola en el worker. Hacer que el
   test fuerce la entrega inmediata.
-- **Colores con transparencia** (`bg-x/NN` sobre colores del tema) no generan
-  CSS: falta el arreglo central en la configuración de Tailwind.
+- **Colores con transparencia** (`bg-x/NN` sobre colores del tema) — **resuelto
+  en `feat/neon-ux` (2026-11-23):** canales `--*-rgb` en `frontend/app/globals.css`
+  y `rgb(var(--*-rgb) / <alpha-value>)` en `frontend/tailwind.config.ts` (repara
+  las 80 ocurrencias en 47 archivos).
 - **Flecha de prioridad en la Bandeja (pedido del director de CTC,
   2026-11-19, agente A):** al lado de la fecha, roja y doble Urgente,
   amarilla Alta, normal Media, gris Baja. En `main` (dda6ed4) y en
@@ -1200,8 +1202,31 @@ Detalle en `PLAN.i18n.md`.
     `docs/neon/propuesta-animejs-v4.md`. Nota: `npx skills add
     https://github.com/heygen-com/hyperframes --skill animejs` respondió que
     la skill `animejs` ya no existe con ese nombre en el repo de `hyperframes`.
-  - Boceto técnico, capturas cuadro a cuadro y prototipo interactivo navegable
-    del login con agujero negro en `docs/neon/propuesta-login-agujero-negro.md`
-    y `docs/neon/prototipo-agujero-negro.html`. **Esperando OK del dueño**
-    antes de implementar en `frontend/` (y antes de tocar los pendientes del
-    informe).
+  - **Implementado en `feat/neon-ux` (2026-11-23, tras OK del dueño):**
+    - **Login con agujero negro (`animejs` v4.5.0 + Three.js GLSL):**
+      `frontend/lib/motion/neon-motion.ts`, `frontend/components/auth/black-hole-context.tsx`,
+      `frontend/app/(auth)/layout.tsx`, `frontend/app/(auth)/login/page.tsx` y
+      `frontend/components/brand/floating-logos.tsx`. Fractura de campos hacia
+      el centro, colapso de la tarjeta a esfera negra con disco de acreción azul
+      cobalto GLSL procedural, estiramiento "chicle" sobre los modelos `.glb` 3D
+      reales y caída de cámara al Inicio en `2,5 s`, con `router.prefetch`,
+      fallback CSS sin WebGL, soporte móvil y transición simple (`220 ms`) bajo
+      `prefers-reduced-motion: reduce`. Texto `auth.login.entering` en los 7 idiomas.
+    - **P0 #1 — Opacidad central Tailwind (`<alpha-value>`):** canales RGB en
+      `frontend/app/globals.css` + `frontend/tailwind.config.ts`.
+    - **P0 #2 — Barra superior en celular y popovers fijos:** `dashboard-shell.tsx`
+      (cartel `.neon-sign` sin recorte `max-lg:truncate`, `ThemeToggle` y
+      `AccountSwitcher` al pie del cajón móvil animado con Anime.js v4 y cierre
+      con `Escape`), `help-button.tsx` y `notification-bell.tsx` (popovers fijos
+      `max-sm:fixed max-sm:inset-x-3` sin desborde, cierre con `Escape` y botón
+      borrar visible en móvil), `account-switcher.tsx` y `agent-menu.tsx` (cierre
+      al clic exterior y `Escape`).
+    - **P0 #3 — Pestañas CRM con scroll horizontal + Ajustes agrupado:**
+      `tabs.tsx` (`flex-nowrap overflow-x-auto sm:flex-wrap`, auto-scroll al tab
+      activo y navegación por teclado `ArrowLeft`/`ArrowRight`) y
+      `settings-sidebar.tsx` (6 grupos temáticos + buscador rápido en escritorio +
+      selector `<select>` agrupado en celular, con claves en los 7 idiomas).
+    - Pruebas nuevas y actualizadas (`black-hole-login.test.tsx`,
+      `settings-sidebar.test.tsx`, `dashboard-shell.test.tsx`, `tabs.test.tsx`)
+      y capturas antes/después en `docs/neon/capturas/despues-*.png`.
+    - Pendiente de OK para pushear/mezclar y continuar con P1 del informe UI/UX.
