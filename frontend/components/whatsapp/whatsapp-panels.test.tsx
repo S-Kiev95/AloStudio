@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { ROLE_ADMINISTRATOR } from "@/lib/api/account";
+import { I18nProvider } from "@/lib/i18n/provider";
 
 import { BroadcastsPanel } from "./broadcasts-panel";
 import { BusinessProfilePanel } from "./business-profile-panel";
@@ -251,5 +252,17 @@ describe("WhatsApp section panels", () => {
         processed_params: { body: { "1": "{primer_nombre}" } },
       },
     });
+  });
+
+  it("renders translated copy when locale is switched to English", async () => {
+    wrap(
+      <I18nProvider locale="en">
+        <NumberStatusPanel accountId="1" inboxId={7} />
+      </I18nProvider>,
+    );
+    expect(await screen.findByText("Connected")).toBeInTheDocument();
+    expect(screen.getByText("Low")).toBeInTheDocument();
+    expect(screen.getByText("1,000 new contacts per day")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
   });
 });

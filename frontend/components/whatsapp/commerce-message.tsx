@@ -10,10 +10,12 @@ import {
   type WhatsappOrderAttrs,
   type WhatsappProductsAttrs,
 } from "@/lib/api/whatsapp-catalog";
+import { useT } from "@/lib/i18n/provider";
 
 /** Products sent from the catalogue, or an order a contact sent back, as
  *  the bubble's body (instead of the plain-text summary in `content`). */
 export function CommerceMessage({ message }: { message: Message }) {
+  const t = useT();
   const params = useParams<{ accountId?: string }>();
   const attrs = message.content_attributes ?? {};
   const products = attrs.whatsapp_products as WhatsappProductsAttrs | undefined;
@@ -24,9 +26,14 @@ export function CommerceMessage({ message }: { message: Message }) {
       <div className="space-y-2" data-testid="whatsapp-products-message">
         <p className="flex items-center gap-1.5 text-xs font-semibold opacity-85">
           <ShoppingBag className="h-3.5 w-3.5" aria-hidden />
-          {products.header || (products.items.length > 1 ? "Productos" : "Producto")}
+          {products.header ||
+            (products.items.length > 1
+              ? t("whatsapp.commerce.productPlural")
+              : t("whatsapp.commerce.productSingular"))}
         </p>
-        {products.body ? <p className="whitespace-pre-wrap break-words">{products.body}</p> : null}
+        {products.body ? (
+          <p className="whitespace-pre-wrap break-words">{products.body}</p>
+        ) : null}
         <ul className="space-y-1.5">
           {products.items.map((item) => (
             <li
@@ -61,7 +68,7 @@ export function CommerceMessage({ message }: { message: Message }) {
       <div className="space-y-2" data-testid="whatsapp-order-message">
         <p className="flex items-center gap-1.5 text-xs font-semibold">
           <ShoppingCart className="h-3.5 w-3.5" aria-hidden />
-          Pedido desde el catálogo
+          {t("whatsapp.commerce.orderHeading")}
         </p>
         <ul className="space-y-1">
           {order.items.map((item) => (
@@ -76,7 +83,7 @@ export function CommerceMessage({ message }: { message: Message }) {
           ))}
         </ul>
         <p className="flex justify-between gap-4 border-t border-glass pt-1.5 font-semibold">
-          <span>Total</span>
+          <span>{t("whatsapp.commerce.total")}</span>
           <span className="tabular-nums">{formatPrice(order.total, order.currency)}</span>
         </p>
         {order.note ? <p className="whitespace-pre-wrap break-words">{order.note}</p> : null}
@@ -85,7 +92,7 @@ export function CommerceMessage({ message }: { message: Message }) {
             href={`/accounts/${params.accountId}/opportunities`}
             className="inline-block text-xs text-lit underline-offset-2 hover:underline"
           >
-            Se abrió una oportunidad en el embudo
+            {t("whatsapp.commerce.opportunityOpened")}
           </Link>
         ) : null}
       </div>

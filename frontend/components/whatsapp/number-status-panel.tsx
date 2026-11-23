@@ -4,6 +4,8 @@ import { RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useWhatsappPhoneStatus } from "@/lib/api/whatsapp-business";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 type Tone = "good" | "warn" | "bad" | "neutral";
@@ -15,52 +17,70 @@ const TONE_CLASS: Record<Tone, string> = {
   neutral: "border-glass text-fg-muted",
 };
 
-const QUALITY: Record<string, { label: string; tone: Tone }> = {
-  GREEN: { label: "Alta", tone: "good" },
-  YELLOW: { label: "Media", tone: "warn" },
-  RED: { label: "Baja", tone: "bad" },
+const QUALITY: Record<string, { labelKey: MessageKey; tone: Tone }> = {
+  GREEN: { labelKey: "whatsapp.numberStatus.quality.high", tone: "good" },
+  YELLOW: { labelKey: "whatsapp.numberStatus.quality.medium", tone: "warn" },
+  RED: { labelKey: "whatsapp.numberStatus.quality.low", tone: "bad" },
 };
 
-const NAME_STATUS: Record<string, { label: string; tone: Tone }> = {
-  APPROVED: { label: "Aprobado", tone: "good" },
-  AVAILABLE_WITHOUT_REVIEW: { label: "Aprobado", tone: "good" },
-  PENDING_REVIEW: { label: "En revisión", tone: "warn" },
-  DECLINED: { label: "Rechazado", tone: "bad" },
-  EXPIRED: { label: "Vencido", tone: "bad" },
-  NONE: { label: "Sin revisar", tone: "neutral" },
+const NAME_STATUS: Record<string, { labelKey: MessageKey; tone: Tone }> = {
+  APPROVED: { labelKey: "whatsapp.numberStatus.nameStatus.approved", tone: "good" },
+  AVAILABLE_WITHOUT_REVIEW: {
+    labelKey: "whatsapp.numberStatus.nameStatus.approved",
+    tone: "good",
+  },
+  PENDING_REVIEW: {
+    labelKey: "whatsapp.numberStatus.nameStatus.pendingReview",
+    tone: "warn",
+  },
+  DECLINED: { labelKey: "whatsapp.numberStatus.nameStatus.declined", tone: "bad" },
+  EXPIRED: { labelKey: "whatsapp.numberStatus.nameStatus.expired", tone: "bad" },
+  NONE: { labelKey: "whatsapp.numberStatus.nameStatus.none", tone: "neutral" },
 };
 
-const CONNECTION: Record<string, { label: string; tone: Tone }> = {
-  CONNECTED: { label: "Conectado", tone: "good" },
-  PENDING: { label: "Pendiente", tone: "warn" },
-  MIGRATED: { label: "Migrado", tone: "warn" },
-  FLAGGED: { label: "Marcado por Meta", tone: "warn" },
-  RESTRICTED: { label: "Restringido", tone: "bad" },
-  RATE_LIMITED: { label: "Limitado", tone: "bad" },
-  DISCONNECTED: { label: "Desconectado", tone: "bad" },
-  OFFLINE: { label: "Sin conexión", tone: "bad" },
-  BANNED: { label: "Bloqueado", tone: "bad" },
-  DELETED: { label: "Borrado", tone: "bad" },
+const CONNECTION: Record<string, { labelKey: MessageKey; tone: Tone }> = {
+  CONNECTED: { labelKey: "whatsapp.numberStatus.connection.connected", tone: "good" },
+  PENDING: { labelKey: "whatsapp.numberStatus.connection.pending", tone: "warn" },
+  MIGRATED: { labelKey: "whatsapp.numberStatus.connection.migrated", tone: "warn" },
+  FLAGGED: { labelKey: "whatsapp.numberStatus.connection.flagged", tone: "warn" },
+  RESTRICTED: { labelKey: "whatsapp.numberStatus.connection.restricted", tone: "bad" },
+  RATE_LIMITED: { labelKey: "whatsapp.numberStatus.connection.rateLimited", tone: "bad" },
+  DISCONNECTED: { labelKey: "whatsapp.numberStatus.connection.disconnected", tone: "bad" },
+  OFFLINE: { labelKey: "whatsapp.numberStatus.connection.offline", tone: "bad" },
+  BANNED: { labelKey: "whatsapp.numberStatus.connection.banned", tone: "bad" },
+  DELETED: { labelKey: "whatsapp.numberStatus.connection.deleted", tone: "bad" },
 };
 
-/** `TIER_1K` → "1.000 contactos nuevos por día". */
-export function messagingLimitLabel(limit: string | null): string | null {
+/** `TIER_1K` → "1.000 contactos nuevos por día" (or translated equivalent). */
+export function messagingLimitLabel(
+  limit: string | null,
+  opts?: {
+    unlimited?: string;
+    perDay?: (formattedCount: string) => string;
+    localeTag?: string;
+  },
+): string | null {
   if (!limit) return null;
-  if (/UNLIMITED/i.test(limit)) return "Sin límite";
+  if (/UNLIMITED/i.test(limit)) return opts?.unlimited ?? "Sin límite";
   const match = /(\d+)\s*(K)?/i.exec(limit);
   if (!match) return limit;
   const n = Number(match[1]) * (match[2] ? 1000 : 1);
-  return `${n.toLocaleString("es-UY")} contactos nuevos por día`;
+  const formatted = n.toLocaleString(opts?.localeTag ?? "es-UY");
+  return opts?.perDay
+    ? opts.perDay(formatted)
+    : `${formatted} contactos nuevos por día`;
 }
 
 function Fact({
   title,
   value,
+  emptyLabel,
   tone = "neutral",
   hint,
 }: {
   title: string;
   value: string | null;
+  emptyLabel: string;
   tone?: Tone;
   hint: string;
 }) {
@@ -73,7 +93,7 @@ function Fact({
           TONE_CLASS[value ? tone : "neutral"],
         )}
       >
-        {value ?? "Sin dato"}
+        {value ?? emptyLabel}
       </p>
       <p className="mt-2 text-xs leading-snug text-fg-muted">{hint}</p>
     </div>
@@ -89,13 +109,17 @@ export function NumberStatusPanel({
   accountId: string;
   inboxId: number;
 }) {
+  const t = useT();
+  const intlTag = useIntlTag();
   const q = useWhatsappPhoneStatus(accountId, inboxId);
 
-  if (q.isLoading) return <p className="text-sm text-fg-muted">Consultando a Meta…</p>;
+  if (q.isLoading) {
+    return <p className="text-sm text-fg-muted">{t("whatsapp.common.queryingMeta")}</p>;
+  }
   if (q.isError || !q.data) {
     return (
       <p role="alert" className="text-sm text-danger">
-        {(q.error as Error | null)?.message ?? "No se pudo consultar el número en Meta."}
+        {(q.error as Error | null)?.message ?? t("whatsapp.numberStatus.loadError")}
       </p>
     );
   }
@@ -103,12 +127,15 @@ export function NumberStatusPanel({
   const quality = QUALITY[(s.quality_rating ?? "").toUpperCase()];
   const name = NAME_STATUS[(s.name_status ?? "").toUpperCase()];
   const connection = CONNECTION[(s.status ?? "").toUpperCase()];
+  const emptyLabel = t("whatsapp.common.noData");
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-lg font-semibold text-fg">{s.verified_name ?? "Sin nombre"}</p>
+          <p className="text-lg font-semibold text-fg">
+            {s.verified_name ?? t("whatsapp.common.withoutName")}
+          </p>
           <p className="text-sm text-fg-muted">
             {s.display_phone_number ?? s.phone_number ?? ""}
           </p>
@@ -121,33 +148,41 @@ export function NumberStatusPanel({
           onClick={() => void q.refetch()}
         >
           <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-          Actualizar
+          {t("whatsapp.common.refresh")}
         </Button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Fact
-          title="Conexión"
-          value={connection?.label ?? s.status}
+          title={t("whatsapp.numberStatus.connectionTitle")}
+          value={connection ? t(connection.labelKey) : s.status}
+          emptyLabel={emptyLabel}
           tone={connection?.tone}
-          hint="Si no dice Conectado, los mensajes no salen: revisalo en el administrador de WhatsApp de Meta."
+          hint={t("whatsapp.numberStatus.connectionHint")}
         />
         <Fact
-          title="Calidad"
-          value={quality?.label ?? s.quality_rating}
+          title={t("whatsapp.numberStatus.qualityTitle")}
+          value={quality ? t(quality.labelKey) : s.quality_rating}
+          emptyLabel={emptyLabel}
           tone={quality?.tone}
-          hint="Baja cuando muchos contactos bloquean o reportan los mensajes. Con calidad baja, Meta puede limitar el número."
+          hint={t("whatsapp.numberStatus.qualityHint")}
         />
         <Fact
-          title="Límite por día"
-          value={messagingLimitLabel(s.messaging_limit)}
-          hint="Cuántas conversaciones nuevas podés empezar con plantillas en 24 h. Sube solo si mandás mucho con buena calidad."
+          title={t("whatsapp.numberStatus.limitTitle")}
+          value={messagingLimitLabel(s.messaging_limit, {
+            unlimited: t("whatsapp.numberStatus.unlimited"),
+            perDay: (count) => t("whatsapp.numberStatus.perDay", { count }),
+            localeTag: intlTag,
+          })}
+          emptyLabel={emptyLabel}
+          hint={t("whatsapp.numberStatus.limitHint")}
         />
         <Fact
-          title="Nombre visible"
-          value={name?.label ?? s.name_status}
+          title={t("whatsapp.numberStatus.displayNameTitle")}
+          value={name ? t(name.labelKey) : s.name_status}
+          emptyLabel={emptyLabel}
           tone={name?.tone}
-          hint="El nombre que ven los contactos arriba del chat. Se cambia en el administrador de WhatsApp de Meta."
+          hint={t("whatsapp.numberStatus.displayNameHint")}
         />
       </div>
 
@@ -156,9 +191,7 @@ export function NumberStatusPanel({
           role="alert"
           className="rounded-lg border border-danger px-3 py-2 text-sm text-danger"
         >
-          Meta marcó un problema con este número. Antes de un envío masivo,
-          esperá a que la calidad vuelva a subir: mandar más puede terminar en
-          un bloqueo.
+          {t("whatsapp.numberStatus.problemAlert")}
         </p>
       ) : null}
     </div>
