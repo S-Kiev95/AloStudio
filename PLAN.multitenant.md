@@ -489,9 +489,12 @@ créditos.
   llamar no aparece sin llamadas, y en el número se pueden apagar pero no
   prender. Apagado en vez de oculto, para que se vea qué da un plan mayor.
   La API sigue rechazando igual (403).
-- Prueba gratis una sola vez: después de cancelar, los planes vuelven a
-  ofrecer 30 días gratis. Revisar si Polar lo limita por cliente o
-  limitarlo acá.
+- ~~Prueba gratis una sola vez~~ **Hecho (2026-11-23):** la suscripción
+  guarda `trial_used` en cuanto Polar la manda en `trialing` (o con
+  `trial_start`); desde ahí `/billing/plans` no ofrece días gratis y el
+  checkout va con `allow_trial: false`. Para quien abre otra cuenta con el
+  mismo correo o la misma tarjeta: prender **Prevent trial abuse** en Polar
+  (Ajustes de la organización → Suscripciones), en sandbox y en producción.
 - Pago rechazado y renovación en sandbox (ver arriba).
 - El registro dice solo "No se pudo crear la cuenta" cuando el correo no
   es válido: mostrar el motivo.

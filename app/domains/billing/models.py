@@ -88,6 +88,10 @@ class AccountSubscription(TimestampMixin, table=True):
     credit_notified_level: int = Field(
         default=0, sa_column=Column(Integer, nullable=False, server_default="0")
     )
+    # The account already had a free trial: no second one (F2).
+    trial_used: bool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default="false")
+    )
     # The day an unusually high AI spend was last reported (once a day).
     spike_notified_on: date | None = Field(
         default=None, sa_column=Column(Date, nullable=True)

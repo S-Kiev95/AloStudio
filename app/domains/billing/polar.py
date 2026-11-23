@@ -160,8 +160,10 @@ async def create_checkout(
     customer_email: str | None,
     success_url: str,
     amount_cents: int | None = None,
+    allow_trial: bool = True,
 ) -> str:
-    """``amount_cents`` sets the amount of a pay-what-you-want price."""
+    """``amount_cents`` sets the amount of a pay-what-you-want price;
+    ``allow_trial=False`` leaves out the product's free trial."""
     payload: dict[str, Any] = {
         "products": [product_id],
         "external_customer_id": str(account_id),
@@ -171,6 +173,8 @@ async def create_checkout(
     }
     if amount_cents is not None:
         payload["amount"] = amount_cents
+    if not allow_trial:
+        payload["allow_trial"] = False
     try:
         body = await _call("POST", "/checkouts/", json=payload)
     except PolarRejected as exc:

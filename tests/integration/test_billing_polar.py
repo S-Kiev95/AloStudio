@@ -693,3 +693,44 @@ async def test_a_single_tenant_install_includes_everything(client, db_session):
     await _with_plan(db_session, owner.account.id, BASIC)
     allows = (await client.get(f"/api/v1/accounts/{owner.account.id}/billing", headers=headers)).json()["allows"]
     assert allows == {"inbox_channels": None, "networks": None, "whatsapp_calls": True}
+
+
+async def test_one_free_trial_per_account(client, db_session):
+    owner, headers = await _owner(db_session, "-trial")
+    account_id = owner.account.id
+    base = f"/api/v1/accounts/{account_id}/billing"
+    trialing = {
+        "type": "subscription.created",
+        "data": {
+            "id": "sub_trial_1", "status": "trialing", "product_id": "prod_basic",
+            "product": {"id": "prod_basic", "name": "Basic", "metadata": {}},
+            "customer": {"id": "cus_t", "external_id": str(account_id)},
+            "metadata": {"account_id": str(account_id)},
+        },
+    }
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(f"{SANDBOX}/products/").mock(
+            return_value=httpx.Response(200, json={"items": [
+                {"id": "prod_basic", "name": "Basic", "recurring_interval": "month",
+                 "trial_interval": "day", "trial_interval_count": 30,
+                 "prices": [{"price_amount": 1000, "price_currency": "usd"}]},
+            ]})
+        )
+        checkout = mock.post(f"{SANDBOX}/checkouts/").mock(
+            return_value=httpx.Response(201, json={"url": "https://sandbox.polar.sh/checkout/t"})
+        )
+        # Before: the trial is offered and the checkout keeps it.
+        plans = (await client.get(f"{base}/plans", headers=headers)).json()["plans"]
+        assert plans[0]["trial_days"] == 30
+        await client.post(f"{base}/checkout", json={"product_id": "prod_basic"}, headers=headers)
+        assert "allow_trial" not in json.loads(checkout.calls.last.request.content)
+
+        # It had its trial, then canceled: no second one.
+        assert (await _post(client, trialing, "wh_trial_1")).status_code == 202
+        canceled = {**trialing, "type": "subscription.canceled",
+                    "data": {**trialing["data"], "status": "canceled"}}
+        assert (await _post(client, canceled, "wh_trial_2")).status_code == 202
+        plans = (await client.get(f"{base}/plans", headers=headers)).json()["plans"]
+        assert plans[0]["trial_days"] is None
+        await client.post(f"{base}/checkout", json={"product_id": "prod_basic"}, headers=headers)
+        assert json.loads(checkout.calls.last.request.content)["allow_trial"] is False

@@ -1,5 +1,6 @@
 """billing: when the admins were told about the plan's AI cap, their AI
-credit running low and an unusual day of AI spend (F2 paso 3)
+credit running low and an unusual day of AI spend; whether the account
+already had its free trial (F2 paso 3)
 
 Revision ID: c8e0a2b4d6f1
 Revises: a6b8d0f2c4e1
@@ -41,9 +42,14 @@ def upgrade() -> None:
         "account_subscriptions",
         sa.Column("spike_notified_on", sa.Date(), nullable=True),
     )
+    op.add_column(
+        "account_subscriptions",
+        sa.Column("trial_used", sa.Boolean(), nullable=False, server_default=sa.false()),
+    )
 
 
 def downgrade() -> None:
+    op.drop_column("account_subscriptions", "trial_used")
     op.drop_column("account_subscriptions", "spike_notified_on")
     op.drop_column("account_subscriptions", "credit_notified_level")
     op.drop_column("account_subscriptions", "credit_notified_purchase_id")

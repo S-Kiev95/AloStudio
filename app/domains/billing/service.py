@@ -70,6 +70,8 @@ async def _apply_subscription(session: AsyncSession, data: dict[str, Any]) -> No
     sub.product_id = str(data.get("product_id") or product.get("id") or "") or None
     sub.plan_name = product.get("name") or sub.plan_name
     sub.status = str(data.get("status") or sub.status)
+    # Once trialing, always "had a trial": the next checkout goes without one.
+    sub.trial_used = sub.trial_used or sub.status == "trialing" or bool(data.get("trial_start"))
     sub.current_period_end = _parse_dt(data.get("current_period_end"))
     sub.cancel_at_period_end = bool(data.get("cancel_at_period_end"))
     if isinstance(product.get("metadata"), dict):
@@ -203,6 +205,12 @@ async def handle_webhook(
     return outcome
 
 
+async def trial_used(session: AsyncSession, account_id: int) -> bool:
+    """Whether the account already had its free trial (one per account)."""
+    sub = await subscription_for(session, account_id)
+    return sub is not None and sub.trial_used
+
+
 async def has_paid_access(session: AsyncSession, account_id: int) -> bool:
     """Always on a single-tenant install (CTC, Enterprise); on a multitenant
     one, only while Polar's subscription is ``active`` or ``trialing``."""
@@ -330,4 +338,5 @@ __all__ = [
     "plan_usage_cap",
     "present_subscription",
     "subscription_for",
+    "trial_used",
 ]

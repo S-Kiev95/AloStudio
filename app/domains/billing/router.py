@@ -37,6 +37,7 @@ from app.domains.billing.service import (
     plan_usage_cap,
     present_subscription,
     subscription_for,
+    trial_used,
 )
 from app.domains.usage.limits import ai_month_spend, credit_balance
 
@@ -134,14 +135,21 @@ async def billing_credits_checkout(
 @router.get("/plans")
 async def billing_plans(
     ctx: Annotated[AccountContext, Depends(require_billing_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
-    return {"plans": await polar.list_plans()}
+    assert ctx.account.id is not None
+    plans = await polar.list_plans()
+    if await trial_used(session, ctx.account.id):
+        # One free trial per account: the checkout goes without it too.
+        plans = [{**p, "trial_days": None} for p in plans]
+    return {"plans": plans}
 
 
 @router.post("/checkout")
 async def billing_checkout(
     body: CheckoutBody,
     ctx: Annotated[AccountContext, Depends(require_billing_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
     base = get_settings().app_base_url.rstrip("/")
@@ -150,6 +158,7 @@ async def billing_checkout(
         product_id=body.product_id,
         customer_email=ctx.user.email,
         success_url=f"{base}/accounts/{ctx.account.id}/settings/billing?checkout_id={{CHECKOUT_ID}}",
+        allow_trial=not await trial_used(session, ctx.account.id),
     )
     return {"url": url}
 
