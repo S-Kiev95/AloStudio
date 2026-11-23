@@ -25,6 +25,7 @@ import { CompanyForm } from "./company-form";
 import { ContactPicker } from "./contact-picker";
 import { formatMoney } from "./money";
 import { stageLabel } from "./stage-label";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 /** One company: its details, its people, and their opportunities. */
 export function CompanyDetailView({
@@ -34,6 +35,7 @@ export function CompanyDetailView({
   accountId: string;
   companyId: number;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const intlTag = useIntlTag();
   const router = useRouter();
@@ -59,7 +61,7 @@ export function CompanyDetailView({
 
   async function handleDelete() {
     if (!company) return;
-    if (!window.confirm(t("companies.deleteConfirm", { name: company.name }))) return;
+    if (!(await confirm(t("companies.deleteConfirm", { name: company.name })))) return;
     try {
       await remove.mutateAsync(companyId);
       router.push(`/accounts/${accountId}/companies`);

@@ -329,11 +329,11 @@ dentro de la rama.
   portfolio CTC Salto, darle el catálogo al usuario del sistema y pegar
   ID + token en CRM → Productos. En develop se probó entero con el catálogo
   "AloStudio develop (prueba)" (1416439070648332, portfolio Skiev Dev).
-- Pendiente: textos de la sección sin
-  traducir (solo español); encabezados con imagen, video o documento;
+- Pendiente: encabezados con imagen, video o documento;
   avisos cuando Meta baja la calidad del número (webhooks
   `phone_number_quality_update` y `account_update`, hay que suscribirlos);
-  ritmo de envío según el límite diario en envíos grandes.
+  ritmo de envío según el límite diario en envíos grandes. (Textos de la
+  sección traducidos a los 7 idiomas en `feat/neon-ux`, 2026-11-23.)
 - Ideas del dueño para envíos masivos (2026-11-13, para otro día):
   variables que tomen atributos de entidades (ej. `{{1}}` el nombre del
   contacto y `{{2}}` la fecha de su turno en la Agenda, o datos del CRM) y
@@ -1184,8 +1184,10 @@ Detalle en `PLAN.i18n.md`.
 - **Tests de webhooks** (`test_webhooks_router.py`): dos fallan cuando hay
   Redis al alcance, porque la entrega se encola en el worker. Hacer que el
   test fuerce la entrega inmediata.
-- **Colores con transparencia** (`bg-x/NN` sobre colores del tema) no generan
-  CSS: falta el arreglo central en la configuración de Tailwind.
+- **Colores con transparencia** (`bg-x/NN` sobre colores del tema) — **resuelto
+  en `feat/neon-ux` (2026-11-23):** canales `--*-rgb` en `frontend/app/globals.css`
+  y `rgb(var(--*-rgb) / <alpha-value>)` en `frontend/tailwind.config.ts` (repara
+  las 80 ocurrencias en 47 archivos).
 - **Flecha de prioridad en la Bandeja (pedido del director de CTC,
   2026-11-19, agente A):** al lado de la fecha, roja y doble Urgente,
   amarilla Alta, normal Media, gris Baja. En `main` (dda6ed4) y en
@@ -1194,3 +1196,102 @@ Detalle en `PLAN.i18n.md`.
 - **Tests del panel que tardan:** `templates-panel.test.tsx` y
   `autoposts-view.test.tsx` pasan solos pero se pasan de los 5 s cuando
   corre toda la suite (visto en `main` el 2026-11-19).
+- **Auditoría estética neón, propuesta Anime.js v4 y prototipo de login con
+  agujero negro (2026-11-23, rama `feat/neon-ux`):**
+  - Informe completo de UI/UX ordenado por impacto con 14 hallazgos, capturas
+    reales (escritorio y móvil) y referencias `archivo:línea` en
+    `docs/neon/informe-ui-ux.md` (sin cambios de código).
+  - Propuesta de integración de **Anime.js v4** (`animejs`) respetando
+    *The Ignition Rule* y `prefers-reduced-motion` en
+    `docs/neon/propuesta-animejs-v4.md`. Nota: `npx skills add
+    https://github.com/heygen-com/hyperframes --skill animejs` respondió que
+    la skill `animejs` ya no existe con ese nombre en el repo de `hyperframes`.
+  - **Implementado en `feat/neon-ux` (2026-11-23, tras OK del dueño):**
+    - **Login con agujero negro (`animejs` v4.5.0 + Three.js GLSL):**
+      `frontend/lib/motion/neon-motion.ts`, `frontend/components/auth/black-hole-context.tsx`,
+      `frontend/app/(auth)/layout.tsx`, `frontend/app/(auth)/login/page.tsx` y
+      `frontend/components/brand/floating-logos.tsx`. Fractura de campos hacia
+      el centro, colapso de la tarjeta a esfera negra con disco de acreción azul
+      cobalto GLSL procedural, estiramiento "chicle" sobre los modelos `.glb` 3D
+      reales y caída de cámara al Inicio en `5 s` (fases escaladas en
+      proporción), con `router.prefetch`, fallback CSS sin WebGL, soporte móvil
+      y transición simple (`220 ms`) bajo `prefers-reduced-motion: reduce`.
+      Texto `auth.login.entering` en los 7 idiomas.
+    - **P0 #1 — Opacidad central Tailwind (`<alpha-value>`):** canales RGB en
+      `frontend/app/globals.css` + `frontend/tailwind.config.ts`.
+    - **P0 #2 — Barra superior en celular y popovers fijos:** `dashboard-shell.tsx`
+      (cartel `.neon-sign` sin recorte `max-lg:truncate`, `ThemeToggle` y
+      `AccountSwitcher` al pie del cajón móvil animado con Anime.js v4 y cierre
+      con `Escape`), `help-button.tsx` y `notification-bell.tsx` (popovers fijos
+      `max-sm:fixed max-sm:inset-x-3` sin desborde, cierre con `Escape` y botón
+      borrar visible en móvil), `account-switcher.tsx` y `agent-menu.tsx` (cierre
+      al clic exterior y `Escape`).
+    - **P0 #3 — Pestañas CRM con scroll horizontal + Ajustes agrupado:**
+      `tabs.tsx` (`flex-nowrap overflow-x-auto sm:flex-wrap`, auto-scroll al tab
+      activo y navegación por teclado `ArrowLeft`/`ArrowRight`) y
+      `settings-sidebar.tsx` (6 grupos temáticos + buscador rápido en escritorio +
+      selector `<select>` agrupado en celular, con claves en los 7 idiomas).
+    - **P1 #1 — `ConfirmDialog` compartido (`confirm-dialog.tsx`):** reemplaza los
+      47 llamados a `window.confirm()` con un diálogo neón accesible (foco en
+      Cancelar, cierre por `Escape` y clic exterior, entrada Anime.js v4 respetando
+      `prefers-reduced-motion`, fallback seguro para tests aislados sin provider)
+      y corrige la clave i18n de borrado en `labels-view.tsx`.
+    - **P1 #2 — i18n completo del módulo WhatsApp en los 7 idiomas:** nuevos
+      diccionarios `whatsapp.ts` en `es`, `en`, `pt`, `fr`, `de`, `ja`, `ko` y
+      migración de todos los paneles de `components/whatsapp/` a `useT()` y
+      `useIntlTag()`.
+    - **P1 #3 — `ErrorState` compartido con «Reintentar» (`error-state.tsx`):**
+      conectado en Inicio (sin mostrar ceros falsos ni gráfico vacío cuando fallan
+      las métricas), Notificaciones (sin mostrar «No tenés notificaciones» en
+      fallo), Calendario, Oportunidades (con skeleton de columnas al cargar),
+      Agenda, Medios, Agente y paneles de WhatsApp.
+    - **P1 #4 — Inicio y superficies de IA alineados a `DESIGN.md`:** un único
+      `.neon-sign` en Inicio (topbar), sin `.neon-nav` fuera de la sidebar,
+      tarjetas `LiveCard` convertidas en enlaces interactivos a la Bandeja, y
+      Electrode Orange (`variant="ai"` / `--neon-electrode`) en Agente,
+      `WritingAssist` y `HelpButton` (eliminando el emoji `📷` crudo).
+    - **P1 #5 — Menús cerrables por clic afuera / `Escape` y botones ≥ 44 px:**
+      hook compartido `useDismissOnOutsideAndEscape` aplicado a todos los menús y
+      popovers (incluidos `channels-panel.tsx` y los 2 menús de
+      `publication-editor-dialog.tsx`), y área táctil ≥ 44×44 px en botones de
+      ícono de alertas, búsqueda, chat, notas y las 22 vistas de Ajustes.
+    - **P2 (puntos 8 a 12 del informe UI/UX):**
+      - Geometría y sombras según `DESIGN.md`: columnas Kanban y skeletons en
+        `rounded-md`, selector táctil de etapa en tarjetas de `OpportunitiesView`
+        para celular/pantallas táctiles, eliminación de `shadow-lg`/`shadow-sm` y
+        `rounded-2xl` en paneles de WhatsApp, `CallButton`/`CallDock` en
+        `shadow-menu` + `rounded-md`, `<select>` crudos migrados a `selectClassName()`,
+        tarjetas internas de `lifecycle` y `decisions` en `rounded-md`, y
+        `LanguageSwitcher` con `border-glass bg-surface/80 backdrop-blur-sm` para
+        contraste sobre los logos 3D en login.
+      - Voz rioplatense pareja y nomenclatura unificada en los 7 idiomas:
+        saludo personal/neutro (`Hola, {name}` / `Hola` vía `useProfile()`),
+        acceso rápido «Bandeja» unificado, «Centro de ayuda» en la barra lateral,
+        «o con tu email» en login y ajuste gramatical en sugerencias del Agente.
+      - Contraste en tarjetas densas y filtros compactos: eliminación de
+        `opacity-80`/`opacity-60` sobre `text-fg-muted` en `HelpButton` y
+        `SettingsSidebar`, y cabecera de filtros de `ConversationList` compactada
+        con Canal y Bandeja lado a lado en una sola fila.
+    - **P3 (Anime.js v4 en el resto del panel según `propuesta-animejs-v4.md`):**
+      - Módulo compartido `frontend/lib/motion/neon-motion.ts` con `createScope`
+        (`useNeonScope`), `prefersReducedMotion()`/`usePrefersReducedMotion()` y
+        helpers GPU-only respetando *The Ignition Rule* y `prefers-reduced-motion`.
+      - Tubo cobalto deslizante de `180 ms` en `Tabs` y `NavTabs` (`tabs.tsx`).
+      - Entradas escalonadas de una sola vez (cap `240 ms`) en Inicio, columnas
+        Kanban de Oportunidades y grilla de Medios, más contador animado (`420 ms`,
+        `tabular-nums`) en el primer render de las 4 tarjetas «Ahora mismo».
+      - Entrada suave (`180 ms`) en el cajón móvil, en todos los popovers del
+        topbar (`NotificationBell`, `HelpButton`, `AccountSwitcher`, `AgentMenu`),
+        en `WritingAssist` y en los 11 modales `<dialog>` del panel.
+      - Microinteracciones en el Agente IA (entrada suave de mensajes nuevos y
+        `PendingActionCard` + 3 puntos Electrode Orange con `stagger(120)` en
+        «Pensando…») y destello cobalto único (`360 ms`) al llegar una nueva
+        conversación en `ConversationList`.
+    - Pruebas nuevas y actualizadas (`neon-motion.test.tsx`, `opportunities-view.test.tsx`,
+      `account-overview.test.tsx`, `nav.test.tsx`, `confirm-dialog.test.tsx`,
+      `error-state.test.tsx`, `use-dismiss.test.tsx`, `whatsapp-panels.test.tsx`,
+      `black-hole-login.test.tsx`, `settings-sidebar.test.tsx`,
+      `dashboard-shell.test.tsx`, `tabs.test.tsx`: **127 archivos, 572 tests en
+      verde**; `npm run typecheck` y `npx eslint .` con 0 errores) y capturas
+      antes/después en `docs/neon/capturas/despues-*.png`.
+    - Pendiente de OK del dueño para pushear/mezclar `feat/neon-ux`.

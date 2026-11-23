@@ -22,6 +22,7 @@ import { SecretReveal } from "./secret-reveal";
 import { TokenForm, TokenInputAdapter } from "./token-form";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const SCOPE_LABEL: Record<MCPScope, MessageKey> = Object.fromEntries(
   MCP_SCOPES.map((s) => [s.value, s.label]),
@@ -157,6 +158,7 @@ function TokenRow({
   onEdit: () => void;
   onSecret: (newSecret: string) => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const intlTag = useIntlTag();
   const rotate = useRotateMCPToken(accountId);
@@ -165,9 +167,9 @@ function TokenRow({
 
   async function onRotate() {
     if (
-      !window.confirm(
+      !(await confirm(
         t("settingsMcp.rotateConfirm", { name: token.name }),
-      )
+      ))
     )
       return;
     setError(null);
@@ -180,7 +182,7 @@ function TokenRow({
   }
 
   async function onDelete() {
-    if (!window.confirm(t("settingsMcp.deleteConfirm", { name: token.name }))) return;
+    if (!(await confirm(t("settingsMcp.deleteConfirm", { name: token.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(token.id);
@@ -230,7 +232,7 @@ function TokenRow({
         title={t("settingsBots.rotateSecret")}
         onClick={onRotate}
         disabled={rotate.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <RefreshCw className="h-4 w-4" aria-hidden />
       </button>
@@ -239,7 +241,7 @@ function TokenRow({
         aria-label={t("actions.edit")}
         title={t("actions.edit")}
         onClick={onEdit}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </button>
@@ -249,7 +251,7 @@ function TokenRow({
         title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

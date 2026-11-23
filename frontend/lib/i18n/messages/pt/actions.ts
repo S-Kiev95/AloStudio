@@ -22,4 +22,6 @@ export const actions: Strings<typeof es> = {
   closeDialog: "Fechar diálogo",
   deleteFailed: "Não foi possível excluir.",
   save: "Salvar",
+  confirm: "Confirmar",
+  confirmTitle: "Confirmar ação",
 };

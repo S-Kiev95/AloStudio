@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { ProductForm } from "./product-form";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const FILTERS: { value: "all" | "active" | "inactive"; label: MessageKey }[] = [
   { value: "all", label: "products.filters.all" },
@@ -158,6 +159,7 @@ function ProductRow({
   inCatalog: boolean;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const catalogState = useProductCatalogState();
   const state = inCatalog ? catalogState(product) : null;
@@ -165,7 +167,7 @@ function ProductRow({
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("products.deleteConfirm", { name: product.name }))) return;
+    if (!(await confirm(t("products.deleteConfirm", { name: product.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(product.id);

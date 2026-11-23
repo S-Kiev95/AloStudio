@@ -19,4 +19,6 @@ export const actions = {
   closeDialog: "Cerrar diálogo",
   deleteFailed: "No se pudo eliminar.",
   save: "Guardar",
+  confirm: "Confirmar",
+  confirmTitle: "Confirmar acción",
 };

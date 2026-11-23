@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 
 import { PortalForm } from "./portal-form";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function PortalsView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -91,6 +92,7 @@ function PortalRow({
   accountId: string;
   portal: Portal;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeletePortal(accountId);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +100,7 @@ function PortalRow({
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(t("helpCenter.deletePortalConfirm", { name: portal.name }))) return;
+    if (!(await confirm(t("helpCenter.deletePortalConfirm", { name: portal.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(portal.slug);

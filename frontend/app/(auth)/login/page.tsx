@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { useAuthSingularity } from "@/components/auth/black-hole-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +18,10 @@ import { useT } from "@/lib/i18n/provider";
 export default function LoginPage() {
   const router = useRouter();
   const t = useT();
+  const singularity = useAuthSingularity();
   const [formError, setFormError] = useState<string | null>(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [entering, setEntering] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,6 +42,7 @@ export default function LoginPage() {
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
   async function onSubmit(values: LoginInput) {
+    if (entering) return;
     setFormError(null);
     const res = await fetch("/api/auth/login", {
       method: "POST",
@@ -55,25 +59,42 @@ export default function LoginPage() {
     const next = safeNextPath(
       new URLSearchParams(window.location.search).get("next"),
     );
-    router.push(
-      next ?? (body.accountId ? `/accounts/${body.accountId}` : "/accounts"),
-    );
+    const destination =
+      next ?? (body.accountId ? `/accounts/${body.accountId}` : "/accounts");
+
+    if (singularity) {
+      setEntering(true);
+      router.prefetch?.(destination);
+      singularity.triggerBlackHole(() => {
+        router.push(destination);
+        router.refresh();
+      });
+      return;
+    }
+
+    router.push(destination);
     router.refresh();
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <div className="neon-sign">
+        <div data-bh-shard className="neon-sign">
           <h1 className="text-[28px] leading-[1.2]">{t("auth.login.title")}</h1>
         </div>
-        <p className="mt-1.5 text-sm text-fg-muted">
+        <p data-bh-shard className="mt-1.5 text-sm text-fg-muted">
           {t("auth.login.subtitle")}
         </p>
       </div>
 
+      {entering ? (
+        <p role="status" className="sr-only">
+          {t("auth.login.entering")}
+        </p>
+      ) : null}
+
       {googleEnabled ? (
-        <div className="space-y-4">
+        <div data-bh-shard className="space-y-4">
           {/* A plain link: the route sends the browser on to Google. */}
           <a
             href="/api/auth/google/start"
@@ -99,13 +120,13 @@ export default function LoginPage() {
         {formError ? (
           <p
             role="alert"
-            className="rounded-control border border-danger bg-surface-2 px-3.5 py-2.5 text-sm text-danger"
+            className="rounded-control border border-danger/40 bg-danger/10 px-3.5 py-2.5 text-sm text-danger"
           >
             {formError}
           </p>
         ) : null}
 
-        <div className="space-y-1.5">
+        <div data-bh-shard className="space-y-1.5">
           <Label htmlFor="email" required>
             {t("common.email")}
           </Label>
@@ -113,6 +134,7 @@ export default function LoginPage() {
             id="email"
             type="email"
             autoComplete="email"
+            disabled={entering}
             aria-invalid={Boolean(errors.email)}
             aria-describedby={errors.email ? "email-error" : undefined}
             {...register("email")}
@@ -124,7 +146,7 @@ export default function LoginPage() {
           ) : null}
         </div>
 
-        <div className="space-y-1.5">
+        <div data-bh-shard className="space-y-1.5">
           <Label htmlFor="password" required>
             {t("common.password")}
           </Label>
@@ -132,6 +154,7 @@ export default function LoginPage() {
             id="password"
             type="password"
             autoComplete="current-password"
+            disabled={entering}
             aria-invalid={Boolean(errors.password)}
             aria-describedby={errors.password ? "password-error" : undefined}
             {...register("password")}
@@ -143,16 +166,24 @@ export default function LoginPage() {
           ) : null}
         </div>
 
-        <Button type="submit" className="w-full" loading={isSubmitting}>
-          {t("auth.login.submit")}
-        </Button>
+        <div data-bh-shard>
+          <Button
+            type="submit"
+            className="w-full"
+            loading={isSubmitting || entering}
+          >
+            {entering ? t("auth.login.entering") : t("auth.login.submit")}
+          </Button>
+        </div>
 
-        <Link
-          href="/forgot-password"
-          className="block pt-1 text-center text-sm text-info hover:underline"
-        >
-          {t("auth.login.forgot")}
-        </Link>
+        <div data-bh-shard>
+          <Link
+            href="/forgot-password"
+            className="block pt-1 text-center text-sm text-info hover:underline"
+          >
+            {t("auth.login.forgot")}
+          </Link>
+        </div>
       </form>
     </div>
   );

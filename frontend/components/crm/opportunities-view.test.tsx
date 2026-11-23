@@ -113,4 +113,16 @@ describe("OpportunitiesView", () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(patched).toEqual({ id: 100, body: { stage_id: 12 } });
   });
+
+  it("usa columnas rounded-md según DESIGN.md y permite cambiar etapa sin drag & drop", async () => {
+    renderWithQuery(<OpportunitiesView accountId="1" />);
+    const fresh = await screen.findByRole("region", { name: "Nueva" });
+    expect(fresh).toHaveClass("rounded-md");
+    expect(fresh).not.toHaveClass("rounded-panel");
+
+    const stageSelect = screen.getByLabelText("Etapa: Curso de inglés");
+    fireEvent.change(stageSelect, { target: { value: "12" } });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(patched).toEqual({ id: 100, body: { stage_id: 12 } });
+  });
 });

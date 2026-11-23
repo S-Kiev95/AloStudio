@@ -17,6 +17,7 @@ import { MCPTokensView } from "./mcp-tokens-view";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/accounts/1/settings/mcp_tokens",
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
 const tokens = [

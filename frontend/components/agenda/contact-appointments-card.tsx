@@ -22,6 +22,7 @@ import {
 } from "./status-badge";
 import { formatDateTimeLocal } from "./week-utils";
 import { useLocale, useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function ContactAppointmentsCard({
   accountId,
@@ -30,6 +31,7 @@ export function ContactAppointmentsCard({
   accountId: string;
   contact: AppointmentContact;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const locale = useLocale();
   const [sinceIso] = useState(() => new Date().toISOString());
@@ -65,7 +67,7 @@ export function ContactAppointmentsCard({
   }
 
   async function handleDelete(appt: Appointment) {
-    if (!window.confirm(t("agenda.deleteConfirm", { title: appt.title }))) return;
+    if (!(await confirm(t("agenda.deleteConfirm", { title: appt.title })))) return;
     setError(null);
     try {
       await deleteMutation.mutateAsync(appt.id);

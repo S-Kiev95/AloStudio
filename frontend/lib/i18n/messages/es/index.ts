@@ -60,6 +60,7 @@ import { oauth } from "./oauth";
 import { campaigns } from "./campaigns";
 import { agent } from "./agent";
 import { instagram } from "./instagram";
+import { whatsapp } from "./whatsapp";
 import { publications } from "./publications";
 import { reports } from "./reports";
 import { products } from "./products";
@@ -126,6 +127,7 @@ export const es = {
   campaigns,
   agent,
   instagram,
+  whatsapp,
   publications,
   reports,
   products,

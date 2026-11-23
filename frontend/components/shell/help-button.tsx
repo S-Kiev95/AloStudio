@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CircleHelp, ImagePlus, Loader2, Mic, Square, X } from "lucide-react";
+import { ArrowRight, CircleHelp, Image as ImageIcon, ImagePlus, Loader2, Mic, Square, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -14,11 +14,13 @@ import {
   useAskHelp,
   useHelpAssistant,
 } from "@/lib/api/help-assistant";
+import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useT } from "@/lib/i18n/provider";
 import { translateOr } from "@/lib/i18n/translate";
+import { animatePopoverIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
-type Turn = { question: string; answer: HelpAnswer };
+type Turn = { question: string; imageLabel?: string; answer: HelpAnswer };
 type Attached = { dataUrl: string; label: string };
 
 const MODE_KEY = "alostudio:help-mode";
@@ -65,6 +67,7 @@ export function HelpButton({ accountId }: { accountId: string }) {
   const [audio, setAudio] = useState<Attached | null>(null);
   const [recordingFor, setRecordingFor] = useState<number | null>(null);
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -73,15 +76,13 @@ export function HelpButton({ accountId }: { accountId: string }) {
   useEffect(() => {
     if (!open) return;
     inputRef.current?.focus();
-    function onDocClick(e: MouseEvent) {
-      if (detailsRef.current && !detailsRef.current.contains(e.target as Node)) {
-        detailsRef.current.removeAttribute("open");
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    return animatePopoverIn(panelRef.current);
   }, [open]);
+
+  useDismissOnOutsideAndEscape(detailsRef, open, () => {
+    detailsRef.current?.removeAttribute("open");
+    setOpen(false);
+  });
 
   // Seconds counter while recording; it stops by itself at the limit.
   useEffect(() => {
@@ -170,11 +171,10 @@ export function HelpButton({ accountId }: { accountId: string }) {
           const shown = [
             answer.heard ? `«${answer.heard}»` : "",
             text,
-            imageLabel ? `📷 ${imageLabel}` : "",
           ]
             .filter(Boolean)
             .join(" · ");
-          setTurns((prev) => [...prev, { question: shown, answer }].slice(-5));
+          setTurns((prev) => [...prev, { question: shown, imageLabel, answer }].slice(-5));
           setQuestion("");
           setImage(null);
           setAudio(null);
@@ -206,9 +206,10 @@ export function HelpButton({ accountId }: { accountId: string }) {
       </summary>
 
       <div
+        ref={panelRef}
         role="dialog"
         aria-label={t("helpAssistant.title")}
-        className="absolute right-0 z-30 mt-1.5 flex w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu"
+        className="z-30 flex flex-col overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.5rem] max-sm:max-h-[calc(100dvh-5.5rem)] max-sm:w-auto sm:absolute sm:right-0 sm:mt-1.5 sm:w-[24rem] sm:max-w-[calc(100vw-2rem)]"
       >
         <div className="border-b border-glass px-3 py-2.5">
           <h2 className="text-sm font-medium text-fg">{t("helpAssistant.title")}</h2>
@@ -232,7 +233,12 @@ export function HelpButton({ accountId }: { accountId: string }) {
                   <span className="block font-medium">
                     {m === "fast" ? t("helpAssistant.modeFast") : t("helpAssistant.modeFree")}
                   </span>
-                  <span className="block text-[11px] opacity-80">
+                  <span
+                    className={cn(
+                      "block text-[11px]",
+                      mode === m ? "text-lit" : "text-fg-muted",
+                    )}
+                  >
                     {m === "fast" ? t("helpAssistant.modeFastHint") : t("helpAssistant.modeFreeHint")}
                   </span>
                 </button>
@@ -247,7 +253,15 @@ export function HelpButton({ accountId }: { accountId: string }) {
           ) : null}
           {turns.map((turn, i) => (
             <div key={i} className="space-y-1.5">
-              <p className="text-xs font-medium text-fg-muted">{turn.question}</p>
+              <p className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-fg-muted">
+                {turn.question ? <span>{turn.question}</span> : null}
+                {turn.imageLabel ? (
+                  <span className="inline-flex items-center gap-1">
+                    <ImageIcon className="h-3 w-3 shrink-0" aria-hidden />
+                    {turn.imageLabel}
+                  </span>
+                ) : null}
+              </p>
               <p className={cn("text-fg", !turn.answer.known && "text-fg-muted")}>
                 {turn.answer.answer}
               </p>
@@ -321,7 +335,7 @@ export function HelpButton({ accountId }: { accountId: string }) {
                   type="button"
                   onClick={remove}
                   aria-label={t("helpAssistant.remove", { item: item.label })}
-                  className="text-fg-muted hover:text-fg"
+                  className="relative inline-flex h-5 w-5 items-center justify-center rounded-full text-fg-muted after:absolute after:-inset-3 after:content-[''] hover:text-fg"
                 >
                   <X className="h-3 w-3" aria-hidden />
                 </button>
@@ -350,7 +364,7 @@ export function HelpButton({ accountId }: { accountId: string }) {
                 onClick={() => fileRef.current?.click()}
                 aria-label={t("helpAssistant.attachImage")}
                 title={t("helpAssistant.attachImage")}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control text-fg-muted hover:bg-hover-glass hover:text-fg"
+                className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control text-fg-muted after:absolute after:-inset-1 after:content-[''] hover:bg-hover-glass hover:text-fg"
               >
                 <ImagePlus className="h-4 w-4" aria-hidden />
               </button>
@@ -361,7 +375,7 @@ export function HelpButton({ accountId }: { accountId: string }) {
                 title={recording ? t("helpAssistant.stopRecording") : t("helpAssistant.record")}
                 aria-pressed={recording}
                 className={cn(
-                  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control hover:bg-hover-glass",
+                  "relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control after:absolute after:-inset-1 after:content-[''] hover:bg-hover-glass",
                   recording ? "text-danger" : "text-fg-muted hover:text-fg",
                 )}
               >
@@ -392,6 +406,7 @@ export function HelpButton({ accountId }: { accountId: string }) {
           />
           <Button
             type="submit"
+            variant="ai"
             size="sm"
             disabled={(!question.trim() && !image && !audio) || ask.isPending || !mode || recording}
           >

@@ -18,6 +18,7 @@ import {
 } from "@/lib/api/crm";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import { translateOr } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 /** Our wording for a refusal, by the code the backend sends. */
 function useCatalogError() {
@@ -49,6 +50,7 @@ function MetaCatalogCardInner({
   accountId: string;
   catalog: MetaCatalog;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const intlTag = useIntlTag();
   const errorText = useCatalogError();
@@ -147,7 +149,7 @@ function MetaCatalogCardInner({
   }
 
   async function unlink() {
-    if (!window.confirm(t("metaCatalog.disconnectConfirm"))) return;
+    if (!(await confirm(t("metaCatalog.disconnectConfirm")))) return;
     setError(null);
     try {
       await disconnect.mutateAsync();

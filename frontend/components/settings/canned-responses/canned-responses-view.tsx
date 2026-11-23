@@ -16,6 +16,7 @@ import {
 
 import { CannedResponseForm } from "./canned-response-form";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function CannedResponsesView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -157,12 +158,13 @@ function CannedRow({
   canned: CannedResponse;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteCannedResponse(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("settingsCanned.deleteConfirm", { code: canned.short_code }))) return;
+    if (!(await confirm(t("settingsCanned.deleteConfirm", { code: canned.short_code })))) return;
     setError(null);
     try {
       await del.mutateAsync(canned.id);
@@ -189,7 +191,7 @@ function CannedRow({
         aria-label={t("actions.edit")}
         title={t("actions.edit")}
         onClick={onEdit}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </button>
@@ -199,7 +201,7 @@ function CannedRow({
         title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

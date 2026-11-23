@@ -30,7 +30,10 @@ import { cn } from "@/lib/utils";
 
 import { ChannelAvatar, channelDisplayName, NetworkIcon } from "./network-icon";
 import { PublicationErrorAlert } from "./publication-error-alert";
+import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useT } from "@/lib/i18n/provider";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function ChannelsPanel({
   accountId,
@@ -47,9 +50,12 @@ export function ChannelsPanel({
   selectedChannelId: number | undefined;
   onSelectChannel: (channelId: number | undefined) => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuWrapRef = useRef<HTMLDivElement>(null);
+  useDismissOnOutsideAndEscape(menuWrapRef, menuOpen, () => setMenuOpen(false));
   const [panelError, setPanelError] = useState<ParsedPublicationError | null>(
     null,
   );
@@ -99,7 +105,7 @@ export function ChannelsPanel({
 
   async function handleRemoveChannel(channel: Channel) {
     const name = channelDisplayName(channel);
-    if (!window.confirm(t("publications.channels.removeConfirm", { name }))) return;
+    if (!(await confirm(t("publications.channels.removeConfirm", { name })))) return;
     setPanelError(null);
     try {
       await deleteChannelMutation.mutateAsync(channel.id);
@@ -131,7 +137,7 @@ export function ChannelsPanel({
   }
 
   const addChannelControl = isAdmin ? (
-    <div className="relative">
+    <div ref={menuWrapRef} className="relative">
       <Button
         type="button"
         variant="simple"
@@ -209,7 +215,7 @@ export function ChannelsPanel({
           aria-label={t("publications.channels.collapse")}
           title={t("publications.channels.collapseShort")}
           onClick={() => setCollapsed(true)}
-          className="hidden h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon lg:inline-flex"
+          className="relative hidden h-9 w-9 items-center justify-center rounded-md text-fg-muted after:absolute after:-inset-1 after:content-[''] hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon lg:inline-flex"
         >
           <ChevronRight className="h-4 w-4" aria-hidden />
         </button>
@@ -303,7 +309,7 @@ export function ChannelsPanel({
                       title={t("publications.channels.remove")}
                       disabled={deleteChannelMutation.isPending}
                       onClick={() => void handleRemoveChannel(ch)}
-                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
+                      className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-fg-muted after:absolute after:-inset-1.5 after:content-[''] hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
                     >
                       <Trash2 className="h-3.5 w-3.5" aria-hidden />
                     </button>
@@ -385,6 +391,7 @@ function ConnectFormDialog({
           el.setAttribute("open", "");
         }
       }
+      return animateDialogIn(el);
     } else if (el.open) {
       if (typeof el.close === "function") {
         el.close();

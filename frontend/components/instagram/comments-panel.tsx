@@ -16,6 +16,7 @@ import {
 } from "@/lib/api/instagram-comments";
 import { cn } from "@/lib/utils";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 /**
  * Comments moderation for a published post. The GET does a live Meta sync and
@@ -160,6 +161,7 @@ function CommentRow({
   comment: IgComment;
   canReply?: boolean;
 }) {
+  const confirm = useConfirm();
   const intlTag = useIntlTag();
   const t = useT();
   const hide = useHideComment(accountId, postId);
@@ -237,8 +239,8 @@ function CommentRow({
             label={t("actions.delete")}
             danger
             loading={del.isPending}
-            onClick={() => {
-              if (!window.confirm(t("instagram.comments.deleteConfirm"))) return;
+            onClick={async () => {
+              if (!(await confirm(t("instagram.comments.deleteConfirm")))) return;
               run(() => del.mutateAsync(comment.id), t("actions.deleteFailed"));
             }}
           >

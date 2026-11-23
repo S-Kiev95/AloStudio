@@ -29,6 +29,7 @@ import {
 } from "@/lib/api/inboxes";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const CHANNEL_ICON: Record<string, IconComponent> = {
   "Channel::Telegram": Telegram,
@@ -97,13 +98,14 @@ function InboxRow({
   accountId: string;
   inbox: Inbox;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteInbox(accountId);
   const [error, setError] = useState<string | null>(null);
   const Icon = CHANNEL_ICON[inbox.channel_type] ?? Webhook;
 
   async function onDelete() {
-    if (!window.confirm(t("settingsInboxes.deleteConfirm", { name: inbox.name }))) return;
+    if (!(await confirm(t("settingsInboxes.deleteConfirm", { name: inbox.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(inbox.id);
@@ -139,7 +141,7 @@ function InboxRow({
         title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

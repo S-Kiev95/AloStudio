@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { CustomAttributeForm } from "./custom-attribute-form";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const MODEL_FILTERS: { value: AttributeModel | undefined; label: MessageKey }[] = [
   { value: undefined, label: "helpCenter.filters.all" },
@@ -146,12 +147,13 @@ function AttrRow({
   attribute: CustomAttribute;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteCustomAttribute(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("settingsAttrs.deleteConfirm", { name: attribute.attribute_display_name })))
+    if (!(await confirm(t("settingsAttrs.deleteConfirm", { name: attribute.attribute_display_name }))))
       return;
     setError(null);
     try {
@@ -199,7 +201,7 @@ function AttrRow({
         aria-label={t("actions.edit")}
         title={t("actions.edit")}
         onClick={onEdit}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </button>
@@ -209,7 +211,7 @@ function AttrRow({
         title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

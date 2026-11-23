@@ -15,6 +15,7 @@ import {
 } from "@/lib/api/automation-rules";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function AutomationRulesView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -63,6 +64,7 @@ function RuleRow({
   accountId: string;
   rule: AutomationRule;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const update = useUpdateAutomationRule(accountId);
   const del = useDeleteAutomationRule(accountId);
@@ -167,7 +169,7 @@ function RuleRow({
         title={t("settingsAutomation.clone")}
         onClick={(e) => run(() => clone.mutateAsync(rule.id), t("settingsAutomation.cloneFailed"), e)}
         disabled={clone.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Copy className="h-4 w-4" aria-hidden />
       </button>
@@ -175,14 +177,14 @@ function RuleRow({
         type="button"
         aria-label={t("actions.delete")}
         title={t("actions.delete")}
-        onClick={(e) => {
+        onClick={async (e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (!window.confirm(t("settingsAutomation.deleteConfirm", { name: rule.name }))) return;
+          if (!(await confirm(t("settingsAutomation.deleteConfirm", { name: rule.name })))) return;
           run(() => del.mutateAsync(rule.id), t("actions.deleteFailed"));
         }}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

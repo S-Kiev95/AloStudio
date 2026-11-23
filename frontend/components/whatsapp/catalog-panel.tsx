@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { useIsAccountAdmin } from "@/lib/api/profile";
 import {
   useLinkWhatsappCatalog,
   useUpdateWhatsappCommerce,
   useWhatsappCommerce,
 } from "@/lib/api/whatsapp-catalog";
+import { useT } from "@/lib/i18n/provider";
 
 function Step({
   done,
@@ -69,6 +71,7 @@ function Toggle({
 /** The catalogue on this number: is the account's Meta catalogue linked to
  *  the WhatsApp account, is it shown on the profile, is the cart on. */
 export function CatalogPanel({ accountId, inboxId }: { accountId: string; inboxId: number }) {
+  const t = useT();
   const isAdmin = useIsAccountAdmin(accountId);
   const q = useWhatsappCommerce(accountId, inboxId);
   const update = useUpdateWhatsappCommerce(accountId, inboxId);
@@ -80,16 +83,21 @@ export function CatalogPanel({ accountId, inboxId }: { accountId: string; inboxI
     try {
       await action();
     } catch (err) {
-      setError((err as Error).message || "Meta rechazó el pedido.");
+      setError((err as Error).message || t("whatsapp.common.metaRejected"));
     }
   }
 
-  if (q.isLoading) return <p className="text-sm text-fg-muted">Consultando a Meta…</p>;
+  if (q.isLoading) {
+    return <p className="text-sm text-fg-muted">{t("whatsapp.common.queryingMeta")}</p>;
+  }
   if (q.isError || !q.data) {
     return (
-      <p role="alert" className="text-sm text-danger">
-        {(q.error as Error | null)?.message ?? "No se pudo consultar a Meta."}
-      </p>
+      <ErrorState
+        compact
+        message={(q.error as Error | null)?.message ?? t("whatsapp.catalog.loadError")}
+        onRetry={() => void q.refetch()}
+        retrying={q.isFetching}
+      />
     );
   }
   const s = q.data;
@@ -97,52 +105,47 @@ export function CatalogPanel({ accountId, inboxId }: { accountId: string; inboxI
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-fg-muted">
-        Con el catálogo conectado, desde la Bandeja se mandan productos con el botón
-        Productos (dentro de las 24 h), y lo que el contacto pide llega al chat y abre
-        una oportunidad en el embudo. El pago se arregla por fuera de WhatsApp.
-      </p>
+      <p className="text-sm text-fg-muted">{t("whatsapp.catalog.intro")}</p>
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}
       <ol className="space-y-3">
-        <Step done={Boolean(s.account_catalog_id)} title="1. Catálogo de la cuenta">
+        <Step done={Boolean(s.account_catalog_id)} title={t("whatsapp.catalog.step1Title")}>
           {s.account_catalog_id ? (
             <p className="text-sm text-fg-muted">
-              Catálogo <span className="font-mono">{s.account_catalog_id}</span>, con{" "}
-              {s.products_ready} producto{s.products_ready === 1 ? "" : "s"} listo
-              {s.products_ready === 1 ? "" : "s"} para mandar.{" "}
+              {t("whatsapp.catalog.step1CatalogLabel")}{" "}
+              <span className="font-mono">{s.account_catalog_id}</span>
+              {s.products_ready === 1
+                ? t("whatsapp.catalog.step1ReadyOne", { count: s.products_ready })
+                : t("whatsapp.catalog.step1ReadyMany", { count: s.products_ready })}{" "}
               <Link
                 href={`/accounts/${accountId}/products`}
                 className="text-lit underline-offset-2 hover:underline"
               >
-                Ver productos
+                {t("whatsapp.catalog.viewProducts")}
               </Link>
             </p>
           ) : (
             <p className="text-sm text-fg-muted">
-              Conectalo en{" "}
+              {t("whatsapp.catalog.step1ConnectPrefix")}{" "}
               <Link
                 href={`/accounts/${accountId}/products`}
                 className="text-lit underline-offset-2 hover:underline"
               >
-                CRM → Productos
+                {t("whatsapp.catalog.crmProductsLink")}
               </Link>{" "}
-              (tarjeta Catálogo de Meta).
+              {t("whatsapp.catalog.step1ConnectSuffix")}
             </p>
           )}
         </Step>
-        <Step done={s.catalog_linked} title="2. Catálogo conectado a este número">
+        <Step done={s.catalog_linked} title={t("whatsapp.catalog.step2Title")}>
           {s.catalog_linked ? (
-            <p className="text-sm text-fg-muted">Listo.</p>
+            <p className="text-sm text-fg-muted">{t("whatsapp.catalog.step2Done")}</p>
           ) : (
             <>
-              <p className="text-sm text-fg-muted">
-                Meta necesita que el catálogo esté conectado a la cuenta de WhatsApp
-                Business de este número.
-              </p>
+              <p className="text-sm text-fg-muted">{t("whatsapp.catalog.step2Desc")}</p>
               {isAdmin && s.account_catalog_id ? (
                 <Button
                   type="button"
@@ -152,23 +155,28 @@ export function CatalogPanel({ accountId, inboxId }: { accountId: string; inboxI
                   onClick={() => void run(() => link.mutateAsync())}
                 >
                   <Link2 className="h-3.5 w-3.5" aria-hidden />
-                  Conectar catálogo
+                  {t("whatsapp.catalog.connectCatalog")}
                 </Button>
               ) : null}
             </>
           )}
         </Step>
-        <Step done={s.is_catalog_visible && s.is_cart_enabled} title="3. Cómo lo ve el contacto">
+        <Step
+          done={s.is_catalog_visible && s.is_cart_enabled}
+          title={t("whatsapp.catalog.step3Title")}
+        >
           <Toggle
-            label="Mostrar el catálogo en el perfil"
-            hint="Aparece un botón de catálogo en el chat y en el perfil de empresa."
+            label={t("whatsapp.catalog.showInProfileLabel")}
+            hint={t("whatsapp.catalog.showInProfileHint")}
             checked={s.is_catalog_visible}
             disabled={!isAdmin || busy}
-            onChange={(next) => void run(() => update.mutateAsync({ is_catalog_visible: next }))}
+            onChange={(next) =>
+              void run(() => update.mutateAsync({ is_catalog_visible: next }))
+            }
           />
           <Toggle
-            label="Carrito de compras"
-            hint="El contacto puede juntar productos y mandar un pedido."
+            label={t("whatsapp.catalog.cartLabel")}
+            hint={t("whatsapp.catalog.cartHint")}
             checked={s.is_cart_enabled}
             disabled={!isAdmin || busy}
             onChange={(next) => void run(() => update.mutateAsync({ is_cart_enabled: next }))}

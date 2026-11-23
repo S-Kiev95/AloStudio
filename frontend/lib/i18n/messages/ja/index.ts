@@ -52,6 +52,7 @@ import { oauth } from "./oauth";
 import { campaigns } from "./campaigns";
 import { agent } from "./agent";
 import { instagram } from "./instagram";
+import { whatsapp } from "./whatsapp";
 import { publications } from "./publications";
 import { dates } from "./dates";
 import { crm } from "./crm";
@@ -118,6 +119,7 @@ export const ja: Messages = {
   campaigns,
   agent,
   instagram,
+  whatsapp,
   publications,
   dates,
   crm,
