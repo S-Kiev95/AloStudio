@@ -8,6 +8,7 @@ import { type ConnectFlow, flowById } from "@/lib/inboxes/instagram-capabilities
 
 import { CapabilityList } from "./capability-list";
 import { useT } from "@/lib/i18n/provider";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 
 /**
  * What you get, shown before you commit to a way of connecting.
@@ -39,8 +40,11 @@ export function ConnectCapabilitiesDialog({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (open && !el.open) el.showModal();
-    if (!open && el.open) el.close();
+    if (open) {
+      if (!el.open) el.showModal();
+      return animateDialogIn(el);
+    }
+    if (el.open) el.close();
   }, [open]);
 
   if (flowId === null) return null;

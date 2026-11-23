@@ -77,6 +77,7 @@ import { INTL_TAGS } from "@/lib/i18n/config";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 
 type SelectedMediaItem = {
   media_id?: number;
@@ -227,6 +228,7 @@ export function PublicationEditorDialog({
           el.setAttribute("open", "");
         }
       }
+      return animateDialogIn(el);
     } else if (el.open) {
       if (typeof el.close === "function") {
         el.close();

@@ -32,6 +32,7 @@ import { ChannelAvatar, channelDisplayName, NetworkIcon } from "./network-icon";
 import { PublicationErrorAlert } from "./publication-error-alert";
 import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useT } from "@/lib/i18n/provider";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function ChannelsPanel({
@@ -390,6 +391,7 @@ function ConnectFormDialog({
           el.setAttribute("open", "");
         }
       }
+      return animateDialogIn(el);
     } else if (el.open) {
       if (typeof el.close === "function") {
         el.close();
