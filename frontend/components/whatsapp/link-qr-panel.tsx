@@ -5,6 +5,7 @@ import { type FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -245,9 +246,12 @@ export function LinkQrPanel({
         {qrQ.isLoading ? (
           <p className="text-sm text-fg-muted">{t("whatsapp.common.queryingMeta")}</p>
         ) : qrQ.isError ? (
-          <p role="alert" className="text-sm text-danger">
-            {(qrQ.error as Error | null)?.message ?? t("whatsapp.linkQr.loadError")}
-          </p>
+          <ErrorState
+            compact
+            message={(qrQ.error as Error | null)?.message ?? t("whatsapp.linkQr.loadError")}
+            onRetry={() => void qrQ.refetch()}
+            retrying={qrQ.isFetching}
+          />
         ) : (qrQ.data ?? []).length === 0 ? (
           <p className="text-sm text-fg-muted">{t("whatsapp.linkQr.empty")}</p>
         ) : (

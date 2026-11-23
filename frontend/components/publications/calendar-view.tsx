@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useIsAccountAdmin } from "@/lib/api/profile";
 import {
@@ -421,12 +422,11 @@ export function CalendarView({
               {t("publications.calendar.loading")}
             </div>
           ) : publicationsQuery.isError ? (
-            <div
-              role="alert"
-              className="rounded-md border border-glass bg-surface p-10 text-center text-sm text-danger"
-            >
-              {t("publications.calendar.loadFailed")}
-            </div>
+            <ErrorState
+              message={t("publications.calendar.loadFailed")}
+              onRetry={() => void publicationsQuery.refetch()}
+              retrying={publicationsQuery.isFetching}
+            />
           ) : displayMode === "list" ? (
             <PublicationsListView
               publications={publications}

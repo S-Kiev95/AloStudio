@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { useIsAccountAdmin } from "@/lib/api/profile";
 import {
   useLinkWhatsappCatalog,
@@ -91,9 +92,12 @@ export function CatalogPanel({ accountId, inboxId }: { accountId: string; inboxI
   }
   if (q.isError || !q.data) {
     return (
-      <p role="alert" className="text-sm text-danger">
-        {(q.error as Error | null)?.message ?? t("whatsapp.catalog.loadError")}
-      </p>
+      <ErrorState
+        compact
+        message={(q.error as Error | null)?.message ?? t("whatsapp.catalog.loadError")}
+        onRetry={() => void q.refetch()}
+        retrying={q.isFetching}
+      />
     );
   }
   const s = q.data;

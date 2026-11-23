@@ -4,6 +4,7 @@ import { Camera, Globe, Mail, MapPin } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { selectClassName } from "@/components/ui/select";
@@ -159,9 +160,12 @@ export function BusinessProfilePanel({
   }
   if (profileQ.isError) {
     return (
-      <p role="alert" className="text-sm text-danger">
-        {(profileQ.error as Error | null)?.message ?? t("whatsapp.profile.loadError")}
-      </p>
+      <ErrorState
+        compact
+        message={(profileQ.error as Error | null)?.message ?? t("whatsapp.profile.loadError")}
+        onRetry={() => void profileQ.refetch()}
+        retrying={profileQ.isFetching}
+      />
     );
   }
 

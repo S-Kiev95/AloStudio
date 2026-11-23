@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
@@ -127,5 +127,36 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
       expect(svg).not.toBeNull();
       expect(svg).toHaveClass("h-8", "w-8");
     }
+  });
+
+  it("muestra ErrorState con Reintentar y sin ceros falsos cuando fallan las métricas", async () => {
+    let fail = true;
+    server.use(
+      http.get("*/live_reports/conversation_metrics", () =>
+        fail
+          ? HttpResponse.json({ message: "error" }, { status: 500 })
+          : HttpResponse.json({ open: 7, unattended: 1, unassigned: 2, pending: 0 }),
+      ),
+      http.get("*/reports/summary", () =>
+        HttpResponse.json({ message: "error" }, { status: 500 }),
+      ),
+      http.get("*/reports", () =>
+        HttpResponse.json({ message: "error" }, { status: 500 }),
+      ),
+    );
+
+    const { container } = renderOverview("42");
+
+    expect(await screen.findByText("No pudimos cargar el estado actual.")).toBeInTheDocument();
+    expect(screen.getByText("No pudimos cargar las métricas del período.")).toBeInTheDocument();
+    expect(screen.getByText("No pudimos cargar el gráfico de conversaciones.")).toBeInTheDocument();
+    expect(container.querySelectorAll("[data-live-icon]")).toHaveLength(0);
+
+    const retryButtons = screen.getAllByRole("button", { name: "Reintentar" });
+    expect(retryButtons).toHaveLength(3);
+
+    fail = false;
+    fireEvent.click(retryButtons[0]);
+    expect(await screen.findByText("7")).toBeInTheDocument();
   });
 });

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   type AgentItem,
   type AgentPendingAction,
@@ -343,12 +344,15 @@ export function AgentChatView({
             </div>
           ) : statusQuery.isError ? (
             <div className="flex flex-1 items-center justify-center p-6">
-              <p role="alert" className="max-w-md text-center text-sm text-danger">
-                {getAgentErrorMessage(
+              <ErrorState
+                message={getAgentErrorMessage(
                   statusQuery.error,
                   t("agent.statusFailed"),
                 )}
-              </p>
+                onRetry={() => void statusQuery.refetch()}
+                retrying={statusQuery.isFetching}
+                className="w-full max-w-md"
+              />
             </div>
           ) : statusQuery.data?.enabled === false ? (
             <div className="flex flex-1 items-center justify-center p-6">
@@ -397,14 +401,23 @@ export function AgentChatView({
           </div>
         ) : effectiveThreadId !== null && threadQuery.isError ? (
           <div className="flex flex-1 items-center justify-center p-6">
-            <p role="alert" className="text-sm text-danger">
-              {isAgentErrorStatus(threadQuery.error, 404)
-                ? t("agent.chatNotFound")
-                : getAgentErrorMessage(
-                    threadQuery.error,
-                    t("agent.chatLoadFailed"),
-                  )}
-            </p>
+            <ErrorState
+              message={
+                isAgentErrorStatus(threadQuery.error, 404)
+                  ? t("agent.chatNotFound")
+                  : getAgentErrorMessage(
+                      threadQuery.error,
+                      t("agent.chatLoadFailed"),
+                    )
+              }
+              onRetry={
+                isAgentErrorStatus(threadQuery.error, 404)
+                  ? undefined
+                  : () => void threadQuery.refetch()
+              }
+              retrying={threadQuery.isFetching}
+              className="w-full max-w-md"
+            />
           </div>
         ) : (
           <div className="space-y-3">

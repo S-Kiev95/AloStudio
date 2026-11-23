@@ -47,6 +47,7 @@ export const core = {
     titleUnread: "Notificaciones ({count} sin leer)",
     markAll: "Marcar todo",
     empty: "No tenés notificaciones.",
+    loadFailed: "No se pudieron cargar las notificaciones.",
     seeAll: "Ver todas",
     fallback: "Notificación",
     delete: "Borrar notificación",

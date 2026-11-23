@@ -20,7 +20,9 @@ export const overview = {
   goCalendar: "Ir al calendario",
   rightNow: "Ahora mismo",
   last7: "Últimos 7 días",
+  liveFailed: "No pudimos cargar el estado actual.",
   metricsFailed: "No pudimos cargar las métricas del período.",
+  chartFailed: "No pudimos cargar el gráfico de conversaciones.",
   conversations: "Conversaciones",
   shortcuts: "Accesos rápidos",
 };

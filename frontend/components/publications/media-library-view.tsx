@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   formatBytes,
@@ -169,9 +170,12 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
             {t("publications.media.loading")}
           </p>
         ) : mediaQuery.isError ? (
-          <p role="alert" className="py-16 text-center text-sm text-danger">
-            {t("publications.media.loadFailed")}
-          </p>
+          <ErrorState
+            message={t("publications.media.loadFailed")}
+            onRetry={() => void mediaQuery.refetch()}
+            retrying={mediaQuery.isFetching}
+            className="my-8"
+          />
         ) : items.length === 0 ? (
           <div className="flex min-h-[320px] flex-col items-center justify-center px-4 py-12 text-center">
             <div className="relative mb-5 flex items-center justify-center">

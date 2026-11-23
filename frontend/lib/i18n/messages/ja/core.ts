@@ -49,6 +49,7 @@ export const core: Strings<typeof es> = {
     titleUnread: "通知 (未読 {count} 件)",
     markAll: "すべて既読にする",
     empty: "通知はありません。",
+    loadFailed: "通知を読み込めませんでした。",
     seeAll: "すべて表示",
     fallback: "通知",
     delete: "通知を削除",

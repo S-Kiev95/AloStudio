@@ -14,6 +14,7 @@ import { type FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { selectClassName } from "@/components/ui/select";
@@ -1077,9 +1078,12 @@ export function WhatsappTemplatesPanel({
           {t("whatsapp.templates.loading")}
         </p>
       ) : templatesQ.isError ? (
-        <p role="alert" className="py-4 text-center text-sm text-danger">
-          {t("whatsapp.templates.loadError")}
-        </p>
+        <ErrorState
+          compact
+          message={t("whatsapp.templates.loadError")}
+          onRetry={() => void templatesQ.refetch()}
+          retrying={templatesQ.isFetching}
+        />
       ) : templates.length === 0 ? (
         <p className="py-4 text-center text-sm text-fg-muted">
           {t("whatsapp.templates.empty")}

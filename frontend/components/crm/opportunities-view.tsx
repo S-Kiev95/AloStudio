@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { selectClassName } from "@/components/ui/select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -139,11 +140,33 @@ export function OpportunitiesView({ accountId }: { accountId: string }) {
       ) : null}
 
       {pipelines.isLoading || opportunities.isLoading ? (
-        <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
+        <div
+          aria-busy="true"
+          className="flex gap-3 overflow-x-auto pb-2"
+        >
+          <span className="sr-only">{t("common.loading")}</span>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              aria-hidden
+              className="flex w-72 shrink-0 flex-col gap-2 rounded-panel border border-glass bg-surface p-3"
+            >
+              <div className="h-5 w-2/3 animate-pulse rounded bg-surface-2" />
+              <div className="h-3 w-1/3 animate-pulse rounded bg-surface-2" />
+              <div className="mt-2 h-20 animate-pulse rounded-md bg-surface-2" />
+              <div className="h-20 animate-pulse rounded-md bg-surface-2" />
+            </div>
+          ))}
+        </div>
       ) : pipelines.isError || opportunities.isError || !pipeline ? (
-        <p role="alert" className="p-8 text-center text-sm text-danger">
-          {t("opportunities.loadFailed")}
-        </p>
+        <ErrorState
+          message={t("opportunities.loadFailed")}
+          onRetry={() => {
+            void pipelines.refetch();
+            void opportunities.refetch();
+          }}
+          retrying={pipelines.isFetching || opportunities.isFetching}
+        />
       ) : (
         <div className="flex gap-3 overflow-x-auto pb-2">
           {pipeline.stages.map((stage) => (

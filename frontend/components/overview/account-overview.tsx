@@ -20,6 +20,7 @@ import { PageSignContext } from "@/components/shell/page-header";
 import type { IconComponent } from "@/components/ui/brand-icons";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   type LiveMetrics,
   rangeForDays,
@@ -194,16 +195,25 @@ export function AccountOverview({ accountId }: { accountId: string }) {
 
       <section className="space-y-3">
         <SectionLabel>{t("overview.rightNow")}</SectionLabel>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {LIVE.map((def) => (
-            <LiveCard
-              key={def.key}
-              def={def}
-              value={live.data?.[def.key]}
-              loading={live.isLoading}
-            />
-          ))}
-        </div>
+        {live.isError ? (
+          <ErrorState
+            compact
+            message={t("overview.liveFailed")}
+            onRetry={() => void live.refetch()}
+            retrying={live.isFetching}
+          />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {LIVE.map((def) => (
+              <LiveCard
+                key={def.key}
+                def={def}
+                value={live.data?.[def.key]}
+                loading={live.isLoading}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="space-y-3">
@@ -217,9 +227,12 @@ export function AccountOverview({ accountId }: { accountId: string }) {
         ) : summary.data ? (
           <SummaryCards data={summary.data} />
         ) : (
-          <Card className="p-4 text-sm text-fg-muted">
-            {t("overview.metricsFailed")}
-          </Card>
+          <ErrorState
+            compact
+            message={t("overview.metricsFailed")}
+            onRetry={() => void summary.refetch()}
+            retrying={summary.isFetching}
+          />
         )}
       </section>
 
@@ -236,6 +249,13 @@ export function AccountOverview({ accountId }: { accountId: string }) {
           </div>
           {series.isLoading ? (
             <div className="h-48 animate-pulse rounded-md bg-surface-2" />
+          ) : series.isError ? (
+            <ErrorState
+              compact
+              message={t("overview.chartFailed")}
+              onRetry={() => void series.refetch()}
+              retrying={series.isFetching}
+            />
           ) : (
             <MetricChart
               data={series.data ?? []}

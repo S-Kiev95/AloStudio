@@ -3,6 +3,7 @@
 import { RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { useWhatsappPhoneStatus } from "@/lib/api/whatsapp-business";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
@@ -118,9 +119,12 @@ export function NumberStatusPanel({
   }
   if (q.isError || !q.data) {
     return (
-      <p role="alert" className="text-sm text-danger">
-        {(q.error as Error | null)?.message ?? t("whatsapp.numberStatus.loadError")}
-      </p>
+      <ErrorState
+        compact
+        message={(q.error as Error | null)?.message ?? t("whatsapp.numberStatus.loadError")}
+        onRetry={() => void q.refetch()}
+        retrying={q.isFetching}
+      />
     );
   }
   const s = q.data;

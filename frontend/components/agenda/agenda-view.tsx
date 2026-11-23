@@ -23,6 +23,7 @@ import {
 } from "@/components/publications/calendar-utils";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { selectClassName } from "@/components/ui/select";
 import {
@@ -103,7 +104,10 @@ export function AgendaView({ accountId, now: nowProp }: { accountId: string; now
           page,
         };
 
-  const { data, isLoading, isError } = useAppointments(accountId, queryFilters);
+  const { data, isLoading, isError, isFetching, refetch } = useAppointments(
+    accountId,
+    queryFilters,
+  );
   const updateMutation = useUpdateAppointment(accountId);
   const deleteMutation = useDeleteAppointment(accountId);
 
@@ -277,12 +281,11 @@ export function AgendaView({ accountId, now: nowProp }: { accountId: string; now
           {t("agenda.loading")}
         </div>
       ) : isError ? (
-        <div
-          role="alert"
-          className="rounded-md border border-glass bg-surface p-8 text-center text-sm text-danger"
-        >
-          {t("agenda.loadFailed")}
-        </div>
+        <ErrorState
+          message={t("agenda.loadFailed")}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
       ) : mode === "calendar" && period === "month" ? (
         <AgendaMonthGrid
           days={buildAgendaDays(bounds.start, 42, appointments, cursor.getMonth(), locale)}

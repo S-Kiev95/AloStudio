@@ -50,6 +50,7 @@ export const core: Strings<typeof es> = {
     titleUnread: "Notifications ({count} unread)",
     markAll: "Mark all read",
     empty: "You have no notifications.",
+    loadFailed: "Could not load notifications.",
     seeAll: "See all",
     fallback: "Notification",
     delete: "Delete notification",

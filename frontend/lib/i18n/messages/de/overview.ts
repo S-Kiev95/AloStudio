@@ -23,7 +23,9 @@ export const overview: Strings<typeof es> = {
   goCalendar: "Zum Kalender",
   rightNow: "Gerade jetzt",
   last7: "Letzte 7 Tage",
+  liveFailed: "Wir konnten den aktuellen Status nicht laden.",
   metricsFailed: "Wir konnten die Kennzahlen des Zeitraums nicht laden.",
+  chartFailed: "Wir konnten das Konversationsdiagramm nicht laden.",
   conversations: "Konversationen",
   shortcuts: "Schnellzugriff",
 };

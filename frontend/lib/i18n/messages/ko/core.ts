@@ -49,6 +49,7 @@ export const core: Strings<typeof es> = {
     titleUnread: "알림 (읽지 않음 {count}개)",
     markAll: "모두 읽음으로 표시",
     empty: "알림이 없습니다.",
+    loadFailed: "알림을 불러올 수 없습니다.",
     seeAll: "모두 보기",
     fallback: "알림",
     delete: "알림 삭제",

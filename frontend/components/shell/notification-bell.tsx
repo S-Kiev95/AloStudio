@@ -4,6 +4,7 @@ import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { ErrorState } from "@/components/ui/error-state";
 import {
   NOTIFICATION_TYPE_LABELS,
   notificationHref,
@@ -126,21 +127,30 @@ export function NotificationBell({ accountId }: { accountId: string }) {
             <li className="px-3 py-6 text-center text-sm text-fg-muted">
               {t("common.loading")}
             </li>
-          ) : null}
-          {!list.isLoading && rows.length === 0 ? (
+          ) : list.isError ? (
+            <li className="p-3">
+              <ErrorState
+                compact
+                message={t("notifications.loadFailed")}
+                onRetry={() => void list.refetch()}
+                retrying={list.isFetching}
+              />
+            </li>
+          ) : rows.length === 0 ? (
             <li className="px-3 py-8 text-center text-sm text-fg-muted">
               {t("notifications.empty")}
             </li>
-          ) : null}
-          {rows.map((n) => (
-            <NotificationRow
-              key={n.id}
-              accountId={accountId}
-              notification={n}
-              onMarkRead={() => markRead.mutate(n.id)}
-              onDelete={() => deleteOne.mutate(n.id)}
-            />
-          ))}
+          ) : (
+            rows.map((n) => (
+              <NotificationRow
+                key={n.id}
+                accountId={accountId}
+                notification={n}
+                onMarkRead={() => markRead.mutate(n.id)}
+                onDelete={() => deleteOne.mutate(n.id)}
+              />
+            ))
+          )}
         </ul>
 
         {rows.length > 0 ? (

@@ -23,7 +23,9 @@ export const overview: Strings<typeof es> = {
   goCalendar: "Go to calendar",
   rightNow: "Right now",
   last7: "Last 7 days",
+  liveFailed: "We couldn't load the live status.",
   metricsFailed: "We couldn't load the period's metrics.",
+  chartFailed: "We couldn't load the conversations chart.",
   conversations: "Conversations",
   shortcuts: "Shortcuts",
 };

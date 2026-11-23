@@ -49,6 +49,7 @@ export const core: Strings<typeof es> = {
     titleUnread: "Benachrichtigungen ({count} ungelesen)",
     markAll: "Alle als gelesen markieren",
     empty: "Du hast keine Benachrichtigungen.",
+    loadFailed: "Benachrichtigungen konnten nicht geladen werden.",
     seeAll: "Alle ansehen",
     fallback: "Benachrichtigung",
     delete: "Benachrichtigung löschen",

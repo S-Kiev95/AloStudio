@@ -23,7 +23,9 @@ export const overview: Strings<typeof es> = {
   goCalendar: "カレンダーへ",
   rightNow: "現在",
   last7: "過去 7 日間",
+  liveFailed: "現在の状況を読み込めませんでした。",
   metricsFailed: "期間の指標を読み込めませんでした。",
+  chartFailed: "会話のグラフを読み込めませんでした。",
   conversations: "会話",
   shortcuts: "ショートカット",
 };
