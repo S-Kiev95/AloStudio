@@ -29,6 +29,7 @@ import {
 } from "@/lib/api/inboxes";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const CHANNEL_ICON: Record<string, IconComponent> = {
   "Channel::Telegram": Telegram,
@@ -97,13 +98,14 @@ function InboxRow({
   accountId: string;
   inbox: Inbox;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteInbox(accountId);
   const [error, setError] = useState<string | null>(null);
   const Icon = CHANNEL_ICON[inbox.channel_type] ?? Webhook;
 
   async function onDelete() {
-    if (!window.confirm(t("settingsInboxes.deleteConfirm", { name: inbox.name }))) return;
+    if (!(await confirm(t("settingsInboxes.deleteConfirm", { name: inbox.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(inbox.id);

@@ -24,6 +24,7 @@ import {
 import { HandoffAssigneePanel } from "./handoff-assignee-panel";
 import { InboxMembersPanel } from "./inbox-members-panel";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function InboxDetailView({
   accountId,
@@ -32,6 +33,7 @@ export function InboxDetailView({
   accountId: string;
   inboxId: number;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const { data: inbox, isLoading, isError } = useInbox(accountId, inboxId);
   const update = useUpdateInbox(accountId);
@@ -64,7 +66,7 @@ export function InboxDetailView({
   }
 
   async function onDelete() {
-    if (!window.confirm(t("settingsInboxes.deleteConfirm", { name: inbox?.name ?? "" }))) return;
+    if (!(await confirm(t("settingsInboxes.deleteConfirm", { name: inbox?.name ?? "" })))) return;
     setError(null);
     try {
       await del.mutateAsync(inboxId);

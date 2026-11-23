@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/macros";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function MacrosView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -54,6 +55,7 @@ export function MacrosView({ accountId }: { accountId: string }) {
 }
 
 function MacroRow({ accountId, macro }: { accountId: string; macro: Macro }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteMacro(accountId);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +63,7 @@ function MacroRow({ accountId, macro }: { accountId: string; macro: Macro }) {
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(t("settingsMacros.deleteConfirm", { name: macro.name }))) return;
+    if (!(await confirm(t("settingsMacros.deleteConfirm", { name: macro.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(macro.id);

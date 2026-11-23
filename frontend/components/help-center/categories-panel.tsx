@@ -16,6 +16,7 @@ import {
 
 import { CategoryForm } from "./category-form";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function CategoriesPanel({
   accountId,
@@ -131,12 +132,13 @@ function CategoryRow({
   category: Category;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteCategory(accountId, slug);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("helpCenter.deleteCategoryConfirm", { name: category.name }))) return;
+    if (!(await confirm(t("helpCenter.deleteCategoryConfirm", { name: category.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(category.id);

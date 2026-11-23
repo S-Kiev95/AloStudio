@@ -31,6 +31,7 @@ import {
   useSyncWhatsappTemplates,
 } from "@/lib/api/whatsapp-templates";
 import { cn } from "@/lib/utils";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const TEMPLATE_NAME_RE = /^[a-z0-9_]{1,512}$/;
 
@@ -431,6 +432,7 @@ export function WhatsappTemplatesPanel({
   /** Shown as the business name in the preview's chat bar. */
   inboxName?: string;
 }) {
+  const confirm = useConfirm();
   const isAdmin = useIsAccountAdmin(accountId);
   const templatesQ = useAllWhatsappTemplates(accountId, inboxId);
   const syncMutation = useSyncWhatsappTemplates(accountId, inboxId);
@@ -628,9 +630,9 @@ export function WhatsappTemplatesPanel({
 
   async function handleDelete(tpl: WhatsappTemplateFull) {
     if (
-      !window.confirm(
+      !(await confirm(
         `¿Borrar la plantilla "${tpl.name}"? Se borra también en Meta.`,
-      )
+      ))
     ) {
       return;
     }

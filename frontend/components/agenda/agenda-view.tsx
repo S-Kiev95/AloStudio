@@ -47,6 +47,7 @@ import {
 } from "./week-utils";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 type DisplayMode = "calendar" | "list";
 
@@ -65,6 +66,7 @@ const NAV_BUTTON =
   "inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon";
 
 export function AgendaView({ accountId, now: nowProp }: { accountId: string; now?: Date }) {
+  const confirm = useConfirm();
   const t = useT();
   const locale = useLocale();
   const [now, setNow] = useState<Date>(() => nowProp ?? new Date());
@@ -149,7 +151,7 @@ export function AgendaView({ accountId, now: nowProp }: { accountId: string; now
   }
 
   async function handleDelete(appointment: Appointment) {
-    if (!window.confirm(t("agenda.deleteConfirm", { title: appointment.title }))) return;
+    if (!(await confirm(t("agenda.deleteConfirm", { title: appointment.title })))) return;
     setActionError(null);
     try {
       await deleteMutation.mutateAsync(appointment.id);

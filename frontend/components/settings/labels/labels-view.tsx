@@ -16,6 +16,7 @@ import {
 
 import { LabelForm } from "./label-form";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function LabelsView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -120,12 +121,13 @@ function LabelRow({
   label: LabelType;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteLabel(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("instagram.answers.deleteConfirm", { name: label.title }))) return;
+    if (!(await confirm(t("settingsLabels.deleteConfirm", { name: label.title })))) return;
     setError(null);
     try {
       await del.mutateAsync(label.id);

@@ -17,6 +17,7 @@ import {
 import { AssignmentPolicyForm } from "./assignment-policy-form";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const PRIORITY_LABELS: Record<string, MessageKey> = {
   earliest_created: "settingsAssign.priority.earliest_created",
@@ -133,12 +134,13 @@ function PolicyRow({
   policy: AssignmentPolicy;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteAssignmentPolicy(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("settingsAssign.deleteConfirm", { name: policy.name }))) return;
+    if (!(await confirm(t("settingsAssign.deleteConfirm", { name: policy.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(policy.id);

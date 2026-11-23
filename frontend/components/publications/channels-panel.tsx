@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { ChannelAvatar, channelDisplayName, NetworkIcon } from "./network-icon";
 import { PublicationErrorAlert } from "./publication-error-alert";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function ChannelsPanel({
   accountId,
@@ -47,6 +48,7 @@ export function ChannelsPanel({
   selectedChannelId: number | undefined;
   onSelectChannel: (channelId: number | undefined) => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -99,7 +101,7 @@ export function ChannelsPanel({
 
   async function handleRemoveChannel(channel: Channel) {
     const name = channelDisplayName(channel);
-    if (!window.confirm(t("publications.channels.removeConfirm", { name }))) return;
+    if (!(await confirm(t("publications.channels.removeConfirm", { name })))) return;
     setPanelError(null);
     try {
       await deleteChannelMutation.mutateAsync(channel.id);

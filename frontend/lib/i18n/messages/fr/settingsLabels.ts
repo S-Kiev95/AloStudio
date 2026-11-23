@@ -11,4 +11,5 @@ export const settingsLabels: Strings<typeof es> = {
   empty: "Aucune étiquette pour l’instant.",
   visibleInSidebar: "Visible dans la barre latérale",
   hiddenInSidebar: "Masquée dans la barre latérale",
+  deleteConfirm: "Supprimer l’étiquette « {name} » ?",
 };

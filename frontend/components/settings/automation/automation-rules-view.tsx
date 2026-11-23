@@ -15,6 +15,7 @@ import {
 } from "@/lib/api/automation-rules";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function AutomationRulesView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -63,6 +64,7 @@ function RuleRow({
   accountId: string;
   rule: AutomationRule;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const update = useUpdateAutomationRule(accountId);
   const del = useDeleteAutomationRule(accountId);
@@ -175,10 +177,10 @@ function RuleRow({
         type="button"
         aria-label={t("actions.delete")}
         title={t("actions.delete")}
-        onClick={(e) => {
+        onClick={async (e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (!window.confirm(t("settingsAutomation.deleteConfirm", { name: rule.name }))) return;
+          if (!(await confirm(t("settingsAutomation.deleteConfirm", { name: rule.name })))) return;
           run(() => del.mutateAsync(rule.id), t("actions.deleteFailed"));
         }}
         disabled={del.isPending}

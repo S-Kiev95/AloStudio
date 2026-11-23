@@ -15,6 +15,7 @@ import {
   useUpdateWhatsappQr,
   useWhatsappQrCodes,
 } from "@/lib/api/whatsapp-business";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const MESSAGE_MAX = 140;
 
@@ -148,6 +149,7 @@ export function LinkQrPanel({
   inboxId: number;
   phoneNumber: string | null;
 }) {
+  const confirm = useConfirm();
   const isAdmin = useIsAccountAdmin(accountId);
   const qrQ = useWhatsappQrCodes(accountId, inboxId);
   const create = useCreateWhatsappQr(accountId, inboxId);
@@ -248,8 +250,8 @@ export function LinkQrPanel({
                 onSave={(message) =>
                   run(() => update.mutateAsync({ code: qr.code, message }))
                 }
-                onDelete={() =>
-                  window.confirm("¿Borrar este QR? Los carteles impresos dejan de funcionar.")
+                onDelete={async () =>
+                  await confirm("¿Borrar este QR? Los carteles impresos dejan de funcionar.")
                     ? run(() => remove.mutateAsync(qr.code))
                     : Promise.resolve()
                 }

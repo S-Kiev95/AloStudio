@@ -8,4 +8,5 @@ export const settingsLabels = {
   empty: "No hay etiquetas todavía.",
   visibleInSidebar: "Visible en la barra lateral",
   hiddenInSidebar: "Oculto en la barra lateral",
+  deleteConfirm: "¿Eliminar la etiqueta «{name}»?",
 };

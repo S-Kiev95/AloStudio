@@ -22,6 +22,7 @@ import { SecretReveal } from "./secret-reveal";
 import { TokenForm, TokenInputAdapter } from "./token-form";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const SCOPE_LABEL: Record<MCPScope, MessageKey> = Object.fromEntries(
   MCP_SCOPES.map((s) => [s.value, s.label]),
@@ -157,6 +158,7 @@ function TokenRow({
   onEdit: () => void;
   onSecret: (newSecret: string) => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const intlTag = useIntlTag();
   const rotate = useRotateMCPToken(accountId);
@@ -165,9 +167,9 @@ function TokenRow({
 
   async function onRotate() {
     if (
-      !window.confirm(
+      !(await confirm(
         t("settingsMcp.rotateConfirm", { name: token.name }),
-      )
+      ))
     )
       return;
     setError(null);
@@ -180,7 +182,7 @@ function TokenRow({
   }
 
   async function onDelete() {
-    if (!window.confirm(t("settingsMcp.deleteConfirm", { name: token.name }))) return;
+    if (!(await confirm(t("settingsMcp.deleteConfirm", { name: token.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(token.id);

@@ -22,6 +22,7 @@ import { PostAutoreplyRules } from "./post-autoreply-rules";
 import { PostMediaPreview } from "./post-media";
 import { StateBadge } from "./state-badge";
 import { useIntlTag, useLocale, useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function PostDetail({
   accountId,
@@ -236,6 +237,7 @@ function DeletePostButton({
   accountId: string;
   post: InstagramPost;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const router = useRouter();
   const del = useDeletePost(accountId);
@@ -256,7 +258,7 @@ function DeletePostButton({
   }
 
   async function onDelete() {
-    if (!window.confirm(t("instagram.post.deleteConfirm"))) return;
+    if (!(await confirm(t("instagram.post.deleteConfirm")))) return;
     setError(null);
     try {
       await del.mutateAsync(post.id);

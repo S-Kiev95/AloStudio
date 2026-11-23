@@ -18,6 +18,7 @@ import {
 } from "@/lib/api/integrations";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function IntegrationAppView({
   accountId,
@@ -272,12 +273,13 @@ function HookRow({
   accountId: string;
   hook: IntegrationHook;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteIntegrationHook(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("settingsIntegrations.deleteConfirm"))) return;
+    if (!(await confirm(t("settingsIntegrations.deleteConfirm")))) return;
     setError(null);
     try {
       await del.mutateAsync(hook.id);

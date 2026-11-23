@@ -11,4 +11,5 @@ export const settingsLabels: Strings<typeof es> = {
   empty: "Noch keine Labels.",
   visibleInSidebar: "In der Seitenleiste sichtbar",
   hiddenInSidebar: "In der Seitenleiste ausgeblendet",
+  deleteConfirm: 'Label „{name}“ löschen?',
 };

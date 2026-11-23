@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { INTL_TAGS } from "@/lib/i18n/config";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const TYPE_FILTERS: { value: CampaignType | undefined; label: MessageKey }[] = [
   { value: undefined, label: "campaigns.filters.all" },
@@ -91,6 +92,7 @@ function CampaignRow({
   accountId: string;
   campaign: Campaign;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const locale = useLocale();
   const del = useDeleteCampaign(accountId);
@@ -99,7 +101,7 @@ function CampaignRow({
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(t("campaigns.deleteConfirm", { title: campaign.title ?? "" })))
+    if (!(await confirm(t("campaigns.deleteConfirm", { title: campaign.title ?? "" }))))
       return;
     setError(null);
     try {

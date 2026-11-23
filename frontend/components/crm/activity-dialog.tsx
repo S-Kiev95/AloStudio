@@ -22,6 +22,7 @@ import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 
 import { ContactPicker, type PickedContact } from "./contact-picker";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export const ACTIVITY_KINDS: { value: ActivityKind; label: MessageKey }[] = [
   { value: "task", label: "activities.kinds.task" },
@@ -51,6 +52,7 @@ export function ActivityDialog({
   initial?: Activity | null;
   presetContact?: PickedContact | null;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [kind, setKind] = useState<ActivityKind>("task");
@@ -126,7 +128,7 @@ export function ActivityDialog({
 
   async function handleDelete() {
     if (!initial) return;
-    if (!window.confirm(t("activities.deleteConfirm", { title: initial.title }))) return;
+    if (!(await confirm(t("activities.deleteConfirm", { title: initial.title })))) return;
     try {
       await remove.mutateAsync(initial.id);
       onClose();

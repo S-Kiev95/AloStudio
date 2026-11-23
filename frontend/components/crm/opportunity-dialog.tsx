@@ -22,6 +22,7 @@ import { useT } from "@/lib/i18n/provider";
 
 import { ContactPicker, type PickedContact } from "./contact-picker";
 import { stageLabel } from "./stage-label";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 /** Create or edit an opportunity. ``presetContact`` fixes the contact when
  *  it is opened from a contact's page. */
@@ -42,6 +43,7 @@ export function OpportunityDialog({
   presetContact?: PickedContact | null;
   defaultStageId?: number | null;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -143,7 +145,7 @@ export function OpportunityDialog({
 
   async function handleDelete() {
     if (!initial) return;
-    if (!window.confirm(t("opportunities.deleteConfirm", { title: initial.title }))) return;
+    if (!(await confirm(t("opportunities.deleteConfirm", { title: initial.title })))) return;
     try {
       await remove.mutateAsync(initial.id);
       onClose();

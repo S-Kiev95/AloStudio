@@ -16,6 +16,7 @@ import {
 
 import { CannedResponseForm } from "./canned-response-form";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function CannedResponsesView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -157,12 +158,13 @@ function CannedRow({
   canned: CannedResponse;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteCannedResponse(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("settingsCanned.deleteConfirm", { code: canned.short_code }))) return;
+    if (!(await confirm(t("settingsCanned.deleteConfirm", { code: canned.short_code })))) return;
     setError(null);
     try {
       await del.mutateAsync(canned.id);

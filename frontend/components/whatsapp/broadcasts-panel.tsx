@@ -24,6 +24,7 @@ import { useWhatsappTemplates } from "@/lib/api/whatsapp-templates";
 import { cn } from "@/lib/utils";
 
 import { renderTemplateText, WhatsappTemplatePreview } from "./templates-panel";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const STATUS_LABEL: Record<CampaignRecipient["status"], string> = {
   progress: "Enviando",
@@ -408,6 +409,7 @@ export function BroadcastsPanel({
   inboxId: number;
   inboxName: string;
 }) {
+  const confirm = useConfirm();
   const isAdmin = useIsAccountAdmin(accountId);
   const campaignsQ = useCampaigns(accountId);
   const remove = useDeleteCampaign(accountId);
@@ -498,8 +500,8 @@ export function BroadcastsPanel({
                       size="sm"
                       className="text-danger hover:text-danger"
                       loading={remove.isPending}
-                      onClick={() => {
-                        if (window.confirm("¿Cancelar este envío programado?")) {
+                      onClick={async () => {
+                        if (await confirm("¿Cancelar este envío programado?")) {
                           remove.mutate(c.display_id);
                         }
                       }}

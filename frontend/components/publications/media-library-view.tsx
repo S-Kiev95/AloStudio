@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { PublicationErrorAlert } from "./publication-error-alert";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const KIND_FILTERS: { value: MediaKind | undefined; label: MessageKey }[] = [
   { value: undefined, label: "publications.media.filters.all" },
@@ -33,6 +34,7 @@ const KIND_FILTERS: { value: MediaKind | undefined; label: MessageKey }[] = [
 ];
 
 export function MediaLibraryView({ accountId }: { accountId: string }) {
+  const confirm = useConfirm();
   const t = useT();
   const isAdmin = useIsAccountAdmin(accountId);
   const [kindFilter, setKindFilter] = useState<MediaKind | undefined>(undefined);
@@ -77,7 +79,7 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
   async function handleDelete(asset: MediaAsset) {
     const label =
       asset.filename || t("publications.media.fileNumberLower", { id: asset.id });
-    if (!window.confirm(t("publications.media.deleteConfirm", { name: label })))
+    if (!(await confirm(t("publications.media.deleteConfirm", { name: label }))))
       return;
     setError(null);
     try {

@@ -17,6 +17,7 @@ import {
 
 import { AgentBotForm } from "./agent-bot-form";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function AgentBotsView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -121,6 +122,7 @@ function BotRow({
   bot: AgentBot;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteAgentBot(accountId);
   const reset = useResetBotSecret(accountId);
@@ -198,8 +200,8 @@ function BotRow({
             type="button"
             aria-label={t("actions.delete")}
             title={t("actions.delete")}
-            onClick={() => {
-              if (!window.confirm(t("settingsBots.deleteConfirm", { name: bot.name }))) return;
+            onClick={async () => {
+              if (!(await confirm(t("settingsBots.deleteConfirm", { name: bot.name })))) return;
               run(() => del.mutateAsync(bot.id), t("actions.deleteFailed"));
             }}
             disabled={del.isPending}

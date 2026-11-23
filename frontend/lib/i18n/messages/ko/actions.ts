@@ -22,4 +22,6 @@ export const actions: Strings<typeof es> = {
   closeDialog: "대화상자 닫기",
   deleteFailed: "삭제하지 못했습니다.",
   save: "저장",
+  confirm: "확인",
+  confirmTitle: "작업 확인",
 };

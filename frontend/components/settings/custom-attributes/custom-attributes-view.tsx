@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { CustomAttributeForm } from "./custom-attribute-form";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const MODEL_FILTERS: { value: AttributeModel | undefined; label: MessageKey }[] = [
   { value: undefined, label: "helpCenter.filters.all" },
@@ -146,12 +147,13 @@ function AttrRow({
   attribute: CustomAttribute;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteCustomAttribute(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("settingsAttrs.deleteConfirm", { name: attribute.attribute_display_name })))
+    if (!(await confirm(t("settingsAttrs.deleteConfirm", { name: attribute.attribute_display_name }))))
       return;
     setError(null);
     try {

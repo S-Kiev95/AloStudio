@@ -16,6 +16,7 @@ import {
 
 import { TeamForm } from "./team-form";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function TeamsView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -80,6 +81,7 @@ export function TeamsView({ accountId }: { accountId: string }) {
 }
 
 function TeamRow({ accountId, team }: { accountId: string; team: Team }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteTeam(accountId);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +89,7 @@ function TeamRow({ accountId, team }: { accountId: string; team: Team }) {
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(t("settingsTeams.deleteConfirm", { name: team.name }))) return;
+    if (!(await confirm(t("settingsTeams.deleteConfirm", { name: team.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(team.id);

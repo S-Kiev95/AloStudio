@@ -23,6 +23,7 @@ import {
 } from "@/lib/api/agents-admin";
 import { useT } from "@/lib/i18n/provider";
 import { rich } from "@/lib/i18n/rich";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function AgentsView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -181,6 +182,7 @@ function AgentRow({
   accountId: string;
   agent: Agent;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const update = useUpdateAgent(accountId);
   const remove = useRemoveAgent(accountId);
@@ -205,7 +207,7 @@ function AgentRow({
   }
 
   async function onRemove() {
-    if (!window.confirm(t("settingsAgents.removeConfirm", { name: agent.name }))) return;
+    if (!(await confirm(t("settingsAgents.removeConfirm", { name: agent.name })))) return;
     setError(null);
     try {
       await remove.mutateAsync(agent.id);

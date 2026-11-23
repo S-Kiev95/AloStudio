@@ -16,6 +16,7 @@ import {
 
 import { WebhookForm } from "./webhook-form";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function WebhooksView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -122,12 +123,13 @@ function WebhookRow({
   webhook: Webhook;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteWebhook(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("settingsWebhooks.deleteConfirm"))) return;
+    if (!(await confirm(t("settingsWebhooks.deleteConfirm")))) return;
     setError(null);
     try {
       await del.mutateAsync(webhook.id);

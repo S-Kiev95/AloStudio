@@ -33,6 +33,7 @@ import { BlockEditor } from "./block-editor";
 import { TestSendBox } from "./test-send-box";
 import { useT } from "@/lib/i18n/provider";
 import { rich } from "@/lib/i18n/rich";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const CONTENT = "{{contenido}}";
 
@@ -155,6 +156,7 @@ function TemplateEditor({
   template: EmailTemplate;
   onDeleted: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const update = useUpdateEmailTemplate(accountId);
   const remove = useDeleteEmailTemplate(accountId);
@@ -219,9 +221,9 @@ function TemplateEditor({
 
   async function onDelete() {
     if (
-      !window.confirm(
+      !(await confirm(
         t("settingsEmailTpl.deleteConfirm", { name: template.name }),
-      )
+      ))
     ) {
       return;
     }

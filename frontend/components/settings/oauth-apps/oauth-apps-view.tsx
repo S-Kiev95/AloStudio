@@ -25,6 +25,7 @@ import { CopyField } from "./copy-field";
 import { CredentialsReveal } from "./credentials-reveal";
 import { useT } from "@/lib/i18n/provider";
 import { rich } from "@/lib/i18n/rich";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 type Revealed = { clientId: string; clientSecret?: string };
 
@@ -202,6 +203,7 @@ function AppRow({
   onEdit: () => void;
   onSecret: (secret: string) => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const rotate = useRotateOAuthAppSecret(accountId);
   const del = useDeleteOAuthApp(accountId);
@@ -209,9 +211,9 @@ function AppRow({
 
   async function onRotate() {
     if (
-      !window.confirm(
+      !(await confirm(
         t("settingsOauth.rotateConfirm", { name: app.name }),
-      )
+      ))
     )
       return;
     setError(null);
@@ -225,9 +227,9 @@ function AppRow({
 
   async function onDelete() {
     if (
-      !window.confirm(
+      !(await confirm(
         t("settingsOauth.deleteConfirm", { name: app.name }),
-      )
+      ))
     )
       return;
     setError(null);

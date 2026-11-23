@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/contacts";
 import { relativeTime } from "@/lib/time";
 import { useLocale, useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function NotesPanel({
   accountId,
@@ -106,6 +107,7 @@ function NoteRow({
   contactId: number;
   note: ContactNote;
 }) {
+  const confirm = useConfirm();
   const locale = useLocale();
   const t = useT();
   const update = useUpdateContactNote(accountId, contactId);
@@ -130,7 +132,7 @@ function NoteRow({
   }
 
   async function onDelete() {
-    if (!window.confirm(t("contacts.notes.deleteConfirm"))) return;
+    if (!(await confirm(t("contacts.notes.deleteConfirm")))) return;
     setError(null);
     try {
       await del.mutateAsync(note.id);

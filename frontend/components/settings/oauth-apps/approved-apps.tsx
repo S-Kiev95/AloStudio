@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/oauth";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { Translate } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 function when(iso: string | null, t: Translate, intlTag: string): string {
   return iso ? new Date(iso).toLocaleString(intlTag) : t("settingsOauth.never");
@@ -51,6 +52,7 @@ function ApprovedRow({
   accountId: string;
   authorization: OAuthAuthorization;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const intlTag = useIntlTag();
   const revoke = useRevokeOAuthAuthorization(accountId);
@@ -58,9 +60,9 @@ function ApprovedRow({
 
   async function onRevoke() {
     if (
-      !window.confirm(
+      !(await confirm(
         t("settingsOauth.revokeConfirm", { name: authorization.app.name }),
-      )
+      ))
     )
       return;
     setError(null);

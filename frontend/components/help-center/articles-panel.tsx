@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const STATUS_FILTERS: { value: ArticleStatus | undefined; label: MessageKey }[] = [
   { value: undefined, label: "helpCenter.filters.all" },
@@ -152,6 +153,7 @@ function ArticleRow({
   slug: string;
   article: Article;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteArticle(accountId, slug);
   const [error, setError] = useState<string | null>(null);
@@ -159,7 +161,7 @@ function ArticleRow({
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(t("helpCenter.deleteArticleConfirm", { title: article.title }))) return;
+    if (!(await confirm(t("helpCenter.deleteArticleConfirm", { title: article.title })))) return;
     setError(null);
     try {
       await del.mutateAsync(article.id);

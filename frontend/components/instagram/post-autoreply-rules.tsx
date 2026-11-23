@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { PostReplyPicker } from "./post-reply-picker";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const MATCHES: { value: MatchType; label: MessageKey; help: MessageKey }[] = [
   {
@@ -100,6 +101,7 @@ export function PostAutoreplyRules({
   accountId: string;
   postId: number;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const rules = usePostRules(accountId, postId);
   const status = useAutoreplyStatus(accountId);
@@ -447,8 +449,8 @@ export function PostAutoreplyRules({
                 type="button"
                 aria-label={t("instagram.rules.delete")}
                 disabled={del.isPending}
-                onClick={() => {
-                  if (window.confirm(t("instagram.rules.deleteConfirm"))) del.mutate(r.id);
+                onClick={async () => {
+                  if (await confirm(t("instagram.rules.deleteConfirm"))) del.mutate(r.id);
                 }}
                 className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50"
               >
