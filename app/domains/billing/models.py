@@ -72,6 +72,14 @@ class AccountSubscription(TimestampMixin, table=True):
         default_factory=dict,
         sa_column=Column(JSONB, nullable=False, server_default="{}"),
     )
+    # Which month (AAAA-MM) and level (80/100) of the plan's AI cap the
+    # admins were last told, like ``UsageLimit`` does for an admin's cap.
+    cap_notified_month: str | None = Field(
+        default=None, sa_column=Column(String(7), nullable=True)
+    )
+    cap_notified_level: int = Field(
+        default=0, sa_column=Column(Integer, nullable=False, server_default="0")
+    )
 
 
 class BillingEvent(TimestampMixin, table=True):

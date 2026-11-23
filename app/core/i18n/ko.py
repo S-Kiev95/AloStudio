@@ -57,6 +57,7 @@ MESSAGES: dict[str, str] = {
     "push.title.sla_missed_resolution": "SLA 미준수",
     "push.title.conversation_bot_handoff": "사람의 응대가 필요합니다",
     "push.title.crm_activity_due": "작업 기한",
+    "notif.lead.usage_limit_plan": "요금제의 AI 한도: {title}. 100%가 되면 AI 크레딧이 있을 때만 AI가 계속됩니다(자동으로 차감). 크레딧이 없으면 다음 달이나 더 큰 요금제로 바꿀 때까지 멈춥니다.",
     "push.title.usage_limit": "지출 한도",
     "push.title.default": "알림",
     "push.body": "대화 #{n}",

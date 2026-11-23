@@ -54,6 +54,10 @@ def build_notification_email(
     if subject_key not in CATALOGS[DEFAULT_LOCALE]:
         subject_key = "notif.subject.default"
     lead_key = f"notif.lead.{type_str}"
+    if notification.primary_actor_type == "AccountSubscription":
+        # The plan's AI cap (F2): credit keeps the AI going, a bigger plan
+        # raises it; an admin can't just raise it in Gastos.
+        lead_key = f"notif.lead.{type_str}_plan"
     if lead_key not in CATALOGS[DEFAULT_LOCALE]:
         lead_key = "notif.lead.default"
     title = str((notification.meta or {}).get("title", ""))
@@ -66,6 +70,8 @@ def build_notification_email(
         if notification.primary_actor_type == "CrmActivity"
         else f"{base}/publications/analytics/costs"
         if notification.primary_actor_type == "UsageLimit"
+        else f"{base}/settings/billing"
+        if notification.primary_actor_type == "AccountSubscription"
         else f"{base}/conversations/{display_id}"
     )
     greeting = user.name or user.email or ""

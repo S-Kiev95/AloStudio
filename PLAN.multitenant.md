@@ -464,8 +464,13 @@ créditos.
 
 - Créditos: avisos de saldo bajo y de "seguís con créditos"; alerta si
   un día gasta mucho más que el promedio.
-- Avisos al 80 % y 100 % del tope del plan (hoy el worker avisa solo los
-  topes que pone un admin en Gastos).
+- ~~Avisos al 80 % y 100 % del tope del plan~~ **Hecho (2026-11-23):** el
+  mismo aviso de "tope de gasto" (así llega a quien ya tiene sus
+  preferencias guardadas), una vez por nivel y mes, con el gasto de IA del
+  mes contra el tope del plan; actor `AccountSubscription` (migración
+  `c8e0a2b4d6f1`: `cap_notified_month` / `cap_notified_level`). El correo
+  dice que al 100 % la IA sigue con créditos o se frena, y lleva a
+  Facturación (también el push y el panel). Solo con `MULTITENANT=true`.
 - El control del tope suma 5 a 7 consultas por llamada a la IA y por envío
   de plantilla (solo multitenant). Si pesa, guardar el gasto del mes por
   unos minutos.

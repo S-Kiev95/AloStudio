@@ -61,6 +61,7 @@ MESSAGES: dict[str, str] = {
     "push.title.sla_missed_resolution": "SLA verfehlt",
     "push.title.conversation_bot_handoff": "Eine Person wird gebraucht",
     "push.title.crm_activity_due": "Aufgabe fällig",
+    "notif.lead.usage_limit_plan": "KI-Limit deines Tarifs: {title}. Bei 100 % läuft die KI nur mit KI-Guthaben weiter (wird automatisch abgezogen); ohne Guthaben stoppt sie bis zum nächsten Monat oder bis du einen größeren Tarif wählst.",
     "push.title.usage_limit": "Ausgabenlimit",
     "push.title.default": "Benachrichtigung",
     "push.body": "Konversation #{n}",

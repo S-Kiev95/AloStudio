@@ -551,3 +551,57 @@ async def test_an_order_without_product_stays_to_replay(client, db_session):
     assert event.processed_at is None
     assert "without product" in (event.error or "")
 
+
+async def _spend_ai(db_session, account_id: int, cost: str, source_id: str) -> None:
+    from datetime import UTC, datetime
+
+    from app.domains.usage.models import KIND_AI, UsageRecord
+
+    db_session.add(
+        UsageRecord(account_id=account_id, kind=KIND_AI, occurred_at=datetime.now(UTC),
+                    category="agent", cost=Decimal(cost), source_id=source_id)
+    )
+    await db_session.flush()
+
+
+async def test_the_plan_cap_tells_the_admins_at_80_and_100(multitenant, client, db_session):
+    from app.domains.notifications.mailer import build_notification_email
+    from app.domains.notifications.models import Notification
+    from app.domains.usage.limits import notify_limits
+
+    owner, _ = await _owner(db_session, "-alert")
+    account_id = owner.account.id
+    await _with_plan(db_session, account_id, BASIC)  # USD 5 of AI
+
+    await _spend_ai(db_session, account_id, "3", "ai-alert-1")  # 60 %
+    assert await notify_limits(db_session) == []
+
+    await _spend_ai(db_session, account_id, "1.5", "ai-alert-2")  # 90 %
+    [first] = await notify_limits(db_session)
+    note = await db_session.get(Notification, first)
+    assert note is not None and note.user_id == owner.user.id
+    assert note.primary_actor_type == "AccountSubscription"
+    assert note.meta["level"] == 80 and note.meta["source"] == "plan"
+    assert "4.50 / 5.00" in note.meta["title"]
+    # Once per level and month.
+    assert await notify_limits(db_session) == []
+
+    await _spend_ai(db_session, account_id, "1", "ai-alert-3")  # 110 %
+    [second] = await notify_limits(db_session)
+    note = await db_session.get(Notification, second)
+    assert note is not None and note.meta["level"] == 100
+    # The mail says credit keeps the AI going, and leads to Facturación.
+    mail = build_notification_email(notification=note, user=owner.user, conversation=None)
+    body = mail.get_content()
+    assert "/settings/billing" in body
+    assert "credit" in body.lower() or "crédito" in body.lower()
+    assert await notify_limits(db_session) == []
+
+
+async def test_a_single_tenant_install_has_no_plan_cap_alerts(client, db_session):
+    from app.domains.usage.limits import notify_limits
+
+    owner, _ = await _owner(db_session, "-noalert")
+    await _with_plan(db_session, owner.account.id, BASIC)
+    await _spend_ai(db_session, owner.account.id, "9", "ai-noalert-1")
+    assert await notify_limits(db_session) == []

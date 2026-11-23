@@ -67,6 +67,7 @@ MESSAGES: dict[str, str] = {
     "push.title.sla_missed_resolution": "SLA incumplido",
     "push.title.conversation_bot_handoff": "Piden atención de una persona",
     "push.title.crm_activity_due": "Tarea vencida",
+    "notif.lead.usage_limit_plan": "Tope de IA de tu plan: {title}. Al 100 %, la IA sigue solo con créditos de IA (se descuentan solos); sin créditos se frena hasta el mes que viene o hasta que pases a un plan mayor.",
     "push.title.usage_limit": "Tope de gasto",
     "push.title.default": "Notificación",
     "push.body": "Conversación #{n}",

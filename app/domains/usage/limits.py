@@ -19,7 +19,7 @@ Bandeja's "Plantilla" button); replies inside the 24 h window still go out,
 so customers aren't left unanswered. Reaching the AI cap stops the calls
 to the AI provider (the agent, Instagram auto-replies, Help Center search
 falls back to plain text search). The worker tells the admins at 80 % and
-100 %, once per month and level.
+100 %, once per month and level, of an admin's cap and of the plan's.
 """
 
 from __future__ import annotations
@@ -34,7 +34,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.domains.billing.models import CreditMonthUsage
+from app.core.config import get_settings
+from app.domains.billing.models import ACTIVE_STATUSES, AccountSubscription, CreditMonthUsage
 from app.domains.billing.service import credit_left_of, credit_purchases, plan_usage_cap
 from app.domains.usage.models import (
     KIND_AI,
@@ -290,7 +291,6 @@ async def notify_limits(session: AsyncSession) -> list[int]:
     commits and hands them to the mail and push jobs."""
     from app.domains.notifications.models import NOTIFICATION_TYPE_USAGE_LIMIT
     from app.domains.notifications.service import create_notification
-    from app.domains.users.models import ACCOUNT_USER_ROLE_ADMINISTRATOR, AccountUser
 
     month = datetime.now(UTC).strftime("%Y-%m")
     ids: list[int] = []
@@ -305,15 +305,7 @@ async def notify_limits(session: AsyncSession) -> list[int]:
             continue
         label = "WhatsApp" if cap.kind == KIND_WHATSAPP else "IA / AI"
         title = f"{label}: {level}% ({spent:.2f} / {cap.monthly_limit:.2f})"
-        admins = (
-            await session.exec(
-                select(AccountUser.user_id).where(
-                    AccountUser.account_id == cap.account_id,
-                    AccountUser.role == ACCOUNT_USER_ROLE_ADMINISTRATOR,
-                )
-            )
-        ).all()
-        for user_id in admins:
+        for user_id in await _admin_ids(session, cap.account_id):
             notification = await create_notification(
                 session,
                 account_id=cap.account_id,
@@ -328,7 +320,66 @@ async def notify_limits(session: AsyncSession) -> list[int]:
         cap.notified_month = month
         cap.notified_level = level
         session.add(cap)
+    ids += await _notify_plan_caps(session, month)
     await session.flush()
+    return ids
+
+
+async def _admin_ids(session: AsyncSession, account_id: int) -> list[int]:
+    from app.domains.users.models import ACCOUNT_USER_ROLE_ADMINISTRATOR, AccountUser
+
+    rows = (
+        await session.exec(
+            select(AccountUser.user_id).where(
+                AccountUser.account_id == account_id,
+                AccountUser.role == ACCOUNT_USER_ROLE_ADMINISTRATOR,
+            )
+        )
+    ).all()
+    return [user_id for user_id in rows if user_id is not None]
+
+
+async def _notify_plan_caps(session: AsyncSession, month: str) -> list[int]:
+    """F2 multitenant: the same 80 % / 100 % alerts for the plan's AI cap,
+    once per month and level. At 100 % the AI goes on with AI credit if
+    the account has some; the mail says so (``notif.lead.usage_limit_plan``)."""
+    from app.domains.notifications.models import NOTIFICATION_TYPE_USAGE_LIMIT
+    from app.domains.notifications.service import create_notification
+
+    if not get_settings().multitenant:
+        return []
+    ids: list[int] = []
+    subs = (
+        await session.exec(
+            select(AccountSubscription).where(AccountSubscription.status.in_(ACTIVE_STATUSES))  # type: ignore[attr-defined]
+        )
+    ).all()
+    for sub in subs:
+        cap = await plan_usage_cap(session, sub.account_id)
+        if cap is None:
+            continue
+        spent = await ai_month_spend(session, sub.account_id)
+        percent = spent / cap * 100
+        level = max((lvl for lvl in ALERT_LEVELS if percent >= lvl), default=0)
+        already = sub.cap_notified_level if sub.cap_notified_month == month else 0
+        if level <= already:
+            continue
+        title = f"IA / AI ({sub.plan_name or 'plan'}): {level}% ({spent:.2f} / {cap:.2f})"
+        for user_id in await _admin_ids(session, sub.account_id):
+            notification = await create_notification(
+                session,
+                account_id=sub.account_id,
+                user_id=user_id,
+                notification_type=NOTIFICATION_TYPE_USAGE_LIMIT,
+                primary_actor_type="AccountSubscription",
+                primary_actor_id=sub.id,  # type: ignore[arg-type]
+                meta={"title": title, "kind": KIND_AI, "level": level, "source": "plan"},
+            )
+            assert notification.id is not None
+            ids.append(notification.id)
+        sub.cap_notified_month = month
+        sub.cap_notified_level = level
+        session.add(sub)
     return ids
 
 

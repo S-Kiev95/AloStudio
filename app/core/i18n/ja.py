@@ -59,6 +59,7 @@ MESSAGES: dict[str, str] = {
     "push.title.sla_missed_resolution": "SLA 未達",
     "push.title.conversation_bot_handoff": "担当者の対応が必要です",
     "push.title.crm_activity_due": "タスクの期限",
+    "notif.lead.usage_limit_plan": "プランの AI 上限: {title}。100% になると、AI クレジットがある場合のみ AI は続きます（自動で差し引かれます）。クレジットがない場合は、翌月またはより大きなプランに変更するまで停止します。",
     "push.title.usage_limit": "支出上限",
     "push.title.default": "通知",
     "push.body": "会話 #{n}",
