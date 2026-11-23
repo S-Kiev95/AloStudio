@@ -20,22 +20,22 @@ describe("loginSchema", () => {
 });
 
 describe("signupSchema", () => {
-  it("accepts valid company name, user name, email and 6+ char password", () => {
+  it("accepts valid company name, user name, email and 8+ char password", () => {
     const r = signupSchema.safeParse({
       account_name: "AloStudio",
       user_full_name: "Ana Pérez",
       email: "ana@alostudio.test",
-      password: "secreto",
+      password: "secreto8",
     });
     expect(r.success).toBe(true);
   });
 
-  it("rejects passwords shorter than 6 characters", () => {
+  it("rejects passwords shorter than 8 characters, as the backend does", () => {
     const r = signupSchema.safeParse({
       account_name: "AloStudio",
       user_full_name: "Ana Pérez",
       email: "ana@alostudio.test",
-      password: "12345",
+      password: "1234567",
     });
     expect(r.success).toBe(false);
   });

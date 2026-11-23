@@ -24,14 +24,18 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// The backend takes 8 to 72 characters (bcrypt): the form says so first.
+const S = {
+  accountNameRequired: "auth.signup.accountNameRequired",
+  fullNameRequired: "auth.signup.fullNameRequired",
+  passwordMin: "auth.signup.passwordMin",
+} as const satisfies Record<string, MessageKey>;
+
 export const signupSchema = z.object({
-  account_name: z
-    .string()
-    .trim()
-    .min(1, "El nombre de la empresa es obligatorio"),
-  user_full_name: z.string().trim().min(1, "Tu nombre es obligatorio"),
-  email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Mínimo 6 caracteres"),
+  account_name: z.string().trim().min(1, S.accountNameRequired),
+  user_full_name: z.string().trim().min(1, S.fullNameRequired),
+  email: z.string().email(V.emailInvalid),
+  password: z.string().min(8, S.passwordMin).max(72, S.passwordMin),
 });
 
 export type SignupInput = z.infer<typeof signupSchema>;

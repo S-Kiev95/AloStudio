@@ -12,9 +12,11 @@ import { Label } from "@/components/ui/label";
 import { usePublicInstallation } from "@/lib/api/installation";
 import { safeNextPath } from "@/lib/auth/next-path";
 import { signupError } from "@/lib/auth/signup-error";
-import { type SignupInput, signupSchema } from "@/lib/auth/schemas";
+import { useT } from "@/lib/i18n/provider";
+import { errorKey, type SignupInput, signupSchema } from "@/lib/auth/schemas";
 
 export default function RegistroPage() {
+  const t = useT();
   const router = useRouter();
   const installation = usePublicInstallation();
   const [formError, setFormError] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export default function RegistroPage() {
           typeof (body as { message?: unknown })?.message === "string" &&
           (body as { message: string }).message
             ? (body as { message: string }).message
-            : "Demasiados registros seguidos. Probá más tarde.";
+            : t("auth.signup.tooMany");
         setFormError(msg);
         return;
       }
@@ -96,20 +98,20 @@ export default function RegistroPage() {
       <div className="space-y-6">
         <div>
           <div className="neon-sign">
-            <h1 className="text-[28px] leading-[1.2]">Crear cuenta</h1>
+            <h1 className="text-[28px] leading-[1.2]">{t("auth.signup.title")}</h1>
           </div>
         </div>
         <p
           role="alert"
           className="rounded-control border border-glass bg-surface-2 px-3.5 py-2.5 text-sm text-fg"
         >
-          El registro no está abierto en esta instalación
+          {t("auth.signup.closed")}
         </p>
         <Link
           href="/login"
           className="block text-center text-sm text-info hover:underline"
         >
-          Ir a iniciar sesión
+          {t("auth.signup.goToLogin")}
         </Link>
       </div>
     );
@@ -120,18 +122,18 @@ export default function RegistroPage() {
       <div className="space-y-6">
         <div>
           <div className="neon-sign">
-            <h1 className="text-[28px] leading-[1.2]">Confirmá tu correo</h1>
+            <h1 className="text-[28px] leading-[1.2]">{t("auth.signup.confirmTitle")}</h1>
           </div>
         </div>
         <p
           role="status"
           className="rounded-control border border-glass bg-surface-2 px-3.5 py-2.5 text-sm text-fg"
         >
-          Te mandamos un correo a {pendingEmail}. Abrilo para activar tu cuenta
+          {t("auth.signup.sentTo", { email: pendingEmail })}
         </p>
         {resent ? (
           <p className="text-xs text-fg-muted">
-            Te volvimos a mandar el correo de confirmación.
+            {t("auth.signup.resent")}
           </p>
         ) : null}
         <Button
@@ -141,13 +143,13 @@ export default function RegistroPage() {
           loading={resending}
           onClick={() => void resendConfirmation()}
         >
-          Reenviar correo
+          {t("auth.signup.resend")}
         </Button>
         <Link
           href="/login"
           className="block text-center text-sm text-info hover:underline"
         >
-          Ir a iniciar sesión
+          {t("auth.signup.goToLogin")}
         </Link>
       </div>
     );
@@ -157,10 +159,10 @@ export default function RegistroPage() {
     <div className="space-y-6">
       <div>
         <div className="neon-sign">
-          <h1 className="text-[28px] leading-[1.2]">Crear cuenta</h1>
+          <h1 className="text-[28px] leading-[1.2]">{t("auth.signup.title")}</h1>
         </div>
         <p className="mt-1.5 text-sm text-fg-muted">
-          Creá tu cuenta de AloStudio.
+          {t("auth.signup.subtitle")}
         </p>
       </div>
 
@@ -176,7 +178,7 @@ export default function RegistroPage() {
 
         <div className="space-y-1.5">
           <Label htmlFor="account_name" required>
-            Nombre de la empresa
+            {t("auth.signup.accountName")}
           </Label>
           <Input
             id="account_name"
@@ -194,14 +196,14 @@ export default function RegistroPage() {
               role="alert"
               className="text-sm text-danger"
             >
-              {errors.account_name.message}
+              {t(errorKey(errors.account_name.message))}
             </p>
           ) : null}
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="user_full_name" required>
-            Tu nombre
+            {t("auth.signup.fullName")}
           </Label>
           <Input
             id="user_full_name"
@@ -219,14 +221,14 @@ export default function RegistroPage() {
               role="alert"
               className="text-sm text-danger"
             >
-              {errors.user_full_name.message}
+              {t(errorKey(errors.user_full_name.message))}
             </p>
           ) : null}
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="email" required>
-            Email
+            {t("auth.signup.email")}
           </Label>
           <Input
             id="email"
@@ -238,14 +240,14 @@ export default function RegistroPage() {
           />
           {errors.email ? (
             <p id="email-error" role="alert" className="text-sm text-danger">
-              {errors.email.message}
+              {t(errorKey(errors.email.message))}
             </p>
           ) : null}
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="password" required>
-            Contraseña
+            {t("auth.signup.password")}
           </Label>
           <Input
             id="password"
@@ -257,20 +259,20 @@ export default function RegistroPage() {
           />
           {errors.password ? (
             <p id="password-error" role="alert" className="text-sm text-danger">
-              {errors.password.message}
+              {t(errorKey(errors.password.message))}
             </p>
           ) : null}
         </div>
 
         <Button type="submit" className="w-full" loading={isSubmitting}>
-          Crear cuenta
+          {t("auth.signup.submit")}
         </Button>
 
         <Link
           href="/login"
           className="block pt-1 text-center text-sm text-info hover:underline"
         >
-          ¿Ya tenés cuenta? Iniciá sesión
+          {t("auth.signup.haveAccount")}
         </Link>
       </form>
     </div>
