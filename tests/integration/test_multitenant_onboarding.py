@@ -418,3 +418,56 @@ async def test_public_settings_tell_the_login_page_what_to_show(client, monkeypa
     resp = await client.get("/api/v1/installation/public")
     assert resp.status_code == 200
     assert resp.json() == {"signup_enabled": True, "multitenant": True}
+
+
+async def _connected(client, db_session, suffix: str):
+    a, headers = await _account(db_session, suffix)
+    with respx.mock(assert_all_called=False) as mock:
+        _meta(mock)
+        resp = await client.post(
+            f"/api/v1/accounts/{a.account.id}/whatsapp/embedded_signup", headers=headers, json=SIGNUP_BODY
+        )
+    assert resp.status_code == 200, resp.text
+    return a, headers, resp.json()["inbox"]["id"]
+
+
+async def test_deleting_the_inbox_takes_the_app_off_the_waba(client, db_session):
+    a, headers, inbox_id = await _connected(client, db_session, "-es-del")
+    with respx.mock(assert_all_called=False) as mock:
+        off = mock.delete(f"{GRAPH}/waba-1/subscribed_apps").mock(
+            return_value=httpx.Response(200, json={"success": True})
+        )
+        resp = await client.delete(f"/api/v1/accounts/{a.account.id}/inboxes/{inbox_id}", headers=headers)
+    assert resp.status_code == 200
+    assert off.called
+    assert off.calls.last.request.headers["Authorization"] == "Bearer biz-token"
+
+
+async def test_the_inbox_is_deleted_even_if_meta_fails(client, db_session):
+    a, headers, inbox_id = await _connected(client, db_session, "-es-del-fail")
+    with respx.mock(assert_all_called=False) as mock:
+        mock.delete(f"{GRAPH}/waba-1/subscribed_apps").mock(return_value=httpx.Response(500, json={}))
+        resp = await client.delete(f"/api/v1/accounts/{a.account.id}/inboxes/{inbox_id}", headers=headers)
+    assert resp.status_code == 200
+    assert await _channel_for(db_session, "+59892111222") is None
+
+
+async def test_a_waba_another_inbox_uses_stays_subscribed(client, db_session):
+    a, headers, inbox_id = await _connected(client, db_session, "-es-del-shared")
+    other = await _channel_for(db_session, "+59892111222")
+    assert other is not None
+    twin = WhatsappChannel(
+        account_id=a.account.id,
+        phone_number="+59892333444",
+        provider="whatsapp_cloud",
+        provider_config={**other.provider_config, "phone_number_id": "pn-2"},
+    )
+    db_session.add(twin)
+    await db_session.flush()
+    with respx.mock(assert_all_called=False) as mock:
+        off = mock.delete(f"{GRAPH}/waba-1/subscribed_apps").mock(
+            return_value=httpx.Response(200, json={"success": True})
+        )
+        resp = await client.delete(f"/api/v1/accounts/{a.account.id}/inboxes/{inbox_id}", headers=headers)
+    assert resp.status_code == 200
+    assert not off.called

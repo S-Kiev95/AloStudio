@@ -101,6 +101,7 @@ from app.domains.inboxes.service import (
     update_inbox,
 )
 from app.domains.users.models import AccountUser, User
+from app.domains.whatsapp.embedded_signup import release_waba
 
 router = APIRouter(prefix="/api/v1/accounts/{account_id}/inboxes", tags=["inboxes"])
 
@@ -343,6 +344,9 @@ async def destroy_inbox(
     """
     inbox = await _find_inbox_in_account(session, ctx, inbox_id)
     channel = await _load_channel_row(session, inbox)
+    if isinstance(channel, WhatsappChannel):
+        # F2: a number from Embedded Signup stops reaching us at Meta too.
+        await release_waba(session, channel)
 
     # Cascade: FK ondelete='CASCADE' on inbox_members clears the join
     # rows. The polymorphic channel_api row has no FK to inbox_id so we

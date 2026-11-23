@@ -346,4 +346,39 @@ async def connect_number(
     return inbox, channel, created
 
 
-__all__ = ["connect_number", "signup_info"]
+async def release_waba(session: AsyncSession, channel: WhatsappChannel) -> None:
+    """A number connected by Embedded Signup is being deleted: take our app
+    off its WhatsApp Business Account so Meta stops sending its messages.
+    Not while another inbox still uses that account. Best effort, never
+    raises: deleting the inbox must not depend on Meta."""
+    config = dict(channel.provider_config or {})
+    waba_id = str(config.get("business_account_id") or "")
+    token = str(config.get("api_key") or "")
+    if config.get("source") != "embedded_signup" or not waba_id or not token:
+        return
+    table = WhatsappChannel.__table__  # type: ignore[attr-defined]
+    try:
+        shared = (
+            await session.exec(
+                select(WhatsappChannel.id).where(
+                    WhatsappChannel.id != channel.id,
+                    table.c.provider_config["business_account_id"].astext == waba_id,
+                )
+            )
+        ).first()
+        if shared is not None:
+            return
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            await _call(
+                client,
+                "DELETE",
+                f"{waba_id}/subscribed_apps",
+                failure="No se pudo desuscribir AloStudio de la cuenta de WhatsApp",
+                token=token,
+            )
+    except (ChatwootHTTPException, httpx.HTTPError):
+        # _call already logged what Meta answered.
+        log.warning("whatsapp.embedded_signup.release_failed channel_id=%s", channel.id, exc_info=True)
+
+
+__all__ = ["connect_number", "release_waba", "signup_info"]

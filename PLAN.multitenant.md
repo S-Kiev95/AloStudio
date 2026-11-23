@@ -168,9 +168,10 @@ de Meta y formularios manuales de Meta ocultos en multitenant.
 
 ### Pendiente del paso 2
 
-- Al borrar una bandeja conectada por Embedded Signup, desuscribir la app
-  de la WABA (`DELETE /{waba_id}/subscribed_apps`) para que Meta no siga
-  mandando sus mensajes.
+- ~~Al borrar una bandeja conectada por Embedded Signup, desuscribir la app
+  de la WABA~~ **Hecho (2026-11-23):** `embedded_signup.release_waba` desde
+  `DELETE /inboxes/:id`, con el token del negocio; no si otra bandeja usa
+  la misma WABA, y si Meta falla la bandeja se borra igual (queda en el log).
 - Captcha en el registro, si el límite por IP no alcanza.
 
 ### Para el lanzamiento (pedido del dueño, 2026-11-10)
