@@ -500,8 +500,10 @@ créditos.
   `lib/auth/signup-error.ts` lee qué campo rechazó la validación (correo,
   contraseña, nombres) y pasa a castellano los mensajes en inglés del alta
   (correo ya usado, correo inválido, faltan nombres).
-- Traducir las pantallas de registro y de Embedded Signup de WhatsApp
-  (siguen solo en español).
+- ~~Traducir las pantallas de registro y de Embedded Signup de WhatsApp~~
+  **Hecho (2026-11-23):** `auth.signup.*` y `settingsInboxes.embedded.*`
+  en los 7 idiomas. El registro pide 8 a 72 caracteres de contraseña, como
+  el servidor (antes aceptaba 6).
 - develop ya se trajo a la rama el 2026-11-15 (conflictos de login,
   Instagram y bandejas resueltos; la migración de facturación va después de
   `b4c5d6e7f8a1`). Al volver a traerlo, revisar que siga una sola cabeza.
