@@ -1,6 +1,5 @@
 "use client";
 
-import { animate } from "animejs";
 import { AlertTriangle, X } from "lucide-react";
 import {
   createContext,
@@ -15,7 +14,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/provider";
-import { NEON_EASE, prefersReducedMotion } from "@/lib/motion/neon-motion";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 
 export interface ConfirmOptions {
   title?: string;
@@ -72,18 +71,7 @@ export function ConfirmDialog({
         else el.setAttribute("open", "");
       }
       cancelBtnRef.current?.focus();
-      if (!prefersReducedMotion()) {
-        const anim = animate(el, {
-          opacity: [0, 1],
-          scale: [0.97, 1],
-          translateY: [6, 0],
-          duration: 180,
-          ease: NEON_EASE,
-        });
-        return () => {
-          anim.cancel();
-        };
-      }
+      return animateDialogIn(el);
     } else if (el.open) {
       if (typeof el.close === "function") el.close();
       else el.removeAttribute("open");

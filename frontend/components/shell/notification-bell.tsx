@@ -2,7 +2,7 @@
 
 import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ErrorState } from "@/components/ui/error-state";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/lib/api/notifications";
 import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useLocale, useT } from "@/lib/i18n/provider";
+import { animatePopoverIn } from "@/lib/motion/neon-motion";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,12 @@ export function NotificationBell({ accountId }: { accountId: string }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    return animatePopoverIn(panelRef.current);
+  }, [open]);
 
   const unread = useUnreadCount(accountId);
   const list = useNotifications(accountId, { enabled: open });
@@ -84,6 +91,7 @@ export function NotificationBell({ accountId }: { accountId: string }) {
       </summary>
 
       <div
+        ref={panelRef}
         className="z-30 flex flex-col overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.5rem] max-sm:max-h-[calc(100dvh-5.5rem)] max-sm:w-auto sm:absolute sm:right-0 sm:mt-1.5 sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]"
         role="dialog"
         aria-label={t("notifications.title")}

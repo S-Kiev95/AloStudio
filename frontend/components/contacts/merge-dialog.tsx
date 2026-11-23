@@ -10,6 +10,7 @@ import {
   useMergeContacts,
   useSearchContacts,
 } from "@/lib/api/contacts";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
 
@@ -49,8 +50,11 @@ export function MergeDialog({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (open && !el.open) el.showModal();
-    if (!open && el.open) el.close();
+    if (open) {
+      if (!el.open) el.showModal();
+      return animateDialogIn(el);
+    }
+    if (el.open) el.close();
   }, [open]);
 
   // Reset state every time the dialog re-opens.

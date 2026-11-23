@@ -19,6 +19,7 @@ import {
 } from "@/lib/api/crm";
 import { useProducts } from "@/lib/api/products";
 import { useT } from "@/lib/i18n/provider";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 
 import { ContactPicker, type PickedContact } from "./contact-picker";
 import { stageLabel } from "./stage-label";
@@ -69,10 +70,13 @@ export function OpportunityDialog({
   useEffect(() => {
     const el = dialogRef.current;
     if (!el) return;
-    if (open && !el.open) {
-      if (typeof el.showModal === "function") el.showModal();
-      else el.setAttribute("open", "");
-    } else if (!open && el.open) {
+    if (open) {
+      if (!el.open) {
+        if (typeof el.showModal === "function") el.showModal();
+        else el.setAttribute("open", "");
+      }
+      return animateDialogIn(el);
+    } else if (el.open) {
       if (typeof el.close === "function") el.close();
       else el.removeAttribute("open");
     }

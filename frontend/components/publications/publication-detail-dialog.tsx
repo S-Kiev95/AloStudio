@@ -35,6 +35,7 @@ import {
 } from "./publication-state-badge";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import { createTranslate, type MessageKey, type Translate } from "@/lib/i18n/translate";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const METRIC_FIELDS: { key: MetricName; label: MessageKey }[] = [
@@ -112,6 +113,7 @@ export function PublicationDetailDialog({
           el.setAttribute("open", "");
         }
       }
+      return animateDialogIn(el);
     } else if (el.open) {
       if (typeof el.close === "function") {
         el.close();

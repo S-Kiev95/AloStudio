@@ -14,6 +14,7 @@ import {
 import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import { translateOr, type MessageKey } from "@/lib/i18n/translate";
+import { animatePopoverIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
 const ITEM =
@@ -65,6 +66,11 @@ export function WritingAssist({
       ?.querySelector<HTMLButtonElement>('[role="menuitem"]:not([disabled])')
       ?.focus();
   }, [open, choosingLanguage]);
+
+  useEffect(() => {
+    if (!open) return;
+    return animatePopoverIn(menuRef.current, "up");
+  }, [open]);
 
   useDismissOnOutsideAndEscape(wrapRef, open, () => setOpen(false));
 

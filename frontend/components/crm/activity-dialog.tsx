@@ -20,6 +20,7 @@ import {
 } from "@/lib/api/crm";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 
 import { ContactPicker, type PickedContact } from "./contact-picker";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -74,10 +75,13 @@ export function ActivityDialog({
   useEffect(() => {
     const el = dialogRef.current;
     if (!el) return;
-    if (open && !el.open) {
-      if (typeof el.showModal === "function") el.showModal();
-      else el.setAttribute("open", "");
-    } else if (!open && el.open) {
+    if (open) {
+      if (!el.open) {
+        if (typeof el.showModal === "function") el.showModal();
+        else el.setAttribute("open", "");
+      }
+      return animateDialogIn(el);
+    } else if (el.open) {
       if (typeof el.close === "function") el.close();
       else el.removeAttribute("open");
     }

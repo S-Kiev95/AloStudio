@@ -17,6 +17,7 @@ import {
 import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useT } from "@/lib/i18n/provider";
 import { translateOr } from "@/lib/i18n/translate";
+import { animatePopoverIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
 type Turn = { question: string; imageLabel?: string; answer: HelpAnswer };
@@ -66,13 +67,16 @@ export function HelpButton({ accountId }: { accountId: string }) {
   const [audio, setAudio] = useState<Attached | null>(null);
   const [recordingFor, setRecordingFor] = useState<number | null>(null);
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const secondsRef = useRef(0);
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
+    if (!open) return;
+    inputRef.current?.focus();
+    return animatePopoverIn(panelRef.current);
   }, [open]);
 
   useDismissOnOutsideAndEscape(detailsRef, open, () => {
@@ -202,6 +206,7 @@ export function HelpButton({ accountId }: { accountId: string }) {
       </summary>
 
       <div
+        ref={panelRef}
         role="dialog"
         aria-label={t("helpAssistant.title")}
         className="z-30 flex flex-col overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.5rem] max-sm:max-h-[calc(100dvh-5.5rem)] max-sm:w-auto sm:absolute sm:right-0 sm:mt-1.5 sm:w-[24rem] sm:max-w-[calc(100vw-2rem)]"

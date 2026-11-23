@@ -2,11 +2,12 @@
 
 import { Check, ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ProfileAccount } from "@/lib/auth/profile";
 import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useT } from "@/lib/i18n/provider";
+import { animatePopoverIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,7 +30,13 @@ export function AccountSwitcher({
   const active = accounts.find((a) => String(a.id) === accountId);
   const t = useT();
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    return animatePopoverIn(menuRef.current, placement);
+  }, [open, placement]);
 
   useDismissOnOutsideAndEscape(detailsRef, open, () => {
     detailsRef.current?.removeAttribute("open");
@@ -61,6 +68,7 @@ export function AccountSwitcher({
         <ChevronsUpDown className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
       </summary>
       <div
+        ref={menuRef}
         className={cn(
           "absolute z-30 overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu",
           fullWidth ? "inset-x-0" : "right-0 w-64",

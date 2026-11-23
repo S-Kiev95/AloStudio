@@ -2,10 +2,11 @@
 
 import { LogOut, UserCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useT } from "@/lib/i18n/provider";
+import { animatePopoverIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
 export function AgentMenu({
@@ -20,6 +21,12 @@ export function AgentMenu({
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    return animatePopoverIn(menuRef.current);
+  }, [open]);
 
   useDismissOnOutsideAndEscape(detailsRef, open, () => {
     detailsRef.current?.removeAttribute("open");
@@ -61,6 +68,7 @@ export function AgentMenu({
         </span>
       </summary>
       <div
+        ref={menuRef}
         className="z-30 overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu max-sm:fixed max-sm:right-3 max-sm:top-[4.5rem] max-sm:w-60 sm:absolute sm:right-0 sm:mt-1.5 sm:w-60"
         role="menu"
       >
