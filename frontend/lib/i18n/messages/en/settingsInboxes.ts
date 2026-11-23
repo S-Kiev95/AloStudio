@@ -2,6 +2,19 @@ import type { settingsInboxes as es } from "../es/settingsInboxes";
 import type { Strings } from "../types";
 
 export const settingsInboxes: Strings<typeof es> = {
+  embedded: {
+    sdkFailed: "Meta's SDK could not be loaded.",
+    connectFailed: "WhatsApp could not be connected.",
+    cancelledAt: "You canceled the connection ({step}).",
+    cancelled: "You canceled the connection.",
+    metaFailed: "The connection with Meta could not be completed.",
+    startFailed: "The connection with Meta could not be started.",
+    missingConfig: "Missing in Settings → Installation: {fields}",
+    intro: "Connect your WhatsApp Business number from Meta. The inbox is set up automatically.",
+    connecting: "Connecting…",
+    connect: "Connect WhatsApp",
+    manualHint: "You can also enter the details by hand in the form below.",
+  },
   fieldMissing: "Missing field: {field}",
   exampleHours: "Hours: 9 am to 5 pm",
   linkedTemplate: "This mailbox uses “{name}”. To change the design, go to Settings → Email templates. What's below stays saved and is used again if you choose “its own design”.",

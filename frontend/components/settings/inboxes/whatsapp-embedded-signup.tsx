@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { WhatsApp } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api/errors";
+import { clientT } from "@/lib/i18n/client-t";
+import { useT } from "@/lib/i18n/provider";
 import {
   useConnectWhatsappEmbeddedSignup,
   useWhatsappEmbeddedSignup,
@@ -74,7 +76,7 @@ function ensureFacebookSdk(): Promise<FBSDK> {
       if (window.FB) resolve(window.FB);
     });
     script!.addEventListener("error", () => {
-      reject(new Error("No se pudo cargar el SDK de Meta."));
+      reject(new Error(clientT()("settingsInboxes.embedded.sdkFailed")));
     });
   });
 }
@@ -99,6 +101,7 @@ export function WhatsappEmbeddedSignup({
   onlyWhenReady?: boolean;
   showManualHint?: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const info = useWhatsappEmbeddedSignup(accountId);
   const connect = useConnectWhatsappEmbeddedSignup(accountId);
@@ -132,7 +135,7 @@ export function WhatsappEmbeddedSignup({
       setError(
         err instanceof ApiError
           ? err.message
-          : "No se pudo conectar WhatsApp.",
+          : t("settingsInboxes.embedded.connectFailed"),
       );
       codeRef.current = null;
       idsRef.current = null;
@@ -140,7 +143,7 @@ export function WhatsappEmbeddedSignup({
       setConnecting(false);
       completingRef.current = false;
     }
-  }, [accountId, connect, router]);
+  }, [accountId, connect, router, t]);
 
   useEffect(() => {
     function onMessage(ev: MessageEvent) {
@@ -174,8 +177,8 @@ export function WhatsappEmbeddedSignup({
         const step = msg.data?.current_step;
         setError(
           step
-            ? `Cancelaste la conexión (${step}).`
-            : "Cancelaste la conexión.",
+            ? t("settingsInboxes.embedded.cancelledAt", { step })
+            : t("settingsInboxes.embedded.cancelled"),
         );
         setStarting(false);
         codeRef.current = null;
@@ -185,7 +188,7 @@ export function WhatsappEmbeddedSignup({
 
       if (msg.event === "ERROR") {
         setError(
-          msg.data?.error_message || "No se pudo completar la conexión con Meta.",
+          msg.data?.error_message || t("settingsInboxes.embedded.metaFailed"),
         );
         setStarting(false);
         codeRef.current = null;
@@ -195,7 +198,7 @@ export function WhatsappEmbeddedSignup({
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [tryComplete]);
+  }, [tryComplete, t]);
 
   if (onlyWhenReady && !info.data?.ready) {
     return null;
@@ -240,7 +243,7 @@ export function WhatsappEmbeddedSignup({
       setError(
         err instanceof Error
           ? err.message
-          : "No se pudo iniciar la conexión con Meta.",
+          : t("settingsInboxes.embedded.startFailed"),
       );
       setStarting(false);
     }
@@ -262,14 +265,13 @@ export function WhatsappEmbeddedSignup({
           role="status"
           className="rounded-control border border-glass bg-surface-2 px-3 py-2 text-sm text-fg-muted"
         >
-          Falta configurar en Ajustes → Instalación: {missing.join(", ")}
+          {t("settingsInboxes.embedded.missingConfig", { fields: missing.join(", ") })}
         </p>
       ) : null}
 
       <div className="space-y-2">
         <p className="text-sm text-fg-muted">
-          Conectá tu número de WhatsApp Business desde Meta. La bandeja queda
-          lista automáticamente.
+          {t("settingsInboxes.embedded.intro")}
         </p>
         <Button
           type="button"
@@ -278,13 +280,13 @@ export function WhatsappEmbeddedSignup({
           onClick={() => void start()}
         >
           <WhatsApp mono className="h-4 w-4" aria-hidden />
-          {busy ? "Conectando…" : "Conectar WhatsApp"}
+          {busy ? t("settingsInboxes.embedded.connecting") : t("settingsInboxes.embedded.connect")}
         </Button>
       </div>
 
       {showManualHint ? (
         <p className="border-t border-glass pt-3 text-xs text-fg-muted">
-          También podés cargar los datos a mano en el formulario de abajo.
+          {t("settingsInboxes.embedded.manualHint")}
         </p>
       ) : null}
     </div>

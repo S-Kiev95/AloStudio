@@ -1,4 +1,17 @@
 export const settingsInboxes = {
+  embedded: {
+    sdkFailed: "No se pudo cargar el SDK de Meta.",
+    connectFailed: "No se pudo conectar WhatsApp.",
+    cancelledAt: "Cancelaste la conexión ({step}).",
+    cancelled: "Cancelaste la conexión.",
+    metaFailed: "No se pudo completar la conexión con Meta.",
+    startFailed: "No se pudo iniciar la conexión con Meta.",
+    missingConfig: "Falta configurar en Ajustes → Instalación: {fields}",
+    intro: "Conectá tu número de WhatsApp Business desde Meta. La bandeja queda lista automáticamente.",
+    connecting: "Conectando…",
+    connect: "Conectar WhatsApp",
+    manualHint: "También podés cargar los datos a mano en el formulario de abajo.",
+  },
   fieldMissing: "Falta el campo: {field}",
   exampleHours: "Atención: 9 a 17 h",
   linkedTemplate: "Esta casilla usa «{name}». Para cambiar el diseño andá a Ajustes → Plantillas de correo. Lo de abajo queda guardado y vuelve a usarse si elegís «el diseño propio».",

@@ -2,6 +2,19 @@ import type { settingsInboxes as es } from "../es/settingsInboxes";
 import type { Strings } from "../types";
 
 export const settingsInboxes: Strings<typeof es> = {
+  embedded: {
+    sdkFailed: "Metas SDK konnte nicht geladen werden.",
+    connectFailed: "WhatsApp konnte nicht verbunden werden.",
+    cancelledAt: "Du hast die Verbindung abgebrochen ({step}).",
+    cancelled: "Du hast die Verbindung abgebrochen.",
+    metaFailed: "Die Verbindung mit Meta konnte nicht abgeschlossen werden.",
+    startFailed: "Die Verbindung mit Meta konnte nicht gestartet werden.",
+    missingConfig: "Fehlt unter Einstellungen → Installation: {fields}",
+    intro: "Verbinde deine WhatsApp-Business-Nummer über Meta. Der Posteingang wird automatisch eingerichtet.",
+    connecting: "Verbinde…",
+    connect: "WhatsApp verbinden",
+    manualHint: "Du kannst die Daten auch unten im Formular von Hand eintragen.",
+  },
   fieldMissing: "Fehlendes Feld: {field}",
   exampleHours: "Erreichbar: 9 bis 17 Uhr",
   linkedTemplate: "Dieses Postfach verwendet „{name}“. Um das Design zu ändern, geh zu Einstellungen → E-Mail-Vorlagen. Das Folgende bleibt gespeichert und wird wieder verwendet, wenn du „das eigene Design“ wählst.",

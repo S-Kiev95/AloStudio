@@ -2,6 +2,19 @@ import type { settingsInboxes as es } from "../es/settingsInboxes";
 import type { Strings } from "../types";
 
 export const settingsInboxes: Strings<typeof es> = {
+  embedded: {
+    sdkFailed: "Meta の SDK を読み込めませんでした。",
+    connectFailed: "WhatsApp を接続できませんでした。",
+    cancelledAt: "接続をキャンセルしました（{step}）。",
+    cancelled: "接続をキャンセルしました。",
+    metaFailed: "Meta との接続を完了できませんでした。",
+    startFailed: "Meta との接続を開始できませんでした。",
+    missingConfig: "設定 → インストールで未設定: {fields}",
+    intro: "Meta から WhatsApp Business の番号を接続してください。受信箱は自動で準備されます。",
+    connecting: "接続中…",
+    connect: "WhatsApp を接続",
+    manualHint: "下のフォームから手入力することもできます。",
+  },
   fieldMissing: "未入力の項目: {field}",
   exampleHours: "受付: 9時〜17時",
   linkedTemplate: "このメールボックスは「{name}」を使用しています。デザインを変えるには 設定 → メールテンプレート へ。下の内容は保存されたままで、「独自のデザイン」を選ぶと再び使われます。",

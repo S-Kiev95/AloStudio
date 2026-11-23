@@ -2,6 +2,19 @@ import type { settingsInboxes as es } from "../es/settingsInboxes";
 import type { Strings } from "../types";
 
 export const settingsInboxes: Strings<typeof es> = {
+  embedded: {
+    sdkFailed: "Meta SDK를 불러오지 못했습니다.",
+    connectFailed: "WhatsApp을 연결하지 못했습니다.",
+    cancelledAt: "연결을 취소했습니다({step}).",
+    cancelled: "연결을 취소했습니다.",
+    metaFailed: "Meta와의 연결을 완료하지 못했습니다.",
+    startFailed: "Meta와의 연결을 시작하지 못했습니다.",
+    missingConfig: "설정 → 설치에서 설정 필요: {fields}",
+    intro: "Meta에서 WhatsApp Business 번호를 연결하세요. 받은편지함이 자동으로 준비됩니다.",
+    connecting: "연결 중…",
+    connect: "WhatsApp 연결",
+    manualHint: "아래 양식에 직접 입력할 수도 있습니다.",
+  },
   fieldMissing: "입력되지 않은 항목: {field}",
   exampleHours: "상담: 오전 9시~오후 5시",
   linkedTemplate: "이 메일함은 «{name}»을(를) 사용합니다. 디자인을 바꾸려면 설정 → 이메일 템플릿으로 가세요. 아래 내용은 저장된 채로 남아 있고, «자체 디자인»을 선택하면 다시 사용됩니다.",

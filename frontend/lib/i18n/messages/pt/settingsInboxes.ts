@@ -2,6 +2,19 @@ import type { settingsInboxes as es } from "../es/settingsInboxes";
 import type { Strings } from "../types";
 
 export const settingsInboxes: Strings<typeof es> = {
+  embedded: {
+    sdkFailed: "Não foi possível carregar o SDK da Meta.",
+    connectFailed: "Não foi possível conectar o WhatsApp.",
+    cancelledAt: "Você cancelou a conexão ({step}).",
+    cancelled: "Você cancelou a conexão.",
+    metaFailed: "Não foi possível concluir a conexão com a Meta.",
+    startFailed: "Não foi possível iniciar a conexão com a Meta.",
+    missingConfig: "Falta configurar em Ajustes → Instalação: {fields}",
+    intro: "Conecte seu número do WhatsApp Business pela Meta. A caixa fica pronta automaticamente.",
+    connecting: "Conectando…",
+    connect: "Conectar WhatsApp",
+    manualHint: "Você também pode preencher os dados à mão no formulário abaixo.",
+  },
   fieldMissing: "Falta o campo: {field}",
   exampleHours: "Atendimento: das 9h às 17h",
   linkedTemplate: "Esta caixa usa «{name}». Para mudar o design, vá em Ajustes → Modelos de email. O que está abaixo fica salvo e volta a ser usado se você escolher «o design próprio».",
