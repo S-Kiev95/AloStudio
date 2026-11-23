@@ -71,7 +71,7 @@ export function ContactPhoto({
           disabled={busy}
           aria-label={t("contacts.photo.remove")}
           title={t("contacts.photo.remove")}
-          className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full border border-glass bg-surface text-fg-muted hover:text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
+          className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full border border-glass bg-surface text-fg-muted after:absolute after:-inset-2.5 after:content-[''] hover:text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
         </button>

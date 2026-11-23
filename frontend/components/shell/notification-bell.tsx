@@ -2,7 +2,7 @@
 
 import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { ErrorState } from "@/components/ui/error-state";
 import {
@@ -15,6 +15,7 @@ import {
   useNotifications,
   useUnreadCount,
 } from "@/lib/api/notifications";
+import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -43,30 +44,10 @@ export function NotificationBell({ accountId }: { accountId: string }) {
   const markAllRead = useMarkAllNotificationsRead(accountId);
   const deleteOne = useDeleteNotification(accountId);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (
-        detailsRef.current &&
-        !detailsRef.current.contains(e.target as Node)
-      ) {
-        detailsRef.current.removeAttribute("open");
-        setOpen(false);
-      }
-    }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        detailsRef.current?.removeAttribute("open");
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
+  useDismissOnOutsideAndEscape(detailsRef, open, () => {
+    detailsRef.current?.removeAttribute("open");
+    setOpen(false);
+  });
 
   const unreadCount = unread.data ?? 0;
   const rows = list.data?.payload ?? [];
@@ -247,7 +228,7 @@ function NotificationRow({
         type="button"
         aria-label={t("notifications.delete")}
         onClick={onDelete}
-        className="mt-1 rounded-md p-1 text-fg-muted transition-opacity hover:bg-surface hover:text-danger focus-visible:opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100"
+        className="relative mt-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-fg-muted transition-opacity after:absolute after:-inset-2 after:content-[''] hover:bg-surface hover:text-danger focus-visible:opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100"
       >
         <Trash2 className="h-3.5 w-3.5" aria-hidden />
       </button>

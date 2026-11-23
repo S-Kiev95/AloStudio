@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Tag } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { selectClassName } from "@/components/ui/select";
 import { useAgents, useLabels } from "@/lib/api/account";
@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/conversations";
 import { useExecuteMacro, useMacros } from "@/lib/api/macros";
 import { useTeams } from "@/lib/api/teams";
+import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
@@ -63,26 +64,9 @@ export function ConversationActions({
   const [labelMenuOpen, setLabelMenuOpen] = useState(false);
   const labelWrapRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!labelMenuOpen) return;
-    function onDocClick(e: MouseEvent) {
-      if (
-        labelWrapRef.current &&
-        !labelWrapRef.current.contains(e.target as Node)
-      ) {
-        setLabelMenuOpen(false);
-      }
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setLabelMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [labelMenuOpen]);
+  useDismissOnOutsideAndEscape(labelWrapRef, labelMenuOpen, () =>
+    setLabelMenuOpen(false),
+  );
 
   const current = new Set(labels);
   const teamList = teams.data ?? [];

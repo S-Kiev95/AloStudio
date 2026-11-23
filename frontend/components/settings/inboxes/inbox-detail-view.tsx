@@ -296,7 +296,7 @@ function CodeRow({ label, value }: { label: string; value: string }) {
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}
-          className="shrink-0 rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {copied ? (
             <Check className="h-4 w-4 text-success" aria-hidden />

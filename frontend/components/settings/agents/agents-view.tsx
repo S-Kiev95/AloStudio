@@ -258,7 +258,7 @@ function AgentRow({
         title={t("settingsAgents.removeFromAccount")}
         onClick={onRemove}
         disabled={remove.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

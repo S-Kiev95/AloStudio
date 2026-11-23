@@ -41,7 +41,7 @@ export function PublicationErrorAlert({
           type="button"
           aria-label={t("publications.closeNotice")}
           onClick={onDismiss}
-          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-danger hover:bg-hover-glass"
+          className="relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-danger after:absolute after:-inset-2 after:content-[''] hover:bg-hover-glass"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
         </button>

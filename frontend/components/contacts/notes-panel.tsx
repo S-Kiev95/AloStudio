@@ -183,7 +183,7 @@ function NoteRow({
                 aria-label={t("actions.edit")}
                 title={t("actions.edit")}
                 onClick={() => setEditing(true)}
-                className="rounded-md p-1 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="relative inline-flex h-8 w-8 items-center justify-center rounded-md after:absolute after:-inset-1.5 after:content-[''] hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Pencil className="h-3.5 w-3.5" aria-hidden />
               </button>
@@ -193,7 +193,7 @@ function NoteRow({
                 title={t("actions.delete")}
                 onClick={onDelete}
                 disabled={del.isPending}
-                className="rounded-md p-1 hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="relative inline-flex h-8 w-8 items-center justify-center rounded-md after:absolute after:-inset-1.5 after:content-[''] hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Trash2 className="h-3.5 w-3.5" aria-hidden />
               </button>

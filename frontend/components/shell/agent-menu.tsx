@@ -2,8 +2,9 @@
 
 import { LogOut, UserCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
+import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useT } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
@@ -20,27 +21,10 @@ export function AgentMenu({
   const [open, setOpen] = useState(false);
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (detailsRef.current && !detailsRef.current.contains(e.target as Node)) {
-        detailsRef.current.removeAttribute("open");
-        setOpen(false);
-      }
-    }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        detailsRef.current?.removeAttribute("open");
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
+  useDismissOnOutsideAndEscape(detailsRef, open, () => {
+    detailsRef.current?.removeAttribute("open");
+    setOpen(false);
+  });
 
   const initials =
     name

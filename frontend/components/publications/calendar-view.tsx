@@ -269,7 +269,7 @@ export function CalendarView({
             type="button"
             aria-label={t("publications.closeNotice")}
             onClick={() => setConnectSuccess(null)}
-            className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-success/10"
+            className="relative inline-flex h-7 w-7 items-center justify-center rounded-sm after:absolute after:-inset-2 after:content-[''] hover:bg-success/10"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
@@ -286,7 +286,7 @@ export function CalendarView({
             type="button"
             aria-label={t("publications.closeNotice")}
             onClick={() => setConnectError(null)}
-            className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-danger/10"
+            className="relative inline-flex h-7 w-7 items-center justify-center rounded-sm after:absolute after:-inset-2 after:content-[''] hover:bg-danger/10"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
@@ -303,7 +303,7 @@ export function CalendarView({
             type="button"
             aria-label={t("publications.closeNotice")}
             onClick={clearUrlPublication}
-            className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-hover-glass"
+            className="relative inline-flex h-7 w-7 items-center justify-center rounded-sm after:absolute after:-inset-2 after:content-[''] hover:bg-hover-glass"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>

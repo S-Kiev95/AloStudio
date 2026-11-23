@@ -11,6 +11,7 @@ import {
   useWritingAssist,
   type AssistInput,
 } from "@/lib/api/writing-assist";
+import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import { translateOr, type MessageKey } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
@@ -63,19 +64,9 @@ export function WritingAssist({
     menuRef.current
       ?.querySelector<HTMLButtonElement>('[role="menuitem"]:not([disabled])')
       ?.focus();
-    function onDocClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      window.removeEventListener("keydown", onKey);
-    };
   }, [open, choosingLanguage]);
+
+  useDismissOnOutsideAndEscape(wrapRef, open, () => setOpen(false));
 
   if (!info.data?.enabled) return null;
 

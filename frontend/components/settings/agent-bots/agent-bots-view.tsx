@@ -183,7 +183,7 @@ function BotRow({
               }, t("settingsBots.rotateFailed"))
             }
             disabled={reset.isPending}
-            className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <KeyRound className="h-4 w-4" aria-hidden />
           </button>
@@ -192,7 +192,7 @@ function BotRow({
             aria-label={t("actions.edit")}
             title={t("actions.edit")}
             onClick={onEdit}
-            className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Pencil className="h-4 w-4" aria-hidden />
           </button>
@@ -205,7 +205,7 @@ function BotRow({
               run(() => del.mutateAsync(bot.id), t("actions.deleteFailed"));
             }}
             disabled={del.isPending}
-            className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Trash2 className="h-4 w-4" aria-hidden />
           </button>
