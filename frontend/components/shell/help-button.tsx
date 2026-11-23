@@ -228,7 +228,12 @@ export function HelpButton({ accountId }: { accountId: string }) {
                   <span className="block font-medium">
                     {m === "fast" ? t("helpAssistant.modeFast") : t("helpAssistant.modeFree")}
                   </span>
-                  <span className="block text-[11px] opacity-80">
+                  <span
+                    className={cn(
+                      "block text-[11px]",
+                      mode === m ? "text-lit" : "text-fg-muted",
+                    )}
+                  >
                     {m === "fast" ? t("helpAssistant.modeFastHint") : t("helpAssistant.modeFreeHint")}
                   </span>
                 </button>

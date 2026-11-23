@@ -102,11 +102,11 @@ function SidebarRow({
     return (
       <li className="shrink-0">
         <span
-          className="flex cursor-not-allowed items-center justify-between gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm text-fg-muted opacity-60"
+          className="flex cursor-not-allowed items-center justify-between gap-2 whitespace-nowrap rounded-md border border-dashed border-glass px-3 py-2 text-sm text-fg-muted"
           title={t("settings.comingIn", { milestone: item.milestone })}
         >
           {t(item.label)}
-          <span className="rounded-sm bg-surface-2 px-1 py-0.5 text-[9px] uppercase">
+          <span className="rounded-sm bg-surface-2 px-1 py-0.5 text-[10px] font-medium uppercase text-fg-muted">
             {item.milestone}
           </span>
         </span>

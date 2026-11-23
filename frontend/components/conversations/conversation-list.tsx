@@ -296,7 +296,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
       </div>
 
       {/* Search, status pills, inbox selector, and active toolbars */}
-      <div className="shrink-0 space-y-2.5 border-b border-glass p-3">
+      <div className="shrink-0 space-y-2 border-b border-glass p-2.5">
         <div className="flex gap-1.5">
           <div className="relative min-w-0 flex-1">
             <Search
@@ -358,7 +358,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
         </div>
 
         {/* Status pills */}
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1">
           {STATUS_PILLS.map((pill) => {
             const isActive = !searching && !filtering && status === pill.key;
             return (
@@ -374,7 +374,7 @@ export function ConversationList({ accountId }: { accountId: string }) {
                   clearSelected();
                 }}
                 className={cn(
-                  "rounded-pill border px-2.5 py-1 text-xs font-medium transition-colors",
+                  "rounded-pill border px-2.5 py-0.5 text-xs font-medium transition-colors",
                   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
                   isActive
                     ? "border-neon bg-focused text-lit"
@@ -387,9 +387,13 @@ export function ConversationList({ accountId }: { accountId: string }) {
           })}
         </div>
 
-        {/* Channel and inbox selectors: picking a channel narrows the
+        {/* Channel and inbox selectors on one compact row so the first chats
+            sit higher in the 320px rail: picking a channel narrows the
             inboxes to that channel's and starts over from all of them. */}
-        <div className="space-y-2">
+        <div
+          data-testid="conversation-filter-selects"
+          className="grid grid-cols-2 gap-1.5"
+        >
           <select
             aria-label={t("conversations.filters.attr.channel")}
             value={channelType ?? ""}
