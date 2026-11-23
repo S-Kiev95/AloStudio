@@ -140,10 +140,10 @@ anota en esta sección y lo decide el dueño.
 | F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (probado con Meta real en staging el 2026-11-16). En CTC falta activar las llamadas en el número y suscribir el webhook `calls`. Llamadas simultáneas (suenan solo los libres; la perdida avisa al cliente y queda para devolver) en develop y en staging (2026-11-16) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | Develop pasado a Gemma (2026-11-15); CTC sigue con OpenAI hasta que use autorespuestas o Help Center |
-| F10 Jev y Laya | B | Paso 1 en CTC (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; andando en staging con Jev real. En CTC falta cargar la clave y prender el modo sombra. Después, juntar etiquetas y decidir qué hacer con las decisiones. Laya más adelante, solo con etiquetas de personas |
+| F10 Jev y Laya | B | Prendida en CTC (2026-11-20, cuenta 1): clasifica con el modelo Free (Groq, NVIDIA de respaldo) en vez de Jev y pone la prioridad. Falta etiquetar conversaciones (Ajustes → Clasificación → Etiquetar) para medir cuánto acierta. Laya más adelante, solo con etiquetas de personas |
 | F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
-| F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
+| F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos. Cerrada (2026-11-22): CTC tiene `aviso_derivacion` aprobada en español y todos sus usuarios usan español; las otras variantes se cargan el día que entre un agente en otro idioma (`docs/whatsapp-aviso-derivacion.md`) |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
@@ -932,6 +932,10 @@ Detalle en `PLAN.i18n.md`.
   sistema, usando la CLI o el MCP.
 - **Falta:** cargar y aprobar en Meta las variantes de la plantilla de
   WhatsApp en los idiomas que se usen.
+- **Cerrada (2026-11-22, dueño):** en CTC la plantilla `aviso_derivacion`
+  está aprobada en español y los 5 usuarios usan el panel en español, así que
+  no hace falta otra variante. Si entra un agente con otro idioma, se carga la
+  suya con los textos de `docs/whatsapp-aviso-derivacion.md`.
 
 ## F14. Foto del contacto
 
