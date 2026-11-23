@@ -88,6 +88,11 @@ class AccountSubscription(TimestampMixin, table=True):
     credit_notified_level: int = Field(
         default=0, sa_column=Column(Integer, nullable=False, server_default="0")
     )
+    # When the renewal charge first failed (``past_due``): the account keeps
+    # access for ``PAST_DUE_GRACE`` from then while Polar retries.
+    past_due_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     # The account already had a free trial: no second one (F2).
     trial_used: bool = Field(
         default=False, sa_column=Column(Boolean, nullable=False, server_default="false")

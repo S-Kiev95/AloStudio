@@ -223,7 +223,7 @@ async def test_multitenant_without_a_plan_gets_402_but_can_pay(multitenant, clie
     assert (await client.get(base, headers=headers)).status_code == 200
     assert (await client.get(f"{base}/billing", headers=headers)).json()["has_access"] is False
 
-    for status, code in (("trialing", 200), ("active", 200), ("past_due", 402), ("canceled", 402)):
+    for status, code in (("trialing", 200), ("active", 200), ("unpaid", 402), ("canceled", 402)):
         await _set_status(db_session, owner.account.id, status)
         assert (await client.get(f"{base}/conversations", headers=headers)).status_code == code, status
 
@@ -734,3 +734,58 @@ async def test_one_free_trial_per_account(client, db_session):
         assert plans[0]["trial_days"] is None
         await client.post(f"{base}/checkout", json={"product_id": "prod_basic"}, headers=headers)
         assert json.loads(checkout.calls.last.request.content)["allow_trial"] is False
+
+
+def _sub_event(account_id: int, kind: str, status: str, **extra) -> dict:
+    return {
+        "type": kind,
+        "data": {
+            "id": "sub_renew_1", "status": status, "product_id": "prod_basic",
+            "product": {"id": "prod_basic", "name": "Basic", "metadata": {}},
+            "customer": {"id": "cus_r", "external_id": str(account_id)},
+            "metadata": {"account_id": str(account_id)},
+            **extra,
+        },
+    }
+
+
+async def test_a_renewal_moves_the_period_forward(multitenant, client, db_session):
+    owner, headers = await _owner(db_session, "-renew")
+    account_id = owner.account.id
+    first = "2026-12-01T00:00:00Z"
+    second = "2027-01-01T00:00:00Z"
+    await _post(client, _sub_event(account_id, "subscription.active", "active", current_period_end=first), "wh_r1")
+    # Polar renews: same subscription, next cycle.
+    await _post(client, _sub_event(account_id, "subscription.updated", "active", current_period_end=second), "wh_r2")
+    status = (await client.get(f"/api/v1/accounts/{account_id}/billing", headers=headers)).json()
+    assert status["has_access"] is True and status["access_until"] is None
+    assert status["current_period_end"] == 1798761600  # 2027-01-01
+
+
+async def test_a_failed_renewal_keeps_the_account_open_seven_days(multitenant, client, db_session):
+    from datetime import UTC, datetime, timedelta
+
+    owner, headers = await _owner(db_session, "-pastdue")
+    account_id = owner.account.id
+    url = f"/api/v1/accounts/{account_id}/billing"
+    await _post(client, _sub_event(account_id, "subscription.active", "active"), "wh_p1")
+
+    # The charge failed today: open, with the date to fix it by.
+    failed = datetime.now(UTC) - timedelta(hours=1)
+    await _post(client, _sub_event(account_id, "subscription.updated", "past_due",
+                                   past_due_at=failed.isoformat()), "wh_p2")
+    status = (await client.get(url, headers=headers)).json()
+    assert status["status"] == "past_due" and status["has_access"] is True
+    assert status["access_until"] == int((failed + timedelta(days=7)).timestamp())
+
+    # Eight days after the failure: closed (402), billing still reachable.
+    late = datetime.now(UTC) - timedelta(days=8)
+    await _post(client, _sub_event(account_id, "subscription.updated", "past_due",
+                                   past_due_at=late.isoformat()), "wh_p3")
+    assert (await client.get(f"/api/v1/accounts/{account_id}/labels", headers=headers)).status_code == 402
+    assert (await client.get(url, headers=headers)).json()["has_access"] is False
+
+    # The card was updated and Polar charged it: open again, no date.
+    await _post(client, _sub_event(account_id, "subscription.updated", "active"), "wh_p4")
+    status = (await client.get(url, headers=headers)).json()
+    assert status["has_access"] is True and status["access_until"] is None

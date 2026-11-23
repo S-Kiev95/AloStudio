@@ -9,7 +9,7 @@ event row to replay it.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
@@ -70,6 +70,12 @@ async def _apply_subscription(session: AsyncSession, data: dict[str, Any]) -> No
     sub.product_id = str(data.get("product_id") or product.get("id") or "") or None
     sub.plan_name = product.get("name") or sub.plan_name
     sub.status = str(data.get("status") or sub.status)
+    # A failed renewal: Polar retries for 21 days; the account keeps access
+    # for PAST_DUE_GRACE from the first failure (Polar's ``past_due_at``).
+    if sub.status == "past_due":
+        sub.past_due_at = _parse_dt(data.get("past_due_at")) or sub.past_due_at or datetime.now(UTC)
+    else:
+        sub.past_due_at = None
     # Once trialing, always "had a trial": the next checkout goes without one.
     sub.trial_used = sub.trial_used or sub.status == "trialing" or bool(data.get("trial_start"))
     sub.current_period_end = _parse_dt(data.get("current_period_end"))
@@ -211,13 +217,34 @@ async def trial_used(session: AsyncSession, account_id: int) -> bool:
     return sub is not None and sub.trial_used
 
 
+# A renewal that failed keeps the account open this long (owner,
+# 2026-11-23), while Polar retries the card and the panel asks to update it.
+PAST_DUE_GRACE = timedelta(days=7)
+
+
+def _access_until(sub: AccountSubscription) -> datetime | None:
+    """Until when a ``past_due`` account keeps access, or None."""
+    if sub.status != "past_due" or sub.past_due_at is None:
+        return None
+    return sub.past_due_at + PAST_DUE_GRACE
+
+
+def _has_access(sub: AccountSubscription | None) -> bool:
+    if sub is None:
+        return False
+    if sub.status in ACTIVE_STATUSES:
+        return True
+    until = _access_until(sub)
+    return until is not None and datetime.now(UTC) < until
+
+
 async def has_paid_access(session: AsyncSession, account_id: int) -> bool:
     """Always on a single-tenant install (CTC, Enterprise); on a multitenant
-    one, only while Polar's subscription is ``active`` or ``trialing``."""
+    one, while Polar's subscription is ``active`` or ``trialing``, and for
+    ``PAST_DUE_GRACE`` after a renewal charge failed."""
     if not get_settings().multitenant:
         return True
-    sub = await subscription_for(session, account_id)
-    return sub is not None and sub.status in ACTIVE_STATUSES
+    return _has_access(await subscription_for(session, account_id))
 
 
 # --- What each plan allows (multitenant only) --------------------------------
@@ -310,9 +337,12 @@ def plan_upgrade_required() -> ChatwootHTTPException:
 def present_subscription(sub: AccountSubscription | None) -> dict[str, Any]:
     if sub is None:
         return {"status": "none", "has_access": False}
+    until = _access_until(sub)
     return {
         "status": sub.status,
-        "has_access": sub.status in ACTIVE_STATUSES,
+        "has_access": _has_access(sub),
+        # A failed renewal: the account stays open until then.
+        "access_until": int(until.timestamp()) if until else None,
         "plan_name": sub.plan_name,
         "product_id": sub.product_id,
         "current_period_end": int(sub.current_period_end.timestamp())
@@ -325,6 +355,7 @@ def present_subscription(sub: AccountSubscription | None) -> dict[str, Any]:
 __all__ = [
     "CREDIT_MINIMUM_CENTS",
     "CREDIT_TIERS",
+    "PAST_DUE_GRACE",
     "credit_for",
     "credit_left_of",
     "credit_purchases",

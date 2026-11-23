@@ -21,6 +21,11 @@ export const billing: Strings<typeof es> = {
   usageOf: "{spent} sur {cap}",
   usageReached: "Vous avez atteint le plafond de votre forfait et n’avez plus de crédit : l’IA est en pause jusqu’au mois prochain ou jusqu’à ce que vous rechargiez.",
   usageOnCredits: "Vous avez dépassé le plafond de votre forfait : l’IA continue avec votre crédit.",
+  pastDue: {
+    admin: "Nous n'avons pas pu facturer votre forfait. Mettez à jour la carte avant le {date} pour garder l'accès.",
+    agent: "Le forfait de ce compte n'a pas pu être facturé. Demandez à un administrateur de mettre à jour la carte avant le {date}.",
+    update: "Mettre à jour la carte",
+  },
   choose: {
     title: "Choisissez un forfait",
     subtitle: "Pour continuer à utiliser AloStudio, choisissez un forfait. Vos conversations et vos données sont conservées.",

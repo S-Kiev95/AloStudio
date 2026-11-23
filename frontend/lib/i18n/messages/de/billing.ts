@@ -21,6 +21,11 @@ export const billing: Strings<typeof es> = {
   usageOf: "{spent} von {cap}",
   usageReached: "Du hast das Limit deines Tarifs erreicht und kein Guthaben mehr: Die KI ist bis zum nächsten Monat pausiert oder bis du Guthaben auflädst.",
   usageOnCredits: "Du hast das Limit deines Tarifs überschritten: Die KI läuft mit deinem Guthaben weiter.",
+  pastDue: {
+    admin: "Wir konnten deinen Tarif nicht abbuchen. Aktualisiere die Karte vor dem {date}, um den Zugang zu behalten.",
+    agent: "Der Tarif dieses Kontos konnte nicht abgebucht werden. Bitte einen Administrator, die Karte vor dem {date} zu aktualisieren.",
+    update: "Karte aktualisieren",
+  },
   choose: {
     title: "Wähle einen Tarif",
     subtitle: "Um AloStudio weiter zu nutzen, wähle einen Tarif. Deine Unterhaltungen und Daten bleiben erhalten.",

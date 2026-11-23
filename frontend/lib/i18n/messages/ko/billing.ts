@@ -21,6 +21,11 @@ export const billing: Strings<typeof es> = {
   usageOf: "{cap} 중 {spent}",
   usageReached: "요금제 한도에 도달했고 남은 크레딧이 없습니다. AI는 다음 달까지 또는 크레딧을 충전할 때까지 일시 중지됩니다.",
   usageOnCredits: "요금제 한도를 넘었습니다. AI는 크레딧으로 계속 작동합니다.",
+  pastDue: {
+    admin: "요금제를 결제하지 못했습니다. 접근을 유지하려면 {date} 전에 카드를 업데이트하세요.",
+    agent: "이 계정의 요금제를 결제하지 못했습니다. {date} 전에 카드를 업데이트하도록 관리자에게 요청하세요.",
+    update: "카드 업데이트",
+  },
   choose: {
     title: "요금제 선택",
     subtitle: "AloStudio를 계속 사용하려면 요금제를 선택하세요. 대화와 데이터는 그대로 보관됩니다.",

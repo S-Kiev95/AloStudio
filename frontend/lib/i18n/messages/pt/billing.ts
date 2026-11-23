@@ -21,6 +21,11 @@ export const billing: Strings<typeof es> = {
   usageOf: "{spent} de {cap}",
   usageReached: "Você atingiu o limite do plano e não tem créditos: a IA fica pausada até o mês que vem ou até você carregar créditos.",
   usageOnCredits: "Você passou do limite do plano: a IA continua com seus créditos.",
+  pastDue: {
+    admin: "Não conseguimos cobrar seu plano. Atualize o cartão antes de {date} para não perder o acesso.",
+    agent: "Não foi possível cobrar o plano desta conta. Peça a um administrador que atualize o cartão antes de {date}.",
+    update: "Atualizar cartão",
+  },
   choose: {
     title: "Escolha um plano",
     subtitle: "Para continuar usando o AloStudio, escolha um plano. Suas conversas e dados ficam guardados.",

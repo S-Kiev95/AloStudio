@@ -21,6 +21,11 @@ export const billing: Strings<typeof es> = {
   usageOf: "{cap}中 {spent}",
   usageReached: "プランの上限に達し、クレジットもありません。AIは来月まで、またはクレジットを追加するまで停止します。",
   usageOnCredits: "プランの上限を超えました。AIはクレジットで引き続き動作します。",
+  pastDue: {
+    admin: "プランの料金を請求できませんでした。アクセスを維持するには {date} までにカードを更新してください。",
+    agent: "このアカウントのプランを請求できませんでした。{date} までにカードを更新するよう管理者に依頼してください。",
+    update: "カードを更新",
+  },
   choose: {
     title: "プランを選択",
     subtitle: "AloStudioを引き続き使うにはプランを選んでください。会話とデータは保存されたままです。",

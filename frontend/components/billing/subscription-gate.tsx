@@ -1,12 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
-import { useBillingStatus } from "@/lib/api/billing";
+import { Button } from "@/components/ui/button";
+import { openBillingPortal, useBillingStatus } from "@/lib/api/billing";
 import { usePublicInstallation } from "@/lib/api/installation";
 import { useIsAccountAdmin } from "@/lib/api/profile";
-import { useT } from "@/lib/i18n/provider";
+import { INTL_TAGS } from "@/lib/i18n/config";
+import { useLocale, useT } from "@/lib/i18n/provider";
 
 import { PlanPicker } from "./plan-picker";
 
@@ -39,9 +41,50 @@ export function SubscriptionGate({
     return <p className="text-sm text-fg-muted">{t("common.loading")}</p>;
   }
   if (!multitenant || !status.data || status.data.has_access) {
-    return <>{children}</>;
+    const until = multitenant ? status.data?.access_until : null;
+    return (
+      <>
+        {until ? <PastDueBanner accountId={accountId} until={until} /> : null}
+        {children}
+      </>
+    );
   }
   return <ChoosePlan accountId={accountId} />;
+}
+
+/** A renewal charge failed: the account stays open for a few days while
+ *  Polar retries; the admin updates the card in Polar's portal. */
+function PastDueBanner({ accountId, until }: { accountId: string; until: number }) {
+  const t = useT();
+  const locale = useLocale();
+  const isAdmin = useIsAccountAdmin(accountId);
+  const [opening, setOpening] = useState(false);
+  const date = new Date(until * 1000).toLocaleDateString(INTL_TAGS[locale], {
+    day: "numeric",
+    month: "long",
+  });
+
+  return (
+    <div
+      role="alert"
+      className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-control border border-warning bg-surface-2 px-4 py-3 text-sm text-fg"
+    >
+      <span>{t(isAdmin ? "billing.pastDue.admin" : "billing.pastDue.agent", { date })}</span>
+      {isAdmin ? (
+        <Button
+          type="button"
+          size="sm"
+          loading={opening}
+          onClick={() => {
+            setOpening(true);
+            void openBillingPortal(accountId).catch(() => setOpening(false));
+          }}
+        >
+          {t("billing.pastDue.update")}
+        </Button>
+      ) : null}
+    </div>
+  );
 }
 
 function ChoosePlan({ accountId }: { accountId: string }) {

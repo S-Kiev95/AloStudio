@@ -24,6 +24,9 @@ export type BillingStatus = {
   /** Unix seconds. */
   current_period_end?: number | null;
   cancel_at_period_end?: boolean;
+  /** Unix seconds: a renewal charge failed and the account stays open
+   *  until then, while Polar retries the card. */
+  access_until?: number | null;
   /** The plan's monthly AI cap and the credit that extends it. */
   usage?: { cap: number; spent: number; currency: string; credit_balance: number };
   /** What the plan includes: inbox channels and networks (null: all of

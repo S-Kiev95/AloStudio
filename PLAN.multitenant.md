@@ -496,7 +496,17 @@ créditos.
   checkout va con `allow_trial: false`. Para quien abre otra cuenta con el
   mismo correo o la misma tarjeta: prender **Prevent trial abuse** en Polar
   (Ajustes de la organización → Suscripciones), en sandbox y en producción.
-- Pago rechazado y renovación en sandbox (ver arriba).
+- ~~Pago rechazado y renovación en sandbox~~ **Hecho (2026-11-23), con los
+  avisos firmados de Polar en pruebas automáticas** (en el sandbox no se
+  pueden forzar sin esperar el ciclo). Pago rechazado: Polar pone
+  `past_due` y reintenta a los 2, 7, 14 y 21 días; la cuenta sigue abierta
+  **7 días** desde `past_due_at` (decisión del dueño), con un aviso arriba
+  de cada pantalla y "Actualizar la tarjeta" al portal (a los agentes les
+  dice que avisen a un admin); después, 402 hasta que Polar cobre
+  (`active`) o cancele. Migración `d9f1b3c5e7a2` (`past_due_at`).
+  Renovación: `subscription.updated` con el nuevo `current_period_end`.
+  Falta verlo con un cobro real: una tarjeta de prueba que falle en la
+  renovación (Stripe 4000 0000 0000 0341) en un producto diario.
 - ~~El registro dice solo "No se pudo crear la cuenta"~~ **Hecho (2026-11-23):**
   `lib/auth/signup-error.ts` lee qué campo rechazó la validación (correo,
   contraseña, nombres) y pasa a castellano los mensajes en inglés del alta

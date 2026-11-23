@@ -125,6 +125,17 @@ describe("SubscriptionGate", () => {
     expect(await screen.findByText("contenido")).toBeVisible();
   });
 
+  it("con el pago atrasado deja usar la cuenta y avisa hasta cuándo", async () => {
+    const until = Math.floor(Date.UTC(2026, 11, 2, 12) / 1000);
+    server.use(
+      ...handlers({ billing: { status: "past_due", has_access: true, access_until: until } }),
+    );
+    renderGate();
+    expect(await screen.findByText("contenido")).toBeVisible();
+    expect(await screen.findByText(/No pudimos cobrar tu plan/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Actualizar la tarjeta" })).toBeEnabled();
+  });
+
   it("en una instalación propia no pregunta por el plan", async () => {
     server.use(...handlers({ multitenant: false }));
     renderGate();
