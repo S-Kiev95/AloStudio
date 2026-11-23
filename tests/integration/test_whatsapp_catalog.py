@@ -102,6 +102,7 @@ async def _seed(db_session, suffix: str, *, last_incoming_hours: float = 1):
             currency="UYU",
             url="https://ctc.example/c",
             image_url="https://ctc.example/c.png",
+            meta_sync=name != "Borrador",
             meta_retailer_id=f"alo-{suffix}-{i}" if name != "Borrador" else None,
             meta_synced_at=now if name != "Borrador" else None,
         )

@@ -11,4 +11,5 @@ export const settingsLabels: Strings<typeof es> = {
   empty: "Ainda não há etiquetas.",
   visibleInSidebar: "Visível na barra lateral",
   hiddenInSidebar: "Oculta na barra lateral",
+  deleteConfirm: 'Excluir a etiqueta "{name}"?',
 };

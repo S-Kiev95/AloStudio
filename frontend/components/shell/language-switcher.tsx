@@ -19,7 +19,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
   return (
     <label
       className={cn(
-        "relative inline-flex h-10 items-center gap-1.5 rounded-control px-2 text-sm text-fg-muted transition-colors",
+        "relative inline-flex h-10 items-center gap-1.5 rounded-control border border-glass bg-surface/80 px-2.5 text-sm text-fg-muted backdrop-blur-sm transition-colors",
         "hover:bg-hover-glass hover:text-fg focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-neon",
         className,
       )}

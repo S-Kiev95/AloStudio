@@ -231,6 +231,14 @@ class Settings(BaseSettings):
     # app. Must match byte-for-byte between the login dialog and the
     # code exchange. Same URI serves both Facebook + Instagram Login.
     meta_oauth_redirect_uri: str = ""
+    # Facebook Login for Business configurations (App Dashboard >
+    # Facebook Login for Business > Configurations), one per connect
+    # flow. With one set, that flow asks for it instead of a scope list and
+    # gets the business's system-user token, which doesn't expire; empty
+    # keeps the user-token login.
+    meta_catalog_config_id: str = ""
+    meta_pages_config_id: str = ""
+    meta_instagram_config_id: str = ""
     # Instagram Login flow (I.10c) — the *Instagram* app id + secret
     # (under the app's "Instagram > API setup with Instagram login"),
     # distinct from the Facebook app id/secret. Lets clients without a

@@ -69,7 +69,7 @@ describe("Navigation and CRM tabs", () => {
       "CRM",
       "Instagram",
       "WhatsApp",
-      "Help Center",
+      "Centro de ayuda",
       "Campañas",
       "Reportes",
       "Ajustes",

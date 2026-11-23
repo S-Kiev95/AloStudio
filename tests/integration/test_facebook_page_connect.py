@@ -183,3 +183,27 @@ async def test_start_asks_for_the_settings_it_needs(client, db_session, meta_con
     meta_config.meta_app_secret = ""
     r = await client.get(f"/api/v1/accounts/{owner.account.id}/facebook_pages/connect/start", headers=h)
     assert r.status_code == 422 and "META_APP_SECRET" in r.json()["message"]
+
+
+@respx.mock
+async def test_a_business_configuration_connects_with_the_system_user_token(
+    client, db_session, meta_config
+):
+    """With META_PAGES_CONFIG_ID the dialog asks for that configuration and
+    the code's token (the business's, which doesn't expire) is used as is."""
+    owner, _h = await _seed(db_session, "-biz")
+    meta_config.meta_pages_config_id = "CFG-PAGES"
+    try:
+        url = connect_service.start_page_oauth(owner.account.id)
+        query = parse_qs(urlparse(url).query)
+        assert query["config_id"] == ["CFG-PAGES"]
+        assert "scope" not in query
+        _mock_meta({"id": "331", "name": "Negocio", "access_token": "PAGE"})
+        r = await client.get(CALLBACK, params={"code": "C", "state": query["state"][0]})
+    finally:
+        meta_config.meta_pages_config_id = ""
+    assert r.status_code == 303
+    exchanges = [c for c in respx.calls if c.request.url.path.endswith("/oauth/access_token")]
+    assert len(exchanges) == 1
+    page = (await db_session.exec(select(FacebookPage).where(FacebookPage.page_id == "331"))).one()
+    assert page.user_access_token == "USER"

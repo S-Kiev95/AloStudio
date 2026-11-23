@@ -69,6 +69,7 @@ def _product(account_id: int, name: str, **extra) -> Product:
         "currency": "uyu",
         "url": "https://ctc.example.com/cursos/x",
         "image_url": "https://ctc.example.com/img/x.jpg",
+        "meta_sync": True,
     }
     fields.update(extra)
     return Product(account_id=account_id, name=name, **fields)
@@ -85,11 +86,15 @@ async def test_connecting_checks_the_catalogue_and_keeps_the_token(client, seede
         base, json={"catalog_id": "123456", "access_token": "EAAsecret"}, headers=headers
     )
     assert res.status_code == 200, res.text
-    assert res.json() == {
+    shown = res.json()
+    assert shown.pop("can_login") in (True, False)
+    assert shown == {
         "connected": True,
+        "login": None,
         "catalog_id": "123456",
         "catalog_name": "Cursos CTC",
         "last_sync": None,
+        "last_error": None,
     }
     assert "EAAsecret" not in res.text
 
@@ -202,3 +207,151 @@ async def test_sync_without_a_catalogue_says_so(client, seeded):
     res = await client.post(f"{base}/sync", headers=headers)
     assert res.status_code == 422
     assert res.json()["code"] == "meta_catalog.not_connected"
+
+
+async def _connect(client, headers, base) -> None:
+    respx.route(host="test").pass_through()
+    respx.get(url__regex=GRAPH + r"123456(\?|$)").mock(
+        return_value=httpx.Response(200, json={"id": "123456", "name": "Cursos CTC"})
+    )
+    await client.put(base, json={"catalog_id": "123456", "access_token": "EAA"}, headers=headers)
+
+
+@respx.mock
+async def test_only_products_chosen_for_the_catalogue_are_sent(client, db_session, seeded):
+    account, headers, base = seeded
+    await _connect(client, headers, base)
+    chosen = _product(account.id, "Cerámica", sku="CER-1")
+    not_chosen = _product(account.id, "Interno", sku="INT-1", meta_sync=False)
+    incomplete = _product(account.id, "Borrador", meta_sync=False, image_url=None)
+    db_session.add_all([chosen, not_chosen, incomplete])
+    await db_session.flush()
+
+    batch = respx.post(url__regex=GRAPH + r"123456/items_batch(\?|$)").mock(
+        return_value=httpx.Response(200, json={"handles": []})
+    )
+    res = await client.post(f"{base}/sync", headers=headers)
+    assert res.json()["result"] == {"sent": 1, "removed": 0, "skipped": 0, "failed": 0}
+    requests = json.loads(parse_qs(batch.calls.last.request.content.decode())["requests"][0])
+    assert [r["data"]["id"] for r in requests] == ["CER-1"]
+    await db_session.refresh(incomplete)
+    # Not chosen: nothing to say about what Meta would need.
+    assert incomplete.meta_sync_error is None
+
+
+@respx.mock
+async def test_unticking_a_product_removes_it_from_meta(client, db_session, seeded):
+    account, headers, base = seeded
+    await _connect(client, headers, base)
+    product = _product(account.id, "Cerámica", sku="CER-1")
+    db_session.add(product)
+    await db_session.flush()
+    batch = respx.post(url__regex=GRAPH + r"123456/items_batch(\?|$)").mock(
+        return_value=httpx.Response(200, json={"handles": []})
+    )
+    await client.post(f"{base}/sync", headers=headers)
+    await db_session.refresh(product)
+    assert product.meta_retailer_id == "CER-1"
+
+    res = await client.patch(
+        f"/api/v1/accounts/{account.id}/products/{product.id}",
+        json={"meta_sync": False},
+        headers=headers,
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["meta_sync"] is False
+
+    await client.post(f"{base}/sync", headers=headers)
+    requests = json.loads(parse_qs(batch.calls.last.request.content.decode())["requests"][0])
+    assert requests == [{"method": "DELETE", "data": {"id": "CER-1"}}]
+    await db_session.refresh(product)
+    assert product.meta_retailer_id is None and product.meta_synced_at is None
+    assert product.meta_sync is False
+
+
+async def test_the_choice_is_saved_with_the_product(client, seeded):
+    account, headers, _ = seeded
+    products = f"/api/v1/accounts/{account.id}/products"
+    res = await client.post(products, json={"name": "Taller", "meta_sync": True}, headers=headers)
+    assert res.status_code == 200, res.text
+    assert res.json()["meta_sync"] is True
+    default = await client.post(products, json={"name": "Otro"}, headers=headers)
+    assert default.json()["meta_sync"] is False
+    # Leaving it out of an edit (or sending null) keeps it.
+    kept = await client.patch(
+        f"{products}/{res.json()['id']}", json={"name": "Taller 2", "meta_sync": None}, headers=headers
+    )
+    assert kept.json()["meta_sync"] is True
+
+
+async def test_a_product_never_sent_and_not_chosen_does_not_touch_the_catalogue(
+    db_session, seeded, monkeypatch
+):
+    account, _, _ = seeded
+    db_session.add(
+        meta_catalog.IntegrationsHook(
+            account_id=account.id,
+            app_id=meta_catalog.APP_ID,
+            hook_type=0,
+            status=1,
+            access_token="EAA",
+            settings={"catalog_id": "123456"},
+        )
+    )
+    product = _product(account.id, "Interno", meta_sync=False)
+    db_session.add(product)
+    await db_session.flush()
+    enqueued: list[int] = []
+
+    async def fake_enqueue(account_id: int) -> None:
+        enqueued.append(account_id)
+
+    monkeypatch.setattr(meta_catalog, "enqueue_sync", fake_enqueue)
+    await meta_catalog.product_changed(db_session, product)
+    assert enqueued == []
+    product.meta_sync = True
+    await meta_catalog.product_changed(db_session, product)
+    assert enqueued == [account.id]
+
+
+class _SameSession:
+    """The task's session factory, giving the test's session."""
+
+    def __init__(self, session) -> None:
+        self.session = session
+
+    def __call__(self):
+        return self
+
+    async def __aenter__(self):
+        return self.session
+
+    async def __aexit__(self, *exc: object) -> bool:
+        return False
+
+
+@respx.mock
+async def test_a_background_sync_keeps_why_it_failed(client, db_session, seeded, monkeypatch):
+    from app.workers import meta_catalog as task
+
+    account, headers, base = seeded
+    await _connect(client, headers, base)
+    db_session.add(_product(account.id, "Cerámica", sku="CER-1"))
+    await db_session.flush()
+    monkeypatch.setattr(task, "_session_factory", lambda ctx: _SameSession(db_session))
+
+    respx.post(url__regex=GRAPH + r"123456/items_batch(\?|$)").mock(
+        return_value=httpx.Response(
+            400, json={"error": {"code": 190, "message": "Session has expired"}}
+        )
+    )
+    assert await task.sync_meta_catalog_task({}, account.id) == {"ok": False, "code": "token"}
+    shown = (await client.get(base, headers=headers)).json()
+    assert shown["last_error"]["code"] == "token"
+
+    respx.post(url__regex=GRAPH + r"123456/items_batch(\?|$)").mock(
+        return_value=httpx.Response(200, json={"handles": []})
+    )
+    assert (await task.sync_meta_catalog_task({}, account.id))["ok"] is True
+    shown = (await client.get(base, headers=headers)).json()
+    assert shown["last_error"] is None

@@ -15,18 +15,23 @@ log = logging.getLogger(__name__)
 
 
 async def sync_meta_catalog_task(ctx: dict[str, Any], account_id: int) -> dict[str, Any]:
-    from app.domains.crm.meta_catalog import CatalogError, sync
+    from app.domains.crm.meta_catalog import CatalogError, record_error, sync
 
     async with _session_factory(ctx)() as session:
         try:
             result = await sync(session, account_id)
         except CatalogError as exc:
-            # Not linked any more, or Meta refused the token: the panel shows
-            # it on the next manual sync.
-            log.warning("crm.meta_catalog.task_failed account_id=%s code=%s", account_id, exc.code)
-            return {"ok": False, "code": exc.code}
+            failed = exc
+        else:
+            await session.commit()
+            return {"ok": True, **result.as_dict()}
+    # Not linked any more, or Meta refused the token: kept on the link (in a
+    # fresh session, the failed sync is dropped) so the panel shows it.
+    log.warning("crm.meta_catalog.task_failed account_id=%s code=%s", account_id, failed.code)
+    async with _session_factory(ctx)() as session:
+        await record_error(session, account_id, failed.code)
         await session.commit()
-    return {"ok": True, **result.as_dict()}
+    return {"ok": False, "code": failed.code}
 
 
 __all__ = ["sync_meta_catalog_task"]

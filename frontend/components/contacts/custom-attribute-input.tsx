@@ -1,12 +1,12 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { selectClassName } from "@/components/ui/select";
 import type { CustomAttribute } from "@/lib/api/custom-attributes";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
 
-const selectClass =
-  "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const selectClass = selectClassName();
 
 /**
  * Typed input for one custom-attribute value, dispatching on the

@@ -3,7 +3,7 @@ import type { Strings } from "../types";
 
 export const metaCatalog: Strings<typeof es> = {
   title: "Catalogue Meta",
-  intro: "Connectez un catalogue Commerce Manager et les produits actifs y sont envoyés, prêts à s’afficher sur WhatsApp, Instagram et Facebook.",
+  intro: "Connectez un catalogue Commerce Manager et choisissez les produits qui y sont publiés, prêts à s’afficher sur WhatsApp, Instagram et Facebook.",
   howTo: "L’ID se trouve dans Commerce Manager → votre catalogue → Paramètres. Le jeton est celui d’un utilisateur système (Paramètres de l’entreprise → Utilisateurs système) avec l’autorisation catalog_management et l’accès au catalogue.",
   catalogId: "ID du catalogue",
   token: "Jeton d’accès",
@@ -16,7 +16,18 @@ export const metaCatalog: Strings<typeof es> = {
   neverSynced: "Pas encore synchronisé.",
   lastSync: "Dernière synchronisation : {date} · {sent} envoyés, {failed} avec des problèmes",
   stillChecking: "Meta vérifiait encore l’envoi ; ce qui échoue apparaîtra à la prochaine synchronisation.",
-  autoSync: "Chaque modification d’un produit est envoyée automatiquement, quelques secondes plus tard.",
+  autoSync: "Les modifications des produits publiés sont envoyées automatiquement, quelques secondes plus tard. Ce qui est modifié dans Commerce Manager est remplacé par le CRM.",
+  publish: "Publier dans le catalogue Meta",
+  publishHint: "Meta demande une description, un prix avec devise, un lien et une image. Décochez pour le retirer du catalogue.",
+  lastError: "La dernière synchronisation automatique a échoué : {error}",
+  connectFacebook: "Se connecter avec Facebook",
+  pasteToken: "Coller l’ID et le jeton",
+  orManual: "Ou collez à la main l’ID du catalogue et le jeton d’un utilisateur système :",
+  whichCatalog: "Quel catalogue voulez-vous connecter ?",
+  connectedNotice: "Catalogue connecté.",
+  viaFacebook: "Connecté avec Facebook.",
+  viaFacebookUntil: "Connecté avec Facebook. L’accès expire le {date} ; reconnectez-vous ensuite.",
+  viaBusiness: "Connecté avec l’entreprise sur Facebook : l’accès n’expire pas.",
   synced: "Terminé : {sent} envoyés, {removed} retirés, {skipped} incomplets, {failed} refusés par Meta.",
   state: {
     synced: "Chez Meta",
@@ -37,5 +48,9 @@ export const metaCatalog: Strings<typeof es> = {
     refused: "Meta a refusé la demande.",
     unreachable: "Impossible de joindre Meta. Réessayez plus tard.",
     not_connected: "Connectez d’abord un catalogue.",
+    cancelled: "La connexion a été annulée avant d’autoriser le catalogue.",
+    no_catalogs: "Meta n’a renvoyé aucun catalogue. Vérifiez que votre entreprise en a un dans Commerce Manager et choisissez-le sur l’écran de Facebook.",
+    pick_expired: "Le choix a expiré. Reconnectez-vous avec Facebook.",
+    login_unavailable: "Cette installation n’a pas la connexion avec Facebook configurée.",
   },
 };

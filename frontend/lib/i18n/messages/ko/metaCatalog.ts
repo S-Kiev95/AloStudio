@@ -3,7 +3,7 @@ import type { Strings } from "../types";
 
 export const metaCatalog: Strings<typeof es> = {
   title: "Meta 카탈로그",
-  intro: "커머스 관리자 카탈로그를 연결하면 활성 상품이 그곳으로 전송되어 WhatsApp, Instagram, Facebook에 표시할 수 있습니다.",
+  intro: "커머스 관리자 카탈로그를 연결하고 게시할 상품을 선택하면 WhatsApp, Instagram, Facebook에 표시할 수 있습니다.",
   howTo: "ID는 커머스 관리자 → 카탈로그 → 설정에 있습니다. 토큰은 catalog_management 권한과 카탈로그 접근 권한이 있는 시스템 사용자(비즈니스 설정 → 시스템 사용자)의 것입니다.",
   catalogId: "카탈로그 ID",
   token: "액세스 토큰",
@@ -16,7 +16,18 @@ export const metaCatalog: Strings<typeof es> = {
   neverSynced: "아직 동기화하지 않았습니다.",
   lastSync: "마지막 동기화: {date} · {sent}개 전송, {failed}개 문제 있음",
   stillChecking: "Meta가 아직 전송 내용을 확인 중이었습니다. 실패한 항목은 다음 동기화 때 표시됩니다.",
-  autoSync: "상품을 변경하면 몇 초 후 자동으로 전송됩니다.",
+  autoSync: "게시된 상품을 변경하면 몇 초 후 자동으로 전송됩니다. 커머스 관리자에서 수정한 내용은 CRM 내용으로 덮어씁니다.",
+  publish: "Meta 카탈로그에 게시",
+  publishHint: "Meta에는 설명, 통화가 포함된 가격, 링크, 이미지가 필요합니다. 선택을 해제하면 카탈로그에서 삭제됩니다.",
+  lastError: "마지막 자동 동기화에 실패했습니다: {error}",
+  connectFacebook: "Facebook으로 연결",
+  pasteToken: "ID와 토큰 붙여넣기",
+  orManual: "또는 카탈로그 ID와 시스템 사용자 토큰을 직접 붙여넣으세요:",
+  whichCatalog: "어떤 카탈로그를 연결할까요?",
+  connectedNotice: "카탈로그가 연결되었습니다.",
+  viaFacebook: "Facebook으로 연결되었습니다.",
+  viaFacebookUntil: "Facebook으로 연결되었습니다. 액세스는 {date}에 만료되며, 그 후 다시 연결하세요.",
+  viaBusiness: "Facebook 비즈니스로 연결되었습니다. 액세스가 만료되지 않습니다.",
   synced: "완료: {sent}개 전송, {removed}개 삭제, {skipped}개 정보 부족, {failed}개 Meta 거부.",
   state: {
     synced: "Meta에 등록됨",
@@ -37,5 +48,9 @@ export const metaCatalog: Strings<typeof es> = {
     refused: "Meta가 요청을 거부했습니다.",
     unreachable: "Meta에 연결할 수 없습니다. 잠시 후 다시 시도하세요.",
     not_connected: "먼저 카탈로그를 연결하세요.",
+    cancelled: "카탈로그를 승인하기 전에 연결이 취소되었습니다.",
+    no_catalogs: "Meta에서 카탈로그를 반환하지 않았습니다. 커머스 관리자에 카탈로그가 있는지 확인하고 Facebook 화면에서 선택하세요.",
+    pick_expired: "선택 시간이 만료되었습니다. Facebook으로 다시 연결하세요.",
+    login_unavailable: "이 설치에는 Facebook 로그인이 설정되어 있지 않습니다.",
   },
 };

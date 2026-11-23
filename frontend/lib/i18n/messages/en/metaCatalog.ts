@@ -3,7 +3,7 @@ import type { Strings } from "../types";
 
 export const metaCatalog: Strings<typeof es> = {
   title: "Meta catalog",
-  intro: "Connect a Commerce Manager catalog and active products are sent there, ready to show on WhatsApp, Instagram and Facebook.",
+  intro: "Connect a Commerce Manager catalog and choose which products are published there, ready to show on WhatsApp, Instagram and Facebook.",
   howTo: "The ID is in Commerce Manager → your catalog → Settings. The token belongs to a system user (Business Settings → System users) with the catalog_management permission and access to the catalog.",
   catalogId: "Catalog ID",
   token: "Access token",
@@ -16,7 +16,18 @@ export const metaCatalog: Strings<typeof es> = {
   neverSynced: "Not synced yet.",
   lastSync: "Last sync: {date} · {sent} sent, {failed} with problems",
   stillChecking: "Meta was still checking the batch; anything that fails shows on the next sync.",
-  autoSync: "Every product change is sent on its own, a few seconds later.",
+  autoSync: "Changes to published products are sent on their own, a few seconds later. Edits made in Commerce Manager are overwritten by the CRM.",
+  publish: "Publish in the Meta catalog",
+  publishHint: "Meta needs a description, a price with currency, a link and an image. Untick it to remove it from the catalog.",
+  lastError: "The last automatic sync failed: {error}",
+  connectFacebook: "Connect with Facebook",
+  pasteToken: "Paste ID and token",
+  orManual: "Or paste the catalog ID and a system user's token by hand:",
+  whichCatalog: "Which catalog do you want to connect?",
+  connectedNotice: "Catalog connected.",
+  viaFacebook: "Connected with Facebook.",
+  viaFacebookUntil: "Connected with Facebook. Access expires on {date}; connect again after that.",
+  viaBusiness: "Connected with the business on Facebook: access doesn't expire.",
   synced: "Done: {sent} sent, {removed} removed, {skipped} incomplete, {failed} refused by Meta.",
   state: {
     synced: "In Meta",
@@ -37,5 +48,9 @@ export const metaCatalog: Strings<typeof es> = {
     refused: "Meta refused the request.",
     unreachable: "Couldn't reach Meta. Try again in a while.",
     not_connected: "Connect a catalog first.",
+    cancelled: "The connection was cancelled before authorizing the catalog.",
+    no_catalogs: "Meta returned no catalog. Check that your business has one in Commerce Manager and pick it on the Facebook screen.",
+    pick_expired: "The choice expired. Connect with Facebook again.",
+    login_unavailable: "This installation doesn't have Facebook Login set up.",
   },
 };

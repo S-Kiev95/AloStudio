@@ -18,6 +18,7 @@ import {
 } from "@/lib/api/integrations";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function IntegrationAppView({
   accountId,
@@ -272,12 +273,13 @@ function HookRow({
   accountId: string;
   hook: IntegrationHook;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteIntegrationHook(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("settingsIntegrations.deleteConfirm"))) return;
+    if (!(await confirm(t("settingsIntegrations.deleteConfirm")))) return;
     setError(null);
     try {
       await del.mutateAsync(hook.id);
@@ -311,7 +313,7 @@ function HookRow({
         title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

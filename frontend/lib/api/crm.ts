@@ -416,13 +416,21 @@ export type MetaCatalogSync = {
   failed: number;
 };
 
+/** `can_login`: this installation can connect by logging in with Facebook. */
 export type MetaCatalog =
-  | { connected: false }
+  | { connected: false; can_login?: boolean }
   | {
       connected: true;
+      can_login?: boolean;
+      /** Connected by logging in with Facebook (as a person, or as the
+       *  business with a system-user token that doesn't expire); when that
+       *  access expires. */
+      login?: { via: "facebook" | "facebook_business"; expires_at: number | null } | null;
       catalog_id: string;
       catalog_name: string | null;
       last_sync: MetaCatalogSync | null;
+      /** Why the last background sync failed (token, permission…). */
+      last_error?: { code: string; at: number } | null;
     };
 
 const catalogKey = (accountId: string) => ["meta-catalog", accountId] as const;
@@ -461,4 +469,39 @@ export function useMetaCatalogActions(accountId: string) {
     onSuccess: done,
   });
   return { connect, disconnect, sync };
+}
+
+/** Sends the browser to Facebook to connect the catalogue; it comes back
+ *  to CRM → Productos with `catalog`, `catalog_pick` or `catalog_error`. */
+export async function startMetaCatalogLogin(accountId: string): Promise<void> {
+  const { authorize_url } = await apiFetch<{ authorize_url: string }>(
+    `${base(accountId)}/meta-catalog/connect/start`,
+  );
+  window.location.href = authorize_url;
+}
+
+export type PendingMetaCatalog = { id: string; name: string | null; business: string | null };
+
+export function usePendingMetaCatalogs(accountId: string, nonce: string | null) {
+  return useQuery({
+    queryKey: ["meta-catalog-pending", accountId, nonce],
+    enabled: Boolean(nonce),
+    retry: false,
+    queryFn: () =>
+      apiFetch<PendingMetaCatalog[]>(`${base(accountId)}/meta-catalog/pending/${nonce}`),
+  });
+}
+
+export function useConnectPendingMetaCatalog(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ nonce, catalogId }: { nonce: string; catalogId: string }) =>
+      apiFetch<MetaCatalog>(`${base(accountId)}/meta-catalog/pending/${nonce}/${catalogId}`, {
+        method: "POST",
+      }),
+    onSuccess: (data) => {
+      qc.setQueryData(catalogKey(accountId), data);
+      void qc.invalidateQueries({ queryKey: ["products", accountId] });
+    },
+  });
 }

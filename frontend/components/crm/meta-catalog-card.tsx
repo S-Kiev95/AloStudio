@@ -1,15 +1,24 @@
 "use client";
 
 import { RefreshCw, ShoppingBag } from "lucide-react";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
+import { Facebook } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type MetaCatalog, useMetaCatalogActions } from "@/lib/api/crm";
+import {
+  type MetaCatalog,
+  startMetaCatalogLogin,
+  useConnectPendingMetaCatalog,
+  useMetaCatalogActions,
+  usePendingMetaCatalogs,
+} from "@/lib/api/crm";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import { translateOr } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 /** Our wording for a refusal, by the code the backend sends. */
 function useCatalogError() {
@@ -23,23 +32,88 @@ function useCatalogError() {
   };
 }
 
-/** CRM → Productos: the Meta catalogue the products are sent to. */
-export function MetaCatalogCard({
+/** CRM → Productos: the Meta catalogue the products are sent to. Facebook
+ *  sends the browser back here with `catalog=connected`, `catalog_pick`
+ *  (several catalogues to choose from) or `catalog_error` (a code). */
+export function MetaCatalogCard(props: { accountId: string; catalog: MetaCatalog }) {
+  return (
+    <Suspense>
+      <MetaCatalogCardInner {...props} />
+    </Suspense>
+  );
+}
+
+function MetaCatalogCardInner({
   accountId,
   catalog,
 }: {
   accountId: string;
   catalog: MetaCatalog;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const intlTag = useIntlTag();
   const errorText = useCatalogError();
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
   const { connect, disconnect, sync } = useMetaCatalogActions(accountId);
+  // Read once on arrival from Facebook: the query string is cleared after.
+  const [arrival] = useState(() => ({
+    pick: params.get("catalog_pick"),
+    error: params.get("catalog_error"),
+    connected: params.get("catalog") === "connected",
+  }));
+  const [nonce, setNonce] = useState<string | null>(arrival.pick);
+  const pending = usePendingMetaCatalogs(accountId, nonce);
+  const choose = useConnectPendingMetaCatalog(accountId);
   const [editing, setEditing] = useState(false);
   const [catalogId, setCatalogId] = useState("");
   const [token, setToken] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(() =>
+    arrival.error
+      ? translateOr(t, `metaCatalog.errors.${arrival.error}`, t("metaCatalog.errors.refused"))
+      : null,
+  );
+  const [notice, setNotice] = useState<string | null>(() =>
+    arrival.connected ? t("metaCatalog.connectedNotice") : null,
+  );
+
+  useEffect(() => {
+    if (arrival.pick || arrival.error || arrival.connected) router.replace(pathname);
+  }, [arrival, router, pathname]);
+
+  async function loginWithFacebook() {
+    setError(null);
+    setStarting(true);
+    try {
+      await startMetaCatalogLogin(accountId);
+    } catch (err) {
+      setError(errorText(err));
+      setStarting(false);
+    }
+  }
+
+  async function pick(id: string) {
+    if (!nonce) return;
+    setError(null);
+    try {
+      await choose.mutateAsync({ nonce, catalogId: id });
+      setNonce(null);
+      setNotice(t("metaCatalog.connectedNotice"));
+    } catch (err) {
+      setError(errorText(err));
+    }
+  }
+
+  const picking = Boolean(nonce) && !pending.isError;
+  const facebookButton = catalog.can_login ? (
+    <Button type="button" size="sm" loading={starting} onClick={() => void loginWithFacebook()}>
+      <Facebook mono className="h-4 w-4" aria-hidden />
+      {t("metaCatalog.connectFacebook")}
+    </Button>
+  ) : null;
 
   function startEditing() {
     setCatalogId(catalog.connected ? catalog.catalog_id : "");
@@ -75,7 +149,7 @@ export function MetaCatalogCard({
   }
 
   async function unlink() {
-    if (!window.confirm(t("metaCatalog.disconnectConfirm"))) return;
+    if (!(await confirm(t("metaCatalog.disconnectConfirm")))) return;
     setError(null);
     try {
       await disconnect.mutateAsync();
@@ -85,6 +159,7 @@ export function MetaCatalogCard({
   }
 
   const last = catalog.connected ? catalog.last_sync : null;
+  const lastError = catalog.connected ? catalog.last_error : null;
 
   return (
     <Card>
@@ -93,7 +168,7 @@ export function MetaCatalogCard({
           <ShoppingBag className="h-4 w-4 text-fg-muted" aria-hidden />
           {t("metaCatalog.title")}
         </CardTitle>
-        {catalog.connected && !editing ? (
+        {catalog.connected && !editing && !picking ? (
           <span className="flex flex-wrap gap-1">
             <Button size="sm" onClick={() => void runSync()} loading={sync.isPending}>
               <RefreshCw className="h-4 w-4" aria-hidden />
@@ -120,8 +195,40 @@ export function MetaCatalogCard({
           </p>
         ) : null}
 
-        {editing ? (
+        {nonce && pending.isError ? (
+          <p role="alert" className="text-sm text-danger">
+            {errorText(pending.error)}
+          </p>
+        ) : null}
+
+        {picking ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-fg">{t("metaCatalog.whichCatalog")}</p>
+            {pending.data?.map((row) => (
+              <Button
+                key={row.id}
+                type="button"
+                variant="simple"
+                className="w-full justify-start"
+                disabled={choose.isPending}
+                onClick={() => void pick(row.id)}
+              >
+                <ShoppingBag className="h-4 w-4" aria-hidden />
+                {row.name || t("metaCatalog.unnamed")}
+                {row.business ? (
+                  <span className="text-xs text-fg-muted">· {row.business}</span>
+                ) : null}
+              </Button>
+            ))}
+          </div>
+        ) : editing ? (
           <form onSubmit={submit} className="space-y-3">
+            {facebookButton ? (
+              <div className="space-y-2 border-b border-glass pb-3">
+                {facebookButton}
+                <p className="text-xs text-fg-muted">{t("metaCatalog.orManual")}</p>
+              </div>
+            ) : null}
             <p className="text-sm text-fg-muted">{t("metaCatalog.howTo")}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
@@ -176,6 +283,30 @@ export function MetaCatalogCard({
                   })
                 : t("metaCatalog.neverSynced")}
             </p>
+            {lastError ? (
+              <p role="alert" className="text-xs text-warning">
+                {t("metaCatalog.lastError", {
+                  error: translateOr(
+                    t,
+                    `metaCatalog.errors.${lastError.code}`,
+                    t("metaCatalog.errors.refused"),
+                  ),
+                })}
+              </p>
+            ) : null}
+            {catalog.login ? (
+              <p className="text-xs text-fg-muted">
+                {catalog.login.via === "facebook_business"
+                  ? t("metaCatalog.viaBusiness")
+                  : catalog.login.expires_at
+                  ? t("metaCatalog.viaFacebookUntil", {
+                      date: new Date(catalog.login.expires_at * 1000).toLocaleDateString(intlTag, {
+                        dateStyle: "medium",
+                      }),
+                    })
+                  : t("metaCatalog.viaFacebook")}
+              </p>
+            ) : null}
             {last && !last.validated ? (
               <p className="text-xs text-fg-muted">{t("metaCatalog.stillChecking")}</p>
             ) : null}
@@ -184,9 +315,16 @@ export function MetaCatalogCard({
         ) : (
           <div className="space-y-2">
             <p className="text-sm text-fg-muted">{t("metaCatalog.intro")}</p>
-            <Button size="sm" variant="secondary" onClick={startEditing}>
-              {t("metaCatalog.connect")}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {facebookButton}
+              <Button
+                size="sm"
+                variant={facebookButton ? "ghost" : "secondary"}
+                onClick={startEditing}
+              >
+                {facebookButton ? t("metaCatalog.pasteToken") : t("metaCatalog.connect")}
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>
@@ -199,10 +337,12 @@ export function useProductCatalogState() {
   const t = useT();
   return (product: {
     enabled: boolean;
+    meta_sync?: boolean;
     meta_synced_at?: number | null;
     meta_sync_error?: string | null;
   }): { label: string; tone: "ok" | "warn" | "muted"; detail?: string } | null => {
-    if (!product.enabled) return null;
+    // Only the products chosen for the catalogue have a state there.
+    if (!product.enabled || !product.meta_sync) return null;
     const err = product.meta_sync_error;
     if (err?.startsWith("missing:")) {
       const fields = err

@@ -254,7 +254,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
                         aria-label={t("settingsSignatures.edit")}
                         title={t("settingsSignatures.edit")}
                         onClick={() => openEdit(sig)}
-                        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Pencil className="h-4 w-4" aria-hidden />
                       </button>
@@ -264,7 +264,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
                         title={t("settingsSignatures.delete")}
                         disabled={deleteMutation.isPending}
                         onClick={() => void handleDelete(sig)}
-                        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />
                       </button>
@@ -296,7 +296,7 @@ export function SignaturesView({ accountId }: { accountId: string }) {
                 type="button"
                 aria-label={t("actions.closeDialog")}
                 onClick={closeDialog}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
               >
                 <X className="h-4 w-4" aria-hidden />
               </button>

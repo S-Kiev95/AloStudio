@@ -1,11 +1,12 @@
 "use client";
 
 import { Phone } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useCallPermission, useRequestCallPermission } from "@/lib/api/calls";
+import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import { translateOr } from "@/lib/i18n/translate";
 
@@ -52,20 +53,7 @@ export function CallButton({
   const permission = useCallPermission(accountId, conversationId, open);
   const ask = useRequestCallPermission(accountId, conversationId);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent ? event.key === "Escape" : !panel.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, [open]);
+  useDismissOnOutsideAndEscape(panel, open, () => setOpen(false));
 
   function toggle() {
     setSent(false);
@@ -102,7 +90,7 @@ export function CallButton({
         aria-haspopup="dialog"
         aria-label={t("calls.callTitle")}
         title={t("calls.callTitle")}
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
+        className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control text-fg-muted transition-colors after:absolute after:-inset-1 after:content-[''] hover:bg-hover-glass hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
       >
         <Phone className="h-4 w-4" aria-hidden />
       </button>
@@ -110,7 +98,7 @@ export function CallButton({
         <div
           role="dialog"
           aria-label={t("calls.callTitle")}
-          className="glass-panel absolute right-0 top-10 z-40 w-[min(320px,calc(100vw-32px))] space-y-3 rounded-panel border border-glass bg-surface p-3 text-sm shadow-lg"
+          className="glass-panel absolute right-0 top-10 z-40 w-[min(320px,calc(100vw-32px))] space-y-3 rounded-md border border-glass bg-surface p-3 text-sm shadow-menu"
         >
           <p className="font-medium text-fg">{t("calls.callTitle")}</p>
           {permission.isLoading ? (

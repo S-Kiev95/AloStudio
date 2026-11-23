@@ -19,6 +19,8 @@ export type Product = {
    *  (`missing:description,price,…` or Meta's message). */
   meta_synced_at?: number | null;
   meta_sync_error?: string | null;
+  /** Chosen to be published in the account's Meta catalogue. */
+  meta_sync?: boolean;
 };
 
 export type ProductInput = {
@@ -30,6 +32,7 @@ export type ProductInput = {
   url?: string | null;
   image_url?: string | null;
   enabled?: boolean;
+  meta_sync?: boolean;
 };
 
 function base(accountId: string): string {

@@ -11,8 +11,10 @@ import {
   useWritingAssist,
   type AssistInput,
 } from "@/lib/api/writing-assist";
+import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import { translateOr, type MessageKey } from "@/lib/i18n/translate";
+import { animatePopoverIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
 const ITEM =
@@ -63,19 +65,14 @@ export function WritingAssist({
     menuRef.current
       ?.querySelector<HTMLButtonElement>('[role="menuitem"]:not([disabled])')
       ?.focus();
-    function onDocClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      window.removeEventListener("keydown", onKey);
-    };
   }, [open, choosingLanguage]);
+
+  useEffect(() => {
+    if (!open) return;
+    return animatePopoverIn(menuRef.current, "up");
+  }, [open]);
+
+  useDismissOnOutsideAndEscape(wrapRef, open, () => setOpen(false));
 
   if (!info.data?.enabled) return null;
 
@@ -125,14 +122,14 @@ export function WritingAssist({
           "inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1.5 text-xs font-medium transition-colors",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
           open
-            ? "border-neon bg-focused text-lit"
-            : "border-glass bg-field text-fg-muted hover:bg-hover-glass hover:text-fg",
+            ? "border-electrode/50 bg-electrode/10 text-electrode"
+            : "border-glass bg-field text-fg-muted hover:border-electrode/40 hover:bg-hover-glass hover:text-fg",
         )}
       >
         {assist.isPending ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-electrode" aria-hidden />
         ) : (
-          <Sparkles className="h-3.5 w-3.5" aria-hidden />
+          <Sparkles className="h-3.5 w-3.5 text-electrode" aria-hidden />
         )}
         {assist.isPending ? t("writingAssist.working") : t("writingAssist.button")}
       </button>

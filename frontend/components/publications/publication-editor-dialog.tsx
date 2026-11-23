@@ -42,6 +42,7 @@ import {
   type PublicationSet,
   type TargetIn,
   type TikTokSettings,
+  type YouTubeSettings,
   useCreatePublication,
   useCreatePublicationSet,
   usePublicationSets,
@@ -67,9 +68,16 @@ import {
   TikTokConsent,
   TikTokTargetSettings,
 } from "./tiktok-target-settings";
+import {
+  EMPTY_YOUTUBE_SETTINGS,
+  normalizeYouTubeSettings,
+  YouTubeTargetSettings,
+} from "./youtube-target-settings";
 import { INTL_TAGS } from "@/lib/i18n/config";
 import { useLocale, useT } from "@/lib/i18n/provider";
+import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 
 type SelectedMediaItem = {
   media_id?: number;
@@ -81,6 +89,7 @@ type SelectedMediaItem = {
 type PerChannelConfig = {
   postType: InstagramPostType;
   tiktok: TikTokSettings;
+  youtube: YouTubeSettings;
   customizeText: boolean;
   customText: string;
 };
@@ -142,6 +151,8 @@ export function PublicationEditorDialog({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
+  const setsWrapRef = useRef<HTMLDivElement>(null);
+  const signaturesWrapRef = useRef<HTMLDivElement>(null);
   const autoSigAppliedRef = useRef(false);
 
   const activeChannels = useMemo(
@@ -170,6 +181,16 @@ export function PublicationEditorDialog({
   );
   const [signaturesOpen, setSignaturesOpen] = useState(false);
   const [setsOpen, setSetsOpen] = useState(false);
+
+  useDismissOnOutsideAndEscape(setsWrapRef, setsOpen, () => setSetsOpen(false), {
+    stopEscapePropagation: true,
+  });
+  useDismissOnOutsideAndEscape(
+    signaturesWrapRef,
+    signaturesOpen,
+    () => setSignaturesOpen(false),
+    { stopEscapePropagation: true },
+  );
   const [savingSetOpen, setSavingSetOpen] = useState(false);
   const [setName, setSetName] = useState("");
   const [setFeedback, setSetFeedback] = useState<string | null>(null);
@@ -207,6 +228,7 @@ export function PublicationEditorDialog({
           el.setAttribute("open", "");
         }
       }
+      return animateDialogIn(el);
     } else if (el.open) {
       if (typeof el.close === "function") {
         el.close();
@@ -250,6 +272,7 @@ export function PublicationEditorDialog({
           cfgs[ch.id] = {
             postType: normalizePostType(t.settings?.post_type),
             tiktok: normalizeTikTokSettings(t.settings),
+            youtube: normalizeYouTubeSettings(t.settings),
             customizeText: t.content_override !== null,
             customText: t.content_override ?? "",
           };
@@ -282,6 +305,7 @@ export function PublicationEditorDialog({
         cfgs[t.channel.id] = {
           postType: normalizePostType(t.settings?.post_type),
           tiktok: normalizeTikTokSettings(t.settings),
+            youtube: normalizeYouTubeSettings(t.settings),
           customizeText: t.content_override !== null,
           customText: t.content_override ?? "",
         };
@@ -349,6 +373,7 @@ export function PublicationEditorDialog({
       channelConfigs[channelId] ?? {
         postType: "feed",
         tiktok: EMPTY_TIKTOK_SETTINGS,
+        youtube: EMPTY_YOUTUBE_SETTINGS,
         customizeText: false,
         customText: "",
       }
@@ -394,6 +419,7 @@ export function PublicationEditorDialog({
       nextConfigs[ch.id] = {
         postType: normalizePostType(t.settings?.post_type),
         tiktok: normalizeTikTokSettings(t.settings),
+            youtube: normalizeYouTubeSettings(t.settings),
         customizeText: t.content_override !== null,
         customText: t.content_override ?? "",
       };
@@ -482,6 +508,7 @@ export function PublicationEditorDialog({
           channel: ch,
           postType: cfg?.postType ?? "feed",
           tiktok: cfg?.tiktok ?? EMPTY_TIKTOK_SETTINGS,
+          youtube: cfg?.youtube ?? EMPTY_YOUTUBE_SETTINGS,
           customContent: cfg?.customizeText ? cfg.customText : null,
         };
       }),
@@ -555,6 +582,8 @@ export function PublicationEditorDialog({
         target.settings = { post_type: cfg.postType };
       } else if (ch.network === "tiktok") {
         target.settings = { ...cfg.tiktok };
+      } else if (ch.network === "youtube") {
+        target.settings = { ...cfg.youtube };
       }
       if (cfg.customizeText) {
         target.content_override = cfg.customText;
@@ -743,7 +772,7 @@ export function PublicationEditorDialog({
             ) : null}
 
             {!isSetMode && sets.length > 0 ? (
-              <div className="relative">
+              <div ref={setsWrapRef} className="relative">
                 <Button
                   type="button"
                   size="sm"
@@ -798,7 +827,7 @@ export function PublicationEditorDialog({
               type="button"
               aria-label={t("actions.closeDialog")}
               onClick={onClose}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
+              className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted after:absolute after:-inset-1 after:content-[''] hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -913,7 +942,7 @@ export function PublicationEditorDialog({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Label htmlFor="pub-content">{t("publications.editor.text")}</Label>
             <div className="flex items-center gap-3">
-              <div className="relative">
+              <div ref={signaturesWrapRef} className="relative">
                 <button
                   type="button"
                   aria-expanded={signaturesOpen}
@@ -1072,7 +1101,7 @@ export function PublicationEditorDialog({
                       title={t("publications.editor.moveBefore")}
                       disabled={idx === 0}
                       onClick={() => moveMedia(idx, -1)}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-35"
+                      className="relative inline-flex h-8 w-8 items-center justify-center rounded-sm text-fg-muted after:absolute after:-inset-1.5 after:content-[''] hover:bg-hover-glass hover:text-fg disabled:opacity-35"
                     >
                       <ArrowUp className="h-3.5 w-3.5" aria-hidden />
                     </button>
@@ -1082,7 +1111,7 @@ export function PublicationEditorDialog({
                       title={t("publications.editor.moveAfter")}
                       disabled={idx === selectedMedia.length - 1}
                       onClick={() => moveMedia(idx, 1)}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-fg-muted hover:bg-hover-glass hover:text-fg disabled:opacity-35"
+                      className="relative inline-flex h-8 w-8 items-center justify-center rounded-sm text-fg-muted after:absolute after:-inset-1.5 after:content-[''] hover:bg-hover-glass hover:text-fg disabled:opacity-35"
                     >
                       <ArrowDown className="h-3.5 w-3.5" aria-hidden />
                     </button>
@@ -1091,7 +1120,7 @@ export function PublicationEditorDialog({
                       aria-label={t("publications.editor.removeMedia", { n: idx + 1 })}
                       title={t("common.remove")}
                       onClick={() => removeMedia(idx)}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-fg-muted hover:bg-hover-glass hover:text-danger"
+                      className="relative inline-flex h-8 w-8 items-center justify-center rounded-sm text-fg-muted after:absolute after:-inset-1.5 after:content-[''] hover:bg-hover-glass hover:text-danger"
                     >
                       <X className="h-3.5 w-3.5" aria-hidden />
                     </button>
@@ -1278,6 +1307,17 @@ export function PublicationEditorDialog({
                         }
                         onProblemChange={(problem) =>
                           reportPanelProblem(ch.id, problem)
+                        }
+                      />
+                    ) : null}
+
+                    {ch.network === "youtube" ? (
+                      <YouTubeTargetSettings
+                        value={cfg.youtube}
+                        onChange={(patch) =>
+                          updateConfig(ch.id, {
+                            youtube: { ...cfg.youtube, ...patch },
+                          })
                         }
                       />
                     ) : null}

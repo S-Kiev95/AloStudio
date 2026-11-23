@@ -30,6 +30,7 @@ import { useLifecycleReport } from "@/lib/api/lifecycle";
 
 import { ContactFilters } from "./contact-filters";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const PAGE_SIZE = 15; // mirrors backend RESULTS_PER_PAGE
 
@@ -329,6 +330,7 @@ function ContactRow({
   accountId: string;
   contact: Contact;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteContact(accountId);
   const [error, setError] = useState<string | null>(null);
@@ -337,7 +339,7 @@ function ContactRow({
     e.preventDefault();
     e.stopPropagation();
     const label = contact.name || contact.email || `#${contact.id}`;
-    if (!window.confirm(t("contacts.deleteConfirm", { name: label }))) return;
+    if (!(await confirm(t("contacts.deleteConfirm", { name: label })))) return;
     setError(null);
     try {
       await del.mutateAsync(contact.id);

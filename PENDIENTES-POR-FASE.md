@@ -4,7 +4,7 @@ Lista viva: qué falta de cada fase de `PLAN.fases-futuras.md`. Se actualiza
 al cerrar cada trabajo. El detalle de cada fase está en ese plan; acá solo
 el estado y lo que queda.
 
-Última actualización: 2026-11-15.
+Última actualización: 2026-11-22.
 
 ## Reparto entre los dos agentes
 
@@ -133,17 +133,17 @@ anota en esta sección y lo decide el dueño.
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
 | F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; paso 3 (Polar) con backend y planes en sandbox (2026-11-15). Todo se prueba en sandbox antes de pasar a producción |
-| F3 Redes que faltan | B | Sin empezar |
+| F3 Redes que faltan | B | YouTube en develop (2026-11-21): subir videos con el cliente de Google de Calendar; falta que el dueño active la API y la URL de retorno en Google Cloud. TikTok espera el correo de empresa |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
 | F6 Gastos por uso | A | En CTC (2026-11-15, pasó con el resto de develop): WhatsApp (costo de Meta) e IA |
 | F7 Llamadas y voz | B | En CTC (2026-11-15): recibir llamadas (probado con Meta real), grabación y transcripción que habilita el operador, y llamar desde AloStudio con permiso del cliente (probado con Meta real en staging el 2026-11-16). En CTC falta activar las llamadas en el número y suscribir el webhook `calls`. Llamadas simultáneas (suenan solo los libres; la perdida avisa al cliente y queda para devolver) en develop y en staging (2026-11-16) |
 | F8 Búsqueda en conversaciones viejas | A | Hecha para texto (2026-11-13), en develop: palabras y significado, también en CTC (2026-11-13); faltan audios e imágenes |
 | F9 EmbeddingGemma | A | Develop pasado a Gemma (2026-11-15); CTC sigue con OpenAI hasta que use autorespuestas o Help Center |
-| F10 Jev y Laya | B | Paso 1 en CTC (2026-11-15): Jev en modo sombra, etiquetado a ciegas y resultados; andando en staging con Jev real. En CTC falta cargar la clave y prender el modo sombra. Después, juntar etiquetas y decidir qué hacer con las decisiones. Laya más adelante, solo con etiquetas de personas |
+| F10 Jev y Laya | B | Prendida en CTC (2026-11-20, cuenta 1): clasifica con el modelo Free (Groq, NVIDIA de respaldo) en vez de Jev y pone la prioridad. Falta etiquetar conversaciones (Ajustes → Clasificación → Etiquetar) para medir cuánto acierta. Laya más adelante, solo con etiquetas de personas |
 | F11 CRM (Krayin) | B | Hecha (2026-11-14): oportunidades, tareas, empresas, origen, catálogo de Meta, foto y Agenda tipo calendario; en CTC desde el 2026-11-13 (falta WhatsApp, agente A) |
 | F12 Grafos | B | Para más adelante: el dueño prefiere hacerla cuando la app esté lista (2026-11-13) |
-| F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos; falta cargar en Meta la plantilla de WhatsApp en otros idiomas |
+| F13 Multi-idioma | B | Hecha (2026-11-12), en CTC (2026-11-13): 7 idiomas, correos, avisos y errores traducidos. Cerrada (2026-11-22): CTC tiene `aviso_derivacion` aprobada en español y todos sus usuarios usan español; las otras variantes se cargan el día que entre un agente en otro idioma (`docs/whatsapp-aviso-derivacion.md`) |
 | F14 Foto del contacto | B | Hecha (2026-11-12), en CTC (2026-11-13); falta probarla con Meta real |
 | F15 Canal de aviso por agente | A | Idea; esperando la opinión de los agentes de CTC |
 | F16 Plugins de e-commerce | — | Idea muy a futuro (2026-11-14), detalle en `PLAN.fases-futuras.md` |
@@ -237,6 +237,23 @@ dentro de la rama.
   YouTube, LinkedIn página de empresa y TikTok Business primero.
 - Después: X (cobra por uso, entra con F6), Google Business Profile, Slack
   y Twitch.
+- **YouTube (agente B, 2026-11-21), en develop:** `adapters/youtube.py`. Se
+  conecta desde Publicaciones → conectar red, con el mismo cliente OAuth de
+  Google que el ingreso y Calendar (`GOOGLE_CLIENT_ID/SECRET`), permisos
+  `youtube.upload` y `youtube.readonly`. Sube un video por publicación (carga
+  reanudable, hasta 2 GB) con título, privacidad (privado por defecto) y «hecho
+  para chicos»; el texto va como descripción. Lee vistas, me gusta, comentarios
+  y suscriptores. Probado con Google simulado, no con una cuenta real.
+  **Para el dueño, en console.cloud.google.com, en el proyecto de ese cliente:**
+  1. APIs y servicios → Biblioteca → activar **YouTube Data API v3**.
+  2. Credenciales → el ID de cliente web → sumar en URIs de redirección
+     `https://<dominio>/api/v1/publishing/oauth/callback` (staging y CTC).
+  3. Pantalla de consentimiento → permisos: sumar `youtube.upload` y
+     `youtube.readonly`; mientras esté en «Prueba», sumar la cuenta de Google
+     del canal como usuario de prueba (en ese modo el acceso vence a los 7 días).
+  4. Para videos públicos: verificar la app en Google y pedir la auditoría de
+     la API de YouTube (hasta entonces los videos suben privados). La cuota
+     gratis alcanza para unos 6 videos por día.
 
 ## F4. Herramientas que le faltan al MCP
 
@@ -312,11 +329,11 @@ dentro de la rama.
   portfolio CTC Salto, darle el catálogo al usuario del sistema y pegar
   ID + token en CRM → Productos. En develop se probó entero con el catálogo
   "AloStudio develop (prueba)" (1416439070648332, portfolio Skiev Dev).
-- Pendiente: textos de la sección sin
-  traducir (solo español); encabezados con imagen, video o documento;
+- Pendiente: encabezados con imagen, video o documento;
   avisos cuando Meta baja la calidad del número (webhooks
   `phone_number_quality_update` y `account_update`, hay que suscribirlos);
-  ritmo de envío según el límite diario en envíos grandes.
+  ritmo de envío según el límite diario en envíos grandes. (Textos de la
+  sección traducidos a los 7 idiomas en `feat/neon-ux`, 2026-11-23.)
 - Ideas del dueño para envíos masivos (2026-11-13, para otro día):
   variables que tomen atributos de entidades (ej. `{{1}}` el nombre del
   contacto y `{{2}}` la fecha de su turno en la Agenda, o datos del CRM) y
@@ -812,6 +829,73 @@ El dueño eligió sumar las cuatro cosas (2026-11-13), en este orden:
     **Arreglado el 2026-11-15** (en develop, todavía no en CTC): después de
     una sincronización, los cambios de la hora siguiente se perdían (ARQ
     no acepta el mismo id de trabajo mientras guarda su resultado).
+    **Producto por producto — hecho el 2026-11-22** (rama
+    `feat/crm-catalogo-meta`, esperando el OK del dueño para develop): ya no
+    se mandan todos los activos, sino los que tienen tildado "Publicar en el
+    catálogo de Meta" en su ficha (columna `products.meta_sync`; la casilla
+    solo aparece si la cuenta tiene catálogo conectado, y al tildarla la
+    ficha pide descripción, precio con moneda, enlace e imagen). Destildarlo
+    o desactivar el producto lo quita de Meta; borrarlo también. Manda el
+    CRM: lo que se edite en Commerce Manager se pisa en la próxima
+    sincronización. Si la sincronización automática falla (token vencido,
+    permiso), la tarjeta del catálogo lo muestra (`last_error`). El agente
+    (MCP `create_product` / `update_product`, con `meta_sync`) ahora también
+    dispara la sincronización. WhatsApp solo ofrece los productos tildados.
+    Migración `e4a6c8b0d2f4`: deja tildados los productos que ya estaban en
+    Meta; en CTC, aplicarla con respaldo previo.
+    **Permiso para vender:** la app AloStudio (Skiev Dev) tiene
+    `catalog_management` solo con acceso estándar (alcanza para catálogos
+    propios, como el de CTC). Para catálogos de clientes hace falta el
+    avanzado, en una revisión nueva cuando Meta termine la enviada el
+    2026-11-07 (mientras tanto no se puede sumar nada). Guion y texto en
+    `docs/meta-review/guiones.md`, video 6.
+    **Conectar con Facebook — hecho el 2026-11-22** (rama
+    `feat/catalogo-login-facebook`): botón en la tarjeta del catálogo, con el
+    inicio de sesión de Facebook (`catalog_management` +
+    `business_management`), por la misma vuelta que las Páginas
+    (`/api/v1/instagram/oauth/callback`, flujo `meta_catalog`). Un catálogo se
+    conecta solo; varios se eligen de una lista (diez minutos en Redis, sin
+    mostrar el token). El token de usuario dura unos 60 días: la tarjeta
+    muestra cuándo vence y, si vence, el error de la sincronización
+    automática pide reconectar. Pegar ID y token sigue como alternativa. El
+    botón solo aparece si la instalación tiene `META_APP_ID`, `_SECRET` y
+    `META_OAUTH_REDIRECT_URI`. Código en `app/domains/crm/meta_catalog_connect.py`.
+    **Probado en develop (vmi3426238) el 2026-11-22**, con Meta de verdad y
+    el catálogo "AloStudio develop (prueba)": destildar un curso lo saca del
+    catálogo con la sincronización automática; volver a tildarlo y
+    "Sincronizar ahora" lo sube; "Conectar con Facebook" pasa por la
+    pantalla de permisos, la elección de negocios (Ingenia Labs y Skiev Dev)
+    y las condiciones de catálogo de Meta, vuelve con la lista de dos
+    catálogos y conecta el elegido; la sincronización anda con ese acceso.
+    **Corrección:** el acceso que da Facebook no vence (`expires_at` 0); lo
+    que vence es el acceso a los datos, a los 90 días (`data_access_expires_at`,
+    hoy 2027-02-20), salvo que la persona vuelva a entrar. La tarjeta dice
+    "Conectado con Facebook. El acceso vence el …" con esa fecha (se lee con
+    `debug_token` al conectar; hecho y probado el 2026-11-22). Mensaje de
+    WhatsApp con los productos tildados (lista de 3) probado el 2026-11-22
+    en la bandeja TestWhatsapp: Meta lo aceptó.
+    **Video 6 grabado** (`AloStudio-archivos\videos-meta-skiev\video6-catalog.mp4`):
+    falta que Meta termine la revisión del 2026-11-07 para pedir
+    `catalog_management` avanzado con este video (lo envía el dueño).
+    **Login para empresas (token del negocio) — hecho el 2026-11-22**, en
+    develop y en vmi3426238: tres configuraciones de Facebook Login for
+    Business en la app AloStudio (token de usuario del sistema, nunca vence):
+    catálogo 3008222432871744, Páginas 1782950539835487, Instagram
+    1433754675409886. Se cargan en Ajustes → Instalación
+    (`META_CATALOG_CONFIG_ID`, `META_PAGES_CONFIG_ID`,
+    `META_INSTAGRAM_CONFIG_ID`); vacías, todo sigue con el login de usuario
+    (CTC no las tiene: su app es otra y habría que crearlas allá). Con una
+    cargada, el conector pide la configuración y usa el token del sistema tal
+    cual. El catálogo lee los catálogos asignados al usuario del sistema
+    (`/{id}/assigned_product_catalogs`; desde la cartera da 403). Probado con
+    Meta: catálogo de Skiev Dev y Página de Ingenia Labs reconectados;
+    `debug_token` dice SYSTEM_USER / PAGE con `expires_at` 0 y
+    `data_access_expires_at` 0, y la Página sigue suscripta. Instagram con
+    Facebook también: `ctcsalto_demobot` reconectada (sin elegir Página,
+    porque la Página Ingenia Labs pide "control total" de la cartera) queda
+    con un token de Página sin vencimiento y lee la cuenta. **Falta:** la
+    pantalla de Bandejas → Facebook muestra la clave sin traducir
+    `channelCatalog.facebook.blurb` (viene de antes).
   - **WhatsApp — hecho el 2026-11-14 (agente A), en develop:** botón
     Productos en la Bandeja, pedidos por el webhook que abren una
     oportunidad y pestaña Catálogo en la sección WhatsApp (ver F5).
@@ -848,6 +932,10 @@ Detalle en `PLAN.i18n.md`.
   sistema, usando la CLI o el MCP.
 - **Falta:** cargar y aprobar en Meta las variantes de la plantilla de
   WhatsApp en los idiomas que se usen.
+- **Cerrada (2026-11-22, dueño):** en CTC la plantilla `aviso_derivacion`
+  está aprobada en español y los 5 usuarios usan el panel en español, así que
+  no hace falta otra variante. Si entra un agente con otro idioma, se carga la
+  suya con los textos de `docs/whatsapp-aviso-derivacion.md`.
 
 ## F14. Foto del contacto
 
@@ -1096,8 +1184,10 @@ Detalle en `PLAN.i18n.md`.
 - **Tests de webhooks** (`test_webhooks_router.py`): dos fallan cuando hay
   Redis al alcance, porque la entrega se encola en el worker. Hacer que el
   test fuerce la entrega inmediata.
-- **Colores con transparencia** (`bg-x/NN` sobre colores del tema) no generan
-  CSS: falta el arreglo central en la configuración de Tailwind.
+- **Colores con transparencia** (`bg-x/NN` sobre colores del tema) — **resuelto
+  en `feat/neon-ux` (2026-11-23):** canales `--*-rgb` en `frontend/app/globals.css`
+  y `rgb(var(--*-rgb) / <alpha-value>)` en `frontend/tailwind.config.ts` (repara
+  las 80 ocurrencias en 47 archivos).
 - **Flecha de prioridad en la Bandeja (pedido del director de CTC,
   2026-11-19, agente A):** al lado de la fecha, roja y doble Urgente,
   amarilla Alta, normal Media, gris Baja. En `main` (dda6ed4) y en
@@ -1106,3 +1196,102 @@ Detalle en `PLAN.i18n.md`.
 - **Tests del panel que tardan:** `templates-panel.test.tsx` y
   `autoposts-view.test.tsx` pasan solos pero se pasan de los 5 s cuando
   corre toda la suite (visto en `main` el 2026-11-19).
+- **Auditoría estética neón, propuesta Anime.js v4 y prototipo de login con
+  agujero negro (2026-11-23, rama `feat/neon-ux`):**
+  - Informe completo de UI/UX ordenado por impacto con 14 hallazgos, capturas
+    reales (escritorio y móvil) y referencias `archivo:línea` en
+    `docs/neon/informe-ui-ux.md` (sin cambios de código).
+  - Propuesta de integración de **Anime.js v4** (`animejs`) respetando
+    *The Ignition Rule* y `prefers-reduced-motion` en
+    `docs/neon/propuesta-animejs-v4.md`. Nota: `npx skills add
+    https://github.com/heygen-com/hyperframes --skill animejs` respondió que
+    la skill `animejs` ya no existe con ese nombre en el repo de `hyperframes`.
+  - **Implementado en `feat/neon-ux` (2026-11-23, tras OK del dueño):**
+    - **Login con agujero negro (`animejs` v4.5.0 + Three.js GLSL):**
+      `frontend/lib/motion/neon-motion.ts`, `frontend/components/auth/black-hole-context.tsx`,
+      `frontend/app/(auth)/layout.tsx`, `frontend/app/(auth)/login/page.tsx` y
+      `frontend/components/brand/floating-logos.tsx`. Fractura de campos hacia
+      el centro, colapso de la tarjeta a esfera negra con disco de acreción azul
+      cobalto GLSL procedural, estiramiento "chicle" sobre los modelos `.glb` 3D
+      reales y caída de cámara al Inicio en `5 s` (fases escaladas en
+      proporción), con `router.prefetch`, fallback CSS sin WebGL, soporte móvil
+      y transición simple (`220 ms`) bajo `prefers-reduced-motion: reduce`.
+      Texto `auth.login.entering` en los 7 idiomas.
+    - **P0 #1 — Opacidad central Tailwind (`<alpha-value>`):** canales RGB en
+      `frontend/app/globals.css` + `frontend/tailwind.config.ts`.
+    - **P0 #2 — Barra superior en celular y popovers fijos:** `dashboard-shell.tsx`
+      (cartel `.neon-sign` sin recorte `max-lg:truncate`, `ThemeToggle` y
+      `AccountSwitcher` al pie del cajón móvil animado con Anime.js v4 y cierre
+      con `Escape`), `help-button.tsx` y `notification-bell.tsx` (popovers fijos
+      `max-sm:fixed max-sm:inset-x-3` sin desborde, cierre con `Escape` y botón
+      borrar visible en móvil), `account-switcher.tsx` y `agent-menu.tsx` (cierre
+      al clic exterior y `Escape`).
+    - **P0 #3 — Pestañas CRM con scroll horizontal + Ajustes agrupado:**
+      `tabs.tsx` (`flex-nowrap overflow-x-auto sm:flex-wrap`, auto-scroll al tab
+      activo y navegación por teclado `ArrowLeft`/`ArrowRight`) y
+      `settings-sidebar.tsx` (6 grupos temáticos + buscador rápido en escritorio +
+      selector `<select>` agrupado en celular, con claves en los 7 idiomas).
+    - **P1 #1 — `ConfirmDialog` compartido (`confirm-dialog.tsx`):** reemplaza los
+      47 llamados a `window.confirm()` con un diálogo neón accesible (foco en
+      Cancelar, cierre por `Escape` y clic exterior, entrada Anime.js v4 respetando
+      `prefers-reduced-motion`, fallback seguro para tests aislados sin provider)
+      y corrige la clave i18n de borrado en `labels-view.tsx`.
+    - **P1 #2 — i18n completo del módulo WhatsApp en los 7 idiomas:** nuevos
+      diccionarios `whatsapp.ts` en `es`, `en`, `pt`, `fr`, `de`, `ja`, `ko` y
+      migración de todos los paneles de `components/whatsapp/` a `useT()` y
+      `useIntlTag()`.
+    - **P1 #3 — `ErrorState` compartido con «Reintentar» (`error-state.tsx`):**
+      conectado en Inicio (sin mostrar ceros falsos ni gráfico vacío cuando fallan
+      las métricas), Notificaciones (sin mostrar «No tenés notificaciones» en
+      fallo), Calendario, Oportunidades (con skeleton de columnas al cargar),
+      Agenda, Medios, Agente y paneles de WhatsApp.
+    - **P1 #4 — Inicio y superficies de IA alineados a `DESIGN.md`:** un único
+      `.neon-sign` en Inicio (topbar), sin `.neon-nav` fuera de la sidebar,
+      tarjetas `LiveCard` convertidas en enlaces interactivos a la Bandeja, y
+      Electrode Orange (`variant="ai"` / `--neon-electrode`) en Agente,
+      `WritingAssist` y `HelpButton` (eliminando el emoji `📷` crudo).
+    - **P1 #5 — Menús cerrables por clic afuera / `Escape` y botones ≥ 44 px:**
+      hook compartido `useDismissOnOutsideAndEscape` aplicado a todos los menús y
+      popovers (incluidos `channels-panel.tsx` y los 2 menús de
+      `publication-editor-dialog.tsx`), y área táctil ≥ 44×44 px en botones de
+      ícono de alertas, búsqueda, chat, notas y las 22 vistas de Ajustes.
+    - **P2 (puntos 8 a 12 del informe UI/UX):**
+      - Geometría y sombras según `DESIGN.md`: columnas Kanban y skeletons en
+        `rounded-md`, selector táctil de etapa en tarjetas de `OpportunitiesView`
+        para celular/pantallas táctiles, eliminación de `shadow-lg`/`shadow-sm` y
+        `rounded-2xl` en paneles de WhatsApp, `CallButton`/`CallDock` en
+        `shadow-menu` + `rounded-md`, `<select>` crudos migrados a `selectClassName()`,
+        tarjetas internas de `lifecycle` y `decisions` en `rounded-md`, y
+        `LanguageSwitcher` con `border-glass bg-surface/80 backdrop-blur-sm` para
+        contraste sobre los logos 3D en login.
+      - Voz rioplatense pareja y nomenclatura unificada en los 7 idiomas:
+        saludo personal/neutro (`Hola, {name}` / `Hola` vía `useProfile()`),
+        acceso rápido «Bandeja» unificado, «Centro de ayuda» en la barra lateral,
+        «o con tu email» en login y ajuste gramatical en sugerencias del Agente.
+      - Contraste en tarjetas densas y filtros compactos: eliminación de
+        `opacity-80`/`opacity-60` sobre `text-fg-muted` en `HelpButton` y
+        `SettingsSidebar`, y cabecera de filtros de `ConversationList` compactada
+        con Canal y Bandeja lado a lado en una sola fila.
+    - **P3 (Anime.js v4 en el resto del panel según `propuesta-animejs-v4.md`):**
+      - Módulo compartido `frontend/lib/motion/neon-motion.ts` con `createScope`
+        (`useNeonScope`), `prefersReducedMotion()`/`usePrefersReducedMotion()` y
+        helpers GPU-only respetando *The Ignition Rule* y `prefers-reduced-motion`.
+      - Tubo cobalto deslizante de `180 ms` en `Tabs` y `NavTabs` (`tabs.tsx`).
+      - Entradas escalonadas de una sola vez (cap `240 ms`) en Inicio, columnas
+        Kanban de Oportunidades y grilla de Medios, más contador animado (`420 ms`,
+        `tabular-nums`) en el primer render de las 4 tarjetas «Ahora mismo».
+      - Entrada suave (`180 ms`) en el cajón móvil, en todos los popovers del
+        topbar (`NotificationBell`, `HelpButton`, `AccountSwitcher`, `AgentMenu`),
+        en `WritingAssist` y en los 11 modales `<dialog>` del panel.
+      - Microinteracciones en el Agente IA (entrada suave de mensajes nuevos y
+        `PendingActionCard` + 3 puntos Electrode Orange con `stagger(120)` en
+        «Pensando…») y destello cobalto único (`360 ms`) al llegar una nueva
+        conversación en `ConversationList`.
+    - Pruebas nuevas y actualizadas (`neon-motion.test.tsx`, `opportunities-view.test.tsx`,
+      `account-overview.test.tsx`, `nav.test.tsx`, `confirm-dialog.test.tsx`,
+      `error-state.test.tsx`, `use-dismiss.test.tsx`, `whatsapp-panels.test.tsx`,
+      `black-hole-login.test.tsx`, `settings-sidebar.test.tsx`,
+      `dashboard-shell.test.tsx`, `tabs.test.tsx`: **127 archivos, 572 tests en
+      verde**; `npm run typecheck` y `npx eslint .` con 0 errores) y capturas
+      antes/después en `docs/neon/capturas/despues-*.png`.
+    - Pendiente de OK del dueño para pushear/mezclar `feat/neon-ux`.

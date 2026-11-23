@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { useContext, useEffect, useMemo } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 
 import { MetricChart } from "@/components/reports/metric-chart";
 import { SummaryCards } from "@/components/reports/summary-cards";
@@ -20,6 +20,8 @@ import { PageSignContext } from "@/components/shell/page-header";
 import type { IconComponent } from "@/components/ui/brand-icons";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ErrorState } from "@/components/ui/error-state";
+import { useProfile } from "@/lib/api/profile";
 import {
   type LiveMetrics,
   rangeForDays,
@@ -31,16 +33,33 @@ import {
 import { NetworkOrbit } from "./network-orbit";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { animateCounter, animateStaggerIn } from "@/lib/motion/neon-motion";
 
 const LIVE: {
   key: keyof LiveMetrics;
   label: MessageKey;
   icon: IconComponent;
+  query: string;
 }[] = [
-  { key: "open", label: "overview.live.open", icon: InboxIcon },
-  { key: "unattended", label: "overview.live.unattended", icon: ClockIcon },
-  { key: "unassigned", label: "overview.live.unassigned", icon: UnassignedIcon },
-  { key: "pending", label: "overview.live.pending", icon: HourglassIcon },
+  { key: "open", label: "overview.live.open", icon: InboxIcon, query: "status=open" },
+  {
+    key: "unattended",
+    label: "overview.live.unattended",
+    icon: ClockIcon,
+    query: "status=open",
+  },
+  {
+    key: "unassigned",
+    label: "overview.live.unassigned",
+    icon: UnassignedIcon,
+    query: "assignee=unassigned",
+  },
+  {
+    key: "pending",
+    label: "overview.live.pending",
+    icon: HourglassIcon,
+    query: "status=pending",
+  },
 ];
 
 const ACTIONS: {
@@ -84,10 +103,12 @@ function SectionLabel({ children }: { children: string }) {
 }
 
 function LiveCard({
+  accountId,
   def,
   value,
   loading,
 }: {
+  accountId: string;
   def: (typeof LIVE)[number];
   value: number | undefined;
   loading: boolean;
@@ -95,21 +116,43 @@ function LiveCard({
   const intlTag = useIntlTag();
   const t = useT();
   const Icon = def.icon;
+  const numRef = useRef<HTMLParagraphElement>(null);
+  const animatedOnceRef = useRef(false);
+
+  useEffect(() => {
+    if (loading || typeof value !== "number" || animatedOnceRef.current) return;
+    animatedOnceRef.current = true;
+    return animateCounter(numRef.current, value, (n) => n.toLocaleString(intlTag));
+  }, [loading, value, intlTag]);
+
   return (
-    <Card className="flex items-center gap-3.5 p-4">
-      <span
-        data-live-icon={def.key}
-        className="neon-nav inline-flex shrink-0 items-center justify-center"
-      >
-        <Icon className="h-8 w-8" aria-hidden />
-      </span>
-      <div className="min-w-0">
-        <p className="font-numeric text-2xl font-semibold leading-none tabular-nums text-fg">
-          {loading ? "—" : (value ?? 0).toLocaleString(intlTag)}
-        </p>
-        <p className="mt-1.5 truncate text-xs text-fg-muted">{t(def.label)}</p>
-      </div>
-    </Card>
+    <Link
+      href={`/accounts/${accountId}/conversations?${def.query}`}
+      data-stagger-card=""
+      className="group block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
+    >
+      <Card interactive className="flex items-center gap-3.5 p-4">
+        <span
+          data-live-icon={def.key}
+          className="inline-flex shrink-0 items-center justify-center text-fg-muted transition-colors group-hover:text-lit"
+        >
+          <Icon className="h-8 w-8" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p
+            ref={numRef}
+            className="font-numeric text-2xl font-semibold leading-none tabular-nums text-fg"
+          >
+            {loading ? "—" : (value ?? 0).toLocaleString(intlTag)}
+          </p>
+          <p className="mt-1.5 truncate text-xs text-fg-muted">{t(def.label)}</p>
+        </div>
+        <ArrowRight
+          className="h-4 w-4 shrink-0 text-fg-muted opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
+          aria-hidden
+        />
+      </Card>
+    </Link>
   );
 }
 
@@ -127,7 +170,7 @@ function ActionRow({
       href={`/accounts/${accountId}/${action.segment}`}
       className="group flex items-center gap-3 rounded-md border border-transparent px-2 py-2 transition-colors hover:border-glass hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
     >
-      <span className="neon-nav inline-flex shrink-0 items-center justify-center transition-colors group-hover:text-lit">
+      <span className="inline-flex shrink-0 items-center justify-center text-fg-muted transition-colors group-hover:text-lit">
         <Icon className="h-5 w-5" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
@@ -150,6 +193,7 @@ function ActionRow({
 export function AccountOverview({ accountId }: { accountId: string }) {
   const intlTag = useIntlTag();
   const t = useT();
+  const profile = useProfile();
   const shell = useContext(PageSignContext);
   useEffect(() => {
     if (!shell) return;
@@ -157,18 +201,31 @@ export function AccountOverview({ accountId }: { accountId: string }) {
     return () => shell.setSignTitle(null);
   }, [shell, t]);
 
+  const rawName = (profile.data?.available_name || profile.data?.name || "").trim();
+  const firstName = rawName.split(/\s+/)[0] || "";
+  const greeting = firstName
+    ? t("overview.welcomeNamed", { name: firstName })
+    : t("overview.welcome");
+
   // Memoized so the window doesn't drift every render and thrash the queries.
   const range = useMemo(() => rangeForDays(7), []);
   const live = useLiveMetrics(accountId);
   const summary = useReportSummary(accountId, range);
   const series = useReportTimeseries(accountId, "conversations_count", range);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const cards = rootRef.current?.querySelectorAll<HTMLElement>("[data-stagger-card]");
+    if (!cards || cards.length === 0) return;
+    return animateStaggerIn(cards, { stepMs: 35, maxDelayMs: 240 });
+  }, [accountId]);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
+    <div ref={rootRef} className="mx-auto max-w-6xl space-y-8">
       <section className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_auto] lg:gap-8">
         <div className="min-w-0">
-          <h2 className="neon-sign text-[34px] leading-[1.2] sm:text-[42px]">
-            {t("overview.welcome")}
+          <h2 className="text-2xl font-medium tracking-tight text-fg sm:text-3xl">
+            {greeting}
           </h2>
           <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-fg-muted">
             {t("overview.intro")}
@@ -194,16 +251,26 @@ export function AccountOverview({ accountId }: { accountId: string }) {
 
       <section className="space-y-3">
         <SectionLabel>{t("overview.rightNow")}</SectionLabel>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {LIVE.map((def) => (
-            <LiveCard
-              key={def.key}
-              def={def}
-              value={live.data?.[def.key]}
-              loading={live.isLoading}
-            />
-          ))}
-        </div>
+        {live.isError ? (
+          <ErrorState
+            compact
+            message={t("overview.liveFailed")}
+            onRetry={() => void live.refetch()}
+            retrying={live.isFetching}
+          />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {LIVE.map((def) => (
+              <LiveCard
+                key={def.key}
+                accountId={accountId}
+                def={def}
+                value={live.data?.[def.key]}
+                loading={live.isLoading}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="space-y-3">
@@ -217,14 +284,17 @@ export function AccountOverview({ accountId }: { accountId: string }) {
         ) : summary.data ? (
           <SummaryCards data={summary.data} />
         ) : (
-          <Card className="p-4 text-sm text-fg-muted">
-            {t("overview.metricsFailed")}
-          </Card>
+          <ErrorState
+            compact
+            message={t("overview.metricsFailed")}
+            onRetry={() => void summary.refetch()}
+            retrying={summary.isFetching}
+          />
         )}
       </section>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="p-5 lg:col-span-2">
+        <Card data-stagger-card="" className="p-5 lg:col-span-2">
           <div className="mb-4 flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-fg">{t("overview.conversations")}</p>
@@ -236,6 +306,13 @@ export function AccountOverview({ accountId }: { accountId: string }) {
           </div>
           {series.isLoading ? (
             <div className="h-48 animate-pulse rounded-md bg-surface-2" />
+          ) : series.isError ? (
+            <ErrorState
+              compact
+              message={t("overview.chartFailed")}
+              onRetry={() => void series.refetch()}
+              retrying={series.isFetching}
+            />
           ) : (
             <MetricChart
               data={series.data ?? []}
@@ -244,7 +321,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
           )}
         </Card>
 
-        <Card className="p-5">
+        <Card data-stagger-card="" className="p-5">
           <p className="mb-3 text-sm font-medium text-fg">{t("overview.shortcuts")}</p>
           <div className="flex flex-col gap-1">
             {ACTIONS.map((action) => (

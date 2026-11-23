@@ -41,7 +41,18 @@ export type TikTokSettings = {
   brand_content: boolean;
 };
 
-export type TargetSettings = { post_type?: string } & Partial<TikTokSettings>;
+export type YouTubePrivacy = "public" | "unlisted" | "private";
+
+/** A YouTube video's title, who can see it and whether it is made for kids
+ * (the post's text is its description). */
+export type YouTubeSettings = {
+  title: string;
+  privacy_status: YouTubePrivacy;
+  made_for_kids: boolean;
+};
+
+export type TargetSettings = { post_type?: string } & Partial<TikTokSettings> &
+  Partial<YouTubeSettings>;
 
 /** `GET /channels/{id}/compose_info`: empty for networks that need nothing. */
 export type ComposeInfo = {

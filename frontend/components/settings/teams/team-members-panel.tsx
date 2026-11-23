@@ -10,6 +10,7 @@ import {
   useTeamMembers,
 } from "@/lib/api/teams";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function TeamMembersPanel({
   accountId,
@@ -18,6 +19,7 @@ export function TeamMembersPanel({
   accountId: string;
   teamId: number;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const members = useTeamMembers(accountId, teamId);
   const agents = useAgents(accountId);
@@ -153,13 +155,13 @@ export function TeamMembersPanel({
                 type="button"
                 aria-label={t("settingsAgents.removeNamed", { name: m.name })}
                 title={t("settingsTeams.removeFromTeam")}
-                onClick={() => {
-                  if (window.confirm(t("settingsTeams.removeConfirm", { name: m.name }))) {
+                onClick={async () => {
+                  if (await confirm(t("settingsTeams.removeConfirm", { name: m.name }))) {
                     void remove(m.id);
                   }
                 }}
                 disabled={setMembers.isPending}
-                className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <UserMinus className="h-4 w-4" aria-hidden />
               </button>

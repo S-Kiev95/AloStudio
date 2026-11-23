@@ -8,6 +8,7 @@ export const products = {
     currency: "Moneda",
     productUrl: "URL del producto",
     imageUrl: "URL de imagen",
+    metaMissing: "Para publicarlo en Meta falta: {fields}.",
     active: "Activo (visible en el catálogo)",
     create: "Crear producto",
   },

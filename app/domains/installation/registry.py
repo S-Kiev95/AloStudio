@@ -68,6 +68,38 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         kind="password",
         secret=True,
     ),
+    # --- Facebook Login for Business (system-user tokens) --------------
+    ConfigSpec(
+        name="META_CATALOG_CONFIG_ID",
+        setting="meta_catalog_config_id",
+        title="Configuración de login para empresas: catálogo",
+        description=(
+            "ID de la configuración (token de usuario del sistema) para "
+            "conectar el catálogo de Meta en CRM → Productos. Con ella el "
+            "acceso queda a nombre del negocio y no vence. Vacío: login "
+            "de usuario."
+        ),
+        group=META_GROUP,
+    ),
+    ConfigSpec(
+        name="META_PAGES_CONFIG_ID",
+        setting="meta_pages_config_id",
+        title="Configuración de login para empresas: Páginas",
+        description=(
+            "Lo mismo para conectar una Página de Facebook como bandeja."
+        ),
+        group=META_GROUP,
+    ),
+    ConfigSpec(
+        name="META_INSTAGRAM_CONFIG_ID",
+        setting="meta_instagram_config_id",
+        title="Configuración de login para empresas: Instagram",
+        description=(
+            "Lo mismo para conectar Instagram con Facebook (no el login de "
+            "Instagram)."
+        ),
+        group=META_GROUP,
+    ),
     # --- Instagram Login (no Facebook Page) ----------------------------
     ConfigSpec(
         name="META_INSTAGRAM_APP_ID",
@@ -162,7 +194,7 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         title="URL de retorno al conectar redes",
         description=(
             "Una sola URL para todas las redes que se conectan desde el "
-            "calendario (Threads, LinkedIn, TikTok, X y las que se sumen): adónde vuelve "
+            "calendario (Threads, LinkedIn, TikTok, X, YouTube y las que se sumen): adónde vuelve "
             "el navegador después de autorizar. Es "
             "https://<tu dominio>/api/v1/publishing/oauth/callback y se carga "
             "igual en la app de desarrollador de cada red."
@@ -293,7 +325,9 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
             "Del ID de cliente OAuth (aplicación web) en console.cloud.google.com. "
             "Con este dato y el secret, la pantalla de ingreso muestra «Entrar con "
             "Google». Solo entran usuarios ya invitados. URL de redirección "
-            "autorizada: https://<dominio>/auth/google/callback."
+            "autorizada: https://<dominio>/auth/google/callback. El mismo cliente sirve "
+            "para Google Calendar y para publicar en YouTube (sumá también la URL de "
+            "retorno al conectar redes y activá YouTube Data API v3)."
         ),
         group=ACCESS_GROUP,
     ),

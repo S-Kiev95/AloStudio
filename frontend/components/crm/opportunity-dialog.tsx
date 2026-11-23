@@ -19,9 +19,11 @@ import {
 } from "@/lib/api/crm";
 import { useProducts } from "@/lib/api/products";
 import { useT } from "@/lib/i18n/provider";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 
 import { ContactPicker, type PickedContact } from "./contact-picker";
 import { stageLabel } from "./stage-label";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 /** Create or edit an opportunity. ``presetContact`` fixes the contact when
  *  it is opened from a contact's page. */
@@ -42,6 +44,7 @@ export function OpportunityDialog({
   presetContact?: PickedContact | null;
   defaultStageId?: number | null;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -67,10 +70,13 @@ export function OpportunityDialog({
   useEffect(() => {
     const el = dialogRef.current;
     if (!el) return;
-    if (open && !el.open) {
-      if (typeof el.showModal === "function") el.showModal();
-      else el.setAttribute("open", "");
-    } else if (!open && el.open) {
+    if (open) {
+      if (!el.open) {
+        if (typeof el.showModal === "function") el.showModal();
+        else el.setAttribute("open", "");
+      }
+      return animateDialogIn(el);
+    } else if (el.open) {
       if (typeof el.close === "function") el.close();
       else el.removeAttribute("open");
     }
@@ -143,7 +149,7 @@ export function OpportunityDialog({
 
   async function handleDelete() {
     if (!initial) return;
-    if (!window.confirm(t("opportunities.deleteConfirm", { title: initial.title }))) return;
+    if (!(await confirm(t("opportunities.deleteConfirm", { title: initial.title })))) return;
     try {
       await remove.mutateAsync(initial.id);
       onClose();

@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useIsAccountAdmin } from "@/lib/api/profile";
 import {
@@ -268,7 +269,7 @@ export function CalendarView({
             type="button"
             aria-label={t("publications.closeNotice")}
             onClick={() => setConnectSuccess(null)}
-            className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-success/10"
+            className="relative inline-flex h-7 w-7 items-center justify-center rounded-sm after:absolute after:-inset-2 after:content-[''] hover:bg-success/10"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
@@ -285,7 +286,7 @@ export function CalendarView({
             type="button"
             aria-label={t("publications.closeNotice")}
             onClick={() => setConnectError(null)}
-            className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-danger/10"
+            className="relative inline-flex h-7 w-7 items-center justify-center rounded-sm after:absolute after:-inset-2 after:content-[''] hover:bg-danger/10"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
@@ -302,7 +303,7 @@ export function CalendarView({
             type="button"
             aria-label={t("publications.closeNotice")}
             onClick={clearUrlPublication}
-            className="inline-flex h-6 w-6 items-center justify-center rounded-sm hover:bg-hover-glass"
+            className="relative inline-flex h-7 w-7 items-center justify-center rounded-sm after:absolute after:-inset-2 after:content-[''] hover:bg-hover-glass"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
@@ -421,12 +422,11 @@ export function CalendarView({
               {t("publications.calendar.loading")}
             </div>
           ) : publicationsQuery.isError ? (
-            <div
-              role="alert"
-              className="rounded-md border border-glass bg-surface p-10 text-center text-sm text-danger"
-            >
-              {t("publications.calendar.loadFailed")}
-            </div>
+            <ErrorState
+              message={t("publications.calendar.loadFailed")}
+              onRetry={() => void publicationsQuery.refetch()}
+              retrying={publicationsQuery.isFetching}
+            />
           ) : displayMode === "list" ? (
             <PublicationsListView
               publications={publications}

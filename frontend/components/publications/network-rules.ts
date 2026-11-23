@@ -2,6 +2,7 @@ import type {
   Channel,
   InstagramPostType,
   TikTokSettings,
+  YouTubeSettings,
 } from "@/lib/api/publications";
 import { createTranslate, type Translate } from "@/lib/i18n/translate";
 
@@ -16,6 +17,7 @@ export type TargetRuleInput = {
   postType: InstagramPostType;
   customContent: string | null;
   tiktok?: TikTokSettings;
+  youtube?: YouTubeSettings;
 };
 
 /** File extension of a media item: of its name, or of the object key our
@@ -130,6 +132,8 @@ export function channelCharLimit(
       return media.length > 0 && media.every((m) => m.type === "image")
         ? 4000
         : 2200;
+    case "youtube":
+      return 5000;
     case "telegram":
       return media.length > 0 ? 1024 : 4096;
     case "discord":
@@ -330,6 +334,27 @@ export function validatePublicationTargets(
         problems.push(
           tr("publications.rules.tiktokBrandSelfOnly", { label }),
         );
+      }
+      continue;
+    }
+
+    if (net === "youtube") {
+      if (media.length !== 1 || videoCount !== 1) {
+        problems.push(tr("publications.rules.youtubeOneVideo", { label }));
+      }
+      const title = t.youtube?.title.trim() ?? "";
+      if (!title) {
+        problems.push(tr("publications.rules.youtubeTitle", { label }));
+      } else if (Array.from(title).length > 100) {
+        problems.push(tr("publications.rules.youtubeTitleTooLong", { label }));
+      }
+      if (length > 5000) {
+        problems.push(
+          tr("publications.rules.textTooLong", { label, net: "YouTube", limit: 5000, length }),
+        );
+      }
+      if (/[<>]/.test(text) || /[<>]/.test(title)) {
+        problems.push(tr("publications.rules.youtubeNoAngles", { label }));
       }
       continue;
     }

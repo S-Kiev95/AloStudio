@@ -117,7 +117,7 @@ export function LifecycleSettingsView({ accountId }: { accountId: string }) {
                   return (
                     <li
                       key={stage.key ?? `new-${i}`}
-                      className="space-y-2 rounded-panel border border-glass p-3"
+                      className="space-y-2 rounded-md border border-glass p-3"
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <Input

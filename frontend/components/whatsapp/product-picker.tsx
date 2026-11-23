@@ -11,6 +11,7 @@ import {
   useCatalogProducts,
   useSendProducts,
 } from "@/lib/api/whatsapp-catalog";
+import { useT } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
 const MAX_ITEMS = 30;
@@ -26,6 +27,7 @@ export function ProductPicker({
   displayId: number;
   onClose: () => void;
 }) {
+  const t = useT();
   const productsQ = useCatalogProducts(accountId);
   const send = useSendProducts(accountId, displayId);
   const [selected, setSelected] = useState<number[]>([]);
@@ -55,45 +57,45 @@ export function ProductPicker({
       await send.mutateAsync({ productIds: selected, body, header: many ? header : undefined });
       onClose();
     } catch (err) {
-      setError((err as Error).message || "No se pudieron mandar los productos.");
+      setError((err as Error).message || t("whatsapp.productPicker.sendError"));
     }
   }
 
   return (
     <div
       role="region"
-      aria-label="Mandar productos del catálogo"
+      aria-label={t("whatsapp.productPicker.title")}
       className="mb-3 space-y-3 rounded-lg border border-glass bg-surface-2 p-3"
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-fg">Mandar productos del catálogo</span>
+        <span className="text-xs font-semibold text-fg">
+          {t("whatsapp.productPicker.title")}
+        </span>
         <button
           type="button"
-          aria-label="Cerrar selector de productos"
+          aria-label={t("whatsapp.productPicker.closeAria")}
           onClick={onClose}
-          className="rounded p-1 text-fg-muted hover:bg-hover-glass hover:text-fg"
+          className="relative rounded p-1 text-fg-muted after:absolute after:-inset-2 after:content-[''] hover:bg-hover-glass hover:text-fg"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
         </button>
       </div>
 
       {productsQ.isLoading ? (
-        <p className="text-xs text-fg-muted">Cargando productos…</p>
+        <p className="text-xs text-fg-muted">{t("whatsapp.productPicker.loading")}</p>
       ) : !productsQ.data?.catalog_id ? (
         <p className="text-xs text-fg-muted">
-          La cuenta no tiene un catálogo de Meta conectado. Se conecta en{" "}
+          {t("whatsapp.productPicker.noCatalogPrefix")}{" "}
           <Link
             href={`/accounts/${accountId}/products`}
             className="text-lit underline-offset-2 hover:underline"
           >
-            CRM → Productos
+            {t("whatsapp.productPicker.noCatalogLink")}
           </Link>
           .
         </p>
       ) : products.length === 0 ? (
-        <p className="text-xs text-fg-muted">
-          Todavía no hay productos aceptados por Meta en el catálogo.
-        </p>
+        <p className="text-xs text-fg-muted">{t("whatsapp.productPicker.empty")}</p>
       ) : (
         <>
           <div className="relative">
@@ -102,10 +104,10 @@ export function ProductPicker({
               aria-hidden
             />
             <Input
-              aria-label="Buscar producto"
+              aria-label={t("whatsapp.productPicker.searchAria")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar…"
+              placeholder={t("whatsapp.productPicker.searchPlaceholder")}
               className="pl-8"
             />
           </div>
@@ -143,19 +145,23 @@ export function ProductPicker({
           </ul>
           {many ? (
             <Input
-              aria-label="Título de la lista"
+              aria-label={t("whatsapp.productPicker.listTitleAria")}
               value={header}
               maxLength={60}
               onChange={(e) => setHeader(e.target.value)}
-              placeholder="Título de la lista (ej.: Cursos de marzo)"
+              placeholder={t("whatsapp.productPicker.listTitlePlaceholder")}
             />
           ) : null}
           <Input
-            aria-label="Mensaje"
+            aria-label={t("whatsapp.productPicker.messageAria")}
             value={body}
             maxLength={1024}
             onChange={(e) => setBody(e.target.value)}
-            placeholder={many ? "Mensaje (ej.: Elegí y mandanos tu pedido)" : "Mensaje (opcional)"}
+            placeholder={
+              many
+                ? t("whatsapp.productPicker.messagePlaceholderMany")
+                : t("whatsapp.productPicker.messagePlaceholderOne")
+            }
           />
           {error ? (
             <p role="alert" className="text-xs text-danger">
@@ -165,10 +171,10 @@ export function ProductPicker({
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs text-fg-muted">
               {selected.length === 0
-                ? "Elegí uno o más (hasta 30)."
+                ? t("whatsapp.productPicker.hintEmpty")
                 : many
-                  ? `${selected.length} productos: le llega una lista para armar un pedido.`
-                  : "1 producto: le llega como tarjeta."}
+                  ? t("whatsapp.productPicker.hintMany", { count: selected.length })
+                  : t("whatsapp.productPicker.hintOne")}
             </span>
             <Button
               type="button"
@@ -178,7 +184,7 @@ export function ProductPicker({
               onClick={() => void submit()}
             >
               <Send className="h-3.5 w-3.5" aria-hidden />
-              Enviar
+              {t("whatsapp.common.send")}
             </Button>
           </div>
         </>

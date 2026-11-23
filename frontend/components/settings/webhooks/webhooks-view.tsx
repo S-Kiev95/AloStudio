@@ -16,6 +16,7 @@ import {
 
 import { WebhookForm } from "./webhook-form";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function WebhooksView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -122,12 +123,13 @@ function WebhookRow({
   webhook: Webhook;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteWebhook(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("settingsWebhooks.deleteConfirm"))) return;
+    if (!(await confirm(t("settingsWebhooks.deleteConfirm")))) return;
     setError(null);
     try {
       await del.mutateAsync(webhook.id);
@@ -167,7 +169,7 @@ function WebhookRow({
         aria-label={t("actions.edit")}
         title={t("actions.edit")}
         onClick={onEdit}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </button>
@@ -177,7 +179,7 @@ function WebhookRow({
         title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

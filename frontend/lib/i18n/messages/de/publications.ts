@@ -194,6 +194,18 @@ export const publications: Strings<typeof es> = {
     all: "Alle",
     pending: "Ausstehend",
   },
+  youtube: {
+    title: "Videotitel",
+    titlePlaceholder: "Bis zu 100 Zeichen",
+    whoCanSee: "Wer es sehen kann",
+    privacy: {
+      public: "Öffentlich",
+      unlisted: "Nicht gelistet (nur mit Link)",
+      private: "Privat",
+    },
+    madeForKids: "Inhalt für Kinder",
+    descriptionNote: "Der Text des Beitrags wird zur Beschreibung. Bis Google die App freigibt, bleiben Videos privat.",
+  },
   tiktok: {
     privacy: {
       PUBLIC_TO_EVERYONE: "Alle",
@@ -253,5 +265,9 @@ export const publications: Strings<typeof es> = {
     tiktokPickPrivacy: "{label} (TikTok): Wähle, wer den Beitrag sehen kann.",
     tiktokDisclosure: "{label} (TikTok): Gib an, ob der Inhalt deine Marke, einen Dritten oder beide bewirbt.",
     tiktokBrandSelfOnly: "{label} (TikTok): Markeninhalte dürfen nicht auf „Nur ich“ stehen.",
+    youtubeOneVideo: "{label} (YouTube): braucht genau ein Video, ohne Fotos.",
+    youtubeTitle: "{label} (YouTube): gib den Titel des Videos ein.",
+    youtubeTitleTooLong: "{label} (YouTube): der Titel darf höchstens 100 Zeichen haben.",
+    youtubeNoAngles: "{label} (YouTube): Titel und Beschreibung dürfen kein < oder > enthalten.",
   },
 };
