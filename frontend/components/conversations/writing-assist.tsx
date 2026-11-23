@@ -125,14 +125,14 @@ export function WritingAssist({
           "inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1.5 text-xs font-medium transition-colors",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
           open
-            ? "border-neon bg-focused text-lit"
-            : "border-glass bg-field text-fg-muted hover:bg-hover-glass hover:text-fg",
+            ? "border-electrode/50 bg-electrode/10 text-electrode"
+            : "border-glass bg-field text-fg-muted hover:border-electrode/40 hover:bg-hover-glass hover:text-fg",
         )}
       >
         {assist.isPending ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-electrode" aria-hidden />
         ) : (
-          <Sparkles className="h-3.5 w-3.5" aria-hidden />
+          <Sparkles className="h-3.5 w-3.5 text-electrode" aria-hidden />
         )}
         {assist.isPending ? t("writingAssist.working") : t("writingAssist.button")}
       </button>

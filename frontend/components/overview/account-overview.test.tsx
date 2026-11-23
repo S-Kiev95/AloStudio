@@ -109,8 +109,11 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
     ).toHaveLength(0);
   });
 
-  it("renderiza las cuatro tarjetas de Ahora mismo con iconos del mismo estilo que la sidebar y sin fondos ni colores sueltos", () => {
+  it("respeta DESIGN.md: sin doble neon-sign ni neon-nav fuera del sidebar y tarjetas clickeables a la bandeja", () => {
     const { container } = renderOverview("42");
+
+    const heading = screen.getByRole("heading", { name: "Bienvenido" });
+    expect(heading).not.toHaveClass("neon-sign");
 
     const liveIcons = container.querySelectorAll("[data-live-icon]");
     expect(liveIcons).toHaveLength(4);
@@ -119,14 +122,19 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
     ).toEqual(["open", "unattended", "unassigned", "pending"]);
 
     for (const iconWrapper of liveIcons) {
-      expect(iconWrapper).toHaveClass("neon-nav");
+      expect(iconWrapper).not.toHaveClass("neon-nav");
       expect(iconWrapper.className).not.toMatch(
         /text-warning|text-danger|text-info|bg-surface-2/,
       );
       const svg = iconWrapper.querySelector("svg");
       expect(svg).not.toBeNull();
       expect(svg).toHaveClass("h-8", "w-8");
+      const link = iconWrapper.closest("a");
+      expect(link).not.toBeNull();
+      expect(link?.getAttribute("href")).toMatch(/^\/accounts\/42\/conversations\?/);
     }
+
+    expect(container.querySelectorAll(".neon-nav")).toHaveLength(0);
   });
 
   it("muestra ErrorState con Reintentar y sin ceros falsos cuando fallan las métricas", async () => {

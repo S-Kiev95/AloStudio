@@ -37,11 +37,27 @@ const LIVE: {
   key: keyof LiveMetrics;
   label: MessageKey;
   icon: IconComponent;
+  query: string;
 }[] = [
-  { key: "open", label: "overview.live.open", icon: InboxIcon },
-  { key: "unattended", label: "overview.live.unattended", icon: ClockIcon },
-  { key: "unassigned", label: "overview.live.unassigned", icon: UnassignedIcon },
-  { key: "pending", label: "overview.live.pending", icon: HourglassIcon },
+  { key: "open", label: "overview.live.open", icon: InboxIcon, query: "status=open" },
+  {
+    key: "unattended",
+    label: "overview.live.unattended",
+    icon: ClockIcon,
+    query: "status=open",
+  },
+  {
+    key: "unassigned",
+    label: "overview.live.unassigned",
+    icon: UnassignedIcon,
+    query: "assignee=unassigned",
+  },
+  {
+    key: "pending",
+    label: "overview.live.pending",
+    icon: HourglassIcon,
+    query: "status=pending",
+  },
 ];
 
 const ACTIONS: {
@@ -85,10 +101,12 @@ function SectionLabel({ children }: { children: string }) {
 }
 
 function LiveCard({
+  accountId,
   def,
   value,
   loading,
 }: {
+  accountId: string;
   def: (typeof LIVE)[number];
   value: number | undefined;
   loading: boolean;
@@ -97,20 +115,29 @@ function LiveCard({
   const t = useT();
   const Icon = def.icon;
   return (
-    <Card className="flex items-center gap-3.5 p-4">
-      <span
-        data-live-icon={def.key}
-        className="neon-nav inline-flex shrink-0 items-center justify-center"
-      >
-        <Icon className="h-8 w-8" aria-hidden />
-      </span>
-      <div className="min-w-0">
-        <p className="font-numeric text-2xl font-semibold leading-none tabular-nums text-fg">
-          {loading ? "—" : (value ?? 0).toLocaleString(intlTag)}
-        </p>
-        <p className="mt-1.5 truncate text-xs text-fg-muted">{t(def.label)}</p>
-      </div>
-    </Card>
+    <Link
+      href={`/accounts/${accountId}/conversations?${def.query}`}
+      className="group block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
+    >
+      <Card interactive className="flex items-center gap-3.5 p-4">
+        <span
+          data-live-icon={def.key}
+          className="inline-flex shrink-0 items-center justify-center text-fg-muted transition-colors group-hover:text-lit"
+        >
+          <Icon className="h-8 w-8" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-numeric text-2xl font-semibold leading-none tabular-nums text-fg">
+            {loading ? "—" : (value ?? 0).toLocaleString(intlTag)}
+          </p>
+          <p className="mt-1.5 truncate text-xs text-fg-muted">{t(def.label)}</p>
+        </div>
+        <ArrowRight
+          className="h-4 w-4 shrink-0 text-fg-muted opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
+          aria-hidden
+        />
+      </Card>
+    </Link>
   );
 }
 
@@ -128,7 +155,7 @@ function ActionRow({
       href={`/accounts/${accountId}/${action.segment}`}
       className="group flex items-center gap-3 rounded-md border border-transparent px-2 py-2 transition-colors hover:border-glass hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
     >
-      <span className="neon-nav inline-flex shrink-0 items-center justify-center transition-colors group-hover:text-lit">
+      <span className="inline-flex shrink-0 items-center justify-center text-fg-muted transition-colors group-hover:text-lit">
         <Icon className="h-5 w-5" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
@@ -168,7 +195,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
     <div className="mx-auto max-w-6xl space-y-8">
       <section className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_auto] lg:gap-8">
         <div className="min-w-0">
-          <h2 className="neon-sign text-[34px] leading-[1.2] sm:text-[42px]">
+          <h2 className="text-2xl font-medium tracking-tight text-fg sm:text-3xl">
             {t("overview.welcome")}
           </h2>
           <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-fg-muted">
@@ -207,6 +234,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
             {LIVE.map((def) => (
               <LiveCard
                 key={def.key}
+                accountId={accountId}
                 def={def}
                 value={live.data?.[def.key]}
                 loading={live.isLoading}

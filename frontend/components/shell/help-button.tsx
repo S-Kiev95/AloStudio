@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CircleHelp, ImagePlus, Loader2, Mic, Square, X } from "lucide-react";
+import { ArrowRight, CircleHelp, Image as ImageIcon, ImagePlus, Loader2, Mic, Square, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -18,7 +18,7 @@ import { useT } from "@/lib/i18n/provider";
 import { translateOr } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
-type Turn = { question: string; answer: HelpAnswer };
+type Turn = { question: string; imageLabel?: string; answer: HelpAnswer };
 type Attached = { dataUrl: string; label: string };
 
 const MODE_KEY = "alostudio:help-mode";
@@ -180,11 +180,10 @@ export function HelpButton({ accountId }: { accountId: string }) {
           const shown = [
             answer.heard ? `«${answer.heard}»` : "",
             text,
-            imageLabel ? `📷 ${imageLabel}` : "",
           ]
             .filter(Boolean)
             .join(" · ");
-          setTurns((prev) => [...prev, { question: shown, answer }].slice(-5));
+          setTurns((prev) => [...prev, { question: shown, imageLabel, answer }].slice(-5));
           setQuestion("");
           setImage(null);
           setAudio(null);
@@ -257,7 +256,15 @@ export function HelpButton({ accountId }: { accountId: string }) {
           ) : null}
           {turns.map((turn, i) => (
             <div key={i} className="space-y-1.5">
-              <p className="text-xs font-medium text-fg-muted">{turn.question}</p>
+              <p className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-fg-muted">
+                {turn.question ? <span>{turn.question}</span> : null}
+                {turn.imageLabel ? (
+                  <span className="inline-flex items-center gap-1">
+                    <ImageIcon className="h-3 w-3 shrink-0" aria-hidden />
+                    {turn.imageLabel}
+                  </span>
+                ) : null}
+              </p>
               <p className={cn("text-fg", !turn.answer.known && "text-fg-muted")}>
                 {turn.answer.answer}
               </p>
@@ -402,6 +409,7 @@ export function HelpButton({ accountId }: { accountId: string }) {
           />
           <Button
             type="submit"
+            variant="ai"
             size="sm"
             disabled={(!question.trim() && !image && !audio) || ask.isPending || !mode || recording}
           >

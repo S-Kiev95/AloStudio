@@ -366,7 +366,7 @@ export function AgentChatView({
           ) : (
             <div className="mx-auto flex max-w-xl flex-1 flex-col items-start justify-center gap-4 py-6">
               <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-control border border-glass bg-focused text-lit">
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-control border border-electrode/40 bg-electrode/10 text-electrode">
                   <Sparkles className="h-4 w-4" aria-hidden />
                 </span>
                 <p className="text-sm leading-relaxed text-fg">
@@ -439,8 +439,11 @@ export function AgentChatView({
                   </div>
                 </div>
                 <div className="flex flex-col items-start">
-                  <div className="max-w-[80%] min-w-0 rounded-panel rounded-bl-sm border border-glass bg-surface-2 px-3.5 py-2 text-sm text-fg-muted">
-                    <p className="animate-pulse">{t("agent.thinking")}</p>
+                  <div className="max-w-[80%] min-w-0 rounded-panel rounded-bl-sm border border-electrode/40 bg-surface-2 px-3.5 py-2 text-sm text-fg-muted">
+                    <p className="inline-flex items-center gap-1.5 animate-pulse motion-reduce:animate-none">
+                      <Sparkles className="h-3.5 w-3.5 text-electrode" aria-hidden />
+                      {t("agent.thinking")}
+                    </p>
                   </div>
                 </div>
               </>
