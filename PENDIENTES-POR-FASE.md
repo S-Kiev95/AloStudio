@@ -329,11 +329,11 @@ dentro de la rama.
   portfolio CTC Salto, darle el catálogo al usuario del sistema y pegar
   ID + token en CRM → Productos. En develop se probó entero con el catálogo
   "AloStudio develop (prueba)" (1416439070648332, portfolio Skiev Dev).
-- Pendiente: textos de la sección sin
-  traducir (solo español); encabezados con imagen, video o documento;
+- Pendiente: encabezados con imagen, video o documento;
   avisos cuando Meta baja la calidad del número (webhooks
   `phone_number_quality_update` y `account_update`, hay que suscribirlos);
-  ritmo de envío según el límite diario en envíos grandes.
+  ritmo de envío según el límite diario en envíos grandes. (Textos de la
+  sección traducidos a los 7 idiomas en `feat/neon-ux`, 2026-11-23.)
 - Ideas del dueño para envíos masivos (2026-11-13, para otro día):
   variables que tomen atributos de entidades (ej. `{{1}}` el nombre del
   contacto y `{{2}}` la fecha de su turno en la Agenda, o datos del CRM) y
@@ -1227,7 +1227,34 @@ Detalle en `PLAN.i18n.md`.
       activo y navegación por teclado `ArrowLeft`/`ArrowRight`) y
       `settings-sidebar.tsx` (6 grupos temáticos + buscador rápido en escritorio +
       selector `<select>` agrupado en celular, con claves en los 7 idiomas).
-    - Pruebas nuevas y actualizadas (`black-hole-login.test.tsx`,
-      `settings-sidebar.test.tsx`, `dashboard-shell.test.tsx`, `tabs.test.tsx`)
-      y capturas antes/después en `docs/neon/capturas/despues-*.png`.
-    - Pendiente de OK para pushear/mezclar y continuar con P1 del informe UI/UX.
+    - **P1 #1 — `ConfirmDialog` compartido (`confirm-dialog.tsx`):** reemplaza los
+      47 llamados a `window.confirm()` con un diálogo neón accesible (foco en
+      Cancelar, cierre por `Escape` y clic exterior, entrada Anime.js v4 respetando
+      `prefers-reduced-motion`, fallback seguro para tests aislados sin provider)
+      y corrige la clave i18n de borrado en `labels-view.tsx`.
+    - **P1 #2 — i18n completo del módulo WhatsApp en los 7 idiomas:** nuevos
+      diccionarios `whatsapp.ts` en `es`, `en`, `pt`, `fr`, `de`, `ja`, `ko` y
+      migración de todos los paneles de `components/whatsapp/` a `useT()` y
+      `useIntlTag()`.
+    - **P1 #3 — `ErrorState` compartido con «Reintentar» (`error-state.tsx`):**
+      conectado en Inicio (sin mostrar ceros falsos ni gráfico vacío cuando fallan
+      las métricas), Notificaciones (sin mostrar «No tenés notificaciones» en
+      fallo), Calendario, Oportunidades (con skeleton de columnas al cargar),
+      Agenda, Medios, Agente y paneles de WhatsApp.
+    - **P1 #4 — Inicio y superficies de IA alineados a `DESIGN.md`:** un único
+      `.neon-sign` en Inicio (topbar), sin `.neon-nav` fuera de la sidebar,
+      tarjetas `LiveCard` convertidas en enlaces interactivos a la Bandeja, y
+      Electrode Orange (`variant="ai"` / `--neon-electrode`) en Agente,
+      `WritingAssist` y `HelpButton` (eliminando el emoji `📷` crudo).
+    - **P1 #5 — Menús cerrables por clic afuera / `Escape` y botones ≥ 44 px:**
+      hook compartido `useDismissOnOutsideAndEscape` aplicado a todos los menús y
+      popovers (incluidos `channels-panel.tsx` y los 2 menús de
+      `publication-editor-dialog.tsx`), y área táctil ≥ 44×44 px en botones de
+      ícono de alertas, búsqueda, chat, notas y las 22 vistas de Ajustes.
+    - Pruebas nuevas y actualizadas (`confirm-dialog.test.tsx`,
+      `error-state.test.tsx`, `use-dismiss.test.tsx`, `account-overview.test.tsx`,
+      `whatsapp-panels.test.tsx`, `black-hole-login.test.tsx`,
+      `settings-sidebar.test.tsx`, `dashboard-shell.test.tsx`, `tabs.test.tsx`:
+      126 archivos, 567 tests en verde; `tsc --noEmit` y `eslint` limpios) y
+      capturas antes/después en `docs/neon/capturas/despues-*.png`.
+    - Pendiente de OK del dueño para pushear/mezclar `feat/neon-ux`.

@@ -9,7 +9,7 @@ Capturas reales tomadas sobre la aplicación levantada en Next.js (`1440×900` e
 ### Antes (reposo del login)
 ![Login en reposo](./capturas/01-login-night.png)
 
-### Después (secuencia real al iniciar sesión correctamente — `2,5 s`)
+### Después (secuencia real al iniciar sesión correctamente — `5 s`)
 
 #### 1) Fractura de los campos y grietas cobalto hacia el centro
 ![Login fractura real](./capturas/despues-login-bh-01-fractura.png)
@@ -79,3 +79,71 @@ Capturas reales tomadas sobre la aplicación levantada en Next.js (`1440×900` e
 - **Después (buscador rápido + 6 grupos temáticos claros):**
 
 ![Después: Ajustes escritorio agrupado y con buscador](./capturas/despues-05-ajustes-desktop.png)
+
+---
+
+## 5. P1 — Inicio alineado a `DESIGN.md` + `ErrorState` sin ceros falsos
+
+### Inicio en estado normal (`1440×900`)
+- **Antes (doble `.neon-sign`, `.neon-nav` fuera de la sidebar, tarjetas estáticas):**
+
+![Antes: Inicio con doble neon-sign y neon-nav](./capturas/03-inicio-night.png)
+
+- **Después (un solo `.neon-sign` en el topbar, sin `.neon-nav` en tarjetas, 4 `LiveCard` interactivas hacia la Bandeja):**
+
+![Después: Inicio alineado a DESIGN.md](./capturas/despues-p1-inicio-night.png)
+
+### Inicio cuando fallan las APIs (`1440×900`)
+- **Después (3 `ErrorState` con botón «Reintentar» y cero falsos `0`):**
+
+![Después: Inicio con ErrorState y Reintentar](./capturas/despues-p1-inicio-error.png)
+
+---
+
+## 6. P1 — Agente IA con Electrode Orange (*The Electrode Rule*)
+
+- **Antes (acento todo cobalto, sin distinción para acciones de IA):**
+
+![Antes: Agente todo cobalto](./capturas/10-agente-night.png)
+
+- **Después (badge `Sparkles` y botón de enviar `variant="ai"` en `--neon-electrode`):**
+
+![Después: Agente con Electrode Orange](./capturas/despues-p1-agente-electrode.png)
+
+---
+
+## 7. P1 — `ErrorState` con «Reintentar» en Calendario y Oportunidades
+
+### Calendario (`1440×900`)
+- **Antes (texto rojo plano sin acción de recuperación):**
+
+![Antes: Calendario error sin Reintentar](./capturas/13-calendario-night.png)
+
+- **Después (`ErrorState` con botón «Reintentar»):**
+
+![Después: Calendario con ErrorState y Reintentar](./capturas/despues-p1-calendario-error.png)
+
+### Oportunidades (`1440×900`)
+- **Antes (texto rojo plano sin acción de recuperación):**
+
+![Antes: Oportunidades error sin Reintentar](./capturas/08-crm-oportunidades-night.png)
+
+- **Después (`ErrorState` con botón «Reintentar»):**
+
+![Después: Oportunidades con ErrorState y Reintentar](./capturas/despues-p1-oportunidades-error.png)
+
+---
+
+## 8. P1 — `ConfirmDialog` neón compartido + botones ≥ 44 px
+
+- **Después (`ConfirmDialog` neón reemplazando `window.confirm()`, foco en Cancelar, cierre con `Escape`/clic afuera, y botones de ícono de `44×44 px` en Ajustes):**
+
+![Después: ConfirmDialog neón sobre Ajustes Etiquetas](./capturas/despues-p1-confirm-dialog.png)
+
+---
+
+## 9. P1 — Módulo de WhatsApp en los 7 idiomas
+
+- **Después (sección WhatsApp renderizada 100% en inglés con `alo_locale=en`, demostrando paridad en `es`, `en`, `pt`, `fr`, `de`, `ja`, `ko`):**
+
+![Después: WhatsApp completamente traducido al inglés](./capturas/despues-p1-whatsapp-en.png)
