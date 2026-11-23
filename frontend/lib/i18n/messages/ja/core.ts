@@ -80,6 +80,7 @@ export const core: Strings<typeof es> = {
       google: "Google でログイン",
       orEmail: "またはメールアドレスで",
       submit: "ログイン",
+      entering: "AloStudio に入っています…",
       forgot: "パスワードをお忘れですか？",
       failed: "ログインできませんでした。",
     },
@@ -112,9 +113,16 @@ export const core: Strings<typeof es> = {
   settings: {
     title: "設定",
     comingIn: "{milestone} で追加予定",
+    searchPlaceholder: "設定を検索…",
+    sectionSelect: "設定のセクション",
+    noMatches: "一致する設定がありません。",
     groups: {
       publishing: "投稿",
-      account: "アカウントと受信トレイ",
+      account: "アカウントとチーム",
+      inbox: "チャネルと受信トレイ",
+      automation: "自動化と AI",
+      crm: "CRM と営業",
+      system: "連携とシステム",
     },
     items: {
       agents: "エージェント",

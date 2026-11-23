@@ -78,6 +78,7 @@ export const core = {
       google: "Entrar con Google",
       orEmail: "o con tu correo",
       submit: "Entrar",
+      entering: "Entrando a AloStudio…",
       forgot: "¿Olvidaste tu contraseña?",
       failed: "No se pudo iniciar sesión.",
     },
@@ -110,9 +111,16 @@ export const core = {
   settings: {
     title: "Ajustes",
     comingIn: "Llega en {milestone}",
+    searchPlaceholder: "Buscar ajuste…",
+    sectionSelect: "Sección de ajustes",
+    noMatches: "No hay ajustes que coincidan.",
     groups: {
       publishing: "Publicación",
-      account: "Cuenta y bandeja",
+      account: "Cuenta y equipo",
+      inbox: "Canales y bandeja",
+      automation: "Automatización e IA",
+      crm: "CRM y ventas",
+      system: "Integraciones y sistema",
     },
     items: {
       agents: "Agentes",

@@ -79,8 +79,18 @@ export function HelpButton({ accountId }: { accountId: string }) {
         setOpen(false);
       }
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        detailsRef.current?.removeAttribute("open");
+        setOpen(false);
+      }
+    }
     document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [open]);
 
   // Seconds counter while recording; it stops by itself at the limit.
@@ -208,7 +218,7 @@ export function HelpButton({ accountId }: { accountId: string }) {
       <div
         role="dialog"
         aria-label={t("helpAssistant.title")}
-        className="absolute right-0 z-30 mt-1.5 flex w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu"
+        className="z-30 flex flex-col overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.5rem] max-sm:max-h-[calc(100dvh-5.5rem)] max-sm:w-auto sm:absolute sm:right-0 sm:mt-1.5 sm:w-[24rem] sm:max-w-[calc(100vw-2rem)]"
       >
         <div className="border-b border-glass px-3 py-2.5">
           <h2 className="text-sm font-medium text-fg">{t("helpAssistant.title")}</h2>

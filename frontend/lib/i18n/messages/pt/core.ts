@@ -81,6 +81,7 @@ export const core: Strings<typeof es> = {
       google: "Entrar com Google",
       orEmail: "ou com seu e-mail",
       submit: "Entrar",
+      entering: "Entrando no AloStudio…",
       forgot: "Esqueceu sua senha?",
       failed: "Não foi possível entrar.",
     },
@@ -113,9 +114,16 @@ export const core: Strings<typeof es> = {
   settings: {
     title: "Configurações",
     comingIn: "Chega em {milestone}",
+    searchPlaceholder: "Buscar configuração…",
+    sectionSelect: "Seção de configurações",
+    noMatches: "Nenhuma configuração encontrada.",
     groups: {
       publishing: "Publicação",
-      account: "Conta e caixa de entrada",
+      account: "Conta e equipe",
+      inbox: "Canais e caixa de entrada",
+      automation: "Automação e IA",
+      crm: "CRM e vendas",
+      system: "Integrações e sistema",
     },
     items: {
       agents: "Agentes",

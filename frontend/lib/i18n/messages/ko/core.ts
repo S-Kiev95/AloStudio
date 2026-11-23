@@ -80,6 +80,7 @@ export const core: Strings<typeof es> = {
       google: "Google로 로그인",
       orEmail: "또는 이메일로",
       submit: "로그인",
+      entering: "AloStudio에 들어가는 중…",
       forgot: "비밀번호를 잊으셨나요?",
       failed: "로그인하지 못했습니다.",
     },
@@ -112,9 +113,16 @@ export const core: Strings<typeof es> = {
   settings: {
     title: "설정",
     comingIn: "{milestone}에서 제공 예정",
+    searchPlaceholder: "설정 검색…",
+    sectionSelect: "설정 섹션",
+    noMatches: "일치하는 설정이 없습니다.",
     groups: {
       publishing: "게시",
-      account: "계정 및 받은편지함",
+      account: "계정 및 팀",
+      inbox: "채널 및 받은편지함",
+      automation: "자동화 및 AI",
+      crm: "CRM 및 영업",
+      system: "연동 및 시스템",
     },
     items: {
       agents: "에이전트",

@@ -82,6 +82,7 @@ export const core: Strings<typeof es> = {
       google: "Sign in with Google",
       orEmail: "or with your email",
       submit: "Sign in",
+      entering: "Entering AloStudio…",
       forgot: "Forgot your password?",
       failed: "Couldn't sign in.",
     },
@@ -114,9 +115,16 @@ export const core: Strings<typeof es> = {
   settings: {
     title: "Settings",
     comingIn: "Coming in {milestone}",
+    searchPlaceholder: "Filter settings…",
+    sectionSelect: "Settings section",
+    noMatches: "No matching settings.",
     groups: {
       publishing: "Publishing",
-      account: "Account and inbox",
+      account: "Account and team",
+      inbox: "Channels and inbox",
+      automation: "Automation and AI",
+      crm: "CRM and sales",
+      system: "Integrations and system",
     },
     items: {
       agents: "Agents",

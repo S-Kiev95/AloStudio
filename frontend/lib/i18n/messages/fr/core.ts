@@ -82,6 +82,7 @@ export const core: Strings<typeof es> = {
       google: "Se connecter avec Google",
       orEmail: "ou avec votre e-mail",
       submit: "Se connecter",
+      entering: "Accès à AloStudio…",
       forgot: "Mot de passe oublié ?",
       failed: "Connexion impossible.",
     },
@@ -114,9 +115,16 @@ export const core: Strings<typeof es> = {
   settings: {
     title: "Paramètres",
     comingIn: "Disponible dans {milestone}",
+    searchPlaceholder: "Rechercher un paramètre…",
+    sectionSelect: "Section des paramètres",
+    noMatches: "Aucun paramètre correspondant.",
     groups: {
       publishing: "Publication",
-      account: "Compte et boîte de réception",
+      account: "Compte et équipe",
+      inbox: "Canaux et boîte de réception",
+      automation: "Automatisation et IA",
+      crm: "CRM et ventes",
+      system: "Intégrations et système",
     },
     items: {
       agents: "Agents",

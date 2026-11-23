@@ -1,11 +1,23 @@
 "use client";
 
+import { Search } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 
+import { Input } from "@/components/ui/input";
+import { selectClassName } from "@/components/ui/select";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
+
+export type SettingsGroupKey =
+  | "publishing"
+  | "account"
+  | "inbox"
+  | "automation"
+  | "crm"
+  | "system";
 
 export type SettingsItem = {
   segment: string;
@@ -13,129 +25,66 @@ export type SettingsItem = {
   label: MessageKey;
   milestone: string;
   done: boolean;
-  group?: "general" | "publishing";
+  group: SettingsGroupKey;
 };
 
-export const SETTINGS_ITEMS: SettingsItem[] = [
-  { segment: "agents", label: "settings.items.agents", milestone: "fe.14c", done: true },
-  { segment: "profile", label: "settings.items.profile", milestone: "fe.14c", done: true },
-  {
-    segment: "security",
-    label: "settings.items.security",
-    milestone: "fe.14c",
-    done: true,
-  },
-  {
-    segment: "notifications",
-    label: "settings.items.notifications",
-    milestone: "fe.14d",
-    done: true,
-  },
-  { segment: "labels", label: "settings.items.labels", milestone: "F.9a", done: true },
-  { segment: "teams", label: "settings.items.teams", milestone: "F.9b", done: true },
-  {
-    segment: "inboxes",
-    label: "settings.items.inboxes",
-    milestone: "v2",
-    done: true,
-  },
-  {
-    segment: "assignment_policies",
-    label: "settings.items.assignment_policies",
-    milestone: "v2",
-    done: true,
-  },
-  {
-    segment: "canned_responses",
-    label: "settings.items.canned_responses",
-    milestone: "F.9c",
-    done: true,
-  },
-  { segment: "macros", label: "settings.items.macros", milestone: "F.9c", done: true },
-  {
-    segment: "working_hours",
-    label: "settings.items.working_hours",
-    milestone: "F.9d",
-    done: true,
-  },
-  {
-    segment: "custom_attributes",
-    label: "settings.items.custom_attributes",
-    milestone: "F.9d",
-    done: true,
-  },
-  {
-    segment: "automation",
-    label: "settings.items.automation",
-    milestone: "F.9e",
-    done: true,
-  },
-  { segment: "decisions", label: "settings.items.decisions", milestone: "F10", done: true },
-  { segment: "closing_notes", label: "settings.items.closing_notes", milestone: "F17", done: true },
-  { segment: "conversions", label: "settings.items.conversions", milestone: "F17", done: true },
-  { segment: "lifecycle", label: "settings.items.lifecycle", milestone: "F17", done: true },
-  { segment: "webhooks", label: "settings.items.webhooks", milestone: "F.9f", done: true },
-  { segment: "agent_bots", label: "settings.items.agent_bots", milestone: "F.9f", done: true },
-  {
-    segment: "integrations",
-    label: "settings.items.integrations",
-    milestone: "F.9f",
-    done: true,
-  },
-  { segment: "csat", label: "settings.items.csat", milestone: "F.9g", done: true },
-  {
-    segment: "mcp_tokens",
-    label: "settings.items.mcp_tokens",
-    milestone: "F.9h",
-    done: true,
-  },
-  {
-    segment: "oauth_apps",
-    label: "settings.items.oauth_apps",
-    milestone: "F.7",
-    done: true,
-  },
-  {
-    segment: "email_templates",
-    label: "settings.items.email_templates",
-    milestone: "F.9i",
-    done: true,
-  },
-  {
-    segment: "installation",
-    label: "settings.items.installation",
-    milestone: "F.9i",
-    done: true,
-  },
-  {
-    segment: "signatures",
-    label: "settings.items.signatures",
-    milestone: "F.7",
-    done: true,
-    group: "publishing",
-  },
-  {
-    segment: "sets",
-    label: "settings.items.sets",
-    milestone: "F.7",
-    done: true,
-    group: "publishing",
-  },
-  {
-    segment: "autoposts",
-    label: "settings.items.autoposts",
-    milestone: "F.7",
-    done: true,
-    group: "publishing",
-  },
-  {
-    segment: "plugs",
-    label: "settings.items.plugs",
-    milestone: "F.7",
-    done: true,
-    group: "publishing",
-  },
+export const SETTINGS_GROUP_ORDER: readonly {
+  key: SettingsGroupKey;
+  label: MessageKey;
+}[] = [
+  { key: "account", label: "settings.groups.account" },
+  { key: "inbox", label: "settings.groups.inbox" },
+  { key: "automation", label: "settings.groups.automation" },
+  { key: "crm", label: "settings.groups.crm" },
+  { key: "publishing", label: "settings.groups.publishing" },
+  { key: "system", label: "settings.groups.system" },
 ];
+
+export const SETTINGS_ITEMS: SettingsItem[] = [
+  // Cuenta y equipo
+  { segment: "profile", label: "settings.items.profile", milestone: "fe.14c", done: true, group: "account" },
+  { segment: "security", label: "settings.items.security", milestone: "fe.14c", done: true, group: "account" },
+  { segment: "notifications", label: "settings.items.notifications", milestone: "fe.14d", done: true, group: "account" },
+  { segment: "agents", label: "settings.items.agents", milestone: "fe.14c", done: true, group: "account" },
+  { segment: "teams", label: "settings.items.teams", milestone: "F.9b", done: true, group: "account" },
+  // Canales y bandeja
+  { segment: "inboxes", label: "settings.items.inboxes", milestone: "v2", done: true, group: "inbox" },
+  { segment: "assignment_policies", label: "settings.items.assignment_policies", milestone: "v2", done: true, group: "inbox" },
+  { segment: "working_hours", label: "settings.items.working_hours", milestone: "F.9d", done: true, group: "inbox" },
+  { segment: "labels", label: "settings.items.labels", milestone: "F.9a", done: true, group: "inbox" },
+  { segment: "canned_responses", label: "settings.items.canned_responses", milestone: "F.9c", done: true, group: "inbox" },
+  { segment: "closing_notes", label: "settings.items.closing_notes", milestone: "F17", done: true, group: "inbox" },
+  { segment: "csat", label: "settings.items.csat", milestone: "F.9g", done: true, group: "inbox" },
+  // Automatización e IA
+  { segment: "automation", label: "settings.items.automation", milestone: "F.9e", done: true, group: "automation" },
+  { segment: "macros", label: "settings.items.macros", milestone: "F.9c", done: true, group: "automation" },
+  { segment: "agent_bots", label: "settings.items.agent_bots", milestone: "F.9f", done: true, group: "automation" },
+  { segment: "decisions", label: "settings.items.decisions", milestone: "F10", done: true, group: "automation" },
+  // CRM y ventas
+  { segment: "lifecycle", label: "settings.items.lifecycle", milestone: "F17", done: true, group: "crm" },
+  { segment: "custom_attributes", label: "settings.items.custom_attributes", milestone: "F.9d", done: true, group: "crm" },
+  { segment: "conversions", label: "settings.items.conversions", milestone: "F17", done: true, group: "crm" },
+  // Publicación
+  { segment: "signatures", label: "settings.items.signatures", milestone: "F.7", done: true, group: "publishing" },
+  { segment: "sets", label: "settings.items.sets", milestone: "F.7", done: true, group: "publishing" },
+  { segment: "autoposts", label: "settings.items.autoposts", milestone: "F.7", done: true, group: "publishing" },
+  { segment: "plugs", label: "settings.items.plugs", milestone: "F.7", done: true, group: "publishing" },
+  // Integraciones y sistema
+  { segment: "integrations", label: "settings.items.integrations", milestone: "F.9f", done: true, group: "system" },
+  { segment: "webhooks", label: "settings.items.webhooks", milestone: "F.9f", done: true, group: "system" },
+  { segment: "mcp_tokens", label: "settings.items.mcp_tokens", milestone: "F.9h", done: true, group: "system" },
+  { segment: "oauth_apps", label: "settings.items.oauth_apps", milestone: "F.7", done: true, group: "system" },
+  { segment: "email_templates", label: "settings.items.email_templates", milestone: "F.9i", done: true, group: "system" },
+  { segment: "installation", label: "settings.items.installation", milestone: "F.9i", done: true, group: "system" },
+];
+
+function normalizeSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
 function SidebarRow({
   baseHref,
@@ -170,7 +119,7 @@ function SidebarRow({
         href={href}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "block whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",
+          "block whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
           active
             ? "bg-focused text-lit"
@@ -185,60 +134,116 @@ function SidebarRow({
 
 export function SettingsSidebar({ accountId }: { accountId: string }) {
   const pathname = usePathname() ?? "";
+  const router = useRouter();
   const baseHref = `/accounts/${accountId}/settings`;
   const t = useT();
+  const [query, setQuery] = useState("");
 
-  const generalItems = SETTINGS_ITEMS.filter((i) => i.group !== "publishing");
-  const publishingItems = SETTINGS_ITEMS.filter(
-    (i) => i.group === "publishing",
+  const needle = normalizeSearch(query);
+
+  const grouped = useMemo(
+    () =>
+      SETTINGS_GROUP_ORDER.map((group) => {
+        const items = SETTINGS_ITEMS.filter((item) => {
+          if (item.group !== group.key) return false;
+          if (!needle) return true;
+          return (
+            normalizeSearch(t(item.label)).includes(needle) ||
+            normalizeSearch(t(group.label)).includes(needle)
+          );
+        });
+        return { ...group, items };
+      }).filter((g) => g.items.length > 0),
+    [needle, t],
   );
+
+  const activeSegment =
+    SETTINGS_ITEMS.find((item) => {
+      const href = `${baseHref}/${item.segment}`;
+      return pathname === href || pathname.startsWith(`${href}/`);
+    })?.segment ?? "";
 
   return (
     <nav
       aria-label={t("settings.title")}
-      className="w-full shrink-0 border-b border-glass pb-2 md:w-56 md:border-b-0 md:border-r md:pb-0 md:pr-3"
+      className="w-full shrink-0 border-b border-glass pb-3 md:w-60 md:border-b-0 md:border-r md:pb-0 md:pr-4"
     >
+      {/* Desktop: quick filter + 6 thematic groups */}
       <div className="hidden md:block">
-        <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
-          {t("settings.groups.publishing")}
-        </p>
-        <ul className="flex flex-col gap-0.5">
-          {publishingItems.map((item) => (
-            <SidebarRow
-              key={item.segment}
-              baseHref={baseHref}
-              pathname={pathname}
-              item={item}
-            />
-          ))}
-        </ul>
+        <div className="relative mb-3">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-muted"
+            aria-hidden
+          />
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label={t("settings.searchPlaceholder")}
+            placeholder={t("settings.searchPlaceholder")}
+            className="h-9 pl-8 pr-2.5 text-xs"
+          />
+        </div>
 
-        <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
-          {t("settings.groups.account")}
-        </p>
-        <ul className="flex flex-col gap-0.5">
-          {generalItems.map((item) => (
-            <SidebarRow
-              key={item.segment}
-              baseHref={baseHref}
-              pathname={pathname}
-              item={item}
-            />
-          ))}
-        </ul>
+        {grouped.length === 0 ? (
+          <p className="px-3 py-2 text-xs text-fg-muted">
+            {t("settings.noMatches")}
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {grouped.map((group) => (
+              <div key={group.key}>
+                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">
+                  {t(group.label)}
+                </p>
+                <ul className="flex flex-col gap-0.5">
+                  {group.items.map((item) => (
+                    <SidebarRow
+                      key={item.segment}
+                      baseHref={baseHref}
+                      pathname={pathname}
+                      item={item}
+                    />
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Horizontal pill strip on small screens */}
-      <ul className="flex gap-1 overflow-x-auto md:hidden">
-        {[...publishingItems, ...generalItems].map((item) => (
-          <SidebarRow
-            key={item.segment}
-            baseHref={baseHref}
-            pathname={pathname}
-            item={item}
-          />
-        ))}
-      </ul>
+      {/* Mobile: grouped native selector (replaces 3324px blind horizontal strip) */}
+      <div className="md:hidden">
+        <select
+          aria-label={t("settings.sectionSelect")}
+          value={activeSegment}
+          onChange={(e) => {
+            const seg = e.target.value;
+            if (seg) router.push(`${baseHref}/${seg}`);
+          }}
+          className={cn(selectClassName("md"), "w-full font-medium")}
+        >
+          {SETTINGS_GROUP_ORDER.map((group) => {
+            const items = SETTINGS_ITEMS.filter(
+              (item) => item.group === group.key && item.done,
+            );
+            if (items.length === 0) return null;
+            return (
+              <optgroup key={group.key} label={t(group.label)}>
+                {items.map((item) => (
+                  <option
+                    key={item.segment}
+                    value={item.segment}
+                    className="bg-surface-2 text-fg"
+                  >
+                    {t(item.label)}
+                  </option>
+                ))}
+              </optgroup>
+            );
+          })}
+        </select>
+      </div>
     </nav>
   );
 }
