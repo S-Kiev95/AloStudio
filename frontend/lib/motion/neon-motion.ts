@@ -173,7 +173,7 @@ export function animateStaggerIn(
     opacity: [0, 1],
     translateY: [8, 0],
     duration,
-    delay: (_el, i) => Math.min(i * stepMs, maxDelayMs),
+    delay: (_el, i) => Math.min((i ?? 0) * stepMs, maxDelayMs),
     ease: NEON_EASE,
   });
   return () => {

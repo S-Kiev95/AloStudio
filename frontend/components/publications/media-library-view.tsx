@@ -1,7 +1,7 @@
 "use client";
 
 import { Film, ImageIcon, Images, Plus, Trash2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { PublicationErrorAlert } from "./publication-error-alert";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { animateStaggerIn } from "@/lib/motion/neon-motion";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const KIND_FILTERS: { value: MediaKind | undefined; label: MessageKey }[] = [
@@ -43,6 +44,7 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
   const [uploadingCount, setUploadingCount] = useState(0);
   const [error, setError] = useState<ParsedPublicationError | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gridRef = useRef<HTMLUListElement>(null);
 
   const mediaQuery = useInfiniteMediaAssets(accountId, { kind: kindFilter });
   const uploadMutation = useUploadMedia(accountId);
@@ -50,7 +52,15 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
 
   const items: MediaAsset[] =
     mediaQuery.data?.pages.flatMap((page) => page) ?? [];
+  const hasItems = items.length > 0;
   const isUploading = uploadingCount > 0 || uploadMutation.isPending;
+
+  useEffect(() => {
+    if (!hasItems) return;
+    const cards = gridRef.current?.querySelectorAll<HTMLElement>("[data-media-card]");
+    if (!cards || cards.length === 0) return;
+    return animateStaggerIn(cards, { stepMs: 25, maxDelayMs: 240 });
+  }, [hasItems, kindFilter]);
 
   async function handleFiles(fileList: FileList | File[]) {
     const files = Array.from(fileList);
@@ -207,12 +217,16 @@ export function MediaLibraryView({ accountId }: { accountId: string }) {
           </div>
         ) : (
           <div className="space-y-5">
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            <ul
+              ref={gridRef}
+              className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+            >
               {items.map((asset) => {
                 const label = asset.filename || t("publications.media.fileNumber", { id: asset.id });
                 return (
                   <li
                     key={asset.id}
+                    data-media-card=""
                     className="group flex flex-col overflow-hidden rounded-md border border-glass bg-surface-2"
                   >
                     <div className="relative aspect-square w-full overflow-hidden bg-field">

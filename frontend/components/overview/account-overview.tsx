@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { useContext, useEffect, useMemo } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 
 import { MetricChart } from "@/components/reports/metric-chart";
 import { SummaryCards } from "@/components/reports/summary-cards";
@@ -33,6 +33,7 @@ import {
 import { NetworkOrbit } from "./network-orbit";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { animateCounter, animateStaggerIn } from "@/lib/motion/neon-motion";
 
 const LIVE: {
   key: keyof LiveMetrics;
@@ -115,9 +116,19 @@ function LiveCard({
   const intlTag = useIntlTag();
   const t = useT();
   const Icon = def.icon;
+  const numRef = useRef<HTMLParagraphElement>(null);
+  const animatedOnceRef = useRef(false);
+
+  useEffect(() => {
+    if (loading || typeof value !== "number" || animatedOnceRef.current) return;
+    animatedOnceRef.current = true;
+    return animateCounter(numRef.current, value, (n) => n.toLocaleString(intlTag));
+  }, [loading, value, intlTag]);
+
   return (
     <Link
       href={`/accounts/${accountId}/conversations?${def.query}`}
+      data-stagger-card=""
       className="group block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
     >
       <Card interactive className="flex items-center gap-3.5 p-4">
@@ -128,7 +139,10 @@ function LiveCard({
           <Icon className="h-8 w-8" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-numeric text-2xl font-semibold leading-none tabular-nums text-fg">
+          <p
+            ref={numRef}
+            className="font-numeric text-2xl font-semibold leading-none tabular-nums text-fg"
+          >
             {loading ? "—" : (value ?? 0).toLocaleString(intlTag)}
           </p>
           <p className="mt-1.5 truncate text-xs text-fg-muted">{t(def.label)}</p>
@@ -198,9 +212,16 @@ export function AccountOverview({ accountId }: { accountId: string }) {
   const live = useLiveMetrics(accountId);
   const summary = useReportSummary(accountId, range);
   const series = useReportTimeseries(accountId, "conversations_count", range);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const cards = rootRef.current?.querySelectorAll<HTMLElement>("[data-stagger-card]");
+    if (!cards || cards.length === 0) return;
+    return animateStaggerIn(cards, { stepMs: 35, maxDelayMs: 240 });
+  }, [accountId]);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
+    <div ref={rootRef} className="mx-auto max-w-6xl space-y-8">
       <section className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_auto] lg:gap-8">
         <div className="min-w-0">
           <h2 className="text-2xl font-medium tracking-tight text-fg sm:text-3xl">
@@ -273,7 +294,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="p-5 lg:col-span-2">
+        <Card data-stagger-card="" className="p-5 lg:col-span-2">
           <div className="mb-4 flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-fg">{t("overview.conversations")}</p>
@@ -300,7 +321,7 @@ export function AccountOverview({ accountId }: { accountId: string }) {
           )}
         </Card>
 
-        <Card className="p-5">
+        <Card data-stagger-card="" className="p-5">
           <p className="mb-3 text-sm font-medium text-fg">{t("overview.shortcuts")}</p>
           <div className="flex flex-col gap-1">
             {ACTIONS.map((action) => (

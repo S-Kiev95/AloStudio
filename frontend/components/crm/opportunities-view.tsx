@@ -1,7 +1,7 @@
 "use client";
 
 import { AlarmClock, Plus, Search, Settings2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { PageHeader } from "@/components/shell/page-header";
 import { Avatar } from "@/components/ui/avatar";
@@ -21,6 +21,7 @@ import {
 } from "@/lib/api/crm";
 import { useIsAccountAdmin, useProfile } from "@/lib/api/profile";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
+import { animateStaggerIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
 import { formatMoney, formatTotals } from "./money";
@@ -54,6 +55,14 @@ export function OpportunitiesView({ accountId }: { accountId: string }) {
     q: query.trim() || undefined,
   });
   const update = useUpdateOpportunity(accountId);
+  const boardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pipeline?.id) return;
+    const cols = boardRef.current?.querySelectorAll<HTMLElement>("[data-kanban-column]");
+    if (!cols || cols.length === 0) return;
+    return animateStaggerIn(cols, { stepMs: 40, maxDelayMs: 240 });
+  }, [pipeline?.id]);
 
   const byStage = useMemo(() => {
     const map = new Map<number, Opportunity[]>();
@@ -168,7 +177,7 @@ export function OpportunitiesView({ accountId }: { accountId: string }) {
           retrying={pipelines.isFetching || opportunities.isFetching}
         />
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div ref={boardRef} className="flex gap-3 overflow-x-auto pb-2">
           {pipeline.stages.map((stage) => (
             <StageColumn
               key={stage.id}
@@ -242,6 +251,7 @@ function StageColumn({
 
   return (
     <section
+      data-kanban-column=""
       aria-label={label}
       onDragOver={(e) => {
         e.preventDefault();
