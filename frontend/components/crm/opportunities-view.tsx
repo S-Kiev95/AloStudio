@@ -149,7 +149,7 @@ export function OpportunitiesView({ accountId }: { accountId: string }) {
             <div
               key={i}
               aria-hidden
-              className="flex w-72 shrink-0 flex-col gap-2 rounded-panel border border-glass bg-surface p-3"
+              className="flex w-72 shrink-0 flex-col gap-2 rounded-md border border-glass bg-surface p-3"
             >
               <div className="h-5 w-2/3 animate-pulse rounded bg-surface-2" />
               <div className="h-3 w-1/3 animate-pulse rounded bg-surface-2" />
@@ -173,11 +173,13 @@ export function OpportunitiesView({ accountId }: { accountId: string }) {
             <StageColumn
               key={stage.id}
               stage={stage}
+              stages={pipeline.stages}
               items={byStage.get(stage.id) ?? []}
               rottenDays={pipeline.rotten_days}
               intlTag={intlTag}
               onOpen={setEditing}
               onAdd={() => setCreatingIn(stage.id)}
+              onMoveOpportunity={(o, targetStage) => void moveTo(o, targetStage)}
               onDropOpportunity={(id) => {
                 const o = opportunities.data?.find((x) => x.id === id);
                 if (o) void moveTo(o, stage);
@@ -214,19 +216,23 @@ export function OpportunitiesView({ accountId }: { accountId: string }) {
 
 function StageColumn({
   stage,
+  stages,
   items,
   rottenDays,
   intlTag,
   onOpen,
   onAdd,
+  onMoveOpportunity,
   onDropOpportunity,
 }: {
   stage: Stage;
+  stages: Stage[];
   items: Opportunity[];
   rottenDays: number;
   intlTag: string;
   onOpen: (o: Opportunity) => void;
   onAdd: () => void;
+  onMoveOpportunity: (o: Opportunity, target: Stage) => void;
   onDropOpportunity: (id: number) => void;
 }) {
   const t = useT();
@@ -249,7 +255,7 @@ function StageColumn({
         if (id) onDropOpportunity(id);
       }}
       className={cn(
-        "flex w-72 shrink-0 flex-col rounded-panel border border-glass bg-surface",
+        "flex w-72 shrink-0 flex-col rounded-md border border-glass bg-surface transition-colors",
         over && "border-neon",
       )}
     >
@@ -275,9 +281,11 @@ function StageColumn({
           <li key={o.id}>
             <OpportunityCard
               opportunity={o}
+              stages={stages}
               stale={stage.kind === "open" && daysIdle(o) > rottenDays}
               intlTag={intlTag}
               onOpen={() => onOpen(o)}
+              onMoveTo={(target) => onMoveOpportunity(o, target)}
             />
           </li>
         ))}
@@ -298,14 +306,18 @@ function StageColumn({
 
 function OpportunityCard({
   opportunity: o,
+  stages,
   stale,
   intlTag,
   onOpen,
+  onMoveTo,
 }: {
   opportunity: Opportunity;
+  stages: Stage[];
   stale: boolean;
   intlTag: string;
   onOpen: () => void;
+  onMoveTo: (stage: Stage) => void;
 }) {
   const t = useT();
   const overdue =
@@ -313,48 +325,69 @@ function OpportunityCard({
     o.expected_close_on != null &&
     o.expected_close_on < new Date().toISOString().slice(0, 10);
   return (
-    <button
-      type="button"
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData("text/plain", String(o.id));
-        e.dataTransfer.effectAllowed = "move";
-      }}
-      onClick={onOpen}
-      className="w-full space-y-1.5 rounded-md border border-glass bg-surface-2 p-2.5 text-left hover:border-neon/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
-    >
-      <p className="line-clamp-2 text-sm font-medium text-fg">{o.title}</p>
-      {o.contact ? (
-        <p className="flex items-center gap-1.5 truncate text-xs text-fg-muted">
-          <Avatar name={o.contact.name ?? "?"} src={o.contact.avatar_url} size="xs" />
-          {o.contact.name || t("conversations.contact.fallbackName", { id: o.contact.id })}
-        </p>
+    <div className="rounded-md border border-glass bg-surface-2 transition-colors hover:border-neon/60">
+      <button
+        type="button"
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/plain", String(o.id));
+          e.dataTransfer.effectAllowed = "move";
+        }}
+        onClick={onOpen}
+        className="w-full space-y-1.5 rounded-md p-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
+      >
+        <p className="line-clamp-2 text-sm font-medium text-fg">{o.title}</p>
+        {o.contact ? (
+          <p className="flex items-center gap-1.5 truncate text-xs text-fg-muted">
+            <Avatar name={o.contact.name ?? "?"} src={o.contact.avatar_url} size="xs" />
+            {o.contact.name || t("conversations.contact.fallbackName", { id: o.contact.id })}
+          </p>
+        ) : null}
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="font-numeric tabular-nums text-fg">
+            {o.value != null ? formatMoney(o.value, o.currency, intlTag) : ""}
+          </span>
+          <span className="flex items-center gap-1.5">
+            {o.expected_close_on ? (
+              <span
+                className={cn("font-numeric tabular-nums", overdue ? "text-danger" : "text-fg-muted")}
+                title={t("opportunities.expectedClose")}
+              >
+                {new Date(`${o.expected_close_on}T00:00:00`).toLocaleDateString(intlTag, {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+            ) : null}
+            {stale ? (
+              <AlarmClock
+                className="h-3.5 w-3.5 text-warning"
+                aria-label={t("opportunities.stale")}
+              />
+            ) : null}
+            {o.owner ? <Avatar name={o.owner.name} size="xs" /> : null}
+          </span>
+        </div>
+      </button>
+      {stages.length > 1 ? (
+        <div className="border-t border-glass px-2 py-1.5 lg:hidden [@media(hover:none)]:block">
+          <select
+            aria-label={`${t("opportunities.stage")}: ${o.title}`}
+            value={o.stage_id}
+            onChange={(e) => {
+              const target = stages.find((s) => s.id === Number(e.target.value));
+              if (target) onMoveTo(target);
+            }}
+            className={cn(selectClassName("sm"), "h-8 w-full text-xs")}
+          >
+            {stages.map((s) => (
+              <option key={s.id} value={s.id}>
+                {stageLabel(t, s)}
+              </option>
+            ))}
+          </select>
+        </div>
       ) : null}
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="font-numeric tabular-nums text-fg">
-          {o.value != null ? formatMoney(o.value, o.currency, intlTag) : ""}
-        </span>
-        <span className="flex items-center gap-1.5">
-          {o.expected_close_on ? (
-            <span
-              className={cn("font-numeric tabular-nums", overdue ? "text-danger" : "text-fg-muted")}
-              title={t("opportunities.expectedClose")}
-            >
-              {new Date(`${o.expected_close_on}T00:00:00`).toLocaleDateString(intlTag, {
-                day: "numeric",
-                month: "short",
-              })}
-            </span>
-          ) : null}
-          {stale ? (
-            <AlarmClock
-              className="h-3.5 w-3.5 text-warning"
-              aria-label={t("opportunities.stale")}
-            />
-          ) : null}
-          {o.owner ? <Avatar name={o.owner.name} size="xs" /> : null}
-        </span>
-      </div>
-    </button>
+    </div>
   );
 }

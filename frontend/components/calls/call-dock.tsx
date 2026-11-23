@@ -364,7 +364,7 @@ export function CallDock({ accountId }: { accountId: string }) {
               key={call.id}
               role="dialog"
               aria-label={t("calls.incoming")}
-              className="glass-panel flex flex-col gap-3 rounded-panel border border-glass bg-surface p-3 shadow-lg"
+              className="glass-panel flex flex-col gap-3 rounded-md border border-glass bg-surface p-3 shadow-menu"
             >
               <div className="flex items-center gap-3">
                 <span className="relative shrink-0">
@@ -411,13 +411,13 @@ export function CallDock({ accountId }: { accountId: string }) {
           {problem ? (
             <p
               role="alert"
-              className="glass-panel rounded-panel border border-glass bg-surface p-3 text-sm text-danger shadow-lg"
+              className="glass-panel rounded-md border border-glass bg-surface p-3 text-sm text-danger shadow-menu"
             >
               {translateOr(t, problem, t("calls.problems.refused"))}
             </p>
           ) : null}
           {notice && !session ? (
-            <p className="glass-panel rounded-panel border border-glass bg-surface p-3 text-sm text-fg-muted shadow-lg">
+            <p className="glass-panel rounded-md border border-glass bg-surface p-3 text-sm text-fg-muted shadow-menu">
               {translateOr(t, notice, t("calls.ended"))}
             </p>
           ) : null}
@@ -455,7 +455,7 @@ function ActiveCallCard({
     <div
       role="region"
       aria-label={t("calls.onCall")}
-      className="glass-panel flex flex-col gap-3 rounded-panel border border-glass bg-surface p-3 shadow-lg"
+      className="glass-panel flex flex-col gap-3 rounded-md border border-glass bg-surface p-3 shadow-menu"
     >
       <div className="flex items-center gap-3">
         <Avatar

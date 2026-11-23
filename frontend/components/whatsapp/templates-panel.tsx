@@ -410,7 +410,7 @@ export function WhatsappTemplatePreview({
   return (
     <div
       data-testid="whatsapp-template-preview"
-      className="overflow-hidden rounded-2xl border border-glass shadow-lg"
+      className="overflow-hidden rounded-md border border-glass"
     >
       <div className="flex items-center gap-2.5 bg-[#008069] px-3 py-2.5 text-white dark:bg-[#202c33] dark:text-[#e9edef]">
         <span
@@ -427,7 +427,7 @@ export function WhatsappTemplatePreview({
         </div>
       </div>
       <div className="flex min-h-[360px] flex-col items-start bg-[#efeae2] px-4 py-4 dark:bg-[#0b141a]">
-        <span className="mb-3 self-center rounded-md bg-white px-2.5 py-1 text-[11px] font-medium uppercase text-[#54656f] shadow-sm dark:bg-[#182229] dark:text-[#8696a0]">
+        <span className="mb-3 self-center rounded-md border border-black/10 bg-white px-2.5 py-1 text-[11px] font-medium uppercase text-[#54656f] dark:border-white/10 dark:bg-[#182229] dark:text-[#8696a0]">
           {t("whatsapp.templates.previewToday")}
         </span>
         {bubble}

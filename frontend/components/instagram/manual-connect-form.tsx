@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { useConnectManual } from "@/lib/api/instagram";
 import { flowById } from "@/lib/inboxes/instagram-capabilities";
 
@@ -91,7 +92,7 @@ export function ManualConnectForm({ accountId }: { accountId: string }) {
         <select
           id="m-login"
           {...register("login_type")}
-          className="h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={selectClassName()}
         >
           <option value="facebook">Facebook Login</option>
           <option value="instagram">Instagram Login</option>

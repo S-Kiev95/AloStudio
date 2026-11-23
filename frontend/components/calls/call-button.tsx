@@ -98,7 +98,7 @@ export function CallButton({
         <div
           role="dialog"
           aria-label={t("calls.callTitle")}
-          className="glass-panel absolute right-0 top-10 z-40 w-[min(320px,calc(100vw-32px))] space-y-3 rounded-panel border border-glass bg-surface p-3 text-sm shadow-lg"
+          className="glass-panel absolute right-0 top-10 z-40 w-[min(320px,calc(100vw-32px))] space-y-3 rounded-md border border-glass bg-surface p-3 text-sm shadow-menu"
         >
           <p className="font-medium text-fg">{t("calls.callTitle")}</p>
           {permission.isLoading ? (

@@ -141,7 +141,7 @@ function Setup({ accountId }: { accountId: string }) {
   return (
     <div className="space-y-4">
       {!(settings.data.providers?.[provider] ?? settings.data.configured) ? (
-        <p role="status" className="rounded-panel border border-warning bg-surface-2 p-3 text-sm text-warning">
+        <p role="status" className="rounded-md border border-warning bg-surface-2 p-3 text-sm text-warning">
           {provider === "local" ? t("decisions.notConfiguredLocal") : t("decisions.notConfigured")}{" "}
           <Link
             href={`/accounts/${accountId}/settings/installation`}
@@ -529,7 +529,7 @@ function Results({ accountId }: { accountId: string }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-panel border border-glass bg-surface p-3">
+    <div className="rounded-md border border-glass bg-surface p-3">
       <p className="text-xs text-fg-muted">{label}</p>
       <p className="mt-1 font-numeric text-xl tabular-nums text-fg">{value}</p>
     </div>

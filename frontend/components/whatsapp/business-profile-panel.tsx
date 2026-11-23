@@ -81,7 +81,7 @@ function ProfilePreview({
   return (
     <div
       data-testid="whatsapp-profile-preview"
-      className="overflow-hidden rounded-2xl border border-glass bg-white text-[#111b21] shadow-lg dark:bg-[#111b21] dark:text-[#e9edef]"
+      className="overflow-hidden rounded-md border border-glass bg-white text-[#111b21] dark:bg-[#111b21] dark:text-[#e9edef]"
     >
       <div className="flex flex-col items-center gap-2 px-5 pb-4 pt-6">
         {photoUrl ? (
