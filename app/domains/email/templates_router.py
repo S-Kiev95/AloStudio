@@ -10,16 +10,18 @@ Two scopes:
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Path, status
 from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core import media_ai
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
+from app.domains.email import ai_design
 from app.domains.email import signatures_service as sig_svc
 from app.domains.email import templates_service as svc
 from app.domains.email.models import EmailTemplate
@@ -51,6 +53,12 @@ class TestSendRequest(BaseModel):
 
     inbox_id: int
     to: str
+
+
+class GenerateDesignRequest(BaseModel):
+    prompt: str = ""
+    image: str | None = None
+    kind: Literal["template", "signature"] = "template"
 
 
 def present(row: EmailTemplate) -> dict[str, Any]:
@@ -141,6 +149,47 @@ async def _run_test_send(
     if not result.ok:
         raise ChatwootHTTPException(status_code=422, detail={"message": result.error})
     return {"message": f"Enviamos la prueba a {to}. Revisá esa casilla."}
+
+
+# ---------------------------------------------------------------------------
+# AI design generation (any account member — never auto-saves)
+# Registered before ``/{template_id}`` so ``/generate`` matches literally.
+# ---------------------------------------------------------------------------
+@router.get("/ai_status")
+async def email_ai_status(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+) -> dict[str, Any]:
+    return {
+        "enabled": ai_design.ai_available(ctx.account),
+        "media": media_ai.available(),
+    }
+
+
+@router.post("/generate")
+async def generate_template_or_signature(
+    payload: GenerateDesignRequest,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    try:
+        result = await ai_design.generate_email_design(
+            session,
+            account=ctx.account,
+            prompt=payload.prompt,
+            kind=payload.kind,
+            image=payload.image,
+        )
+    except ai_design.EmailAiError as exc:
+        raise ChatwootHTTPException(
+            status_code=exc.status_code,
+            detail={"message": exc.message, "code": f"email_ai.{exc.code}"},
+        ) from exc
+    return {
+        "html": result.html,
+        "notes": result.notes,
+        "mode": result.mode,
+        "seen": result.seen,
+    }
 
 
 # ---------------------------------------------------------------------------
