@@ -728,7 +728,7 @@ function SignaturesSection({
         <p className="text-sm text-fg-muted">{t("common.loading")}</p>
       ) : personalSig.data ? (
         <SignatureCard
-          key={`personal-${personalSig.data.updated_at ?? "new"}`}
+          key="personal"
           accountId={accountId}
           scope="personal"
           signature={personalSig.data}
@@ -741,7 +741,7 @@ function SignaturesSection({
         <p className="text-sm text-fg-muted">{t("common.loading")}</p>
       ) : orgSig.data ? (
         <SignatureCard
-          key={`org-${orgSig.data.updated_at ?? "new"}`}
+          key="organization"
           accountId={accountId}
           scope="organization"
           signature={orgSig.data}
