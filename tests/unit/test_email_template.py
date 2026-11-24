@@ -13,6 +13,7 @@ from app.domains.email.template import (
     TemplateError,
     render_html,
     render_plain,
+    render_signature_variables,
     render_template,
     validate_template,
 )
@@ -83,9 +84,7 @@ class TestEscaping:
         assert "<ventas@x.com>" not in out
 
     def test_a_pasted_tag_cannot_reach_the_recipient(self):
-        out = render_html(
-            body="Hola", signature="<script>alert(1)</script>"
-        )
+        out = render_html(body="Hola", signature="<script>alert(1)</script>")
         assert "<script>" not in out
         assert "&lt;script&gt;" in out
 
@@ -100,9 +99,7 @@ class TestEscaping:
 
 
 class TestBothParts:
-    @pytest.mark.parametrize(
-        "render", [render_plain, render_html], ids=["plain", "html"]
-    )
+    @pytest.mark.parametrize("render", [render_plain, render_html], ids=["plain", "html"])
     def test_an_unconfigured_mailbox_still_sends_the_message(self, render):
         assert "Ahí va" in render(body="Ahí va")
 
@@ -193,18 +190,14 @@ class TestAgentSignature:
     AGENT = "Ana Rodríguez\nAtención al cliente"
 
     def test_the_writer_signs_above_the_letterhead(self):
-        out = render_plain(
-            body="Ahí va", signature=SIGNATURE, agent_signature=self.AGENT
-        )
+        out = render_plain(body="Ahí va", signature=SIGNATURE, agent_signature=self.AGENT)
         # "-- " is what a mail reader may collapse as boilerplate, so the
         # person's name has to sit above it, with the message.
         assert out.index("Ana Rodríguez") < out.index("-- ")
         assert out.endswith(SIGNATURE)
 
     def test_html_shows_both(self):
-        out = render_html(
-            body="Ahí va", signature=SIGNATURE, agent_signature=self.AGENT
-        )
+        out = render_html(body="Ahí va", signature=SIGNATURE, agent_signature=self.AGENT)
         assert "Ana Rodríguez<br>Atención al cliente" in out
         assert "Instituto Ejemplo" in out
 
@@ -238,3 +231,85 @@ class TestAgentSignature:
         )
         assert "Ana" not in out
         assert "{{firma_agente}}" not in out
+
+
+class TestRichSignaturesAndVariables:
+    def test_interpolates_user_variables_with_escaping(self):
+        tpl = (
+            "<table><tr><td>{{foto}}</td>"
+            "<td><strong>{{nombre}}</strong> — {{cargo}}<br>{{correo}} · {{telefono}}</td></tr></table>"
+        )
+        out = render_signature_variables(
+            tpl,
+            name="Lucía <Ventas>",
+            job_title="Jefa & Directora",
+            email="lucia@ejemplo.com",
+            phone="+598 99 111 222",
+            avatar_url="https://cdn.ejemplo.com/lucia.png",
+        )
+        assert "Lucía &lt;Ventas&gt;" in out
+        assert "Jefa &amp; Directora" in out
+        assert "lucia@ejemplo.com" in out
+        assert "+598 99 111 222" in out
+        assert 'src="https://cdn.ejemplo.com/lucia.png"' in out
+        assert "<Ventas>" not in out
+
+    def test_rejects_unsafe_avatar_url_in_foto_variable(self):
+        out = render_signature_variables(
+            "<div>{{foto}}{{foto_url}}</div>",
+            name="Ana",
+            avatar_url="javascript:alert(1)",
+        )
+        assert "javascript:" not in out
+        assert "<img" not in out
+
+    def test_firma_uses_user_signature_and_falls_back_to_org_signature(self):
+        tpl = "<div>{{contenido}}</div><footer>{{firma}}</footer>"
+        with_user = render_template(
+            template=tpl,
+            body="Hola",
+            user_signature_html="<b>Firma personal</b>",
+            org_signature_html="<i>Firma organización</i>",
+        )
+        assert "<b>Firma personal</b>" in with_user
+        assert "Firma organización" not in with_user
+
+        without_user = render_template(
+            template=tpl,
+            body="Hola",
+            user_signature_html="",
+            org_signature_html="<i>Firma organización</i>",
+        )
+        assert "<i>Firma organización</i>" in without_user
+
+    def test_firma_organizacion_always_renders_org_signature(self):
+        tpl = "<div>{{contenido}}</div><div>{{firma}}</div><div>{{firma_organizacion}}</div>"
+        out = render_template(
+            template=tpl,
+            body="Hola",
+            user_signature_html="<b>Personal</b>",
+            org_signature_html="<i>Org</i>",
+        )
+        assert "<b>Personal</b>" in out
+        assert "<i>Org</i>" in out
+
+    def test_appends_signature_at_the_end_when_template_has_no_variable(self):
+        out = render_template(
+            template="<div>{{contenido}}</div>",
+            body="Hola",
+            user_signature_html="<strong>Lucía</strong>",
+            org_signature_html="<i>Acme</i>",
+            append_signature_if_missing=True,
+        )
+        assert out.index("Hola") < out.index("<strong>Lucía</strong>")
+
+    def test_falls_back_to_escaped_plain_text_when_no_html_signature(self):
+        out = render_template(
+            template="<div>{{contenido}}</div><div>{{firma}}</div>",
+            body="Hola",
+            agent_signature="Ana <ana@x.com>\nSoporte",
+            user_signature_html=None,
+            org_signature_html="",
+            append_signature_if_missing=True,
+        )
+        assert "Ana &lt;ana@x.com&gt;<br>Soporte" in out
