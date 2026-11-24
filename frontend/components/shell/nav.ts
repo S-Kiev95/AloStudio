@@ -1,9 +1,10 @@
+import { createElement } from "react";
 import { Settings } from "lucide-react";
 
-import type { IconComponent } from "@/components/ui/brand-icons";
 import type { MessageKey } from "@/lib/i18n/translate";
 
 import {
+  type AppIconComponent,
   AgentIcon,
   BarsIcon,
   BookIcon,
@@ -18,11 +19,16 @@ import {
   WhatsappNavIcon,
 } from "./app-icons";
 
+const SettingsNavIcon: AppIconComponent = ({
+  className,
+  "aria-hidden": ariaHidden,
+}) => createElement(Settings, { className, "aria-hidden": ariaHidden });
+
 export type NavItem = {
   key: string;
   /** Message key of the label, e.g. `"nav.home"`; render with `t()`. */
   label: MessageKey;
-  icon: IconComponent;
+  icon: AppIconComponent;
   segment: string; // "" = account home
   /** Additional segments under `/accounts/[accountId]/` that activate this item. */
   matchSegments?: string[];
@@ -82,7 +88,7 @@ export const NAV_ITEMS: NavItem[] = [
     segment: "campaigns",
   },
   { key: "reports", label: "nav.reports", icon: BarsIcon, segment: "reports" },
-  { key: "settings", label: "nav.settings", icon: Settings, segment: "settings" },
+  { key: "settings", label: "nav.settings", icon: SettingsNavIcon, segment: "settings" },
 ];
 
 /** Flat main section list up top with Ajustes pinned to the bottom (DESIGN.md). */

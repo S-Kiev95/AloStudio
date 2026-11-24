@@ -76,7 +76,11 @@ export function SidebarNav({
                       : "neon-nav hover:bg-hover-glass",
                   )}
                 >
-                  <Icon className="h-5 w-5 shrink-0" aria-hidden />
+                  <Icon
+                    className="h-5 w-5 shrink-0"
+                    animate={active ? "none" : "hover"}
+                    aria-hidden
+                  />
                   {collapsed ? null : label}
                 </Link>
               );
