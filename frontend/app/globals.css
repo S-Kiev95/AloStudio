@@ -228,6 +228,26 @@
     accent-color: var(--neon-core);
     caret-color: var(--neon-core);
   }
+  /* Native <select> popups follow the active light/dark theme instead of
+     falling back to Windows/Chrome's white default in dark mode. */
+  select {
+    color-scheme: light;
+  }
+  .dark select {
+    color-scheme: dark;
+  }
+  select option,
+  select optgroup {
+    background-color: var(--surface-2);
+    color: var(--fg);
+  }
+  select option:disabled {
+    color: var(--fg-muted);
+  }
+  select option:checked {
+    background-color: var(--neon-focused-glass);
+    color: var(--neon-lit-text);
+  }
   body {
     background-color: var(--bg);
     background-image: var(--canvas-accent);
