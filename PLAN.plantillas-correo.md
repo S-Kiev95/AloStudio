@@ -153,4 +153,87 @@ Un editor que sirve para plantillas y firmas, reemplazando o ampliando
 
 ## Estado
 
-(Lo completa el agente.)
+Completado en la rama `feat/plantillas-correo` (worktree `C:\Users\Zeek\Desktop\AloStudio-correo`).
+
+### Resumen de implementación
+
+1. **Alcance organización y usuario:**
+   - Migración única de Alembic `alembic/versions/f5b7d9e1a3c5_email_personal_templates_and_signatures.py` encadenada sobre `e4a6c8b0d2f4` (`upgrade` y `downgrade` probados).
+   - `email_templates.user_id` (nullable FK `users.id`) e `is_default` con índices únicos parciales por cuenta/dueño y a lo sumo una plantilla personal por defecto por usuario y cuenta.
+   - Rutas de organización solo para administradores (`/api/v1/accounts/{id}/email_templates*`) y rutas personales para cualquier miembro (`/api/v1/accounts/{id}/email_templates/personal*`).
+   - Precedencia al enviar documentada en `app/domains/email/mailer.py` y `app/domains/email/templates_service.py`: plantilla personal por defecto del remitente → plantilla de la bandeja (`channel.email_template_id`) → HTML propio de la casilla → layout integrado.
+
+2. **Firmas con diseño y variables:**
+   - Tabla `email_signatures` (una firma por organización `user_id IS NULL` editable por administradores y una personal por `(account_id, user_id)`), rutas `/api/v1/accounts/{id}/email_signatures/{organization|personal}` y servicio `app/domains/email/signatures_service.py`.
+   - Variables de plantilla `{{firma}}` (usuario o, si no tiene, organización) y `{{firma_organizacion}}`; si no se incluye variable de firma, se agrega al final. Caída automática a `users.message_signature` / `channel_email.signature` escapados como texto plano cuando no hay firma con diseño.
+   - Variables de perfil en firmas: `{{nombre}}`, `{{cargo}}` (columna `users.job_title` agregada en la misma migración y expuesta en `PUT /api/v1/profile` y `ProfileView`), `{{correo}}`, `{{telefono}}` (`custom_attributes.phone_number`) y `{{foto}}` / `{{foto_url}}`.
+
+3. **El lienzo (sin librerías nuevas de npm):**
+   - `frontend/lib/inboxes/email-blocks.ts` ampliado con bloques de encabezado con logo (`header`), texto, imagen (subida directa + biblioteca de medios), botón, separador, columnas de 2 (`columns`), redes sociales (`social`), espacio, firma y `{{contenido}}`, más modo `signature` compacto. Salida 100% con tablas y estilos en línea.
+   - `frontend/components/settings/email-templates/block-editor.tsx`: arrastrar y soltar (HTML5 drag & drop desde paleta y reordenamiento + flechas accesibles), inspector de propiedades por bloque y deshacer/rehacer (botones y `Ctrl+Z` / `Ctrl+Y`).
+   - Modo HTML con vista previa al lado, importación de `.html` y chips de variables.
+   - `frontend/components/settings/email-templates/email-preview-frame.tsx`: vista previa siempre dentro de `<iframe sandbox="" srcDoc={...}>`, con selector Escritorio/Celular y Claro/Oscuro (también aplicado a `EmailDesigner` en bandejas).
+   - Textos en los 7 idiomas (`es`, `en`, `pt`, `fr`, `de`, `ja`, `ko`).
+
+4. **Diseño con IA (reusable por el Agente):**
+   - Servicio desacoplado de la ruta HTTP: `app/domains/email/ai_design.py` → **`generate_email_design(session, *, account, prompt, kind, image)`** (lista para envolver como herramienta MCP del Agente).
+   - Ruta `POST /api/v1/accounts/{id}/email_templates/generate` (`{prompt, image?, kind: "template"|"signature"}` → `{html, notes, mode, seen}`).
+   - Descripción de imágenes de ejemplo vía `app.core.media_ai.describe` (NVIDIA / Groq), generación con OpenAI cuando la cuenta tiene Fast + clave (respetando `ai_usage` y `ai_budget_reached`), si no `local_llm` (Free), y caída controlada `email_ai.ai_down` (HTTP 503) con «Servicios de AI temporalmente fuera, intenta mañana».
+   - La salida se sanea siempre con `sanitize_email_html`, garantiza `{{contenido}}` en plantillas y lo elimina en firmas; en el panel se abre en HTML editable y nunca se guarda sola.
+
+5. **Seguridad y nueva dependencia Python:**
+   - Dependencia Python agregada en `pyproject.toml`: **`nh3>=0.3`** (instalada `nh3==0.3.8` en `.venv`), usada en `app/domains/email/sanitize.py::sanitize_email_html` al guardar plantillas, firmas, HTML de bandeja y al generar con IA.
+   - Bloquea `<script>`, `<iframe>`, `<object>`, `<embed>`, `<form>`, `<style>`, `<svg>`, atributos `on*`, URLs `javascript:` / `vbscript:` / `data:` (salvo imágenes raster `data:image/(png|jpeg|gif|webp);base64,...` en `<img src>`) y CSS peligroso (`expression()`, `url(javascript:...)`, `position:fixed`).
+
+### Salida real de verificaciones
+
+#### Alembic (`alembic heads`, `upgrade head`, `downgrade -1`, `upgrade head`)
+```text
+f5b7d9e1a3c5 (head)
+INFO  [alembic.runtime.migration] Running upgrade e4a6c8b0d2f4 -> f5b7d9e1a3c5, email: personal templates, rich org/user signatures, and user job title
+INFO  [alembic.runtime.migration] Running downgrade f5b7d9e1a3c5 -> e4a6c8b0d2f4, email: personal templates, rich org/user signatures, and user job title
+INFO  [alembic.runtime.migration] Running upgrade e4a6c8b0d2f4 -> f5b7d9e1a3c5, email: personal templates, rich org/user signatures, and user job title
+```
+
+#### Backend lint y formato (`ruff check` y `ruff format --check` sobre los 21 archivos tocados)
+```text
+=== RUFF CHECK ===
+All checks passed!
+=== RUFF FORMAT CHECK ===
+21 files already formatted
+```
+
+#### Pruebas backend (`pytest` correo + perfil contra `alostudio_test`)
+```text
+........................................................................ [ 39%]
+........................................................................ [ 79%]
+.....................................                                    [100%]
+181 passed in 61.82s (0:01:01)
+```
+Archivos ejecutados: `tests/unit/test_email_sanitize.py`, `tests/unit/test_email_template.py`, `tests/unit/test_email_ai_design.py`, `tests/unit/test_email_attachments.py`, `tests/unit/test_email_poll_isolation.py`, `tests/unit/test_email_probe.py`, `tests/unit/test_email_threading.py`, `tests/integration/test_email_templates.py`, `tests/integration/test_email_branding.py`, `tests/integration/test_email_outbound.py`, `tests/integration/test_email_inbound.py`, `tests/integration/test_email_assets.py`, `tests/integration/test_email_poll_task.py`, `tests/integration/test_inbox_builder_email.py`, `tests/integration/test_profile_router.py`.
+
+#### Frontend (`npm run typecheck`, `npm run lint`, `npm test`)
+```text
+> alostudio-frontend@0.1.0 typecheck
+> tsc --noEmit
+
+> alostudio-frontend@0.1.0 lint
+> next lint
+✔ No ESLint warnings or errors
+
+> alostudio-frontend@0.1.0 test
+> vitest run
+ Test Files  128 passed (128)
+      Tests  583 passed (583)
+   Duration  87.49s
+```
+
+### Prueba manual y capturas (`docs/plantillas-correo/`)
+
+Levantados backend local (`uvicorn` sobre `alostudio_test` con proveedor LLM simulado local) y panel (`npm run dev`), entrando con usuario demo (`demo@alostudio.example.com`):
+
+- `docs/plantillas-correo/01-plantilla-personal-lienzo.png` — Plantilla personal creada en el lienzo de bloques, marcada como predeterminada y con vista previa en vivo (`iframe sandbox`).
+- `docs/plantillas-correo/02-vista-previa-celular-oscuro.png` — Vista previa en modo Celular (`375px`) y tema Oscuro del cliente de correo.
+- `docs/plantillas-correo/03-firma-con-diseno.png` — Pestaña Firmas (firma personal y firma de la organización con variables de perfil y guardado confirmado).
+- `docs/plantillas-correo/04-disenar-con-ia.png` — Resultado de «Diseñar con IA» abierto en HTML editable con vista previa en `iframe sandbox` y notas de la IA sin guardado automático.
+
