@@ -49,9 +49,7 @@ def _hint(exc: Exception) -> str:
             "aplicación, no la de la cuenta."
         )
     if isinstance(exc, TimeoutError):
-        return (
-            "El servidor no respondió a tiempo. Revisá el host y el puerto."
-        )
+        return "El servidor no respondió a tiempo. Revisá el host y el puerto."
     if "STARTTLS" in text or "SSL" in text or "TLS" in text:
         return (
             "Falló la negociación TLS. Suele ser el puerto: 465 va con SSL "
@@ -61,7 +59,14 @@ def _hint(exc: Exception) -> str:
 
 
 async def send_template_test(
-    *, channel, to_address: str, template_html: str
+    *,
+    channel,
+    to_address: str,
+    template_html: str,
+    user_signature_html: str | None = None,
+    org_signature_html: str | None = None,
+    user_signature_plain: str | None = None,
+    org_signature_plain: str | None = None,
 ) -> TestSendResult:
     """Mail the rendered template to ``to_address`` via ``channel``'s SMTP."""
     if not channel.smtp_enabled:
@@ -73,9 +78,7 @@ async def send_template_test(
             ),
         )
     if not channel.smtp_address:
-        return TestSendResult(
-            ok=False, error="La casilla no tiene servidor SMTP configurado."
-        )
+        return TestSendResult(ok=False, error="La casilla no tiene servidor SMTP configurado.")
 
     mail = EmailMessage()
     mail["From"] = formataddr(("", channel.email or channel.smtp_login or ""))
@@ -89,8 +92,14 @@ async def send_template_test(
     mail.set_content(
         render_plain(
             body=SAMPLE_BODY,
-            signature=channel.signature or "",
-            agent_signature=SAMPLE_AGENT_SIGNATURE,
+            signature=(
+                org_signature_plain
+                if org_signature_plain is not None
+                else (channel.signature or "")
+            ),
+            agent_signature=(
+                user_signature_plain if user_signature_plain is not None else SAMPLE_AGENT_SIGNATURE
+            ),
         )
     )
     mail.add_alternative(
@@ -98,6 +107,8 @@ async def send_template_test(
             template_html=template_html,
             signature=channel.signature or "",
             logo_url=channel.logo_url or "",
+            user_signature_html=user_signature_html,
+            org_signature_html=org_signature_html,
         ),
         subtype="html",
     )
@@ -110,8 +121,7 @@ async def send_template_test(
             username=channel.smtp_login or None,
             password=channel.smtp_password or None,
             use_tls=channel.smtp_enable_ssl_tls,
-            start_tls=channel.smtp_enable_starttls_auto
-            and not channel.smtp_enable_ssl_tls,
+            start_tls=channel.smtp_enable_starttls_auto and not channel.smtp_enable_ssl_tls,
             timeout=20.0,
         )
     except (aiosmtplib.SMTPException, OSError, TimeoutError) as exc:
