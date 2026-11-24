@@ -7,6 +7,8 @@ import { useContext, useEffect, useMemo, useRef } from "react";
 import { MetricChart } from "@/components/reports/metric-chart";
 import { SummaryCards } from "@/components/reports/summary-cards";
 import {
+  type AppIconComponent,
+  type IconAnimate,
   BarsIcon,
   ClockIcon,
   HourglassIcon,
@@ -17,7 +19,6 @@ import {
   UnassignedIcon,
 } from "@/components/shell/app-icons";
 import { PageSignContext } from "@/components/shell/page-header";
-import type { IconComponent } from "@/components/ui/brand-icons";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
@@ -38,26 +39,36 @@ import { animateCounter, animateStaggerIn } from "@/lib/motion/neon-motion";
 const LIVE: {
   key: keyof LiveMetrics;
   label: MessageKey;
-  icon: IconComponent;
+  icon: AppIconComponent;
+  animate: IconAnimate;
   query: string;
 }[] = [
-  { key: "open", label: "overview.live.open", icon: InboxIcon, query: "status=open" },
+  {
+    key: "open",
+    label: "overview.live.open",
+    icon: InboxIcon,
+    animate: "hover",
+    query: "status=open",
+  },
   {
     key: "unattended",
     label: "overview.live.unattended",
     icon: ClockIcon,
+    animate: "loop",
     query: "status=open",
   },
   {
     key: "unassigned",
     label: "overview.live.unassigned",
     icon: UnassignedIcon,
+    animate: "hover",
     query: "assignee=unassigned",
   },
   {
     key: "pending",
     label: "overview.live.pending",
     icon: HourglassIcon,
+    animate: "loop",
     query: "status=pending",
   },
 ];
@@ -65,7 +76,7 @@ const LIVE: {
 const ACTIONS: {
   label: MessageKey;
   desc: MessageKey;
-  icon: IconComponent;
+  icon: AppIconComponent;
   segment: string;
 }[] = [
   {
@@ -136,7 +147,7 @@ function LiveCard({
           data-live-icon={def.key}
           className="inline-flex shrink-0 items-center justify-center text-fg-muted transition-colors group-hover:text-lit"
         >
-          <Icon className="h-8 w-8" aria-hidden />
+          <Icon className="h-8 w-8" animate={def.animate} aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
           <p
@@ -171,7 +182,7 @@ function ActionRow({
       className="group flex items-center gap-3 rounded-md border border-transparent px-2 py-2 transition-colors hover:border-glass hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
     >
       <span className="inline-flex shrink-0 items-center justify-center text-fg-muted transition-colors group-hover:text-lit">
-        <Icon className="h-5 w-5" aria-hidden />
+        <Icon className="h-5 w-5" animate="hover" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-fg">{t(action.label)}</p>

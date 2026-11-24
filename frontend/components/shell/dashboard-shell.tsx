@@ -204,15 +204,23 @@ export function DashboardShell({
               aria-label={toggleLabel}
               title={toggleLabel}
               className={cn(
-                "neon-nav flex h-11 w-full items-center rounded-control hover:bg-hover-glass",
+                "group neon-nav flex h-11 w-full items-center rounded-control hover:bg-hover-glass",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
                 sidebarCollapsed ? "justify-center px-0" : "px-[14px]",
               )}
             >
               {sidebarCollapsed ? (
-                <SidebarExpandIcon className="h-5 w-5 shrink-0" aria-hidden />
+                <SidebarExpandIcon
+                  className="h-5 w-5 shrink-0"
+                  animate="hover"
+                  aria-hidden
+                />
               ) : (
-                <SidebarCollapseIcon className="h-5 w-5 shrink-0" aria-hidden />
+                <SidebarCollapseIcon
+                  className="h-5 w-5 shrink-0"
+                  animate="hover"
+                  aria-hidden
+                />
               )}
             </button>
           </div>
