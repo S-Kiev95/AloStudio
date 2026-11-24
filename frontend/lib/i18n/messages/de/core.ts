@@ -173,8 +173,11 @@ export const core: Strings<typeof es> = {
     displayName: "Anzeigename",
     emailChangeNote: "Wenn du die E-Mail änderst, musst du die neue bestätigen.",
     phone: "Telefon",
+    jobTitle: "Position",
+    jobTitlePlaceholder: "z. B. Kundenservice",
     signature: "Nachrichtensignatur",
     signaturePlaceholder: "Erscheint am Ende deiner Antworten in Konversationen.",
+    designEmailSignatureLink: "Gestaltete E-Mail-Signatur oder persönliche Vorlagen erstellen",
     updateFailed: "Das Profil konnte nicht aktualisiert werden.",
     language: {
       title: "Sprache",
