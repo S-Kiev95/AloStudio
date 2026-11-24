@@ -173,8 +173,11 @@ export const core: Strings<typeof es> = {
     displayName: "Display name",
     emailChangeNote: "If you change the email, you'll have to confirm the new one.",
     phone: "Phone",
+    jobTitle: "Job title",
+    jobTitlePlaceholder: "e.g. Customer Support",
     signature: "Message signature",
     signaturePlaceholder: "Shown at the end of your replies in conversations.",
+    designEmailSignatureLink: "Design a rich email signature or personal templates",
     updateFailed: "Couldn't update the profile.",
     language: {
       title: "Language",

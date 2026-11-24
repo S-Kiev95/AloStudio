@@ -171,8 +171,11 @@ export const core: Strings<typeof es> = {
     displayName: "表示名",
     emailChangeNote: "メールアドレスを変更すると、新しいアドレスの確認が必要です。",
     phone: "電話番号",
+    jobTitle: "役職",
+    jobTitlePlaceholder: "例: カスタマーサポート",
     signature: "メッセージ署名",
     signaturePlaceholder: "会話での返信の最後に表示されます。",
+    designEmailSignatureLink: "デザイン付きメール署名や個人テンプレートを作成",
     updateFailed: "プロフィールを更新できませんでした。",
     language: {
       title: "言語",

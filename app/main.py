@@ -57,6 +57,7 @@ from app.domains.csat.router import router as csat_router
 from app.domains.custom_attributes.router import router as custom_attributes_router
 from app.domains.custom_views.router import router as custom_views_router
 from app.domains.decisions.router import router as decisions_router
+from app.domains.email.signatures_router import router as email_signatures_router
 from app.domains.email.templates_router import router as email_templates_router
 from app.domains.facebook.connect_router import router as facebook_connect_router
 from app.domains.facebook.router import router as facebook_webhook_router
@@ -195,7 +196,8 @@ def create_app() -> FastAPI:
     # i.e. unwrapped (no FastAPI ``"detail"`` key). See the docstring
     # on the marker class for context.
     app.add_exception_handler(
-        ChatwootHTTPException, chatwoot_http_exception_handler  # type: ignore[arg-type]
+        ChatwootHTTPException,
+        chatwoot_http_exception_handler,  # type: ignore[arg-type]
     )
     # Request-id middleware (Phase 10.3) — reads/mints ``X-Request-Id``
     # and binds it onto the structured-log context so every log entry
@@ -333,6 +335,7 @@ def create_app() -> FastAPI:
     # Instagram comment moderation (feat/instagram-graph I.7). admin-only.
     # List/post/reply/hide/delete comments on owned media.
     app.include_router(email_templates_router)
+    app.include_router(email_signatures_router)
     app.include_router(installation_router)
     app.include_router(instagram_comments_router)
     # Comment auto-reply config + prepared-answer library. admin-only.
