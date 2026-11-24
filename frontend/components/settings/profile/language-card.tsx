@@ -4,10 +4,23 @@ import { useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { Listbox, type ListboxOption } from "@/components/ui/listbox";
 import { useProfile, useUpdateProfile } from "@/lib/api/profile";
-import { isLocale, LOCALE_NAMES, LOCALES } from "@/lib/i18n/config";
+import {
+  isLocale,
+  LOCALE_NAMES,
+  LOCALES,
+  type Locale,
+} from "@/lib/i18n/config";
 import { useLocale, useSwitchLocale, useT } from "@/lib/i18n/provider";
+
+const LOCALE_OPTIONS: readonly ListboxOption<Locale>[] = LOCALES.map(
+  (code) => ({
+    value: code,
+    label: LOCALE_NAMES[code],
+    lang: code,
+  }),
+);
 
 /**
  * Interface language (F13). Switches right away (cookie + re-render) and is
@@ -43,20 +56,18 @@ export function LanguageCard() {
       </CardHeader>
       <CardContent>
         <div className="space-y-1.5">
-          <Label htmlFor="p-locale">{t("profile.language.label")}</Label>
-          <Select
+          <Label id="p-locale-label" htmlFor="p-locale">
+            {t("profile.language.label")}
+          </Label>
+          <Listbox
             id="p-locale"
             value={locale}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(next) => void onChange(next)}
+            options={LOCALE_OPTIONS}
             disabled={update.isPending}
+            aria-labelledby="p-locale-label"
             className="sm:max-w-xs"
-          >
-            {LOCALES.map((code) => (
-              <option key={code} value={code} lang={code}>
-                {LOCALE_NAMES[code]}
-              </option>
-            ))}
-          </Select>
+          />
           <p className="text-xs text-fg-muted">
             {t("profile.language.description")}
           </p>
