@@ -299,15 +299,17 @@ async def test_agent_can_manage_own_personal_templates_only(client, db_session):
     base_org = _url(owner.account.id)
     base_personal = f"{base_org}/personal"
 
-    # Organisation templates remain admin-only.
-    assert (
-        await client.post(
-            base_org,
-            headers=headers_a,
-            json={"name": "No permitido", "template_html": "<p>{{contenido}}</p>"},
-        )
-    ).status_code == 403
-    assert (await client.get(base_org, headers=headers_a)).status_code == 403
+    # Organisation templates remain admin-only (401 not_authorized per Chatwoot parity).
+    org_post = await client.post(
+        base_org,
+        headers=headers_a,
+        json={"name": "No permitido", "template_html": "<p>{{contenido}}</p>"},
+    )
+    assert org_post.status_code == 401
+    assert org_post.json()["code"] == "not_authorized"
+    org_get = await client.get(base_org, headers=headers_a)
+    assert org_get.status_code == 401
+    assert org_get.json()["code"] == "not_authorized"
 
     # Agent A creates a personal template and marks it as default.
     created = await client.post(
@@ -476,13 +478,13 @@ async def test_org_and_personal_signatures_and_legacy_fallback(client, db_sessio
     sig_base = f"/api/v1/accounts/{owner.account.id}/email_signatures"
 
     # Non-admin cannot edit the organisation signature.
-    assert (
-        await client.put(
-            f"{sig_base}/organization",
-            headers=agent_headers,
-            json={"signature_html": "<p>No</p>"},
-        )
-    ).status_code == 403
+    denied_sig = await client.put(
+        f"{sig_base}/organization",
+        headers=agent_headers,
+        json={"signature_html": "<p>No</p>"},
+    )
+    assert denied_sig.status_code == 401
+    assert denied_sig.json()["code"] == "not_authorized"
 
     # Admin saves the organisation signature (malicious tags stripped).
     org_resp = await client.put(
