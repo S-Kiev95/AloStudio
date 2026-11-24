@@ -360,7 +360,7 @@ export function IconsShowcase() {
             Se disparan una vez (~0,6–0,9 s) desde la fila del menú o la tarjeta.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {hoverEntries.map((entry) => (
             <ShowcaseCard
               key={entry.id}
