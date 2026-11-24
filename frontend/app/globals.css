@@ -81,12 +81,26 @@
   --neon-table-text-focused: #2f5bf0;
   --neon-table-text-focused-rgb: 47 91 240;
 
+  /* Frosted neon glass surfaces (daylight) */
+  --neon-glass-surface: rgba(255, 255, 255, 0.76);
+  --neon-glass-work: rgba(255, 255, 255, 0.62);
+  --neon-glass-card: rgba(255, 255, 255, 0.68);
+  --neon-glass-card-hover: rgba(255, 255, 255, 0.86);
+  --neon-glass-dialog: rgba(255, 255, 255, 0.88);
+  --neon-glass-border: rgba(186, 198, 228, 0.78);
+  --neon-glass-top-light: rgba(255, 255, 255, 0.94);
+  --neon-glass-inner-glow: rgba(47, 91, 240, 0.06);
+  --neon-glass-blur: 14px;
+  --neon-glass-panel-blur: 18px;
+
   --gradient-primary: var(--neon-core);
-  --canvas-accent: radial-gradient(
-    ellipse 70% 45% at 14% -10%,
-    var(--neon-ambient),
-    transparent 70%
-  );
+  --canvas-accent:
+    radial-gradient(ellipse 68% 48% at 12% -6%, rgba(47, 91, 240, 0.14), transparent 68%),
+    radial-gradient(ellipse 52% 46% at 88% 12%, rgba(99, 132, 255, 0.11), transparent 70%),
+    radial-gradient(ellipse 55% 42% at 52% 108%, rgba(47, 91, 240, 0.08), transparent 72%);
+  --work-canvas-accent:
+    radial-gradient(ellipse 58% 44% at 86% 6%, rgba(47, 91, 240, 0.10), transparent 68%),
+    radial-gradient(ellipse 52% 46% at 14% 92%, rgba(99, 132, 255, 0.08), transparent 72%);
   --edge-highlight: inset 0 1px 0 0 var(--neon-glass-highlight);
   --menu-shadow: 0 12px 32px -8px rgba(12, 17, 36, 0.16);
   --shadow-sm: none;
@@ -172,12 +186,26 @@
   --neon-table-text-focused: #7fa0ff;
   --neon-table-text-focused-rgb: 127 160 255;
 
+  /* Frosted neon glass surfaces (night) */
+  --neon-glass-surface: rgba(11, 16, 32, 0.72);
+  --neon-glass-work: rgba(11, 16, 32, 0.56);
+  --neon-glass-card: rgba(15, 22, 44, 0.58);
+  --neon-glass-card-hover: rgba(22, 32, 64, 0.72);
+  --neon-glass-dialog: rgba(11, 16, 32, 0.84);
+  --neon-glass-border: rgba(127, 160, 255, 0.19);
+  --neon-glass-top-light: rgba(219, 228, 255, 0.14);
+  --neon-glass-inner-glow: rgba(61, 107, 255, 0.10);
+  --neon-glass-blur: 14px;
+  --neon-glass-panel-blur: 18px;
+
   --gradient-primary: var(--neon-core);
-  --canvas-accent: radial-gradient(
-    ellipse 70% 45% at 14% -10%,
-    var(--neon-ambient),
-    transparent 70%
-  );
+  --canvas-accent:
+    radial-gradient(ellipse 70% 50% at 14% -8%, rgba(61, 107, 255, 0.20), transparent 68%),
+    radial-gradient(ellipse 52% 48% at 86% 14%, rgba(47, 91, 240, 0.14), transparent 70%),
+    radial-gradient(ellipse 56% 42% at 50% 106%, rgba(61, 107, 255, 0.11), transparent 72%);
+  --work-canvas-accent:
+    radial-gradient(ellipse 56% 44% at 84% 6%, rgba(61, 107, 255, 0.13), transparent 68%),
+    radial-gradient(ellipse 52% 46% at 14% 92%, rgba(47, 91, 240, 0.09), transparent 72%);
   --edge-highlight: inset 0 1px 0 0 var(--neon-glass-highlight);
   --menu-shadow: 0 12px 32px -8px rgba(1, 3, 10, 0.80);
   --shadow-sm: none;
@@ -470,11 +498,90 @@
     animation: neon-letter-last-o var(--scene-duration, 5000ms) ease-in-out 1;
   }
 
-  /* Shell panel: unlit glass hairline + 1px top highlight, no drop shadow. */
+  /* Shell panel: frosted cobalt glass + hairline + 1px top highlight. */
   .glass-panel {
+    background-color: var(--neon-glass-surface);
+    backdrop-filter: blur(var(--neon-glass-panel-blur)) saturate(135%);
+    -webkit-backdrop-filter: blur(var(--neon-glass-panel-blur)) saturate(135%);
     box-shadow:
-      inset 0 0 0 1px var(--neon-glass),
-      inset 0 1px 0 0 var(--neon-glass-highlight);
+      inset 0 0 0 1px var(--neon-glass-border),
+      inset 0 1px 0 0 var(--neon-glass-top-light);
+  }
+
+  /* Main work canvas inside DashboardShell: carries the subtle cobalt glow
+     that frosted cards blur behind them, without setting backdrop-filter on
+     this ancestor so fixed mobile popovers and tooltips stay viewport-bound. */
+  .glass-work-canvas {
+    background-color: var(--neon-glass-work);
+    background-image: var(--work-canvas-accent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* Frosted neon glass card & side panels (never applied to long list rows). */
+  .glass-card {
+    background-color: var(--neon-glass-card);
+    border: 1px solid var(--neon-glass-border);
+    backdrop-filter: blur(var(--neon-glass-blur)) saturate(130%);
+    -webkit-backdrop-filter: blur(var(--neon-glass-blur)) saturate(130%);
+    box-shadow:
+      inset 0 1px 0 0 var(--neon-glass-top-light),
+      inset 0 0 24px -12px var(--neon-glass-inner-glow);
+  }
+  .glass-card-interactive {
+    transition:
+      background-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .glass-card-interactive:hover {
+    background-color: var(--neon-glass-card-hover);
+    border-color: var(--border-strong);
+  }
+
+  /* Frosted glass surface for native <dialog> modals and floating popovers. */
+  .glass-dialog {
+    background-color: var(--neon-glass-dialog);
+    border: 1px solid var(--neon-glass-border);
+    backdrop-filter: blur(var(--neon-glass-panel-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--neon-glass-panel-blur)) saturate(140%);
+    box-shadow:
+      var(--menu-shadow),
+      inset 0 1px 0 0 var(--neon-glass-top-light);
+  }
+
+  @supports not (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
+    .glass-panel,
+    .glass-work-canvas,
+    .glass-card,
+    .glass-dialog {
+      background-color: var(--surface);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .glass-panel,
+    .glass-work-canvas,
+    .glass-card,
+    .glass-dialog {
+      background-color: var(--surface);
+      background-image: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    .glass-panel,
+    .glass-card {
+      border-color: var(--neon-glass);
+      box-shadow: inset 0 0 0 1px var(--neon-glass);
+    }
+    .glass-dialog {
+      border-color: var(--neon-glass);
+      box-shadow: var(--menu-shadow);
+    }
   }
 
   /* Section tab rail: lit text over a 2px glowing cobalt bar on the rail. */

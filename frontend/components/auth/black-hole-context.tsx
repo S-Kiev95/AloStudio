@@ -420,7 +420,7 @@ export function AuthSingularityShell({
               ref={shellRef}
               data-bh-shell
               aria-hidden
-              className="glass-panel pointer-events-none absolute inset-0 z-0 rounded-panel bg-surface"
+              className="glass-panel pointer-events-none absolute inset-0 z-0 rounded-panel"
             />
 
             {/* Cobalt fracture cracks overlay (visible only during Phase 1) */}

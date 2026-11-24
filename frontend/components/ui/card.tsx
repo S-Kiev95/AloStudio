@@ -3,8 +3,8 @@ import { type HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Card — unlit cobalt-glass container (8px corners, 1px Unlit Glass border,
- * zero shadow and zero glow — DESIGN.md Light-Not-Lift Rule).
+ * Card — frosted cobalt-glass container (8px corners, translucent surface with
+ * backdrop blur, fine neon border & top highlight, zero drop shadow).
  */
 export function Card({
   className,
@@ -14,9 +14,8 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-md border border-glass bg-surface",
-        interactive &&
-          "transition-colors duration-200 hover:border-border-strong hover:bg-hover-glass",
+        "glass-card rounded-md",
+        interactive && "glass-card-interactive",
         className,
       )}
       {...props}
