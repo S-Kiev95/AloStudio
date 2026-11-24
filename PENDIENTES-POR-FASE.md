@@ -255,6 +255,20 @@ dentro de la rama.
      la API de YouTube (hasta entonces los videos suben privados). La cuota
      gratis alcanza para unos 6 videos por día.
 
+- **Decidido (dueño, 2026-11-24):** YouTube (publicar y **comentarios**) y Google
+  Calendar se prueban con la capa gratis del proyecto de Google Cloud del dueño
+  (tipo «Externa», en prueba); cuando el código esté probado se publica la app.
+  Falta: que el dueño active la API y las URLs de retorno, y programar los
+  **comentarios de YouTube** (leer y responder desde AloStudio), que todavía no
+  están.
+- **Meta (2026-11-24):** la app común «AloStudio» quedó **aprobada** con acceso
+  avanzado (Instagram, páginas, Messenger, Threads, WhatsApp, empresa). La app
+  «AloStudio CTC» fue **rechazada** en todo: a CTC le funciona WhatsApp, pero
+  Instagram y Messenger solo reciben mensajes de quienes tienen rol en la app.
+  Plan del dueño: pasar CTC a la app global cuando tenga el catálogo (pedido de
+  nuevo el 2026-11-24) y esté el multitenant. Conversions API
+  (`whatsapp_business_manage_events`) sigue rechazado.
+
 ## F4. Herramientas que le faltan al MCP
 
 - **Hecho el 2026-11-11 (prioridad alta), en develop:** `list_inboxes`,
@@ -502,6 +516,11 @@ dentro de la rama.
   enganche (cuando entra la llamada, decidir si suena a las personas o la
   atiende la IA) y reusa `pre_accept` / `accept`. Se avisa acá antes de
   mezclar.
+
+- **Para el agente A (dueño, 2026-11-24):** usar los créditos de Google Cloud del
+  dueño para poner **Gemini como agente de voz de las llamadas**. También: la
+  función `generate_email_design` (`app/domains/email/ai_design.py`, plantillas y
+  firmas de correo con IA) quedó lista para usarla como herramienta del Agente.
 
 ## F8. Búsqueda en conversaciones viejas
 
