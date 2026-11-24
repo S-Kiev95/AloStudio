@@ -27,6 +27,7 @@ const MODELS = [
   "tiktok",
   "threads",
   "linkedin",
+  "youtube",
 ] as const;
 
 const OBSTACLE_SELECTOR = "[data-bounce]";

@@ -378,6 +378,21 @@ def build_all():
     solid(letters, white, 0.045, 0.018, z=FRONT)
     logos.append(finish("linkedin", [body, letters]))
 
+    # YouTube: red rounded rectangle, white play triangle on top. Like
+    # LinkedIn, the icon is the shape minus the triangle, so dropping its
+    # outer contour leaves the triangle.
+    body = solid(
+        rounded_rect("youtube", 2.0, 1.41, 0.34),
+        material("youtube", "#FF0000"),
+        BODY,
+        EDGE,
+    )
+    play = import_glyph("youtube-mark", paths["YouTube"], 2.0)
+    splines = play.data.splines
+    splines.remove(max(splines, key=spline_area))
+    solid(play, white, 0.045, 0.018, z=FRONT)
+    logos.append(finish("youtube", [body, play]))
+
     # X and Threads: black tile with a pale band, white mark.
     black = material("black", "#0B0B0D", roughness=0.25)
     pale = material("pale", "#C9CFDA", roughness=0.3)
