@@ -204,4 +204,27 @@ describe("Navigation and CRM tabs", () => {
       window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY),
     ).toBe("0");
   });
+
+  it("mantiene quieto el ícono del ítem activo y anima solo en hover los inactivos del menú", () => {
+    mockPathname = "/accounts/1/conversations";
+    render(<SidebarNav accountId="1" />);
+
+    const activeLink = screen.getByRole("link", { name: "Bandeja" });
+    expect(activeLink).toHaveAttribute("aria-current", "page");
+    const activeSvg = activeLink.querySelector("svg[data-icon-animate]");
+    expect(activeSvg).toHaveAttribute("data-icon-animate", "none");
+    expect(activeSvg).toHaveClass("app-icon-none");
+
+    for (const label of ["Inicio", "Calendario", "Agente", "CRM", "Reportes"]) {
+      const link = screen.getByRole("link", { name: label });
+      expect(link).toHaveClass("group");
+      const svg = link.querySelector("svg[data-icon-animate]");
+      expect(svg).toHaveAttribute("data-icon-animate", "hover");
+      expect(svg).toHaveClass("app-icon-hover");
+    }
+
+    // Ningún ícono del menú lateral corre en bucle constante.
+    const nav = screen.getByRole("navigation", { name: "Principal" });
+    expect(nav.querySelectorAll("[data-icon-animate='loop']")).toHaveLength(0);
+  });
 });
