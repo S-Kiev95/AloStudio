@@ -237,3 +237,22 @@ Sin embargo, al recorrer la aplicación real en escritorio (`1440×900`) y celul
 | **P1** | #7 Cierre con clic afuera/`Escape` + borrar visible en móvil + teclado en Tabs | Chico | Accesibilidad WCAG y pulido diario |
 | **P2** | #8–#12 Targets táctiles ≥44px, KPIs cliqueables en Inicio, copy unificado, filtros compactos | Chico–Medio | Mejora velocidad diaria de operación |
 | **P3** | #13–#14 Animaciones con Anime.js v4 (ver [`propuesta-animejs-v4.md`](./propuesta-animejs-v4.md)) | Medio | Eleva identidad y respuesta táctil |
+
+---
+
+## Ampliación: Cards y paneles de vidrio opaco (vidrio esmerilado) — 2026-11-23
+
+- **Objetivo:** Llevar al resto del panel la estética de vidrio opaco (esmerilado) de la tarjeta de login: fondo translúcido, desenfoque del fondo (`backdrop-filter: blur`), borde fino e iluminación superior sutil con tokens `--neon-*`, tanto en modo claro como en modo oscuro.
+- **Implementación central (`frontend/app/globals.css` + `frontend/components/ui/card.tsx`):**
+  - Nuevos tokens en `:root` (claro) y `.dark` (oscuro): `--neon-glass-surface`, `--neon-glass-work`, `--neon-glass-card`, `--neon-glass-card-hover`, `--neon-glass-dialog`, `--neon-glass-border`, `--neon-glass-top-light`, `--neon-glass-inner-glow`, `--neon-glass-blur` (`14px`), `--neon-glass-panel-blur` (`18px`) y `--work-canvas-accent`.
+  - Fondo ambiental sutil (`--canvas-accent` en `body` + `.glass-work-canvas` en el panel principal de `DashboardShell`) con resplandores cobalto suaves para que el vidrio esmerilado tenga profundidad detrás sin cansar la vista ni bajar el contraste (WCAG AA garantizado en ambos temas).
+  - Tres clases reutilizables: `.glass-panel` (login, sidebar, cajón móvil, selector de cuentas), `.glass-card` / `.glass-card-interactive` (componente compartido `<Card>`, `ErrorState`, paneles laterales de Bandeja, columnas Kanban y contenedores de CRM/Agenda/Ajustes/Agente IA/WhatsApp) y `.glass-dialog` (los 11 modales `<dialog>`, popovers del topbar, `CallDock`, `CallButton` y tooltips).
+  - **Rendimiento y accesibilidad:** cero `backdrop-filter` en filas de listas largas (conversaciones, mensajes, contactos, etiquetas) ni en el ancestro `.glass-work-canvas` (para no romper `position: fixed` en móvil); fallback automático a fondo sólido `var(--surface)` bajo `@supports not (backdrop-filter: blur(1px))` y `@media (prefers-reduced-transparency: reduce)`.
+- **Capturas antes y después en `docs/design-neon/`:**
+  - Inicio oscuro: `vidrio-antes-inicio-oscuro.png` → `vidrio-despues-inicio-oscuro.png`
+  - Inicio claro: `vidrio-antes-inicio-claro.png` → `vidrio-despues-inicio-claro.png`
+  - Inicio móvil oscuro: `vidrio-antes-inicio-mobile-oscuro.png` → `vidrio-despues-inicio-mobile-oscuro.png`
+  - CRM Oportunidades (oscuro y claro): `vidrio-antes-crm-oscuro.png` → `vidrio-despues-crm-oscuro.png` y `vidrio-despues-crm-claro.png`
+  - Bandeja (paneles laterales): `vidrio-antes-bandeja-oscuro.png` → `vidrio-despues-bandeja-oscuro.png`
+  - Diálogo en claro: `vidrio-antes-dialogo-claro.png` → `vidrio-despues-dialogo-claro.png`
+  - Reportes y Agente IA: `vidrio-despues-reportes-oscuro.png`, `vidrio-despues-agente-oscuro.png`

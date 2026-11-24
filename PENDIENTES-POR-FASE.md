@@ -1287,11 +1287,22 @@ Detalle en `PLAN.i18n.md`.
         `PendingActionCard` + 3 puntos Electrode Orange con `stagger(120)` en
         «Pensando…») y destello cobalto único (`360 ms`) al llegar una nueva
         conversación en `ConversationList`.
-    - Pruebas nuevas y actualizadas (`neon-motion.test.tsx`, `opportunities-view.test.tsx`,
+    - **Vidrio opaco / esmerilado en cards, paneles y diálogos (2026-11-23):**
+      tokens `--neon-glass-*` y clases `.glass-panel`, `.glass-card`,
+      `.glass-dialog` y `.glass-work-canvas` en `frontend/app/globals.css` (claro
+      y oscuro, resplandor cobalto sutil de fondo, fallbacks `@supports not` y
+      `prefers-reduced-transparency: reduce`, sin blur en filas de listas largas),
+      aplicados desde `<Card>` y `ErrorState` compartidos más paneles laterales
+      de Bandeja, CRM (Contactos, Oportunidades, Agenda), Ajustes, Agente IA,
+      WhatsApp, `CallDock`, popovers del topbar y los 11 `<dialog>`. Capturas
+      antes/después en `docs/design-neon/vidrio-*.png` y registro en
+      `docs/neon/informe-ui-ux.md`.
+    - Pruebas nuevas y actualizadas (`card.test.tsx`, `neon-motion.test.tsx`, `opportunities-view.test.tsx`,
       `account-overview.test.tsx`, `nav.test.tsx`, `confirm-dialog.test.tsx`,
       `error-state.test.tsx`, `use-dismiss.test.tsx`, `whatsapp-panels.test.tsx`,
       `black-hole-login.test.tsx`, `settings-sidebar.test.tsx`,
-      `dashboard-shell.test.tsx`, `tabs.test.tsx`: **127 archivos, 572 tests en
-      verde**; `npm run typecheck` y `npx eslint .` con 0 errores) y capturas
-      antes/después en `docs/neon/capturas/despues-*.png`.
+      `dashboard-shell.test.tsx`, `tabs.test.tsx`: **128 archivos, 574 tests en
+      verde**; `npm run lint`, `npx tsc --noEmit` y `npm run build` limpios) y
+      capturas antes/después en `docs/neon/capturas/despues-*.png` y
+      `docs/design-neon/vidrio-*.png`.
     - Pendiente de OK del dueño para pushear/mezclar `feat/neon-ux`.
