@@ -40,11 +40,7 @@ def _available_name(user: User) -> str:
 
 
 def _permissions_for(account_user: AccountUser) -> list[str]:
-    return (
-        ["administrator"]
-        if account_user.role == ACCOUNT_USER_ROLE_ADMINISTRATOR
-        else ["agent"]
-    )
+    return ["administrator"] if account_user.role == ACCOUNT_USER_ROLE_ADMINISTRATOR else ["agent"]
 
 
 def _availability_status(availability: int) -> str:
@@ -116,6 +112,7 @@ def present_auth_response(
         "avatar_url": _avatar_url(user),
         "confirmed": user.confirmed_at is not None,
         "display_name": user.display_name,
+        "job_title": user.job_title,
         "message_signature": user.message_signature,
         "email": user.email,
         "id": user.id,

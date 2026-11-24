@@ -61,9 +61,7 @@ _AVAIL_INT_TO_STR: dict[int, str] = {
 # -------------------------------------------------------------------- User
 class User(TimestampMixin, table=True):
     __tablename__ = "users"
-    __table_args__ = (
-        UniqueConstraint("uid", "provider", name="index_users_on_uid_and_provider"),
-    )
+    __table_args__ = (UniqueConstraint("uid", "provider", name="index_users_on_uid_and_provider"),)
 
     id: int | None = Field(
         default=None, sa_column=Column(Integer, primary_key=True, autoincrement=True)
@@ -74,9 +72,7 @@ class User(TimestampMixin, table=True):
         default="email",
         sa_column=Column(String, nullable=False, server_default="email"),
     )
-    uid: str = Field(
-        default="", sa_column=Column(String, nullable=False, server_default="")
-    )
+    uid: str = Field(default="", sa_column=Column(String, nullable=False, server_default=""))
     email: str | None = Field(default=None, sa_column=Column(String, nullable=True, index=True))
 
     # Devise — authentication
@@ -120,22 +116,19 @@ class User(TimestampMixin, table=True):
     # Profile
     name: str = Field(sa_column=Column(String, nullable=False))
     display_name: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    job_title: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     message_signature: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     # Avatar — the URL of an uploaded image (our MinIO/S3 pipeline). Chatwoot
     # uses an ActiveStorage attachment + ``Avatarable#avatar_url``; we store
     # the resolved URL directly, set via the profile update after a direct
     # upload. ``None`` → the presenter falls back to an empty string.
-    avatar_url: str | None = Field(
-        default=None, sa_column=Column(String, nullable=True)
-    )
+    avatar_url: str | None = Field(default=None, sa_column=Column(String, nullable=True))
 
     # devise-token-auth persistent session tokens (JSON blob keyed by client id).
     # For Phase 1 we keep the column for schema parity but don't serialise into
     # it — JWT is the source of truth; the column remains '{}' unless legacy
     # data is imported.
-    tokens: dict[str, Any] = Field(
-        default_factory=dict, sa_column=Column(JSON, nullable=True)
-    )
+    tokens: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=True))
 
     # Chatwoot-specific
     pubsub_token: str | None = Field(
@@ -180,8 +173,7 @@ class User(TimestampMixin, table=True):
         back_populates="owner_user",
         sa_relationship_kwargs={
             "primaryjoin": (
-                "and_(User.id==foreign(AccessToken.owner_id),"
-                " AccessToken.owner_type=='User')"
+                "and_(User.id==foreign(AccessToken.owner_id), AccessToken.owner_type=='User')"
             ),
             "uselist": False,
             "lazy": "selectin",
@@ -232,9 +224,7 @@ class AccountUser(TimestampMixin, table=True):
     )
     inviter_id: int | None = Field(
         default=None,
-        sa_column=Column(
-            BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-        ),
+        sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
     )
     active_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=False), nullable=True)
@@ -249,7 +239,9 @@ class AccountUser(TimestampMixin, table=True):
     )
     # custom_role_id / agent_capacity_policy_id FKs deferred to Phase 9;
     # keeping the column so the schema matches for future data migration.
-    custom_role_id: int | None = Field(default=None, sa_column=Column(BigInteger, nullable=True, index=True))
+    custom_role_id: int | None = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True, index=True)
+    )
     agent_capacity_policy_id: int | None = Field(
         default=None, sa_column=Column(BigInteger, nullable=True, index=True)
     )
@@ -313,8 +305,7 @@ class AccessToken(TimestampMixin, table=True):
         back_populates="access_token",
         sa_relationship_kwargs={
             "primaryjoin": (
-                "and_(User.id==foreign(AccessToken.owner_id),"
-                " AccessToken.owner_type=='User')"
+                "and_(User.id==foreign(AccessToken.owner_id), AccessToken.owner_type=='User')"
             ),
             "uselist": False,
             "viewonly": False,
