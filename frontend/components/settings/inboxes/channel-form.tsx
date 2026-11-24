@@ -96,7 +96,7 @@ export function ChannelForm({
 
       <form
         onSubmit={submit}
-        className="space-y-4 rounded-md border border-glass bg-surface p-5"
+        className="glass-card space-y-4 rounded-md p-5"
       >
         <Field label={t("settingsInboxes.inboxName")} required>
           <Input

@@ -74,7 +74,7 @@ export function CloseDialog({
       ref={ref}
       onClose={onClose}
       aria-labelledby={`${noteId}-title`}
-      className="w-full max-w-md rounded-panel border border-glass bg-surface p-0 text-fg shadow-menu backdrop:bg-backdrop/75"
+      className="glass-dialog w-full max-w-md rounded-panel p-0 text-fg backdrop:bg-backdrop/75"
     >
       <div className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">

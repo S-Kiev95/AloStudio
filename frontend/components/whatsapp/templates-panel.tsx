@@ -1089,7 +1089,7 @@ export function WhatsappTemplatesPanel({
           {t("whatsapp.templates.empty")}
         </p>
       ) : (
-        <ul className="divide-y divide-glass overflow-hidden rounded-md border border-glass bg-surface">
+        <ul className="glass-card divide-y divide-glass overflow-hidden rounded-md">
           {templates.map((tpl) => {
             const statusUpper = (tpl.status ?? "").toUpperCase();
             const meta = STATUS_META[statusUpper];

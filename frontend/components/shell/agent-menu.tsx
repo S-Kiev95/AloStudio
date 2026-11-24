@@ -69,7 +69,7 @@ export function AgentMenu({
       </summary>
       <div
         ref={menuRef}
-        className="z-30 overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu max-sm:fixed max-sm:right-3 max-sm:top-[4.5rem] max-sm:w-60 sm:absolute sm:right-0 sm:mt-1.5 sm:w-60"
+        className="glass-dialog z-30 overflow-hidden rounded-md max-sm:fixed max-sm:right-3 max-sm:top-[4.5rem] max-sm:w-60 sm:absolute sm:right-0 sm:mt-1.5 sm:w-60"
         role="menu"
       >
         <div className="border-b border-glass px-3 py-3">

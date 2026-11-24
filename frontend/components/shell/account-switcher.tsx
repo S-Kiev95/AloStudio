@@ -70,7 +70,7 @@ export function AccountSwitcher({
       <div
         ref={menuRef}
         className={cn(
-          "absolute z-30 overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu",
+          "glass-dialog absolute z-30 overflow-hidden rounded-md",
           fullWidth ? "inset-x-0" : "right-0 w-64",
           placement === "up" ? "bottom-full mb-1.5" : "mt-1.5",
         )}

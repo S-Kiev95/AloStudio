@@ -107,7 +107,7 @@ export function CustomAttributesView({ accountId }: { accountId: string }) {
         options={MODEL_FILTERS.map((o) => ({ ...o, label: t(o.label) }))}
       />
 
-      <div className="overflow-hidden rounded-md border border-glass bg-surface">
+      <div className="glass-card overflow-hidden rounded-md">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (

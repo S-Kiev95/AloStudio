@@ -277,7 +277,7 @@ export function AgendaView({ accountId, now: nowProp }: { accountId: string; now
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-md border border-glass bg-surface p-8 text-center text-sm text-fg-muted">
+        <div className="glass-card rounded-md p-8 text-center text-sm text-fg-muted">
           {t("agenda.loading")}
         </div>
       ) : isError ? (
@@ -303,11 +303,11 @@ export function AgendaView({ accountId, now: nowProp }: { accountId: string; now
           onSelect={openEdit}
         />
       ) : appointments.length === 0 ? (
-        <div className="rounded-md border border-glass bg-surface p-8 text-center text-sm text-fg-muted">
+        <div className="glass-card rounded-md p-8 text-center text-sm text-fg-muted">
           {t("agenda.emptyFilter")}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-md border border-glass bg-surface">
+        <div className="glass-card overflow-hidden rounded-md">
           <ul className="divide-y divide-glass">
             {appointments.map((appt) => {
               const contactLabel =

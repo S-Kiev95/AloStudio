@@ -265,7 +265,7 @@ function StageColumn({
         if (id) onDropOpportunity(id);
       }}
       className={cn(
-        "flex w-72 shrink-0 flex-col rounded-md border border-glass bg-surface transition-colors",
+        "glass-card flex w-72 shrink-0 flex-col rounded-md transition-colors",
         over && "border-neon",
       )}
     >
@@ -335,7 +335,7 @@ function OpportunityCard({
     o.expected_close_on != null &&
     o.expected_close_on < new Date().toISOString().slice(0, 10);
   return (
-    <div className="rounded-md border border-glass bg-surface-2 transition-colors hover:border-neon/60">
+    <div className="rounded-md border border-glass bg-surface-2/75 shadow-[inset_0_1px_0_0_var(--neon-glass-top-light)] transition-colors hover:border-neon/60 hover:bg-hover-glass/80">
       <button
         type="button"
         draggable
