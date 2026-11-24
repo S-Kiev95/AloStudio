@@ -76,7 +76,7 @@ export function AgentShell({
 
   return (
     <AgentShellContext.Provider value={ctx}>
-      <div className="flex min-h-[calc(100dvh-10rem)] overflow-hidden rounded-md border border-glass bg-surface md:h-[calc(100dvh-10rem)]">
+      <div className="glass-card flex min-h-[calc(100dvh-10rem)] overflow-hidden rounded-md md:h-[calc(100dvh-10rem)]">
         <div
           data-testid="agent-threads-column"
           className={cn(

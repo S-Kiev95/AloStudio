@@ -62,7 +62,7 @@ function ContactPanelFrame({
       data-testid="inbox-contact-panel"
       data-collapsed={collapsed ? "true" : "false"}
       className={cn(
-        "hidden shrink-0 overflow-hidden lg:flex lg:flex-col lg:border-l lg:border-glass lg:transition-[width] lg:duration-200 lg:ease-out motion-reduce:transition-none",
+        "glass-card hidden shrink-0 overflow-hidden border-0 lg:flex lg:flex-col lg:border-l lg:border-glass lg:transition-[width] lg:duration-200 lg:ease-out motion-reduce:transition-none",
         collapsed ? "lg:w-11" : "lg:w-[280px]",
       )}
     >

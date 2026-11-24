@@ -15,7 +15,7 @@ export function IntegrationsView({ accountId }: { accountId: string }) {
     <div className="max-w-3xl space-y-4">
       <h2 className="text-xl font-medium text-fg">{t("settings.items.integrations")}</h2>
 
-      <div className="overflow-hidden rounded-md border border-glass bg-surface">
+      <div className="glass-card overflow-hidden rounded-md">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (

@@ -139,7 +139,7 @@ export function TrafficHeatmap({ data }: { data: TrafficRow[] }) {
             transform: "translate(-50%, -100%)",
             pointerEvents: "none",
           }}
-          className="z-50 whitespace-nowrap rounded-md border border-glass bg-surface-2 px-2.5 py-1.5 text-xs shadow-menu"
+          className="glass-dialog z-50 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs"
         >
           <p className="font-numeric tabular-nums text-fg-muted">
             {hovered.when}

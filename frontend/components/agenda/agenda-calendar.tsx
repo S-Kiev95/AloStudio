@@ -173,7 +173,7 @@ export function AgendaHourlyGrid({
   const gridTemplateColumns = `64px repeat(${days.length}, minmax(0, 1fr))`;
 
   return (
-    <div data-testid="agenda-hourly-grid" className="overflow-x-auto rounded-md border border-glass bg-surface">
+    <div data-testid="agenda-hourly-grid" className="glass-card overflow-x-auto rounded-md">
       <div className="min-w-[680px]">
         <div
           ref={scrollerRef}
@@ -294,7 +294,7 @@ export function AgendaMonthGrid({
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
   return (
-    <div data-testid="agenda-month-grid" className="overflow-x-auto rounded-md border border-glass bg-surface">
+    <div data-testid="agenda-month-grid" className="glass-card overflow-x-auto rounded-md">
       <div className="min-w-[680px]">
         <div className="grid grid-cols-7 border-b border-glass bg-surface-2">
           {shortWeekdayNames(locale).map((wd) => (

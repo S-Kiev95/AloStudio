@@ -257,7 +257,7 @@ export function ContactsView({ accountId }: { accountId: string }) {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border border-glass bg-surface">
+      <div className="glass-card overflow-hidden rounded-md">
         {active.isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : active.isError ? (

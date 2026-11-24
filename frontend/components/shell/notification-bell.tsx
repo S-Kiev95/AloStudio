@@ -92,7 +92,7 @@ export function NotificationBell({ accountId }: { accountId: string }) {
 
       <div
         ref={panelRef}
-        className="z-30 flex flex-col overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.5rem] max-sm:max-h-[calc(100dvh-5.5rem)] max-sm:w-auto sm:absolute sm:right-0 sm:mt-1.5 sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]"
+        className="glass-dialog z-30 flex flex-col overflow-hidden rounded-md max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.5rem] max-sm:max-h-[calc(100dvh-5.5rem)] max-sm:w-auto sm:absolute sm:right-0 sm:mt-1.5 sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]"
         role="dialog"
         aria-label={t("notifications.title")}
       >

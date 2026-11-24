@@ -109,7 +109,7 @@ export function MCPTokensView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border border-glass bg-surface">
+      <div className="glass-card overflow-hidden rounded-md">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
