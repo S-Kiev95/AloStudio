@@ -95,4 +95,63 @@ documento; después el dueño lo prueba.
 
 ## Estado
 
-(Lo completa el agente.)
+Completado el 2026-11-24 en rama `feat/iconos-animados` (worktree `C:\Users\Zeek\Desktop\AloStudio-iconos`).
+
+### Lista de íconos, animación y modo
+
+| Ícono | Modo en Inicio («Ahora mismo») | Modo en menú lateral / accesos | Animación (SVG + CSS, solo `transform` y `opacity`) |
+| --- | --- | --- | --- |
+| `HourglassIcon` | `loop` (ciclo 5,4 s) | `hover` (0,95 s) | La arena superior se vacía con chorro fino hacia el bulbo inferior; al terminar, el reloj entero gira 180° y reinicia sin salto. En reposo muestra arena en ambos bulbos. |
+| `ClockIcon` | `loop` (6 s / 36 s) | `hover` (0,9 s) | El minutero gira visiblemente y el horario avanza lento, ambos pivotando en `(12, 13)`. |
+| `InboxIcon` | `hover` (0,85 s) | `hover` (0,85 s) | Cae un sobre dentro de la bandeja y el cuerpo de la bandeja cede levemente al aterrizar. |
+| `PeopleIcon` | — | `hover` (0,85 s) | La personita principal entra caminando desde el costado izquierdo con balanceo suave; la segunda acompaña al final. |
+| `UnassignedIcon` | `hover` (0,7 s) | `hover` (0,7 s) | La persona se inclina levemente y la «x» se sacude en horizontal. |
+| `CalendarIcon` | — | `hover` (0,8 s) | Pasa una hoja translúcida desde el borde superior y se resalta el día central. |
+| `AgentIcon` | — | `hover` (0,8 s) | La estrella principal pulsa mientras la chispa superior titila y aparece un destello breve abajo a la izquierda. |
+| `StatsIcon` | — | `hover` (0,75 s) | La línea de tendencia y su relleno suben desde el origen inferior izquierdo manteniendo fijos los ejes. |
+| `BarsIcon` | — | `hover` (0,65 s + escalonado) | Las tres barras suben en cascada (`0 ms`, `90 ms`, `180 ms`) desde la base. |
+| `MediaIcon` | — | `hover` (0,75–0,8 s) | Dentro de un `clipPath` del marco, la montaña sube y el sol asoma desde abajo. |
+| `BookIcon` | — | `hover` (0,75 s) | Las dos páginas se cierran levemente y se abren desde el lomo central (`x=12`). |
+| `MegaphoneIcon` | — | `hover` (0,8 s) | El megáfono se inclina hacia atrás y emite dos ondas de sonido hacia la derecha. |
+| `MessagesIcon` | — | `hover` (0,85 s + escalonado) | Aparecen y rebotan los tres puntitos de «escribiendo» dentro de la burbuja principal. |
+| `HomeIcon` | — | `hover` (0,85 s) | Se enciende la luz interior de la puerta y suben dos volutas suaves de humo desde el techo. |
+| `InstagramNavIcon` | — | `hover` (0,65 s) | Pulso suave del trazado monocromo conservando `scale-[0.85]` y el color `currentColor`. |
+| `WhatsappNavIcon` | — | `hover` (0,65 s) | Pulso suave del trazado monocromo conservando `scale-[0.85]` y el color `currentColor`. |
+| `SidebarCollapseIcon` | — | `hover` (0,6 s) | La flecha empuja a la izquierda y el panel lateral sombreado se angosta levemente. |
+| `SidebarExpandIcon` | — | `hover` (0,6 s) | La flecha empuja a la derecha y el panel lateral sombreado se ensancha levemente. |
+
+### Notas de implementación y verificación
+
+- **Prop de control**: todos los íconos en `frontend/components/shell/app-icons.tsx` aceptan `animate?: "loop" | "hover" | "none"` (por defecto `"hover"`), aplicando las clases `.app-icon`, `.app-icon-<nombre>`, `.app-icon-<modo>` y los atributos `data-icon-name` / `data-icon-animate`.
+- **Disparadores**: en `SidebarNav`, el ítem activo recibe `animate="none"` (no se anima solo) y los inactivos reciben `animate="hover"`, disparados al pasar el mouse o enfocar (`:focus-visible`) toda la fila `.group`. En `AccountOverview`, `ClockIcon` y `HourglassIcon` corren en `animate="loop"`, mientras `InboxIcon`, `UnassignedIcon` y los accesos rápidos usan `animate="hover"` desde la tarjeta `.group`. El botón de plegar/desplegar la barra lateral en `DashboardShell` también usa `.group` + `animate="hover"`.
+- **Accesibilidad**: `@media (prefers-reduced-motion: reduce)` en `frontend/app/globals.css` detiene todas las animaciones de `.app-icon` y `.app-icon *` (`animation: none !important; transition: none !important;`). Verificado en Chrome headless con `emulateMedia({ reducedMotion: "reduce" })` (`animationName === "none"`).
+- **Muestra de desarrollo**: `frontend/app/dev/iconos/page.tsx` devuelve 404 (`notFound()`) fuera de `NODE_ENV === "development"` y muestra los 18 íconos a 24 px y 48 px con conmutador Oscuro/Claro, botón para reproducir todos en bucle y vista previa de filas neón del menú.
+- **Capturas y GIF**: revisado en navegador real (`next dev`) con 0 errores de consola y guardado en:
+  - `docs/iconos-animados/muestra-oscuro.png`
+  - `docs/iconos-animados/muestra-claro.png`
+  - `docs/iconos-animados/iconos-animados.gif`
+
+### Salidas reales de verificación (en `frontend/`)
+
+```text
+> alostudio-frontend@0.1.0 typecheck
+> tsc --noEmit
+(exit code 0)
+```
+
+```text
+> alostudio-frontend@0.1.0 lint
+> next lint
+✔ No ESLint warnings or errors
+(exit code 0)
+```
+
+```text
+> alostudio-frontend@0.1.0 test
+> vitest run
+
+ Test Files  132 passed (132)
+      Tests  618 passed (618)
+   Duration  88.68s
+(exit code 0)
+```
