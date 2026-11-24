@@ -47,6 +47,7 @@ class _ProfileAttrs(BaseModel):
     email: EmailStr | None = None
     name: str | None = None
     display_name: str | None = None
+    job_title: str | None = None
     message_signature: str | None = None
     avatar_url: str | None = None
     ui_settings: dict | None = None
@@ -112,9 +113,7 @@ async def update_profile(
         ):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail={
-                    "message": "Password confirmation doesn't match password"
-                },
+                detail={"message": "Password confirmation doesn't match password"},
             )
         user.encrypted_password = hash_password(attrs.password)
 
@@ -126,6 +125,8 @@ async def update_profile(
         user.name = attrs.name
     if attrs.display_name is not None:
         user.display_name = attrs.display_name
+    if attrs.job_title is not None:
+        user.job_title = attrs.job_title or None
     if attrs.message_signature is not None:
         user.message_signature = attrs.message_signature
     if attrs.avatar_url is not None:
@@ -161,9 +162,7 @@ async def _render_user(session: AsyncSession, user: User) -> dict:
     """
     memberships = (
         await session.exec(
-            select(AccountUser)
-            .where(AccountUser.user_id == user.id)
-            .order_by(AccountUser.id)  # type: ignore[arg-type]
+            select(AccountUser).where(AccountUser.user_id == user.id).order_by(AccountUser.id)  # type: ignore[arg-type]
         )
     ).all()
 

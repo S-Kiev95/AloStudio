@@ -169,8 +169,11 @@ export const core = {
     displayName: "Nombre visible",
     emailChangeNote: "Al cambiar el email vas a tener que confirmar el nuevo.",
     phone: "Teléfono",
+    jobTitle: "Cargo",
+    jobTitlePlaceholder: "Ej. Atención al cliente",
     signature: "Firma de mensaje",
     signaturePlaceholder: "Aparece al final de tus respuestas en conversaciones.",
+    designEmailSignatureLink: "Diseñar firma con formato o plantillas personales de correo",
     updateFailed: "No se pudo actualizar el perfil.",
     language: {
       title: "Idioma",

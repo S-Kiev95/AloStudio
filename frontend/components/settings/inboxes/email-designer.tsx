@@ -1,5 +1,6 @@
 "use client";
 
+import { EmailPreviewFrame } from "@/components/settings/email-templates/email-preview-frame";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -187,37 +188,20 @@ function DesignPreview({
   signature: string;
 }) {
   const t = useT();
-  const html = renderDesign(design)
-    .replace(
-      "{{firma_agente}}",
-      "<i>la firma de quien responda va acá</i>",
-    )
-    .replace(
-      "{{contenido}}",
-      "<p style=\"margin:0 0 12px\">Gracias por escribirnos, te confirmo enseguida.</p>",
-    )
-    .replace(
-      "{{logo}}",
-      logoUrl
-        ? `<img src="${logoUrl}" alt="" style="max-width:160px;max-height:56px">`
-        : "",
-    )
-    .replace(
-      "{{firma}}",
-      signature.trim()
-        ? signature.replace(/\n/g, "<br>")
-        : "<i>tu firma va acá</i>",
-    );
+  const html = renderDesign(design);
 
   return (
-    <div className="space-y-1.5">
-      <Label>{t("settingsInboxes.preview")}</Label>
-      <div
-        className="overflow-hidden rounded-lg border border-border"
-        // The generated markup, not app markup: this is the only place the
-        // author can see what a recipient will get.
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    </div>
+    <EmailPreviewFrame
+      html={html}
+      kind="template"
+      title={t("settingsInboxes.preview")}
+      height={420}
+      sample={{
+        logoUrl,
+        orgSignatureHtml: signature.trim()
+          ? signature.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")
+          : undefined,
+      }}
+    />
   );
 }

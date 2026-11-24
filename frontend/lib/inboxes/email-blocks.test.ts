@@ -3,11 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   type BlockDocument,
   CONTENT_TOKEN,
+  type ColumnsBlock,
   DEFAULT_DOCUMENT,
   DEFAULT_PAGE,
+  type HeaderBlock,
   type ImageBlock,
+  type SocialBlock,
   type TextBlock,
   blankBlock,
+  createDefaultSignatureDocument,
   isBlockDocument,
   renderBlocks,
 } from "./email-blocks";
@@ -127,5 +131,56 @@ describe("el documento", () => {
       Array.from({ length: 20 }, () => blankBlock("text").id),
     );
     expect(ids.size).toBe(20);
+  });
+});
+
+describe("bloques ampliados y modo firma", () => {
+  it("renderiza encabezado con logo y estilos en línea", () => {
+    const header: HeaderBlock = {
+      ...(blankBlock("header") as HeaderBlock),
+      logoUrl: "https://cdn.ejemplo.com/logo.png",
+      title: "Acme",
+      subtitle: "Soporte",
+      background: "#003366",
+      textColor: "#ffffff",
+    };
+    const html = renderBlocks(doc([header, blankBlock("content")]));
+    expect(html).toContain('src="https://cdn.ejemplo.com/logo.png"');
+    expect(html).toContain("Acme");
+    expect(html).toContain("background:#003366");
+  });
+
+  it("renderiza columnas de 2 con una tabla de celdas 50%", () => {
+    const cols: ColumnsBlock = {
+      ...(blankBlock("columns") as ColumnsBlock),
+      leftTitle: "Izquierda",
+      rightTitle: "Derecha",
+    };
+    const html = renderBlocks(doc([cols, blankBlock("content")]));
+    expect(html).toContain('width="50%"');
+    expect(html).toContain("Izquierda");
+    expect(html).toContain("Derecha");
+  });
+
+  it("renderiza redes sociales filtrando enlaces peligrosos", () => {
+    const social: SocialBlock = {
+      ...(blankBlock("social") as SocialBlock),
+      links: [
+        { id: "1", label: "Instagram", url: "https://instagram.com/acme" },
+        { id: "2", label: "Malo", url: "javascript:alert(1)" },
+      ],
+    };
+    const html = renderBlocks(doc([social, blankBlock("content")]));
+    expect(html).toContain("https://instagram.com/acme");
+    expect(html).not.toContain("javascript:");
+  });
+
+  it("en modo firma no inyecta {{contenido}} y mantiene las variables de perfil", () => {
+    const sigDoc = createDefaultSignatureDocument();
+    const html = renderBlocks(sigDoc, { kind: "signature" });
+    expect(html).not.toContain(CONTENT_TOKEN);
+    expect(html).toContain("{{nombre}}");
+    expect(html).toContain("{{cargo}}");
+    expect(html).toContain("<table");
   });
 });

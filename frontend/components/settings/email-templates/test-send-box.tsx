@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { selectClassName } from "@/components/ui/select";
-import { useTestSendEmailTemplate } from "@/lib/api/email-templates";
+import {
+  type TemplateScope,
+  useTestSendEmailTemplate,
+} from "@/lib/api/email-templates";
 import { useInboxes } from "@/lib/api/inboxes";
 import { useT } from "@/lib/i18n/provider";
 
@@ -27,15 +30,17 @@ const EMAIL_CHANNEL = "Channel::Email";
 export function TestSendBox({
   accountId,
   templateId,
+  scope = "organization",
   disabled = false,
 }: {
   accountId: string;
   templateId: number;
+  scope?: TemplateScope;
   disabled?: boolean;
 }) {
   const t = useT();
   const inboxes = useInboxes(accountId);
-  const send = useTestSendEmailTemplate(accountId);
+  const send = useTestSendEmailTemplate(accountId, scope);
   const [to, setTo] = useState("");
   const [inboxId, setInboxId] = useState<string>("");
   const [result, setResult] = useState<string | null>(null);

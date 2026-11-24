@@ -51,6 +51,7 @@ from app.domains.conversations.models import (
     Message,
 )
 from app.domains.email.attachments import fetch_attachments
+from app.domains.email.signatures_service import resolve_signatures
 from app.domains.email.template import render_plain, render_template
 from app.domains.email.templates_service import resolve_html
 from app.domains.inboxes.models import EmailChannel
@@ -125,9 +126,7 @@ def build_references(
     """
     domain = _email_domain(channel)
     refs: list[str] = []
-    refs.append(
-        f"<account/{conversation.account_id}/conversation/{conversation.uuid}@{domain}>"
-    )
+    refs.append(f"<account/{conversation.account_id}/conversation/{conversation.uuid}@{domain}>")
     # Walk prior outbound messages on this conversation, oldest first,
     # picking up the Message-IDs we stamped on source_id. We avoid a
     # DB hit here — the caller passes the ordered list when relevant.
@@ -212,9 +211,7 @@ async def send_email_reply(
       * ``message.source_id`` is set to the stamped Message-ID.
     """
     if not channel.smtp_enabled:
-        log.info(
-            "email.reply.skip reason=smtp_disabled message_id=%s", message.id
-        )
+        log.info("email.reply.skip reason=smtp_disabled message_id=%s", message.id)
         return False
     if not (channel.smtp_address and channel.smtp_port and channel.smtp_login):
         log.warning(
@@ -236,14 +233,20 @@ async def send_email_reply(
     # conversation assignee.
     sender_obj = getattr(message, "_resolved_sender", None)
     sender_name = (
-        getattr(sender_obj, "available_name", None)
-        or getattr(sender_obj, "name", None)
-        or None
+        getattr(sender_obj, "available_name", None) or getattr(sender_obj, "name", None) or None
     )
-    # The agent's own sign-off, set on their profile. Distinct from the
-    # mailbox's: one is who wrote the reply, the other is the institution
-    # it came from, and a reply usually wants both.
-    agent_signature = getattr(sender_obj, "message_signature", None) or ""
+    sender_user_id = getattr(sender_obj, "id", None)
+
+    # Resolve rich + plain signatures for both the replying user and the
+    # organisation, falling back to ``users.message_signature`` and
+    # ``channel_email.signature`` (escaped plain text) when no designed
+    # signature exists.
+    signatures = await resolve_signatures(
+        session,
+        account_id=conversation.account_id,
+        user=sender_obj,
+        channel=channel,
+    )
 
     # The most recent inbound on this conversation — needed for
     # In-Reply-To. Cheap query because messages.conversation_id is
@@ -278,9 +281,7 @@ async def send_email_reply(
         or 0
     )
 
-    msg_id_header = build_message_id(
-        conversation=conversation, message=message, channel=channel
-    )
+    msg_id_header = build_message_id(conversation=conversation, message=message, channel=channel)
     in_reply_to = build_in_reply_to(
         conversation=conversation,
         channel=channel,
@@ -292,9 +293,7 @@ async def send_email_reply(
         last_incoming=last_incoming,
         in_reply_to=in_reply_to,
     )
-    subject = build_subject(
-        conversation=conversation, chat_message_count=chat_message_count
-    )
+    subject = build_subject(conversation=conversation, chat_message_count=chat_message_count)
 
     mail = EmailMessage()
     mail["From"] = _from_address(channel, sender_name=sender_name)
@@ -310,21 +309,33 @@ async def send_email_reply(
     mail.set_content(
         render_plain(
             body=body,
-            signature=channel.signature or "",
-            agent_signature=agent_signature,
+            signature=signatures.org_plain,
+            agent_signature=signatures.user_plain,
         )
     )
-    # A mailbox may point at one of the account's shared templates; if it
-    # does not, this resolves to its own ``template_html`` and nothing
-    # about the send changes.
-    template_html = await resolve_html(session, channel=channel)
+    # Template selection rule for outgoing replies:
+    #   1. The replying user's personal template marked as default
+    #      (``email_templates.user_id == sender_user_id`` and ``is_default``).
+    #   2. The mailbox's linked organisation template
+    #      (``channel.email_template_id``).
+    #   3. The mailbox's own ``channel.template_html``.
+    #   4. Empty string → built-in default layout (:func:`render_html`).
+    template_html = await resolve_html(
+        session,
+        channel=channel,
+        account_id=conversation.account_id,
+        sender_user_id=sender_user_id,
+    )
     mail.add_alternative(
         render_template(
             template=template_html,
             body=body,
             signature=channel.signature or "",
             logo_url=channel.logo_url or "",
-            agent_signature=agent_signature,
+            agent_signature=signatures.user_plain,
+            user_signature_html=signatures.user_html,
+            org_signature_html=signatures.org_html,
+            append_signature_if_missing=True,
         ),
         subtype="html",
     )
@@ -348,8 +359,7 @@ async def send_email_reply(
             username=channel.smtp_login or None,
             password=channel.smtp_password or None,
             use_tls=channel.smtp_enable_ssl_tls,
-            start_tls=channel.smtp_enable_starttls_auto
-            and not channel.smtp_enable_ssl_tls,
+            start_tls=channel.smtp_enable_starttls_auto and not channel.smtp_enable_ssl_tls,
             timeout=20.0,
         )
     except (aiosmtplib.SMTPException, OSError, TimeoutError) as exc:

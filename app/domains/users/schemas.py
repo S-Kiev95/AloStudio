@@ -73,6 +73,7 @@ class UserResponseBase(BaseModel):
     email: str | None
     name: str
     display_name: str | None
+    job_title: str | None = None
     available_name: str
     avatar_url: str
     provider: str

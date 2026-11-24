@@ -1,6 +1,7 @@
 "use client";
 
-import { User as UserIcon } from "lucide-react";
+import { Mail, User as UserIcon } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export function ProfileView() {
 
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
   const [email, setEmail] = useState("");
   const [signature, setSignature] = useState("");
   const [phone, setPhone] = useState("");
@@ -40,6 +42,7 @@ export function ProfileView() {
     if (!profile.data) return;
     setName(profile.data.name ?? "");
     setDisplayName(profile.data.display_name ?? "");
+    setJobTitle(profile.data.job_title ?? "");
     setEmail(profile.data.email ?? "");
     setAvatarUrl(profile.data.avatar_url ?? null);
     setSignature(profile.data.message_signature ?? "");
@@ -92,6 +95,7 @@ export function ProfileView() {
         name: name.trim(),
         email: email.trim() || undefined,
         display_name: displayName.trim() || null,
+        job_title: jobTitle.trim() || null,
         message_signature: signature.trim() || null,
         phone_number: phone.trim() || null,
       });
@@ -210,15 +214,26 @@ export function ProfileView() {
                 </p>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="p-phone">{t("profile.phone")}</Label>
-                <Input
-                  id="p-phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+598…"
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="p-job">{t("profile.jobTitle")}</Label>
+                  <Input
+                    id="p-job"
+                    value={jobTitle}
+                    onChange={(e) => setJobTitle(e.target.value)}
+                    placeholder={t("profile.jobTitlePlaceholder")}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="p-phone">{t("profile.phone")}</Label>
+                  <Input
+                    id="p-phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+598…"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -230,6 +245,17 @@ export function ProfileView() {
                   onChange={(e) => setSignature(e.target.value)}
                   placeholder={t("profile.signaturePlaceholder")}
                 />
+                {accountId !== undefined ? (
+                  <p className="text-xs text-fg-muted">
+                    <Link
+                      href={`/accounts/${accountId}/settings/email_templates`}
+                      className="inline-flex items-center gap-1 text-lit underline hover:text-fg"
+                    >
+                      <Mail className="h-3.5 w-3.5" aria-hidden />
+                      {t("profile.designEmailSignatureLink")}
+                    </Link>
+                  </p>
+                ) : null}
               </div>
 
               <div>
