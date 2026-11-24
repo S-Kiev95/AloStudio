@@ -108,8 +108,11 @@ describe("ProfileView language", () => {
     wrap(<ProfileView />);
     await screen.findByDisplayValue("Me");
 
-    const select = screen.getByLabelText("Idioma de la interfaz");
-    fireEvent.change(select, { target: { value: "pt" } });
+    const combobox = screen.getByRole("combobox", {
+      name: "Idioma de la interfaz",
+    });
+    fireEvent.click(combobox);
+    fireEvent.click(screen.getByRole("option", { name: "Português" }));
 
     expect(document.cookie).toContain("alo_locale=pt");
     expect(refresh).toHaveBeenCalled();
