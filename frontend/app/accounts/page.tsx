@@ -48,7 +48,7 @@ export default async function AccountsIndex() {
       <FloatingLogos />
       <div
         data-bounce
-        className="glass-panel relative z-10 w-full max-w-md rounded-panel bg-surface p-8"
+        className="glass-panel relative z-10 w-full max-w-md rounded-panel p-8"
       >
         <div className="neon-sign">
           <h1 className="text-[28px] leading-[1.2]">{t("errors.noAccountsTitle")}</h1>

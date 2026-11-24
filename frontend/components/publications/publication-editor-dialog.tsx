@@ -744,7 +744,7 @@ export function PublicationEditorDialog({
       ref={dialogRef}
       onClose={onClose}
       aria-labelledby="publication-editor-title"
-      className="max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-panel border border-glass bg-surface p-0 text-fg shadow-menu backdrop:bg-backdrop backdrop:opacity-80"
+      className="glass-dialog max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-panel p-0 text-fg backdrop:bg-backdrop backdrop:opacity-80"
     >
       <div className="space-y-5 p-5">
         {/* Header + Sets toolbar */}

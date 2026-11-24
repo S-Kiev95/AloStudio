@@ -177,7 +177,7 @@ export function DashboardShell({
         <aside
           data-collapsed={sidebarCollapsed ? "true" : "false"}
           className={cn(
-            "vt-sidebar glass-panel hidden overflow-hidden rounded-panel bg-surface lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-24px)] lg:shrink-0 lg:flex-col",
+            "vt-sidebar glass-panel hidden overflow-hidden rounded-panel lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-24px)] lg:shrink-0 lg:flex-col",
             sidebarCollapsed ? "lg:w-[68px]" : "lg:w-[236px]",
             animateSidebar &&
               "lg:transition-[width] lg:duration-200 lg:ease-out motion-reduce:transition-none",
@@ -230,7 +230,7 @@ export function DashboardShell({
             />
             <aside
               ref={mobileDrawerRef}
-              className="glass-panel absolute inset-y-0 left-0 flex w-[252px] flex-col bg-surface"
+              className="glass-panel absolute inset-y-0 left-0 flex w-[252px] flex-col"
             >
               <div className="flex items-center justify-between px-[14px] pb-5 pt-[18px]">
                 <Brand
@@ -270,7 +270,7 @@ export function DashboardShell({
         ) : null}
 
         {/* Work glass panel */}
-        <div className="glass-panel flex min-w-0 flex-1 flex-col rounded-panel bg-surface">
+        <div className="glass-panel glass-work-canvas flex min-w-0 flex-1 flex-col rounded-panel">
           {/* view-transition-name makes the bar its own stacking layer, so its
               menus (account, notifications, user) can only rise as high as the
               bar itself: z-[35] keeps them above the page's own layers (up to
