@@ -22,6 +22,7 @@ import { helpAssistant } from "./helpAssistant";
 import { googleCalendar } from "./googleCalendar";
 import { writingAssist } from "./writingAssist";
 import { opportunities } from "./opportunities";
+import { collections } from "./collections";
 import { origin } from "./origin";
 import { igCapabilities } from "./igCapabilities";
 import { channelCatalog } from "./channelCatalog";
@@ -88,6 +89,7 @@ export const es = {
   writingAssist,
 
   opportunities,
+  collections,
 
   origin,
   igCapabilities,

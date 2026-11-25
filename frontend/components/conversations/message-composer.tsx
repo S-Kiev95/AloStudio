@@ -43,15 +43,26 @@ export function MessageComposer({
   inboxId: inboxIdProp,
   channel: channelProp,
   canReply: canReplyProp,
+  initialDraft,
 }: {
   accountId: string;
   displayId: number;
   inboxId?: number | null;
   channel?: string | null;
   canReply?: boolean;
+  initialDraft?: string;
 }) {
   const t = useT();
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(initialDraft ?? "");
+  const appliedDraftRef = useRef<string | undefined>(initialDraft);
+
+  useEffect(() => {
+    if (initialDraft && initialDraft !== appliedDraftRef.current) {
+      appliedDraftRef.current = initialDraft;
+      setContent(initialDraft);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    }
+  }, [initialDraft]);
   const [isPrivate, setIsPrivate] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);

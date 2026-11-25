@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlmodel import col, select
@@ -12,6 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.errors import ChatwootHTTPException
 from app.domains.contacts.models import Contact
 from app.domains.conversations.models import Conversation
+from app.domains.crm import billing as bill
 from app.domains.crm.models import (
     STAGE_KINDS,
     STAGE_OPEN,
@@ -153,9 +155,7 @@ async def _sync_stages(
         if stage_id in keep_ids:
             continue
         in_use = (
-            await session.exec(
-                select(CrmOpportunity.id).where(CrmOpportunity.stage_id == stage_id)
-            )
+            await session.exec(select(CrmOpportunity.id).where(CrmOpportunity.stage_id == stage_id))
         ).first()
         if in_use is not None:
             raise _unprocessable("stage has opportunities")
@@ -316,16 +316,71 @@ async def save_opportunity(
             stage_changed_at=_now(),
         )
     assert opportunity is not None
+    # Capture pre-edit state to guard against silently losing allocated payments.
+    old_stage: CrmStage | None = None
+    target_stage: CrmStage | None = None
+    if not creating:
+        old_stage = await session.get(CrmStage, opportunity.stage_id)
+        if "stage_id" in payload:
+            target_stage, _ = await _stage_in_account(
+                session, account_id=account_id, stage_id=payload["stage_id"]
+            )
+        else:
+            target_stage = old_stage
+
+    parsed_value: Decimal | None = opportunity.value
+    value_changed = False
+    if "value" in payload:
+        raw_val = payload["value"]
+        if raw_val is None or raw_val == "":
+            parsed_value = None
+        else:
+            parsed_value = bill.to_decimal(raw_val, "value", allow_zero=True)
+        old_dec = (
+            Decimal(opportunity.value).quantize(bill.CENT)
+            if opportunity.value is not None
+            else None
+        )
+        value_changed = parsed_value != old_dec
+
+    new_currency = (
+        bill.normalize_currency(payload["currency"])
+        if "currency" in payload
+        else bill.normalize_currency(opportunity.currency)
+    )
+    currency_changed = "currency" in payload and new_currency != bill.normalize_currency(
+        opportunity.currency
+    )
+    new_contact_id = payload.get("contact_id", opportunity.contact_id)
+    contact_changed = "contact_id" in payload and new_contact_id != opportunity.contact_id
+
+    if not creating and old_stage is not None and target_stage is not None:
+        await bill.guard_opportunity_change(
+            session,
+            opportunity=opportunity,
+            old_stage=old_stage,
+            new_stage=target_stage,
+            new_value=parsed_value,
+            value_changed=value_changed,
+            new_currency=new_currency,
+            currency_changed=currency_changed,
+            new_contact_id=new_contact_id,
+            contact_changed=contact_changed,
+            release_allocations=bool(payload.get("release_allocations")),
+            keep_allocations=bool(payload.get("keep_allocations")),
+        )
+
     if "title" in payload:
         opportunity.title = payload["title"].strip()
     for field in _EDITABLE:
         if field in payload:
-            setattr(opportunity, field, payload[field] or None)
+            val = payload[field]
+            if field == "currency":
+                opportunity.currency = bill.normalize_currency(val)
+            else:
+                setattr(opportunity, field, val or None)
     if "value" in payload:
-        value = payload["value"]
-        if value is not None and (not isinstance(value, int | float) or value < 0):
-            raise _unprocessable("value is invalid")
-        opportunity.value = value  # type: ignore[assignment]
+        opportunity.value = parsed_value
     for field, model in (
         ("contact_id", Contact),
         ("product_id", Product),
@@ -343,12 +398,10 @@ async def save_opportunity(
         opportunity.position = float(payload["position"])
     entered: CrmStage | None = None
     if "stage_id" in payload and not creating:
-        stage, _ = await _stage_in_account(
-            session, account_id=account_id, stage_id=payload["stage_id"]
-        )
-        if opportunity.stage_id != stage.id:
-            entered = stage
-        _apply_stage(opportunity, stage)
+        assert target_stage is not None
+        if opportunity.stage_id != target_stage.id:
+            entered = target_stage
+        _apply_stage(opportunity, target_stage)
     elif creating:
         _apply_stage(opportunity, stage)
         opportunity.stage_changed_at = _now()
@@ -429,7 +482,12 @@ async def get_opportunity(
     ).first()
 
 
-async def delete_opportunity(session: AsyncSession, *, opportunity: CrmOpportunity) -> None:
+async def delete_opportunity(
+    session: AsyncSession, *, opportunity: CrmOpportunity, release_allocations: bool = False
+) -> None:
+    await bill.guard_opportunity_delete(
+        session, opportunity=opportunity, release_allocations=release_allocations
+    )
     await session.delete(opportunity)
     await session.flush()
 
