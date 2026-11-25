@@ -70,9 +70,7 @@ class CrmPipeline(TimestampMixin, table=True):
         default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
     )
     account_id: int = Field(
-        sa_column=Column(
-            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
-        )
+        sa_column=Column(BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     )
     # Null on the seeded pipeline: the dashboard names it in each language.
     name: str | None = Field(default=None, sa_column=Column(String, nullable=True))
@@ -110,9 +108,7 @@ class CrmStage(TimestampMixin, table=True):
     probability: int = Field(
         default=0, sa_column=Column(Integer, nullable=False, server_default="0")
     )
-    position: int = Field(
-        default=0, sa_column=Column(Integer, nullable=False, server_default="0")
-    )
+    position: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
 
 
 class CrmOpportunity(TimestampMixin, table=True):
@@ -129,9 +125,7 @@ class CrmOpportunity(TimestampMixin, table=True):
         default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
     )
     account_id: int = Field(
-        sa_column=Column(
-            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
-        )
+        sa_column=Column(BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     )
     pipeline_id: int = Field(
         sa_column=Column(
@@ -145,28 +139,20 @@ class CrmOpportunity(TimestampMixin, table=True):
     )
     title: str = Field(sa_column=Column(String, nullable=False))
     description: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
-    value: Decimal | None = Field(
-        default=None, sa_column=Column(Numeric(14, 2), nullable=True)
-    )
+    value: Decimal | None = Field(default=None, sa_column=Column(Numeric(14, 2), nullable=True))
     currency: str | None = Field(default=None, sa_column=Column(String(8), nullable=True))
     contact_id: int | None = Field(
         default=None,
-        sa_column=Column(
-            BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True
-        ),
+        sa_column=Column(BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True),
     )
     product_id: int | None = Field(
         default=None,
-        sa_column=Column(
-            BigInteger, ForeignKey("products.id", ondelete="SET NULL"), nullable=True
-        ),
+        sa_column=Column(BigInteger, ForeignKey("products.id", ondelete="SET NULL"), nullable=True),
     )
     # Who works it.
     owner_id: int | None = Field(
         default=None,
-        sa_column=Column(
-            BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-        ),
+        sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
     )
     # The conversation it came from, when it was opened from the inbox.
     conversation_id: int | None = Field(
@@ -175,9 +161,7 @@ class CrmOpportunity(TimestampMixin, table=True):
             BigInteger, ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True
         ),
     )
-    expected_close_on: date | None = Field(
-        default=None, sa_column=Column(Date, nullable=True)
-    )
+    expected_close_on: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     closed_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
     )
@@ -201,9 +185,7 @@ class CrmInstallment(TimestampMixin, table=True):
 
     __tablename__ = "crm_installments"
     __table_args__ = (
-        UniqueConstraint(
-            "opportunity_id", "number", name="uq_crm_installments_opportunity_number"
-        ),
+        UniqueConstraint("opportunity_id", "number", name="uq_crm_installments_opportunity_number"),
         Index("index_crm_installments_on_account_id", "account_id"),
         Index("index_crm_installments_on_opportunity_id", "opportunity_id"),
         Index("index_crm_installments_on_account_due_on", "account_id", "due_on"),
@@ -213,9 +195,7 @@ class CrmInstallment(TimestampMixin, table=True):
         default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
     )
     account_id: int = Field(
-        sa_column=Column(
-            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
-        )
+        sa_column=Column(BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     )
     opportunity_id: int = Field(
         sa_column=Column(
@@ -241,14 +221,10 @@ class CrmPayment(TimestampMixin, table=True):
         default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
     )
     account_id: int = Field(
-        sa_column=Column(
-            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
-        )
+        sa_column=Column(BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     )
     contact_id: int = Field(
-        sa_column=Column(
-            BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=False
-        )
+        sa_column=Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=False)
     )
     amount: Decimal = Field(sa_column=Column(Numeric(14, 2), nullable=False))
     currency: str | None = Field(default=None, sa_column=Column(String(8), nullable=True))
@@ -260,9 +236,7 @@ class CrmPayment(TimestampMixin, table=True):
     note: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     created_by_id: int | None = Field(
         default=None,
-        sa_column=Column(
-            BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-        ),
+        sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
     )
 
 
@@ -281,9 +255,7 @@ class CrmPaymentAllocation(TimestampMixin, table=True):
         default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
     )
     account_id: int = Field(
-        sa_column=Column(
-            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
-        )
+        sa_column=Column(BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     )
     payment_id: int = Field(
         sa_column=Column(
@@ -327,9 +299,7 @@ class CrmActivity(TimestampMixin, table=True):
         default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
     )
     account_id: int = Field(
-        sa_column=Column(
-            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
-        )
+        sa_column=Column(BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     )
     kind: str = Field(
         default="task", sa_column=Column(String(16), nullable=False, server_default="task")
@@ -344,21 +314,15 @@ class CrmActivity(TimestampMixin, table=True):
     )
     owner_id: int | None = Field(
         default=None,
-        sa_column=Column(
-            BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-        ),
+        sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
     )
     created_by_id: int | None = Field(
         default=None,
-        sa_column=Column(
-            BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-        ),
+        sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
     )
     contact_id: int | None = Field(
         default=None,
-        sa_column=Column(
-            BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True
-        ),
+        sa_column=Column(BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True),
     )
     opportunity_id: int | None = Field(
         default=None,
@@ -384,9 +348,7 @@ class CrmCompany(TimestampMixin, table=True):
         default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
     )
     account_id: int = Field(
-        sa_column=Column(
-            BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
-        )
+        sa_column=Column(BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     )
     name: str = Field(sa_column=Column(String, nullable=False))
     website: str | None = Field(default=None, sa_column=Column(String, nullable=True))
