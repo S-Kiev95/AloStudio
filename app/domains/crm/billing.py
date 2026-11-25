@@ -1497,6 +1497,8 @@ async def delete_payment(session: AsyncSession, *, payment: CrmPayment) -> None:
     allocs = (await _allocations_by_payment(session, [payment.id])).get(payment.id, [])
     for a in allocs:
         await session.delete(a)
+    if allocs:
+        await session.flush()
     await session.delete(payment)
     await session.flush()
 
