@@ -132,7 +132,7 @@ anota en esta sección y lo decide el dueño.
 | Fase | Agente | Estado |
 |---|---|---|
 | F1 Respaldos | — | Hecha en CTC |
-| F2 Multitenant | A | Pasos 1 y 2 hechos en `feat/multitenant`; paso 3 (Polar) con backend y planes en sandbox (2026-11-15). Todo se prueba en sandbox antes de pasar a producción |
+| F2 Multitenant | A | En `develop` (2026-11-25): registro, planes y cobro con Polar sandbox, créditos de IA, Embedded Signup con coexistencia por QR. Falta la prueba real de pago rechazado, la landing de precios y pasar Polar a producción |
 | F3 Redes que faltan | B | YouTube en develop (2026-11-21): subir videos con el cliente de Google de Calendar; falta que el dueño active la API y la URL de retorno en Google Cloud. TikTok espera el correo de empresa |
 | F4 Herramientas MCP | A | Hecha (2026-11-11), en develop |
 | F5 WhatsApp (plantillas, envíos, número, perfil, QR, catálogo) | A | En CTC (2026-11-14, con el catálogo; falta conectar el catálogo de CTC en Meta) |
@@ -181,10 +181,22 @@ anota en esta sección y lo decide el dueño.
   automática.
 - Develop no tiene respaldo de AloStudio (decisión del dueño: solo CTC).
 
-## F2. Multitenant (rama `feat/multitenant`, nunca a `develop` ni `main`)
+## F2. Multitenant (en `develop` desde 2026-11-25, `4057fa5`)
 
-`main` es la instalación propia de CTC. Detalle en `PLAN.multitenant.md`
-dentro de la rama.
+Todo detrás de `MULTITENANT`: CTC (`main`) lo tiene apagado y no le cambia
+nada visible; las migraciones solo agregan tablas y columnas. El servidor
+de pruebas lo tiene prendido y es el banco de F2 (cuentas viejas con plan
+manual, Polar sandbox conectado). Detalle en `PLAN.multitenant.md`.
+
+**Pendiente (2026-11-25):**
+- Prueba real de pago rechazado: la cuenta "Prueba Polar" paga el producto
+  "Basic diario (prueba)" con la tarjeta 4000 0000 0000 0341; la renovación
+  del 2026-11-26 16:24 UTC tiene que fallar. Revisar `past_due`, los 7 días
+  y el aviso; después archivar el producto diario en Polar.
+- Landing con sección de precios: no la hace el agente A; se la pedimos a
+  Neon cuando el dueño diga.
+- Pasar a producción: crear los planes en Polar producción, token y webhook
+  nuevos, `POLAR_SERVER=production`.
 
 - **Del lado de Meta (el dueño):** configuración de WhatsApp Embedded
   Signup (su ID va a `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID`), webhook de la
