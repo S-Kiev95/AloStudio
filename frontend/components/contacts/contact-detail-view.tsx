@@ -10,6 +10,7 @@ import { ContactActivitiesCard } from "@/components/crm/contact-activities-card"
 import { ContactCompanyCard } from "@/components/crm/contact-company-card";
 import { ContactOriginCard } from "@/components/crm/contact-origin-card";
 import { ContactOpportunitiesCard } from "@/components/crm/contact-opportunities-card";
+import { ContactStatementCard } from "@/components/crm/contact-statement-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -139,6 +140,8 @@ export function ContactDetailView({
           <ContactOriginCard accountId={accountId} contact={contact} />
 
           <ContactOpportunitiesCard accountId={accountId} contact={contact} />
+
+          <ContactStatementCard accountId={accountId} contact={contact} />
 
           <ContactActivitiesCard accountId={accountId} contact={contact} />
 

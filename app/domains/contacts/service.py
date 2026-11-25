@@ -192,15 +192,18 @@ class ContactInboxBuilder:
             source_id=source_id,
             hmac_verified=self.hmac_verified,
         )
-        self.session.add(row)
         try:
-            await self.session.flush()
+            # A savepoint: losing the race below must not roll back the
+            # caller's whole transaction (a webhook batch, for instance).
+            async with self.session.begin_nested():
+                self.session.add(row)
+                await self.session.flush()
         except IntegrityError as e:
-            await self.session.rollback()
-            # The race-condition retry logic for non-live-chat channels
-            # (``update_old_contact_inbox``) is deferred until Phase 5
-            # when SMS/WA/Email channels exist. For API we just surface
-            # the uniqueness error.
+            # Another request created it in between (Meta sends a number's
+            # webhooks in parallel): use that one.
+            raced = (await self.session.exec(stmt)).first()
+            if raced is not None:
+                return raced
             raise ChatwootHTTPException(
                 status_code=422,
                 detail={"message": "contact inbox already exists"},

@@ -194,6 +194,17 @@ dentro de la rama.
   superadministrador creado antes de abrir el registro.
 - Al borrar una bandeja conectada por Embedded Signup, desuscribir la app
   de esa cuenta de WhatsApp Business.
+- ~~Coexistencia con QR (dueño, 2026-11-25; nota del agente B)~~ **Hecho
+  en `feat/multitenant` (2026-11-25, `89accca`):** el popup del Embedded
+  Signup ofrece traer el número de la app WhatsApp Business (el negocio
+  escanea un QR y el número sigue andando en el celular). Se importan el
+  historial de 6 meses (callado: sin bots, automatizaciones ni avisos), los
+  contactos del celular y lo que el negocio responde desde el celular; un
+  número desconectado queda marcado. Límites explicados en el panel en los 7
+  idiomas. Falta: suscribir en la app de Meta los campos `history`,
+  `smb_app_state_sync`, `smb_message_echoes` y `account_update`, probarlo
+  con un número real, y mostrar en la bandeja el aviso de desconexión y el
+  avance de la sincronización. Detalle en `PLAN.multitenant.md`.
 - Captcha en el registro, si el límite por IP no alcanza.
 - **Paso 3, facturación con Polar:** backend hecho, con bloqueo sin plan
   (API 402 `subscription_required` y MCP rechazado, sin borrar datos);

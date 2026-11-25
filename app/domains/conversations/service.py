@@ -50,6 +50,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from app.domains.teams.models import Team
     from app.domains.users.models import User
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -1100,6 +1101,83 @@ async def create_message(
     return msg
 
 
+# =========================================================================
+# Imported history (a channel's past chats, brought in when it connects)
+# =========================================================================
+async def quiet_conversation(
+    session: AsyncSession, *, contact_inbox: ContactInbox, at: datetime
+) -> Conversation:
+    """The contact's latest conversation on this inbox, or a resolved one
+    dated ``at`` for an old chat. Created without events: months-old
+    messages must not wake bots, run automations or assign agents."""
+    latest = (
+        await session.exec(
+            select(Conversation)
+            .where(Conversation.contact_inbox_id == contact_inbox.id)
+            .order_by(Conversation.id.desc())  # type: ignore[union-attr]
+            .limit(1)
+        )
+    ).first()
+    if latest is not None:
+        return latest
+    inbox = await session.get(Inbox, contact_inbox.inbox_id)
+    assert inbox is not None
+    conversation = Conversation(
+        account_id=inbox.account_id,
+        inbox_id=inbox.id,
+        contact_id=contact_inbox.contact_id,
+        contact_inbox_id=contact_inbox.id,
+        status=CONVERSATION_STATUS_RESOLVED,
+        last_activity_at=at,
+        waiting_since=None,
+        created_at=at,
+    )
+    session.add(conversation)
+    await session.flush()
+    await session.refresh(conversation)
+    return conversation
+
+
+async def store_imported_message(
+    session: AsyncSession,
+    *,
+    conversation: Conversation,
+    content: str | None,
+    outgoing: bool,
+    source_id: str,
+    at: datetime,
+    attachments: list[_AttachmentSpec] | None = None,
+) -> Message | None:
+    """One message of an imported history, with its original date and
+    no events (see :func:`quiet_conversation`). ``external_echo`` keeps it
+    from ever being sent. ``None`` when another request stored it first."""
+    message = Message(
+        account_id=conversation.account_id,
+        inbox_id=conversation.inbox_id,
+        conversation_id=conversation.id,
+        sender_type=None if outgoing else SENDER_TYPE_CONTACT,
+        sender_id=None if outgoing else conversation.contact_id,
+        message_type=MESSAGE_TYPE_OUTGOING if outgoing else MESSAGE_TYPE_INCOMING,
+        content_type=CONTENT_TYPE_TEXT,
+        content=content or None,
+        processed_message_content=content or None,
+        content_attributes={"external_echo": True, "imported_history": True},
+        source_id=source_id,
+        created_at=at,
+        updated_at=at,
+    )
+    try:
+        async with session.begin_nested():
+            session.add(message)
+            await session.flush()
+            if attachments:
+                await _apply_attachments(session, message=message, specs=attachments)
+                await session.flush()
+    except IntegrityError:
+        return None
+    return message
+
+
 async def _attach_resolved_sender(
     session: AsyncSession,
     *,
@@ -1928,8 +2006,10 @@ __all__ = [
     "create_conversation",
     "create_message",
     "mute_conversation_with_activity",
+    "quiet_conversation",
     "reassign_mergee_conversations",
     "soft_delete_message",
+    "store_imported_message",
     "toggle_priority",
     "toggle_status",
     "unmute_conversation_with_activity",

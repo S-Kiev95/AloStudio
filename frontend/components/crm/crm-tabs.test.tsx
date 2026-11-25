@@ -15,10 +15,12 @@ describe("CrmTabs", () => {
     render(<CrmTabs accountId="4" />);
 
     const contacts = screen.getByRole("link", { name: "Contactos" });
+    const collections = screen.getByRole("link", { name: "Cobranzas" });
     const products = screen.getByRole("link", { name: "Productos" });
     const agenda = screen.getByRole("link", { name: "Agenda" });
 
     expect(contacts).toHaveAttribute("href", "/accounts/4/contacts");
+    expect(collections).toHaveAttribute("href", "/accounts/4/collections");
     expect(products).toHaveAttribute("href", "/accounts/4/products");
     expect(agenda).toHaveAttribute("href", "/accounts/4/agenda");
 

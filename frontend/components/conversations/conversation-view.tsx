@@ -131,6 +131,7 @@ export function ConversationView({
   const router = useRouter();
   const pathname = usePathname();
   const aroundId = Number(searchParams.get("message")) || undefined;
+  const initialDraft = searchParams.get("draft") ?? undefined;
   const messages = useMessages(accountId, displayId, aroundId);
   const [searchOpen, setSearchOpen] = useState(false);
   useEffect(() => setSearchOpen(false), [displayId]);
@@ -505,6 +506,7 @@ export function ConversationView({
             inboxId={conv.data?.inbox_id}
             channel={conv.data?.meta?.channel}
             canReply={conv.data?.can_reply}
+            initialDraft={initialDraft}
           />
         )}
       </div>

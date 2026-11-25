@@ -320,12 +320,41 @@ METRIC_KEYS: tuple[str, ...] = (
     "shares",
     "saves",
     "interactions",
+    "reposts",
+    # What the post brought to the account.
+    "profile_visits",
+    "profile_activity",
+    "follows",
+    # Stories.
+    "replies",
+    "navigation",
+    "link_clicks",
+    # Videos, in milliseconds.
+    "avg_watch_time_ms",
+    "watch_time_ms",
 )
 CHANNEL_METRIC_KEYS: tuple[str, ...] = (
     "followers",
     "views",
     "reach",
     "interactions",
+    "accounts_engaged",
+    "follows",
+    "unfollows",
+    "likes",
+    "comments",
+    "shares",
+    "saves",
+    "reposts",
+    "replies",
+    "profile_links_taps",
+)
+# Per-day channel figures split by a dimension, ``{dimension value: n}``:
+# views by the surface they came from (reels, stories, posts, ads) and
+# profile button taps by button (call, email, directions, message…).
+CHANNEL_BREAKDOWN_KEYS: tuple[str, ...] = (
+    "views_by_surface",
+    "profile_taps_by_button",
 )
 
 
