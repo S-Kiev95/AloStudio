@@ -89,7 +89,7 @@ export function ChannelForm({
           {t("settingsInboxes.changeChannel")}
         </Link>
         <h2 className="mt-2 text-xl font-medium text-fg">{tx(def.label)}</h2>
-        <p className="text-sm text-fg-muted">{def.blurb}</p>
+        <p className="text-sm text-fg-muted">{tx(def.blurb)}</p>
       </div>
 
       {channel === "facebook" ? <FacebookPageConnect accountId={accountId} /> : null}
