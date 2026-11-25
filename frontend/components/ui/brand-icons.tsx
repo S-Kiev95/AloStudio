@@ -1,6 +1,6 @@
 "use client";
 
-import { type ComponentType, useId } from "react";
+import { type ComponentType, type SVGProps, useId } from "react";
 
 /** Logos of the networks, from Simple Icons (CC0). Each comes in its brand
  *  color; `mono` takes the text color instead, for a colored background. */
@@ -9,9 +9,7 @@ export type IconComponent = ComponentType<{
   "aria-hidden"?: boolean | "true" | "false";
 }>;
 
-type BrandIconProps = {
-  className?: string;
-  "aria-hidden"?: boolean | "true" | "false";
+type BrandIconProps = Omit<SVGProps<SVGSVGElement>, "viewBox" | "fill"> & {
   mono?: boolean;
 };
 

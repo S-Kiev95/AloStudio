@@ -18,10 +18,12 @@ import {
 } from "@/lib/api/instagram-autoreply";
 import { useT } from "@/lib/i18n/provider";
 import { rich } from "@/lib/i18n/rich";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 /** The account's library of prepared answers — written once here, then
  *  picked per publication (see `PostReplyPicker`). */
 export function AutoreplyView({ accountId }: { accountId: string }) {
+  const confirm = useConfirm();
   const t = useT();
   const status = useAutoreplyStatus(accountId);
   const list = useCommentReplies(accountId);
@@ -155,8 +157,8 @@ export function AutoreplyView({ accountId }: { accountId: string }) {
                 type="button"
                 aria-label={t("actions.delete")}
                 disabled={del.isPending}
-                onClick={() => {
-                  if (window.confirm(t("instagram.answers.deleteConfirm", { name: r.trigger }))) {
+                onClick={async () => {
+                  if (await confirm(t("instagram.answers.deleteConfirm", { name: r.trigger }))) {
                     del.mutate(r.id);
                   }
                 }}

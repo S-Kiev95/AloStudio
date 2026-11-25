@@ -11,53 +11,96 @@
 :root {
   color-scheme: light;
   --bg: #eef1f8;
+  --bg-rgb: 238 241 248;
   --surface: #ffffff;
+  --surface-rgb: 255 255 255;
   --surface-2: #f3f5fb;
+  --surface-2-rgb: 243 245 251;
   --surface-3: #e6ecff;
+  --surface-3-rgb: 230 236 255;
   --fg: #0c1124;
+  --fg-rgb: 12 17 36;
   --fg-muted: #5f6987;
+  --fg-muted-rgb: 95 105 135;
   --border: #e3e7f3;
+  --border-rgb: 227 231 243;
   --border-strong: #d3d9ea;
+  --border-strong-rgb: 211 217 234;
   --primary: #2f5bf0;
+  --primary-rgb: 47 91 240;
   --primary-active: #1f47d6;
+  --primary-active-rgb: 31 71 214;
   --primary-fg: #ffffff;
+  --primary-fg-rgb: 255 255 255;
   --success: #0d7a52;
+  --success-rgb: 13 122 82;
   --warning: #9a5206;
+  --warning-rgb: 154 82 6;
   --danger: #cc2444;
+  --danger-rgb: 204 36 68;
   --danger-solid: #c41e3d;
+  --danger-solid-rgb: 196 30 61;
   --info: #2f5bf0;
+  --info-rgb: 47 91 240;
   --ring: #2f5bf0;
+  --ring-rgb: 47 91 240;
 
   --neon-core: #2f5bf0;
+  --neon-core-rgb: 47 91 240;
   --neon-core-hover: #1f47d6;
+  --neon-core-hover-rgb: 31 71 214;
   --neon-lit-text: #1a3bb8;
+  --neon-lit-text-rgb: 26 59 184;
   --neon-halo: rgba(47, 91, 240, 0.28);
   --neon-halo-far: rgba(47, 91, 240, 0.10);
   --neon-electrode: #e5512a;
+  --neon-electrode-rgb: 229 81 42;
   --neon-glass: #d6dcef;
+  --neon-glass-rgb: 214 220 239;
   --neon-selection: rgba(47, 91, 240, 0.20);
   --neon-scrollbar: #c3cbe3;
   --neon-edge: rgba(255, 255, 255, 0.50);
   --neon-edge-strong: rgba(255, 255, 255, 0.65);
   --neon-glass-highlight: rgba(255, 255, 255, 0.90);
   --neon-field: #f7f9fe;
+  --neon-field-rgb: 247 249 254;
   --neon-hover-glass: #f3f5fb;
+  --neon-hover-glass-rgb: 243 245 251;
   --neon-focused-glass: #e6ecff;
+  --neon-focused-glass-rgb: 230 236 255;
   --neon-button-simple: #e9edf7;
   --neon-ambient: rgba(47, 91, 240, 0.06);
   --neon-unlit-text: #4f5b7c;
+  --neon-unlit-text-rgb: 79 91 124;
   --neon-hum: transparent;
   --neon-hum-far: transparent;
   --neon-backdrop: #0b1533;
+  --neon-backdrop-rgb: 11 21 51;
   --neon-settings: #f5f7fc;
+  --neon-settings-rgb: 245 247 252;
   --neon-table-text-focused: #2f5bf0;
+  --neon-table-text-focused-rgb: 47 91 240;
+
+  /* Frosted neon glass surfaces (daylight) */
+  --neon-glass-surface: rgba(255, 255, 255, 0.76);
+  --neon-glass-work: rgba(255, 255, 255, 0.62);
+  --neon-glass-card: rgba(255, 255, 255, 0.68);
+  --neon-glass-card-hover: rgba(255, 255, 255, 0.86);
+  --neon-glass-dialog: rgba(255, 255, 255, 0.88);
+  --neon-glass-border: rgba(186, 198, 228, 0.78);
+  --neon-glass-top-light: rgba(255, 255, 255, 0.94);
+  --neon-glass-inner-glow: rgba(47, 91, 240, 0.06);
+  --neon-glass-blur: 14px;
+  --neon-glass-panel-blur: 18px;
 
   --gradient-primary: var(--neon-core);
-  --canvas-accent: radial-gradient(
-    ellipse 70% 45% at 14% -10%,
-    var(--neon-ambient),
-    transparent 70%
-  );
+  --canvas-accent:
+    radial-gradient(ellipse 68% 48% at 12% -6%, rgba(47, 91, 240, 0.14), transparent 68%),
+    radial-gradient(ellipse 52% 46% at 88% 12%, rgba(99, 132, 255, 0.11), transparent 70%),
+    radial-gradient(ellipse 55% 42% at 52% 108%, rgba(47, 91, 240, 0.08), transparent 72%);
+  --work-canvas-accent:
+    radial-gradient(ellipse 58% 44% at 86% 6%, rgba(47, 91, 240, 0.10), transparent 68%),
+    radial-gradient(ellipse 52% 46% at 14% 92%, rgba(99, 132, 255, 0.08), transparent 72%);
   --edge-highlight: inset 0 1px 0 0 var(--neon-glass-highlight);
   --menu-shadow: 0 12px 32px -8px rgba(12, 17, 36, 0.16);
   --shadow-sm: none;
@@ -73,53 +116,96 @@
 .dark {
   color-scheme: dark;
   --bg: #060912;
+  --bg-rgb: 6 9 18;
   --surface: #0b1020;
+  --surface-rgb: 11 16 32;
   --surface-2: #0f1528;
+  --surface-2-rgb: 15 21 40;
   --surface-3: #101a3d;
+  --surface-3-rgb: 16 26 61;
   --fg: #e7ecff;
+  --fg-rgb: 231 236 255;
   --fg-muted: #8d97b8;
+  --fg-muted-rgb: 141 151 184;
   --border: #1c2644;
+  --border-rgb: 28 38 68;
   --border-strong: #2a3660;
+  --border-strong-rgb: 42 54 96;
   --primary: #3d6bff;
+  --primary-rgb: 61 107 255;
   --primary-active: #5a82ff;
+  --primary-active-rgb: 90 130 255;
   --primary-fg: #ffffff;
+  --primary-fg-rgb: 255 255 255;
   --success: #34d399;
+  --success-rgb: 52 211 153;
   --warning: #f5b841;
+  --warning-rgb: 245 184 65;
   --danger: #ff6b85;
+  --danger-rgb: 255 107 133;
   --danger-solid: #c92542;
+  --danger-solid-rgb: 201 37 66;
   --info: #7fa0ff;
+  --info-rgb: 127 160 255;
   --ring: #3d6bff;
+  --ring-rgb: 61 107 255;
 
   --neon-core: #3d6bff;
+  --neon-core-rgb: 61 107 255;
   --neon-core-hover: #5a82ff;
+  --neon-core-hover-rgb: 90 130 255;
   --neon-lit-text: #dbe4ff;
+  --neon-lit-text-rgb: 219 228 255;
   --neon-halo: rgba(61, 107, 255, 0.42);
   --neon-halo-far: rgba(61, 107, 255, 0.16);
   --neon-electrode: #ff6a3d;
+  --neon-electrode-rgb: 255 106 61;
   --neon-glass: #1c2644;
+  --neon-glass-rgb: 28 38 68;
   --neon-selection: rgba(61, 107, 255, 0.38);
   --neon-scrollbar: #26325a;
   --neon-edge: rgba(219, 228, 255, 0.45);
   --neon-edge-strong: rgba(219, 228, 255, 0.60);
   --neon-glass-highlight: rgba(127, 160, 255, 0.10);
   --neon-field: #070b16;
+  --neon-field-rgb: 7 11 22;
   --neon-hover-glass: #111834;
+  --neon-hover-glass-rgb: 17 24 52;
   --neon-focused-glass: #101a3d;
+  --neon-focused-glass-rgb: 16 26 61;
   --neon-button-simple: rgba(24, 33, 61, 0.55);
   --neon-ambient: rgba(61, 107, 255, 0.10);
   --neon-unlit-text: #9eb0e6;
+  --neon-unlit-text-rgb: 158 176 230;
   --neon-hum: rgba(91, 130, 255, 0.55);
   --neon-hum-far: rgba(61, 107, 255, 0.28);
   --neon-backdrop: #01030a;
+  --neon-backdrop-rgb: 1 3 10;
   --neon-settings: #131a30;
+  --neon-settings-rgb: 19 26 48;
   --neon-table-text-focused: #7fa0ff;
+  --neon-table-text-focused-rgb: 127 160 255;
+
+  /* Frosted neon glass surfaces (night) */
+  --neon-glass-surface: rgba(11, 16, 32, 0.72);
+  --neon-glass-work: rgba(11, 16, 32, 0.56);
+  --neon-glass-card: rgba(15, 22, 44, 0.58);
+  --neon-glass-card-hover: rgba(22, 32, 64, 0.72);
+  --neon-glass-dialog: rgba(11, 16, 32, 0.84);
+  --neon-glass-border: rgba(127, 160, 255, 0.19);
+  --neon-glass-top-light: rgba(219, 228, 255, 0.14);
+  --neon-glass-inner-glow: rgba(61, 107, 255, 0.10);
+  --neon-glass-blur: 14px;
+  --neon-glass-panel-blur: 18px;
 
   --gradient-primary: var(--neon-core);
-  --canvas-accent: radial-gradient(
-    ellipse 70% 45% at 14% -10%,
-    var(--neon-ambient),
-    transparent 70%
-  );
+  --canvas-accent:
+    radial-gradient(ellipse 70% 50% at 14% -8%, rgba(61, 107, 255, 0.20), transparent 68%),
+    radial-gradient(ellipse 52% 48% at 86% 14%, rgba(47, 91, 240, 0.14), transparent 70%),
+    radial-gradient(ellipse 56% 42% at 50% 106%, rgba(61, 107, 255, 0.11), transparent 72%);
+  --work-canvas-accent:
+    radial-gradient(ellipse 56% 44% at 84% 6%, rgba(61, 107, 255, 0.13), transparent 68%),
+    radial-gradient(ellipse 52% 46% at 14% 92%, rgba(47, 91, 240, 0.09), transparent 72%);
   --edge-highlight: inset 0 1px 0 0 var(--neon-glass-highlight);
   --menu-shadow: 0 12px 32px -8px rgba(1, 3, 10, 0.80);
   --shadow-sm: none;
@@ -141,6 +227,26 @@
   .dark {
     accent-color: var(--neon-core);
     caret-color: var(--neon-core);
+  }
+  /* Native <select> popups follow the active light/dark theme instead of
+     falling back to Windows/Chrome's white default in dark mode. */
+  select {
+    color-scheme: light;
+  }
+  .dark select {
+    color-scheme: dark;
+  }
+  select option,
+  select optgroup {
+    background-color: var(--surface-2);
+    color: var(--fg);
+  }
+  select option:disabled {
+    color: var(--fg-muted);
+  }
+  select option:checked {
+    background-color: var(--neon-focused-glass);
+    color: var(--neon-lit-text);
   }
   body {
     background-color: var(--bg);
@@ -412,19 +518,108 @@
     animation: neon-letter-last-o var(--scene-duration, 5000ms) ease-in-out 1;
   }
 
-  /* Shell panel: unlit glass hairline + 1px top highlight, no drop shadow. */
+  /* Shell panel: frosted cobalt glass + hairline + 1px top highlight. */
   .glass-panel {
+    background-color: var(--neon-glass-surface);
+    backdrop-filter: blur(var(--neon-glass-panel-blur)) saturate(135%);
+    -webkit-backdrop-filter: blur(var(--neon-glass-panel-blur)) saturate(135%);
     box-shadow:
-      inset 0 0 0 1px var(--neon-glass),
-      inset 0 1px 0 0 var(--neon-glass-highlight);
+      inset 0 0 0 1px var(--neon-glass-border),
+      inset 0 1px 0 0 var(--neon-glass-top-light);
+  }
+
+  /* Main work canvas inside DashboardShell: carries the subtle cobalt glow
+     that frosted cards blur behind them, without setting backdrop-filter on
+     this ancestor so fixed mobile popovers and tooltips stay viewport-bound. */
+  .glass-work-canvas {
+    background-color: var(--neon-glass-work);
+    background-image: var(--work-canvas-accent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* Frosted neon glass card & side panels (never applied to long list rows). */
+  .glass-card {
+    background-color: var(--neon-glass-card);
+    border: 1px solid var(--neon-glass-border);
+    backdrop-filter: blur(var(--neon-glass-blur)) saturate(130%);
+    -webkit-backdrop-filter: blur(var(--neon-glass-blur)) saturate(130%);
+    box-shadow:
+      inset 0 1px 0 0 var(--neon-glass-top-light),
+      inset 0 0 24px -12px var(--neon-glass-inner-glow);
+  }
+  .glass-card-interactive {
+    transition:
+      background-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .glass-card-interactive:hover {
+    background-color: var(--neon-glass-card-hover);
+    border-color: var(--border-strong);
+  }
+
+  /* Frosted glass surface for native <dialog> modals and floating popovers. */
+  .glass-dialog {
+    background-color: var(--neon-glass-dialog);
+    border: 1px solid var(--neon-glass-border);
+    backdrop-filter: blur(var(--neon-glass-panel-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--neon-glass-panel-blur)) saturate(140%);
+    box-shadow:
+      var(--menu-shadow),
+      inset 0 1px 0 0 var(--neon-glass-top-light);
+  }
+
+  @supports not (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
+    .glass-panel,
+    .glass-work-canvas,
+    .glass-card,
+    .glass-dialog {
+      background-color: var(--surface);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .glass-panel,
+    .glass-work-canvas,
+    .glass-card,
+    .glass-dialog {
+      background-color: var(--surface);
+      background-image: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    .glass-panel,
+    .glass-card {
+      border-color: var(--neon-glass);
+      box-shadow: inset 0 0 0 1px var(--neon-glass);
+    }
+    .glass-dialog {
+      border-color: var(--neon-glass);
+      box-shadow: var(--menu-shadow);
+    }
   }
 
   /* Section tab rail: lit text over a 2px glowing cobalt bar on the rail. */
   .neon-tab {
     position: relative;
   }
+  .neon-tab-rail {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .neon-tab-rail::-webkit-scrollbar {
+    display: none;
+  }
   .neon-tab-active {
     color: var(--neon-lit-text);
+  }
+  .neon-tab-rail[data-gliding="true"] .neon-tab-active::after {
+    opacity: 0;
   }
   .neon-tab-active::after {
     content: "";
@@ -541,6 +736,1043 @@
   .orbit-bubble-ccw {
     animation: orbit-ccw var(--orbit-duration, 58s) linear
       var(--orbit-delay, 0s) infinite;
+  }
+
+  /* Animated app icon set (components/shell/app-icons.tsx).
+     All motion uses transform + opacity only, with explicit transform-box
+     and transform-origin so parts pivot cleanly at 20-24px and 48px. */
+  .app-icon-brand {
+    overflow: visible;
+  }
+
+  /* Resting defaults for auxiliary parts that only appear during animation. */
+  .app-icon-home-light,
+  .app-icon-home-smoke,
+  .app-icon-cal-page,
+  .app-icon-agent-spark-2,
+  .app-icon-inbox-letter,
+  .app-icon-megaphone-wave-2,
+  .app-icon-msg-dot,
+  .app-icon-hg-stream {
+    opacity: 0;
+  }
+
+  /* Hourglass shows sand at rest (top partially full, bottom pile visible). */
+  .app-icon-hg-body {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .app-icon-hg-sand-top {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    transform: scaleY(0.62);
+  }
+  .app-icon-hg-sand-bottom {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    transform: scaleY(0.55);
+  }
+  .app-icon-hg-stream {
+    transform-box: fill-box;
+    transform-origin: center top;
+  }
+
+  /* Transform boxes & origins for every moving sub-part. */
+  .app-icon-clock-min {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+  }
+  .app-icon-clock-hour {
+    transform-box: fill-box;
+    transform-origin: 0% 0%;
+  }
+  .app-icon-inbox-letter,
+  .app-icon-inbox-tray,
+  .app-icon-agent-star,
+  .app-icon-agent-spark,
+  .app-icon-agent-spark-2,
+  .app-icon-unassigned-x,
+  .app-icon-media-sun,
+  .app-icon-cal-day,
+  .app-icon-msg-dot,
+  .app-icon-home-smoke,
+  .app-icon-brand path {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .app-icon-people-main,
+  .app-icon-people-second,
+  .app-icon-unassigned-person,
+  .app-icon-bar,
+  .app-icon-media-mountain {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+  }
+  .app-icon-cal-page {
+    transform-box: fill-box;
+    transform-origin: center top;
+  }
+  .app-icon-stats-plot {
+    transform-box: fill-box;
+    transform-origin: left bottom;
+  }
+  .app-icon-book-left {
+    transform-box: fill-box;
+    transform-origin: right center;
+  }
+  .app-icon-book-right {
+    transform-box: fill-box;
+    transform-origin: left center;
+  }
+  .app-icon-megaphone-body {
+    transform-box: fill-box;
+    transform-origin: 25% 55%;
+  }
+  .app-icon-megaphone-wave-1,
+  .app-icon-megaphone-wave-2,
+  .app-icon-sidebar-pane-collapse,
+  .app-icon-sidebar-pane-expand {
+    transform-box: fill-box;
+    transform-origin: left center;
+  }
+  .app-icon-sidebar-chevron-left,
+  .app-icon-sidebar-chevron-right {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  /* ── Hourglass: loop (5.4s calm cycle) & hover (single flip + flow) ── */
+  .app-icon-hourglass.app-icon-loop .app-icon-hg-body {
+    animation: app-icon-hg-flip 5.4s cubic-bezier(0.45, 0.05, 0.35, 1) infinite;
+  }
+  .app-icon-hourglass.app-icon-loop .app-icon-hg-sand-top {
+    animation: app-icon-hg-sand-top 5.4s linear infinite;
+  }
+  .app-icon-hourglass.app-icon-loop .app-icon-hg-sand-bottom {
+    animation: app-icon-hg-sand-bottom 5.4s linear infinite;
+  }
+  .app-icon-hourglass.app-icon-loop .app-icon-hg-stream {
+    animation: app-icon-hg-stream 5.4s linear infinite;
+  }
+
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-hourglass.app-icon-hover .app-icon-hg-body,
+  .app-icon-hourglass.app-icon-hover:is(:hover, :focus-visible) .app-icon-hg-body {
+    animation: app-icon-hg-hover-flip 0.95s cubic-bezier(0.45, 0.05, 0.35, 1) 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-hourglass.app-icon-hover .app-icon-hg-stream,
+  .app-icon-hourglass.app-icon-hover:is(:hover, :focus-visible) .app-icon-hg-stream {
+    animation: app-icon-hg-hover-stream 0.95s ease-out 1;
+  }
+
+  /* ── Clock: loop (6s minute hand, 36s hour hand) & hover (0.9s sweep) ── */
+  .app-icon-clock.app-icon-loop .app-icon-clock-min {
+    animation: app-icon-spin 6s linear infinite;
+  }
+  .app-icon-clock.app-icon-loop .app-icon-clock-hour {
+    animation: app-icon-spin 36s linear infinite;
+  }
+
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-clock.app-icon-hover .app-icon-clock-min,
+  .app-icon-clock.app-icon-hover:is(:hover, :focus-visible) .app-icon-clock-min {
+    animation: app-icon-spin 0.9s cubic-bezier(0.4, 0, 0.2, 1) 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-clock.app-icon-hover .app-icon-clock-hour,
+  .app-icon-clock.app-icon-hover:is(:hover, :focus-visible) .app-icon-clock-hour {
+    animation: app-icon-clock-hour-tick 0.9s cubic-bezier(0.4, 0, 0.2, 1) 1;
+  }
+
+  /* ── Inbox: letter drops into tray ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-inbox.app-icon-hover .app-icon-inbox-letter,
+  .app-icon-inbox.app-icon-hover:is(:hover, :focus-visible) .app-icon-inbox-letter,
+  .app-icon-inbox.app-icon-loop .app-icon-inbox-letter {
+    animation: app-icon-inbox-drop 0.85s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-inbox.app-icon-hover .app-icon-inbox-tray,
+  .app-icon-inbox.app-icon-hover:is(:hover, :focus-visible) .app-icon-inbox-tray,
+  .app-icon-inbox.app-icon-loop .app-icon-inbox-tray {
+    animation: app-icon-inbox-catch 0.85s ease-out 1;
+  }
+  .app-icon-inbox.app-icon-loop .app-icon-inbox-letter,
+  .app-icon-inbox.app-icon-loop .app-icon-inbox-tray {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── People (CRM): person walks in from the side ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-people.app-icon-hover .app-icon-people-main,
+  .app-icon-people.app-icon-hover:is(:hover, :focus-visible) .app-icon-people-main,
+  .app-icon-people.app-icon-loop .app-icon-people-main {
+    animation: app-icon-people-walk 0.85s ease-out 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-people.app-icon-hover .app-icon-people-second,
+  .app-icon-people.app-icon-hover:is(:hover, :focus-visible) .app-icon-people-second,
+  .app-icon-people.app-icon-loop .app-icon-people-second {
+    animation: app-icon-people-nod 0.85s ease-out 1;
+  }
+  .app-icon-people.app-icon-loop .app-icon-people-main,
+  .app-icon-people.app-icon-loop .app-icon-people-second {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Unassigned: person leans in and X shakes ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-unassigned.app-icon-hover .app-icon-unassigned-x,
+  .app-icon-unassigned.app-icon-hover:is(:hover, :focus-visible) .app-icon-unassigned-x,
+  .app-icon-unassigned.app-icon-loop .app-icon-unassigned-x {
+    animation: app-icon-x-shake 0.7s ease-in-out 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-unassigned.app-icon-hover .app-icon-unassigned-person,
+  .app-icon-unassigned.app-icon-hover:is(:hover, :focus-visible) .app-icon-unassigned-person,
+  .app-icon-unassigned.app-icon-loop .app-icon-unassigned-person {
+    animation: app-icon-person-peek 0.7s ease-in-out 1;
+  }
+  .app-icon-unassigned.app-icon-loop .app-icon-unassigned-x,
+  .app-icon-unassigned.app-icon-loop .app-icon-unassigned-person {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Calendar: page flips up and a day dot pops ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-calendar.app-icon-hover .app-icon-cal-page,
+  .app-icon-calendar.app-icon-hover:is(:hover, :focus-visible) .app-icon-cal-page,
+  .app-icon-calendar.app-icon-loop .app-icon-cal-page {
+    animation: app-icon-cal-flip 0.8s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-calendar.app-icon-hover .app-icon-cal-day,
+  .app-icon-calendar.app-icon-hover:is(:hover, :focus-visible) .app-icon-cal-day,
+  .app-icon-calendar.app-icon-loop .app-icon-cal-day {
+    animation: app-icon-cal-day-pop 0.8s ease-out 1;
+  }
+  .app-icon-calendar.app-icon-loop .app-icon-cal-page,
+  .app-icon-calendar.app-icon-loop .app-icon-cal-day {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Agent: star pulses and sparks twinkle ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-agent.app-icon-hover .app-icon-agent-star,
+  .app-icon-agent.app-icon-hover:is(:hover, :focus-visible) .app-icon-agent-star,
+  .app-icon-agent.app-icon-loop .app-icon-agent-star {
+    animation: app-icon-agent-star 0.8s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-agent.app-icon-hover .app-icon-agent-spark,
+  .app-icon-agent.app-icon-hover:is(:hover, :focus-visible) .app-icon-agent-spark,
+  .app-icon-agent.app-icon-loop .app-icon-agent-spark {
+    animation: app-icon-agent-spark 0.8s ease-in-out 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-agent.app-icon-hover .app-icon-agent-spark-2,
+  .app-icon-agent.app-icon-hover:is(:hover, :focus-visible) .app-icon-agent-spark-2,
+  .app-icon-agent.app-icon-loop .app-icon-agent-spark-2 {
+    animation: app-icon-agent-spark-2 0.8s ease-in-out 1;
+  }
+  .app-icon-agent.app-icon-loop .app-icon-agent-star,
+  .app-icon-agent.app-icon-loop .app-icon-agent-spark,
+  .app-icon-agent.app-icon-loop .app-icon-agent-spark-2 {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Stats: trend line & fill rise from origin ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-stats.app-icon-hover .app-icon-stats-plot,
+  .app-icon-stats.app-icon-hover:is(:hover, :focus-visible) .app-icon-stats-plot,
+  .app-icon-stats.app-icon-loop .app-icon-stats-plot {
+    animation: app-icon-stats-rise 0.75s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  .app-icon-stats.app-icon-loop .app-icon-stats-plot {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Bars: three columns rise with stagger ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-bars.app-icon-hover .app-icon-bar,
+  .app-icon-bars.app-icon-hover:is(:hover, :focus-visible) .app-icon-bar,
+  .app-icon-bars.app-icon-loop .app-icon-bar {
+    animation: app-icon-bar-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both 1;
+  }
+  .app-icon-bars .app-icon-bar-2 {
+    animation-delay: 90ms;
+  }
+  .app-icon-bars .app-icon-bar-3 {
+    animation-delay: 180ms;
+  }
+  .app-icon-bars.app-icon-loop .app-icon-bar {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Media: mountain and sun rise inside frame ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-media.app-icon-hover .app-icon-media-mountain,
+  .app-icon-media.app-icon-hover:is(:hover, :focus-visible) .app-icon-media-mountain,
+  .app-icon-media.app-icon-loop .app-icon-media-mountain {
+    animation: app-icon-media-mountain 0.75s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-media.app-icon-hover .app-icon-media-sun,
+  .app-icon-media.app-icon-hover:is(:hover, :focus-visible) .app-icon-media-sun,
+  .app-icon-media.app-icon-loop .app-icon-media-sun {
+    animation: app-icon-media-sun 0.8s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  .app-icon-media.app-icon-loop .app-icon-media-mountain,
+  .app-icon-media.app-icon-loop .app-icon-media-sun {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Book: pages open outward from the spine ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-book.app-icon-hover .app-icon-book-left,
+  .app-icon-book.app-icon-hover:is(:hover, :focus-visible) .app-icon-book-left,
+  .app-icon-book.app-icon-loop .app-icon-book-left {
+    animation: app-icon-book-left 0.75s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-book.app-icon-hover .app-icon-book-right,
+  .app-icon-book.app-icon-hover:is(:hover, :focus-visible) .app-icon-book-right,
+  .app-icon-book.app-icon-loop .app-icon-book-right {
+    animation: app-icon-book-right 0.75s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  .app-icon-book.app-icon-loop .app-icon-book-left,
+  .app-icon-book.app-icon-loop .app-icon-book-right {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Megaphone: recoil tilt + sound waves emit outward ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-megaphone.app-icon-hover .app-icon-megaphone-body,
+  .app-icon-megaphone.app-icon-hover:is(:hover, :focus-visible) .app-icon-megaphone-body,
+  .app-icon-megaphone.app-icon-loop .app-icon-megaphone-body {
+    animation: app-icon-megaphone-kick 0.8s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-megaphone.app-icon-hover .app-icon-megaphone-wave-1,
+  .app-icon-megaphone.app-icon-hover:is(:hover, :focus-visible) .app-icon-megaphone-wave-1,
+  .app-icon-megaphone.app-icon-loop .app-icon-megaphone-wave-1 {
+    animation: app-icon-megaphone-wave-1 0.8s ease-out 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-megaphone.app-icon-hover .app-icon-megaphone-wave-2,
+  .app-icon-megaphone.app-icon-hover:is(:hover, :focus-visible) .app-icon-megaphone-wave-2,
+  .app-icon-megaphone.app-icon-loop .app-icon-megaphone-wave-2 {
+    animation: app-icon-megaphone-wave-2 0.8s ease-out 1;
+  }
+  .app-icon-megaphone.app-icon-loop .app-icon-megaphone-body,
+  .app-icon-megaphone.app-icon-loop .app-icon-megaphone-wave-1,
+  .app-icon-megaphone.app-icon-loop .app-icon-megaphone-wave-2 {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Messages: typing indicator dots bounce inside bubble ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-messages.app-icon-hover .app-icon-msg-dot,
+  .app-icon-messages.app-icon-hover:is(:hover, :focus-visible) .app-icon-msg-dot,
+  .app-icon-messages.app-icon-loop .app-icon-msg-dot {
+    animation: app-icon-typing-dot 0.85s ease-in-out 1;
+  }
+  .app-icon-messages .app-icon-msg-dot-2 {
+    animation-delay: 110ms;
+  }
+  .app-icon-messages .app-icon-msg-dot-3 {
+    animation-delay: 220ms;
+  }
+  .app-icon-messages.app-icon-loop .app-icon-msg-dot {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Home: warm doorway light + gentle chimney smoke ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-home.app-icon-hover .app-icon-home-light,
+  .app-icon-home.app-icon-hover:is(:hover, :focus-visible) .app-icon-home-light,
+  .app-icon-home.app-icon-loop .app-icon-home-light {
+    animation: app-icon-home-glow 0.85s ease-in-out 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-home.app-icon-hover .app-icon-home-smoke,
+  .app-icon-home.app-icon-hover:is(:hover, :focus-visible) .app-icon-home-smoke,
+  .app-icon-home.app-icon-loop .app-icon-home-smoke {
+    animation: app-icon-home-smoke 0.85s ease-out 1;
+  }
+  .app-icon-home .app-icon-home-smoke-2 {
+    animation-delay: 150ms;
+  }
+  .app-icon-home.app-icon-loop .app-icon-home-light,
+  .app-icon-home.app-icon-loop .app-icon-home-smoke {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Brand icons (Instagram & WhatsApp): gentle pulse ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-brand.app-icon-hover path,
+  .app-icon-brand.app-icon-hover:is(:hover, :focus-visible) path,
+  .app-icon-brand.app-icon-loop path {
+    animation: app-icon-brand-pulse 0.65s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  .app-icon-brand.app-icon-loop path {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+
+  /* ── Sidebar collapse / expand: directional chevron nudge + pane shift ── */
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-sidebar-collapse.app-icon-hover .app-icon-sidebar-chevron-left,
+  .app-icon-sidebar-collapse.app-icon-hover:is(:hover, :focus-visible)
+    .app-icon-sidebar-chevron-left,
+  .app-icon-sidebar-collapse.app-icon-loop .app-icon-sidebar-chevron-left {
+    animation: app-icon-nudge-left 0.6s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-sidebar-collapse.app-icon-hover .app-icon-sidebar-pane-collapse,
+  .app-icon-sidebar-collapse.app-icon-hover:is(:hover, :focus-visible)
+    .app-icon-sidebar-pane-collapse,
+  .app-icon-sidebar-collapse.app-icon-loop .app-icon-sidebar-pane-collapse {
+    animation: app-icon-pane-narrow 0.6s ease-out 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-sidebar-expand.app-icon-hover .app-icon-sidebar-chevron-right,
+  .app-icon-sidebar-expand.app-icon-hover:is(:hover, :focus-visible)
+    .app-icon-sidebar-chevron-right,
+  .app-icon-sidebar-expand.app-icon-loop .app-icon-sidebar-chevron-right {
+    animation: app-icon-nudge-right 0.6s cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+  :is(
+      .group:hover,
+      .group:focus-visible,
+      [data-icon-preview="true"]
+    ) .app-icon-sidebar-expand.app-icon-hover .app-icon-sidebar-pane-expand,
+  .app-icon-sidebar-expand.app-icon-hover:is(:hover, :focus-visible)
+    .app-icon-sidebar-pane-expand,
+  .app-icon-sidebar-expand.app-icon-loop .app-icon-sidebar-pane-expand {
+    animation: app-icon-pane-widen 0.6s ease-out 1;
+  }
+  .app-icon-sidebar-collapse.app-icon-loop .app-icon-sidebar-chevron-left,
+  .app-icon-sidebar-collapse.app-icon-loop .app-icon-sidebar-pane-collapse,
+  .app-icon-sidebar-expand.app-icon-loop .app-icon-sidebar-chevron-right,
+  .app-icon-sidebar-expand.app-icon-loop .app-icon-sidebar-pane-expand {
+    animation-duration: 2.2s;
+    animation-iteration-count: infinite;
+  }
+}
+
+@keyframes app-icon-hg-flip {
+  0%,
+  72% {
+    transform: rotate(0deg);
+  }
+  92%,
+  100% {
+    transform: rotate(180deg);
+  }
+}
+
+@keyframes app-icon-hg-sand-top {
+  0%,
+  6% {
+    transform: scaleY(1);
+  }
+  68%,
+  100% {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes app-icon-hg-sand-bottom {
+  0%,
+  6% {
+    transform: scaleY(0);
+  }
+  68%,
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes app-icon-hg-stream {
+  0%,
+  5% {
+    opacity: 0;
+    transform: scaleY(0.2);
+  }
+  12%,
+  64% {
+    opacity: 0.85;
+    transform: scaleY(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scaleY(0.2);
+  }
+}
+
+@keyframes app-icon-hg-hover-flip {
+  0% {
+    transform: rotate(0deg);
+  }
+  58% {
+    transform: rotate(188deg);
+  }
+  76%,
+  100% {
+    transform: rotate(180deg);
+  }
+}
+
+@keyframes app-icon-hg-hover-stream {
+  0%,
+  52% {
+    opacity: 0;
+  }
+  68% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes app-icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes app-icon-clock-hour-tick {
+  0% {
+    transform: rotate(0deg);
+  }
+  65% {
+    transform: rotate(32deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes app-icon-inbox-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.84) rotate(-6deg);
+  }
+  26% {
+    opacity: 1;
+    transform: translateY(-2.2px) scale(1) rotate(2deg);
+  }
+  62% {
+    opacity: 1;
+    transform: translateY(2.2px) scale(0.95) rotate(0deg);
+  }
+  88%,
+  100% {
+    opacity: 0;
+    transform: translateY(4.4px) scale(0.72) rotate(0deg);
+  }
+}
+
+@keyframes app-icon-inbox-catch {
+  0%,
+  52% {
+    transform: translateY(0);
+  }
+  70% {
+    transform: translateY(1.1px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes app-icon-people-walk {
+  0% {
+    opacity: 0;
+    transform: translateX(-7px) translateY(0) rotate(-6deg);
+  }
+  22% {
+    opacity: 1;
+    transform: translateX(-4.6px) translateY(-1.4px) rotate(4deg);
+  }
+  44% {
+    transform: translateX(-2.3px) translateY(0.2px) rotate(-4deg);
+  }
+  66% {
+    transform: translateX(-0.8px) translateY(-1.1px) rotate(3deg);
+  }
+  84% {
+    transform: translateX(0.3px) translateY(0) rotate(-1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes app-icon-people-nod {
+  0%,
+  50% {
+    transform: translateX(1.2px);
+    opacity: 0.72;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes app-icon-x-shake {
+  0%,
+  100% {
+    transform: translateX(0) scale(1);
+  }
+  20% {
+    transform: translateX(-1.5px) scale(1.12);
+  }
+  40% {
+    transform: translateX(1.5px) scale(1.12);
+  }
+  60% {
+    transform: translateX(-1px) scale(1.06);
+  }
+  80% {
+    transform: translateX(1px) scale(1.04);
+  }
+}
+
+@keyframes app-icon-person-peek {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  35% {
+    transform: translateX(-0.9px) rotate(-3deg);
+  }
+  70% {
+    transform: translateX(0.3px) rotate(1deg);
+  }
+}
+
+@keyframes app-icon-cal-flip {
+  0% {
+    opacity: 0.34;
+    transform: scaleY(1);
+  }
+  45% {
+    opacity: 0.24;
+    transform: scaleY(0.16);
+  }
+  62%,
+  100% {
+    opacity: 0;
+    transform: scaleY(0.05);
+  }
+}
+
+@keyframes app-icon-cal-day-pop {
+  0%,
+  35% {
+    transform: scale(1);
+  }
+  62% {
+    transform: scale(1.75);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes app-icon-agent-star {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  40% {
+    transform: scale(1.09) rotate(10deg);
+  }
+  72% {
+    transform: scale(0.97) rotate(-4deg);
+  }
+}
+
+@keyframes app-icon-agent-spark {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  28% {
+    opacity: 0.25;
+    transform: scale(0.35) rotate(0deg);
+  }
+  62% {
+    opacity: 1;
+    transform: scale(1.32) rotate(45deg);
+  }
+}
+
+@keyframes app-icon-agent-spark-2 {
+  0%,
+  22% {
+    opacity: 0;
+    transform: scale(0.3) rotate(0deg);
+  }
+  55% {
+    opacity: 0.95;
+    transform: scale(1.15) rotate(45deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.3) rotate(90deg);
+  }
+}
+
+@keyframes app-icon-stats-rise {
+  0% {
+    opacity: 0.25;
+    transform: scaleX(0.35) scaleY(0.15);
+  }
+  65% {
+    opacity: 1;
+    transform: scaleX(1.02) scaleY(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1) scaleY(1);
+  }
+}
+
+@keyframes app-icon-bar-rise {
+  0% {
+    opacity: 0.45;
+    transform: scaleY(0.22);
+  }
+  65% {
+    opacity: 1;
+    transform: scaleY(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes app-icon-media-mountain {
+  0% {
+    opacity: 0.25;
+    transform: translateY(4.5px) scaleY(0.58);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-0.3px) scaleY(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes app-icon-media-sun {
+  0%,
+  14% {
+    opacity: 0;
+    transform: translateY(4.8px) scale(0.55);
+  }
+  72% {
+    opacity: 1;
+    transform: translateY(-0.5px) scale(1.14);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes app-icon-book-left {
+  0% {
+    transform: scaleX(1) skewY(0deg);
+  }
+  30% {
+    transform: scaleX(0.62) skewY(5deg);
+  }
+  72% {
+    transform: scaleX(1.05) skewY(-2deg);
+  }
+  100% {
+    transform: scaleX(1) skewY(0deg);
+  }
+}
+
+@keyframes app-icon-book-right {
+  0% {
+    transform: scaleX(1) skewY(0deg);
+  }
+  30% {
+    transform: scaleX(0.62) skewY(-5deg);
+  }
+  72% {
+    transform: scaleX(1.05) skewY(2deg);
+  }
+  100% {
+    transform: scaleX(1) skewY(0deg);
+  }
+}
+
+@keyframes app-icon-megaphone-kick {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  32% {
+    transform: rotate(-7deg);
+  }
+  68% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes app-icon-megaphone-wave-1 {
+  0%,
+  100% {
+    opacity: 1;
+    transform: translateX(0) scaleY(1);
+  }
+  42% {
+    opacity: 1;
+    transform: translateX(0.8px) scaleY(1.24);
+  }
+}
+
+@keyframes app-icon-megaphone-wave-2 {
+  0%,
+  12% {
+    opacity: 0;
+    transform: translateX(-1.8px) scale(0.76);
+  }
+  48% {
+    opacity: 0.92;
+    transform: translateX(0.4px) scale(1.04);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(1.5px) scale(1.14);
+  }
+}
+
+@keyframes app-icon-typing-dot {
+  0% {
+    opacity: 0;
+    transform: translateY(1.4px) scale(0.5);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-1.2px) scale(1.1);
+  }
+  68% {
+    opacity: 1;
+    transform: translateY(0.2px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(0) scale(0.7);
+  }
+}
+
+@keyframes app-icon-home-glow {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  35%,
+  65% {
+    opacity: 0.62;
+  }
+}
+
+@keyframes app-icon-home-smoke {
+  0% {
+    opacity: 0;
+    transform: translateY(2.2px) scale(0.55);
+  }
+  42% {
+    opacity: 0.72;
+    transform: translateY(-0.4px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-2.6px) scale(1.25);
+  }
+}
+
+@keyframes app-icon-brand-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.1);
+  }
+  72% {
+    transform: scale(0.96);
+  }
+}
+
+@keyframes app-icon-nudge-left {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  45% {
+    transform: translateX(-2.1px);
+  }
+  75% {
+    transform: translateX(0.4px);
+  }
+}
+
+@keyframes app-icon-nudge-right {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  45% {
+    transform: translateX(2.1px);
+  }
+  75% {
+    transform: translateX(-0.4px);
+  }
+}
+
+@keyframes app-icon-pane-narrow {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  45% {
+    transform: scaleX(0.78);
+  }
+}
+
+@keyframes app-icon-pane-widen {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  45% {
+    transform: scaleX(1.2);
   }
 }
 
@@ -854,6 +2086,8 @@
   .orbit-bubble,
   .orbit-bubble-cw,
   .orbit-bubble-ccw,
+  .app-icon,
+  .app-icon *,
   .glass-field {
     animation: none !important;
     transition: none !important;

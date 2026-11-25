@@ -25,6 +25,10 @@ export type Pipeline = {
   stages: Stage[];
 };
 
+export type PaymentTerms = "cash" | "credit" | "installments";
+export type PaymentMethod = "cash" | "transfer" | "card" | "other";
+export type InstallmentStatus = "paid" | "partial" | "pending" | "overdue";
+
 export type Opportunity = {
   id: number;
   pipeline_id: number;
@@ -43,6 +47,13 @@ export type Opportunity = {
   lost_reason: string | null;
   position: number;
   stage_changed_at: number | null;
+  payment_terms?: PaymentTerms | null;
+  due_on?: string | null;
+  paid_amount?: number;
+  owed_amount?: number;
+  overdue_amount?: number;
+  days_overdue?: number;
+  installments_count?: number;
   created_at: number | null;
   updated_at: number | null;
   contact: { id: number; name: string | null; avatar_url: string | null } | null;
@@ -63,6 +74,8 @@ export type OpportunityInput = {
   expected_close_on?: string | null;
   lost_reason?: string | null;
   position?: number;
+  release_allocations?: boolean;
+  keep_allocations?: boolean;
 };
 
 export type StageInput = {
@@ -108,6 +121,10 @@ export function useOpportunities(accountId: string, filters: OpportunityFilters 
 
 function invalidate(qc: ReturnType<typeof useQueryClient>, accountId: string) {
   qc.invalidateQueries({ queryKey: ["crm-opportunities", accountId] });
+  qc.invalidateQueries({ queryKey: ["crm-billing", accountId] });
+  qc.invalidateQueries({ queryKey: ["crm-statement", accountId] });
+  qc.invalidateQueries({ queryKey: ["crm-receivables", accountId] });
+  qc.invalidateQueries({ queryKey: ["crm-payments", accountId] });
 }
 
 export function useCreateOpportunity(accountId: string) {
@@ -137,10 +154,14 @@ export function useUpdateOpportunity(accountId: string) {
 export function useDeleteOpportunity(accountId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) =>
-      apiFetch<Record<string, never>>(`${base(accountId)}/opportunities/${id}`, {
+    mutationFn: (input: number | { id: number; releaseAllocations?: boolean }) => {
+      const id = typeof input === "number" ? input : input.id;
+      const release = typeof input === "number" ? false : Boolean(input.releaseAllocations);
+      const qs = release ? "?release_allocations=true" : "";
+      return apiFetch<Record<string, never>>(`${base(accountId)}/opportunities/${id}${qs}`, {
         method: "DELETE",
-      }),
+      });
+    },
     onSuccess: () => invalidate(qc, accountId),
   });
 }
@@ -503,5 +524,341 @@ export function useConnectPendingMetaCatalog(accountId: string) {
       qc.setQueryData(catalogKey(accountId), data);
       void qc.invalidateQueries({ queryKey: ["products", accountId] });
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Collections (cobranzas): billing, installments, payments & receivables
+// ---------------------------------------------------------------------------
+export type Installment = {
+  id: number;
+  number: number;
+  due_on: string;
+  amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  days_overdue: number;
+  status: InstallmentStatus;
+  locked: boolean;
+};
+
+export type OpportunityAllocation = {
+  id: number;
+  payment_id: number;
+  opportunity_id: number;
+  installment_id: number | null;
+  installment_number: number | null;
+  amount: number;
+  paid_on: string | null;
+  method: PaymentMethod | null;
+  note: string | null;
+  payment_amount: number | null;
+  created_by: { id: number; name: string } | null;
+};
+
+export type OpportunityBilling = {
+  opportunity_id: number;
+  is_won: boolean;
+  payment_terms: PaymentTerms | null;
+  due_on: string | null;
+  value: number | null;
+  currency: string | null;
+  paid_amount: number;
+  owed_amount: number;
+  overdue_amount: number;
+  days_overdue: number;
+  next_due_on: string | null;
+  installments: Installment[];
+  allocations: OpportunityAllocation[];
+  created_payment?: Payment | null;
+};
+
+export type OpportunityBillingInput = {
+  payment_terms: PaymentTerms | null;
+  due_on?: string | null;
+  generate?: {
+    count: number;
+    first_due_on: string;
+    frequency: "monthly" | "every_n_days";
+    interval_days?: number | null;
+  } | null;
+  installments?: { id?: number | null; due_on: string; amount: number }[] | null;
+  register_payment?: boolean;
+  payment_method?: PaymentMethod;
+  paid_on?: string | null;
+  payment_note?: string | null;
+};
+
+export type PaymentAllocationItem = {
+  id: number;
+  opportunity_id: number;
+  opportunity_title: string | null;
+  installment_id: number | null;
+  installment_number: number | null;
+  amount: number;
+};
+
+export type Payment = {
+  id: number;
+  contact_id: number;
+  amount: number;
+  currency: string | null;
+  paid_on: string;
+  method: PaymentMethod;
+  note: string | null;
+  allocated_amount: number;
+  unallocated_amount: number;
+  created_by_id: number | null;
+  created_by: { id: number; name: string } | null;
+  contact: { id: number; name: string | null; avatar_url: string | null } | null;
+  created_at: number | null;
+  allocations: PaymentAllocationItem[];
+};
+
+export type PaymentInput = {
+  contact_id?: number;
+  amount?: number;
+  currency?: string | null;
+  paid_on?: string;
+  method?: PaymentMethod;
+  note?: string | null;
+  allocation_mode?: "auto" | "manual";
+  allocations?: { opportunity_id: number; installment_id?: number | null; amount: number }[];
+};
+
+export type PaymentPreview = {
+  currency: string | null;
+  amount: number;
+  allocated_total: number;
+  unallocated_amount: number;
+  allocations: {
+    opportunity_id: number;
+    opportunity_title: string;
+    installment_id: number | null;
+    installment_number: number | null;
+    due_on: string | null;
+    amount: number;
+  }[];
+  balance_before: { owed_total: number; credit_balance: number; net_balance: number };
+  balance_after: { owed_total: number; credit_balance: number; net_balance: number };
+};
+
+export type CurrencyBalance = {
+  currency: string | null;
+  total_sales: number;
+  paid_total: number;
+  owed_total: number;
+  credit_balance: number;
+  net_balance: number;
+  overdue_total: number;
+  days_overdue: number;
+  next_due_on: string | null;
+};
+
+export type StatementSale = {
+  id: number;
+  title: string;
+  value: number | null;
+  currency: string | null;
+  closed_at: number | null;
+  payment_terms: PaymentTerms | null;
+  due_on: string | null;
+  paid_amount: number;
+  owed_amount: number;
+  overdue_amount: number;
+  days_overdue: number;
+  next_due_on: string | null;
+  owner: { id: number; name: string } | null;
+  installments: Installment[];
+};
+
+export type WhatsappConversationRef = {
+  display_id: number;
+  inbox_id: number;
+};
+
+export type ContactStatement = {
+  as_of: string;
+  contact: {
+    id: number;
+    name: string | null;
+    email: string | null;
+    phone_number: string | null;
+    avatar_url: string | null;
+  };
+  whatsapp_conversation: WhatsappConversationRef | null;
+  balances: CurrencyBalance[];
+  sales: StatementSale[];
+  payments: Payment[];
+};
+
+export type ReceivableCurrency = {
+  currency: string | null;
+  owed_total: number;
+  overdue_total: number;
+  credit_balance: number;
+  net_balance: number;
+};
+
+export type ReceivableRow = {
+  contact: {
+    id: number;
+    name: string | null;
+    email: string | null;
+    phone_number: string | null;
+    avatar_url: string | null;
+  };
+  owner: { id: number; name: string } | null;
+  currencies: ReceivableCurrency[];
+  days_overdue: number;
+  next_due_on: string | null;
+  sales_count: number;
+  overdue_count: number;
+  whatsapp_conversation: WhatsappConversationRef | null;
+};
+
+export type ReceivablesResponse = {
+  as_of: string;
+  items: ReceivableRow[];
+  meta: {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+  };
+};
+
+export type ReceivablesSummary = {
+  as_of: string;
+  month: string;
+  debtors_count: number;
+  overdue_debtors_count: number;
+  currencies: {
+    currency: string | null;
+    to_collect: number;
+    overdue: number;
+    collected_this_month: number;
+    credit_balance: number;
+  }[];
+};
+
+export type ReceivablesFilters = {
+  status?: "all" | "overdue" | "upcoming";
+  owner_id?: number;
+  q?: string;
+  sort?: "overdue" | "amount" | "due_on" | "name";
+  order?: "asc" | "desc";
+  page?: number;
+  per_page?: number;
+};
+
+export function useOpportunityBilling(
+  accountId: string,
+  opportunityId: number | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ["crm-billing", accountId, opportunityId],
+    enabled: enabled && opportunityId !== null,
+    queryFn: () =>
+      apiFetch<OpportunityBilling>(`${base(accountId)}/opportunities/${opportunityId}/billing`),
+  });
+}
+
+export function useSaveOpportunityBilling(accountId: string, opportunityId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: OpportunityBillingInput) =>
+      apiFetch<OpportunityBilling>(`${base(accountId)}/opportunities/${opportunityId}/billing`, {
+        method: "PUT",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => invalidate(qc, accountId),
+  });
+}
+
+export function useCreatePayment(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PaymentInput) =>
+      apiFetch<Payment>(`${base(accountId)}/payments`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => invalidate(qc, accountId),
+  });
+}
+
+export function useUpdatePayment(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; patch: PaymentInput }) =>
+      apiFetch<Payment>(`${base(accountId)}/payments/${input.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input.patch),
+      }),
+    onSuccess: () => invalidate(qc, accountId),
+  });
+}
+
+export function useDeletePayment(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Record<string, never>>(`${base(accountId)}/payments/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => invalidate(qc, accountId),
+  });
+}
+
+export function usePreviewPayment(accountId: string) {
+  return useMutation({
+    mutationFn: (input: {
+      contact_id: number;
+      amount: number;
+      currency: string | null;
+      allocation_mode: "auto" | "manual";
+      allocations?: { opportunity_id: number; installment_id?: number | null; amount: number }[];
+      exclude_payment_id?: number | null;
+    }) =>
+      apiFetch<PaymentPreview>(`${base(accountId)}/payments/preview`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+  });
+}
+
+export function useContactStatement(
+  accountId: string,
+  contactId: number | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ["crm-statement", accountId, contactId],
+    enabled: enabled && contactId !== null,
+    queryFn: () =>
+      apiFetch<ContactStatement>(`${base(accountId)}/contacts/${contactId}/statement`),
+  });
+}
+
+export function useReceivables(accountId: string, filters: ReceivablesFilters = {}) {
+  return useQuery({
+    queryKey: ["crm-receivables", accountId, "list", filters],
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      for (const [k, v] of Object.entries(filters)) {
+        if (v !== undefined && v !== "" && v !== "all") sp.set(k, String(v));
+      }
+      const qs = sp.toString();
+      return apiFetch<ReceivablesResponse>(`${base(accountId)}/receivables${qs ? `?${qs}` : ""}`);
+    },
+  });
+}
+
+export function useReceivablesSummary(accountId: string) {
+  return useQuery({
+    queryKey: ["crm-receivables", accountId, "summary"],
+    queryFn: () => apiFetch<ReceivablesSummary>(`${base(accountId)}/receivables/summary`),
   });
 }

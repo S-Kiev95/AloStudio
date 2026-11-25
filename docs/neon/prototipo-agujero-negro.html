@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AloStudio — Prototipo: Login con Agujero Negro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600&family=Neonderthaw&family=Tilt+Neon&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #eef1f8;
+      --surface: #ffffff;
+      --surface-2: #f3f5fb;
+      --fg: #0c1124;
+      --fg-muted: #5f6987;
+      --neon-core: #2f5bf0;
+      --neon-core-hover: #1f47d6;
+      --neon-lit-text: #1a3bb8;
+      --neon-halo: rgba(47, 91, 240, 0.28);
+      --neon-halo-far: rgba(47, 91, 240, 0.10);
+      --neon-glass: #d6dcef;
+      --neon-glass-highlight: rgba(255, 255, 255, 0.90);
+      --neon-field: #f7f9fe;
+      --neon-ambient: rgba(47, 91, 240, 0.06);
+      --neon-edge: rgba(255, 255, 255, 0.50);
+    }
+    html.dark {
+      --bg: #060912;
+      --surface: #0b1020;
+      --surface-2: #0f1528;
+      --fg: #e7ecff;
+      --fg-muted: #8d97b8;
+      --neon-core: #3d6bff;
+      --neon-core-hover: #5a82ff;
+      --neon-lit-text: #dbe4ff;
+      --neon-halo: rgba(61, 107, 255, 0.42);
+      --neon-halo-far: rgba(61, 107, 255, 0.16);
+      --neon-glass: #1c2644;
+      --neon-glass-highlight: rgba(127, 160, 255, 0.10);
+      --neon-field: #070b16;
+      --neon-ambient: rgba(61, 107, 255, 0.10);
+      --neon-edge: rgba(219, 228, 255, 0.45);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh;
+      background-color: var(--bg);
+      background-image: radial-gradient(ellipse 70% 45% at 14% -10%, var(--neon-ambient), transparent 70%);
+      color: var(--fg);
+      font-family: "Geologica", ui-sans-serif, system-ui, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Stage container (switches between full desktop and 390px phone frame) */
+    #stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition: width 300ms ease, height 300ms ease, border-radius 300ms ease, box-shadow 300ms ease;
+    }
+    #stage.mobile-mode {
+      width: 390px;
+      height: min(820px, calc(100dvh - 110px));
+      border-radius: 32px;
+      box-shadow: 0 0 0 1px var(--neon-glass), 0 24px 64px rgba(0, 0, 0, 0.7);
+      background-color: var(--bg);
+      background-image: radial-gradient(ellipse 70% 45% at 14% -10%, var(--neon-ambient), transparent 70%);
+    }
+
+    /* Canvas layers */
+    #bg-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      pointer-events: none;
+    }
+    #fg-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 15;
+      pointer-events: none;
+    }
+
+    /* Camera plunge wrapper */
+    #camera-rig {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      transform-origin: center center;
+      will-change: transform, opacity;
+    }
+
+    /* Login card (outer wrapper is transparent; .card-shell holds the glass panel) */
+    .login-card {
+      position: relative;
+      width: min(420px, calc(100% - 32px));
+      padding: 36px;
+      border-radius: 16px;
+      background: transparent;
+      overflow: visible;
+      transform-origin: center center;
+      will-change: transform, opacity;
+    }
+    #stage.mobile-mode .login-card {
+      padding: 26px 22px;
+    }
+
+    /* Black hole sphere core (morphs from card) */
+    .card-shell {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: var(--surface);
+      box-shadow:
+        inset 0 0 0 1px var(--neon-glass),
+        inset 0 1px 0 0 var(--neon-glass-highlight);
+      z-index: 0;
+      will-change: transform, border-radius, background-color, box-shadow;
+    }
+
+    .card-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .shard {
+      will-change: transform, opacity, filter;
+      transform-origin: center center;
+    }
+
+    .wordmark {
+      font-family: "Neonderthaw", cursive;
+      font-size: 38px;
+      line-height: 1;
+      color: var(--neon-core);
+      margin-bottom: 24px;
+      display: inline-block;
+    }
+    html.dark .wordmark {
+      color: var(--neon-lit-text);
+      text-shadow:
+        0 0 2px var(--neon-lit-text),
+        0 0 6px var(--neon-core),
+        0 0 18px var(--neon-core),
+        0 0 40px var(--neon-halo);
+    }
+
+    .sign {
+      font-family: "Tilt Neon", sans-serif;
+      font-size: 28px;
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: 0.01em;
+      color: var(--neon-core);
+    }
+    html.dark .sign {
+      color: var(--neon-lit-text);
+      text-shadow:
+        0 0 2px var(--neon-lit-text),
+        0 0 8px var(--neon-core),
+        0 0 22px var(--neon-halo),
+        0 0 44px var(--neon-halo);
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      font-size: 14px;
+      color: var(--fg-muted);
+      margin-bottom: 22px;
+    }
+
+    .field-group {
+      margin-bottom: 16px;
+    }
+    .field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--fg);
+      margin-bottom: 6px;
+    }
+    .field-label span { color: #ff6b85; }
+    .glass-input {
+      width: 100%;
+      height: 44px;
+      border-radius: 10px;
+      border: 1px solid var(--neon-glass);
+      background: var(--neon-field);
+      color: var(--fg);
+      padding: 0 14px;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-input:focus {
+      border-color: var(--neon-core);
+      box-shadow: 0 0 0 3px var(--neon-halo-far);
+    }
+
+    .btn-primary {
+      width: 100%;
+      height: 42px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--neon-core);
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow:
+        inset 0 0 0 1px var(--neon-edge),
+        inset 0 0 14px -4px rgba(255, 255, 255, 0.35),
+        0 0 0 1px var(--neon-halo),
+        0 2px 22px -2px var(--neon-halo);
+      transition: background-color 220ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn-primary:hover {
+      background: var(--neon-core-hover);
+      box-shadow:
+        inset 0 0 0 1px rgba(219, 228, 255, 0.6),
+        inset 0 0 14px -4px rgba(255, 255, 255, 0.45),
+        0 0 0 1px var(--neon-halo),
+        0 4px 30px 0 var(--neon-halo);
+    }
+    .forgot {
+      display: block;
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #7fa0ff;
+      text-decoration: none;
+    }
+
+    /* Fracture crack lines SVG overlay on card */
+    .cracks-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 4;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    /* Fake AloStudio home destination overlay */
+    #home-arrival {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      background: var(--bg);
+      background-image: radial-gradient(ellipse 70% 45% at 14% -10%, var(--neon-ambient), transparent 70%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 280ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #home-arrival.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .home-preview {
+      width: min(780px, 94%);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: inset 0 0 0 1px var(--neon-glass), inset 0 1px 0 0 var(--neon-glass-highlight);
+      padding: 28px;
+      text-align: left;
+    }
+    .home-preview-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--neon-glass);
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+    }
+    .home-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .home-kpi {
+      border: 1px solid var(--neon-glass);
+      border-radius: 8px;
+      background: var(--surface-2);
+      padding: 14px;
+    }
+    .home-kpi strong {
+      display: block;
+      font-size: 24px;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 4px;
+    }
+    .home-kpi span {
+      font-size: 12px;
+      color: var(--fg-muted);
+    }
+
+    /* Prototype HUD controls */
+    .hud {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      background: rgba(11, 16, 32, 0.92);
+      border: 1px solid #2a3660;
+      color: #e7ecff;
+      font-size: 12px;
+      backdrop-filter: blur(10px);
+      max-width: calc(100vw - 24px);
+    }
+    .hud button {
+      border: 1px solid #2a3660;
+      background: #131a30;
+      color: #e7ecff;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .hud button.active, .hud button.run {
+      background: #3d6bff;
+      border-color: #5a82ff;
+      color: #fff;
+    }
+    .hud input[type="range"] {
+      width: 150px;
+      accent-color: #3d6bff;
+    }
+    .phase-pill {
+      font-variant-numeric: tabular-nums;
+      color: #9eb0e6;
+      min-width: 165px;
+    }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="bg-canvas"></canvas>
+    <div id="camera-rig">
+      <div id="login-card" class="login-card">
+        <div id="card-shell" class="card-shell"></div>
+        <svg id="cracks-svg" class="cracks-svg" viewBox="0 0 420 490" preserveAspectRatio="none">
+          <g stroke="#7fa0ff" stroke-width="1.4" fill="none" stroke-linecap="round">
+            <path d="M210 245 L142 158 L80 112 M142 158 L168 62" />
+            <path d="M210 245 L292 170 L368 122 M292 170 L270 72" />
+            <path d="M210 245 L136 332 L68 408 M136 332 L182 448" />
+            <path d="M210 245 L296 320 L372 396 M296 320 L254 446" />
+            <path d="M210 245 L56 248 M210 245 L368 232" opacity="0.65" />
+          </g>
+        </svg>
+        <div class="card-content">
+          <div class="shard" data-shard="0"><span class="wordmark">AloStudio</span></div>
+          <div class="shard" data-shard="1"><h1 class="sign">Iniciar sesión</h1></div>
+          <div class="shard" data-shard="2"><p class="subtitle">Accedé a tu cuenta de AloStudio.</p></div>
+          <form id="login-form" autocomplete="off">
+            <div class="field-group shard" data-shard="3">
+              <label class="field-label" for="email">Email <span>*</span></label>
+              <input id="email" class="glass-input" type="email" value="sofia@ctc.edu.uy" />
+            </div>
+            <div class="field-group shard" data-shard="4">
+              <label class="field-label" for="pass">Contraseña <span>*</span></label>
+              <input id="pass" class="glass-input" type="password" value="••••••••••••" />
+            </div>
+            <div class="shard" data-shard="5">
+              <button type="submit" class="btn-primary">Entrar</button>
+            </div>
+            <div class="shard" data-shard="6">
+              <a href="#reset" class="forgot" onclick="return false;">¿Olvidaste tu contraseña?</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <canvas id="fg-canvas"></canvas>
+
+    <div id="home-arrival">
+      <div class="home-preview">
+        <div class="home-preview-top">
+          <div>
+            <div class="sign" style="font-size: 26px;">Inicio</div>
+            <p style="font-size: 13px; color: var(--fg-muted); margin-top: 4px;">
+              Bienvenido de vuelta, Sofía — Instituto CTC
+            </p>
+          </div>
+          <button class="btn-primary" style="width: auto; padding: 0 18px; height: 36px;" onclick="resetDemo()">
+            Repetir animación
+          </button>
+        </div>
+        <div class="home-kpi-grid">
+          <div class="home-kpi"><strong>18</strong><span>Abiertas</span></div>
+          <div class="home-kpi"><strong>4</strong><span>Sin atender</span></div>
+          <div class="home-kpi"><strong>3</strong><span>Sin asignar</span></div>
+          <div class="home-kpi"><strong>6</strong><span>Pendientes</span></div>
+        </div>
+        <p style="font-size: 12px; color: var(--fg-muted);">
+          Duración total de la secuencia: <strong>2.6 s</strong> (con <code>router.prefetch</code> previo para ingreso inmediato).
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="hud" id="hud">
+    <button class="run" id="btn-play" onclick="playSequence()">▶ Simular login correcto</button>
+    <button onclick="resetDemo()">↺ Reiniciar</button>
+    <input id="scrubber" type="range" min="0" max="2600" value="0" step="10" oninput="scrubTo(Number(this.value))" />
+    <span class="phase-pill" id="phase-label">Reposo · 0 ms / 2600 ms</span>
+    <button id="btn-mobile" onclick="toggleMobile()">📱 Celular (390px)</button>
+    <button id="btn-theme" onclick="toggleTheme()">☀ Día / Noche</button>
+    <button id="btn-reduced" onclick="toggleReduced()">♿ Reduced motion</button>
+  </div>
+
+  <script>
+    const DURATION = 2600;
+    const stage = document.getElementById("stage");
+    const bgCanvas = document.getElementById("bg-canvas");
+    const fgCanvas = document.getElementById("fg-canvas");
+    const bgCtx = bgCanvas.getContext("2d");
+    const fgCtx = fgCanvas.getContext("2d");
+    const card = document.getElementById("login-card");
+    const cardShell = document.getElementById("card-shell");
+    const cracksSvg = document.getElementById("cracks-svg");
+    const cameraRig = document.getElementById("camera-rig");
+    const homeArrival = document.getElementById("home-arrival");
+    const scrubber = document.getElementById("scrubber");
+    const phaseLabel = document.getElementById("phase-label");
+    const shards = [...document.querySelectorAll(".shard")];
+
+    const CHANNELS = [
+      { id: "WA", name: "WhatsApp", color: "#25D366", bg: "#0d3820" },
+      { id: "IG", name: "Instagram", color: "#E1306C", bg: "#3b1026" },
+      { id: "FB", name: "Facebook", color: "#1877F2", bg: "#0e2246" },
+      { id: "TG", name: "Telegram", color: "#26A5E4", bg: "#0c2b3d" },
+      { id: "GM", name: "Gmail", color: "#EA4335", bg: "#3a1414" },
+      { id: "X",  name: "X", color: "#E7ECFF", bg: "#181d2c" },
+      { id: "MS", name: "Messenger", color: "#0084FF", bg: "#0a2546" },
+      { id: "TT", name: "TikTok", color: "#25F4EE", bg: "#0b2e33" },
+      { id: "TH", name: "Threads", color: "#C8D6FF", bg: "#182038" },
+      { id: "IN", name: "LinkedIn", color: "#0A66C2", bg: "#0b223d" },
+    ];
+
+    // Shard fracture metadata (deterministic so scrubber works cleanly)
+    const SHARD_CFG = [
+      { rot: -26, skew: 12, delay: 0,   dy: -155, dx: -24 },
+      { rot:  18, skew: -10, delay: 45,  dy: -105, dx:  18 },
+      { rot: -14, skew: 8,  delay: 75,  dy:  -68, dx: -16 },
+      { rot:  24, skew: -14, delay: 110, dy:  -12, dx:  28 },
+      { rot: -22, skew: 14, delay: 145, dy:   56, dx: -26 },
+      { rot:  30, skew: -16, delay: 175, dy:  118, dx:  14 },
+      { rot: -18, skew: 10, delay: 205, dy:  162, dx: -10 },
+    ];
+
+    let W = 0, H = 0, CX = 0, CY = 0;
+    let bodies = [];
+    let stars = [];
+    let mode = "idle"; // idle | playing | scrubbed | done
+    let animMs = 0;
+    let playStart = 0;
+    let reducedMotion = false;
+    let mobileMode = false;
+
+    function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+    function easeInExpo(t) { return t === 0 ? 0 : Math.pow(2, 10 * t - 10); }
+    function easeOutExpo(t) { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
+    function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+    function easeInCubic(t) { return t * t * t; }
+
+    function resize() {
+      const r = stage.getBoundingClientRect();
+      W = Math.max(320, r.width);
+      H = Math.max(400, r.height);
+      CX = W / 2;
+      CY = H / 2;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      for (const c of [bgCanvas, fgCanvas]) {
+        c.width = Math.round(W * dpr);
+        c.height = Math.round(H * dpr);
+        c.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      initBodies();
+    }
+
+    function initBodies() {
+      const count = W < 480 ? 6 : CHANNELS.length;
+      const cardW = Math.min(420, W - 32);
+      const cardH = 490;
+      const ringR = Math.min(W, H) * 0.42;
+      bodies = [];
+      for (let i = 0; i < count; i++) {
+        const ang = (i / count) * Math.PI * 2 + 0.35;
+        let rx = Math.max(cardW * 0.68, W * 0.36);
+        let ry = Math.max(cardH * 0.56, H * 0.38);
+        if (W < 480) {
+          rx = W * 0.42;
+          ry = H * 0.41;
+        }
+        const x = Math.max(40, Math.min(W - 40, CX + Math.cos(ang) * rx * (0.85 + (i % 3) * 0.1)));
+        const y = Math.max(40, Math.min(H - 40, CY + Math.sin(ang) * ry * (0.85 + ((i + 1) % 3) * 0.08)));
+        const spd = 48 + (i % 4) * 12;
+        const va = ang + Math.PI / 2 + (i % 2 ? 0.3 : -0.3);
+        bodies.push({
+          ch: CHANNELS[i],
+          x, y,
+          startX: x, startY: y,
+          vx: Math.cos(va) * spd,
+          vy: Math.sin(va) * spd,
+          r: W < 480 ? 22 : 28,
+          phase: i * 1.1,
+          absorbDelay: (i / count) * 320,
+        });
+      }
+      stars = Array.from({ length: 70 }, (_, i) => {
+        const a = (i * 2.39996) % (Math.PI * 2);
+        const d = 60 + ((i * 73) % 100) / 100 * Math.hypot(W, H) * 0.55;
+        return { a, d, size: 1 + (i % 3) * 0.7, hue: i % 4 === 0 ? "#dbe4ff" : "#5a82ff" };
+      });
+    }
+
+    function stepIdle(dt) {
+      const cr = card.getBoundingClientRect();
+      const sr = stage.getBoundingClientRect();
+      const ob = {
+        left: cr.left - sr.left - 8,
+        right: cr.right - sr.left + 8,
+        top: cr.top - sr.top - 8,
+        bottom: cr.bottom - sr.top + 8,
+      };
+      for (const b of bodies) {
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx); }
+        if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx); }
+        if (b.y < b.r) { b.y = b.r; b.vy = Math.abs(b.vy); }
+        if (b.y > H - b.r) { b.y = H - b.r; b.vy = -Math.abs(b.vy); }
+        // Bounce off login card
+        const cx = Math.max(ob.left, Math.min(b.x, ob.right));
+        const cy = Math.max(ob.top, Math.min(b.y, ob.bottom));
+        const dx = b.x - cx, dy = b.y - cy;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < b.r * b.r && d2 > 0.01) {
+          const d = Math.sqrt(d2);
+          const nx = dx / d, ny = dy / d;
+          b.x = cx + nx * b.r;
+          b.y = cy + ny * b.r;
+          const vn = b.vx * nx + b.vy * ny;
+          if (vn < 0) {
+            b.vx -= 2 * vn * nx;
+            b.vy -= 2 * vn * ny;
+          }
+        }
+        b.startX = b.x;
+        b.startY = b.y;
+      }
+    }
+
+    function drawLogoTile(ctx, x, y, r, angle, stretchX, stretchY, ch, alpha) {
+      if (alpha <= 0.01 || r <= 0.5) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.scale(stretchX, stretchY);
+
+      // 3D beveled glossy rounded square (simulating Three.js GLB logo)
+      const s = r * 1.65;
+      const rad = s * 0.28;
+      // Depth extrusion shadow
+      ctx.fillStyle = "rgba(3, 6, 16, 0.65)";
+      roundRect(ctx, -s / 2 + 2, -s / 2 + 4, s, s, rad);
+      ctx.fill();
+
+      // Main 3D body gradient
+      const g = ctx.createLinearGradient(-s / 2, -s / 2, s / 2, s / 2);
+      g.addColorStop(0, ch.color);
+      g.addColorStop(1, ch.bg);
+      ctx.fillStyle = g;
+      roundRect(ctx, -s / 2, -s / 2, s, s, rad);
+      ctx.fill();
+
+      // Specular cobalt rim
+      ctx.strokeStyle = "rgba(219, 228, 255, 0.45)";
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+
+      // Inner glyph
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `600 ${Math.round(s * 0.38)}px Geologica, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(ch.id, 0, 1);
+
+      ctx.restore();
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    function drawAccretionDisk(ctx, ms, timeSec) {
+      const diskIn = easeOutExpo(clamp01((ms - 380) / 680));
+      if (diskIn <= 0.001) return;
+
+      const diveT = easeInExpo(clamp01((ms - 1850) / 720));
+      const baseR = Math.min(76, W * 0.19);
+      const R = baseR * (0.45 + 0.55 * diskIn) * (1 + diveT * 11.5);
+
+      ctx.save();
+      ctx.translate(CX, CY);
+
+      // 1. Deep gravitational ambient glow
+      const halo = ctx.createRadialGradient(0, 0, R * 0.85, 0, 0, R * 4.4);
+      halo.addColorStop(0, `rgba(90, 130, 255, ${0.85 * diskIn})`);
+      halo.addColorStop(0.28, `rgba(61, 107, 255, ${0.46 * diskIn})`);
+      halo.addColorStop(0.62, `rgba(29, 78, 216, ${0.18 * diskIn})`);
+      halo.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 4.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Relativistic gravitationally-lensed vertical arc (Gargantua halo)
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      const arcGrad = ctx.createRadialGradient(0, 0, R * 0.92, 0, 0, R * 1.95);
+      arcGrad.addColorStop(0, "rgba(0,0,0,0)");
+      arcGrad.addColorStop(0.14, `rgba(235, 242, 255, ${0.98 * diskIn})`);
+      arcGrad.addColorStop(0.32, `rgba(61, 107, 255, ${0.88 * diskIn})`);
+      arcGrad.addColorStop(0.68, `rgba(30, 64, 175, ${0.32 * diskIn})`);
+      arcGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = arcGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 1.95, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3. Swirling tilted accretion disk (luminous plasma bands + equatorial flare)
+      ctx.rotate(-0.22);
+      const eqFlare = ctx.createRadialGradient(0, 0, R * 0.95, 0, 0, R * 3.1);
+      eqFlare.addColorStop(0, `rgba(219, 228, 255, ${0.85 * diskIn})`);
+      eqFlare.addColorStop(0.35, `rgba(61, 107, 255, ${0.75 * diskIn})`);
+      eqFlare.addColorStop(0.75, `rgba(30, 64, 175, ${0.25 * diskIn})`);
+      eqFlare.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.save();
+      ctx.scale(1, 0.28);
+      ctx.fillStyle = eqFlare;
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 3.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      const swirl = timeSec * 2.8 + (ms / 1000) * 3.5;
+      for (let ring = 0; ring < 11; ring++) {
+        const f = ring / 10;
+        const rx = R * (1.18 + f * 1.95);
+        const ry = rx * 0.28;
+        ctx.save();
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+        const alpha = (1 - f * 0.65) * 0.85 * diskIn;
+        ctx.strokeStyle = ring < 3 ? `rgba(235, 242, 255, ${alpha})` : `rgba(90, 130, 255, ${alpha})`;
+        ctx.lineWidth = (4.2 - f * 2.4) * (1 + diveT * 2);
+        ctx.setLineDash([rx * (0.55 + (ring % 3) * 0.25), rx * 0.18]);
+        ctx.lineDashOffset = -swirl * (48 + ring * 18);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+
+      // 4. Event horizon pitch-black sphere (occludes center)
+      const sphereAlpha = clamp01((ms - 460) / 300);
+      if (sphereAlpha > 0) {
+        ctx.save();
+        ctx.globalAlpha = sphereAlpha;
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.arc(0, 0, R * 0.98, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Razor-sharp cobalt-white photon ring
+        ctx.strokeStyle = `rgba(219, 228, 255, ${0.92 * diskIn})`;
+        ctx.lineWidth = 2.2 * (1 + diveT * 2.5);
+        ctx.shadowColor = "#3d6bff";
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.arc(0, 0, R * 0.99, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 5. Warp streaks during camera plunge (Phase 4)
+      if (diveT > 0.02) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        for (const s of stars) {
+          const dist = s.d * (1 + diveT * 3.2);
+          const len = 8 + diveT * 140;
+          const x1 = Math.cos(s.a) * dist;
+          const y1 = Math.sin(s.a) * dist;
+          const x2 = Math.cos(s.a) * (dist + len);
+          const y2 = Math.sin(s.a) * (dist + len);
+          ctx.strokeStyle = s.hue;
+          ctx.globalAlpha = Math.min(0.85, diveT * 1.4);
+          ctx.lineWidth = s.size;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function applyDomAt(ms) {
+      if (reducedMotion) {
+        const t = clamp01(ms / 240);
+        cameraRig.style.transform = `scale(${1 - t * 0.02})`;
+        cameraRig.style.opacity = String(1 - t);
+        cardShell.style.transform = "";
+        cardShell.style.borderRadius = "";
+        cardShell.style.backgroundColor = "";
+        cracksSvg.style.opacity = "0";
+        shards.forEach((el) => { el.style.transform = ""; el.style.opacity = "1"; el.style.filter = ""; });
+        return;
+      }
+
+      // Phase 1: Cracks appear (0 -> 260ms) then fade as card implodes
+      const crackIn = clamp01(ms / 180);
+      const crackOut = 1 - clamp01((ms - 420) / 260);
+      cracksSvg.style.opacity = String(ms > 0 ? crackIn * crackOut * 0.9 : 0);
+
+      // Phase 1: Form shards fracture & collapse into center (0 -> 780ms)
+      shards.forEach((el, idx) => {
+        const cfg = SHARD_CFG[idx];
+        const t = clamp01((ms - cfg.delay) / 560);
+        const e = easeInExpo(t);
+        const jitter = t > 0 && t < 0.28 ? Math.sin(t * 70 + idx) * 3 : 0;
+        const tx = -cfg.dx * e + jitter;
+        const ty = -cfg.dy * e;
+        const rot = cfg.rot * e;
+        const skew = cfg.skew * e;
+        const sc = 1 - e * 0.92;
+        const op = 1 - clamp01((t - 0.35) / 0.65);
+        const blur = e * 5;
+        el.style.transform = ms === 0 ? "" : `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) rotate(${rot.toFixed(1)}deg) skewX(${skew.toFixed(1)}deg) scale(${sc.toFixed(3)})`;
+        el.style.opacity = String(op.toFixed(3));
+        el.style.filter = blur > 0.2 ? `blur(${blur.toFixed(1)}px)` : "";
+      });
+
+      // Phase 1->2: Card shell morphs into black sphere (180 -> 880ms) then hands off to canvas horizon
+      const morphT = easeInOutCubic(clamp01((ms - 180) / 640));
+      const baseR = Math.min(76, W * 0.19);
+      const cardRectW = card.offsetWidth || 420;
+      const cardRectH = card.offsetHeight || 490;
+      const sx = 1 - morphT * (1 - (baseR * 2) / cardRectW);
+      const sy = 1 - morphT * (1 - (baseR * 2) / cardRectH);
+      const br = 16 + morphT * 240;
+      const shellHide = 1 - clamp01((ms - 680) / 220);
+
+      if (ms === 0) {
+        cardShell.style.transform = "";
+        cardShell.style.borderRadius = "16px";
+        cardShell.style.backgroundColor = "";
+        cardShell.style.boxShadow = "";
+        cardShell.style.opacity = "1";
+      } else {
+        cardShell.style.transform = `scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
+        cardShell.style.borderRadius = `${br.toFixed(1)}px`;
+        cardShell.style.backgroundColor = morphT > 0.45 ? "#000000" : "var(--surface)";
+        cardShell.style.boxShadow = `inset 0 0 0 1px rgba(61,107,255,${(0.35 + morphT * 0.65).toFixed(2)}), 0 0 ${(morphT * 42).toFixed(1)}px rgba(61,107,255,${(morphT * 0.7).toFixed(2)})`;
+        cardShell.style.opacity = String(shellHide.toFixed(3));
+      }
+
+      // Phase 4: Camera plunges into the black hole (1850 -> 2600ms)
+      const diveT = easeInExpo(clamp01((ms - 1850) / 700));
+      cameraRig.style.transform = diveT > 0 ? `scale(${(1 + diveT * 4).toFixed(3)})` : "";
+      cameraRig.style.opacity = String(1 - clamp01((ms - 2150) / 300));
+    }
+
+    function renderFrame(now) {
+      requestAnimationFrame(renderFrame);
+      const timeSec = now / 1000;
+
+      if (mode === "idle") {
+        stepIdle(0.016);
+      } else if (mode === "playing") {
+        const total = reducedMotion ? 320 : DURATION;
+        animMs = Math.min(total, now - playStart);
+        scrubber.value = String(Math.round(animMs));
+        if (animMs >= total) {
+          mode = "done";
+          homeArrival.classList.add("visible");
+        }
+      }
+
+      updatePhaseLabel(animMs);
+      applyDomAt(animMs);
+
+      bgCtx.clearRect(0, 0, W, H);
+      fgCtx.clearRect(0, 0, W, H);
+
+      // Draw accretion disk on bgCanvas (and photon core)
+      if (!reducedMotion && animMs > 340) {
+        drawAccretionDisk(bgCtx, animMs, timeSec);
+      }
+
+      // Draw floating 3D logos (idle or spaghettified into black hole!)
+      if (!reducedMotion) {
+        for (const b of bodies) {
+          if (animMs <= 520) {
+            // Subtle pull warning between 200 and 520ms
+            const pull = clamp01((animMs - 200) / 320);
+            const px = b.startX + (CX - b.startX) * pull * 0.08;
+            const py = b.startY + (CY - b.startY) * pull * 0.08;
+            const ang = Math.atan2(CY - py, CX - px);
+            drawLogoTile(bgCtx, px, py, b.r, ang * pull * 0.25, 1 + pull * 0.12, 1 - pull * 0.06, b.ch, 1);
+          } else {
+            // Phase 3: Spaghettification ("como chicle") spiral into center (520 -> 1950ms)
+            const localT = clamp01((animMs - 520 - b.absorbDelay) / 1080);
+            const e = easeInCubic(localT);
+            const dx0 = b.startX - CX;
+            const dy0 = b.startY - CY;
+            const dist0 = Math.hypot(dx0, dy0);
+            const ang0 = Math.atan2(dy0, dx0);
+            const spiralAng = ang0 + e * 3.4; // spirals inward
+            const dist = dist0 * (1 - e * 0.98);
+            const x = CX + Math.cos(spiralAng) * dist;
+            const y = CY + Math.sin(spiralAng) * dist;
+
+            // Tangent/inward vector for gum stretching toward horizon
+            const toCenterAng = Math.atan2(CY - y, CX - x);
+            const stretchX = 1 + Math.pow(localT, 1.35) * 4.4;
+            const stretchY = Math.max(0.16, 1 - Math.pow(localT, 1.2) * 0.82);
+            const shrink = localT > 0.78 ? 1 - clamp01((localT - 0.78) / 0.22) : 1;
+            const alpha = localT > 0.84 ? 1 - clamp01((localT - 0.84) / 0.16) : 1;
+
+            // Draw on fgCanvas once being pulled in so they streak across the accretion disk!
+            drawLogoTile(fgCtx, x, y, b.r * shrink, toCenterAng, stretchX, stretchY, b.ch, alpha);
+          }
+        }
+      }
+
+      // Phase 4 blackout veil right before entering AloStudio Inicio
+      if (!reducedMotion && animMs > 2050) {
+        const veil = easeInCubic(clamp01((animMs - 2050) / 480));
+        fgCtx.fillStyle = `rgba(2, 4, 12, ${veil})`;
+        fgCtx.fillRect(0, 0, W, H);
+      }
+    }
+
+    function updatePhaseLabel(ms) {
+      let name = "Reposo";
+      if (reducedMotion && ms > 0) name = "Reduced motion (fade)";
+      else if (ms > 0 && ms < 650) name = "1. Fractura e implosión";
+      else if (ms >= 650 && ms < 1450) name = "2. Esfera + Disco azul";
+      else if (ms >= 1450 && ms < 1900) name = "3. Íconos estirados (chicle)";
+      else if (ms >= 1900) name = "4. Caída de cámara → Inicio";
+      phaseLabel.textContent = `${name} · ${Math.round(ms)} ms`;
+    }
+
+    function playSequence() {
+      homeArrival.classList.remove("visible");
+      animMs = 0;
+      playStart = performance.now();
+      mode = "playing";
+    }
+
+    function resetDemo() {
+      homeArrival.classList.remove("visible");
+      mode = "idle";
+      animMs = 0;
+      scrubber.value = "0";
+      initBodies();
+    }
+
+    function scrubTo(ms) {
+      homeArrival.classList.toggle("visible", ms >= DURATION);
+      mode = ms === 0 ? "idle" : "scrubbed";
+      animMs = ms;
+    }
+
+    function toggleMobile() {
+      mobileMode = !mobileMode;
+      stage.classList.toggle("mobile-mode", mobileMode);
+      document.getElementById("btn-mobile").classList.toggle("active", mobileMode);
+      setTimeout(resize, 320);
+    }
+
+    function toggleTheme() {
+      document.documentElement.classList.toggle("dark");
+    }
+
+    function toggleReduced() {
+      reducedMotion = !reducedMotion;
+      document.getElementById("btn-reduced").classList.toggle("active", reducedMotion);
+      resetDemo();
+    }
+
+    document.getElementById("login-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      playSequence();
+    });
+
+    // Support URL params for automated keyframe screenshots (?t=1200&mobile=1&hud=0)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("mobile") === "1") {
+      mobileMode = true;
+      stage.classList.add("mobile-mode");
+    }
+    if (params.get("hud") === "0") {
+      document.getElementById("hud").style.display = "none";
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    if (params.has("t")) {
+      const t = Number(params.get("t"));
+      if (Number.isFinite(t)) scrubTo(t);
+    }
+    requestAnimationFrame(renderFrame);
+  </script>
+</body>
+</html>

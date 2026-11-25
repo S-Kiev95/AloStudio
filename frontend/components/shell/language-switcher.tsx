@@ -2,9 +2,17 @@
 
 import { Languages } from "lucide-react";
 
-import { isLocale, LOCALE_NAMES, LOCALES } from "@/lib/i18n/config";
+import { Listbox, type ListboxOption } from "@/components/ui/listbox";
+import { LOCALE_NAMES, LOCALES, type Locale } from "@/lib/i18n/config";
 import { useLocale, useSwitchLocale, useT } from "@/lib/i18n/provider";
-import { cn } from "@/lib/utils";
+
+const LOCALE_OPTIONS: readonly ListboxOption<Locale>[] = LOCALES.map(
+  (code) => ({
+    value: code,
+    label: LOCALE_NAMES[code],
+    lang: code,
+  }),
+);
 
 /**
  * Compact language picker for the signed-out screens (login, password
@@ -17,28 +25,15 @@ export function LanguageSwitcher({ className }: { className?: string }) {
   const switchLocale = useSwitchLocale();
 
   return (
-    <label
-      className={cn(
-        "relative inline-flex h-10 items-center gap-1.5 rounded-control px-2 text-sm text-fg-muted transition-colors",
-        "hover:bg-hover-glass hover:text-fg focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-neon",
-        className,
-      )}
-    >
-      <Languages className="h-4 w-4 shrink-0" aria-hidden />
-      <span className="sr-only">{t("auth.language")}</span>
-      <select
-        value={locale}
-        onChange={(e) => {
-          if (isLocale(e.target.value)) switchLocale(e.target.value);
-        }}
-        className="cursor-pointer appearance-none bg-transparent pr-1 text-sm text-inherit focus:outline-none"
-      >
-        {LOCALES.map((code) => (
-          <option key={code} value={code} lang={code} className="bg-surface-2 text-fg">
-            {LOCALE_NAMES[code]}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Listbox
+      value={locale}
+      onChange={switchLocale}
+      options={LOCALE_OPTIONS}
+      variant="compact"
+      align="end"
+      aria-label={t("auth.language")}
+      leadingIcon={<Languages className="h-4 w-4 shrink-0" aria-hidden />}
+      className={className}
+    />
   );
 }

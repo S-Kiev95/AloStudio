@@ -1,11 +1,13 @@
 "use client";
 
 import { AlarmClock, Plus, Search, Settings2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { PageHeader } from "@/components/shell/page-header";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { selectClassName } from "@/components/ui/select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -18,8 +20,10 @@ import {
   usePipelines,
   useUpdateOpportunity,
 } from "@/lib/api/crm";
+import { ApiError } from "@/lib/api/errors";
 import { useIsAccountAdmin, useProfile } from "@/lib/api/profile";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
+import { animateStaggerIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
 import { formatMoney, formatTotals } from "./money";
@@ -34,6 +38,7 @@ type Scope = "all" | "mine";
 export function OpportunitiesView({ accountId }: { accountId: string }) {
   const t = useT();
   const intlTag = useIntlTag();
+  const confirm = useConfirm();
   const isAdmin = useIsAccountAdmin(accountId);
   const profile = useProfile();
   const pipelines = usePipelines(accountId);
@@ -53,6 +58,14 @@ export function OpportunitiesView({ accountId }: { accountId: string }) {
     q: query.trim() || undefined,
   });
   const update = useUpdateOpportunity(accountId);
+  const boardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pipeline?.id) return;
+    const cols = boardRef.current?.querySelectorAll<HTMLElement>("[data-kanban-column]");
+    if (!cols || cols.length === 0) return;
+    return animateStaggerIn(cols, { stepMs: 40, maxDelayMs: 240 });
+  }, [pipeline?.id]);
 
   const byStage = useMemo(() => {
     const map = new Map<number, Opportunity[]>();
@@ -68,6 +81,33 @@ export function OpportunitiesView({ accountId }: { accountId: string }) {
     try {
       await update.mutateAsync({ id: opportunity.id, patch: { stage_id: stage.id } });
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const body = err.body as {
+          code?: string;
+          allocated_amount?: number;
+          currency?: string | null;
+        } | null;
+        if (body?.code === "opportunity_has_payments") {
+          const amountLabel = formatMoney(
+            body.allocated_amount ?? 0,
+            body.currency ?? opportunity.currency,
+            intlTag,
+          );
+          if (await confirm(t("collections.conflict.confirmRelease", { amount: amountLabel }))) {
+            try {
+              await update.mutateAsync({
+                id: opportunity.id,
+                patch: { stage_id: stage.id, release_allocations: true },
+              });
+              return;
+            } catch (retryErr) {
+              setMoveError((retryErr as { message?: string })?.message ?? t("opportunities.moveFailed"));
+              return;
+            }
+          }
+          return;
+        }
+      }
       setMoveError((err as { message?: string })?.message ?? t("opportunities.moveFailed"));
     }
   }
@@ -139,22 +179,46 @@ export function OpportunitiesView({ accountId }: { accountId: string }) {
       ) : null}
 
       {pipelines.isLoading || opportunities.isLoading ? (
-        <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
+        <div
+          aria-busy="true"
+          className="flex gap-3 overflow-x-auto pb-2"
+        >
+          <span className="sr-only">{t("common.loading")}</span>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              aria-hidden
+              className="flex w-72 shrink-0 flex-col gap-2 rounded-md border border-glass bg-surface p-3"
+            >
+              <div className="h-5 w-2/3 animate-pulse rounded bg-surface-2" />
+              <div className="h-3 w-1/3 animate-pulse rounded bg-surface-2" />
+              <div className="mt-2 h-20 animate-pulse rounded-md bg-surface-2" />
+              <div className="h-20 animate-pulse rounded-md bg-surface-2" />
+            </div>
+          ))}
+        </div>
       ) : pipelines.isError || opportunities.isError || !pipeline ? (
-        <p role="alert" className="p-8 text-center text-sm text-danger">
-          {t("opportunities.loadFailed")}
-        </p>
+        <ErrorState
+          message={t("opportunities.loadFailed")}
+          onRetry={() => {
+            void pipelines.refetch();
+            void opportunities.refetch();
+          }}
+          retrying={pipelines.isFetching || opportunities.isFetching}
+        />
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div ref={boardRef} className="flex gap-3 overflow-x-auto pb-2">
           {pipeline.stages.map((stage) => (
             <StageColumn
               key={stage.id}
               stage={stage}
+              stages={pipeline.stages}
               items={byStage.get(stage.id) ?? []}
               rottenDays={pipeline.rotten_days}
               intlTag={intlTag}
               onOpen={setEditing}
               onAdd={() => setCreatingIn(stage.id)}
+              onMoveOpportunity={(o, targetStage) => void moveTo(o, targetStage)}
               onDropOpportunity={(id) => {
                 const o = opportunities.data?.find((x) => x.id === id);
                 if (o) void moveTo(o, stage);
@@ -191,19 +255,23 @@ export function OpportunitiesView({ accountId }: { accountId: string }) {
 
 function StageColumn({
   stage,
+  stages,
   items,
   rottenDays,
   intlTag,
   onOpen,
   onAdd,
+  onMoveOpportunity,
   onDropOpportunity,
 }: {
   stage: Stage;
+  stages: Stage[];
   items: Opportunity[];
   rottenDays: number;
   intlTag: string;
   onOpen: (o: Opportunity) => void;
   onAdd: () => void;
+  onMoveOpportunity: (o: Opportunity, target: Stage) => void;
   onDropOpportunity: (id: number) => void;
 }) {
   const t = useT();
@@ -213,6 +281,7 @@ function StageColumn({
 
   return (
     <section
+      data-kanban-column=""
       aria-label={label}
       onDragOver={(e) => {
         e.preventDefault();
@@ -226,7 +295,7 @@ function StageColumn({
         if (id) onDropOpportunity(id);
       }}
       className={cn(
-        "flex w-72 shrink-0 flex-col rounded-panel border border-glass bg-surface",
+        "glass-card flex w-72 shrink-0 flex-col rounded-md transition-colors",
         over && "border-neon",
       )}
     >
@@ -252,9 +321,11 @@ function StageColumn({
           <li key={o.id}>
             <OpportunityCard
               opportunity={o}
+              stages={stages}
               stale={stage.kind === "open" && daysIdle(o) > rottenDays}
               intlTag={intlTag}
               onOpen={() => onOpen(o)}
+              onMoveTo={(target) => onMoveOpportunity(o, target)}
             />
           </li>
         ))}
@@ -275,14 +346,18 @@ function StageColumn({
 
 function OpportunityCard({
   opportunity: o,
+  stages,
   stale,
   intlTag,
   onOpen,
+  onMoveTo,
 }: {
   opportunity: Opportunity;
+  stages: Stage[];
   stale: boolean;
   intlTag: string;
   onOpen: () => void;
+  onMoveTo: (stage: Stage) => void;
 }) {
   const t = useT();
   const overdue =
@@ -290,48 +365,69 @@ function OpportunityCard({
     o.expected_close_on != null &&
     o.expected_close_on < new Date().toISOString().slice(0, 10);
   return (
-    <button
-      type="button"
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData("text/plain", String(o.id));
-        e.dataTransfer.effectAllowed = "move";
-      }}
-      onClick={onOpen}
-      className="w-full space-y-1.5 rounded-md border border-glass bg-surface-2 p-2.5 text-left hover:border-neon/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
-    >
-      <p className="line-clamp-2 text-sm font-medium text-fg">{o.title}</p>
-      {o.contact ? (
-        <p className="flex items-center gap-1.5 truncate text-xs text-fg-muted">
-          <Avatar name={o.contact.name ?? "?"} src={o.contact.avatar_url} size="xs" />
-          {o.contact.name || t("conversations.contact.fallbackName", { id: o.contact.id })}
-        </p>
+    <div className="rounded-md border border-glass bg-surface-2/75 shadow-[inset_0_1px_0_0_var(--neon-glass-top-light)] transition-colors hover:border-neon/60 hover:bg-hover-glass/80">
+      <button
+        type="button"
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/plain", String(o.id));
+          e.dataTransfer.effectAllowed = "move";
+        }}
+        onClick={onOpen}
+        className="w-full space-y-1.5 rounded-md p-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon"
+      >
+        <p className="line-clamp-2 text-sm font-medium text-fg">{o.title}</p>
+        {o.contact ? (
+          <p className="flex items-center gap-1.5 truncate text-xs text-fg-muted">
+            <Avatar name={o.contact.name ?? "?"} src={o.contact.avatar_url} size="xs" />
+            {o.contact.name || t("conversations.contact.fallbackName", { id: o.contact.id })}
+          </p>
+        ) : null}
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="font-numeric tabular-nums text-fg">
+            {o.value != null ? formatMoney(o.value, o.currency, intlTag) : ""}
+          </span>
+          <span className="flex items-center gap-1.5">
+            {o.expected_close_on ? (
+              <span
+                className={cn("font-numeric tabular-nums", overdue ? "text-danger" : "text-fg-muted")}
+                title={t("opportunities.expectedClose")}
+              >
+                {new Date(`${o.expected_close_on}T00:00:00`).toLocaleDateString(intlTag, {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+            ) : null}
+            {stale ? (
+              <AlarmClock
+                className="h-3.5 w-3.5 text-warning"
+                aria-label={t("opportunities.stale")}
+              />
+            ) : null}
+            {o.owner ? <Avatar name={o.owner.name} size="xs" /> : null}
+          </span>
+        </div>
+      </button>
+      {stages.length > 1 ? (
+        <div className="border-t border-glass px-2 py-1.5 lg:hidden [@media(hover:none)]:block">
+          <select
+            aria-label={`${t("opportunities.stage")}: ${o.title}`}
+            value={o.stage_id}
+            onChange={(e) => {
+              const target = stages.find((s) => s.id === Number(e.target.value));
+              if (target) onMoveTo(target);
+            }}
+            className={cn(selectClassName("sm"), "h-8 w-full text-xs")}
+          >
+            {stages.map((s) => (
+              <option key={s.id} value={s.id}>
+                {stageLabel(t, s)}
+              </option>
+            ))}
+          </select>
+        </div>
       ) : null}
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="font-numeric tabular-nums text-fg">
-          {o.value != null ? formatMoney(o.value, o.currency, intlTag) : ""}
-        </span>
-        <span className="flex items-center gap-1.5">
-          {o.expected_close_on ? (
-            <span
-              className={cn("font-numeric tabular-nums", overdue ? "text-danger" : "text-fg-muted")}
-              title={t("opportunities.expectedClose")}
-            >
-              {new Date(`${o.expected_close_on}T00:00:00`).toLocaleDateString(intlTag, {
-                day: "numeric",
-                month: "short",
-              })}
-            </span>
-          ) : null}
-          {stale ? (
-            <AlarmClock
-              className="h-3.5 w-3.5 text-warning"
-              aria-label={t("opportunities.stale")}
-            />
-          ) : null}
-          {o.owner ? <Avatar name={o.owner.name} size="xs" /> : null}
-        </span>
-      </div>
-    </button>
+    </div>
   );
 }

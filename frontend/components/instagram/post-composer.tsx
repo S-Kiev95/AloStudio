@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { selectClassName } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useInstagramInboxes } from "@/lib/api/instagram";
 import { uploadInstagramMedia } from "@/lib/api/uploads";
@@ -28,8 +29,7 @@ const MEDIA_TYPES: { value: MediaType; label: MessageKey }[] = [
   { value: "STORIES", label: "instagram.composer.type.story" },
 ];
 
-const selectClass =
-  "h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const selectClass = selectClassName();
 
 type Child = { kind: "image" | "video"; url: string };
 
@@ -230,7 +230,7 @@ export function PostComposer({
           {children.map((c, i) => (
             <div key={i} className="flex items-center gap-2">
               <select
-                className="h-11 rounded-md border border-border bg-surface px-2 text-sm"
+                className={cn(selectClassName(), "w-auto")}
                 value={c.kind}
                 onChange={(e) =>
                   setChildren((prev) =>

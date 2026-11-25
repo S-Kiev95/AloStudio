@@ -20,8 +20,10 @@ import {
 } from "@/lib/api/crm";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 
 import { ContactPicker, type PickedContact } from "./contact-picker";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export const ACTIVITY_KINDS: { value: ActivityKind; label: MessageKey }[] = [
   { value: "task", label: "activities.kinds.task" },
@@ -51,6 +53,7 @@ export function ActivityDialog({
   initial?: Activity | null;
   presetContact?: PickedContact | null;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [kind, setKind] = useState<ActivityKind>("task");
@@ -72,10 +75,13 @@ export function ActivityDialog({
   useEffect(() => {
     const el = dialogRef.current;
     if (!el) return;
-    if (open && !el.open) {
-      if (typeof el.showModal === "function") el.showModal();
-      else el.setAttribute("open", "");
-    } else if (!open && el.open) {
+    if (open) {
+      if (!el.open) {
+        if (typeof el.showModal === "function") el.showModal();
+        else el.setAttribute("open", "");
+      }
+      return animateDialogIn(el);
+    } else if (el.open) {
       if (typeof el.close === "function") el.close();
       else el.removeAttribute("open");
     }
@@ -126,7 +132,7 @@ export function ActivityDialog({
 
   async function handleDelete() {
     if (!initial) return;
-    if (!window.confirm(t("activities.deleteConfirm", { title: initial.title }))) return;
+    if (!(await confirm(t("activities.deleteConfirm", { title: initial.title })))) return;
     try {
       await remove.mutateAsync(initial.id);
       onClose();
@@ -142,7 +148,7 @@ export function ActivityDialog({
       ref={dialogRef}
       onClose={onClose}
       aria-labelledby="activity-dialog-title"
-      className="w-full max-w-lg rounded-panel border border-glass bg-surface p-0 text-fg shadow-menu backdrop:bg-backdrop/75"
+      className="glass-dialog w-full max-w-lg rounded-panel p-0 text-fg backdrop:bg-backdrop/75"
     >
       <form onSubmit={handleSubmit} className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">

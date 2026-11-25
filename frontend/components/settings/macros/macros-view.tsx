@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/macros";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function MacrosView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -30,7 +31,7 @@ export function MacrosView({ accountId }: { accountId: string }) {
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-glass bg-surface">
+      <div className="glass-card overflow-hidden rounded-md">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
@@ -54,6 +55,7 @@ export function MacrosView({ accountId }: { accountId: string }) {
 }
 
 function MacroRow({ accountId, macro }: { accountId: string; macro: Macro }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteMacro(accountId);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +63,7 @@ function MacroRow({ accountId, macro }: { accountId: string; macro: Macro }) {
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(t("settingsMacros.deleteConfirm", { name: macro.name }))) return;
+    if (!(await confirm(t("settingsMacros.deleteConfirm", { name: macro.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(macro.id);
@@ -115,7 +117,7 @@ function MacroRow({ accountId, macro }: { accountId: string; macro: Macro }) {
         title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

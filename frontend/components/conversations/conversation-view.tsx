@@ -41,6 +41,7 @@ import { MessageBubble, PendingMessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const STATUS_CHIP: Record<string, { label: MessageKey; className: string }> = {
   open: {
@@ -116,6 +117,7 @@ export function ConversationView({
   accountId: string;
   displayId: number;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const {
     contactCollapsed,
@@ -129,6 +131,7 @@ export function ConversationView({
   const router = useRouter();
   const pathname = usePathname();
   const aroundId = Number(searchParams.get("message")) || undefined;
+  const initialDraft = searchParams.get("draft") ?? undefined;
   const messages = useMessages(accountId, displayId, aroundId);
   const [searchOpen, setSearchOpen] = useState(false);
   useEffect(() => setSearchOpen(false), [displayId]);
@@ -150,9 +153,9 @@ export function ConversationView({
   const [closingOpen, setClosingOpen] = useState(false);
   const del = useDeleteMessage(accountId, displayId);
 
-  function handleDelete(id: number) {
+  async function handleDelete(id: number) {
     if (
-      window.confirm(
+      await confirm(
         t("conversations.view.deleteConfirm"),
       )
     ) {
@@ -503,6 +506,7 @@ export function ConversationView({
             inboxId={conv.data?.inbox_id}
             channel={conv.data?.meta?.channel}
             canReply={conv.data?.can_reply}
+            initialDraft={initialDraft}
           />
         )}
       </div>

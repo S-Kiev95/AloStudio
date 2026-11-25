@@ -4,6 +4,7 @@ import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { ErrorState } from "@/components/ui/error-state";
 import {
   NOTIFICATION_TYPE_LABELS,
   notificationHref,
@@ -14,7 +15,9 @@ import {
   useNotifications,
   useUnreadCount,
 } from "@/lib/api/notifications";
+import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useLocale, useT } from "@/lib/i18n/provider";
+import { animatePopoverIn } from "@/lib/motion/neon-motion";
 import { relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +38,12 @@ export function NotificationBell({ accountId }: { accountId: string }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    return animatePopoverIn(panelRef.current);
+  }, [open]);
 
   const unread = useUnreadCount(accountId);
   const list = useNotifications(accountId, { enabled: open });
@@ -42,20 +51,10 @@ export function NotificationBell({ accountId }: { accountId: string }) {
   const markAllRead = useMarkAllNotificationsRead(accountId);
   const deleteOne = useDeleteNotification(accountId);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (
-        detailsRef.current &&
-        !detailsRef.current.contains(e.target as Node)
-      ) {
-        detailsRef.current.removeAttribute("open");
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, [open]);
+  useDismissOnOutsideAndEscape(detailsRef, open, () => {
+    detailsRef.current?.removeAttribute("open");
+    setOpen(false);
+  });
 
   const unreadCount = unread.data ?? 0;
   const rows = list.data?.payload ?? [];
@@ -92,7 +91,8 @@ export function NotificationBell({ accountId }: { accountId: string }) {
       </summary>
 
       <div
-        className="absolute right-0 z-30 mt-1.5 flex w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu"
+        ref={panelRef}
+        className="glass-dialog z-30 flex flex-col overflow-hidden rounded-md max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.5rem] max-sm:max-h-[calc(100dvh-5.5rem)] max-sm:w-auto sm:absolute sm:right-0 sm:mt-1.5 sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]"
         role="dialog"
         aria-label={t("notifications.title")}
       >
@@ -116,21 +116,30 @@ export function NotificationBell({ accountId }: { accountId: string }) {
             <li className="px-3 py-6 text-center text-sm text-fg-muted">
               {t("common.loading")}
             </li>
-          ) : null}
-          {!list.isLoading && rows.length === 0 ? (
+          ) : list.isError ? (
+            <li className="p-3">
+              <ErrorState
+                compact
+                message={t("notifications.loadFailed")}
+                onRetry={() => void list.refetch()}
+                retrying={list.isFetching}
+              />
+            </li>
+          ) : rows.length === 0 ? (
             <li className="px-3 py-8 text-center text-sm text-fg-muted">
               {t("notifications.empty")}
             </li>
-          ) : null}
-          {rows.map((n) => (
-            <NotificationRow
-              key={n.id}
-              accountId={accountId}
-              notification={n}
-              onMarkRead={() => markRead.mutate(n.id)}
-              onDelete={() => deleteOne.mutate(n.id)}
-            />
-          ))}
+          ) : (
+            rows.map((n) => (
+              <NotificationRow
+                key={n.id}
+                accountId={accountId}
+                notification={n}
+                onMarkRead={() => markRead.mutate(n.id)}
+                onDelete={() => deleteOne.mutate(n.id)}
+              />
+            ))
+          )}
         </ul>
 
         {rows.length > 0 ? (
@@ -227,7 +236,7 @@ function NotificationRow({
         type="button"
         aria-label={t("notifications.delete")}
         onClick={onDelete}
-        className="mt-1 rounded-md p-1 text-fg-muted opacity-0 transition-opacity hover:bg-surface hover:text-danger focus-visible:opacity-100 group-hover/row:opacity-100"
+        className="relative mt-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-fg-muted transition-opacity after:absolute after:-inset-2 after:content-[''] hover:bg-surface hover:text-danger focus-visible:opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100"
       >
         <Trash2 className="h-3.5 w-3.5" aria-hidden />
       </button>

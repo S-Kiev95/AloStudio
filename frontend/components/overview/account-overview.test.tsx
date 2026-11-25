@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
@@ -61,7 +61,7 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Bienvenido",
+        name: "Hola",
       }),
     ).toBeInTheDocument();
 
@@ -109,8 +109,11 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
     ).toHaveLength(0);
   });
 
-  it("renderiza las cuatro tarjetas de Ahora mismo con iconos del mismo estilo que la sidebar y sin fondos ni colores sueltos", () => {
+  it("respeta DESIGN.md: sin doble neon-sign ni neon-nav fuera del sidebar y tarjetas clickeables a la bandeja", () => {
     const { container } = renderOverview("42");
+
+    const heading = screen.getByRole("heading", { name: "Hola" });
+    expect(heading).not.toHaveClass("neon-sign");
 
     const liveIcons = container.querySelectorAll("[data-live-icon]");
     expect(liveIcons).toHaveLength(4);
@@ -119,13 +122,91 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
     ).toEqual(["open", "unattended", "unassigned", "pending"]);
 
     for (const iconWrapper of liveIcons) {
-      expect(iconWrapper).toHaveClass("neon-nav");
+      expect(iconWrapper).not.toHaveClass("neon-nav");
       expect(iconWrapper.className).not.toMatch(
         /text-warning|text-danger|text-info|bg-surface-2/,
       );
       const svg = iconWrapper.querySelector("svg");
       expect(svg).not.toBeNull();
       expect(svg).toHaveClass("h-8", "w-8");
+      const link = iconWrapper.closest("a");
+      expect(link).not.toBeNull();
+      expect(link?.getAttribute("href")).toMatch(/^\/accounts\/42\/conversations\?/);
     }
+
+    expect(container.querySelectorAll(".neon-nav")).toHaveLength(0);
+
+    // En «Ahora mismo», solo el reloj y el reloj de arena corren en bucle;
+    // el resto (y los accesos rápidos) se animan al pasar el mouse o enfocar.
+    const liveModes = Array.from(liveIcons).map((el) =>
+      el.querySelector("svg")?.getAttribute("data-icon-animate"),
+    );
+    expect(liveModes).toEqual(["hover", "loop", "hover", "loop"]);
+  });
+
+  it("muestra ErrorState con Reintentar y sin ceros falsos cuando fallan las métricas", async () => {
+    let fail = true;
+    server.use(
+      http.get("*/live_reports/conversation_metrics", () =>
+        fail
+          ? HttpResponse.json({ message: "error" }, { status: 500 })
+          : HttpResponse.json({ open: 7, unattended: 1, unassigned: 2, pending: 0 }),
+      ),
+      http.get("*/reports/summary", () =>
+        HttpResponse.json({ message: "error" }, { status: 500 }),
+      ),
+      http.get("*/reports", () =>
+        HttpResponse.json({ message: "error" }, { status: 500 }),
+      ),
+    );
+
+    const { container } = renderOverview("42");
+
+    expect(await screen.findByText("No pudimos cargar el estado actual.")).toBeInTheDocument();
+    expect(screen.getByText("No pudimos cargar las métricas del período.")).toBeInTheDocument();
+    expect(screen.getByText("No pudimos cargar el gráfico de conversaciones.")).toBeInTheDocument();
+    expect(container.querySelectorAll("[data-live-icon]")).toHaveLength(0);
+
+    const retryButtons = screen.getAllByRole("button", { name: "Reintentar" });
+    expect(retryButtons).toHaveLength(3);
+
+    fail = false;
+    fireEvent.click(retryButtons[0]);
+    expect(await screen.findByText("7")).toBeInTheDocument();
+  });
+
+  it("saluda por el primer nombre cuando el perfil está disponible y enlaza cada tarjeta Ahora mismo al filtro correcto", async () => {
+    server.use(
+      http.get("*/api/v1/profile", () =>
+        HttpResponse.json({
+          data: {
+            id: 1,
+            name: "Sofía Castro",
+            available_name: "Sofía Castro",
+            email: "sofia@ctc.edu.uy",
+          },
+        }),
+      ),
+    );
+
+    const { container } = renderOverview("42");
+
+    expect(
+      await screen.findByRole("heading", { name: "Hola, Sofía" }),
+    ).toBeInTheDocument();
+
+    const hrefs = Array.from(container.querySelectorAll("[data-live-icon]")).map(
+      (el) => el.closest("a")?.getAttribute("href"),
+    );
+    expect(hrefs).toEqual([
+      "/accounts/42/conversations?status=open",
+      "/accounts/42/conversations?status=open",
+      "/accounts/42/conversations?assignee=unassigned",
+      "/accounts/42/conversations?status=pending",
+    ]);
+
+    expect(
+      screen.getByRole("link", { name: /Bandeja/ }),
+    ).toHaveAttribute("href", "/accounts/42/conversations");
   });
 });

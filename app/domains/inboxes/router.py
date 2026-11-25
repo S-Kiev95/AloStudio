@@ -134,9 +134,7 @@ async def list_inboxes(
     assert ctx.account.id is not None
     if ctx.is_administrator:
         inbox_stmt = (
-            select(Inbox)
-            .where(Inbox.account_id == ctx.account.id)
-            .order_by(Inbox.name, Inbox.id)  # type: ignore[arg-type]
+            select(Inbox).where(Inbox.account_id == ctx.account.id).order_by(Inbox.name, Inbox.id)  # type: ignore[arg-type]
         )
     else:
         # Agents: only inboxes where the agent has an InboxMember row.
@@ -280,17 +278,33 @@ async def update_inbox_endpoint(
     channel = await _load_channel_row(session, inbox)
     channel_updates = payload.channel.model_dump(exclude_none=True) if payload.channel else {}
     if "template_html" in channel_updates:
+        from app.domains.email.sanitize import sanitize_email_html
         from app.domains.email.template import TemplateError, validate_template
 
+        cleaned_html = sanitize_email_html(str(channel_updates["template_html"]))
         try:
-            validate_template(str(channel_updates["template_html"]))
+            validate_template(cleaned_html)
         except TemplateError as exc:
             # Refused here rather than at send time: a template missing the
             # content placeholder sends successfully with the message gone,
             # and nobody finds out until a customer says so.
+            raise ChatwootHTTPException(status_code=422, detail={"message": str(exc)}) from exc
+        channel_updates["template_html"] = cleaned_html
+
+    if "email_template_id" in channel_updates and channel_updates["email_template_id"] is not None:
+        from app.domains.email.templates_service import get_template as get_email_template
+
+        assert ctx.account.id is not None
+        linked = await get_email_template(
+            session,
+            account_id=ctx.account.id,
+            template_id=int(channel_updates["email_template_id"]),
+            user_id=None,
+        )
+        if linked is None:
             raise ChatwootHTTPException(
-                status_code=422, detail={"message": str(exc)}
-            ) from exc
+                status_code=404, detail={"error": "Resource could not be found"}
+            )
 
     await _require_portal_in_account(session, ctx, payload.portal_id)
     if payload.handoff_assignee_id:
@@ -517,9 +531,7 @@ async def _find_inbox_in_account(
     return inbox
 
 
-async def _authorize_inbox_show(
-    session: AsyncSession, ctx: AccountContext, inbox: Inbox
-) -> None:
+async def _authorize_inbox_show(session: AsyncSession, ctx: AccountContext, inbox: Inbox) -> None:
     """``InboxPolicy#show?`` — admins always, agents only if member."""
     if ctx.is_administrator:
         return
@@ -573,9 +585,7 @@ async def _load_channel_row(session: AsyncSession, inbox: Inbox) -> Any | None:
     return (await session.exec(stmt)).first()
 
 
-async def _load_channels_for(
-    session: AsyncSession, inboxes: list[Inbox]
-) -> dict[int, ApiChannel]:
+async def _load_channels_for(session: AsyncSession, inboxes: list[Inbox]) -> dict[int, ApiChannel]:
     """Batch-resolve Channel::Api rows for a list of inboxes (index endpoint).
 
     Keyed by ``inbox.id`` so presenters can look up in O(1). Inboxes with

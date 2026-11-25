@@ -22,4 +22,6 @@ export const actions: Strings<typeof es> = {
   closeDialog: "ダイアログを閉じる",
   deleteFailed: "削除できませんでした。",
   save: "保存",
+  confirm: "確認",
+  confirmTitle: "操作の確認",
 };

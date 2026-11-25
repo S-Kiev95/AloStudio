@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/contacts";
 import { relativeTime } from "@/lib/time";
 import { useLocale, useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function NotesPanel({
   accountId,
@@ -106,6 +107,7 @@ function NoteRow({
   contactId: number;
   note: ContactNote;
 }) {
+  const confirm = useConfirm();
   const locale = useLocale();
   const t = useT();
   const update = useUpdateContactNote(accountId, contactId);
@@ -130,7 +132,7 @@ function NoteRow({
   }
 
   async function onDelete() {
-    if (!window.confirm(t("contacts.notes.deleteConfirm"))) return;
+    if (!(await confirm(t("contacts.notes.deleteConfirm")))) return;
     setError(null);
     try {
       await del.mutateAsync(note.id);
@@ -181,7 +183,7 @@ function NoteRow({
                 aria-label={t("actions.edit")}
                 title={t("actions.edit")}
                 onClick={() => setEditing(true)}
-                className="rounded-md p-1 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="relative inline-flex h-8 w-8 items-center justify-center rounded-md after:absolute after:-inset-1.5 after:content-[''] hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Pencil className="h-3.5 w-3.5" aria-hidden />
               </button>
@@ -191,7 +193,7 @@ function NoteRow({
                 title={t("actions.delete")}
                 onClick={onDelete}
                 disabled={del.isPending}
-                className="rounded-md p-1 hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="relative inline-flex h-8 w-8 items-center justify-center rounded-md after:absolute after:-inset-1.5 after:content-[''] hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Trash2 className="h-3.5 w-3.5" aria-hidden />
               </button>

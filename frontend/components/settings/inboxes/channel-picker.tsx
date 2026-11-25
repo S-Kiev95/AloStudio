@@ -81,7 +81,7 @@ export function ChannelPicker({ accountId }: { accountId: string }) {
             <Link
               key={c.type}
               href={`/accounts/${accountId}/settings/inboxes/new/${c.type}`}
-              className="flex flex-col gap-2 rounded-md border border-glass bg-surface p-4 transition-colors hover:bg-hover-glass focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
+              className="glass-card glass-card-interactive flex flex-col gap-2 rounded-md p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon"
             >
               <span className="grid h-10 w-10 place-items-center rounded-md bg-focused text-lit">
                 <Icon className="h-5 w-5" aria-hidden />

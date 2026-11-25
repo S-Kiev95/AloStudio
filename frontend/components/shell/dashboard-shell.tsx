@@ -21,6 +21,7 @@ import { isLocale, type Locale } from "@/lib/i18n/config";
 import { useLocale, useSwitchLocale, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 import { useCable } from "@/lib/realtime/use-cable";
+import { animateMobileDrawerIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
 import { AccountSwitcher } from "./account-switcher";
@@ -106,7 +107,25 @@ export function DashboardShell({
 }) {
   const pathname = usePathname() ?? "";
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileBackdropRef = useRef<HTMLButtonElement>(null);
+  const mobileDrawerRef = useRef<HTMLElement>(null);
   const [customSign, setCustomSign] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const cancelAnim = animateMobileDrawerIn(
+      mobileBackdropRef.current,
+      mobileDrawerRef.current,
+    );
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMobileOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnim();
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [mobileOpen]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() =>
     readSidebarCollapsed(),
   );
@@ -159,7 +178,7 @@ export function DashboardShell({
         <aside
           data-collapsed={sidebarCollapsed ? "true" : "false"}
           className={cn(
-            "vt-sidebar glass-panel hidden overflow-hidden rounded-panel bg-surface lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-24px)] lg:shrink-0 lg:flex-col",
+            "vt-sidebar glass-panel hidden overflow-hidden rounded-panel lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-24px)] lg:shrink-0 lg:flex-col",
             sidebarCollapsed ? "lg:w-[68px]" : "lg:w-[236px]",
             animateSidebar &&
               "lg:transition-[width] lg:duration-200 lg:ease-out motion-reduce:transition-none",
@@ -186,15 +205,23 @@ export function DashboardShell({
               aria-label={toggleLabel}
               title={toggleLabel}
               className={cn(
-                "neon-nav flex h-11 w-full items-center rounded-control hover:bg-hover-glass",
+                "group neon-nav flex h-11 w-full items-center rounded-control hover:bg-hover-glass",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neon",
                 sidebarCollapsed ? "justify-center px-0" : "px-[14px]",
               )}
             >
               {sidebarCollapsed ? (
-                <SidebarExpandIcon className="h-5 w-5 shrink-0" aria-hidden />
+                <SidebarExpandIcon
+                  className="h-5 w-5 shrink-0"
+                  animate="hover"
+                  aria-hidden
+                />
               ) : (
-                <SidebarCollapseIcon className="h-5 w-5 shrink-0" aria-hidden />
+                <SidebarCollapseIcon
+                  className="h-5 w-5 shrink-0"
+                  animate="hover"
+                  aria-hidden
+                />
               )}
             </button>
           </div>
@@ -204,12 +231,16 @@ export function DashboardShell({
         {mobileOpen ? (
           <div className="fixed inset-0 z-40 lg:hidden">
             <button
+              ref={mobileBackdropRef}
               type="button"
               aria-label={t("shell.closeMenu")}
               className="absolute inset-0 bg-backdrop/80"
               onClick={() => setMobileOpen(false)}
             />
-            <aside className="glass-panel absolute inset-y-0 left-0 flex w-[236px] flex-col bg-surface">
+            <aside
+              ref={mobileDrawerRef}
+              className="glass-panel absolute inset-y-0 left-0 flex w-[252px] flex-col"
+            >
               <div className="flex items-center justify-between px-[14px] pb-5 pt-[18px]">
                 <Brand
                   href={homeHref}
@@ -229,17 +260,31 @@ export function DashboardShell({
                 hiddenKeys={hiddenNavKeys}
                 onNavigate={() => setMobileOpen(false)}
               />
+              {/* On phones, account switcher & theme toggle live here so the
+                  topbar keeps generous room for the glowing neon page sign. */}
+              <div className="flex items-center gap-2 border-t border-glass px-3 py-3 sm:hidden">
+                <div className="min-w-0 flex-1">
+                  <AccountSwitcher
+                    accountId={accountId}
+                    accounts={profile.accounts}
+                    placement="up"
+                    fullWidth
+                    onSelect={() => setMobileOpen(false)}
+                  />
+                </div>
+                <ThemeToggle />
+              </div>
             </aside>
           </div>
         ) : null}
 
         {/* Work glass panel */}
-        <div className="glass-panel flex min-w-0 flex-1 flex-col rounded-panel bg-surface">
+        <div className="glass-panel glass-work-canvas flex min-w-0 flex-1 flex-col rounded-panel">
           {/* view-transition-name makes the bar its own stacking layer, so its
               menus (account, notifications, user) can only rise as high as the
               bar itself: z-[35] keeps them above the page's own layers (up to
               z-30) and below the mobile drawer (z-40) and dialogs (z-50). */}
-          <header className="vt-topbar relative z-[35] flex h-16 shrink-0 items-center gap-3 border-b border-glass px-4 lg:h-20 lg:px-6">
+          <header className="vt-topbar relative z-[35] flex h-16 shrink-0 items-center gap-2 border-b border-glass px-3 sm:gap-3 sm:px-4 lg:h-20 lg:px-6">
             <button
               type="button"
               aria-label={t("shell.openMenu")}
@@ -249,23 +294,27 @@ export function DashboardShell({
               <Menu className="h-5 w-5" aria-hidden />
             </button>
 
-            <div className="neon-sign min-w-0 flex-1">
-              {/* Below lg the controls leave little room: truncate instead of
-                  running under them. On desktop the glow may overflow. */}
-              <h1 className="text-[24px] leading-[1.2] max-lg:truncate lg:text-[34px]">
+            <div className="neon-sign min-w-0 flex-1 overflow-visible">
+              {/* Glow overflows freely (DESIGN.md); on phones we move Theme and
+                  AccountSwitcher into the drawer so the full title reads cleanly. */}
+              <h1 className="whitespace-nowrap text-[22px] leading-[1.15] sm:text-[26px] lg:text-[34px]">
                 {signTitle}
               </h1>
             </div>
 
-            <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
               <HelpButton accountId={accountId} />
-              <ThemeToggle />
+              <div className="hidden sm:flex sm:items-center">
+                <ThemeToggle />
+              </div>
               <NotificationBell accountId={accountId} />
               <span className="mx-0.5 hidden h-5 w-px bg-glass sm:block" aria-hidden />
-              <AccountSwitcher
-                accountId={accountId}
-                accounts={profile.accounts}
-              />
+              <div className="hidden sm:block">
+                <AccountSwitcher
+                  accountId={accountId}
+                  accounts={profile.accounts}
+                />
+              </div>
               <AgentMenu name={profile.name} email={profile.email} />
             </div>
           </header>

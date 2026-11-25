@@ -17,8 +17,10 @@ import { cn } from "@/lib/utils";
 import { useAgentShell } from "./agent-shell";
 import { formatRelativeIso } from "./agent-time";
 import { useLocale, useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function AgentThreadList({ accountId }: { accountId: string }) {
+  const confirm = useConfirm();
   const t = useT();
   const locale = useLocale();
   const pathname = usePathname() ?? "";
@@ -40,7 +42,7 @@ export function AgentThreadList({ accountId }: { accountId: string }) {
   }
 
   async function handleDelete(thread: AgentThreadSummary) {
-    if (!window.confirm(t("agent.deleteConfirm", { title: thread.title }))) return;
+    if (!(await confirm(t("agent.deleteConfirm", { title: thread.title })))) return;
     setDeleteError(null);
     try {
       await deleteThread.mutateAsync(thread.id);

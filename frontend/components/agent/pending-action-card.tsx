@@ -47,7 +47,7 @@ export function PendingActionCard({
   return (
     <div
       data-testid="agent-pending-action-card"
-      className="space-y-3 rounded-md border border-glass bg-surface-2 p-4"
+      className="glass-card space-y-3 rounded-md p-4"
     >
       <h3 className="text-sm font-semibold text-fg">{action.title}</h3>
 

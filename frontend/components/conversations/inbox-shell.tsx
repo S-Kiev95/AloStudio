@@ -493,7 +493,7 @@ export function InboxShell({
             // goes above the bar's layer (z-[35]); otherwise it stays below,
             // so the bar's menus open over it.
             stretchPx > 0 ? "z-[36]" : "z-20",
-            "relative flex min-h-[calc(100dvh-13.5rem)] overflow-hidden rounded-md border border-glass bg-surface lg:mt-[calc(var(--inbox-stretch,0px)*-1)] lg:h-[max(26rem,calc(100dvh-13.5rem+var(--inbox-stretch,0px)))] lg:min-h-[max(26rem,calc(100dvh-13.5rem+var(--inbox-stretch,0px)))]",
+            "relative flex min-h-[calc(100dvh-13.5rem)] overflow-hidden rounded-md border border-glass bg-surface/35 lg:mt-[calc(var(--inbox-stretch,0px)*-1)] lg:h-[max(26rem,calc(100dvh-13.5rem+var(--inbox-stretch,0px)))] lg:min-h-[max(26rem,calc(100dvh-13.5rem+var(--inbox-stretch,0px)))]",
             isDragging && "select-none",
           )}
         >
@@ -539,7 +539,7 @@ export function InboxShell({
             data-testid="inbox-list-panel"
             data-collapsed={listCollapsed ? "true" : "false"}
             className={cn(
-              "flex min-h-0 w-full flex-col overflow-hidden lg:shrink-0 lg:border-r lg:border-glass lg:transition-[width] lg:duration-200 lg:ease-out motion-reduce:transition-none",
+              "glass-card flex min-h-0 w-full flex-col overflow-hidden border-0 lg:shrink-0 lg:border-r lg:border-glass lg:transition-[width] lg:duration-200 lg:ease-out motion-reduce:transition-none",
               listCollapsed ? "lg:w-11" : "lg:w-[320px]",
               hasConversation && "hidden lg:flex",
             )}

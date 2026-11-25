@@ -59,7 +59,7 @@ export function ChatSearch({
           type="button"
           onClick={onClose}
           aria-label={t("conversations.view.closeSearch")}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-control text-fg-muted hover:bg-hover-glass hover:text-fg"
+          className="relative inline-flex h-8 w-8 items-center justify-center rounded-control text-fg-muted after:absolute after:-inset-1.5 after:content-[''] hover:bg-hover-glass hover:text-fg"
         >
           <X className="h-4 w-4" aria-hidden />
         </button>

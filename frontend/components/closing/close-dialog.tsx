@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/closing";
 import { useT } from "@/lib/i18n/provider";
 import { translateOr } from "@/lib/i18n/translate";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
 /** Resolving a conversation from the panel, saying why (F17). */
@@ -41,8 +42,11 @@ export function CloseDialog({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (open && !el.open) el.showModal();
-    if (!open && el.open) el.close();
+    if (open) {
+      if (!el.open) el.showModal();
+      return animateDialogIn(el);
+    }
+    if (el.open) el.close();
   }, [open]);
 
   useEffect(() => {
@@ -70,7 +74,7 @@ export function CloseDialog({
       ref={ref}
       onClose={onClose}
       aria-labelledby={`${noteId}-title`}
-      className="w-full max-w-md rounded-panel border border-glass bg-surface p-0 text-fg shadow-menu backdrop:bg-backdrop/75"
+      className="glass-dialog w-full max-w-md rounded-panel p-0 text-fg backdrop:bg-backdrop/75"
     >
       <div className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">

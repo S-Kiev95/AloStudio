@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAgents } from "@/lib/api/account";
 import { useInboxMembers, useSetInboxMembers } from "@/lib/api/inboxes";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 /** Assign / unassign agents to an inbox. Mirrors the teams members panel —
  *  the backend `inbox_members` PATCH replaces the whole set. */
@@ -17,6 +18,7 @@ export function InboxMembersPanel({
   accountId: string;
   inboxId: number;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const members = useInboxMembers(accountId, inboxId);
   const agents = useAgents(accountId);
@@ -158,13 +160,13 @@ export function InboxMembersPanel({
                 type="button"
                 aria-label={t("settingsInboxes.removeNamed", { name: m.name })}
                 title={t("settingsInboxes.removeFromInbox")}
-                onClick={() => {
-                  if (window.confirm(t("settingsInboxes.removeConfirm", { name: m.name }))) {
+                onClick={async () => {
+                  if (await confirm(t("settingsInboxes.removeConfirm", { name: m.name }))) {
                     void remove(m.id);
                   }
                 }}
                 disabled={setMembers.isPending}
-                className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <UserMinus className="h-4 w-4" aria-hidden />
               </button>

@@ -87,6 +87,7 @@ export function AgentComposer({
 
         <Button
           type="button"
+          variant="ai"
           size="icon"
           aria-label={t("agent.composer.send")}
           disabled={!canSend}

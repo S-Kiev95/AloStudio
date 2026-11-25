@@ -25,6 +25,7 @@ import { CopyField } from "./copy-field";
 import { CredentialsReveal } from "./credentials-reveal";
 import { useT } from "@/lib/i18n/provider";
 import { rich } from "@/lib/i18n/rich";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 type Revealed = { clientId: string; clientSecret?: string };
 
@@ -154,7 +155,7 @@ function AppsPanel({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border border-glass bg-surface">
+      <div className="glass-card overflow-hidden rounded-md">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
@@ -202,6 +203,7 @@ function AppRow({
   onEdit: () => void;
   onSecret: (secret: string) => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const rotate = useRotateOAuthAppSecret(accountId);
   const del = useDeleteOAuthApp(accountId);
@@ -209,9 +211,9 @@ function AppRow({
 
   async function onRotate() {
     if (
-      !window.confirm(
+      !(await confirm(
         t("settingsOauth.rotateConfirm", { name: app.name }),
-      )
+      ))
     )
       return;
     setError(null);
@@ -225,9 +227,9 @@ function AppRow({
 
   async function onDelete() {
     if (
-      !window.confirm(
+      !(await confirm(
         t("settingsOauth.deleteConfirm", { name: app.name }),
-      )
+      ))
     )
       return;
     setError(null);
@@ -276,7 +278,7 @@ function AppRow({
             title={t("settingsOauth.rotateSecret")}
             onClick={() => void onRotate()}
             disabled={rotate.isPending}
-            className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <RefreshCw className="h-4 w-4" aria-hidden />
           </button>
@@ -286,7 +288,7 @@ function AppRow({
           aria-label={t("settingsOauth.editOf", { name: app.name })}
           title={t("actions.edit")}
           onClick={onEdit}
-          className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Pencil className="h-4 w-4" aria-hidden />
         </button>
@@ -296,7 +298,7 @@ function AppRow({
           title={t("settingsOauth.delete")}
           onClick={() => void onDelete()}
           disabled={del.isPending}
-          className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Trash2 className="h-4 w-4" aria-hidden />
         </button>

@@ -17,11 +17,16 @@ import {
   useDeleteOpportunity,
   useUpdateOpportunity,
 } from "@/lib/api/crm";
+import { ApiError } from "@/lib/api/errors";
 import { useProducts } from "@/lib/api/products";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
 
 import { ContactPicker, type PickedContact } from "./contact-picker";
+import { formatMoney } from "./money";
+import { OpportunityBillingSection } from "./opportunity-billing-section";
 import { stageLabel } from "./stage-label";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 /** Create or edit an opportunity. ``presetContact`` fixes the contact when
  *  it is opened from a contact's page. */
@@ -42,7 +47,9 @@ export function OpportunityDialog({
   presetContact?: PickedContact | null;
   defaultStageId?: number | null;
 }) {
+  const confirm = useConfirm();
   const t = useT();
+  const intlTag = useIntlTag();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const [contact, setContact] = useState<PickedContact | null>(null);
@@ -67,10 +74,13 @@ export function OpportunityDialog({
   useEffect(() => {
     const el = dialogRef.current;
     if (!el) return;
-    if (open && !el.open) {
-      if (typeof el.showModal === "function") el.showModal();
-      else el.setAttribute("open", "");
-    } else if (!open && el.open) {
+    if (open) {
+      if (!el.open) {
+        if (typeof el.showModal === "function") el.showModal();
+        else el.setAttribute("open", "");
+      }
+      return animateDialogIn(el);
+    } else if (el.open) {
       if (typeof el.close === "function") el.close();
       else el.removeAttribute("open");
     }
@@ -137,17 +147,70 @@ export function OpportunityDialog({
       else await create.mutateAsync(payload);
       onClose();
     } catch (err) {
+      if (initial && err instanceof ApiError && err.status === 409) {
+        const body = err.body as {
+          code?: string;
+          allocated_amount?: number;
+          currency?: string | null;
+        } | null;
+        if (body?.code === "opportunity_has_payments") {
+          const amountLabel = formatMoney(
+            body.allocated_amount ?? 0,
+            body.currency ?? initial.currency,
+            intlTag,
+          );
+          if (await confirm(t("collections.conflict.confirmRelease", { amount: amountLabel }))) {
+            try {
+              await update.mutateAsync({
+                id: initial.id,
+                patch: { ...payload, release_allocations: true },
+              });
+              onClose();
+              return;
+            } catch (retryErr) {
+              setError((retryErr as { message?: string })?.message ?? t("opportunities.saveFailed"));
+              return;
+            }
+          }
+          return;
+        }
+      }
       setError((err as { message?: string })?.message ?? t("opportunities.saveFailed"));
     }
   }
 
   async function handleDelete() {
     if (!initial) return;
-    if (!window.confirm(t("opportunities.deleteConfirm", { title: initial.title }))) return;
+    if (!(await confirm(t("opportunities.deleteConfirm", { title: initial.title })))) return;
     try {
       await remove.mutateAsync(initial.id);
       onClose();
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const body = err.body as {
+          code?: string;
+          allocated_amount?: number;
+          currency?: string | null;
+        } | null;
+        if (body?.code === "opportunity_has_payments") {
+          const amountLabel = formatMoney(
+            body.allocated_amount ?? 0,
+            body.currency ?? initial.currency,
+            intlTag,
+          );
+          if (await confirm(t("collections.conflict.confirmRelease", { amount: amountLabel }))) {
+            try {
+              await remove.mutateAsync({ id: initial.id, releaseAllocations: true });
+              onClose();
+              return;
+            } catch (retryErr) {
+              setError((retryErr as { message?: string })?.message ?? t("actions.deleteFailed"));
+              return;
+            }
+          }
+          return;
+        }
+      }
       setError((err as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
@@ -159,7 +222,7 @@ export function OpportunityDialog({
       ref={dialogRef}
       onClose={onClose}
       aria-labelledby="opportunity-dialog-title"
-      className="w-full max-w-lg rounded-panel border border-glass bg-surface p-0 text-fg shadow-menu backdrop:bg-backdrop/75"
+      className="glass-dialog w-full max-w-lg rounded-panel p-0 text-fg backdrop:bg-backdrop/75"
     >
       <form onSubmit={handleSubmit} className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">
@@ -310,6 +373,10 @@ export function OpportunityDialog({
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
+
+        {initial && stage?.kind === "won" ? (
+          <OpportunityBillingSection accountId={accountId} opportunity={initial} />
+        ) : null}
 
         <div className="flex items-center justify-between gap-2 pt-2">
           {initial ? (

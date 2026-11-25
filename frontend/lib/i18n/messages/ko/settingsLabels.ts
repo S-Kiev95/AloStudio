@@ -11,4 +11,5 @@ export const settingsLabels: Strings<typeof es> = {
   empty: "아직 라벨이 없습니다.",
   visibleInSidebar: "사이드바에 표시됨",
   hiddenInSidebar: "사이드바에서 숨김",
+  deleteConfirm: '"{name}" 라벨을 삭제할까요?',
 };

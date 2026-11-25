@@ -63,7 +63,7 @@ function FacebookPageConnectInner({
       : null);
 
   return (
-    <div className="space-y-3 rounded-md border border-glass bg-surface p-5">
+    <div className="glass-card space-y-3 rounded-md p-5">
       {shownError ? (
         <p
           role="alert"

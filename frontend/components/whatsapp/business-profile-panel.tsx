@@ -4,6 +4,7 @@ import { Camera, Globe, Mail, MapPin } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { selectClassName } from "@/components/ui/select";
@@ -16,26 +17,28 @@ import {
   useWhatsappPhoneStatus,
   useWhatsappProfile,
 } from "@/lib/api/whatsapp-business";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
-const VERTICALS: Array<{ value: string; label: string }> = [
-  { value: "", label: "Sin elegir" },
-  { value: "EDU", label: "Educación" },
-  { value: "PROF_SERVICES", label: "Servicios profesionales" },
-  { value: "HEALTH", label: "Salud" },
-  { value: "BEAUTY", label: "Belleza, spa y salones" },
-  { value: "RETAIL", label: "Tienda" },
-  { value: "APPAREL", label: "Ropa" },
-  { value: "GROCERY", label: "Almacén y supermercado" },
-  { value: "RESTAURANT", label: "Restaurante" },
-  { value: "HOTEL", label: "Hotel y alojamiento" },
-  { value: "TRAVEL", label: "Viajes y transporte" },
-  { value: "EVENT_PLAN", label: "Eventos" },
-  { value: "ENTERTAIN", label: "Entretenimiento" },
-  { value: "FINANCE", label: "Finanzas y bancos" },
-  { value: "AUTO", label: "Automotor" },
-  { value: "NONPROFIT", label: "Sin fines de lucro" },
-  { value: "GOVT", label: "Gobierno" },
-  { value: "OTHER", label: "Otro" },
+const VERTICALS: Array<{ value: string; labelKey: MessageKey }> = [
+  { value: "", labelKey: "whatsapp.profile.verticals.none" },
+  { value: "EDU", labelKey: "whatsapp.profile.verticals.EDU" },
+  { value: "PROF_SERVICES", labelKey: "whatsapp.profile.verticals.PROF_SERVICES" },
+  { value: "HEALTH", labelKey: "whatsapp.profile.verticals.HEALTH" },
+  { value: "BEAUTY", labelKey: "whatsapp.profile.verticals.BEAUTY" },
+  { value: "RETAIL", labelKey: "whatsapp.profile.verticals.RETAIL" },
+  { value: "APPAREL", labelKey: "whatsapp.profile.verticals.APPAREL" },
+  { value: "GROCERY", labelKey: "whatsapp.profile.verticals.GROCERY" },
+  { value: "RESTAURANT", labelKey: "whatsapp.profile.verticals.RESTAURANT" },
+  { value: "HOTEL", labelKey: "whatsapp.profile.verticals.HOTEL" },
+  { value: "TRAVEL", labelKey: "whatsapp.profile.verticals.TRAVEL" },
+  { value: "EVENT_PLAN", labelKey: "whatsapp.profile.verticals.EVENT_PLAN" },
+  { value: "ENTERTAIN", labelKey: "whatsapp.profile.verticals.ENTERTAIN" },
+  { value: "FINANCE", labelKey: "whatsapp.profile.verticals.FINANCE" },
+  { value: "AUTO", labelKey: "whatsapp.profile.verticals.AUTO" },
+  { value: "NONPROFIT", labelKey: "whatsapp.profile.verticals.NONPROFIT" },
+  { value: "GOVT", labelKey: "whatsapp.profile.verticals.GOVT" },
+  { value: "OTHER", labelKey: "whatsapp.profile.verticals.OTHER" },
 ];
 
 type Draft = {
@@ -72,12 +75,13 @@ function ProfilePreview({
   draft: Draft;
   photoUrl: string | null;
 }) {
+  const t = useT();
   const vertical = VERTICALS.find((v) => v.value === draft.vertical && v.value);
   const sites = [draft.website1, draft.website2].filter((s) => s.trim());
   return (
     <div
       data-testid="whatsapp-profile-preview"
-      className="overflow-hidden rounded-2xl border border-glass bg-white text-[#111b21] shadow-lg dark:bg-[#111b21] dark:text-[#e9edef]"
+      className="overflow-hidden rounded-md border border-glass bg-white text-[#111b21] dark:bg-[#111b21] dark:text-[#e9edef]"
     >
       <div className="flex flex-col items-center gap-2 px-5 pb-4 pt-6">
         {photoUrl ? (
@@ -90,7 +94,9 @@ function ProfilePreview({
         )}
         <p className="text-center text-xl font-medium">{name}</p>
         <p className="text-sm text-[#667781] dark:text-[#8696a0]">{phone}</p>
-        <p className="text-xs text-[#667781] dark:text-[#8696a0]">Cuenta de empresa</p>
+        <p className="text-xs text-[#667781] dark:text-[#8696a0]">
+          {t("whatsapp.profile.businessAccount")}
+        </p>
       </div>
       <div className="space-y-3 border-t border-[#e9edef] px-5 py-4 text-sm dark:border-[#2a3942]">
         {draft.about ? <p className="font-medium">{draft.about}</p> : null}
@@ -100,7 +106,7 @@ function ProfilePreview({
           </p>
         ) : null}
         {vertical ? (
-          <p className="text-[#667781] dark:text-[#8696a0]">{vertical.label}</p>
+          <p className="text-[#667781] dark:text-[#8696a0]">{t(vertical.labelKey)}</p>
         ) : null}
         {draft.address ? (
           <p className="flex items-start gap-2">
@@ -134,6 +140,7 @@ export function BusinessProfilePanel({
   inboxId: number;
   inboxName: string;
 }) {
+  const t = useT();
   const isAdmin = useIsAccountAdmin(accountId);
   const profileQ = useWhatsappProfile(accountId, inboxId);
   const phoneQ = useWhatsappPhoneStatus(accountId, inboxId);
@@ -148,12 +155,17 @@ export function BusinessProfilePanel({
     if (profileQ.data) setDraft(toDraft(profileQ.data));
   }, [profileQ.data]);
 
-  if (profileQ.isLoading) return <p className="text-sm text-fg-muted">Consultando a Meta…</p>;
+  if (profileQ.isLoading) {
+    return <p className="text-sm text-fg-muted">{t("whatsapp.common.queryingMeta")}</p>;
+  }
   if (profileQ.isError) {
     return (
-      <p role="alert" className="text-sm text-danger">
-        {(profileQ.error as Error | null)?.message ?? "No se pudo leer el perfil en Meta."}
-      </p>
+      <ErrorState
+        compact
+        message={(profileQ.error as Error | null)?.message ?? t("whatsapp.profile.loadError")}
+        onRetry={() => void profileQ.refetch()}
+        retrying={profileQ.isFetching}
+      />
     );
   }
 
@@ -173,9 +185,9 @@ export function BusinessProfilePanel({
         websites: [draft.website1, draft.website2].filter((s) => s.trim()),
         vertical: draft.vertical || "UNDEFINED",
       });
-      setNotice("Perfil actualizado. Los contactos lo ven en unos minutos.");
+      setNotice(t("whatsapp.profile.savedNotice"));
     } catch (err) {
-      setError((err as Error).message || "No se pudo guardar el perfil.");
+      setError((err as Error).message || t("whatsapp.profile.saveError"));
     }
   }
 
@@ -185,9 +197,9 @@ export function BusinessProfilePanel({
     setNotice(null);
     try {
       await upload.mutateAsync(file);
-      setNotice("Foto actualizada.");
+      setNotice(t("whatsapp.profile.photoUpdatedNotice"));
     } catch (err) {
-      setError((err as Error).message || "No se pudo cambiar la foto.");
+      setError((err as Error).message || t("whatsapp.profile.photoError"));
     }
   }
 
@@ -202,7 +214,7 @@ export function BusinessProfilePanel({
     >
       <div className="space-y-5">
         {!isAdmin ? (
-          <p className="text-sm text-fg-muted">Solo un administrador puede cambiar el perfil.</p>
+          <p className="text-sm text-fg-muted">{t("whatsapp.profile.adminOnly")}</p>
         ) : null}
         {error ? (
           <p role="alert" className="text-sm text-danger">
@@ -225,33 +237,33 @@ export function BusinessProfilePanel({
               onClick={() => fileRef.current?.click()}
             >
               <Camera className="h-4 w-4" aria-hidden />
-              Cambiar foto
+              {t("whatsapp.profile.changePhoto")}
             </Button>
-            <span className="text-xs text-fg-muted">JPG o PNG, cuadrada, hasta 5 MB.</span>
+            <span className="text-xs text-fg-muted">{t("whatsapp.profile.photoHint")}</span>
             <input
               ref={fileRef}
               type="file"
               accept="image/jpeg,image/png"
               className="hidden"
-              aria-label="Foto de perfil"
+              aria-label={t("whatsapp.profile.photoAria")}
               onChange={(e) => void onPhoto(e.target.files?.[0])}
             />
           </div>
         ) : null}
 
         <div className="space-y-1.5">
-          <Label htmlFor="wa-about">Info (frase corta)</Label>
+          <Label htmlFor="wa-about">{t("whatsapp.profile.aboutLabel")}</Label>
           <Input
             id="wa-about"
             value={draft.about}
             maxLength={139}
             disabled={disabled}
             onChange={(e) => set("about")(e.target.value)}
-            placeholder="Ej.: Cursos y talleres en Salto"
+            placeholder={t("whatsapp.profile.aboutPlaceholder")}
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="wa-description">Descripción</Label>
+          <Label htmlFor="wa-description">{t("whatsapp.profile.descriptionLabel")}</Label>
           <Textarea
             id="wa-description"
             rows={4}
@@ -264,7 +276,7 @@ export function BusinessProfilePanel({
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="wa-vertical">Rubro</Label>
+            <Label htmlFor="wa-vertical">{t("whatsapp.profile.verticalLabel")}</Label>
             <select
               id="wa-vertical"
               className={selectClassName()}
@@ -274,13 +286,13 @@ export function BusinessProfilePanel({
             >
               {VERTICALS.map((v) => (
                 <option key={v.value} value={v.value}>
-                  {v.label}
+                  {t(v.labelKey)}
                 </option>
               ))}
             </select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="wa-email">Correo</Label>
+            <Label htmlFor="wa-email">{t("whatsapp.profile.emailLabel")}</Label>
             <Input
               id="wa-email"
               type="email"
@@ -292,7 +304,7 @@ export function BusinessProfilePanel({
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="wa-address">Dirección</Label>
+          <Label htmlFor="wa-address">{t("whatsapp.profile.addressLabel")}</Label>
           <Input
             id="wa-address"
             value={draft.address}
@@ -303,7 +315,7 @@ export function BusinessProfilePanel({
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="wa-web1">Sitio web</Label>
+            <Label htmlFor="wa-web1">{t("whatsapp.profile.website1Label")}</Label>
             <Input
               id="wa-web1"
               value={draft.website1}
@@ -313,7 +325,7 @@ export function BusinessProfilePanel({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="wa-web2">Otro sitio (opcional)</Label>
+            <Label htmlFor="wa-web2">{t("whatsapp.profile.website2Label")}</Label>
             <Input
               id="wa-web2"
               value={draft.website2}
@@ -325,13 +337,15 @@ export function BusinessProfilePanel({
         </div>
         {isAdmin ? (
           <Button type="submit" size="sm" loading={update.isPending}>
-            Guardar perfil
+            {t("whatsapp.profile.saveButton")}
           </Button>
         ) : null}
       </div>
 
       <div className="space-y-2 lg:sticky lg:top-4 lg:self-start">
-        <p className="text-xs font-medium text-fg-muted">Vista previa: así lo ve el contacto</p>
+        <p className="text-xs font-medium text-fg-muted">
+          {t("whatsapp.profile.previewHeading")}
+        </p>
         <ProfilePreview
           name={name}
           phone={phone}

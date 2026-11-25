@@ -16,6 +16,7 @@ import {
 
 import { TeamForm } from "./team-form";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function TeamsView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -56,7 +57,7 @@ export function TeamsView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border border-glass bg-surface">
+      <div className="glass-card overflow-hidden rounded-md">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
@@ -80,6 +81,7 @@ export function TeamsView({ accountId }: { accountId: string }) {
 }
 
 function TeamRow({ accountId, team }: { accountId: string; team: Team }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteTeam(accountId);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +89,7 @@ function TeamRow({ accountId, team }: { accountId: string; team: Team }) {
   async function onDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(t("settingsTeams.deleteConfirm", { name: team.name }))) return;
+    if (!(await confirm(t("settingsTeams.deleteConfirm", { name: team.name })))) return;
     setError(null);
     try {
       await del.mutateAsync(team.id);
@@ -133,7 +135,7 @@ function TeamRow({ accountId, team }: { accountId: string; team: Team }) {
         title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

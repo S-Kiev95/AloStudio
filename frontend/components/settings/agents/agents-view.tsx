@@ -23,6 +23,7 @@ import {
 } from "@/lib/api/agents-admin";
 import { useT } from "@/lib/i18n/provider";
 import { rich } from "@/lib/i18n/rich";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function AgentsView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -151,7 +152,7 @@ export function AgentsView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border border-glass bg-surface">
+      <div className="glass-card overflow-hidden rounded-md">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
@@ -181,6 +182,7 @@ function AgentRow({
   accountId: string;
   agent: Agent;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const update = useUpdateAgent(accountId);
   const remove = useRemoveAgent(accountId);
@@ -205,7 +207,7 @@ function AgentRow({
   }
 
   async function onRemove() {
-    if (!window.confirm(t("settingsAgents.removeConfirm", { name: agent.name }))) return;
+    if (!(await confirm(t("settingsAgents.removeConfirm", { name: agent.name })))) return;
     setError(null);
     try {
       await remove.mutateAsync(agent.id);
@@ -256,7 +258,7 @@ function AgentRow({
         title={t("settingsAgents.removeFromAccount")}
         onClick={onRemove}
         disabled={remove.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

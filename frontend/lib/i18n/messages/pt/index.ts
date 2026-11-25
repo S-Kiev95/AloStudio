@@ -15,6 +15,7 @@ import { helpAssistant } from "./helpAssistant";
 import { googleCalendar } from "./googleCalendar";
 import { writingAssist } from "./writingAssist";
 import { opportunities } from "./opportunities";
+import { collections } from "./collections";
 import { origin } from "./origin";
 import { igCapabilities } from "./igCapabilities";
 import { channelCatalog } from "./channelCatalog";
@@ -53,6 +54,7 @@ import { oauth } from "./oauth";
 import { campaigns } from "./campaigns";
 import { agent } from "./agent";
 import { instagram } from "./instagram";
+import { whatsapp } from "./whatsapp";
 import { publications } from "./publications";
 import { dates } from "./dates";
 import { crm } from "./crm";
@@ -81,6 +83,7 @@ export const pt: Messages = {
   writingAssist,
 
   opportunities,
+  collections,
 
   origin,
   igCapabilities,
@@ -120,6 +123,7 @@ export const pt: Messages = {
   campaigns,
   agent,
   instagram,
+  whatsapp,
   publications,
   dates,
   crm,

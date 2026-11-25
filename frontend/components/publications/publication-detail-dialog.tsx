@@ -35,6 +35,8 @@ import {
 } from "./publication-state-badge";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import { createTranslate, type MessageKey, type Translate } from "@/lib/i18n/translate";
+import { animateDialogIn } from "@/lib/motion/neon-motion";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const METRIC_FIELDS: { key: MetricName; label: MessageKey }[] = [
   { key: "views", label: "publications.metrics.views" },
@@ -85,6 +87,7 @@ export function PublicationDetailDialog({
   isAdmin: boolean;
   onEdit?: (pub: Publication) => void;
 }) {
+  const confirm = useConfirm();
   const intlTag = useIntlTag();
   const t = useT();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -110,6 +113,7 @@ export function PublicationDetailDialog({
           el.setAttribute("open", "");
         }
       }
+      return animateDialogIn(el);
     } else if (el.open) {
       if (typeof el.close === "function") {
         el.close();
@@ -158,7 +162,7 @@ export function PublicationDetailDialog({
 
   async function handleDelete() {
     if (!pub) return;
-    if (!window.confirm(t("publications.detail.deleteConfirm"))) return;
+    if (!(await confirm(t("publications.detail.deleteConfirm")))) return;
     setError(null);
     try {
       await deleteMutation.mutateAsync(pub.id);
@@ -180,7 +184,7 @@ export function PublicationDetailDialog({
       ref={dialogRef}
       onClose={onClose}
       aria-labelledby="publication-detail-title"
-      className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-panel border border-glass bg-surface p-0 text-fg shadow-menu backdrop:bg-backdrop/75"
+      className="glass-dialog max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-panel p-0 text-fg backdrop:bg-backdrop/75"
     >
       <div className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3 border-b border-glass pb-3">

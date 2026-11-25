@@ -28,6 +28,7 @@ import {
 import { useIsAccountAdmin } from "@/lib/api/profile";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const CHANNEL_ICON: Record<string, IconComponent> = {
   "Channel::Telegram": Telegram,
@@ -114,13 +115,14 @@ function ChannelRow({
   inbox: Inbox;
   isAdmin: boolean;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteInbox(accountId);
   const [error, setError] = useState<string | null>(null);
   const Icon = CHANNEL_ICON[inbox.channel_type] ?? Webhook;
 
   async function onDisconnect() {
-    if (!window.confirm(t("conversations.channels.disconnectConfirm", { name: inbox.name })))
+    if (!(await confirm(t("conversations.channels.disconnectConfirm", { name: inbox.name }))))
       return;
     setError(null);
     try {

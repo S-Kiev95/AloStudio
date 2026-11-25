@@ -16,6 +16,7 @@ import {
 
 import { LabelForm } from "./label-form";
 import { useT } from "@/lib/i18n/provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function LabelsView({ accountId }: { accountId: string }) {
   const t = useT();
@@ -80,7 +81,7 @@ export function LabelsView({ accountId }: { accountId: string }) {
         </Card>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border border-glass bg-surface">
+      <div className="glass-card overflow-hidden rounded-md">
         {isLoading ? (
           <p className="p-8 text-center text-sm text-fg-muted">{t("common.loading")}</p>
         ) : isError ? (
@@ -120,12 +121,13 @@ function LabelRow({
   label: LabelType;
   onEdit: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT();
   const del = useDeleteLabel(accountId);
   const [error, setError] = useState<string | null>(null);
 
   async function onDelete() {
-    if (!window.confirm(t("instagram.answers.deleteConfirm", { name: label.title }))) return;
+    if (!(await confirm(t("settingsLabels.deleteConfirm", { name: label.title })))) return;
     setError(null);
     try {
       await del.mutateAsync(label.id);
@@ -171,7 +173,7 @@ function LabelRow({
         aria-label={t("actions.edit")}
         title={t("actions.edit")}
         onClick={onEdit}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </button>
@@ -181,7 +183,7 @@ function LabelRow({
         title={t("actions.delete")}
         onClick={onDelete}
         disabled={del.isPending}
-        className="rounded-md p-1.5 text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-danger disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 className="h-4 w-4" aria-hidden />
       </button>

@@ -2,9 +2,11 @@
 
 import { LogOut, UserCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useT } from "@/lib/i18n/provider";
+import { animatePopoverIn } from "@/lib/motion/neon-motion";
 import { cn } from "@/lib/utils";
 
 export function AgentMenu({
@@ -17,6 +19,20 @@ export function AgentMenu({
   const router = useRouter();
   const t = useT();
   const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    return animatePopoverIn(menuRef.current);
+  }, [open]);
+
+  useDismissOnOutsideAndEscape(detailsRef, open, () => {
+    detailsRef.current?.removeAttribute("open");
+    setOpen(false);
+  });
+
   const initials =
     name
       .split(" ")
@@ -34,7 +50,11 @@ export function AgentMenu({
   }
 
   return (
-    <details className="group relative">
+    <details
+      ref={detailsRef}
+      className="group relative"
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
       <summary
         className={cn(
           "relative flex h-10 cursor-pointer list-none items-center gap-2 rounded-control px-1.5 text-sm text-fg transition-colors",
@@ -48,7 +68,8 @@ export function AgentMenu({
         </span>
       </summary>
       <div
-        className="absolute right-0 z-30 mt-1.5 w-60 overflow-hidden rounded-md border border-glass bg-surface-2 shadow-menu"
+        ref={menuRef}
+        className="glass-dialog z-30 overflow-hidden rounded-md max-sm:fixed max-sm:right-3 max-sm:top-[4.5rem] max-sm:w-60 sm:absolute sm:right-0 sm:mt-1.5 sm:w-60"
         role="menu"
       >
         <div className="border-b border-glass px-3 py-3">

@@ -11,4 +11,5 @@ export const settingsLabels: Strings<typeof es> = {
   empty: "ラベルはまだありません。",
   visibleInSidebar: "サイドバーに表示",
   hiddenInSidebar: "サイドバーで非表示",
+  deleteConfirm: "ラベル「{name}」を削除しますか？",
 };
