@@ -17,11 +17,14 @@ import {
   useDeleteOpportunity,
   useUpdateOpportunity,
 } from "@/lib/api/crm";
+import { ApiError } from "@/lib/api/errors";
 import { useProducts } from "@/lib/api/products";
-import { useT } from "@/lib/i18n/provider";
+import { useIntlTag, useT } from "@/lib/i18n/provider";
 import { animateDialogIn } from "@/lib/motion/neon-motion";
 
 import { ContactPicker, type PickedContact } from "./contact-picker";
+import { formatMoney } from "./money";
+import { OpportunityBillingSection } from "./opportunity-billing-section";
 import { stageLabel } from "./stage-label";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
@@ -46,6 +49,7 @@ export function OpportunityDialog({
 }) {
   const confirm = useConfirm();
   const t = useT();
+  const intlTag = useIntlTag();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const [contact, setContact] = useState<PickedContact | null>(null);
@@ -143,6 +147,34 @@ export function OpportunityDialog({
       else await create.mutateAsync(payload);
       onClose();
     } catch (err) {
+      if (initial && err instanceof ApiError && err.status === 409) {
+        const body = err.body as {
+          code?: string;
+          allocated_amount?: number;
+          currency?: string | null;
+        } | null;
+        if (body?.code === "opportunity_has_payments") {
+          const amountLabel = formatMoney(
+            body.allocated_amount ?? 0,
+            body.currency ?? initial.currency,
+            intlTag,
+          );
+          if (await confirm(t("collections.conflict.confirmRelease", { amount: amountLabel }))) {
+            try {
+              await update.mutateAsync({
+                id: initial.id,
+                patch: { ...payload, release_allocations: true },
+              });
+              onClose();
+              return;
+            } catch (retryErr) {
+              setError((retryErr as { message?: string })?.message ?? t("opportunities.saveFailed"));
+              return;
+            }
+          }
+          return;
+        }
+      }
       setError((err as { message?: string })?.message ?? t("opportunities.saveFailed"));
     }
   }
@@ -154,6 +186,31 @@ export function OpportunityDialog({
       await remove.mutateAsync(initial.id);
       onClose();
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const body = err.body as {
+          code?: string;
+          allocated_amount?: number;
+          currency?: string | null;
+        } | null;
+        if (body?.code === "opportunity_has_payments") {
+          const amountLabel = formatMoney(
+            body.allocated_amount ?? 0,
+            body.currency ?? initial.currency,
+            intlTag,
+          );
+          if (await confirm(t("collections.conflict.confirmRelease", { amount: amountLabel }))) {
+            try {
+              await remove.mutateAsync({ id: initial.id, releaseAllocations: true });
+              onClose();
+              return;
+            } catch (retryErr) {
+              setError((retryErr as { message?: string })?.message ?? t("actions.deleteFailed"));
+              return;
+            }
+          }
+          return;
+        }
+      }
       setError((err as { message?: string })?.message ?? t("actions.deleteFailed"));
     }
   }
@@ -316,6 +373,10 @@ export function OpportunityDialog({
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
+
+        {initial && stage?.kind === "won" ? (
+          <OpportunityBillingSection accountId={accountId} opportunity={initial} />
+        ) : null}
 
         <div className="flex items-center justify-between gap-2 pt-2">
           {initial ? (

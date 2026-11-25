@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { selectClassName } from "@/components/ui/select";
@@ -19,6 +20,7 @@ import {
   usePipelines,
   useUpdateOpportunity,
 } from "@/lib/api/crm";
+import { ApiError } from "@/lib/api/errors";
 import { useIsAccountAdmin, useProfile } from "@/lib/api/profile";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import { animateStaggerIn } from "@/lib/motion/neon-motion";
@@ -36,6 +38,7 @@ type Scope = "all" | "mine";
 export function OpportunitiesView({ accountId }: { accountId: string }) {
   const t = useT();
   const intlTag = useIntlTag();
+  const confirm = useConfirm();
   const isAdmin = useIsAccountAdmin(accountId);
   const profile = useProfile();
   const pipelines = usePipelines(accountId);
@@ -78,6 +81,33 @@ export function OpportunitiesView({ accountId }: { accountId: string }) {
     try {
       await update.mutateAsync({ id: opportunity.id, patch: { stage_id: stage.id } });
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const body = err.body as {
+          code?: string;
+          allocated_amount?: number;
+          currency?: string | null;
+        } | null;
+        if (body?.code === "opportunity_has_payments") {
+          const amountLabel = formatMoney(
+            body.allocated_amount ?? 0,
+            body.currency ?? opportunity.currency,
+            intlTag,
+          );
+          if (await confirm(t("collections.conflict.confirmRelease", { amount: amountLabel }))) {
+            try {
+              await update.mutateAsync({
+                id: opportunity.id,
+                patch: { stage_id: stage.id, release_allocations: true },
+              });
+              return;
+            } catch (retryErr) {
+              setMoveError((retryErr as { message?: string })?.message ?? t("opportunities.moveFailed"));
+              return;
+            }
+          }
+          return;
+        }
+      }
       setMoveError((err as { message?: string })?.message ?? t("opportunities.moveFailed"));
     }
   }
