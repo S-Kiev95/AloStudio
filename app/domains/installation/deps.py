@@ -35,6 +35,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.auth.devise_token_auth import HEADER_CLIENT
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import current_user
 from app.core.errors import ChatwootHTTPException
@@ -97,9 +98,14 @@ async def require_operator(
     if user.type == SUPER_ADMIN_TYPE or _is_sso_super_admin_session(request, user):
         return user
 
-    if not await has_any_super_admin(
-        session
-    ) and await _administers_first_account(session, user):
+    # The bootstrap rule (first account's admin while no super admin
+    # exists) would hand the installation to a client on a multitenant
+    # install: there, only a super admin.
+    if (
+        not get_settings().multitenant
+        and not await has_any_super_admin(session)
+        and await _administers_first_account(session, user)
+    ):
         return user
 
     raise ChatwootHTTPException(

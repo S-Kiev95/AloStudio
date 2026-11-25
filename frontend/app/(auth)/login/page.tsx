@@ -11,12 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { messageFromBody } from "@/lib/api/errors";
+import { usePublicInstallation } from "@/lib/api/installation";
 import { safeNextPath } from "@/lib/auth/next-path";
 import { errorKey, type LoginInput, loginSchema } from "@/lib/auth/schemas";
 import { useT } from "@/lib/i18n/provider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const installation = usePublicInstallation();
   const t = useT();
   const singularity = useAuthSingularity();
   const [formError, setFormError] = useState<string | null>(null);
@@ -184,6 +186,17 @@ export default function LoginPage() {
             {t("auth.login.forgot")}
           </Link>
         </div>
+
+        {installation.data?.signup_enabled ? (
+          <div data-bh-shard>
+            <Link
+              href="/registro"
+              className="block pt-1 text-center text-sm text-info hover:underline"
+            >
+              {t("auth.login.signup")}
+            </Link>
+          </div>
+        ) : null}
       </form>
     </div>
   );

@@ -207,6 +207,25 @@ class Settings(BaseSettings):
     # session — no captcha, no email check. The operator turns it on from
     # Ajustes → Instalación if the deployment really is self-serve.
     enable_account_signup: bool = False
+    # F2 multitenant (branch ``feat/multitenant``): one installation, many
+    # client accounts. When on, Meta channels (WhatsApp, Instagram,
+    # Facebook) are connected only through Embedded Signup / OAuth, never
+    # typed in by hand; the installation settings need a super admin; and
+    # signup confirms the email before the account can sign in. Off for a
+    # dedicated install such as CTC's. Environment only: it is a property
+    # of the deployment, not something to toggle from the dashboard.
+    multitenant: bool = False
+    # WhatsApp Embedded Signup: the "Facebook Login for Business"
+    # configuration that opens the WhatsApp onboarding popup.
+    whatsapp_embedded_signup_config_id: str = ""
+    # Verify token of the app-level WhatsApp webhook (``/webhooks/whatsapp``),
+    # where Embedded Signup points every connected number.
+    whatsapp_verify_token: str = ""
+    # F2 paso 3: subscriptions charged through Polar (Merchant of Record).
+    # ``polar_server`` is ``sandbox`` while testing, ``production`` live.
+    polar_access_token: str = ""
+    polar_webhook_secret: str = ""
+    polar_server: str = "sandbox"
     # Outbound requests to user-supplied URLs (webhooks, bot endpoints,
     # attachment fetches) refuse loopback, private, link-local and
     # carrier-grade (Tailscale) addresses. Local development pointing a

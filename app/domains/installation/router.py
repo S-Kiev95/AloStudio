@@ -13,6 +13,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Path, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
 from app.domains.installation import service
@@ -39,6 +40,19 @@ async def _described(
 ) -> dict[str, Any]:
     rows = await service.all_rows(session)
     return service.describe(spec, rows.get(spec.name))
+
+
+@router.get("/public")
+async def public_settings() -> dict[str, bool]:
+    """What an anonymous screen needs to know about the installation: the
+    login page shows "Crear cuenta" only when signup is open, and a
+    multitenant install connects Meta channels only through Meta's flows.
+    Booleans only, nothing that could be a secret."""
+    settings = get_settings()
+    return {
+        "signup_enabled": settings.enable_account_signup,
+        "multitenant": settings.multitenant,
+    }
 
 
 @router.get("/configs")

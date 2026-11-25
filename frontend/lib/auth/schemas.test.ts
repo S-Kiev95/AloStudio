@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { loginSchema } from "./schemas";
+import { loginSchema, signupSchema } from "./schemas";
 
 describe("loginSchema", () => {
   it("accepts a valid email + password", () => {
@@ -15,6 +15,28 @@ describe("loginSchema", () => {
 
   it("rejects an empty password", () => {
     const r = loginSchema.safeParse({ email: "a@b.com", password: "" });
+    expect(r.success).toBe(false);
+  });
+});
+
+describe("signupSchema", () => {
+  it("accepts valid company name, user name, email and 8+ char password", () => {
+    const r = signupSchema.safeParse({
+      account_name: "AloStudio",
+      user_full_name: "Ana Pérez",
+      email: "ana@alostudio.test",
+      password: "secreto8",
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects passwords shorter than 8 characters, as the backend does", () => {
+    const r = signupSchema.safeParse({
+      account_name: "AloStudio",
+      user_full_name: "Ana Pérez",
+      email: "ana@alostudio.test",
+      password: "1234567",
+    });
     expect(r.success).toBe(false);
   });
 });

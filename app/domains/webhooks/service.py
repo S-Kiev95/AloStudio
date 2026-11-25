@@ -101,6 +101,30 @@ async def fetch_webhook(
     ).first()
 
 
+async def _require_inbox_in_account(
+    session: AsyncSession, *, account_id: int, inbox_id: Any
+) -> None:
+    """422 unless ``inbox_id`` is an inbox of ``account_id``: a webhook
+    tied to another account's inbox would show its name, and get its
+    events once inbox webhooks are delivered."""
+    if inbox_id is None:
+        return
+    from app.domains.inboxes.models import Inbox
+
+    found = (
+        await session.exec(
+            select(Inbox.id).where(
+                Inbox.id == inbox_id, Inbox.account_id == account_id
+            )
+        )
+    ).first()
+    if found is None:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "La bandeja no pertenece a la cuenta."},
+        )
+
+
 async def create_webhook(
     session: AsyncSession,
     *,
@@ -110,6 +134,9 @@ async def create_webhook(
     url = _validate_url(payload.get("url"))
     subscriptions = _validate_subscriptions(payload.get("subscriptions"))
     inbox_id = payload.get("inbox_id")
+    await _require_inbox_in_account(
+        session, account_id=account_id, inbox_id=inbox_id
+    )
     webhook_type = (
         WEBHOOK_TYPE_INBOX if inbox_id is not None else WEBHOOK_TYPE_ACCOUNT
     )
@@ -151,6 +178,9 @@ async def update_webhook(
         )
     if "inbox_id" in payload:
         inbox_id = payload.get("inbox_id")
+        await _require_inbox_in_account(
+            session, account_id=webhook.account_id, inbox_id=inbox_id
+        )
         webhook.inbox_id = inbox_id
         webhook.webhook_type = (
             WEBHOOK_TYPE_INBOX if inbox_id is not None else WEBHOOK_TYPE_ACCOUNT

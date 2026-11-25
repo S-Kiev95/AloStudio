@@ -32,6 +32,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.errors import ChatwootHTTPException
 from app.core.tokens import base58_token
 from app.domains.accounts.models import Account
+from app.domains.accounts.service import require_account_users
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
@@ -537,6 +538,25 @@ class InboxBuilder:
                 },
             )
         user_token = params.get("user_access_token") or page_token
+        # Inbound events are routed by page_id alone, so a page in two
+        # accounts would hand one account's messages to the other. The
+        # OAuth connect flow refuses this too (``facebook.connect_service``).
+        elsewhere = (
+            await self._session.exec(
+                select(FacebookPage.id).where(
+                    FacebookPage.page_id == str(page_id),
+                    FacebookPage.account_id != self._params.account.id,
+                )
+            )
+        ).first()
+        if elsewhere is not None:
+            raise ChatwootHTTPException(
+                status_code=422,
+                detail={
+                    "message": "Page id is already taken",
+                    "attributes": ["page_id"],
+                },
+            )
 
         ch = FacebookPage(
             account_id=self._params.account.id,
@@ -1120,6 +1140,9 @@ async def add_members(
         return []
     existing = set(await list_member_ids(session, inbox.id))
     new_ids = [uid for uid in user_ids if uid not in existing]
+    await require_account_users(
+        session, account_id=inbox.account_id, user_ids=new_ids
+    )
     members = [InboxMember(inbox_id=inbox.id, user_id=uid) for uid in new_ids]
     for m in members:
         session.add(m)

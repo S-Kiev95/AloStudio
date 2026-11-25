@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { SubscriptionGate } from "@/components/billing/subscription-gate";
 import { NeonWordmark } from "@/components/brand/neon-wordmark";
 import { CallDock } from "@/components/calls/call-dock";
 import type { Profile } from "@/lib/auth/profile";
@@ -319,7 +320,7 @@ export function DashboardShell({
           </header>
 
           <main id="main-content" className="flex-1 p-4 sm:p-5 lg:p-6">
-            {children}
+            <SubscriptionGate accountId={accountId}>{children}</SubscriptionGate>
           </main>
         </div>
       </div>

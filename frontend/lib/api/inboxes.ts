@@ -23,7 +23,22 @@ export type Inbox = {
 };
 
 /** Full inbox detail (create / show response). Channel-specific keys vary. */
+/** A WhatsApp number that stays on the WhatsApp Business app: how its
+ *  contacts and chat history came in, and whether Meta disconnected it. */
+export type WhatsappCoexistence = {
+  contacts: "requested" | "done" | "failed" | null;
+  history: "requested" | "importing" | "done" | "declined" | "failed" | null;
+  progress: number | null;
+  disconnected: {
+    event: string | null;
+    reason: string | null;
+    initiated_by: string | null;
+    at: string | null;
+  } | null;
+};
+
 export type InboxDetail = Inbox & {
+  coexistence?: WhatsappCoexistence;
   greeting_enabled?: boolean;
   greeting_message?: string | null;
   enable_auto_assignment?: boolean;
@@ -133,6 +148,11 @@ export function useInbox(accountId: string, id: number) {
     queryKey: ["inboxes", accountId, id],
     queryFn: () => apiFetch<InboxDetail>(`${base(accountId)}/${id}`),
     enabled: Number.isFinite(id),
+    // While Meta sends a coexistence number's history, keep its progress fresh.
+    refetchInterval: (query) => {
+      const history = query.state.data?.coexistence?.history;
+      return history === "requested" || history === "importing" ? 15_000 : false;
+    },
   });
 }
 
@@ -166,6 +186,55 @@ export function useConnectPendingPage(accountId: string) {
       apiFetch<{ inbox_id: number }>(
         `/api/v1/accounts/${accountId}/facebook_pages/pending/${nonce}/${pageId}`,
         { method: "POST" },
+      ),
+    onSuccess: () => invalidate(qc, accountId),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// WhatsApp Embedded Signup
+// ---------------------------------------------------------------------------
+export type WhatsappEmbeddedSignupInfo = {
+  ready: boolean;
+  missing: string[];
+  app_id: string;
+  config_id: string;
+  graph_api_version: string;
+};
+
+export type WhatsappEmbeddedSignupInput = {
+  code: string;
+  waba_id: string;
+  // Absent for a WhatsApp Business app number (coexistence).
+  phone_number_id?: string;
+};
+
+export type WhatsappEmbeddedSignupResult = {
+  created: boolean;
+  inbox: InboxDetail;
+};
+
+export function useWhatsappEmbeddedSignup(accountId: string) {
+  return useQuery({
+    queryKey: ["whatsapp-embedded-signup", accountId],
+    queryFn: () =>
+      apiFetch<WhatsappEmbeddedSignupInfo>(
+        `/api/v1/accounts/${accountId}/whatsapp/embedded_signup`,
+      ),
+    retry: false,
+  });
+}
+
+export function useConnectWhatsappEmbeddedSignup(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: WhatsappEmbeddedSignupInput) =>
+      apiFetch<WhatsappEmbeddedSignupResult>(
+        `/api/v1/accounts/${accountId}/whatsapp/embedded_signup`,
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        },
       ),
     onSuccess: () => invalidate(qc, accountId),
   });

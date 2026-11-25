@@ -24,6 +24,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
 from app.core.i18n import DEFAULT_LOCALE, t
+from app.domains.billing.service import plan_allows_calls
 from app.domains.calls import service as calls
 from app.domains.calls.models import (
     CALL_COMPLETED,
@@ -234,6 +235,21 @@ async def _on_connect(
         log.info("calls.whatsapp.skip reason=no_caller call_id=%s", call_id)
         return
     if await calls.by_provider_id(session, str(call_id)) is not None:
+        return
+    if not await plan_allows_calls(session, channel.account_id):
+        # F2 multitenant: the plan went down from Max with calling still on
+        # at Meta. Agents can't answer (403), so the customer would hear it
+        # ring for nothing: turn it down now.
+        log.info("calls.whatsapp.rejected reason=plan account_id=%s call_id=%s", channel.account_id, call_id)
+        try:
+            await _graph(
+                channel,
+                "POST",
+                "calls",
+                json={"messaging_product": "whatsapp", "call_id": str(call_id), "action": "reject"},
+            )
+        except CallError:
+            log.warning("calls.whatsapp.reject_failed call_id=%s", call_id)
         return
     # The same contact and conversation a message from this number lands in.
     from app.domains.whatsapp.incoming_cloud import (

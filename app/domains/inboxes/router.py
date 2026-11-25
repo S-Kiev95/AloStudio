@@ -50,6 +50,7 @@ from fastapi import APIRouter, Depends, Path, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.deps import (
     AccountContext,
@@ -57,6 +58,7 @@ from app.core.deps import (
     require_admin,
 )
 from app.core.errors import ChatwootHTTPException
+from app.domains.billing.service import plan_allows_inbox_channel, plan_upgrade_required
 from app.domains.inboxes.models import (
     CHANNEL_TYPE_API,
     CHANNEL_TYPE_EMAIL,
@@ -99,6 +101,7 @@ from app.domains.inboxes.service import (
     update_inbox,
 )
 from app.domains.users.models import AccountUser, User
+from app.domains.whatsapp.embedded_signup import release_waba
 
 router = APIRouter(prefix="/api/v1/accounts/{account_id}/inboxes", tags=["inboxes"])
 
@@ -157,6 +160,23 @@ async def create_inbox(
 
     Chatwoot returns 200 (not 201) on create — we match exactly.
     """
+    if get_settings().multitenant and payload.channel.type in _META_CHANNEL_TYPES:
+        # Ids typed into a form prove nothing: another business's number or
+        # Instagram would route its customers' messages here. Embedded
+        # Signup and the OAuth flows take them from Meta instead.
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    "En esta instalación WhatsApp, Instagram y Facebook se "
+                    "conectan con el botón de Meta, no cargando los datos a mano."
+                )
+            },
+        )
+    assert ctx.account.id is not None
+    if not await plan_allows_inbox_channel(session, ctx.account.id, payload.channel.type):
+        raise plan_upgrade_required()
+    await _require_portal_in_account(session, ctx, payload.portal_id)
     result = await InboxBuilder(
         session,
         InboxBuilderParams(
@@ -286,6 +306,7 @@ async def update_inbox_endpoint(
                 status_code=404, detail={"error": "Resource could not be found"}
             )
 
+    await _require_portal_in_account(session, ctx, payload.portal_id)
     if payload.handoff_assignee_id:
         member = (
             await session.exec(
@@ -337,6 +358,9 @@ async def destroy_inbox(
     """
     inbox = await _find_inbox_in_account(session, ctx, inbox_id)
     channel = await _load_channel_row(session, inbox)
+    if isinstance(channel, WhatsappChannel):
+        # F2: a number from Embedded Signup stops reaching us at Meta too.
+        await release_waba(session, channel)
 
     # Cascade: FK ondelete='CASCADE' on inbox_members clears the join
     # rows. The polymorphic channel_api row has no FK to inbox_id so we
@@ -466,6 +490,31 @@ def _require_inbox_id(payload: InboxMembersBody) -> int:
 # ============================================================================
 # helpers
 # ============================================================================
+_META_CHANNEL_TYPES = frozenset({"whatsapp", "instagram", "facebook"})
+
+
+async def _require_portal_in_account(
+    session: AsyncSession, ctx: AccountContext, portal_id: int | None
+) -> None:
+    """422 when ``portal_id`` is another account's Help Center."""
+    if portal_id is None:
+        return
+    from app.domains.portals.models import Portal
+
+    found = (
+        await session.exec(
+            select(Portal.id).where(
+                Portal.id == portal_id, Portal.account_id == ctx.account.id
+            )
+        )
+    ).first()
+    if found is None:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "El centro de ayuda no pertenece a la cuenta."},
+        )
+
+
 async def _find_inbox_in_account(
     session: AsyncSession, ctx: AccountContext, inbox_id: int
 ) -> Inbox:

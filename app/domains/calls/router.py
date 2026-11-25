@@ -41,6 +41,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.db import get_session
 from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
+from app.domains.billing.service import plan_allows_calls, plan_upgrade_required
 from app.domains.calls import service as calls
 from app.domains.calls import whatsapp
 from app.domains.calls.models import (
@@ -115,6 +116,13 @@ def _fail(status_code: int, code: str, message: str | None = None) -> ChatwootHT
         status_code=status_code,
         detail={"message": message or code, "code": f"calls.{code}"},
     )
+
+
+async def _require_calls_plan(session: AsyncSession, ctx: AccountContext) -> None:
+    """F2 multitenant: WhatsApp calls come with the plan that includes them
+    (Max). Turning calls off stays allowed."""
+    if not await plan_allows_calls(session, _account_id(ctx)):
+        raise plan_upgrade_required()
 
 
 def _meta_fail(exc: whatsapp.CallError) -> ChatwootHTTPException:
@@ -248,6 +256,8 @@ async def update_settings(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     inbox, channel = await _whatsapp_inbox(session, ctx, inbox_id)
+    if body.enabled:
+        await _require_calls_plan(session, ctx)
     # Ours first: a refusal here must not leave Meta half changed.
     row = await _save_inbox(session, inbox=inbox, body=body)
     try:
@@ -302,6 +312,7 @@ async def create_permission_request(
     ctx: Annotated[AccountContext, Depends(account_context)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
+    await _require_calls_plan(session, ctx)
     conversation, contact = await _conversation_and_contact(session, ctx, body.conversation_id)
     text = (body.text or "").strip() or calls.default_permission_text()
     try:
@@ -323,6 +334,7 @@ async def create_call(
     ctx: Annotated[AccountContext, Depends(account_context)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
+    await _require_calls_plan(session, ctx)
     conversation, contact = await _conversation_and_contact(session, ctx, body.conversation_id)
     plan = await calls.recording_plan_for_inbox(session, conversation.inbox_id)
     try:
@@ -365,6 +377,7 @@ async def pre_accept_call(
     ctx: Annotated[AccountContext, Depends(account_context)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
+    await _require_calls_plan(session, ctx)
     call = await _visible_call(session, ctx, call_id)
     if call.status in FINAL_STATUSES:
         raise _fail(409, "over")

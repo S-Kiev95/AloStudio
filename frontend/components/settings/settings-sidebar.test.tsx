@@ -11,6 +11,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
 
+// A single-tenant install: billing (F2) stays hidden.
+vi.mock("@/lib/api/installation", () => ({
+  usePublicInstallation: () => ({ data: { multitenant: false, signup_enabled: false } }),
+}));
+
 beforeEach(() => {
   pathname = "/accounts/1/settings/inboxes";
   push.mockClear();
@@ -20,7 +25,11 @@ describe("SettingsSidebar agrupado y responsive", () => {
   it("organiza los 29 ajustes en los 6 grupos temáticos y marca el activo", () => {
     render(<SettingsSidebar accountId="1" />);
 
-    expect(SETTINGS_ITEMS).toHaveLength(29);
+    // 29 for everyone, plus Facturación on a multitenant install.
+    expect(SETTINGS_ITEMS).toHaveLength(30);
+    expect(
+      screen.queryByRole("link", { name: "Facturación" }),
+    ).not.toBeInTheDocument();
     expect(SETTINGS_GROUP_ORDER).toHaveLength(6);
 
     expect(screen.getByText("Cuenta y equipo")).toBeInTheDocument();

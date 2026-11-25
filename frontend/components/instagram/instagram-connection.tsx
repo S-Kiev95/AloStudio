@@ -11,6 +11,7 @@ import {
   useInstagramConnectOptions,
   useInstagramInboxes,
 } from "@/lib/api/instagram";
+import { usePublicInstallation } from "@/lib/api/installation";
 
 import type { ConnectFlow } from "@/lib/inboxes/instagram-capabilities";
 
@@ -41,6 +42,8 @@ function outcomeMessage(
 export function InstagramConnection({ accountId }: { accountId: string }) {
   const t = useT();
   const inboxes = useInstagramInboxes(accountId);
+  const installation = usePublicInstallation();
+  const multitenant = Boolean(installation.data?.multitenant);
   const connectOptions = useInstagramConnectOptions(accountId);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -165,20 +168,22 @@ export function InstagramConnection({ accountId }: { accountId: string }) {
             {t("instagram.connect.beforeMeta")}
           </p>
 
-          <div className="border-t border-border pt-4">
-            <button
-              type="button"
-              onClick={() => setShowManual((v) => !v)}
-              className="text-sm text-info hover:underline"
-            >
-              {showManual ? t("instagram.comments.hide") : t("instagram.connect.advanced")}
-            </button>
-            {showManual ? (
-              <div className="mt-3">
-                <ManualConnectForm accountId={accountId} />
-              </div>
-            ) : null}
-          </div>
+          {!multitenant ? (
+            <div className="border-t border-border pt-4">
+              <button
+                type="button"
+                onClick={() => setShowManual((v) => !v)}
+                className="text-sm text-info hover:underline"
+              >
+                {showManual ? t("instagram.comments.hide") : t("instagram.connect.advanced")}
+              </button>
+              {showManual ? (
+                <div className="mt-3">
+                  <ManualConnectForm accountId={accountId} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

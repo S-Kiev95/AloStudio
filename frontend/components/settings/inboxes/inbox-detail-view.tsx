@@ -23,6 +23,7 @@ import {
 
 import { HandoffAssigneePanel } from "./handoff-assignee-panel";
 import { InboxMembersPanel } from "./inbox-members-panel";
+import { WhatsappCoexistenceCard } from "./whatsapp-coexistence-card";
 import { useT } from "@/lib/i18n/provider";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
@@ -104,6 +105,9 @@ export function InboxDetailView({
           </span>
         </div>
       </div>
+
+      {/* First: a disconnected number stops receiving messages. */}
+      {inbox.coexistence ? <WhatsappCoexistenceCard state={inbox.coexistence} /> : null}
 
       <Card>
         <CardHeader>

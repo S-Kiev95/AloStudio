@@ -24,11 +24,12 @@ Ruby controller) are queued background work; deferred until ARQ jobs land.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core import throttle
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.config import get_settings
 from app.core.db import get_session
@@ -52,6 +53,7 @@ from app.domains.agents.service import (
     remove_account_user,
     update_account_user_role,
 )
+from app.domains.auth.confirmation import issue_confirmation_token
 from app.domains.users.models import AccountUser, User
 from app.domains.users.presenters import (
     _availability_status,
@@ -66,6 +68,7 @@ router = APIRouter(prefix="/api/v1/accounts", tags=["accounts"])
 @router.post("", status_code=status.HTTP_200_OK)
 async def create_account(
     payload: AccountCreateRequest,
+    request: Request,
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
@@ -80,10 +83,22 @@ async def create_account(
     # Off by default — this endpoint hands anyone who can reach it a
     # confirmed administrator session, and on a public URL that was the
     # first link of a chain into the server's own network.
-    if not get_settings().enable_account_signup:
+    settings = get_settings()
+    if not settings.enable_account_signup:
         raise ChatwootHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "Not Found"},
+        )
+    # Self-serve signup on a multitenant install (F2): the email has to be
+    # confirmed before the account can sign in, and one address can only
+    # open a few accounts per hour (each one sends an email).
+    confirm_by_email = settings.multitenant
+    if confirm_by_email and not await throttle.allow_signup(
+        throttle.client_address(request)
+    ):
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"message": "Demasiados registros seguidos. Probá más tarde."},
         )
 
     # ensure_account_name before_action
@@ -102,14 +117,20 @@ async def create_account(
                 user_password=payload.password,
                 locale=payload.locale,
                 # Web-signup flow in Chatwoot does NOT confirm the email until
-                # the user clicks the link. Phase 1 is API-only so we behave
-                # like ``api_only_signup?`` — set ``confirmed=True`` to skip
-                # confirmable gating on subsequent /auth/sign_in.
-                confirmed=True,
+                # the user clicks the link. A dedicated install behaves like
+                # ``api_only_signup?`` (confirmed at once); a multitenant one
+                # confirms by email.
+                confirmed=not confirm_by_email,
             ),
         ).perform()
     except AccountSignupError as e:
         raise _to_http(e) from e
+
+    if confirm_by_email:
+        # No session yet: Chatwoot's web signup answers with the email only,
+        # and the sign-in refuses the user until the link is followed.
+        await issue_confirmation_token(session, result.user)
+        return {"email": result.user.email}
 
     # send_auth_headers: mint new devise-token-auth session for this user.
     headers, new_tokens = create_new_auth_token(

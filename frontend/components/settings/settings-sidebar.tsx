@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { selectClassName } from "@/components/ui/select";
+import { usePublicInstallation } from "@/lib/api/installation";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,8 @@ export type SettingsItem = {
   milestone: string;
   done: boolean;
   group: SettingsGroupKey;
+  /** Only on a multitenant install (F2): paid plans. */
+  multitenantOnly?: boolean;
 };
 
 export const SETTINGS_GROUP_ORDER: readonly {
@@ -47,6 +50,7 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
   { segment: "notifications", label: "settings.items.notifications", milestone: "fe.14d", done: true, group: "account" },
   { segment: "agents", label: "settings.items.agents", milestone: "fe.14c", done: true, group: "account" },
   { segment: "teams", label: "settings.items.teams", milestone: "F.9b", done: true, group: "account" },
+  { segment: "billing", label: "settings.items.billing", milestone: "F2", done: true, group: "account", multitenantOnly: true },
   // Canales y bandeja
   { segment: "inboxes", label: "settings.items.inboxes", milestone: "v2", done: true, group: "inbox" },
   { segment: "assignment_policies", label: "settings.items.assignment_policies", milestone: "v2", done: true, group: "inbox" },
@@ -138,13 +142,18 @@ export function SettingsSidebar({ accountId }: { accountId: string }) {
   const baseHref = `/accounts/${accountId}/settings`;
   const t = useT();
   const [query, setQuery] = useState("");
+  const multitenant = Boolean(usePublicInstallation().data?.multitenant);
+  const items = useMemo(
+    () => SETTINGS_ITEMS.filter((i) => multitenant || !i.multitenantOnly),
+    [multitenant],
+  );
 
   const needle = normalizeSearch(query);
 
   const grouped = useMemo(
     () =>
       SETTINGS_GROUP_ORDER.map((group) => {
-        const items = SETTINGS_ITEMS.filter((item) => {
+        const groupItems = items.filter((item) => {
           if (item.group !== group.key) return false;
           if (!needle) return true;
           return (
@@ -152,13 +161,13 @@ export function SettingsSidebar({ accountId }: { accountId: string }) {
             normalizeSearch(t(group.label)).includes(needle)
           );
         });
-        return { ...group, items };
+        return { ...group, items: groupItems };
       }).filter((g) => g.items.length > 0),
-    [needle, t],
+    [items, needle, t],
   );
 
   const activeSegment =
-    SETTINGS_ITEMS.find((item) => {
+    items.find((item) => {
       const href = `${baseHref}/${item.segment}`;
       return pathname === href || pathname.startsWith(`${href}/`);
     })?.segment ?? "";
@@ -224,13 +233,13 @@ export function SettingsSidebar({ accountId }: { accountId: string }) {
           className={cn(selectClassName("md"), "w-full font-medium")}
         >
           {SETTINGS_GROUP_ORDER.map((group) => {
-            const items = SETTINGS_ITEMS.filter(
+            const groupItems = items.filter(
               (item) => item.group === group.key && item.done,
             );
-            if (items.length === 0) return null;
+            if (groupItems.length === 0) return null;
             return (
               <optgroup key={group.key} label={t(group.label)}>
-                {items.map((item) => (
+                {groupItems.map((item) => (
                   <option
                     key={item.segment}
                     value={item.segment}

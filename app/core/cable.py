@@ -54,6 +54,7 @@ from sqlmodel import select
 
 from app.core.db import get_session_factory
 from app.core.realtime import get_broadcaster
+from app.domains.billing.service import has_paid_access
 from app.domains.contacts.models import ContactInbox
 from app.domains.users.models import AccountUser, User
 
@@ -263,6 +264,9 @@ async def _resolve_subscriber(
                 )
             ).first()
             if membership is None:
+                return None
+            # F2 multitenant: same rule as the API (402 there).
+            if not await has_paid_access(session, account_id):
                 return None
         return True
 

@@ -10,6 +10,7 @@ import { conversions } from "./conversions";
 import { lifecycle } from "./lifecycle";
 import { decisions } from "./decisions";
 import { usage } from "./usage";
+import { billing } from "./billing";
 import { helpAssistant } from "./helpAssistant";
 import { googleCalendar } from "./googleCalendar";
 import { writingAssist } from "./writingAssist";
@@ -76,6 +77,7 @@ export const pt: Messages = {
   conversions,
   lifecycle,
   usage,
+  billing,
   helpAssistant,
   googleCalendar,
   writingAssist,

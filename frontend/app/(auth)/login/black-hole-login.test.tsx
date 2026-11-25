@@ -34,6 +34,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, refresh, prefetch }),
 }));
 
+vi.mock("@/lib/api/installation", () => ({
+  usePublicInstallation: () => ({ data: { multitenant: false, signup_enabled: false } }),
+}));
+
 let loginStatus = 200;
 
 const server = setupServer(

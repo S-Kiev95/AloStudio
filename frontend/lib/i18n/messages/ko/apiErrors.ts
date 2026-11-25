@@ -11,6 +11,8 @@ export const apiErrors: Strings<typeof es> = {
   pushDenied: "알림 권한이 거부되었습니다.",
   agentFailed: "에이전트와 통신하는 중 오류가 발생했습니다.",
   requestFailed: "요청을 처리하는 중 오류가 발생했습니다.",
+  subscriptionRequired: "이 계정에는 활성 요금제가 없습니다.",
+  planUpgradeRequired: "현재 요금제에는 포함되어 있지 않습니다. 설정 → 결제에서 변경할 수 있습니다.",
   requestFailedStatus: "요청이 실패했습니다 ({status}).",
   notFound: "찾으시는 항목을 찾지 못했습니다. 삭제되었을 수 있습니다.",
   validationFailed: "유효하지 않은 데이터가 있습니다. 확인하고 다시 시도하세요.",

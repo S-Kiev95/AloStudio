@@ -11,6 +11,8 @@ export const apiErrors: Strings<typeof es> = {
   pushDenied: "Berechtigung für Benachrichtigungen verweigert.",
   agentFailed: "Bei der Kommunikation mit dem Agenten ist ein Fehler aufgetreten.",
   requestFailed: "Bei der Verarbeitung der Anfrage ist ein Fehler aufgetreten.",
+  subscriptionRequired: "Dieses Konto hat keinen aktiven Tarif.",
+  planUpgradeRequired: "Dein Tarif enthält das nicht. Du kannst ihn unter Einstellungen → Abrechnung ändern.",
   requestFailedStatus: "Die Anfrage ist fehlgeschlagen ({status}).",
   notFound: "Wir haben nicht gefunden, was du suchst. Vielleicht wurde es gelöscht.",
   validationFailed: "Einige Angaben sind ungültig. Prüf sie und versuch es erneut.",

@@ -1147,10 +1147,12 @@ async def store_imported_message(
     source_id: str,
     at: datetime,
     attachments: list[_AttachmentSpec] | None = None,
+    status: int | None = None,
 ) -> Message | None:
     """One message of an imported history, with its original date and
     no events (see :func:`quiet_conversation`). ``external_echo`` keeps it
-    from ever being sent. ``None`` when another request stored it first."""
+    from ever being sent; ``status`` is the delivery state the network
+    reported, when it did. ``None`` when another request stored it first."""
     message = Message(
         account_id=conversation.account_id,
         inbox_id=conversation.inbox_id,
@@ -1166,6 +1168,8 @@ async def store_imported_message(
         created_at=at,
         updated_at=at,
     )
+    if status is not None:
+        message.status = status
     try:
         async with session.begin_nested():
             session.add(message)

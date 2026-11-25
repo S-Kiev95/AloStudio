@@ -17,6 +17,7 @@ import {
   Telegram,
   WhatsApp,
 } from "@/components/ui/brand-icons";
+import { usePlanAllows } from "@/lib/api/billing";
 import { CHANNEL_CATALOG } from "@/lib/inboxes/channel-catalog";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
@@ -35,6 +36,7 @@ const ICON: Record<string, IconComponent> = {
 
 export function ChannelPicker({ accountId }: { accountId: string }) {
   const t = useT();
+  const plan = usePlanAllows(accountId);
   return (
     <div className="space-y-4">
       <div>
@@ -54,6 +56,27 @@ export function ChannelPicker({ accountId }: { accountId: string }) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {CHANNEL_CATALOG.map((c) => {
           const Icon = ICON[c.type] ?? Webhook;
+          if (!plan.channel(c.type)) {
+            // Not in the plan (F2): shown dimmed, with where to get it.
+            return (
+              <div
+                key={c.type}
+                aria-disabled="true"
+                className="flex flex-col gap-2 rounded-md border border-glass bg-surface p-4 opacity-60"
+              >
+                <span className="grid h-10 w-10 place-items-center rounded-md bg-focused text-fg-muted">
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="font-medium text-fg">{t(c.label as MessageKey)}</span>
+                <span className="text-xs text-fg-muted">
+                  {t("billing.notInPlan")}{" "}
+                  <Link href={`/accounts/${accountId}/settings/billing`} className="text-neon underline">
+                    {t("billing.seePlans")}
+                  </Link>
+                </span>
+              </div>
+            );
+          }
           return (
             <Link
               key={c.type}

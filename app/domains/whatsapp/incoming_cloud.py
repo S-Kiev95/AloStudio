@@ -43,8 +43,9 @@ Deferred:
   * Reactions / ephemeral / unsupported message types — Chatwoot
     explicitly drops these. We mirror.
   * Contact-card messages.
-  * Outgoing echoes (``message_echoes``) — niche, lands with the
-    embedded-signup flow.
+  * Echoes of what the business sends from the WhatsApp Business app
+    (``smb_message_echoes``), its history and contacts, for a number in
+    coexistence: see :mod:`app.domains.whatsapp.coexistence`.
 """
 
 from __future__ import annotations
@@ -121,6 +122,18 @@ _STATUS_MAP: dict[str, int] = {
 # Payload accessors
 # ---------------------------------------------------------------------------
 _TEMPLATE_FIELDS = frozenset({"message_template_status_update", "template_category_update"})
+# Changes about one number's conversations. The last three only come for a
+# number that also stays on the WhatsApp Business app (coexistence).
+_MESSAGE_FIELDS = frozenset(
+    {
+        "messages",
+        "messaging_handovers",
+        "standby",
+        "smb_message_echoes",
+        "history",
+        "smb_app_state_sync",
+    }
+)
 
 
 def _changes(payload: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
@@ -395,7 +408,7 @@ async def process_cloud_webhook(
 
                 await process_calls_value(session, channel=channel, inbox=inbox, value=value)
             continue
-        if field not in ("messages", "messaging_handovers", "standby"):
+        if field not in _MESSAGE_FIELDS:
             continue
         if not _for_channel(value, channel):
             log.info(
@@ -451,7 +464,41 @@ async def _process_change(
         return []
     if field == "standby":
         return await _process_standby(session, channel=channel, inbox=inbox, value=value)
+    if field == "smb_message_echoes":
+        return await _process_app_echoes(session, channel=channel, inbox=inbox, value=value)
+    if field == "history":
+        from app.domains.whatsapp.coexistence import import_history
+
+        return await import_history(session, channel=channel, inbox=inbox, value=value)
+    if field == "smb_app_state_sync":
+        from app.domains.whatsapp.coexistence import sync_contacts
+
+        await sync_contacts(session, channel=channel, value=value)
+        return []
     return await _process_value(session, channel=channel, inbox=inbox, value=value)
+
+
+async def _process_app_echoes(
+    session: AsyncSession,
+    *,
+    channel: WhatsappChannel,
+    inbox: Inbox,
+    value: dict[str, Any],
+) -> list[Message]:
+    """What the business answered from the WhatsApp Business app on its phone
+    (coexistence). Kept like an agent's reply, never sent again."""
+    out: list[Message] = []
+    echoes = value.get("message_echoes")
+    for echo in echoes if isinstance(echoes, list) else []:
+        if not isinstance(echo, dict):
+            continue
+        # Same shape as a sent message; _store_echo reads it under "message".
+        stored = await _store_echo(
+            session, channel=channel, inbox=inbox, echo={"id": echo.get("id"), "message": echo}
+        )
+        if stored is not None:
+            out.append(stored)
+    return out
 
 
 async def _process_standby(
@@ -555,19 +602,58 @@ async def _store_echo(
         return None
 
 
-def _for_channel(value: dict[str, Any], channel: WhatsappChannel) -> bool:
-    """Several numbers can share one callback URL, and Meta batches their
-    changes; a change naming another ``phone_number_id`` isn't ours."""
-    # Messages name the number in ``metadata``; handovers in ``recipient``.
-    named = None
+def _named_number(value: dict[str, Any]) -> str | None:
+    """The ``phone_number_id`` a change is about, if it names one.
+
+    Messages name the number in ``metadata``; handovers in ``recipient``.
+    """
     for key in ("metadata", "recipient"):
         node = value.get(key)
         if isinstance(node, dict) and node.get("phone_number_id"):
-            named = node.get("phone_number_id")
-            break
+            return str(node.get("phone_number_id"))
+    return None
+
+
+def payloads_by_number(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Split a Cloud payload by the ``phone_number_id`` each change names.
+
+    For the app-level webhook (``/webhooks/whatsapp``): with one Meta app
+    for every client, Meta batches the changes of many numbers, from many
+    accounts, in one POST. Each part keeps only that number's changes.
+    Changes that name no number can't be routed and are left out.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for entry in (payload or {}).get("entry") or []:
+        if not isinstance(entry, dict):
+            continue
+        for change in entry.get("changes") or []:
+            if not isinstance(change, dict):
+                continue
+            value = change.get("value")
+            number = _named_number(value) if isinstance(value, dict) else None
+            if number is None:
+                continue
+            part = out.setdefault(
+                number,
+                {**{k: v for k, v in payload.items() if k != "entry"}, "entry": []},
+            )
+            part["entry"].append(
+                {**{k: v for k, v in entry.items() if k != "changes"}, "changes": [change]}
+            )
+    return out
+
+
+def _for_channel(value: dict[str, Any], channel: WhatsappChannel) -> bool:
+    """Several numbers can share one callback URL, and Meta batches their
+    changes; a change naming another ``phone_number_id`` isn't ours."""
+    named = _named_number(value)
+    if not named:
+        return True
     cfg = channel.provider_config or {}
     ours = cfg.get("phone_number_id") if isinstance(cfg, dict) else None
-    return not named or not ours or str(named) == str(ours)
+    # A channel that doesn't know its own number id can't claim a change
+    # that names one: it could be another account's number.
+    return bool(ours) and str(named) == str(ours)
 
 
 async def process_360dialog_webhook(

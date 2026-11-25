@@ -1,4 +1,13 @@
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
+
+import { refreshBillingStatus } from "./api/billing";
+import { ApiError } from "./api/errors";
+
+/** A 402 means the account's plan ran out (F2 multitenant): ask for the
+ *  billing status again, so the shell swaps the page for "elegí un plan". */
+function isPaymentRequired(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 402;
+}
 
 /**
  * One QueryClient per browser session. Conservative defaults — the
@@ -6,13 +15,21 @@ import { QueryClient } from "@tanstack/react-query";
  * aggressively refetch on focus.
  */
 export function makeQueryClient(): QueryClient {
-  return new QueryClient({
+  const onError = (error: unknown) => {
+    if (isPaymentRequired(error)) refreshBillingStatus(client);
+  };
+  const client: QueryClient = new QueryClient({
+    queryCache: new QueryCache({ onError }),
+    mutationCache: new MutationCache({ onError }),
     defaultOptions: {
       queries: {
         staleTime: 30_000,
-        retry: 1,
+        // Retrying won't bring the plan back.
+        retry: (failureCount, error) =>
+          !isPaymentRequired(error) && failureCount < 1,
         refetchOnWindowFocus: false,
       },
     },
   });
+  return client;
 }

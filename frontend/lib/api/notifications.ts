@@ -99,6 +99,8 @@ export function notificationHref(
   if (n.primary_actor_type === "UsageLimit") {
     return `/accounts/${accountId}/publications/analytics/costs`;
   }
+  // The plan's AI cap (F2): what to do about it is in Facturación.
+  if (n.primary_actor_type === "AccountSubscription") return `/accounts/${accountId}/settings/billing`;
   return n.primary_actor?.display_id != null
     ? `/accounts/${accountId}/conversations/${n.primary_actor.display_id}`
     : undefined;

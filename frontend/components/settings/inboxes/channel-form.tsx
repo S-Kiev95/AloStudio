@@ -5,16 +5,22 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, type ReactNode, useState } from "react";
 
+import { Facebook, Instagram } from "@/components/ui/brand-icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { selectClassName } from "@/components/ui/select";
 import { ApiError } from "@/lib/api/errors";
 import { type ChannelPayload, useCreateInbox } from "@/lib/api/inboxes";
+import { startOAuth } from "@/lib/api/instagram";
+import { usePublicInstallation } from "@/lib/api/installation";
 import { channelDef, type ChannelDef } from "@/lib/inboxes/channel-catalog";
 
 import { FacebookPageConnect } from "./facebook-page-connect";
+import { WhatsappEmbeddedSignup } from "./whatsapp-embedded-signup";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
+
+const META_CHANNELS = new Set(["whatsapp", "facebook", "instagram"]);
 
 export function ChannelForm({
   accountId,
@@ -29,6 +35,8 @@ export function ChannelForm({
   const def = channelDef(channel);
   const router = useRouter();
   const create = useCreateInbox(accountId);
+  const installation = usePublicInstallation();
+  const multitenant = Boolean(installation.data?.multitenant);
   const [name, setName] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -92,8 +100,31 @@ export function ChannelForm({
         <p className="text-sm text-fg-muted">{tx(def.blurb)}</p>
       </div>
 
-      {channel === "facebook" ? <FacebookPageConnect accountId={accountId} /> : null}
+      {channel === "whatsapp" ? (
+        <WhatsappEmbeddedSignup
+          accountId={accountId}
+          onlyWhenReady={!multitenant}
+          showManualHint={!multitenant}
+        />
+      ) : null}
 
+      {channel === "facebook" ? (
+        <FacebookPageConnect
+          accountId={accountId}
+          showManualHint={!multitenant}
+        />
+      ) : null}
+
+      {channel === "instagram" ? (
+        <InstagramOAuthConnect
+          accountId={accountId}
+          showManualHint={!multitenant}
+        />
+      ) : null}
+
+      {/* A multitenant install connects Meta channels only through Meta's
+          own flows: no tokens pasted by hand. */}
+      {!multitenant || !META_CHANNELS.has(channel) ? (
       <form
         onSubmit={submit}
         className="glass-card space-y-4 rounded-md p-5"
@@ -170,6 +201,81 @@ export function ChannelForm({
           </Button>
         </div>
       </form>
+      ) : null}
+    </div>
+  );
+}
+
+function InstagramOAuthConnect({
+  accountId,
+  showManualHint,
+}: {
+  accountId: string;
+  showManualHint: boolean;
+}) {
+  const t = useT();
+  const [starting, setStarting] = useState<"facebook" | "instagram" | null>(
+    null,
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  async function connect(flow: "facebook" | "instagram") {
+    setError(null);
+    setStarting(flow);
+    try {
+      await startOAuth(accountId, flow);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : t("settingsInboxes.igConnectFailed"),
+      );
+      setStarting(null);
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border border-glass bg-surface p-5">
+      {error ? (
+        <p
+          role="alert"
+          className="rounded-control border border-danger bg-surface-2 px-3 py-2 text-sm text-danger"
+        >
+          {error}
+        </p>
+      ) : null}
+      <div className="space-y-2">
+        <p className="text-sm text-fg-muted">
+          {t("settingsInboxes.igConnectBlurb")}
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="button"
+            loading={starting === "facebook"}
+            disabled={starting !== null}
+            onClick={() => void connect("facebook")}
+          >
+            <Facebook mono className="h-4 w-4" aria-hidden />
+            Facebook Login
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="btn-instagram-brand text-white hover:bg-transparent hover:text-white"
+            loading={starting === "instagram"}
+            disabled={starting !== null}
+            onClick={() => void connect("instagram")}
+          >
+            <Instagram mono className="h-4 w-4" aria-hidden />
+            Instagram Login
+          </Button>
+        </div>
+      </div>
+      {showManualHint ? (
+        <p className="border-t border-glass pt-3 text-xs text-fg-muted">
+          {t("settingsInboxes.fbManual")}
+        </p>
+      ) : null}
     </div>
   );
 }

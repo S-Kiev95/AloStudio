@@ -16,6 +16,7 @@ import { Facebook, Instagram } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { usePlanAllows } from "@/lib/api/billing";
 import {
   type Channel,
   type NetworkOption,
@@ -66,6 +67,7 @@ export function ChannelsPanel({
   const deleteChannelMutation = useDeleteChannel(accountId);
 
   const networks = networksQuery.data ?? [];
+  const plan = usePlanAllows(accountId);
 
   async function startAuthorize(network: string) {
     setPanelError(null);
@@ -158,31 +160,35 @@ export function ChannelsPanel({
           aria-label={t("publications.channels.networks")}
           className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-md border border-glass bg-surface-2 py-1 text-left shadow-menu"
         >
-          {networks.map((opt) => (
-            <button
-              key={opt.network}
-              type="button"
-              role="menuitem"
-              disabled={!opt.configured}
-              onClick={() => handlePickNetwork(opt)}
-              className={cn(
-                "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition-colors",
-                opt.configured
-                  ? "text-fg hover:bg-hover-glass"
-                  : "cursor-not-allowed opacity-55",
-              )}
-            >
-              <span className="flex items-center gap-2 font-medium">
-                <NetworkIcon network={opt.network} />
-                {opt.label}
-              </span>
-              {!opt.configured ? (
-                <span className="text-[11px] text-fg-muted">
-                  {t("publications.channels.needsInstallation")}
+          {networks.map((opt) => {
+            const inPlan = plan.network(opt.network);
+            const usable = opt.configured && inPlan;
+            return (
+              <button
+                key={opt.network}
+                type="button"
+                role="menuitem"
+                disabled={!usable}
+                onClick={() => handlePickNetwork(opt)}
+                className={cn(
+                  "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition-colors",
+                  usable ? "text-fg hover:bg-hover-glass" : "cursor-not-allowed opacity-55",
+                )}
+              >
+                <span className="flex items-center gap-2 font-medium">
+                  <NetworkIcon network={opt.network} />
+                  {opt.label}
                 </span>
-              ) : null}
-            </button>
-          ))}
+                {!inPlan ? (
+                  <span className="text-[11px] text-fg-muted">{t("billing.notInPlan")}</span>
+                ) : !opt.configured ? (
+                  <span className="text-[11px] text-fg-muted">
+                    {t("publications.channels.needsInstallation")}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
 
           <Link
             href={`/accounts/${accountId}/settings/inboxes`}

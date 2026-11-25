@@ -9,6 +9,10 @@ import { AUTH_COOKIES } from "@/lib/auth/cookies";
  * routes redirect unauthenticated users to /login.
  */
 export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  if (pathname.startsWith("/login") || pathname.startsWith("/registro")) {
+    return NextResponse.next();
+  }
   const hasSession = Boolean(
     req.cookies.get(AUTH_COOKIES.accessToken)?.value,
   );
@@ -54,6 +58,6 @@ function publicOrigin(req: NextRequest): string {
 }
 
 export const config = {
-  // Guard the dashboard only. /login, /api/*, static assets stay public.
+  // Guard the dashboard only. /login, /registro, /api/*, static assets stay public.
   matcher: ["/accounts/:path*"],
 };

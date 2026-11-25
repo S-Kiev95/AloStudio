@@ -48,6 +48,7 @@ from app.core.current import current_user_ctx
 from app.core.db import get_session
 from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.models import Account
+from app.domains.billing.service import has_paid_access
 from app.domains.users.models import ACCOUNT_USER_ROLE_ADMINISTRATOR, AccountUser, User
 
 # Mirrors devise's ``authenticate_user!`` 401 envelope. The distinct
@@ -183,7 +184,7 @@ class AccountContext:
         return self.account_user.role == ACCOUNT_USER_ROLE_ADMINISTRATOR
 
 
-async def account_context(
+async def account_membership(
     account_id: int = Path(...),
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
@@ -221,7 +222,27 @@ async def account_context(
     return AccountContext(user=user, account=account, account_user=au)
 
 
-def require_admin(ctx: AccountContext = Depends(account_context)) -> AccountContext:
+async def account_context(
+    ctx: AccountContext = Depends(account_membership),
+    session: AsyncSession = Depends(get_session),
+) -> AccountContext:
+    """:func:`account_membership` plus F2 multitenant's paid plan: an
+    account without one gets 402 and keeps its data. A no-op on
+    single-tenant installs. Only billing skips it
+    (:func:`require_billing_admin`), so the client can pay."""
+    assert ctx.account.id is not None
+    if not await has_paid_access(session, ctx.account.id):
+        raise ChatwootHTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={
+                "error": "This account has no active plan",
+                "code": "subscription_required",
+            },
+        )
+    return ctx
+
+
+def _ensure_admin(ctx: AccountContext) -> AccountContext:
     """Mirror of Pundit's ``@account_user.administrator?`` gate.
 
     Chatwoot's ``check_authorization`` before_action invokes the action's
@@ -247,3 +268,15 @@ def require_admin(ctx: AccountContext = Depends(account_context)) -> AccountCont
             },
         )
     return ctx
+
+
+def require_admin(ctx: AccountContext = Depends(account_context)) -> AccountContext:
+    return _ensure_admin(ctx)
+
+
+def require_billing_admin(
+    ctx: AccountContext = Depends(account_membership),
+) -> AccountContext:
+    """:func:`require_admin` without the paid-plan check: the billing
+    routes are how an account without a plan gets one."""
+    return _ensure_admin(ctx)

@@ -127,6 +127,30 @@ async def record_failure(email: str, address: str | None) -> None:
         log.warning("throttle.unavailable err=%s", type(exc).__name__)
 
 
+# Self-serve signup (F2 multitenant): new accounts per client address
+# per window. Counted on every attempt, not only failures: each one sends a
+# confirmation email.
+SIGNUP_LIMIT = 5
+SIGNUP_WINDOW_SECONDS = 3600
+
+
+async def allow_signup(address: str | None) -> bool:
+    """Whether one more signup from ``address`` may go ahead. Unknown
+    addresses are not limited (see :func:`client_address`); fails open."""
+    if not address:
+        return True
+    key = f"throttle:signup:ip:{address}"
+    try:
+        r = _redis()
+        count = await r.incr(key)
+        if count == 1:
+            await r.expire(key, SIGNUP_WINDOW_SECONDS)
+        return int(count) <= SIGNUP_LIMIT
+    except (RedisError, OSError) as exc:
+        log.warning("throttle.unavailable err=%s", type(exc).__name__)
+        return True
+
+
 async def record_success(email: str) -> None:
     try:
         await _redis().delete(_keys(email, None)[0][0])
@@ -137,8 +161,11 @@ async def record_success(email: str) -> None:
 __all__ = [
     "EMAIL_LIMIT",
     "IP_LIMIT",
+    "SIGNUP_LIMIT",
+    "SIGNUP_WINDOW_SECONDS",
     "WINDOW_SECONDS",
     "Verdict",
+    "allow_signup",
     "check",
     "client_address",
     "record_failure",

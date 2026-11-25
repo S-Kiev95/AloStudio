@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -23,6 +24,9 @@ vi.mock("next/navigation", () => ({
 
 const server = setupServer(
   http.post("*/api/auth/login", () => HttpResponse.json({ accountId: 7 })),
+  http.get("*/api/v1/installation/public", () =>
+    HttpResponse.json({ signup_enabled: false, multitenant: false }),
+  ),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
@@ -43,7 +47,14 @@ function openLogin(next?: string) {
     "",
     next === undefined ? "/login" : `/login?next=${encodeURIComponent(next)}`,
   );
-  return render(<LoginPage />);
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={qc}>
+      <LoginPage />
+    </QueryClientProvider>,
+  );
 }
 
 function submitValidCredentials() {
@@ -85,5 +96,24 @@ describe("LoginPage — a dónde va después de entrar", () => {
     openLogin();
     submitValidCredentials();
     await waitFor(() => expect(push).toHaveBeenCalledWith("/accounts/7"));
+  });
+
+  it("muestra el link a /registro solo cuando signup_enabled es true", async () => {
+    const { unmount } = openLogin();
+    expect(
+      screen.queryByRole("link", { name: /¿No tenés cuenta\? Creá una/ }),
+    ).toBeNull();
+    unmount();
+
+    server.use(
+      http.get("*/api/v1/installation/public", () =>
+        HttpResponse.json({ signup_enabled: true, multitenant: true }),
+      ),
+    );
+    openLogin();
+    const link = await screen.findByRole("link", {
+      name: "¿No tenés cuenta? Creá una",
+    });
+    expect(link).toHaveAttribute("href", "/registro");
   });
 });

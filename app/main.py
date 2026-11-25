@@ -31,6 +31,8 @@ from app.domains.auth.router import resend_confirmation_router
 from app.domains.auth.router import router as auth_router
 from app.domains.auth.sso import router as auth_sso_router
 from app.domains.automation.router import router as automation_rules_router
+from app.domains.billing.router import router as billing_router
+from app.domains.billing.router import webhook_router as billing_webhook_router
 from app.domains.bulk_actions.router import router as bulk_actions_router
 from app.domains.calls.router import router as calls_router
 from app.domains.campaigns.router import router as campaigns_router
@@ -125,6 +127,9 @@ from app.domains.usage.router import router as usage_router
 from app.domains.users.router import router as profile_router
 from app.domains.web_widget.router import router as web_widget_router
 from app.domains.webhooks.router import router as outbound_webhooks_router
+from app.domains.whatsapp.embedded_signup_router import (
+    router as whatsapp_embedded_signup_router,
+)
 from app.domains.whatsapp.business_router import (
     router as whatsapp_business_router,
 )
@@ -313,9 +318,13 @@ def create_app() -> FastAPI:
     # — verify-token handshake (GET) + payload receive (POST). Auth
     # is per-channel via ``provider_config['webhook_verify_token']``.
     app.include_router(whatsapp_webhook_router)
+    app.include_router(billing_router)
+    app.include_router(billing_webhook_router)
     # WhatsApp template listing + sync — the campaign composer picks an
     # approved template + fills its {{n}} variables.
     app.include_router(whatsapp_templates_router)
+    # WhatsApp Embedded Signup (F2): a client connects its own number.
+    app.include_router(whatsapp_embedded_signup_router)
     app.include_router(whatsapp_business_router)
     app.include_router(whatsapp_catalog_router)
     app.include_router(usage_router)

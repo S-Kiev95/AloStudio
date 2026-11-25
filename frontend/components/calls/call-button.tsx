@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { usePlanAllows } from "@/lib/api/billing";
 import { useCallPermission, useRequestCallPermission } from "@/lib/api/calls";
 import { useDismissOnOutsideAndEscape } from "@/lib/hooks/use-dismiss";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
@@ -52,8 +53,12 @@ export function CallButton({
   const panel = useRef<HTMLDivElement>(null);
   const permission = useCallPermission(accountId, conversationId, open);
   const ask = useRequestCallPermission(accountId, conversationId);
+  const plan = usePlanAllows(accountId);
 
   useDismissOnOutsideAndEscape(panel, open, () => setOpen(false));
+
+  // Not in the plan (F2): no button (the API refuses the call anyway).
+  if (!plan.calls) return null;
 
   function toggle() {
     setSent(false);

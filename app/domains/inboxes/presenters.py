@@ -185,6 +185,16 @@ def present_inbox(
                 }
             )
 
+    # A WhatsApp number that stays on the WhatsApp Business app: how its
+    # import went and whether it was disconnected. Everyone on the inbox
+    # sees it: a disconnected number stops receiving messages.
+    if inbox.channel_type == CHANNEL_TYPE_WHATSAPP and channel is not None:
+        from app.domains.whatsapp.coexistence import present_state
+
+        state = present_state(channel)
+        if state is not None:
+            body["coexistence"] = state
+
     # WhatsApp's verify token — the value the user enters in Meta's webhook
     # config. Admin-only, like the Api hmac_token / secret.
     if is_administrator:
