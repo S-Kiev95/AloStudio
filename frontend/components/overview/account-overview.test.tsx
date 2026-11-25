@@ -135,6 +135,13 @@ describe("AccountOverview — encabezado con órbita de redes", () => {
     }
 
     expect(container.querySelectorAll(".neon-nav")).toHaveLength(0);
+
+    // En «Ahora mismo», solo el reloj y el reloj de arena corren en bucle;
+    // el resto (y los accesos rápidos) se animan al pasar el mouse o enfocar.
+    const liveModes = Array.from(liveIcons).map((el) =>
+      el.querySelector("svg")?.getAttribute("data-icon-animate"),
+    );
+    expect(liveModes).toEqual(["hover", "loop", "hover", "loop"]);
   });
 
   it("muestra ErrorState con Reintentar y sin ceros falsos cuando fallan las métricas", async () => {
