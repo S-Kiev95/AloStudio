@@ -117,4 +117,105 @@ cobrar, vencido, cobrado en el mes).
 
 ## Estado
 
-(Lo completa el agente.)
+**Completado** en rama `feat/cobranzas` (`C:\Users\Zeek\Desktop\AloStudio-cobranzas`), sin dependencias nuevas ni cambios fuera del alcance permitido.
+
+### Qué se implementó
+
+1. **Modelo y migración (`c0b2a4e6f8a1` sobre `f5b7d9e1a3c5`, cabeza única):**
+   - `crm_opportunities`: `payment_terms` (`cash` | `credit` | `installments`, nulo mientras no está ganada) y `due_on`.
+   - `crm_installments`: cuotas numeradas por oportunidad con `due_on` y `amount` (`Numeric(14,2)`), generación mensual o cada N días ajustando centavos en la última cuota, editables mientras no tengan pagos imputados.
+   - `crm_payments` y `crm_payment_allocations`: pagos a nivel contacto (`amount`, `currency`, `paid_on`, `method`, `note`, `created_by_id`) e imputaciones a una o varias ventas/cuotas. Lo no imputado queda como saldo a favor. Todo cálculo usa `Decimal` y nunca convierte monedas.
+2. **Servicio y API (`/api/v1/accounts/{account_id}/crm/`):**
+   - `GET|PUT /opportunities/{id}/billing` (incluye opción `register_payment` para ventas al contado en el mismo paso) y `PATCH /opportunities/{id}/installments/{inst_id}`.
+   - `GET|POST /payments`, `POST /payments/preview`, `GET|PATCH|DELETE /payments/{id}` (`DELETE` solo administradores; alta y edición cualquier miembro conservando `created_by`).
+   - Imputación automática a lo más viejo primero (por vencimiento de cuota o venta) u opción manual por venta.
+   - Protección HTTP `409` (`opportunity_has_payments`) si una venta con pagos imputados deja de estar ganada, cambia valor/moneda/contacto o se intenta eliminar, exigiendo confirmación explícita (`release_allocations`) para dejar esos pagos como saldo a favor sin borrar nada en silencio.
+   - `GET /contacts/{id}/statement`, `GET /receivables` (filtros `status=overdue|upcoming`, `owner_id`, `q`, orden y paginado) y `GET /receivables/summary`.
+3. **Panel y 7 idiomas (`es`, `en`, `pt`, `fr`, `de`, `ja`, `ko`):**
+   - Nueva pestaña **Cobranzas** (`/accounts/{id}/collections`) con totales por moneda arriba (a cobrar, vencido en color de peligro, cobrado este mes), tabla filtrable de deudores, botón «Registrar pago» y botón «Recordar por WhatsApp».
+   - Sección **Cobro** dentro de `OpportunityDialog` para oportunidades ganadas (forma de cobro, contado con pago en un paso, fiado con vencimiento, generador/editor de cuotas, historial y botón «Registrar pago»).
+   - Tarjeta **Cuenta corriente** en la ficha del contacto (saldos por moneda, vencido, ventas con deuda e historial de pagos con alta/edición y baja solo admin).
+   - Diálogo **Registrar pago** con previsualización en vivo de cómo queda el saldo antes de guardar (imputación automática o manual).
+   - **Recordatorio por WhatsApp:** abre `/accounts/{id}/conversations/{display_id}?draft=...` con el texto precargado (monto y vencimiento) en `MessageComposer` para que el agente lo revise y envíe; nunca envía nada solo.
+   - Capturas verificadas con backend local y usuario `demo@example.com` (cero errores de consola) en `docs/cobranzas/`:
+     - `docs/cobranzas/01-cobranzas-lista.png`
+     - `docs/cobranzas/02-registrar-pago-dialog.png`
+     - `docs/cobranzas/03-cuenta-corriente-contacto.png`
+     - `docs/cobranzas/04-recordatorio-whatsapp-borrador.png`
+     - `docs/cobranzas/05-oportunidad-ganada-cobro.png`
+
+### Herramientas MCP sugeridas para sumar después
+
+*(No se tocó `app/mcp/tools/`, `app/domains/agent/`, `app/domains/ai_agent/` ni `components/whatsapp/`.)*
+
+- `crm_get_contact_statement(contact_id)`: consultar saldo por moneda, ventas impagas, cuotas vencidas e historial de pagos de un cliente.
+- `crm_list_receivables(status, owner_id, q, sort, page)` y `crm_receivables_summary()`: listar deudores, montos vencidos y resumen del mes.
+- `crm_set_opportunity_billing(opportunity_id, payment_terms, due_on, generate|installments, register_payment)`: configurar forma de cobro y cuotas de una venta ganada.
+- `crm_preview_payment(...)` y `crm_create_payment(...)`: simular imputación (automática o manual) y registrar un pago (con confirmación humana en el agente antes de mutar).
+- `crm_draft_payment_reminder(contact_id)`: devolver el texto sugerido de recordatorio con monto y vencimiento para revisión del agente (sin envío automático).
+
+### Verificaciones reales
+
+#### `ruff check`
+```text
+$ python -m ruff check app/domains/crm/ alembic/versions/c0b2a4e6f8a1_crm_billing_and_payments.py tests/integration/test_crm_billing.py
+All checks passed!
+```
+
+#### `ruff format --check`
+```text
+$ python -m ruff format --check app/domains/crm/billing.py app/domains/crm/models.py app/domains/crm/presenters.py app/domains/crm/router.py app/domains/crm/schemas.py app/domains/crm/service.py alembic/versions/c0b2a4e6f8a1_crm_billing_and_payments.py tests/integration/test_crm_billing.py
+8 files already formatted
+```
+
+#### `alembic heads`
+```text
+$ python -m alembic heads
+c0b2a4e6f8a1 (head)
+```
+
+#### Pruebas del CRM (`pytest`)
+```text
+$ python -m pytest tests/integration/test_crm_billing.py tests/integration/test_crm_pipeline.py -v
+collected 19 items
+tests/integration/test_crm_billing.py::test_payment_terms_cash_one_step_and_open_opp_rejected PASSED [  5%]
+tests/integration/test_crm_billing.py::test_installments_generation_rounding_and_manual_edits PASSED [ 10%]
+tests/integration/test_crm_billing.py::test_partial_payments_multi_sale_auto_allocation_and_credit_balance PASSED [ 15%]
+tests/integration/test_crm_billing.py::test_manual_allocations_validation_and_multi_currency_isolation PASSED [ 21%]
+tests/integration/test_crm_billing.py::test_overdue_receivables_filters_sorting_summary_and_whatsapp_link PASSED [ 26%]
+tests/integration/test_crm_billing.py::test_payment_permissions_and_created_by PASSED [ 31%]
+tests/integration/test_crm_billing.py::test_changing_or_reopening_paid_sale_requires_explicit_decision PASSED [ 36%]
+tests/integration/test_crm_pipeline.py::test_an_account_starts_with_the_default_pipeline PASSED [ 42%]
+tests/integration/test_crm_pipeline.py::test_opportunity_lifecycle PASSED [ 47%]
+tests/integration/test_crm_pipeline.py::test_title_is_required_and_references_stay_in_the_account PASSED [ 52%]
+tests/integration/test_crm_pipeline.py::test_agents_sell_but_only_admins_shape_the_pipeline PASSED [ 57%]
+tests/integration/test_crm_pipeline.py::test_editing_stages PASSED       [ 63%]
+tests/integration/test_crm_pipeline.py::test_new_pipeline_and_default_cannot_be_deleted PASSED [ 68%]
+tests/integration/test_crm_pipeline.py::test_activity_lifecycle_and_filters PASSED [ 73%]
+tests/integration/test_crm_pipeline.py::test_due_activities_notify_their_owner_once PASSED [ 78%]
+tests/integration/test_crm_pipeline.py::test_company_with_its_people_and_their_opportunities PASSED [ 84%]
+tests/integration/test_crm_pipeline.py::test_company_needs_a_name_and_stays_in_its_account PASSED [ 89%]
+tests/integration/test_crm_pipeline.py::test_first_conversation_sets_origin_and_ad_upgrades_it PASSED [ 94%]
+tests/integration/test_crm_pipeline.py::test_origin_set_by_hand_shown_and_filterable PASSED [100%]
+============================= 19 passed in 15.02s =============================
+```
+
+#### `frontend/` — `npm run typecheck`, `npm run lint` y `npm test`
+```text
+$ npm run typecheck
+> alostudio-frontend@0.1.0 typecheck
+> tsc --noEmit
+(exit code 0)
+
+$ npm run lint
+> alostudio-frontend@0.1.0 lint
+> next lint
+✔ No ESLint warnings or errors
+
+$ npm test
+> alostudio-frontend@0.1.0 test
+> vitest run
+ Test Files  135 passed (135)
+      Tests  622 passed (622)
+   Duration  77.68s
+```
