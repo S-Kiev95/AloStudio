@@ -4,7 +4,8 @@
   "Conectar WhatsApp" button needs (app id, configuration id) and which
   installation settings are missing.
 * ``POST /api/v1/accounts/{id}/whatsapp/embedded_signup`` — the popup's
-  ``code`` + ``waba_id`` + ``phone_number_id`` → the connected inbox.
+  ``code`` + ``waba_id`` (+ ``phone_number_id``, absent for a WhatsApp
+  Business app number in coexistence) → the connected inbox.
 
 Admin only, like the other channel connections.
 """
@@ -33,7 +34,7 @@ class EmbeddedSignupRequest(BaseModel):
 
     code: str
     waba_id: str
-    phone_number_id: str
+    phone_number_id: str | None = None
 
 
 @router.get("")
@@ -54,7 +55,7 @@ async def embedded_signup_connect(
         account=ctx.account,
         code=payload.code.strip(),
         waba_id=payload.waba_id.strip(),
-        phone_number_id=payload.phone_number_id.strip(),
+        phone_number_id=(payload.phone_number_id or "").strip() or None,
     )
     return {
         "created": created,

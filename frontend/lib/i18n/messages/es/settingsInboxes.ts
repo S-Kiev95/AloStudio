@@ -11,6 +11,8 @@ export const settingsInboxes = {
     connecting: "Conectando…",
     connect: "Conectar WhatsApp",
     manualHint: "También podés cargar los datos a mano en el formulario de abajo.",
+    coexistence: "¿Ya usás WhatsApp Business en el celular? En la ventana de Meta elegí conectar ese número: escaneás un QR con la app y el número sigue andando en el celular, con sus chats. Lo que respondas desde el celular también se ve acá, y traemos tus contactos y los chats de los últimos 6 meses si aceptás compartirlos. Dejá la app abierta mientras se sincroniza.",
+    coexistenceLimits: "Con el número en los dos lados: no hay grupos, ni mensajes temporales o de ver una vez, ni listas de difusión; se envían hasta 20 mensajes por segundo; y tenés que abrir la app del celular al menos cada 14 días o Meta lo desconecta.",
   },
   fieldMissing: "Falta el campo: {field}",
   exampleHours: "Atención: 9 a 17 h",

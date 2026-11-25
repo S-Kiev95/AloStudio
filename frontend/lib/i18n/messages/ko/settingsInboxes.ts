@@ -14,6 +14,8 @@ export const settingsInboxes: Strings<typeof es> = {
     connecting: "연결 중…",
     connect: "WhatsApp 연결",
     manualHint: "아래 양식에 직접 입력할 수도 있습니다.",
+    coexistence: "휴대폰에서 이미 WhatsApp Business를 쓰고 있나요? Meta 창에서 그 번호를 연결하도록 선택하세요. 앱으로 QR 코드를 스캔하면 번호는 채팅과 함께 휴대폰에서도 그대로 작동합니다. 휴대폰에서 보낸 답장도 여기에 표시되며, 공유에 동의하면 연락처와 최근 6개월의 채팅도 가져옵니다. 동기화하는 동안 앱을 열어 두세요.",
+    coexistenceLimits: "양쪽에서 번호를 함께 쓰면: 그룹, 사라지는 메시지, 한 번 보기 메시지, 브로드캐스트 목록을 쓸 수 없고, 초당 최대 20개까지 보낼 수 있으며, 최소 14일마다 휴대폰 앱을 열지 않으면 Meta가 연결을 해제합니다.",
   },
   fieldMissing: "입력되지 않은 항목: {field}",
   exampleHours: "상담: 오전 9시~오후 5시",

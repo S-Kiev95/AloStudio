@@ -158,7 +158,9 @@ de Meta y formularios manuales de Meta ocultos en multitenant.
    ID va a `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID`.
 2. Webhook de la app (WhatsApp → Configuración): URL
    `https://<dominio>/webhooks/whatsapp`, token = `WHATSAPP_VERIFY_TOKEN`,
-   campos `messages`, `message_echoes`, `messaging_handovers` y `standby`.
+   campos `messages`, `message_echoes`, `messaging_handovers` y `standby`,
+   y para la coexistencia `history`, `smb_app_state_sync`,
+   `smb_message_echoes` y `account_update`.
 3. Tech Provider: verificación del negocio y acceso avanzado a
    `whatsapp_business_management` y `whatsapp_business_messaging` en la
    revisión de la app.
@@ -172,6 +174,28 @@ de Meta y formularios manuales de Meta ocultos en multitenant.
   de la WABA~~ **Hecho (2026-11-23):** `embedded_signup.release_waba` desde
   `DELETE /inboxes/:id`, con el token del negocio; no si otra bandeja usa
   la misma WABA, y si Meta falla la bandeja se borra igual (queda en el log).
+- ~~Coexistencia con QR (nota del agente B, 2026-11-25)~~ **Hecho
+  (2026-11-25):** el popup va con `featureType:
+  "whatsapp_business_app_onboarding"`, así que el negocio puede traer el
+  número que usa en la app WhatsApp Business: escanea un QR y el número
+  sigue andando en el celular. Meta avisa con
+  `FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING` y solo la WABA; el backend toma
+  el número de la WABA (`is_on_biz_app`), no lo registra (ya lo está), lo
+  marca `coexistence` y enseguida pide contactos e historial
+  (`POST /{número}/smb_app_data`; Meta da 24 h y una sola vez). Los
+  webhooks van a `app/domains/whatsapp/coexistence.py`: `history` entra
+  callado (conversaciones resueltas, fechas originales, sin bots,
+  automatizaciones ni avisos), `smb_app_state_sync` crea los contactos del
+  celular, `smb_message_echoes` muestra en la Bandeja lo que el negocio
+  responde desde el celular (sin reenviarlo) y `account_update`
+  (`PARTNER_REMOVED`, `ACCOUNT_OFFBOARDED`, `ACCOUNT_RECONNECTED`) marca o
+  desmarca el número desconectado. El panel explica la opción y sus
+  límites en los 7 idiomas (sin grupos ni mensajes temporales, 20 mensajes
+  por segundo, abrir la app al menos cada 14 días). Pruebas en
+  `tests/integration/test_whatsapp_coexistence.py`. Falta: suscribir los
+  campos nuevos en la app de Meta (paso 2 de arriba), probarlo con un
+  número real, y mostrar en la bandeja el aviso de número desconectado y
+  el avance de la sincronización (hoy quedan en `provider_config`).
 - Captcha en el registro, si el límite por IP no alcanza.
 
 ### Para el lanzamiento (pedido del dueño, 2026-11-10)

@@ -20,6 +20,15 @@ client picked. Server side, in this order:
 
 Nothing is saved before step 4 succeeds, so a failed connection leaves no
 half-made inbox behind.
+
+Coexistence: the popup also lets a business bring the number it already
+uses on the WhatsApp Business app (it scans a QR with the phone). Meta's
+message then names only the WABA, so the number is the one the WABA has;
+Meta reports it with ``is_on_biz_app``. That number is already registered
+(step 6 is skipped), and right after connecting we ask Meta for its
+contacts and chat history, which arrive by webhook
+(:mod:`app.domains.whatsapp.coexistence`). Meta only allows that within
+24 hours of the connection, and only once.
 """
 
 from __future__ import annotations
@@ -162,7 +171,7 @@ async def _check_token_reaches_waba(client: httpx.AsyncClient, token: str, waba_
 
 
 async def _phone_info(
-    client: httpx.AsyncClient, token: str, waba_id: str, phone_number_id: str
+    client: httpx.AsyncClient, token: str, waba_id: str, phone_number_id: str | None
 ) -> dict[str, Any]:
     body = await _call(
         client,
@@ -172,21 +181,36 @@ async def _phone_info(
         token=token,
         params={
             "fields": "id,display_phone_number,verified_name,"
-            "code_verification_status,platform_type",
+            "code_verification_status,platform_type,is_on_biz_app",
         },
     )
-    for phone in body.get("data") or []:
-        if isinstance(phone, dict) and str(phone.get("id")) == phone_number_id:
+    phones = [p for p in body.get("data") or [] if isinstance(p, dict)]
+    if not phone_number_id:
+        # Coexistence: Meta names only the WABA. Its WhatsApp Business app
+        # number, or the only number it has.
+        on_app = [p for p in phones if p.get("is_on_biz_app")]
+        picked = on_app if len(on_app) == 1 else phones if len(phones) == 1 else []
+        if not picked:
+            raise _unprocessable(
+                "No se pudo saber qué número conectar. Probá de nuevo desde la ventana de Meta."
+            )
+        phone_number_id = str(picked[0].get("id"))
+    for phone in phones:
+        if str(phone.get("id")) == phone_number_id:
             digits = "".join(
                 ch for ch in str(phone.get("display_phone_number") or "") if ch.isdigit()
             )
             if not digits:
                 break
+            coexistence = bool(phone.get("is_on_biz_app"))
             return {
                 "phone_number_id": phone_number_id,
                 "phone_number": f"+{digits}",
                 "verified_name": phone.get("verified_name") or f"+{digits}",
-                "needs_registration": (
+                "coexistence": coexistence,
+                # A WhatsApp Business app number is registered already.
+                "needs_registration": not coexistence
+                and (
                     phone.get("code_verification_status") != "VERIFIED"
                     or phone.get("platform_type") == "NOT_APPLICABLE"
                 ),
@@ -240,6 +264,35 @@ async def _register_number(client: httpx.AsyncClient, token: str, channel: Whats
     channel.provider_config = config
 
 
+async def _start_app_sync(client: httpx.AsyncClient, token: str, channel: WhatsappChannel) -> None:
+    """Coexistence: ask Meta for the phone's contacts, then its chat history.
+    Best effort: a failure is logged and noted on the channel, the number
+    still works. Meta answers with a request id (kept for its support)."""
+    config = dict(channel.provider_config or {})
+    number_id = config.get("phone_number_id")
+    sync: dict[str, Any] = dict(config.get("coexistence_sync") or {})
+    for kind, key in (("smb_app_state_sync", "contacts"), ("history", "history")):
+        try:
+            body = await _call(
+                client,
+                "POST",
+                f"{number_id}/smb_app_data",
+                failure="No se pudieron pedir los datos de la app de WhatsApp Business",
+                token=token,
+                json={"messaging_product": "whatsapp", "sync_type": kind},
+            )
+        except ChatwootHTTPException:
+            log.warning(
+                "whatsapp.embedded_signup.app_sync_failed channel_id=%s kind=%s", channel.id, kind
+            )
+            sync[key] = "failed"
+            continue
+        sync[key] = "requested"
+        sync[f"{key}_request_id"] = body.get("request_id")
+    config["coexistence_sync"] = sync
+    channel.provider_config = config
+
+
 async def _existing_channel(
     session: AsyncSession, *, phone_number: str, phone_number_id: str
 ) -> WhatsappChannel | None:
@@ -262,16 +315,17 @@ async def connect_number(
     account: Account,
     code: str,
     waba_id: str,
-    phone_number_id: str,
+    phone_number_id: str | None,
 ) -> tuple[Inbox, WhatsappChannel, bool]:
-    """Connect (or reconnect) a number → ``(inbox, channel, created)``."""
+    """Connect (or reconnect) a number → ``(inbox, channel, created)``.
+    Without ``phone_number_id`` (coexistence) it is the WABA's number."""
     info = signup_info()
     if not info["ready"]:
         raise _unprocessable(
             "Falta configurar WhatsApp Embedded Signup: "
             f"{', '.join(info['missing'])}. Cargalos en Ajustes → Instalación."
         )
-    if not (code and waba_id and phone_number_id):
+    if not (code and waba_id):
         raise _unprocessable("Faltan datos de la ventana de Meta. Probá conectar de nuevo.")
     assert account.id is not None
 
@@ -283,7 +337,7 @@ async def connect_number(
         existing = await _existing_channel(
             session,
             phone_number=phone["phone_number"],
-            phone_number_id=phone_number_id,
+            phone_number_id=phone["phone_number_id"],
         )
         if existing is not None and existing.account_id != account.id:
             raise _unprocessable(
@@ -296,10 +350,13 @@ async def connect_number(
         provider_config = {
             **((existing.provider_config or {}) if existing is not None else {}),
             "api_key": token,
-            "phone_number_id": phone_number_id,
+            "phone_number_id": phone["phone_number_id"],
             "business_account_id": waba_id,
             "source": "embedded_signup",
+            "coexistence": phone["coexistence"],
         }
+        # A fresh connection: whatever the last one left is stale.
+        provider_config.pop("coexistence_disconnected", None)
         if existing is None:
             result = await InboxBuilder(
                 session,
@@ -334,14 +391,17 @@ async def connect_number(
 
         if phone["needs_registration"]:
             await _register_number(client, token, channel)
+        if phone["coexistence"]:
+            await _start_app_sync(client, token, channel)
 
     session.add(channel)
     await session.flush()
     log.info(
-        "whatsapp.embedded_signup.connected account_id=%s channel_id=%s created=%s",
+        "whatsapp.embedded_signup.connected account_id=%s channel_id=%s created=%s coexistence=%s",
         account.id,
         channel.id,
         created,
+        phone["coexistence"],
     )
     return inbox, channel, created
 

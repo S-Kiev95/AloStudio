@@ -14,6 +14,8 @@ export const settingsInboxes: Strings<typeof es> = {
     connecting: "Verbinde…",
     connect: "WhatsApp verbinden",
     manualHint: "Du kannst die Daten auch unten im Formular von Hand eintragen.",
+    coexistence: "Nutzt du WhatsApp Business schon auf dem Handy? Wähle im Meta-Fenster, diese Nummer zu verbinden: Du scannst einen QR-Code mit der App, und die Nummer funktioniert weiter auf dem Handy, mit ihren Chats. Was du vom Handy antwortest, erscheint auch hier, und wir übernehmen deine Kontakte und die Chats der letzten 6 Monate, wenn du sie teilst. Lass die App während der Synchronisierung offen.",
+    coexistenceLimits: "Mit der Nummer auf beiden Seiten: keine Gruppen, keine selbstlöschenden oder einmal ansehbaren Nachrichten, keine Broadcast-Listen; bis zu 20 Nachrichten pro Sekunde; und du musst die App auf dem Handy mindestens alle 14 Tage öffnen, sonst trennt Meta die Verbindung.",
   },
   fieldMissing: "Fehlendes Feld: {field}",
   exampleHours: "Erreichbar: 9 bis 17 Uhr",

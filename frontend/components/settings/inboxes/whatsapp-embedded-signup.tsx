@@ -18,6 +18,10 @@ const ALLOWED_ORIGINS = new Set([
   "https://www.facebook.com",
   "https://web.facebook.com",
 ]);
+// Lets the business bring the number it uses on the WhatsApp Business app
+// (it scans a QR and keeps using the phone). Meta then names only the WABA.
+const COEXISTENCE_FEATURE = "whatsapp_business_app_onboarding";
+const COEXISTENCE_FINISH = "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING";
 
 export type FBLoginResponse = {
   authResponse?: {
@@ -37,7 +41,11 @@ export type FBSDK = {
       config_id: string;
       response_type: "code";
       override_default_response_type: true;
-      extras: { setup: Record<string, never>; sessionInfoVersion: "3" };
+      extras: {
+        setup: Record<string, never>;
+        featureType: typeof COEXISTENCE_FEATURE;
+        sessionInfoVersion: "3";
+      };
     },
   ) => void;
 };
@@ -111,7 +119,7 @@ export function WhatsappEmbeddedSignup({
   const [error, setError] = useState<string | null>(null);
 
   const codeRef = useRef<string | null>(null);
-  const idsRef = useRef<{ waba_id: string; phone_number_id: string } | null>(
+  const idsRef = useRef<{ waba_id: string; phone_number_id?: string } | null>(
     null,
   );
   const completingRef = useRef(false);
@@ -128,7 +136,7 @@ export function WhatsappEmbeddedSignup({
       const result = await connect.mutateAsync({
         code,
         waba_id: ids.waba_id,
-        phone_number_id: ids.phone_number_id,
+        ...(ids.phone_number_id ? { phone_number_id: ids.phone_number_id } : {}),
       });
       router.push(`/accounts/${accountId}/settings/inboxes/${result.inbox.id}`);
     } catch (err) {
@@ -163,11 +171,12 @@ export function WhatsappEmbeddedSignup({
       if (typeof msg.event === "string" && msg.event.startsWith("FINISH")) {
         const phoneNumberId = msg.data?.phone_number_id;
         const wabaId = msg.data?.waba_id;
-        if (phoneNumberId && wabaId) {
-          idsRef.current = {
-            waba_id: String(wabaId),
-            phone_number_id: String(phoneNumberId),
-          };
+        // A WhatsApp Business app number: Meta names only the WABA and
+        // the server finds its number.
+        if (wabaId && (phoneNumberId || msg.event === COEXISTENCE_FINISH)) {
+          idsRef.current = phoneNumberId
+            ? { waba_id: String(wabaId), phone_number_id: String(phoneNumberId) }
+            : { waba_id: String(wabaId) };
           void tryComplete();
         }
         return;
@@ -236,7 +245,11 @@ export function WhatsappEmbeddedSignup({
           config_id: info.data.config_id,
           response_type: "code",
           override_default_response_type: true,
-          extras: { setup: {}, sessionInfoVersion: "3" },
+          extras: {
+            setup: {},
+            featureType: COEXISTENCE_FEATURE,
+            sessionInfoVersion: "3",
+          },
         },
       );
     } catch (err) {
@@ -272,6 +285,12 @@ export function WhatsappEmbeddedSignup({
       <div className="space-y-2">
         <p className="text-sm text-fg-muted">
           {t("settingsInboxes.embedded.intro")}
+        </p>
+        <p className="text-sm text-fg-muted">
+          {t("settingsInboxes.embedded.coexistence")}
+        </p>
+        <p className="text-xs text-fg-muted">
+          {t("settingsInboxes.embedded.coexistenceLimits")}
         </p>
         <Button
           type="button"

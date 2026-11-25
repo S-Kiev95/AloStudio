@@ -14,6 +14,8 @@ export const settingsInboxes: Strings<typeof es> = {
     connecting: "接続中…",
     connect: "WhatsApp を接続",
     manualHint: "下のフォームから手入力することもできます。",
+    coexistence: "スマホですでにWhatsApp Businessを使っていますか？Metaの画面でその番号の接続を選んでください。アプリでQRコードを読み取ると、番号はチャットごとスマホでもそのまま使えます。スマホから送った返信もここに表示され、共有に同意すれば連絡先と過去6か月のチャットも取り込みます。同期中はアプリを開いたままにしてください。",
+    coexistenceLimits: "両方で番号を使う場合：グループ、消えるメッセージ、1回表示、ブロードキャストリストは使えません。送信は毎秒20件まで。少なくとも14日ごとにスマホのアプリを開かないと、Metaが接続を解除します。",
   },
   fieldMissing: "未入力の項目: {field}",
   exampleHours: "受付: 9時〜17時",

@@ -185,7 +185,8 @@ export type WhatsappEmbeddedSignupInfo = {
 export type WhatsappEmbeddedSignupInput = {
   code: string;
   waba_id: string;
-  phone_number_id: string;
+  // Absent for a WhatsApp Business app number (coexistence).
+  phone_number_id?: string;
 };
 
 export type WhatsappEmbeddedSignupResult = {

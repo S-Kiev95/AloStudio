@@ -121,7 +121,11 @@ describe("WhatsappEmbeddedSignup", () => {
       config_id: "cfg-1",
       response_type: "code",
       override_default_response_type: true,
-      extras: { setup: {}, sessionInfoVersion: "3" },
+      extras: {
+        setup: {},
+        featureType: "whatsapp_business_app_onboarding",
+        sessionInfoVersion: "3",
+      },
     });
 
     // Mensaje de un origen ajeno se ignora.
@@ -236,5 +240,81 @@ describe("WhatsappEmbeddedSignup", () => {
       ),
     );
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("conecta un número de la app WhatsApp Business con solo la WABA (coexistencia)", async () => {
+    let postedBody: unknown = null;
+    server.use(
+      http.get(ENDPOINT, () =>
+        HttpResponse.json({
+          ready: true,
+          missing: [],
+          app_id: "111",
+          config_id: "cfg-1",
+          graph_api_version: "v23.0",
+        }),
+      ),
+      http.post(ENDPOINT, async ({ request }) => {
+        postedBody = await request.json();
+        return HttpResponse.json({
+          created: true,
+          inbox: {
+            id: 43,
+            channel_id: 10,
+            name: "Tienda Uno",
+            channel_type: "Channel::Whatsapp",
+          },
+        });
+      }),
+    );
+    window.FB = {
+      init: vi.fn(),
+      login: vi.fn((cb: (res: FBLoginResponse) => void) => {
+        cb({ authResponse: { code: "code-coex" } });
+      }),
+    };
+
+    renderButton();
+    expect(
+      await screen.findByText(/escaneás un QR con la app/),
+    ).toBeInTheDocument();
+    const btn = await screen.findByRole("button", {
+      name: "Conectar WhatsApp",
+    });
+    await waitFor(() => expect(btn).not.toBeDisabled());
+    fireEvent.click(btn);
+
+    // A plain FINISH without the number is not enough.
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          origin: "https://www.facebook.com",
+          data: JSON.stringify({
+            type: "WA_EMBEDDED_SIGNUP",
+            event: "FINISH",
+            data: { waba_id: "waba-x" },
+          }),
+        }),
+      );
+    });
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          origin: "https://www.facebook.com",
+          data: JSON.stringify({
+            type: "WA_EMBEDDED_SIGNUP",
+            event: "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING",
+            data: { waba_id: "waba-3" },
+          }),
+        }),
+      );
+    });
+
+    await waitFor(() =>
+      expect(postedBody).toEqual({ code: "code-coex", waba_id: "waba-3" }),
+    );
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/accounts/1/settings/inboxes/43"),
+    );
   });
 });

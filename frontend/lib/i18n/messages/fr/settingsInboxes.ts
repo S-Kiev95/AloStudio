@@ -14,6 +14,8 @@ export const settingsInboxes: Strings<typeof es> = {
     connecting: "Connexion…",
     connect: "Connecter WhatsApp",
     manualHint: "Vous pouvez aussi saisir les données à la main dans le formulaire ci-dessous.",
+    coexistence: "Vous utilisez déjà WhatsApp Business sur votre téléphone ? Dans la fenêtre de Meta, choisissez de connecter ce numéro : vous scannez un QR code avec l'application et le numéro continue de fonctionner sur le téléphone, avec ses discussions. Ce que vous répondez depuis le téléphone s'affiche aussi ici, et nous importons vos contacts et les discussions des 6 derniers mois si vous acceptez de les partager. Gardez l'application ouverte pendant la synchronisation.",
+    coexistenceLimits: "Avec le numéro des deux côtés : pas de groupes, pas de messages éphémères ou à vue unique, pas de listes de diffusion ; jusqu'à 20 messages par seconde ; et vous devez ouvrir l'application sur le téléphone au moins tous les 14 jours, sinon Meta le déconnecte.",
   },
   fieldMissing: "Champ manquant : {field}",
   exampleHours: "Accueil : de 9 h à 17 h",

@@ -272,6 +272,14 @@ async def whatsapp_app_receive(
             continue
         channel, inbox = resolved
         await _process(session, channel=channel, inbox=inbox, payload=part)
+    # A number in coexistence disconnected from (or back on) the app. These
+    # name the WhatsApp Business Account, not a number.
+    from app.domains.whatsapp.coexistence import process_account_updates
+
+    try:
+        await process_account_updates(session, payload)
+    except Exception:
+        log.exception("whatsapp.app_webhook.account_update_failed")
     return {"status": "ok"}
 
 
