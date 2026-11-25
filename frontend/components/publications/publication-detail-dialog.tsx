@@ -48,6 +48,37 @@ const METRIC_FIELDS: { key: MetricName; label: MessageKey }[] = [
   { key: "saves", label: "publications.metrics.saves" },
 ];
 
+/** Shown only when the network reports them (Instagram, by kind of post). */
+const EXTRA_METRIC_FIELDS: { key: MetricName; label: MessageKey }[] = [
+  { key: "reposts", label: "publications.metrics.reposts" },
+  { key: "profile_visits", label: "publications.metrics.profileVisits" },
+  { key: "profile_activity", label: "publications.metrics.profileActivity" },
+  { key: "follows", label: "publications.metrics.follows" },
+  { key: "replies", label: "publications.metrics.replies" },
+  { key: "navigation", label: "publications.metrics.navigation" },
+  { key: "link_clicks", label: "publications.metrics.linkClicks" },
+  { key: "avg_watch_time_ms", label: "publications.metrics.avgWatchTime" },
+  { key: "watch_time_ms", label: "publications.metrics.watchTime" },
+];
+
+/** Milliseconds as "7,3 s", "4 min 10 s" or "2 h 5 min". */
+export function formatDurationMs(ms: number, intlTag?: string): string {
+  const seconds = ms / 1000;
+  if (seconds < 60) {
+    return `${seconds.toLocaleString(intlTag, { maximumFractionDigits: 1 })} s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes} min ${Math.round(seconds % 60)} s`;
+  }
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+function formatFieldValue(key: MetricName, val: number | undefined, intlTag?: string): string {
+  if (val != null && key.endsWith("_ms")) return formatDurationMs(val, intlTag);
+  return formatMetricValue(val, intlTag);
+}
+
 export function formatUpdatedAgo(
   iso: string | null | undefined,
   t: Translate = createTranslate("es"),
@@ -327,7 +358,12 @@ export function PublicationDetailDialog({
                 {hasMetrics ? (
                   <div className="space-y-1.5 pt-1">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      {METRIC_FIELDS.map((mf) => (
+                      {[
+                        ...METRIC_FIELDS,
+                        ...EXTRA_METRIC_FIELDS.filter(
+                          (mf) => target.metrics?.[mf.key] != null,
+                        ),
+                      ].map((mf) => (
                         <div
                           key={mf.key}
                           className="rounded-sm border border-glass bg-field px-2.5 py-1.5"
@@ -336,7 +372,7 @@ export function PublicationDetailDialog({
                             {t(mf.label)}
                           </p>
                           <p className="font-numeric text-sm font-semibold tabular-nums text-fg">
-                            {formatMetricValue(target.metrics?.[mf.key], intlTag)}
+                            {formatFieldValue(mf.key, target.metrics?.[mf.key], intlTag)}
                           </p>
                         </div>
                       ))}

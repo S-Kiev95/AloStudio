@@ -27,6 +27,7 @@ from app.domains.publishing.adapters import (
     target_text,
 )
 from app.domains.publishing.models import (
+    CHANNEL_BREAKDOWN_KEYS,
     CHANNEL_METRIC_KEYS,
     CHANNEL_STATUS_ACTIVE,
     METRIC_KEYS,
@@ -63,6 +64,21 @@ def _interactions(metrics: dict[str, Any]) -> int:
         metrics.get(k, 0) for k in ("likes", "comments", "shares", "saves")
         if isinstance(metrics.get(k), int)
     )
+
+
+def _sum_breakdowns(rows: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+    """``CHANNEL_BREAKDOWN_KEYS`` summed over the days, per dimension value."""
+    totals: dict[str, dict[str, int]] = {}
+    for metrics in rows:
+        for key in CHANNEL_BREAKDOWN_KEYS:
+            split = metrics.get(key)
+            if not isinstance(split, dict):
+                continue
+            into = totals.setdefault(key, {})
+            for name, value in split.items():
+                if isinstance(value, int):
+                    into[str(name)] = into.get(str(name), 0) + value
+    return totals
 
 
 def _sum(rows: list[dict[str, Any]], keys: tuple[str, ...]) -> dict[str, int]:
@@ -213,6 +229,8 @@ async def snapshot_channels(
             rows = {day: dict(figures) for day, figures in result.daily.items()}
             if result.metrics:
                 rows[today] = {**rows.get(today, {}), **result.metrics}
+            if result.audience:
+                rows[today] = {**rows.get(today, {}), "audience": result.audience}
             for day, figures in rows.items():
                 await _merge_snapshot(session, channel=channel, day=day, metrics=figures)
             await session.commit()
@@ -229,7 +247,7 @@ async def _merge_snapshot(
     *,
     channel: PublishingChannel,
     day: date,
-    metrics: dict[str, int],
+    metrics: dict[str, Any],
 ) -> None:
     """Upsert one channel-day; figures already stored for that day and not
     read again (that day's follower count, say) are kept."""
@@ -309,6 +327,7 @@ async def analytics_summary(
             for s in series
             if isinstance(s.metrics.get("followers"), int)
         ]
+        audiences = [s.metrics["audience"] for s in series if s.metrics.get("audience")]
         channels.append(
             {
                 "channel": present_channel(channel),
@@ -318,6 +337,16 @@ async def analytics_summary(
                 "followers_change": (
                     followers[-1] - followers[0] if len(followers) > 1 else None
                 ),
+                # The account's own figures over the period (not only what
+                # was published from here), and how they split. Not reach:
+                # the same person reached on two days would count twice.
+                "activity": _sum(
+                    [s.metrics for s in series],
+                    tuple(k for k in CHANNEL_METRIC_KEYS if k not in ("followers", "reach")),
+                ),
+                "breakdowns": _sum_breakdowns([s.metrics for s in series]),
+                # Who follows and who engages, as last read in the period.
+                "audience": audiences[-1] if audiences else None,
                 "series": [
                     {
                         "date": s.date.isoformat(),

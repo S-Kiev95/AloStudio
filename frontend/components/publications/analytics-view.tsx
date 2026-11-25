@@ -32,6 +32,7 @@ import {
 } from "@/lib/api/publications";
 import { cn } from "@/lib/utils";
 
+import { ChannelInsights } from "./channel-insights";
 import { ChannelAvatar, channelDisplayName, NetworkIcon } from "./network-icon";
 import { formatMetricValue } from "./publication-detail-dialog";
 import { PublicationErrorAlert } from "./publication-error-alert";
@@ -40,7 +41,7 @@ import type { Translate } from "@/lib/i18n/translate";
 import type { MessageKey } from "@/lib/i18n/translate";
 
 type PeriodOption = 7 | 30 | 90 | "custom";
-type SeriesMetric = "reach" | "views";
+type SeriesMetric = "reach" | "views" | "follows" | "accounts_engaged";
 
 const PERIOD_OPTIONS: { value: PeriodOption; label: MessageKey }[] = [
   { value: 7, label: "reports.range.d7" },
@@ -478,6 +479,23 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
             options={[
               { value: "reach" as SeriesMetric, label: t("publications.metrics.reach") },
               { value: "views" as SeriesMetric, label: t("publications.metrics.views") },
+              // Only for networks that report them.
+              ...(entry.series.some((pt) => pt.accounts_engaged != null)
+                ? [
+                    {
+                      value: "accounts_engaged" as SeriesMetric,
+                      label: t("publications.analytics.accountsEngaged"),
+                    },
+                  ]
+                : []),
+              ...(entry.series.some((pt) => pt.follows != null)
+                ? [
+                    {
+                      value: "follows" as SeriesMetric,
+                      label: t("publications.analytics.followsGained"),
+                    },
+                  ]
+                : []),
             ]}
           />
         </div>
@@ -491,6 +509,8 @@ function ChannelAnalyticsCard({ entry }: { entry: AnalyticsChannel }) {
           formatValue={(v) => v.toLocaleString(intlTag)}
         />
       </div>
+
+      <ChannelInsights entry={entry} />
     </Card>
   );
 }
