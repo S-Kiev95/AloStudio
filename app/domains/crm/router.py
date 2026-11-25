@@ -37,12 +37,19 @@ from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
 from app.domains.contacts.models import Contact
 from app.domains.crm import activities as act
+from app.domains.crm import billing as bill
 from app.domains.crm import companies as comp
 from app.domains.crm import meta_catalog as catalog
 from app.domains.crm import meta_catalog_connect as catalog_login
 from app.domains.crm import origin as org
 from app.domains.crm import service as svc
-from app.domains.crm.models import CrmActivity, CrmCompany, CrmOpportunity, CrmPipeline
+from app.domains.crm.models import (
+    CrmActivity,
+    CrmCompany,
+    CrmOpportunity,
+    CrmPayment,
+    CrmPipeline,
+)
 from app.domains.crm.presenters import (
     present_activities,
     present_company,
@@ -55,8 +62,12 @@ from app.domains.crm.schemas import (
     CompanyBody,
     CompanyContactBody,
     ContactOriginBody,
+    InstallmentPatchBody,
     MetaCatalogBody,
+    OpportunityBillingBody,
     OpportunityBody,
+    PaymentBody,
+    PaymentPreviewBody,
     PipelineBody,
 )
 
@@ -222,12 +233,224 @@ async def destroy_opportunity(
     opportunity_id: Annotated[int, Path()],
     ctx: Annotated[AccountContext, Depends(account_context)],
     session: Annotated[AsyncSession, Depends(get_session)],
+    release_allocations: bool = False,
 ) -> dict[str, Any]:
     await svc.delete_opportunity(
-        session, opportunity=await _opportunity(session, ctx, opportunity_id)
+        session,
+        opportunity=await _opportunity(session, ctx, opportunity_id),
+        release_allocations=release_allocations,
     )
     return {}
 
+
+# ---------------------------------------------------------------------------
+# Collections (cobranzas): billing terms, installments, payments & receivables
+# ---------------------------------------------------------------------------
+async def _payment(session: AsyncSession, ctx: AccountContext, payment_id: int) -> CrmPayment:
+    row = await bill.get_payment(session, account_id=_account_id(ctx), payment_id=payment_id)
+    if row is None:
+        raise ChatwootHTTPException(status_code=404, detail=_NOT_FOUND)
+    return row
+
+
+@router.get("/opportunities/{opportunity_id}/billing")
+async def show_opportunity_billing(
+    opportunity_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    as_of: str | None = None,
+) -> dict[str, Any]:
+    opp = await _opportunity(session, ctx, opportunity_id)
+    parsed_as_of = bill.parse_date(as_of, "as_of") if as_of else None
+    return await bill.get_opportunity_billing(session, opportunity=opp, as_of=parsed_as_of)
+
+
+@router.put("/opportunities/{opportunity_id}/billing")
+async def save_opportunity_billing(
+    opportunity_id: Annotated[int, Path()],
+    body: OpportunityBillingBody,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    opp = await _opportunity(session, ctx, opportunity_id)
+    billing_data, created_payment = await bill.set_opportunity_billing(
+        session,
+        account_id=_account_id(ctx),
+        opportunity=opp,
+        payload=body.model_dump(exclude_unset=True),
+        user_id=ctx.user.id,
+    )
+    if created_payment is not None:
+        billing_data["created_payment"] = (await bill.present_payments(session, [created_payment]))[
+            0
+        ]
+    else:
+        billing_data["created_payment"] = None
+    return billing_data
+
+
+@router.patch("/opportunities/{opportunity_id}/installments/{installment_id}")
+async def patch_installment(
+    opportunity_id: Annotated[int, Path()],
+    installment_id: Annotated[int, Path()],
+    body: InstallmentPatchBody,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    opp = await _opportunity(session, ctx, opportunity_id)
+    return await bill.update_installment(
+        session,
+        account_id=_account_id(ctx),
+        opportunity=opp,
+        installment_id=installment_id,
+        payload=body.model_dump(exclude_unset=True),
+    )
+
+
+@router.get("/payments")
+async def index_payments(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    contact_id: int | None = None,
+    opportunity_id: int | None = None,
+    method: str | None = None,
+    from_date: str | None = None,
+    to_date: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    rows = await bill.list_payments(
+        session,
+        account_id=_account_id(ctx),
+        contact_id=contact_id,
+        opportunity_id=opportunity_id,
+        method=method,
+        from_date=bill.parse_date(from_date, "from_date") if from_date else None,
+        to_date=bill.parse_date(to_date, "to_date") if to_date else None,
+        limit=limit,
+        offset=offset,
+    )
+    return await bill.present_payments(session, rows)
+
+
+@router.post("/payments/preview")
+async def preview_payment_endpoint(
+    body: PaymentPreviewBody,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    return await bill.preview_payment(
+        session,
+        account_id=_account_id(ctx),
+        payload=body.model_dump(exclude_unset=True),
+    )
+
+
+@router.post("/payments")
+async def create_payment_endpoint(
+    body: PaymentBody,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    row = await bill.create_payment(
+        session,
+        account_id=_account_id(ctx),
+        payload=body.model_dump(exclude_unset=True),
+        user_id=ctx.user.id,
+    )
+    return (await bill.present_payments(session, [row]))[0]
+
+
+@router.get("/payments/{payment_id}")
+async def show_payment_endpoint(
+    payment_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    row = await _payment(session, ctx, payment_id)
+    return (await bill.present_payments(session, [row]))[0]
+
+
+@router.patch("/payments/{payment_id}")
+async def update_payment_endpoint(
+    payment_id: Annotated[int, Path()],
+    body: PaymentBody,
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    row = await bill.update_payment(
+        session,
+        account_id=_account_id(ctx),
+        payment=await _payment(session, ctx, payment_id),
+        payload=body.model_dump(exclude_unset=True),
+    )
+    return (await bill.present_payments(session, [row]))[0]
+
+
+@router.delete("/payments/{payment_id}")
+async def destroy_payment_endpoint(
+    payment_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    await bill.delete_payment(session, payment=await _payment(session, ctx, payment_id))
+    return {}
+
+
+@router.get("/contacts/{contact_id}/statement")
+async def show_contact_statement(
+    contact_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    as_of: str | None = None,
+) -> dict[str, Any]:
+    parsed_as_of = bill.parse_date(as_of, "as_of") if as_of else None
+    return await bill.get_contact_statement(
+        session,
+        account_id=_account_id(ctx),
+        contact_id=contact_id,
+        as_of=parsed_as_of,
+    )
+
+
+@router.get("/receivables/summary")
+async def show_receivables_summary(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    as_of: str | None = None,
+) -> dict[str, Any]:
+    parsed_as_of = bill.parse_date(as_of, "as_of") if as_of else None
+    return await bill.get_receivables_summary(
+        session, account_id=_account_id(ctx), as_of=parsed_as_of
+    )
+
+
+@router.get("/receivables")
+async def index_receivables(
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    status: str | None = None,
+    owner_id: int | None = None,
+    q: str | None = None,
+    sort: str = "overdue",
+    order: str = "desc",
+    page: int = 1,
+    per_page: int = 25,
+    as_of: str | None = None,
+) -> dict[str, Any]:
+    parsed_as_of = bill.parse_date(as_of, "as_of") if as_of else None
+    return await bill.list_receivables(
+        session,
+        account_id=_account_id(ctx),
+        status=status,
+        owner_id=owner_id,
+        q=q,
+        sort=sort,
+        order=order,
+        page=page,
+        per_page=per_page,
+        as_of=parsed_as_of,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -298,7 +521,6 @@ async def destroy_activity(
 ) -> dict[str, Any]:
     await act.delete_activity(session, activity=await _activity(session, ctx, activity_id))
     return {}
-
 
 
 # ---------------------------------------------------------------------------

@@ -11,6 +11,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.contacts.models import Contact
+from app.domains.crm import billing as bill
 from app.domains.crm.models import (
     CrmActivity,
     CrmCompany,
@@ -51,9 +52,7 @@ async def _by_id(session: AsyncSession, model: Any, ids: set[int]) -> dict[int, 
     if not ids:
         return {}
     rows = (
-        await session.exec(
-            select(model).where(col(model.id).in_(ids)).options(lazyload("*"))
-        )
+        await session.exec(select(model).where(col(model.id).in_(ids)).options(lazyload("*")))
     ).all()
     return {r.id: r for r in rows}
 
@@ -61,15 +60,17 @@ async def _by_id(session: AsyncSession, model: Any, ids: set[int]) -> dict[int, 
 async def present_opportunities(
     session: AsyncSession, rows: Sequence[CrmOpportunity]
 ) -> list[dict[str, Any]]:
-    """Batch-loads the contact, product and owner of each row (no N+1)."""
+    """Batch-loads the contact, product, owner and billing summary of each row (no N+1)."""
     contacts = await _by_id(session, Contact, {r.contact_id for r in rows if r.contact_id})
     products = await _by_id(session, Product, {r.product_id for r in rows if r.product_id})
     owners = await _by_id(session, User, {r.owner_id for r in rows if r.owner_id})
+    billing_map = await bill.summarize_opportunities(session, rows)
     out = []
     for r in rows:
         contact = contacts.get(r.contact_id) if r.contact_id else None
         product = products.get(r.product_id) if r.product_id else None
         owner = owners.get(r.owner_id) if r.owner_id else None
+        bsum = billing_map.get(r.id) if r.id is not None else None
         out.append(
             {
                 "id": r.id,
@@ -90,6 +91,13 @@ async def present_opportunities(
                 "lost_reason": r.lost_reason,
                 "position": r.position,
                 "stage_changed_at": _ts(r.stage_changed_at),
+                "payment_terms": r.payment_terms,
+                "due_on": r.due_on.isoformat() if r.due_on else None,
+                "paid_amount": float(bsum.paid_amount) if bsum else 0.0,
+                "owed_amount": float(bsum.owed_amount) if bsum else 0.0,
+                "overdue_amount": float(bsum.overdue_amount) if bsum else 0.0,
+                "days_overdue": bsum.days_overdue if bsum else 0,
+                "installments_count": len(bsum.installments) if bsum else 0,
                 "created_at": _ts(r.created_at),
                 "updated_at": _ts(r.updated_at),
                 "contact": (
@@ -103,15 +111,11 @@ async def present_opportunities(
                 ),
                 "product": {"id": product.id, "name": product.name} if product else None,
                 "owner": (
-                    {"id": owner.id, "name": owner.display_name or owner.name}
-                    if owner
-                    else None
+                    {"id": owner.id, "name": owner.display_name or owner.name} if owner else None
                 ),
             }
         )
     return out
-
-
 
 
 async def present_activities(
