@@ -25,6 +25,7 @@ from sqlmodel import select
 from app.domains.contacts.models import Contact
 from app.domains.conversations.models import (
     CONVERSATION_STATUS_RESOLVED,
+    MESSAGE_STATUS_READ,
     MESSAGE_TYPE_INCOMING,
     MESSAGE_TYPE_OUTGOING,
     Conversation,
@@ -142,8 +143,12 @@ async def test_without_a_number_a_waba_with_several_is_refused(client, db_sessio
 BUSINESS = "59891000009"
 
 
-async def _coexistence_inbox(db_session, suffix: str) -> tuple[Any, Inbox]:
-    owner, _ = await _account(db_session, suffix)
+async def _coexistence_inbox(
+    db_session, suffix: str, headers: dict | None = None
+) -> tuple[Any, Inbox]:
+    owner, new_headers = await _account(db_session, suffix)
+    if headers is not None:
+        headers.update(new_headers)
     inbox = await _whatsapp_inbox(db_session, owner, phone=f"+{BUSINESS}", number_id="pn-c")
     channel = await db_session.get(WhatsappChannel, inbox.channel_id)
     channel.provider_config = {**channel.provider_config, "coexistence": True}
@@ -279,6 +284,8 @@ async def test_history_lands_quietly_with_its_dates(client, db_session):
         ("¿Tienen turnos?", MESSAGE_TYPE_INCOMING),
     ]
     assert rows[0].created_at.timestamp() == 1739230955
+    # The delivery state Meta reported comes along.
+    assert rows[0].status == MESSAGE_STATUS_READ
     conversation = await db_session.get(Conversation, rows[0].conversation_id)
     assert conversation.status == CONVERSATION_STATUS_RESOLVED
     channel = await db_session.get(WhatsappChannel, inbox.channel_id)
@@ -355,3 +362,46 @@ async def test_a_disconnected_number_is_marked_until_it_reconnects(client, db_se
     await _post(client, "account_update", {"event": "ACCOUNT_RECONNECTED"}, entry_id="waba-x")
     await db_session.refresh(channel)
     assert "coexistence_disconnected" not in channel.provider_config
+
+
+async def test_the_inbox_shows_the_import_and_the_disconnection(client, db_session):
+    headers: dict = {}
+    owner, inbox = await _coexistence_inbox(db_session, "-coex-show", headers)
+    channel = await db_session.get(WhatsappChannel, inbox.channel_id)
+    channel.provider_config = {
+        **channel.provider_config,
+        "coexistence_sync": {
+            "contacts": "done",
+            "history": "importing",
+            "progress": 40,
+            "history_request_id": "req-secret",
+        },
+        "coexistence_disconnected": {
+            "event": "PARTNER_REMOVED",
+            "reason": "PRIMARY_INACTIVITY",
+            "initiated_by": "SYSTEM",
+            "at": "2026-11-25T10:00:00+00:00",
+        },
+    }
+    db_session.add(channel)
+    await db_session.flush()
+
+    resp = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/inboxes/{inbox.id}", headers=headers
+    )
+    assert resp.status_code == 200, resp.text
+    state = resp.json()["coexistence"]
+    assert state["contacts"] == "done"
+    assert state["history"] == "importing" and state["progress"] == 40
+    assert state["disconnected"]["reason"] == "PRIMARY_INACTIVITY"
+    assert "req-secret" not in resp.text
+
+
+async def test_a_number_without_coexistence_shows_nothing(client, db_session):
+    owner, headers = await _account(db_session, "-coex-none")
+    inbox = await _whatsapp_inbox(db_session, owner, phone="+59891000077", number_id="pn-n")
+    resp = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/inboxes/{inbox.id}", headers=headers
+    )
+    assert resp.status_code == 200
+    assert "coexistence" not in resp.json()

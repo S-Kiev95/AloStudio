@@ -2,6 +2,29 @@ import type { settingsInboxes as es } from "../es/settingsInboxes";
 import type { Strings } from "../types";
 
 export const settingsInboxes: Strings<typeof es> = {
+  coexistence: {
+    title: "WhatsApp auf dem Handy und hier",
+    intro: "Diese Nummer funktioniert weiter in der WhatsApp-Business-App auf dem Handy. Antworten vom Handy erscheinen auch hier.",
+    contacts: "Handy-Kontakte",
+    history: "Frühere Chats",
+    stateRequested: "Bei Meta angefragt",
+    stateImporting: "Kommt an: {progress} %",
+    stateDone: "Fertig",
+    stateDeclined: "Nicht geteilt (Teilen wurde auf dem Handy abgeschaltet)",
+    stateFailed: "Meta hat sie nicht gesendet",
+    keepOpen: "Lass die App auf dem Handy offen, bis alles angekommen ist.",
+    disconnectedTitle: "Die Nummer wurde von AloStudio getrennt",
+    disconnectedBody: "Solange das so bleibt, kommen neue Nachrichten hier nicht an; auf dem Handy schon. Um sie wieder zu verbinden: Einstellungen → Posteingänge → neuer Posteingang → WhatsApp, mit derselben Nummer.",
+    reasonPrimaryInactivity: "Die App auf dem Handy wurde etwa 14 Tage nicht geöffnet.",
+    reasonCompanionInactivity: "Ein verknüpftes Gerät wurde etwa 30 Tage nicht benutzt.",
+    reasonChangeNumber: "Die Nummer wurde in der App geändert.",
+    reasonReRegistered: "Die App wurde auf einem anderen Handy neu registriert.",
+    reasonDowngrade: "Die Nummer wechselte zur normalen WhatsApp-App.",
+    reasonAccountDisconnected: "Meta hat das Konto getrennt oder das WhatsApp-Konto wurde gelöscht.",
+    reasonUser: "Sie wurde in der App getrennt (Einstellungen → Konto → Business-Plattform).",
+    reasonOther: "Meta hat die Nummer getrennt.",
+    since: "Seit {date}",
+  },
   embedded: {
     sdkFailed: "Metas SDK konnte nicht geladen werden.",
     connectFailed: "WhatsApp konnte nicht verbunden werden.",

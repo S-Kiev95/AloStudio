@@ -2,6 +2,29 @@ import type { settingsInboxes as es } from "../es/settingsInboxes";
 import type { Strings } from "../types";
 
 export const settingsInboxes: Strings<typeof es> = {
+  coexistence: {
+    title: "スマホとここでWhatsApp",
+    intro: "この番号はスマホのWhatsApp Businessアプリでもそのまま使えます。スマホから送った返信もここに表示されます。",
+    contacts: "スマホの連絡先",
+    history: "以前のチャット",
+    stateRequested: "Metaに依頼済み",
+    stateImporting: "受信中：{progress}%",
+    stateDone: "完了",
+    stateDeclined: "共有されていません（スマホで共有がオフになっています）",
+    stateFailed: "Metaから届きませんでした",
+    keepOpen: "すべて届くまでスマホのアプリを開いたままにしてください。",
+    disconnectedTitle: "この番号はAloStudioから切断されました",
+    disconnectedBody: "この状態の間、新しいメッセージはここに届きません（スマホには届きます）。戻すには、設定 → 受信箱 → 新しい受信箱 → WhatsApp から同じ番号で再接続してください。",
+    reasonPrimaryInactivity: "スマホのアプリが約14日間開かれませんでした。",
+    reasonCompanionInactivity: "リンク済みデバイスが約30日間使われませんでした。",
+    reasonChangeNumber: "アプリで番号が変更されました。",
+    reasonReRegistered: "アプリが別のスマホで再登録されました。",
+    reasonDowngrade: "番号が通常のWhatsAppアプリに移りました。",
+    reasonAccountDisconnected: "Metaがアカウントを切断したか、WhatsAppアカウントが削除されました。",
+    reasonUser: "アプリから切断されました（設定 → アカウント → ビジネスプラットフォーム）。",
+    reasonOther: "Metaが番号を切断しました。",
+    since: "{date}から",
+  },
   embedded: {
     sdkFailed: "Meta の SDK を読み込めませんでした。",
     connectFailed: "WhatsApp を接続できませんでした。",

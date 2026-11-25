@@ -24,23 +24,17 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy.exc import IntegrityError
-from sqlmodel import col, select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.models import (
-    CONTENT_TYPE_TEXT,
-    CONVERSATION_STATUS_RESOLVED,
     MESSAGE_STATUS_DELIVERED,
     MESSAGE_STATUS_READ,
     MESSAGE_STATUS_SENT,
-    MESSAGE_TYPE_INCOMING,
-    MESSAGE_TYPE_OUTGOING,
-    SENDER_TYPE_CONTACT,
-    Conversation,
     Message,
 )
+from app.domains.conversations.service import quiet_conversation, store_imported_message
 from app.domains.inboxes.models import Inbox, WhatsappChannel
 
 log = logging.getLogger(__name__)
@@ -61,6 +55,32 @@ _HISTORY_STATUS: dict[str, int] = {
 
 def is_coexistence(channel: WhatsappChannel) -> bool:
     return bool((channel.provider_config or {}).get("coexistence"))
+
+
+def present_state(channel: Any) -> dict[str, Any] | None:
+    """What the inbox settings show of a number in coexistence: how the
+    contacts and history import went, and whether it was disconnected.
+    ``None`` for any other number. Meta's request ids stay out."""
+    config = getattr(channel, "provider_config", None)
+    if not isinstance(config, dict) or not config.get("coexistence"):
+        return None
+    sync = config.get("coexistence_sync") or {}
+    off = config.get("coexistence_disconnected")
+    return {
+        "contacts": sync.get("contacts"),
+        "history": sync.get("history"),
+        "progress": sync.get("progress"),
+        "disconnected": (
+            {
+                "event": off.get("event"),
+                "reason": off.get("reason"),
+                "initiated_by": off.get("initiated_by"),
+                "at": off.get("at"),
+            }
+            if isinstance(off, dict)
+            else None
+        ),
+    }
 
 
 def _plus(number: str) -> str:
@@ -90,37 +110,6 @@ def _note_sync(channel: WhatsappChannel, **fields: Any) -> None:
 # ---------------------------------------------------------------------------
 # history
 # ---------------------------------------------------------------------------
-async def _quiet_conversation(
-    session: AsyncSession, *, inbox: Inbox, contact_id: int, contact_inbox_id: int, at: datetime
-) -> Conversation:
-    """The contact's latest conversation, or a resolved one for old chats.
-    Created without events: an old chat must not wake bots or assign agents."""
-    latest = (
-        await session.exec(
-            select(Conversation)
-            .where(Conversation.contact_inbox_id == contact_inbox_id)
-            .order_by(col(Conversation.id).desc())
-            .limit(1)
-        )
-    ).first()
-    if latest is not None:
-        return latest
-    conversation = Conversation(
-        account_id=inbox.account_id,
-        inbox_id=inbox.id,
-        contact_id=contact_id,
-        contact_inbox_id=contact_inbox_id,
-        status=CONVERSATION_STATUS_RESOLVED,
-        last_activity_at=at,
-        waiting_since=None,
-        created_at=at,
-    )
-    session.add(conversation)
-    await session.flush()
-    await session.refresh(conversation)
-    return conversation
-
-
 async def _import_message(
     session: AsyncSession,
     *,
@@ -130,7 +119,6 @@ async def _import_message(
     msg: dict[str, Any],
     outgoing: bool,
 ) -> Message | None:
-    from app.domains.conversations.service import _apply_attachments
     from app.domains.whatsapp.incoming_cloud import (
         _build_media_attachments,
         _echo_text,
@@ -160,14 +148,7 @@ async def _import_message(
     contact_inbox = await ContactInboxBuilder(
         session=session, contact=contact, inbox=inbox, source_id=phone
     ).perform()
-    assert contact.id is not None and contact_inbox.id is not None
-    conversation = await _quiet_conversation(
-        session,
-        inbox=inbox,
-        contact_id=contact.id,
-        contact_inbox_id=contact_inbox.id,
-        at=at,
-    )
+    conversation = await quiet_conversation(session, contact_inbox=contact_inbox, at=at)
     attachments, caption = await _build_media_attachments(
         channel=channel, msg=msg, msg_type=msg_type
     )
@@ -175,33 +156,19 @@ async def _import_message(
     if not text and not attachments:
         text = _echo_text({"type": msg_type, msg_type: msg.get(msg_type)})
     history_status = (msg.get("history_context") or {}).get("status")
-    message = Message(
-        account_id=channel.account_id,
-        inbox_id=inbox.id,
-        conversation_id=conversation.id,
-        sender_type=None if outgoing else SENDER_TYPE_CONTACT,
-        sender_id=None if outgoing else contact.id,
-        message_type=MESSAGE_TYPE_OUTGOING if outgoing else MESSAGE_TYPE_INCOMING,
-        content_type=CONTENT_TYPE_TEXT,
-        content=text or None,
-        processed_message_content=text or None,
-        content_attributes={"external_echo": True, "imported_history": True},
-        status=_HISTORY_STATUS.get(str(history_status), MESSAGE_STATUS_SENT),
+    stored = await store_imported_message(
+        session,
+        conversation=conversation,
+        content=text,
+        outgoing=outgoing,
         source_id=str(wamid),
-        created_at=at,
-        updated_at=at,
+        at=at,
+        attachments=attachments or None,
+        status=_HISTORY_STATUS.get(str(history_status), MESSAGE_STATUS_SENT),
     )
-    try:
-        async with session.begin_nested():
-            session.add(message)
-            await session.flush()
-            if attachments:
-                await _apply_attachments(session, message=message, specs=attachments)
-                await session.flush()
-    except IntegrityError:
+    if stored is None:
         log.info("whatsapp.coexistence.skip reason=duplicate_race wamid=%s", wamid)
-        return None
-    return message
+    return stored
 
 
 async def import_history(

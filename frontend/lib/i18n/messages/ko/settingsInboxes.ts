@@ -2,6 +2,29 @@ import type { settingsInboxes as es } from "../es/settingsInboxes";
 import type { Strings } from "../types";
 
 export const settingsInboxes: Strings<typeof es> = {
+  coexistence: {
+    title: "휴대폰과 여기서 함께 쓰는 WhatsApp",
+    intro: "이 번호는 휴대폰의 WhatsApp Business 앱에서도 그대로 작동합니다. 휴대폰에서 보낸 답장도 여기에 표시됩니다.",
+    contacts: "휴대폰 연락처",
+    history: "이전 채팅",
+    stateRequested: "Meta에 요청함",
+    stateImporting: "가져오는 중: {progress}%",
+    stateDone: "완료",
+    stateDeclined: "공유되지 않음(휴대폰에서 공유를 껐습니다)",
+    stateFailed: "Meta가 보내지 않았습니다",
+    keepOpen: "모두 도착할 때까지 휴대폰 앱을 열어 두세요.",
+    disconnectedTitle: "이 번호가 AloStudio에서 연결 해제되었습니다",
+    disconnectedBody: "이 상태에서는 새 메시지가 여기로 오지 않고 휴대폰으로만 옵니다. 다시 연결하려면 설정 → 받은편지함 → 새 받은편지함 → WhatsApp에서 같은 번호로 연결하세요.",
+    reasonPrimaryInactivity: "휴대폰 앱을 약 14일 동안 열지 않았습니다.",
+    reasonCompanionInactivity: "연결된 기기를 약 30일 동안 사용하지 않았습니다.",
+    reasonChangeNumber: "앱에서 번호를 변경했습니다.",
+    reasonReRegistered: "앱을 다른 휴대폰에 다시 등록했습니다.",
+    reasonDowngrade: "번호가 일반 WhatsApp 앱으로 옮겨졌습니다.",
+    reasonAccountDisconnected: "Meta가 계정을 연결 해제했거나 WhatsApp 계정이 삭제되었습니다.",
+    reasonUser: "앱에서 연결을 해제했습니다(설정 → 계정 → 비즈니스 플랫폼).",
+    reasonOther: "Meta가 번호를 연결 해제했습니다.",
+    since: "{date}부터",
+  },
   embedded: {
     sdkFailed: "Meta SDK를 불러오지 못했습니다.",
     connectFailed: "WhatsApp을 연결하지 못했습니다.",

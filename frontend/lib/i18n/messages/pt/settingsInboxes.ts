@@ -2,6 +2,29 @@ import type { settingsInboxes as es } from "../es/settingsInboxes";
 import type { Strings } from "../types";
 
 export const settingsInboxes: Strings<typeof es> = {
+  coexistence: {
+    title: "WhatsApp no celular e aqui",
+    intro: "Este número continua funcionando no app WhatsApp Business do celular. O que você responder pelo celular também aparece aqui.",
+    contacts: "Contatos do celular",
+    history: "Conversas anteriores",
+    stateRequested: "Pedidos à Meta",
+    stateImporting: "Chegando: {progress}%",
+    stateDone: "Prontos",
+    stateDeclined: "Não compartilhados (o compartilhamento foi desativado no celular)",
+    stateFailed: "A Meta não os enviou",
+    keepOpen: "Deixe o app aberto no celular até terminarem de chegar.",
+    disconnectedTitle: "O número foi desconectado do AloStudio",
+    disconnectedBody: "Enquanto continuar assim, as mensagens novas não chegam aqui; continuam chegando ao celular. Para voltar, conecte de novo em Configurações → Caixas de entrada → nova caixa → WhatsApp, com o mesmo número.",
+    reasonPrimaryInactivity: "O app do celular ficou uns 14 dias sem ser aberto.",
+    reasonCompanionInactivity: "Um dispositivo vinculado ficou uns 30 dias sem uso.",
+    reasonChangeNumber: "O número foi trocado no app.",
+    reasonReRegistered: "O app foi registrado de novo em outro celular.",
+    reasonDowngrade: "O número passou para o WhatsApp comum.",
+    reasonAccountDisconnected: "A Meta desconectou a conta ou a conta do WhatsApp foi excluída.",
+    reasonUser: "Foi desconectado pelo app (Configurações → Conta → Plataforma empresarial).",
+    reasonOther: "A Meta desconectou o número.",
+    since: "Desde {date}",
+  },
   embedded: {
     sdkFailed: "Não foi possível carregar o SDK da Meta.",
     connectFailed: "Não foi possível conectar o WhatsApp.",

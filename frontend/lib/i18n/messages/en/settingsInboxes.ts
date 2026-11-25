@@ -2,6 +2,29 @@ import type { settingsInboxes as es } from "../es/settingsInboxes";
 import type { Strings } from "../types";
 
 export const settingsInboxes: Strings<typeof es> = {
+  coexistence: {
+    title: "WhatsApp on the phone and here",
+    intro: "This number keeps working on the WhatsApp Business app on the phone. Replies sent from the phone show up here too.",
+    contacts: "Phone contacts",
+    history: "Earlier chats",
+    stateRequested: "Requested from Meta",
+    stateImporting: "Arriving: {progress}%",
+    stateDone: "Done",
+    stateDeclined: "Not shared (sharing was turned off on the phone)",
+    stateFailed: "Meta didn't send them",
+    keepOpen: "Keep the app open on the phone until they finish arriving.",
+    disconnectedTitle: "The number was disconnected from AloStudio",
+    disconnectedBody: "While it stays like this, new messages don't arrive here; they still reach the phone. To come back, connect it again from Settings → Inboxes → new inbox → WhatsApp, with the same number.",
+    reasonPrimaryInactivity: "The app on the phone wasn't opened for about 14 days.",
+    reasonCompanionInactivity: "A linked device wasn't used for about 30 days.",
+    reasonChangeNumber: "The number was changed in the app.",
+    reasonReRegistered: "The app was registered again on another phone.",
+    reasonDowngrade: "The number moved to the regular WhatsApp app.",
+    reasonAccountDisconnected: "Meta disconnected the account or the WhatsApp account was deleted.",
+    reasonUser: "It was disconnected from the app (Settings → Account → Business Platform).",
+    reasonOther: "Meta disconnected the number.",
+    since: "Since {date}",
+  },
   embedded: {
     sdkFailed: "Meta's SDK could not be loaded.",
     connectFailed: "WhatsApp could not be connected.",
