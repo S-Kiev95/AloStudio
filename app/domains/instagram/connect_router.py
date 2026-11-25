@@ -27,6 +27,7 @@ from app.domains.crm import meta_catalog as crm_catalog
 from app.domains.crm import meta_catalog_connect as catalog_connect
 from app.domains.facebook import connect_service as facebook_connect
 from app.domains.instagram import connect_service
+from app.domains.instagram import history as instagram_history
 from app.domains.instagram.schemas import InstagramManualConnect
 
 router = APIRouter(
@@ -243,6 +244,14 @@ async def oauth_callback(
             account_id,
             ig_error=f"No se pudo completar la conexión: {_error_text(exc)}",
         )
+
+    # The past DMs come in the background, once the channel is committed.
+    await session.commit()
+    for channel_id in result.get("channel_instagram_ids") or [
+        result.get("channel_instagram_id")
+    ]:
+        if channel_id:
+            await instagram_history.enqueue_import(int(channel_id))
 
     return _back_to_dashboard(
         account_id,

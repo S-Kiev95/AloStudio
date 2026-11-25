@@ -487,6 +487,7 @@ async def complete_facebook_oauth(
         **results[0],
         "reconnected": all(r["reconnected"] for r in results),
         "usernames": [r["username"] for r in results if r["username"]],
+        "channel_instagram_ids": [r["channel_instagram_id"] for r in results],
     }
 
 

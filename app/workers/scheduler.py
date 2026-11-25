@@ -450,6 +450,7 @@ class WorkerSettings:
         from app.workers.instagram_autoreply import (
             send_comment_autoreply_task,
         )
+        from app.workers.instagram_history import import_instagram_history_task
         from app.workers.meta_catalog import sync_meta_catalog_task
         from app.workers.publishing import (
             JOB_TIMEOUT_SECONDS as PUBLICATION_JOB_TIMEOUT_SECONDS,
@@ -500,6 +501,9 @@ class WorkerSettings:
             # job id while its result lives (an hour by default), so every
             # change in the hour after a sync was dropped.
             func(sync_meta_catalog_task, keep_result=0),
+            # Enqueued right after an Instagram account connects: its past
+            # DMs. Keeps no result, so a reconnect within the hour runs again.
+            func(import_instagram_history_task, keep_result=0, timeout=1800),
             # Enqueued when a customer writes, for accounts deciding their
             # conversations in shadow mode (F10). Keeps no result, same reason:
             # the next message after a decision must schedule another.
