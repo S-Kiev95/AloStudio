@@ -48,11 +48,15 @@ class MetricsResult:
 
     ``metrics`` is the current state (a post's lifetime figures, or a
     channel's followers today); ``daily`` holds per-day channel figures,
-    each under the day they belong to."""
+    each under the day they belong to: numbers, plus the
+    ``CHANNEL_BREAKDOWN_KEYS`` as ``{dimension value: n}``. ``audience`` is
+    who follows and who engages with the channel now, as
+    ``{"followers"|"engaged": {"country"|"city"|"age"|"gender": {value: n}}}``."""
 
     ok: bool
     metrics: dict[str, int] = field(default_factory=dict)
-    daily: dict[date, dict[str, int]] = field(default_factory=dict)
+    daily: dict[date, dict[str, Any]] = field(default_factory=dict)
+    audience: dict[str, Any] = field(default_factory=dict)
     error_message: str | None = None
 
 

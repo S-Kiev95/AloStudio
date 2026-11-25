@@ -196,7 +196,7 @@ class InstagramAdapter(PublishingAdapter):
                 metrics=insights.story_metrics_from_webhook(post.insights if post else None),
             )
         metrics, error = await insights.fetch_media_metrics(
-            session, channel, ig_media_id=target.external_id, is_story=is_story
+            session, channel, ig_media_id=target.external_id, post_type=_post_type(target)
         )
         return MetricsResult(ok=error is None, metrics=metrics or {}, error_message=error)
 
@@ -208,11 +208,15 @@ class InstagramAdapter(PublishingAdapter):
         instagram = await self._channel(session, channel.id)  # type: ignore[arg-type]
         if instagram is None:
             return None
-        current, daily, error = await insights.fetch_account_metrics(
+        current, daily, audience, error = await insights.fetch_account_metrics(
             session, instagram, days=days
         )
         return MetricsResult(
-            ok=error is None, metrics=current or {}, daily=daily, error_message=error
+            ok=error is None,
+            metrics=current or {},
+            daily=daily,
+            audience=audience,
+            error_message=error,
         )
 
     @staticmethod

@@ -4,11 +4,18 @@ Written from Meta's Instagram Media Insights and Instagram User Insights
 references (2025 metric set: ``views`` replaced ``impressions``/``plays``):
 
   * ``GET /{ig-media-id}/insights?metric=…`` — lifetime figures of a post.
-    Stories report a smaller set, and only while they are live (24 h);
-    after that the ``story_insights`` webhook has stored their figures.
-  * ``GET /{ig-user-id}?fields=followers_count`` for the follower count,
-    and ``GET /{ig-user-id}/insights?metric=views,reach,total_interactions
-    &period=day&metric_type=total_value`` once per requested day.
+    Each kind (feed post, reel, story) accepts its own set: a metric that
+    doesn't apply fails the whole call, so each kind asks for its own, and
+    falls back to the basic set if Meta still refuses one. Stories answer
+    only while they are live (24 h); after that the ``story_insights``
+    webhook has stored their figures.
+  * ``GET /{ig-user-id}?fields=followers_count`` for the follower count.
+  * ``GET /{ig-user-id}/insights?period=day&metric_type=total_value`` once
+    per requested day: the day's figures, then three split ones (follows
+    and unfollows, views by surface, profile button taps by button).
+  * The same endpoint with ``period=lifetime&timeframe=this_month`` for the
+    audience: country, city, age and gender of the followers and of the
+    accounts that engaged (Meta answers only past 100 followers).
 
 Needs ``instagram_manage_insights`` (Facebook Login) or
 ``instagram_business_manage_insights`` (Instagram Login); the follower count
@@ -43,13 +50,82 @@ _MEDIA_METRICS = {
     "shares": "shares",
     "saved": "saves",
     "total_interactions": "interactions",
+    "reposts": "reposts",
+    "profile_visits": "profile_visits",
+    "profile_activity": "profile_activity",
+    "follows": "follows",
+    "replies": "replies",
+    "navigation": "navigation",
+    "link_clicks": "link_clicks",
+    "ig_reels_avg_watch_time": "avg_watch_time_ms",
+    "ig_reels_video_view_total_time": "watch_time_ms",
 }
-_STORY_METRICS = ("views", "reach", "shares", "total_interactions")
+# What each kind of media accepts (Meta's table, by media product type).
+_BASIC_MEDIA = ("views", "reach", "likes", "comments", "shares", "saved", "total_interactions")
+_MEDIA_BY_TYPE: dict[str, tuple[str, ...]] = {
+    "feed": (*_BASIC_MEDIA, "reposts", "profile_visits", "profile_activity", "follows"),
+    "reels": (
+        *_BASIC_MEDIA,
+        "reposts",
+        "ig_reels_avg_watch_time",
+        "ig_reels_video_view_total_time",
+    ),
+    "story": (
+        "views",
+        "reach",
+        "shares",
+        "total_interactions",
+        "replies",
+        "navigation",
+        "profile_visits",
+        "follows",
+    ),
+}
+_BASIC_BY_TYPE: dict[str, tuple[str, ...]] = {
+    "feed": _BASIC_MEDIA,
+    "reels": _BASIC_MEDIA,
+    "story": ("views", "reach", "shares", "total_interactions"),
+}
 _ACCOUNT_METRICS = {
     "views": "views",
     "reach": "reach",
     "total_interactions": "interactions",
+    "accounts_engaged": "accounts_engaged",
+    "likes": "likes",
+    "comments": "comments",
+    "shares": "shares",
+    "saves": "saves",
+    "reposts": "reposts",
+    "replies": "replies",
+    "profile_links_taps": "profile_links_taps",
 }
+_BASIC_ACCOUNT = ("views", "reach", "total_interactions")
+# Split figures of a day: (metric, breakdown, how to name its values).
+_FOLLOW_TYPES = {"FOLLOWER": "follows", "NON_FOLLOWER": "unfollows"}
+_SURFACES = {
+    "REEL": "reels",
+    "REELS": "reels",
+    "STORY": "stories",
+    "POST": "posts",
+    "CAROUSEL_CONTAINER": "posts",
+    "FEED": "posts",
+    "AD": "ads",
+}
+_BUTTONS = {
+    "CALL": "call",
+    "EMAIL": "email",
+    "DIRECTION": "directions",
+    "TEXT": "message",
+    "BOOK_NOW": "book",
+    "INSTANT_EXPERIENCE": "instant_experience",
+}
+_AUDIENCE_METRICS = {
+    "follower_demographics": "followers",
+    "engaged_audience_demographics": "engaged",
+}
+_AUDIENCE_DIMENSIONS = ("country", "city", "age", "gender")
+# Meta returns up to 45 values per dimension; the dashboard shows the top.
+_AUDIENCE_TOP = 10
 # What the ``story_insights`` webhook stores (older payloads say
 # ``impressions`` where newer ones say ``views``).
 _STORY_WEBHOOK_METRICS = {
@@ -68,6 +144,12 @@ class _InsightsError(Exception):
     def __init__(self, code: str | None, message: str | None) -> None:
         super().__init__(message or "")
         self.code = code
+
+    @property
+    def is_refusal(self) -> bool:
+        """The token, the permission or the rate limit: asking for less
+        won't help, unlike a metric this media or account doesn't have."""
+        return self.code in _TOKEN_CODES | _PERMISSION_CODES | _RATE_LIMIT_CODES
 
 
 def _value(item: dict[str, Any]) -> int | None:
@@ -91,6 +173,25 @@ def _collect(payload: dict[str, Any], names: dict[str, str]) -> dict[str, int]:
         if key and value is not None:
             metrics[key] = value
     return metrics
+
+
+def _split(payload: dict[str, Any], rename: dict[str, str] | None = None) -> dict[str, int]:
+    """``{dimension value: n}`` of the first metric's first breakdown. The
+    last dimension is the one asked for (demographics put ``timeframe``
+    first). Unknown values keep their name, lowercased."""
+    out: dict[str, int] = {}
+    for item in payload.get("data") or []:
+        breakdowns = ((item or {}).get("total_value") or {}).get("breakdowns") or []
+        for result in (breakdowns[0] if breakdowns else {}).get("results") or []:
+            values = result.get("dimension_values") or []
+            value = result.get("value")
+            if not values or not isinstance(value, int):
+                continue
+            raw = str(values[-1])
+            name = (rename or {}).get(raw.upper(), raw if rename is None else raw.lower())
+            out[name] = out.get(name, 0) + value
+        break
+    return out
 
 
 def _spanish_error(exc: _InsightsError) -> str:
@@ -119,6 +220,40 @@ async def _get(
     return payload if isinstance(payload, dict) else {}
 
 
+async def _get_metrics(
+    client: httpx.AsyncClient,
+    url: str,
+    params: dict[str, Any],
+    token: str,
+    *,
+    wanted: tuple[str, ...],
+    basic: tuple[str, ...],
+) -> dict[str, Any]:
+    """Ask for ``wanted``; if Meta refuses one of them (it doesn't apply to
+    this media, or the account is too small), ask again for ``basic``."""
+    try:
+        return await _get(client, url, {**params, "metric": ",".join(wanted)}, token)
+    except _InsightsError as exc:
+        if exc.is_refusal or wanted == basic:
+            raise
+        log.info("instagram.insights.narrowed url=%s err=%s", url, exc)
+        return await _get(client, url, {**params, "metric": ",".join(basic)}, token)
+
+
+async def _optional(
+    client: httpx.AsyncClient, url: str, params: dict[str, Any], token: str
+) -> dict[str, Any]:
+    """A figure the account may not have (fewer than 100 followers, too
+    few engagements): an error just leaves it out."""
+    try:
+        return await _get(client, url, params, token)
+    except _InsightsError as exc:
+        if exc.code in _TOKEN_CODES:
+            raise
+        log.info("instagram.insights.optional_unavailable url=%s err=%s", url, exc)
+        return {}
+
+
 def story_metrics_from_webhook(stored: dict[str, Any] | None) -> dict[str, int]:
     """Normalise the figures the ``story_insights`` webhook stored."""
     metrics: dict[str, int] = {}
@@ -134,21 +269,24 @@ async def fetch_media_metrics(
     channel: InstagramChannel,
     *,
     ig_media_id: str,
-    is_story: bool = False,
+    post_type: str = "feed",
 ) -> tuple[dict[str, int] | None, str | None]:
-    """``(metrics, error)`` for one published media."""
+    """``(metrics, error)`` for one published media of ``post_type``
+    (``feed``, ``reels`` or ``story``)."""
     if not channel.access_token:
         return None, "La cuenta de Instagram no tiene token."
-    names = _STORY_METRICS if is_story else tuple(_MEDIA_METRICS)
+    kind = post_type if post_type in _MEDIA_BY_TYPE else "feed"
     with graph.graph_host(await _graph_host_for_channel(session, channel)):
         base = graph.graph_base()
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                payload = await _get(
+                payload = await _get_metrics(
                     client,
                     f"{base}/{ig_media_id}/insights",
-                    {"metric": ",".join(names)},
+                    {},
                     channel.access_token,
+                    wanted=_MEDIA_BY_TYPE[kind],
+                    basic=_BASIC_BY_TYPE[kind],
                 )
         except _InsightsError as exc:
             return None, _spanish_error(exc)
@@ -158,23 +296,99 @@ async def fetch_media_metrics(
     return _collect(payload, _MEDIA_METRICS), None
 
 
+async def _day_figures(
+    client: httpx.AsyncClient, url: str, token: str, day: date
+) -> dict[str, Any]:
+    start = datetime.combine(day, time.min, tzinfo=UTC)
+    window = {
+        "period": "day",
+        "metric_type": "total_value",
+        "since": int(start.timestamp()),
+        "until": int((start + timedelta(days=1)).timestamp()),
+    }
+    figures: dict[str, Any] = _collect(
+        await _get_metrics(
+            client, url, window, token, wanted=tuple(_ACCOUNT_METRICS), basic=_BASIC_ACCOUNT
+        ),
+        _ACCOUNT_METRICS,
+    )
+    follows = _split(
+        await _optional(
+            client,
+            url,
+            {**window, "metric": "follows_and_unfollows", "breakdown": "follow_type"},
+            token,
+        ),
+        _FOLLOW_TYPES,
+    )
+    figures.update({k: v for k, v in follows.items() if k in ("follows", "unfollows")})
+    by_surface = _split(
+        await _optional(
+            client, url, {**window, "metric": "views", "breakdown": "media_product_type"}, token
+        ),
+        _SURFACES,
+    )
+    if by_surface:
+        figures["views_by_surface"] = by_surface
+    by_button = _split(
+        await _optional(
+            client,
+            url,
+            {**window, "metric": "profile_links_taps", "breakdown": "contact_button_type"},
+            token,
+        ),
+        _BUTTONS,
+    )
+    if by_button:
+        figures["profile_taps_by_button"] = by_button
+    return figures
+
+
+async def _audience(client: httpx.AsyncClient, url: str, token: str) -> dict[str, Any]:
+    """``{"followers"|"engaged": {dimension: {value: n}}}``, the top values
+    of each; empty when Meta has none for this account."""
+    out: dict[str, Any] = {}
+    for metric, who in _AUDIENCE_METRICS.items():
+        for dimension in _AUDIENCE_DIMENSIONS:
+            split = _split(
+                await _optional(
+                    client,
+                    url,
+                    {
+                        "metric": metric,
+                        "period": "lifetime",
+                        "timeframe": "this_month",
+                        "metric_type": "total_value",
+                        "breakdown": dimension,
+                    },
+                    token,
+                )
+            )
+            if split:
+                top = sorted(split.items(), key=lambda kv: kv[1], reverse=True)[:_AUDIENCE_TOP]
+                out.setdefault(who, {})[dimension] = dict(top)
+    return out
+
+
 async def fetch_account_metrics(
     session: AsyncSession,
     channel: InstagramChannel,
     *,
     days: list[date],
-) -> tuple[dict[str, int] | None, dict[date, dict[str, int]], str | None]:
-    """``(current, daily, error)``: followers now, and views/reach/
-    interactions for each of ``days`` when the insights permission allows it
-    (a day the permission or Meta can't give is simply left out)."""
+) -> tuple[dict[str, int] | None, dict[date, dict[str, Any]], dict[str, Any], str | None]:
+    """``(current, daily, audience, error)``: followers now; the figures of
+    each of ``days`` when the insights permission allows it (a day Meta
+    can't give is left out); and the current audience."""
     if not channel.access_token:
-        return None, {}, "La cuenta de Instagram no tiene token."
+        return None, {}, {}, "La cuenta de Instagram no tiene token."
     if not channel.instagram_id:
-        return None, {}, "La cuenta de Instagram no tiene identificador."
+        return None, {}, {}, "La cuenta de Instagram no tiene identificador."
     current: dict[str, int] = {}
-    daily: dict[date, dict[str, int]] = {}
+    daily: dict[date, dict[str, Any]] = {}
+    audience: dict[str, Any] = {}
     with graph.graph_host(await _graph_host_for_channel(session, channel)):
         base = graph.graph_base()
+        url = f"{base}/{channel.instagram_id}/insights"
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
                 profile = await _get(
@@ -186,20 +400,8 @@ async def fetch_account_metrics(
                 if isinstance(profile.get("followers_count"), int):
                     current["followers"] = profile["followers_count"]
                 for day in days:
-                    start = datetime.combine(day, time.min, tzinfo=UTC)
                     try:
-                        payload = await _get(
-                            client,
-                            f"{base}/{channel.instagram_id}/insights",
-                            {
-                                "metric": ",".join(_ACCOUNT_METRICS),
-                                "period": "day",
-                                "metric_type": "total_value",
-                                "since": int(start.timestamp()),
-                                "until": int((start + timedelta(days=1)).timestamp()),
-                            },
-                            channel.access_token,
-                        )
+                        figures = await _day_figures(client, url, channel.access_token, day)
                     except _InsightsError as exc:
                         # The follower count alone is still worth keeping.
                         log.info(
@@ -209,15 +411,17 @@ async def fetch_account_metrics(
                             exc,
                         )
                         break
-                    figures = _collect(payload, _ACCOUNT_METRICS)
                     if figures:
                         daily[day] = figures
+                if daily:
+                    # Only with the insights permission (the days needed it).
+                    audience = await _audience(client, url, channel.access_token)
         except _InsightsError as exc:
-            return None, {}, _spanish_error(exc)
+            return None, {}, {}, _spanish_error(exc)
         except httpx.HTTPError as exc:
             log.warning("instagram.insights.account_transport channel=%s err=%s", channel.id, exc)
-            return None, {}, "No se pudo conectar con Instagram."
-    return current, daily, None
+            return None, {}, {}, "No se pudo conectar con Instagram."
+    return current, daily, audience, None
 
 
 __all__ = [

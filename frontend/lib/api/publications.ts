@@ -101,7 +101,16 @@ export type MetricName =
   | "comments"
   | "shares"
   | "saves"
-  | "interactions";
+  | "interactions"
+  | "reposts"
+  | "profile_visits"
+  | "profile_activity"
+  | "follows"
+  | "replies"
+  | "navigation"
+  | "link_clicks"
+  | "avg_watch_time_ms"
+  | "watch_time_ms";
 
 export type Metrics = Partial<Record<MetricName, number>>;
 
@@ -157,10 +166,35 @@ export type NetworkOption = {
   fields: ConnectionField[];
 };
 
+/** The account's own figures per day (not only what was published here). */
+export type ActivityName =
+  | "views"
+  | "interactions"
+  | "accounts_engaged"
+  | "follows"
+  | "unfollows"
+  | "likes"
+  | "comments"
+  | "shares"
+  | "saves"
+  | "reposts"
+  | "replies"
+  | "profile_links_taps";
+
 export type AnalyticsSeriesPoint = {
   date: string;
   followers?: number;
-} & Pick<Metrics, "views" | "reach" | "interactions">;
+  reach?: number;
+} & Partial<Record<ActivityName, number>>;
+
+/** ``{dimension value: n}``, e.g. ``{reels: 500, stories: 120}``. */
+export type MetricSplit = Record<string, number>;
+
+export type AudienceDimension = "country" | "city" | "age" | "gender";
+
+export type Audience = Partial<
+  Record<"followers" | "engaged", Partial<Record<AudienceDimension, MetricSplit>>>
+>;
 
 export type AnalyticsChannel = {
   channel: Channel;
@@ -169,6 +203,10 @@ export type AnalyticsChannel = {
   followers: number | null;
   followers_change: number | null;
   series: AnalyticsSeriesPoint[];
+  /** Summed over the period; networks that don't report them leave them out. */
+  activity?: Partial<Record<ActivityName, number>>;
+  breakdowns?: Partial<Record<"views_by_surface" | "profile_taps_by_button", MetricSplit>>;
+  audience?: Audience | null;
 };
 
 export type AnalyticsTopPost = {
