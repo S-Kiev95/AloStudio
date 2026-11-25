@@ -84,6 +84,15 @@ async def _apply_subscription(session: AsyncSession, data: dict[str, Any]) -> No
         sub.plan_features = dict(product["metadata"])
     session.add(sub)
     await session.flush()
+    _forget_limit_checks(account_id)
+
+
+def _forget_limit_checks(account_id: int) -> None:
+    """A new plan or new credit changes whether the AI may go on: drop the
+    remembered usage checks (a dict pop, it can't fail the webhook)."""
+    from app.domains.usage.limits import forget_checks
+
+    forget_checks(account_id)
 
 
 # --- AI credits --------------------------------------------------------------
@@ -152,6 +161,7 @@ async def _apply_credit_order(session: AsyncSession, event_type: str, data: dict
     purchase.refunded_cents = max(purchase.refunded_cents, _cents(data.get("refunded_amount")))
     session.add(purchase)
     await session.flush()
+    _forget_limit_checks(purchase.account_id)
     return True
 
 

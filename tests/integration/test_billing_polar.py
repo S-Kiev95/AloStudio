@@ -789,3 +789,27 @@ async def test_a_failed_renewal_keeps_the_account_open_seven_days(multitenant, c
     await _post(client, _sub_event(account_id, "subscription.updated", "active"), "wh_p4")
     status = (await client.get(url, headers=headers)).json()
     assert status["has_access"] is True and status["access_until"] is None
+
+
+async def test_the_cap_check_is_remembered_for_a_minute(multitenant, db_session, monkeypatch):
+    """Checked before every AI call: the answer is kept a minute, and a new
+    cap (like a plan change or a credit purchase, covered above) forgets it."""
+    from app.domains.usage import limits
+
+    owner, _headers = await _owner(db_session, "-capcache")
+    account_id = owner.account.id
+    await _with_plan(db_session, account_id, BASIC)  # USD 5 of AI
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(limits.time, "monotonic", lambda: clock["now"])
+
+    assert not await limits.limit_reached(db_session, account_id, "ai")
+    await _spend_ai(db_session, account_id, "6", "ai-capcache-1")
+    # Within the minute: the remembered answer.
+    assert not await limits.limit_reached(db_session, account_id, "ai")
+    clock["now"] += limits.CHECK_TTL_SECONDS + 1
+    assert await limits.limit_reached(db_session, account_id, "ai")
+
+    # The admin's own cap on WhatsApp: a new one is read at once.
+    assert not await limits.limit_reached(db_session, account_id, "whatsapp")
+    await limits.set_limit(db_session, account_id, "whatsapp", 0)
+    assert await limits.limit_reached(db_session, account_id, "whatsapp")

@@ -192,10 +192,17 @@ de Meta y formularios manuales de Meta ocultos en multitenant.
   desmarca el número desconectado. El panel explica la opción y sus
   límites en los 7 idiomas (sin grupos ni mensajes temporales, 20 mensajes
   por segundo, abrir la app al menos cada 14 días). Pruebas en
-  `tests/integration/test_whatsapp_coexistence.py`. Falta: suscribir los
-  campos nuevos en la app de Meta (paso 2 de arriba), probarlo con un
-  número real, y mostrar en la bandeja el aviso de número desconectado y
-  el avance de la sincronización (hoy quedan en `provider_config`).
+  `tests/integration/test_whatsapp_coexistence.py`. **Completado
+  (2026-11-25):** campos suscriptos en la app AloStudio (2913274559045232),
+  configuración de Embedded Signup `1778079626604999` (solo Cloud API, token
+  del sistema que no vence), webhook en la ruta única. Probado con el número
+  del dueño en el servidor de pruebas: 145 contactos y ~3.100 mensajes del
+  historial en 71 conversaciones. Los ajustes de la bandeja muestran el
+  avance (se refresca solo) y el aviso de número desconectado con su motivo
+  (`coexistence` en la API de la bandeja). El historial usa
+  `quiet_conversation` / `store_imported_message`, como Instagram. Meta
+  manda los webhooks en paralelo: `ContactInboxBuilder` ya aguanta la
+  carrera (develop `488225e`).
 - Captcha en el registro, si el límite por IP no alcanza.
 
 ### Para el lanzamiento (pedido del dueño, 2026-11-10)
@@ -503,9 +510,13 @@ créditos.
   `c8e0a2b4d6f1`: `cap_notified_month` / `cap_notified_level`). El correo
   dice que al 100 % la IA sigue con créditos o se frena, y lleva a
   Facturación (también el push y el panel). Solo con `MULTITENANT=true`.
-- El control del tope suma 5 a 7 consultas por llamada a la IA y por envío
-  de plantilla (solo multitenant). Si pesa, guardar el gasto del mes por
-  unos minutos.
+- ~~El control del tope suma 5 a 7 consultas por llamada a la IA y por
+  envío de plantilla~~ **Hecho (2026-11-25):** `limit_reached` recuerda su
+  respuesta un minuto por cuenta y por tipo, en cada proceso
+  (`CHECK_TTL_SECONDS`). Un tope nuevo, una compra o reembolso de créditos
+  y un cambio de plan la olvidan en el acto en ese proceso; los demás se
+  ponen al día dentro del minuto (como mucho, un minuto de IA de más al
+  llegar al tope).
 - ~~Ocultar en la interfaz lo que el plan no incluye~~ **Hecho (2026-11-23):**
   `GET /billing` suma `allows` (canales de bandeja y redes permitidos, o
   `null` si son todos, y llamadas). El panel (`usePlanAllows`) muestra

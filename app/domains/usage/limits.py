@@ -25,6 +25,7 @@ falls back to plain text search). The worker tells the admins at 80 % and
 from __future__ import annotations
 
 import logging
+import time
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -226,12 +227,36 @@ async def credit_balance(
     return max(bought - used, Decimal(0))
 
 
+# ``limit_reached`` runs before every AI call and every template sent, and
+# costs 5 to 7 queries: each process keeps its answer for a minute. A cap,
+# a credit purchase or a change of plan forgets the account's answers at
+# once (in this process; the others catch up within the minute).
+CHECK_TTL_SECONDS = 60.0
+_checked: dict[tuple[int, str], tuple[float, bool]] = {}
+
+
+def forget_checks(account_id: int) -> None:
+    """Drop the account's remembered ``limit_reached`` answers."""
+    for kind in KINDS:
+        _checked.pop((account_id, kind), None)
+
+
 async def limit_reached(session: AsyncSession, account_id: int, kind: str) -> bool:
     """Whether this month's spend reached the admin's cap for ``kind`` or,
     on a multitenant install, the plan's AI cap with no credit left (False
     without either). WhatsApp is the client's own bill with Meta, so only
     the admin's cap stops it. Never raises: a broken check must not stop
-    the account's messages."""
+    the account's messages. Remembered for :data:`CHECK_TTL_SECONDS`."""
+    now = time.monotonic()
+    known = _checked.get((account_id, kind))
+    if known is not None and known[0] > now:
+        return known[1]
+    reached = await _limit_reached(session, account_id, kind)
+    _checked[(account_id, kind)] = (now + CHECK_TTL_SECONDS, reached)
+    return reached
+
+
+async def _limit_reached(session: AsyncSession, account_id: int, kind: str) -> bool:
     try:
         cap = await get_limit(session, account_id, kind)
         if cap is not None and await month_spend(session, account_id, kind) >= cap.monthly_limit:
@@ -269,6 +294,7 @@ async def set_limit(
     session: AsyncSession, account_id: int, kind: str, monthly_limit: float | None
 ) -> None:
     """Set, change (from the next check on) or remove (``None``) a cap."""
+    forget_checks(account_id)
     cap = await get_limit(session, account_id, kind)
     if monthly_limit is None:
         if cap is not None:
@@ -458,6 +484,7 @@ async def _notify_plan_alerts(session: AsyncSession, month: str) -> list[int]:
 __all__ = [
     "KINDS",
     "ai_month_spend",
+    "forget_checks",
     "limit_reached",
     "limits_status",
     "notify_limits",
