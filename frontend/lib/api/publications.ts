@@ -49,6 +49,13 @@ export type YouTubeSettings = {
   title: string;
   privacy_status: YouTubePrivacy;
   made_for_kids: boolean;
+  tags?: string[];
+  /** YouTube's category id ("22" People & Blogs by default). */
+  category_id?: string;
+  /** One of the channel's playlists, or none. */
+  playlist_id?: string | null;
+  /** An image of the media library, set as the thumbnail after the upload. */
+  thumbnail_media_id?: number | null;
 };
 
 export type TargetSettings = { post_type?: string } & Partial<TikTokSettings> &
@@ -66,6 +73,9 @@ export type ComposeInfo = {
   duet_disabled?: boolean;
   stitch_disabled?: boolean;
   max_video_post_duration_sec?: number | null;
+  /** YouTube: the channel's playlists and the categories it can pick. */
+  playlists?: { id: string; title: string | null }[];
+  categories?: { id: string; title: string | null }[];
 };
 
 export type TargetIn = {
@@ -137,6 +147,8 @@ export type PublicationTarget = {
   metrics_error: string | null;
   /** Its comments can be read and answered from AloStudio (YouTube). */
   supports_comments?: boolean;
+  /** Problems after it went out (a YouTube thumbnail or playlist). */
+  warnings?: string[];
 };
 
 /** A comment on a published video, read live from the network. */

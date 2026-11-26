@@ -251,6 +251,19 @@ export const publications: Strings<typeof es> = {
     },
     madeForKids: "Inhalt für Kinder",
     descriptionNote: "Der Text des Beitrags wird zur Beschreibung. Bis Google die App freigibt, bleiben Videos privat.",
+    category: "Kategorie",
+    categoryDefault: "Menschen & Blogs",
+    playlist: "Playlist",
+    noPlaylist: "Keine",
+    tags: "Tags",
+    tagsPlaceholder: "Eins eingeben und Enter oder Komma drücken",
+    tagsCount: "{count} von {max} Zeichen",
+    removeTag: "Tag {tag} entfernen",
+    thumbnail: "Thumbnail",
+    chooseThumbnail: "Aus der Mediathek wählen",
+    removeThumbnail: "Thumbnail entfernen",
+    noImages: "Keine Bilder in der Mediathek.",
+    thumbnailHelp: "JPG oder PNG bis 2 MB (ideal 1280 × 720). Der Kanal muss per Telefon bestätigt sein.",
   },
   tiktok: {
     privacy: {
@@ -315,5 +328,6 @@ export const publications: Strings<typeof es> = {
     youtubeTitle: "{label} (YouTube): gib den Titel des Videos ein.",
     youtubeTitleTooLong: "{label} (YouTube): der Titel darf höchstens 100 Zeichen haben.",
     youtubeNoAngles: "{label} (YouTube): Titel und Beschreibung dürfen kein < oder > enthalten.",
+    youtubeTagsTooLong: "{label} (YouTube): Tags dürfen höchstens 500 Zeichen haben.",
   },
 };

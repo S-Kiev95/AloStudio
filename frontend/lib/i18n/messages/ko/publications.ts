@@ -251,6 +251,19 @@ export const publications: Strings<typeof es> = {
     },
     madeForKids: "아동용 콘텐츠",
     descriptionNote: "게시물 본문이 설명이 됩니다. Google이 앱을 승인할 때까지 동영상은 비공개로 유지됩니다.",
+    category: "카테고리",
+    categoryDefault: "인물/블로그",
+    playlist: "재생목록",
+    noPlaylist: "없음",
+    tags: "태그",
+    tagsPlaceholder: "입력 후 Enter 또는 쉼표",
+    tagsCount: "{max}자 중 {count}자",
+    removeTag: "{tag} 태그 삭제",
+    thumbnail: "미리보기 이미지",
+    chooseThumbnail: "라이브러리에서 선택",
+    removeThumbnail: "미리보기 이미지 삭제",
+    noImages: "미디어 라이브러리에 이미지가 없습니다.",
+    thumbnailHelp: "2MB 이하 JPG 또는 PNG (권장 1280 × 720). 채널 전화 인증이 필요합니다.",
   },
   tiktok: {
     privacy: {
@@ -315,5 +328,6 @@ export const publications: Strings<typeof es> = {
     youtubeTitle: "{label} (YouTube): 동영상 제목을 입력하세요.",
     youtubeTitleTooLong: "{label} (YouTube): 제목은 100자를 넘을 수 없습니다.",
     youtubeNoAngles: "{label} (YouTube): 제목과 설명에 < 또는 >를 쓸 수 없습니다.",
+    youtubeTagsTooLong: "{label} (YouTube): 태그는 500자를 넘을 수 없습니다.",
   },
 };

@@ -248,6 +248,19 @@ export const publications = {
     },
     madeForKids: "Es contenido para chicos",
     descriptionNote: "El texto de la publicación va como descripción. Hasta que Google apruebe la app, los videos quedan privados.",
+    category: "Categoría",
+    categoryDefault: "Gente y blogs",
+    playlist: "Lista de reproducción",
+    noPlaylist: "Ninguna",
+    tags: "Etiquetas",
+    tagsPlaceholder: "Escribí una y apretá Enter o coma",
+    tagsCount: "{count} de {max} caracteres",
+    removeTag: "Quitar la etiqueta {tag}",
+    thumbnail: "Miniatura",
+    chooseThumbnail: "Elegir de la biblioteca",
+    removeThumbnail: "Quitar la miniatura",
+    noImages: "No hay imágenes en la biblioteca de medios.",
+    thumbnailHelp: "JPG o PNG de hasta 2 MB (ideal 1280 × 720). El canal tiene que estar verificado por teléfono.",
   },
   tiktok: {
     privacy: {
@@ -312,5 +325,6 @@ export const publications = {
     youtubeTitle: "{label} (YouTube): poné el título del video.",
     youtubeTitleTooLong: "{label} (YouTube): el título no puede pasar de 100 caracteres.",
     youtubeNoAngles: "{label} (YouTube): el título y la descripción no pueden tener los signos < ni >.",
+    youtubeTagsTooLong: "{label} (YouTube): las etiquetas no pueden pasar de 500 caracteres.",
   },
 };
