@@ -31,6 +31,7 @@ log = logging.getLogger(__name__)
 # Each call holds a WebRTC stream and a Gemini Live session.
 MAX_CALLS = int(os.environ.get("VOICE_MAX_CALLS", "4"))
 
+
 async def _installation_settings(*, force: bool) -> None:
     """The settings saved in Ajustes → Instalación (the Gemini key, the
     model) override the environment, as in the API and the worker."""
