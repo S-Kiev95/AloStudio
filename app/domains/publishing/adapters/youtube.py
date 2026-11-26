@@ -15,6 +15,10 @@ Written from Google's YouTube Data API v3 documentation:
     the post's text.
   * Figures: ``videos.list`` (views, likes, comments) and ``channels.list``
     (subscribers).
+  * Comments: ``commentThreads.list`` reads them live (newest first, with
+    their replies) and ``comments.insert`` answers one as the channel. Both
+    need ``youtube.force-ssl``: a channel connected before it was asked for
+    gets "reconnect" instead.
 
 Until Google audits the project, uploaded videos stay private, and the
 default quota (10,000 units a day, 1,600 per upload) allows about 6 uploads
@@ -36,6 +40,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import get_settings
 from app.domains.publishing.adapters.base import (
     ChannelConnectionError,
+    CommentsResult,
     ConnectedAccount,
     Credentials,
     MetricsResult,
@@ -59,7 +64,10 @@ UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos"
 SCOPES: tuple[str, ...] = (
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/youtube.force-ssl",
 )
+COMMENTS_MAX = 50
+REPLY_MAX = 10000
 
 TITLE_MAX = 100
 DESCRIPTION_MAX = 5000
@@ -85,10 +93,19 @@ _REASONS = {
     "invalidTitle": ("YouTube no aceptó el título del video.", False),
     "invalidDescription": ("YouTube no aceptó la descripción del video.", False),
     "insufficientPermissions": (
-        "YouTube no dio permiso para subir videos. Volvé a conectar el canal aceptando "
-        "todos los permisos.",
+        "YouTube no dio uno de los permisos (subir videos o manejar comentarios). Volvé a "
+        "conectar el canal aceptando todos los permisos.",
         False,
     ),
+    "ACCESS_TOKEN_SCOPE_INSUFFICIENT": (
+        "Para ver y responder comentarios, volvé a conectar el canal de YouTube y aceptá "
+        "el permiso nuevo.",
+        False,
+    ),
+    "commentsDisabled": ("Este video tiene los comentarios desactivados.", False),
+    "videoNotFound": ("El video ya no está en YouTube.", False),
+    "commentNotFound": ("Ese comentario ya no está en YouTube.", False),
+    "processingFailure": ("YouTube no pudo procesar la respuesta; probá de nuevo.", True),
 }
 
 
@@ -117,6 +134,12 @@ def _error_of(resp: httpx.Response) -> _YouTubeError | None:
         error = {}
     errors = error.get("errors") if isinstance(error, dict) else None
     reason = errors[0].get("reason") if errors and isinstance(errors[0], dict) else None
+    details = error.get("details") if isinstance(error, dict) else None
+    if reason is None and isinstance(details, list):
+        reason = next(
+            (d.get("reason") for d in details if isinstance(d, dict) and d.get("reason")),
+            None,
+        )
     if resp.status_code == 401:
         return _YouTubeError(_RECONNECT_MESSAGE, code="401", reconnect=True)
     if reason in _REASONS:
@@ -176,9 +199,24 @@ async def _chunks(file: IO[bytes]) -> AsyncIterator[bytes]:
         yield block
 
 
+def _comment_of(raw: dict[str, Any]) -> dict[str, Any]:
+    """A YouTube comment resource onto the shared comment shape."""
+    snippet = raw.get("snippet") or {}
+    return {
+        "id": str(raw.get("id") or ""),
+        "author": snippet.get("authorDisplayName"),
+        "author_avatar": snippet.get("authorProfileImageUrl"),
+        # textOriginal is what the person wrote; textDisplay is HTML.
+        "text": snippet.get("textOriginal") or snippet.get("textDisplay") or "",
+        "published_at": snippet.get("publishedAt"),
+        "like_count": int(snippet.get("likeCount") or 0),
+    }
+
+
 class YouTubeAdapter(PublishingAdapter):
     network = "youtube"
     label = "YouTube"
+    supports_comments = True
 
     # -- Connecting ---------------------------------------------------------
     def missing_connection_settings(self) -> list[str]:
@@ -433,6 +471,87 @@ class YouTubeAdapter(PublishingAdapter):
         if not mime.startswith("video/") and mime != "application/octet-stream":
             mime = "video/*"
         return size, mime
+
+    # -- Comments -----------------------------------------------------------
+    async def list_comments(
+        self, session: AsyncSession, target: PublicationTarget
+    ) -> CommentsResult:
+        channel = await session.get(PublishingChannel, target.channel_id)
+        if channel is None or not target.external_id:
+            return CommentsResult(ok=False, error_message="El video todavía no está en YouTube.")
+        try:
+            token = await self._access_token(session, channel)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(
+                    f"{API_BASE}/commentThreads",
+                    params={
+                        "part": "snippet,replies",
+                        "videoId": target.external_id,
+                        "maxResults": COMMENTS_MAX,
+                        "order": "time",
+                        "textFormat": "plainText",
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            error = _error_of(resp)
+            if error is not None:
+                raise error
+            items = resp.json().get("items") or []
+        except _YouTubeError as exc:
+            if exc.reconnect:
+                await mark_reconnect(session, channel.id, exc.message)  # type: ignore[arg-type]
+            return CommentsResult(ok=False, error_message=exc.message)
+        except (httpx.HTTPError, ValueError):
+            return CommentsResult(ok=False, error_message="No se pudo consultar YouTube.")
+        comments = []
+        for thread in items:
+            top = (thread.get("snippet") or {}).get("topLevelComment") or {}
+            comment = _comment_of(top)
+            comment["id"] = str(thread.get("id") or comment["id"])
+            replies = ((thread.get("replies") or {}).get("comments")) or []
+            # The API lists replies newest first; read them in order.
+            comment["replies"] = [_comment_of(r) for r in reversed(replies)]
+            comments.append(comment)
+        return CommentsResult(ok=True, comments=comments)
+
+    async def reply_to_comment(
+        self,
+        session: AsyncSession,
+        target: PublicationTarget,
+        *,
+        comment_id: str,
+        text: str,
+    ) -> CommentsResult:
+        body_text = text.strip()
+        if not body_text:
+            return CommentsResult(ok=False, error_message="Escribí la respuesta.")
+        if len(body_text) > REPLY_MAX:
+            return CommentsResult(
+                ok=False, error_message=f"La respuesta no puede pasar de {REPLY_MAX} caracteres."
+            )
+        channel = await session.get(PublishingChannel, target.channel_id)
+        if channel is None:
+            return CommentsResult(ok=False, error_message=_MISSING_CHANNEL)
+        try:
+            token = await self._access_token(session, channel)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    f"{API_BASE}/comments",
+                    params={"part": "snippet"},
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={"snippet": {"parentId": comment_id, "textOriginal": body_text}},
+                )
+            error = _error_of(resp)
+            if error is not None:
+                raise error
+            reply = _comment_of(resp.json())
+        except _YouTubeError as exc:
+            if exc.reconnect:
+                await mark_reconnect(session, channel.id, exc.message)  # type: ignore[arg-type]
+            return CommentsResult(ok=False, error_message=exc.message)
+        except (httpx.HTTPError, ValueError):
+            return CommentsResult(ok=False, error_message="No se pudo conectar con YouTube.")
+        return CommentsResult(ok=True, comments=[reply])
 
     # -- Figures ------------------------------------------------------------
     async def fetch_post_metrics(

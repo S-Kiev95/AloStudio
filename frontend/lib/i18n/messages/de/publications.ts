@@ -231,6 +231,15 @@ export const publications: Strings<typeof es> = {
     all: "Alle",
     pending: "Ausstehend",
   },
+  comments: {
+    title: "Kommentare",
+    show: "Kommentare anzeigen",
+    hide: "Ausblenden",
+    empty: "Noch keine Kommentare.",
+    reply: "Antworten",
+    replyPlaceholder: "Antwort des Kanals schreiben…",
+    send: "Antworten",
+  },
   youtube: {
     title: "Videotitel",
     titlePlaceholder: "Bis zu 100 Zeichen",

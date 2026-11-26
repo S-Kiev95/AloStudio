@@ -231,6 +231,15 @@ export const publications: Strings<typeof es> = {
     all: "전체",
     pending: "대기",
   },
+  comments: {
+    title: "댓글",
+    show: "댓글 보기",
+    hide: "숨기기",
+    empty: "아직 댓글이 없습니다.",
+    reply: "답글",
+    replyPlaceholder: "채널 답글을 입력하세요…",
+    send: "답글 달기",
+  },
   youtube: {
     title: "동영상 제목",
     titlePlaceholder: "최대 100자",

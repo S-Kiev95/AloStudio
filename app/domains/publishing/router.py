@@ -37,6 +37,7 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Path, Query, status
 from fastapi.responses import RedirectResponse, Response
+from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
@@ -50,6 +51,7 @@ from app.domains.publishing import service as svc
 from app.domains.publishing.models import (
     Publication,
     PublicationSet,
+    PublicationTarget,
     PublishingAutopost,
     PublishingChannel,
     PublishingPlug,
@@ -181,9 +183,7 @@ async def delete_channel_endpoint(
 
 
 def _not_found() -> ChatwootHTTPException:
-    return ChatwootHTTPException(
-        status_code=404, detail={"error": "Resource could not be found"}
-    )
+    return ChatwootHTTPException(status_code=404, detail={"error": "Resource could not be found"})
 
 
 # -- Signatures (agents read; admins write, like publications) --------------
@@ -285,9 +285,7 @@ async def update_set(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
-    publication_set = await presets.get_set(
-        session, account_id=ctx.account.id, set_id=set_id
-    )
+    publication_set = await presets.get_set(session, account_id=ctx.account.id, set_id=set_id)
     if publication_set is None:
         raise _not_found()
     publication_set = await presets.save_set(
@@ -305,9 +303,7 @@ async def delete_set_endpoint(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
-    publication_set = await presets.get_set(
-        session, account_id=ctx.account.id, set_id=set_id
-    )
+    publication_set = await presets.get_set(session, account_id=ctx.account.id, set_id=set_id)
     if publication_set is None:
         raise _not_found()
     await presets.delete_set(session, publication_set=publication_set)
@@ -370,9 +366,7 @@ async def update_autopost(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
-    row = await autopost.get_autopost(
-        session, account_id=ctx.account.id, autopost_id=autopost_id
-    )
+    row = await autopost.get_autopost(session, account_id=ctx.account.id, autopost_id=autopost_id)
     if row is None:
         raise _not_found()
     row = await autopost.save_autopost(
@@ -388,9 +382,7 @@ async def delete_autopost_endpoint(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
-    row = await autopost.get_autopost(
-        session, account_id=ctx.account.id, autopost_id=autopost_id
-    )
+    row = await autopost.get_autopost(session, account_id=ctx.account.id, autopost_id=autopost_id)
     if row is None:
         raise _not_found()
     await autopost.delete_autopost(session, autopost=row)
@@ -450,9 +442,7 @@ async def update_plug(
     plug = await plugs.get_plug(session, account_id=ctx.account.id, plug_id=plug_id)
     if plug is None:
         raise _not_found()
-    plug = await plugs.save_plug(
-        session, plug=plug, values=payload.model_dump(exclude_unset=True)
-    )
+    plug = await plugs.save_plug(session, plug=plug, values=payload.model_dump(exclude_unset=True))
     runs = await plugs.runs_by_plug(session, plug_ids=[plug_id])
     return present_plug(plug, runs.get(plug_id, []))
 
@@ -490,6 +480,7 @@ async def publications_analytics(
         starts_to=until,
         channel_id=channel_id,
     )
+
 
 @router.get("")
 async def index_publications(
@@ -594,6 +585,79 @@ async def refresh_publication_metrics_endpoint(
     return await present_one_publication(session, row)
 
 
+class CommentReplyIn(BaseModel):
+    text: str
+
+
+async def _commentable_target(
+    session: AsyncSession, ctx: AccountContext, publication_id: int, target_id: int
+) -> tuple[PublicationTarget, Any]:
+    """A published target of this publication on a network whose comments
+    AloStudio reads, with its adapter."""
+    from app.domains.publishing.adapters import adapter_for_network
+
+    row = await _find_publication(session, ctx, publication_id)
+    targets = (await svc.targets_by_publication(session, publication_ids=[row.id]))[row.id]
+    target = next((t for t in targets if t.id == target_id), None)
+    if target is None:
+        raise _not_found()
+    adapter = adapter_for_network(target.network)
+    if adapter is None or not adapter.supports_comments:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "Los comentarios de esta red no se ven desde AloStudio."},
+        )
+    if not target.external_id:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "Todavía no se publicó en esta red."},
+        )
+    return target, adapter
+
+
+def _comments_or_502(result: Any) -> dict[str, Any]:
+    if not result.ok:
+        raise ChatwootHTTPException(
+            status_code=502, detail={"message": result.error_message or "No se pudo leer la red."}
+        )
+    return {"comments": result.comments}
+
+
+@router.get("/{publication_id}/targets/{target_id}/comments")
+async def list_target_comments(
+    publication_id: Annotated[int, Path()],
+    target_id: Annotated[int, Path()],
+    ctx: Annotated[AccountContext, Depends(account_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """The comments on a published video, read live from the network."""
+    target, adapter = await _commentable_target(session, ctx, publication_id, target_id)
+    result = await adapter.list_comments(session, target)
+    await session.commit()
+    return _comments_or_502(result)
+
+
+@router.post(
+    "/{publication_id}/targets/{target_id}/comments/{comment_id}/replies",
+    status_code=status.HTTP_200_OK,
+)
+async def reply_target_comment(
+    publication_id: Annotated[int, Path()],
+    target_id: Annotated[int, Path()],
+    comment_id: Annotated[str, Path(max_length=200)],
+    payload: CommentReplyIn,
+    ctx: Annotated[AccountContext, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """Answer a comment as the channel (administrators, like publishing)."""
+    target, adapter = await _commentable_target(session, ctx, publication_id, target_id)
+    result = await adapter.reply_to_comment(
+        session, target, comment_id=comment_id, text=payload.text
+    )
+    await session.commit()
+    return _comments_or_502(result)
+
+
 def _aware(dt: datetime | None) -> datetime | None:
     if dt is not None and dt.tzinfo is None:
         return dt.replace(tzinfo=UTC)
@@ -608,9 +672,7 @@ def _back_to_publications(account_id: int, **params: str) -> RedirectResponse:
     the query string (the network redirected the *browser* here)."""
     base = get_settings().app_base_url.rstrip("/")
     query = urlencode({k: v for k, v in params.items() if v})
-    return RedirectResponse(
-        f"{base}/accounts/{account_id}/publications?{query}", status_code=303
-    )
+    return RedirectResponse(f"{base}/accounts/{account_id}/publications?{query}", status_code=303)
 
 
 @callback_router.get("/api/v1/publishing/oauth/callback")
@@ -650,7 +712,4 @@ async def publishing_oauth_callback(
             account_id,
             connect_error=str(detail.get("message") or "No se pudo conectar la cuenta."),
         )
-    return _back_to_publications(
-        account_id, connected=network, channel=str(channel.id)
-    )
-
+    return _back_to_publications(account_id, connected=network, channel=str(channel.id))
