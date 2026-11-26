@@ -1313,6 +1313,8 @@ export function PublicationEditorDialog({
 
                     {ch.network === "youtube" ? (
                       <YouTubeTargetSettings
+                        accountId={accountId}
+                        channel={ch}
                         value={cfg.youtube}
                         onChange={(patch) =>
                           updateConfig(ch.id, {

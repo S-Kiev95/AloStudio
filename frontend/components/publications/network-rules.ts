@@ -356,6 +356,19 @@ export function validatePublicationTargets(
       if (/[<>]/.test(text) || /[<>]/.test(title)) {
         problems.push(tr("publications.rules.youtubeNoAngles", { label }));
       }
+      const tags = t.youtube?.tags ?? [];
+      const tagsLength =
+        tags.length === 0
+          ? 0
+          : tags.reduce(
+              (sum, tag) => sum + Array.from(tag).length + (tag.includes(" ") ? 2 : 0),
+              0,
+            ) +
+            tags.length -
+            1;
+      if (tagsLength > 500) {
+        problems.push(tr("publications.rules.youtubeTagsTooLong", { label }));
+      }
       continue;
     }
 

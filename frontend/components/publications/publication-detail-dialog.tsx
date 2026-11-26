@@ -391,6 +391,14 @@ export function PublicationDetailDialog({
                   </div>
                 ) : null}
 
+                {target.warnings && target.warnings.length > 0 ? (
+                  <ul className="space-y-1 rounded-sm border border-glass bg-field px-2.5 py-1.5 text-xs text-warning">
+                    {target.warnings.map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                ) : null}
+
                 {target.supports_comments &&
                 target.state === "published" &&
                 target.external_id ? (

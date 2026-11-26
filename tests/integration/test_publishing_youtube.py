@@ -483,3 +483,135 @@ async def test_publications_say_which_targets_have_comments(client, db_session):
 
     assert r.status_code == 200, r.text
     assert r.json()["targets"][0]["supports_comments"] is True
+
+
+async def _image_asset(db_session, account_id: int):
+    from app.domains.media_library.models import MediaAsset
+
+    asset = MediaAsset(
+        account_id=account_id,
+        kind="image",
+        key="a/miniatura.jpg",
+        filename="miniatura.jpg",
+        content_type="image/jpeg",
+        size_bytes=1000,
+    )
+    db_session.add(asset)
+    await db_session.flush()
+    return asset
+
+
+@respx.mock
+async def test_uploads_with_tags_category_thumbnail_and_playlist(db_session):
+    owner = await _seed(db_session, "-extra")
+    channel = await _channel(db_session, owner.account)
+    asset = await _image_asset(db_session, owner.account.id)
+    settings = {
+        **CHOICES,
+        "tags": ["curso", "inglés A1"],
+        "category_id": "27",
+        "playlist_id": "PL1",
+        "thumbnail_media_id": asset.id,
+    }
+    publication, target = await _target(db_session, owner.account, channel, settings=settings)
+    start, _ = _mock_upload()
+    respx.get(url__regex=r".*/public/media\?key=a%2Fminiatura\.jpg.*").mock(
+        return_value=httpx.Response(
+            200, content=b"\xff\xd8jpg", headers={"content-type": "image/jpeg"}
+        )
+    )
+    thumb = respx.post("https://www.googleapis.com/upload/youtube/v3/thumbnails/set").mock(
+        return_value=httpx.Response(200, json={"items": []})
+    )
+    playlist = respx.post(f"{API}/playlistItems").mock(
+        return_value=httpx.Response(200, json={"id": "PI1"})
+    )
+
+    result = await YouTubeAdapter().publish(db_session, publication, target)
+
+    assert result.ok, result.error_message
+    assert result.extra == {}
+    snippet = json.loads(start.calls[0].request.content)["snippet"]
+    assert (snippet["tags"], snippet["categoryId"]) == (["curso", "inglés A1"], "27")
+    assert thumb.calls[0].request.url.params["videoId"] == "VID1"
+    assert thumb.calls[0].request.headers["Content-Type"] == "image/jpeg"
+    item = json.loads(playlist.calls[0].request.content)["snippet"]
+    assert item == {"playlistId": "PL1", "resourceId": {"kind": "youtube#video", "videoId": "VID1"}}
+
+
+@respx.mock
+async def test_thumbnail_and_playlist_problems_are_warnings(db_session):
+    owner = await _seed(db_session, "-warn")
+    channel = await _channel(db_session, owner.account)
+    asset = await _image_asset(db_session, owner.account.id)
+    settings = {**CHOICES, "playlist_id": "PLX", "thumbnail_media_id": asset.id}
+    publication, target = await _target(db_session, owner.account, channel, settings=settings)
+    _mock_upload()
+    respx.get(url__regex=r".*/public/media\?key=a%2Fminiatura\.jpg.*").mock(
+        return_value=httpx.Response(
+            200, content=b"\xff\xd8jpg", headers={"content-type": "image/jpeg"}
+        )
+    )
+    respx.post("https://www.googleapis.com/upload/youtube/v3/thumbnails/set").mock(
+        return_value=httpx.Response(
+            403, json={"error": {"code": 403, "errors": [{"reason": "forbidden"}]}}
+        )
+    )
+    respx.post(f"{API}/playlistItems").mock(
+        return_value=httpx.Response(
+            404, json={"error": {"code": 404, "message": "Playlist not found"}}
+        )
+    )
+
+    result = await YouTubeAdapter().publish(db_session, publication, target)
+
+    # The video is up: problems after it never fail the post.
+    assert result.ok and result.external_id == "VID1"
+    warnings = result.extra["warnings"]
+    assert "verificado por teléfono" in warnings[0]
+    assert warnings[1].startswith("No se pudo agregar a la lista")
+
+
+async def test_validation_of_tags_and_category(db_session):
+    from app.domains.publishing.adapters.youtube import tags_length
+
+    owner = await _seed(db_session, "-tags")
+    channel = await _channel(db_session, owner.account)
+    publication, target = await _target(db_session, owner.account, channel)
+    adapter = YouTubeAdapter()
+
+    assert tags_length(["a b", "cd"]) == 3 + 2 + 2 + 1
+    target.settings = {**CHOICES, "tags": ["x" * 300, "y" * 300]}
+    assert any("500 caracteres" in p for p in adapter.validate(publication, target))
+    target.settings = {**CHOICES, "tags": ["uno, dos"], "category_id": "abc"}
+    problems = adapter.validate(publication, target)
+    assert any("comas" in p for p in problems)
+    assert any("categoría" in p for p in problems)
+
+
+@respx.mock
+async def test_the_editor_reads_playlists_and_categories(db_session):
+    owner = await _seed(db_session, "-ci")
+    channel = await _channel(db_session, owner.account)
+    respx.get(f"{API}/playlists").mock(
+        return_value=httpx.Response(
+            200, json={"items": [{"id": "PL1", "snippet": {"title": "Cursos"}}]}
+        )
+    )
+    respx.get(f"{API}/videoCategories").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "items": [
+                    {"id": "27", "snippet": {"title": "Educación", "assignable": True}},
+                    {"id": "18", "snippet": {"title": "Cortos", "assignable": False}},
+                ]
+            },
+        )
+    )
+
+    info = await YouTubeAdapter().compose_info(db_session, channel)
+
+    assert info["can_post"] is True
+    assert info["playlists"] == [{"id": "PL1", "title": "Cursos"}]
+    assert info["categories"] == [{"id": "27", "title": "Educación"}]

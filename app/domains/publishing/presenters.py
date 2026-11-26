@@ -60,6 +60,8 @@ def _present_target(target: PublicationTarget, channel: PublishingChannel | None
         "metrics_updated_at": _iso(target.metrics_updated_at),
         "metrics_error": target.metrics_error,
         "supports_comments": _supports_comments(target.network),
+        # What went wrong after it was published (a YouTube thumbnail…).
+        "warnings": list((target.extra or {}).get("warnings") or []),
     }
 
 

@@ -251,6 +251,19 @@ export const publications: Strings<typeof es> = {
     },
     madeForKids: "子ども向けのコンテンツ",
     descriptionNote: "投稿の本文が説明になります。Google がアプリを承認するまで、動画は非公開になります。",
+    category: "カテゴリ",
+    categoryDefault: "ブログ",
+    playlist: "再生リスト",
+    noPlaylist: "なし",
+    tags: "タグ",
+    tagsPlaceholder: "入力して Enter またはカンマ",
+    tagsCount: "{max} 文字中 {count} 文字",
+    removeTag: "タグ {tag} を削除",
+    thumbnail: "サムネイル",
+    chooseThumbnail: "ライブラリから選ぶ",
+    removeThumbnail: "サムネイルを削除",
+    noImages: "メディアライブラリに画像がありません。",
+    thumbnailHelp: "2 MB までの JPG または PNG (推奨 1280 × 720)。チャンネルの電話確認が必要です。",
   },
   tiktok: {
     privacy: {
@@ -315,5 +328,6 @@ export const publications: Strings<typeof es> = {
     youtubeTitle: "{label} (YouTube): 動画のタイトルを入力してください。",
     youtubeTitleTooLong: "{label} (YouTube): タイトルは 100 文字までです。",
     youtubeNoAngles: "{label} (YouTube): タイトルと説明に < や > は使えません。",
+    youtubeTagsTooLong: "{label} (YouTube): タグは 500 文字までです。",
   },
 };

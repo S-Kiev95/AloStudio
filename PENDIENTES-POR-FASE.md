@@ -305,6 +305,18 @@ manual, Polar sandbox conectado). Detalle en `PLAN.multitenant.md`.
   y `POST .../comments/{comment_id}/replies`; el adaptador declara
   `supports_comments`. Los canales conectados antes piden reconectar una vez para
   aceptar `youtube.force-ssl`.
+- **Comentarios probados con el canal real (2026-11-26, en local):** se leyó un
+  comentario y se respondió como el canal. YouTube tarda unos segundos en incluir
+  una respuesta nueva en `commentThreads.list`. Los videos privados no aceptan
+  comentarios.
+- **Etiquetas, categoría, lista y miniatura (agente B, 2026-11-26):** el editor
+  suma etiquetas (hasta 500 caracteres como los cuenta YouTube), categoría y lista
+  de reproducción (de `compose_info`: `playlists.list` y `videoCategories.list`),
+  y una miniatura elegida de la biblioteca de medios (`thumbnail_media_id`, se
+  vuelve a firmar al publicar). La miniatura (`thumbnails.set`, el canal tiene que
+  estar verificado por teléfono) y la lista (`playlistItems.insert`) van después
+  de subir el video y nunca hacen fallar la publicación: sus problemas quedan en
+  `warnings` del destino y se ven en el detalle.
 - **Falta para CTC:** sumar la URL de retorno de CTC en el cliente «AloStudio
   web», y publicar la app en Google (en prueba el acceso vence cada 7 días y solo
   entran los usuarios de prueba).

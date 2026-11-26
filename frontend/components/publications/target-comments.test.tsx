@@ -4,11 +4,13 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import type { PublicationComment } from "@/lib/api/publications";
+
 import { TargetComments } from "./target-comments";
 
 const BASE = "*/api/v1/accounts/1/publications/21/targets/7/comments";
 
-let comments = [
+let comments: PublicationComment[] = [
   {
     id: "T1",
     author: "Ana",
