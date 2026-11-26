@@ -231,6 +231,15 @@ export const publications: Strings<typeof es> = {
     all: "すべて",
     pending: "保留",
   },
+  comments: {
+    title: "コメント",
+    show: "コメントを表示",
+    hide: "閉じる",
+    empty: "まだコメントはありません。",
+    reply: "返信",
+    replyPlaceholder: "チャンネルとしての返信を入力…",
+    send: "返信",
+  },
   youtube: {
     title: "動画のタイトル",
     titlePlaceholder: "100 文字まで",

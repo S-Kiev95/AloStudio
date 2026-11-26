@@ -29,6 +29,7 @@ import {
 
 import { ChannelAvatar, channelDisplayName } from "./network-icon";
 import { PublicationErrorAlert } from "./publication-error-alert";
+import { TargetComments } from "./target-comments";
 import {
   PublicationStateBadge,
   TargetStateBadge,
@@ -388,6 +389,17 @@ export function PublicationDetailDialog({
                       </p>
                     ) : null}
                   </div>
+                ) : null}
+
+                {target.supports_comments &&
+                target.state === "published" &&
+                target.external_id ? (
+                  <TargetComments
+                    accountId={accountId}
+                    publicationId={pub.id}
+                    targetId={target.id}
+                    canReply={isAdmin}
+                  />
                 ) : null}
               </div>
             );

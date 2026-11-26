@@ -292,6 +292,23 @@ manual, Polar sandbox conectado). Detalle en `PLAN.multitenant.md`.
   nuevo el 2026-11-24) y esté el multitenant. Conversions API
   (`whatsapp_business_manage_events`) sigue rechazado.
 
+- **YouTube probado con un canal real (agente B, 2026-11-26), en staging:** con el
+  proyecto «AloStudio» de Google Cloud (YouTube Data API v3 habilitada, URL de
+  retorno de staging, permisos `youtube.upload`, `youtube.readonly` y
+  `youtube.force-ssl`, app en prueba con la cuenta del dueño como usuario de
+  prueba). Se conectó el canal del dueño, se subió un video privado con título y
+  descripción, y se leyeron las cifras del video y los suscriptores.
+- **Comentarios de YouTube (agente B, 2026-11-26):** en el detalle de una
+  publicación subida, «Ver comentarios» los lee en el momento
+  (`commentThreads.list`, sin guardarlos) y un administrador responde como el
+  canal (`comments.insert`). Rutas `GET /publications/{id}/targets/{tid}/comments`
+  y `POST .../comments/{comment_id}/replies`; el adaptador declara
+  `supports_comments`. Los canales conectados antes piden reconectar una vez para
+  aceptar `youtube.force-ssl`.
+- **Falta para CTC:** sumar la URL de retorno de CTC en el cliente «AloStudio
+  web», y publicar la app en Google (en prueba el acceso vence cada 7 días y solo
+  entran los usuarios de prueba).
+
 ## F4. Herramientas que le faltan al MCP
 
 - **Hecho el 2026-11-11 (prioridad alta), en develop:** `list_inboxes`,

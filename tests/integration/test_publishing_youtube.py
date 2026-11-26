@@ -15,6 +15,7 @@ import respx
 from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 
+from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.oauth_state import sign_oauth_state
@@ -330,3 +331,155 @@ async def test_reads_the_figures(db_session):
 
     assert post is not None and post.metrics == {"views": 120, "likes": 8, "comments": 2}
     assert account is not None and account.metrics == {"followers": 345}
+
+
+async def _headers(db_session, owner) -> dict[str, str]:
+    headers, new_tokens = create_new_auth_token(user_tokens=owner.user.tokens, uid=owner.user.uid)
+    owner.user.tokens = new_tokens
+    db_session.add(owner.user)
+    await db_session.flush()
+    return headers.as_response_headers()
+
+
+def _thread(thread_id: str, text: str, replies: list[dict] | None = None) -> dict:
+    return {
+        "id": thread_id,
+        "snippet": {
+            "topLevelComment": {
+                "id": thread_id,
+                "snippet": {
+                    "authorDisplayName": "Ana",
+                    "authorProfileImageUrl": "https://pic/ana",
+                    "textOriginal": text,
+                    "textDisplay": f"<b>{text}</b>",
+                    "publishedAt": "2026-11-26T18:00:00Z",
+                    "likeCount": 2,
+                },
+            }
+        },
+        "replies": {"comments": replies or []},
+    }
+
+
+def _reply(reply_id: str, text: str, author: str = "Canal CTC") -> dict:
+    return {
+        "id": reply_id,
+        "snippet": {
+            "authorDisplayName": author,
+            "textOriginal": text,
+            "publishedAt": "2026-11-26T18:05:00Z",
+        },
+    }
+
+
+@respx.mock
+async def test_reads_the_comments_of_a_published_video(client, db_session):
+    owner = await _seed(db_session, "-com")
+    channel = await _channel(db_session, owner.account)
+    publication, target = await _target(db_session, owner.account, channel)
+    target.external_id = "VID1"
+    await db_session.flush()
+    route = respx.get(f"{API}/commentThreads").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "items": [
+                    _thread(
+                        "T1",
+                        "¿Cuándo empieza?",
+                        [_reply("R2", "Segunda"), _reply("R1", "El lunes")],
+                    )
+                ]
+            },
+        )
+    )
+
+    r = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/publications/{publication.id}/targets/{target.id}/comments",
+        headers=await _headers(db_session, owner),
+    )
+
+    assert r.status_code == 200, r.text
+    (comment,) = r.json()["comments"]
+    assert (comment["id"], comment["author"], comment["text"], comment["like_count"]) == (
+        "T1",
+        "Ana",
+        "¿Cuándo empieza?",
+        2,
+    )
+    # Replies read oldest first.
+    assert [x["text"] for x in comment["replies"]] == ["El lunes", "Segunda"]
+    params = route.calls[0].request.url.params
+    assert (params["videoId"], params["order"]) == ("VID1", "time")
+
+
+@respx.mock
+async def test_replies_to_a_comment_as_the_channel(client, db_session):
+    owner = await _seed(db_session, "-rep")
+    channel = await _channel(db_session, owner.account)
+    publication, target = await _target(db_session, owner.account, channel)
+    target.external_id = "VID1"
+    await db_session.flush()
+    route = respx.post(f"{API}/comments").mock(
+        return_value=httpx.Response(200, json=_reply("R9", "¡Gracias!"))
+    )
+
+    r = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/publications/{publication.id}/targets/{target.id}/comments/T1/replies",
+        headers=await _headers(db_session, owner),
+        json={"text": "  ¡Gracias!  "},
+    )
+
+    assert r.status_code == 200, r.text
+    assert r.json()["comments"][0]["text"] == "¡Gracias!"
+    sent = json.loads(route.calls[0].request.content)
+    assert sent == {"snippet": {"parentId": "T1", "textOriginal": "¡Gracias!"}}
+
+
+@respx.mock
+async def test_comment_failures_come_back_in_spanish(client, db_session):
+    owner = await _seed(db_session, "-cerr")
+    channel = await _channel(db_session, owner.account)
+    publication, target = await _target(db_session, owner.account, channel)
+    base = f"/api/v1/accounts/{owner.account.id}/publications/{publication.id}/targets/{target.id}/comments"
+    headers = await _headers(db_session, owner)
+
+    # Not published yet.
+    r = await client.get(base, headers=headers)
+    assert r.status_code == 422
+
+    target.external_id = "VID1"
+    await db_session.flush()
+    respx.get(f"{API}/commentThreads").mock(
+        return_value=httpx.Response(
+            403,
+            json={
+                "error": {
+                    "code": 403,
+                    "status": "PERMISSION_DENIED",
+                    "details": [{"reason": "ACCESS_TOKEN_SCOPE_INSUFFICIENT"}],
+                }
+            },
+        )
+    )
+    r = await client.get(base, headers=headers)
+    assert r.status_code == 502
+    assert "volvé a conectar" in r.json()["message"]
+
+    r = await client.post(f"{base}/T1/replies", headers=headers, json={"text": "  "})
+    assert r.status_code == 502
+    assert r.json()["message"] == "Escribí la respuesta."
+
+
+async def test_publications_say_which_targets_have_comments(client, db_session):
+    owner = await _seed(db_session, "-flag")
+    channel = await _channel(db_session, owner.account)
+    publication, _target_row = await _target(db_session, owner.account, channel)
+
+    r = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/publications/{publication.id}",
+        headers=await _headers(db_session, owner),
+    )
+
+    assert r.status_code == 200, r.text
+    assert r.json()["targets"][0]["supports_comments"] is True

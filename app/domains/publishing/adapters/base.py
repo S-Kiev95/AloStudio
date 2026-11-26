@@ -61,6 +61,18 @@ class MetricsResult:
 
 
 @dataclass
+class CommentsResult:
+    """Comments of a published target, read live from the network: each is
+    ``{id, author, author_avatar, text, published_at, like_count, replies}``
+    (replies without their own ``replies``). Failures come back here with
+    ``error_message`` in Spanish, like publishing."""
+
+    ok: bool
+    comments: list[dict[str, Any]] = field(default_factory=list)
+    error_message: str | None = None
+
+
+@dataclass
 class Credentials:
     """What a network gives back for an authorized account: stored on the
     channel and never presented."""
@@ -121,6 +133,8 @@ class PublishingAdapter(ABC):
     connection_fields: ClassVar[tuple[ConnectionField, ...]] = ()
     #: Automatic actions this network offers on a channel's posts.
     plug_kinds: ClassVar[tuple[PlugKind, ...]] = ()
+    #: Comments on a published target can be read and answered here.
+    supports_comments: ClassVar[bool] = False
 
     def supports(self, inbox: Inbox) -> bool:
         """Whether this adapter publishes through the inbox (networks that
@@ -138,9 +152,7 @@ class PublishingAdapter(ABC):
         """Where the owner's browser goes to authorize an account."""
         raise NotImplementedError
 
-    async def complete_authorization(
-        self, *, code: str, redirect_uri: str
-    ) -> ConnectedAccount:
+    async def complete_authorization(self, *, code: str, redirect_uri: str) -> ConnectedAccount:
         """Trade the authorization code for the account and its
         credentials. Raises :class:`ChannelConnectionError`."""
         raise NotImplementedError
@@ -157,9 +169,7 @@ class PublishingAdapter(ABC):
         the account they reach. Raises :class:`ChannelConnectionError`."""
         raise NotImplementedError
 
-    async def refresh_credentials(
-        self, channel: PublishingChannel
-    ) -> Credentials | None:
+    async def refresh_credentials(self, channel: PublishingChannel) -> Credentials | None:
         """Fresh credentials before the stored ones expire, or ``None`` when
         the network's don't. Raises :class:`ChannelConnectionError` when
         they can't be renewed and the owner has to connect again."""
@@ -184,9 +194,7 @@ class PublishingAdapter(ABC):
         return len(text)
 
     @abstractmethod
-    def validate(
-        self, publication: Publication, target: PublicationTarget
-    ) -> list[str]:
+    def validate(self, publication: Publication, target: PublicationTarget) -> list[str]:
         """Human-readable problems (Spanish) that would make the network
         reject the target. Empty list when it can be published."""
 
@@ -207,6 +215,25 @@ class PublishingAdapter(ABC):
         the privacy options from the account's own). ``None`` when the
         network needs nothing."""
         return None
+
+    async def list_comments(
+        self, session: AsyncSession, target: PublicationTarget
+    ) -> CommentsResult:
+        """The comments on a published target (networks that
+        ``supports_comments``), newest first."""
+        raise NotImplementedError
+
+    async def reply_to_comment(
+        self,
+        session: AsyncSession,
+        target: PublicationTarget,
+        *,
+        comment_id: str,
+        text: str,
+    ) -> CommentsResult:
+        """Answer a comment as the channel; the new reply comes back as the
+        only item of ``comments``."""
+        raise NotImplementedError
 
     async def fetch_post_metrics(
         self, session: AsyncSession, target: PublicationTarget
@@ -234,9 +261,7 @@ async def channel_inbox(session: AsyncSession, channel_id: int) -> Inbox | None:
     return await session.get(Inbox, channel.inbox_id)
 
 
-async def mark_reconnect(
-    session: AsyncSession, channel_id: int, message: str
-) -> None:
+async def mark_reconnect(session: AsyncSession, channel_id: int, message: str) -> None:
     """Flag a channel whose credentials the network stopped accepting: it
     can't be chosen to publish until the owner connects it again."""
     channel = await session.get(PublishingChannel, channel_id)
@@ -257,6 +282,7 @@ def target_text(publication: Publication, target: PublicationTarget) -> str:
 
 __all__ = [
     "ChannelConnectionError",
+    "CommentsResult",
     "ConnectedAccount",
     "ConnectionField",
     "Credentials",
