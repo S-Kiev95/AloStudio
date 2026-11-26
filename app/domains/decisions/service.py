@@ -315,11 +315,19 @@ async def prepare(session: AsyncSession, conversation: Conversation) -> Prepared
         questions=asked,
         state=state,
         last_message_id=last_message_id,
-        context=row.context or "",
+        context=row.context or await _business_profile(session, account_id),
         today=local.today_text(_local_now(conversation)),
         names=await _names(session, conversation),
         apply_priority=row.apply_priority,
     )
+
+
+async def _business_profile(session: AsyncSession, account_id: int) -> str:
+    """Ajustes → Sobre el negocio, when the decisions have no context of their own."""
+    from app.domains.accounts.models import Account
+    from app.domains.accounts.service import business_profile
+
+    return business_profile(await session.get(Account, account_id))
 
 
 async def ask(prepared: Prepared) -> client.Decisions:

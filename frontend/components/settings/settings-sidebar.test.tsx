@@ -22,11 +22,11 @@ beforeEach(() => {
 });
 
 describe("SettingsSidebar agrupado y responsive", () => {
-  it("organiza los 29 ajustes en los 6 grupos temáticos y marca el activo", () => {
+  it("organiza los 30 ajustes en los 6 grupos temáticos y marca el activo", () => {
     render(<SettingsSidebar accountId="1" />);
 
-    // 29 for everyone, plus Facturación on a multitenant install.
-    expect(SETTINGS_ITEMS).toHaveLength(30);
+    // 30 for everyone, plus Facturación on a multitenant install.
+    expect(SETTINGS_ITEMS).toHaveLength(31);
     expect(
       screen.queryByRole("link", { name: "Facturación" }),
     ).not.toBeInTheDocument();

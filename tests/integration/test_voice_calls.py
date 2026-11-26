@@ -233,6 +233,7 @@ async def test_the_voice_process_answers_and_meta_gets_its_sdp(
     assert sent["model"] == "gemini-3.8-live"
     disclaimer = t(DEFAULT_LOCALE, "calls.ai.disclaimer")
     assert sent["opening"] == f"Hola, CTC Salto. {disclaimer}"
+    assert sent["opening_delay"] == 0
     instructions = sent["instructions"]
     # Always says it is an AI and that it is not binding, after the greeting.
     assert f"«Hola, CTC Salto. {t(DEFAULT_LOCALE, 'calls.ai.disclaimer')}»" in instructions
@@ -392,3 +393,48 @@ async def test_the_call_keeps_what_was_said_and_what_it_cost(
     assert [s["speaker"] for s in call.transcript] == ["business", "customer"]
     message = await db_session.get(Message, call.message_id)
     assert "inscripciones" in message.content
+
+
+# ---------------------------------------------------------------------------
+# Sobre el negocio, said once for every AI of the account
+# ---------------------------------------------------------------------------
+async def test_admins_write_what_the_business_is_and_everybody_reads_it(
+    client, db_session, seeded
+):
+    url = f"/api/v1/accounts/{seeded['account'].id}/business_profile"
+    admin_h = await _headers(db_session, seeded["admin"])
+    agent_h = await _headers(db_session, seeded["agent"])
+
+    assert (await client.get(url, headers=agent_h)).json()["text"] == ""
+    denied = await client.put(url, json={"text": "Instituto"}, headers=agent_h)
+    assert denied.status_code == 401
+    saved = await client.put(
+        url, json={"text": "  CTC Salto: cursos de inglés y Excel.  "}, headers=admin_h
+    )
+    assert saved.status_code == 200, saved.text
+    assert (await client.get(url, headers=agent_h)).json()["text"] == (
+        "CTC Salto: cursos de inglés y Excel."
+    )
+    too_long = await client.put(url, json={"text": "x" * 8001}, headers=admin_h)
+    assert too_long.status_code == 422
+
+
+async def test_the_voice_ai_reads_the_business_and_waits_for_metas_notice(
+    db_session, seeded, voice_ready, queued, monkeypatch
+):
+    from app.domains.accounts.service import set_business_profile
+
+    account = seeded["account"]
+    set_business_profile(account, "CTC Salto: cursos de inglés y Excel.")
+    db_session.add(account)
+    monkeypatch.setattr(get_settings(), "call_recording_allowed", True)
+    await _mode(db_session, seeded, AI_MODE_ALWAYS, transcribe=True, purpose="seguimiento")
+    call = await _ring(db_session, seeded)
+    with respx.mock:
+        service = _mock_voice()
+        _mock_meta_calls()
+        assert await voice.answer_with_ai(db_session, call_id=call.id) == "answered"
+    sent = json.loads(service.calls.last.request.content)
+    assert "Sobre el negocio:\nCTC Salto: cursos de inglés y Excel." in sent["instructions"]
+    # Meta reads its transcription notice first: the AI greets after it.
+    assert sent["opening_delay"] == voice.NOTICE_WAIT_SECONDS

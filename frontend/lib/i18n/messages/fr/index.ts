@@ -9,6 +9,7 @@ import { closing } from "./closing";
 import { conversions } from "./conversions";
 import { lifecycle } from "./lifecycle";
 import { decisions } from "./decisions";
+import { businessProfile } from "./businessProfile";
 import { usage } from "./usage";
 import { billing } from "./billing";
 import { helpAssistant } from "./helpAssistant";
@@ -73,6 +74,7 @@ export const fr: Messages = {
   metaCatalog,
   calls,
   decisions,
+  businessProfile,
   closing,
   conversions,
   lifecycle,

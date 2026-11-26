@@ -155,6 +155,7 @@ export const core: Strings<typeof es> = {
       system: "Intégrations et système",
     },
     items: {
+      business: "À propos de l'entreprise",
       agents: "Agents",
       profile: "Mon profil",
       security: "Sécurité",

@@ -153,6 +153,7 @@ export const core: Strings<typeof es> = {
       system: "연동 및 시스템",
     },
     items: {
+      business: "비즈니스 소개",
       agents: "에이전트",
       profile: "내 프로필",
       security: "보안",

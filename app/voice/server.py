@@ -70,6 +70,8 @@ class CallSpec(BaseModel):
     model: str = Field(min_length=1, max_length=128)
     # What the AI says first, word for word (greeting and the AI notice).
     opening: str = Field(default="", max_length=1000)
+    # Seconds to let Meta's recording notice play before greeting.
+    opening_delay: float = Field(default=0, ge=0, le=20)
 
 
 def _auth(authorization: Annotated[str | None, Header()] = None) -> None:
@@ -93,6 +95,7 @@ async def create_call(spec: CallSpec) -> dict[str, str]:
         sdp_offer=spec.sdp_offer,
         instructions=spec.instructions,
         opening=spec.opening,
+        opening_delay=spec.opening_delay,
         voice=spec.voice,
         model=spec.model,
         on_done=lambda: _calls.pop(spec.provider_call_id, None),

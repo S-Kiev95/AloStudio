@@ -33,7 +33,7 @@ from app.core import throttle
 from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.config import get_settings
 from app.core.db import get_session
-from app.core.deps import AccountContext, current_user, require_admin
+from app.core.deps import AccountContext, account_context, current_user, require_admin
 from app.core.errors import ChatwootHTTPException
 from app.domains.accounts.exceptions import (
     AccountSignupError,
@@ -42,7 +42,13 @@ from app.domains.accounts.exceptions import (
 from app.domains.accounts.models import Account
 from app.domains.accounts.presenters import present_account_show
 from app.domains.accounts.schemas import AccountCreateRequest
-from app.domains.accounts.service import AccountBuilder, AccountBuilderParams
+from app.domains.accounts.service import (
+    BUSINESS_PROFILE_MAX,
+    AccountBuilder,
+    AccountBuilderParams,
+    business_profile,
+    set_business_profile,
+)
 from app.domains.agents.schemas import (
     AgentCreateRequest,
     AgentUpdateRequest,
@@ -285,6 +291,37 @@ async def update_account(
     await session.flush()
 
     return present_account_show(account)
+
+
+class BusinessProfileBody(BaseModel):
+    text: str
+
+
+@router.get("/{account_id}/business_profile")
+async def show_business_profile(
+    ctx: AccountContext = Depends(account_context),
+) -> dict:
+    """Ajustes → Sobre el negocio: what every AI of the account reads about
+    the business (AloStudio)."""
+    return {"text": business_profile(ctx.account), "max": BUSINESS_PROFILE_MAX}
+
+
+@router.put("/{account_id}/business_profile")
+async def update_business_profile(
+    body: BusinessProfileBody,
+    ctx: AccountContext = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    try:
+        set_business_profile(ctx.account, body.text)
+    except ValueError as exc:
+        raise ChatwootHTTPException(
+            status_code=422,
+            detail={"message": "business_profile", "code": "accounts.business_profile_too_long"},
+        ) from exc
+    session.add(ctx.account)
+    await session.flush()
+    return {"text": business_profile(ctx.account), "max": BUSINESS_PROFILE_MAX}
 
 
 @router.get("/{account_id}/agents")

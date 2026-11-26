@@ -52,6 +52,31 @@ from app.domains.users.models import (
     User,
 )
 
+# What the business is, said once for every AI that talks for it (the voice
+# agent, the decisions model, the chat agent): ``settings.business_profile``.
+BUSINESS_PROFILE_KEY = "business_profile"
+BUSINESS_PROFILE_MAX = 8000
+
+
+def business_profile(account: Account | None) -> str:
+    """The account's own description of the business, or ""."""
+    if account is None:
+        return ""
+    value = (account.settings or {}).get(BUSINESS_PROFILE_KEY)
+    return value.strip() if isinstance(value, str) else ""
+
+
+def set_business_profile(account: Account, text: str) -> None:
+    text = (text or "").strip()
+    if len(text) > BUSINESS_PROFILE_MAX:
+        raise ValueError("business_profile")
+    settings = dict(account.settings or {})
+    if text:
+        settings[BUSINESS_PROFILE_KEY] = text
+    else:
+        settings.pop(BUSINESS_PROFILE_KEY, None)
+    account.settings = settings
+
 
 async def require_account_users(
     session: AsyncSession, *, account_id: int, user_ids: list[int]

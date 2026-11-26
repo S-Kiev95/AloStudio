@@ -151,6 +151,7 @@ export const core = {
       system: "Integraciones y sistema",
     },
     items: {
+      business: "Sobre el negocio",
       agents: "Agentes",
       profile: "Mi perfil",
       security: "Seguridad",

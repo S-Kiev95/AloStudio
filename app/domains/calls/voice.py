@@ -77,6 +77,9 @@ _SERVICE_TIMEOUT = 15.0
 _ARTICLES_MAX_CHARS = 30_000
 _PRODUCTS_MAX = 100
 USAGE_PURPOSE = "voice_call"
+# Meta reads its own recording notice when the call starts (recording or
+# transcribing): the AI greets after it instead of over it.
+NOTICE_WAIT_SECONDS = 8
 # A person who wrote to the customer this recently is on the conversation.
 HUMAN_REPLY_WINDOW = timedelta(hours=24)
 # Gemini Live list prices, USD per 1M tokens (text in, audio in, text out,
@@ -262,6 +265,7 @@ async def answer_with_ai(session: AsyncSession, *, call_id: int) -> str:
         "instructions": await build_instructions(session, call, row),
         # The first thing said, word for word: greeting and the AI notice.
         "opening": opening_line(await _business_name(session, call.account_id), row),
+        "opening_delay": NOTICE_WAIT_SECONDS if _meta_announces(row) else 0,
         "voice": row.ai_voice if row.ai_voice in AI_VOICES else AI_VOICES[0],
         "model": get_settings().voice_ai_model,
     }
@@ -299,6 +303,11 @@ async def answer_with_ai(session: AsyncSession, *, call_id: int) -> str:
         transcribe=bool(plan and plan.transcribe),
     )
     return "answered"
+
+
+def _meta_announces(row: CallInboxSettings) -> bool:
+    """Meta tells both sides it records before the call goes on."""
+    return calls.recording_allowed() and (row.record or row.transcribe)
 
 
 class VoiceError(Exception):
@@ -423,8 +432,14 @@ async def build_instructions(session: AsyncSession, call: Call, row: CallInboxSe
     ]
     if contact is not None and contact.name:
         sections.append(f"El cliente se llama {contact.name} (según WhatsApp).")
+    from app.domains.accounts.models import Account
+    from app.domains.accounts.service import business_profile
+
+    profile = business_profile(await session.get(Account, call.account_id))
+    if profile:
+        sections.append("Sobre el negocio:\n" + profile)
     if row.ai_instructions and row.ai_instructions.strip():
-        sections.append("Lo que el negocio quiere que sepas:\n" + row.ai_instructions.strip())
+        sections.append("Indicaciones para las llamadas:\n" + row.ai_instructions.strip())
     articles = await _articles(session, call.account_id)
     if articles:
         sections.append("Centro de ayuda del negocio:\n" + articles)

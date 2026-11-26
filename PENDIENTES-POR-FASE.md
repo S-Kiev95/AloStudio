@@ -575,6 +575,18 @@ manual, Polar sandbox conectado). Detalle en `PLAN.multitenant.md`.
     contra el proceso local (conecta y manda audio). **Falta:** la clave de
     Gemini, levantar el proceso en el servidor de pruebas con los puertos
     UDP abiertos, y una llamada real desde WhatsApp.
+  - Primera llamada real el 2026-11-26 en staging: atendió, se escucharon los
+    dos, contestó con el catálogo y derivó con nota y etiqueta. Costo real:
+    unos USD 0,035 por minuto. Si la bandeja graba o transcribe, Meta lee su
+    aviso al empezar: la IA espera 8 s antes de saludar.
+  - **Sobre el negocio (pedido del dueño, 2026-11-26):** Ajustes → Cuenta →
+    «Sobre el negocio» (`GET/PUT /api/v1/accounts/{id}/business_profile`,
+    guardado en `accounts.settings.business_profile`, lo edita un
+    administrador). Se escribe una vez y lo leen todos los agentes de IA: la
+    voz ya lo usa, y Decisiones lo usa cuando no tiene contexto propio.
+    **Nota para el agente B:** el agente de chat de `feat/agente-ia` tiene
+    que leerlo (`app.domains.accounts.service.business_profile(account)`) en
+    vez de pedir otra descripción del negocio.
   - Sigue: reservar turnos y cargar el CRM por voz cuando entre
     `feat/agente-ia`; pasar la llamada en vivo a una persona (paso 4).
 

@@ -175,6 +175,7 @@ async def start_call(
     sdp_offer: str,
     instructions: str,
     opening: str,
+    opening_delay: float = 0,
     voice: str,
     model: str,
     on_done: Callable[[], Any],
@@ -242,6 +243,9 @@ async def start_call(
 
     @transport.event_handler("on_client_connected")
     async def _connected(_transport: Any, _client: Any) -> None:
+        if opening_delay:
+            # Meta is reading its recording notice to both sides.
+            await asyncio.sleep(opening_delay)
         await worker.queue_frames([LLMRunFrame()])
 
     @transport.event_handler("on_client_disconnected")

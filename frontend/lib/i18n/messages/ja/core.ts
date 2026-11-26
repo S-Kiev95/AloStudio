@@ -153,6 +153,7 @@ export const core: Strings<typeof es> = {
       system: "連携とシステム",
     },
     items: {
+      business: "ビジネスについて",
       agents: "エージェント",
       profile: "プロフィール",
       security: "セキュリティ",

@@ -157,7 +157,7 @@ describe("WhatsappCallsCard", () => {
     });
     expect(screen.getByText(/lo que te diga es orientativo y no es vinculante/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Saludo"), { target: { value: "Hola, CTC Salto." } });
-    fireEvent.change(screen.getByLabelText("Lo que la IA tiene que saber del negocio"), {
+    fireEvent.change(screen.getByLabelText("Indicaciones solo para las llamadas (opcional)"), {
       target: { value: "Las inscripciones abren en marzo." },
     });
     fireEvent.change(screen.getByLabelText("Voz"), { target: { value: "Kore" } });

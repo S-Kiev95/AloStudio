@@ -46,6 +46,7 @@ export const SETTINGS_GROUP_ORDER: readonly {
 export const SETTINGS_ITEMS: SettingsItem[] = [
   // Cuenta y equipo
   { segment: "profile", label: "settings.items.profile", milestone: "fe.14c", done: true, group: "account" },
+  { segment: "business", label: "settings.items.business", milestone: "F7", done: true, group: "account" },
   { segment: "security", label: "settings.items.security", milestone: "fe.14c", done: true, group: "account" },
   { segment: "notifications", label: "settings.items.notifications", milestone: "fe.14d", done: true, group: "account" },
   { segment: "agents", label: "settings.items.agents", milestone: "fe.14c", done: true, group: "account" },
