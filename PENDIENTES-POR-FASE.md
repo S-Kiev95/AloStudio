@@ -317,9 +317,20 @@ manual, Polar sandbox conectado). Detalle en `PLAN.multitenant.md`.
   estar verificado por teléfono) y la lista (`playlistItems.insert`) van después
   de subir el video y nunca hacen fallar la publicación: sus problemas quedan en
   `warnings` del destino y se ven en el detalle.
-- **Falta para CTC:** sumar la URL de retorno de CTC en el cliente «AloStudio
-  web», y publicar la app en Google (en prueba el acceso vence cada 7 días y solo
-  entran los usuarios de prueba).
+- **Falta de YouTube (dueño y agente B, 2026-11-26):**
+  1. **Staging:** está en la rama `feat/voz-gemini` del agente A. Cuando vuelva a
+     `develop`, actualizarlo y probar con el canal real la miniatura, la lista y
+     las etiquetas (los comentarios ya se probaron en local).
+  2. **Verificar el canal por teléfono** en youtube.com/verify, para que YouTube
+     acepte miniaturas propias (sin eso, `thumbnails.set` da 403 y queda un aviso).
+  3. **CTC:** sumar `https://alostudio.ctcsalto.edu.uy/api/v1/publishing/oauth/callback`
+     en el cliente «AloStudio web» de Google Cloud, cargar en CTC el cliente de
+     Google y `PUBLISHING_OAUTH_REDIRECT_URI`, y desplegar una noche (pasar
+     `develop` a `main`).
+  4. **Publicar la app en Google** (Google Auth Platform → Público): mientras esté
+     en prueba, el acceso al canal vence cada 7 días y solo entran los usuarios de
+     prueba. Con permisos sensibles (`youtube.upload`, `youtube.force-ssl`) Google
+     pide verificar la app.
 
 ## F4. Herramientas que le faltan al MCP
 
