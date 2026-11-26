@@ -260,6 +260,8 @@ async def answer_with_ai(session: AsyncSession, *, call_id: int) -> str:
         "account_id": call.account_id,
         "sdp_offer": offer,
         "instructions": await build_instructions(session, call, row),
+        # The first thing said, word for word: greeting and the AI notice.
+        "opening": opening_line(await _business_name(session, call.account_id), row),
         "voice": row.ai_voice if row.ai_voice in AI_VOICES else AI_VOICES[0],
         "model": get_settings().voice_ai_model,
     }
@@ -410,9 +412,12 @@ async def build_instructions(session: AsyncSession, call: Call, row: CallInboxSe
         "que una persona lo contacte. No inventes precios, plazos, stock ni promesas.\n"
         "- Nunca pidas ni aceptes datos de tarjetas, contraseñas ni códigos.\n"
         "- Si el cliente pide hablar con una persona, o el tema lo necesita (un reclamo, un "
-        "pago, algo que no podés resolver), usá la herramienta derivar_a_persona con el "
-        "motivo y un resumen de lo hablado, y decile que una persona del equipo lo va a "
-        "contactar por este mismo WhatsApp lo antes posible.\n"
+        "pago, inscribirse, reservar, comprar, o algo que no podés resolver), usá la "
+        "herramienta derivar_a_persona con el motivo y un resumen de lo hablado, y decile "
+        "que una persona del equipo lo va a contactar por este mismo WhatsApp lo antes "
+        "posible.\n"
+        "- Nunca digas que una persona lo va a contactar sin usar derivar_a_persona en ese "
+        "mismo turno: si no usás la herramienta, nadie se entera.\n"
         "- Cuando el cliente se despide o ya no hay nada más, despedite en una frase y usá "
         "la herramienta terminar_llamada.",
     ]

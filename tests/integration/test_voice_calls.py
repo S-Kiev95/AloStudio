@@ -231,6 +231,8 @@ async def test_the_voice_process_answers_and_meta_gets_its_sdp(
     assert sent["provider_call_id"] == "wacid.ABC"
     assert sent["sdp_offer"].startswith("v=0")
     assert sent["model"] == "gemini-3.8-live"
+    disclaimer = t(DEFAULT_LOCALE, "calls.ai.disclaimer")
+    assert sent["opening"] == f"Hola, CTC Salto. {disclaimer}"
     instructions = sent["instructions"]
     # Always says it is an AI and that it is not binding, after the greeting.
     assert f"«Hola, CTC Salto. {t(DEFAULT_LOCALE, 'calls.ai.disclaimer')}»" in instructions

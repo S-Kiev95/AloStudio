@@ -16,12 +16,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from pipecat.adapters.schemas.function_schema import FunctionSchema
-from pipecat.adapters.schemas.tools_schema import ToolsSchema
+from pipecat.adapters.llm.schemas.function_schema import FunctionSchema
+from pipecat.adapters.llm.schemas.tools_schema import ToolsSchema
 from pipecat.frames.frames import LLMRunFrame, MetricsFrame, TranscriptionFrame, TTSTextFrame
 from pipecat.metrics.metrics import LLMUsageMetricsData
 from pipecat.observers.base_observer import BaseObserver, FramePushed
@@ -46,7 +47,14 @@ log = logging.getLogger(__name__)
 LANGUAGE = "es-US"
 # Let the goodbye finish playing before hanging up.
 HANGUP_DELAY_SECONDS = 3.0
-ICE_SERVERS = [IceServer(urls="stun:stun.l.google.com:19302")]
+# STUN only helps behind NAT; a server with a public IP answers with its own
+# address and skips the wait for the STUN reply. ``VOICE_STUN_URLS``
+# (comma separated) turns it on, e.g. ``stun:stun.l.google.com:19302``.
+ICE_SERVERS = [
+    IceServer(urls=url.strip())
+    for url in os.environ.get("VOICE_STUN_URLS", "").split(",")
+    if url.strip()
+]
 
 HANDOFF = FunctionSchema(
     name="derivar_a_persona",
@@ -79,6 +87,18 @@ def whatsapp_sdp(sdp: str) -> str:
         if not (line.startswith("a=fingerprint:") and not line.startswith("a=fingerprint:sha-256"))
     ]
     return "\r\n".join(lines) + "\r\n"
+
+
+def _kickoff(opening: str) -> str:
+    """The turn that starts the call. Without the exact words the model
+    answers the note itself ("Entendido…") before greeting (staging,
+    2026-11-26)."""
+    if not opening:
+        return "(La llamada acaba de conectarse. Saludá al cliente.)"
+    return (
+        "(La llamada acaba de conectarse. Tu primera frase, sin agregar nada antes, es "
+        f"exactamente: «{opening}». Después preguntá en qué podés ayudar.)"
+    )
 
 
 class _Notes(BaseObserver):
@@ -154,6 +174,7 @@ async def start_call(
     provider_call_id: str,
     sdp_offer: str,
     instructions: str,
+    opening: str,
     voice: str,
     model: str,
     on_done: Callable[[], Any],
@@ -177,9 +198,7 @@ async def start_call(
         ),
         tools=ToolsSchema(standard_tools=[HANDOFF, HANGUP]),
     )
-    context = LLMContext(
-        messages=[{"role": "user", "content": "(Se conectó la llamada. Saludá ahora.)"}]
-    )
+    context = LLMContext(messages=[{"role": "user", "content": _kickoff(opening)}])
     aggregators = LLMContextAggregatorPair(context)
     pipeline = Pipeline(
         [transport.input(), aggregators.user(), llm, transport.output(), aggregators.assistant()]
@@ -246,7 +265,9 @@ async def start_call(
                 await connection.disconnect()
             on_done()
             log.info(
-                "voice.call.over provider_call_id=%s turns=%s", provider_call_id, len(notes.segments)
+                "voice.call.over provider_call_id=%s turns=%s",
+                provider_call_id,
+                len(notes.segments),
             )
 
     call.runner_task = asyncio.create_task(run())

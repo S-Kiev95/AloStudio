@@ -68,6 +68,8 @@ class CallSpec(BaseModel):
     instructions: str = Field(min_length=1, max_length=200_000)
     voice: str = Field(min_length=1, max_length=32)
     model: str = Field(min_length=1, max_length=128)
+    # What the AI says first, word for word (greeting and the AI notice).
+    opening: str = Field(default="", max_length=1000)
 
 
 def _auth(authorization: Annotated[str | None, Header()] = None) -> None:
@@ -90,6 +92,7 @@ async def create_call(spec: CallSpec) -> dict[str, str]:
         provider_call_id=spec.provider_call_id,
         sdp_offer=spec.sdp_offer,
         instructions=spec.instructions,
+        opening=spec.opening,
         voice=spec.voice,
         model=spec.model,
         on_done=lambda: _calls.pop(spec.provider_call_id, None),
