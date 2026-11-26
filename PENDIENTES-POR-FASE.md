@@ -292,6 +292,46 @@ manual, Polar sandbox conectado). Detalle en `PLAN.multitenant.md`.
   nuevo el 2026-11-24) y esté el multitenant. Conversions API
   (`whatsapp_business_manage_events`) sigue rechazado.
 
+- **YouTube probado con un canal real (agente B, 2026-11-26), en staging:** con el
+  proyecto «AloStudio» de Google Cloud (YouTube Data API v3 habilitada, URL de
+  retorno de staging, permisos `youtube.upload`, `youtube.readonly` y
+  `youtube.force-ssl`, app en prueba con la cuenta del dueño como usuario de
+  prueba). Se conectó el canal del dueño, se subió un video privado con título y
+  descripción, y se leyeron las cifras del video y los suscriptores.
+- **Comentarios de YouTube (agente B, 2026-11-26):** en el detalle de una
+  publicación subida, «Ver comentarios» los lee en el momento
+  (`commentThreads.list`, sin guardarlos) y un administrador responde como el
+  canal (`comments.insert`). Rutas `GET /publications/{id}/targets/{tid}/comments`
+  y `POST .../comments/{comment_id}/replies`; el adaptador declara
+  `supports_comments`. Los canales conectados antes piden reconectar una vez para
+  aceptar `youtube.force-ssl`.
+- **Comentarios probados con el canal real (2026-11-26, en local):** se leyó un
+  comentario y se respondió como el canal. YouTube tarda unos segundos en incluir
+  una respuesta nueva en `commentThreads.list`. Los videos privados no aceptan
+  comentarios.
+- **Etiquetas, categoría, lista y miniatura (agente B, 2026-11-26):** el editor
+  suma etiquetas (hasta 500 caracteres como los cuenta YouTube), categoría y lista
+  de reproducción (de `compose_info`: `playlists.list` y `videoCategories.list`),
+  y una miniatura elegida de la biblioteca de medios (`thumbnail_media_id`, se
+  vuelve a firmar al publicar). La miniatura (`thumbnails.set`, el canal tiene que
+  estar verificado por teléfono) y la lista (`playlistItems.insert`) van después
+  de subir el video y nunca hacen fallar la publicación: sus problemas quedan en
+  `warnings` del destino y se ven en el detalle.
+- **Falta de YouTube (dueño y agente B, 2026-11-26):**
+  1. **Staging:** está en la rama `feat/voz-gemini` del agente A. Cuando vuelva a
+     `develop`, actualizarlo y probar con el canal real la miniatura, la lista y
+     las etiquetas (los comentarios ya se probaron en local).
+  2. **Verificar el canal por teléfono** en youtube.com/verify, para que YouTube
+     acepte miniaturas propias (sin eso, `thumbnails.set` da 403 y queda un aviso).
+  3. **CTC:** sumar `https://alostudio.ctcsalto.edu.uy/api/v1/publishing/oauth/callback`
+     en el cliente «AloStudio web» de Google Cloud, cargar en CTC el cliente de
+     Google y `PUBLISHING_OAUTH_REDIRECT_URI`, y desplegar una noche (pasar
+     `develop` a `main`).
+  4. **Publicar la app en Google** (Google Auth Platform → Público): mientras esté
+     en prueba, el acceso al canal vence cada 7 días y solo entran los usuarios de
+     prueba. Con permisos sensibles (`youtube.upload`, `youtube.force-ssl`) Google
+     pide verificar la app.
+
 ## F4. Herramientas que le faltan al MCP
 
 - **Hecho el 2026-11-11 (prioridad alta), en develop:** `list_inboxes`,

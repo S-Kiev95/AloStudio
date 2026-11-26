@@ -49,6 +49,13 @@ export type YouTubeSettings = {
   title: string;
   privacy_status: YouTubePrivacy;
   made_for_kids: boolean;
+  tags?: string[];
+  /** YouTube's category id ("22" People & Blogs by default). */
+  category_id?: string;
+  /** One of the channel's playlists, or none. */
+  playlist_id?: string | null;
+  /** An image of the media library, set as the thumbnail after the upload. */
+  thumbnail_media_id?: number | null;
 };
 
 export type TargetSettings = { post_type?: string } & Partial<TikTokSettings> &
@@ -66,6 +73,9 @@ export type ComposeInfo = {
   duet_disabled?: boolean;
   stitch_disabled?: boolean;
   max_video_post_duration_sec?: number | null;
+  /** YouTube: the channel's playlists and the categories it can pick. */
+  playlists?: { id: string; title: string | null }[];
+  categories?: { id: string; title: string | null }[];
 };
 
 export type TargetIn = {
@@ -135,6 +145,21 @@ export type PublicationTarget = {
   metrics: Metrics;
   metrics_updated_at: string | null;
   metrics_error: string | null;
+  /** Its comments can be read and answered from AloStudio (YouTube). */
+  supports_comments?: boolean;
+  /** Problems after it went out (a YouTube thumbnail or playlist). */
+  warnings?: string[];
+};
+
+/** A comment on a published video, read live from the network. */
+export type PublicationComment = {
+  id: string;
+  author: string | null;
+  author_avatar?: string | null;
+  text: string;
+  published_at: string | null;
+  like_count: number;
+  replies: PublicationComment[];
 };
 
 export type Publication = {
@@ -578,6 +603,46 @@ export function usePublication(
       apiFetch<Publication>(`${base(accountId)}/${publicationId}`),
     enabled: publicationId !== null,
     initialData,
+  });
+}
+
+function commentsKey(accountId: string, publicationId: number, targetId: number) {
+  return ["publicationComments", accountId, publicationId, targetId] as const;
+}
+
+export function useTargetComments(
+  accountId: string,
+  publicationId: number,
+  targetId: number,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: commentsKey(accountId, publicationId, targetId),
+    queryFn: () =>
+      apiFetch<{ comments: PublicationComment[] }>(
+        `${base(accountId)}/${publicationId}/targets/${targetId}/comments`,
+      ),
+    enabled,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** Answer a comment as the channel; the list is read again afterwards. */
+export function useReplyTargetComment(
+  accountId: string,
+  publicationId: number,
+  targetId: number,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { commentId: string; text: string }) =>
+      apiFetch<{ comments: PublicationComment[] }>(
+        `${base(accountId)}/${publicationId}/targets/${targetId}/comments/${encodeURIComponent(input.commentId)}/replies`,
+        { method: "POST", body: JSON.stringify({ text: input.text }) },
+      ),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: commentsKey(accountId, publicationId, targetId) }),
   });
 }
 

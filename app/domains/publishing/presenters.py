@@ -39,9 +39,7 @@ def present_channel(channel: PublishingChannel) -> dict[str, Any]:
     }
 
 
-def _present_target(
-    target: PublicationTarget, channel: PublishingChannel | None
-) -> dict[str, Any]:
+def _present_target(target: PublicationTarget, channel: PublishingChannel | None) -> dict[str, Any]:
     return {
         "id": target.id,
         "channel": (
@@ -61,7 +59,17 @@ def _present_target(
         "metrics": target.metrics or {},
         "metrics_updated_at": _iso(target.metrics_updated_at),
         "metrics_error": target.metrics_error,
+        "supports_comments": _supports_comments(target.network),
+        # What went wrong after it was published (a YouTube thumbnail…).
+        "warnings": list((target.extra or {}).get("warnings") or []),
     }
+
+
+def _supports_comments(network: str) -> bool:
+    from app.domains.publishing.adapters import adapter_for_network
+
+    adapter = adapter_for_network(network)
+    return bool(adapter and adapter.supports_comments)
 
 
 def present_publication(
@@ -104,7 +112,6 @@ async def present_one_publication(
     session: AsyncSession, publication: Publication
 ) -> dict[str, Any]:
     return (await present_publications(session, [publication]))[0]
-
 
 
 def present_autopost(autopost: PublishingAutopost) -> dict[str, Any]:
@@ -156,18 +163,14 @@ def present_signature(signature: PublishingSignature) -> dict[str, Any]:
     }
 
 
-async def present_sets(
-    session: AsyncSession, sets: list[PublicationSet]
-) -> list[dict[str, Any]]:
+async def present_sets(session: AsyncSession, sets: list[PublicationSet]) -> list[dict[str, Any]]:
     """Batch-loads the sets' channels and library files. A channel removed
     since the set was saved shows as ``null``; a library file, with its
     one-hour preview link."""
     payloads = [s.payload or {} for s in sets]
     channels = await channels_by_id(
         session,
-        channel_ids=list(
-            {t["channel_id"] for p in payloads for t in p.get("targets") or []}
-        ),
+        channel_ids=list({t["channel_id"] for p in payloads for t in p.get("targets") or []}),
     )
     assets = {}
     if sets:
@@ -216,6 +219,7 @@ async def present_sets(
         }
         for s, p in zip(sets, payloads, strict=True)
     ]
+
 
 __all__ = [
     "present_autopost",

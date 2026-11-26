@@ -242,5 +242,21 @@ describe("network-rules", () => {
     ]);
     expect(validatePublicationTargets("<b>", [video], target("Mi video"))[0]).toMatch(/< ni >/);
     expect(channelCharLimit("youtube", [video])).toBe(5000);
+    const longTags = [
+      {
+        channel: yt,
+        postType: "feed" as const,
+        customContent: null,
+        youtube: {
+          title: "Mi video",
+          privacy_status: "private" as const,
+          made_for_kids: false,
+          tags: ["x".repeat(300), "y".repeat(300)],
+        },
+      },
+    ];
+    expect(validatePublicationTargets("Hola", [video], longTags)).toEqual([
+      "YT (YouTube): las etiquetas no pueden pasar de 500 caracteres.",
+    ]);
   });
 });

@@ -231,6 +231,15 @@ export const publications: Strings<typeof es> = {
     all: "Toutes",
     pending: "En attente",
   },
+  comments: {
+    title: "Commentaires",
+    show: "Voir les commentaires",
+    hide: "Masquer",
+    empty: "Pas encore de commentaires.",
+    reply: "Répondre",
+    replyPlaceholder: "Écrivez la réponse de la chaîne…",
+    send: "Répondre",
+  },
   youtube: {
     title: "Titre de la vidéo",
     titlePlaceholder: "Jusqu’à 100 caractères",
@@ -242,6 +251,19 @@ export const publications: Strings<typeof es> = {
     },
     madeForKids: "C’est un contenu pour enfants",
     descriptionNote: "Le texte de la publication devient la description. Tant que Google n’a pas approuvé l’app, les vidéos restent privées.",
+    category: "Catégorie",
+    categoryDefault: "People et blogs",
+    playlist: "Playlist",
+    noPlaylist: "Aucune",
+    tags: "Tags",
+    tagsPlaceholder: "Écrivez-en un et appuyez sur Entrée ou virgule",
+    tagsCount: "{count} sur {max} caractères",
+    removeTag: "Retirer le tag {tag}",
+    thumbnail: "Miniature",
+    chooseThumbnail: "Choisir dans la bibliothèque",
+    removeThumbnail: "Retirer la miniature",
+    noImages: "Aucune image dans la bibliothèque de médias.",
+    thumbnailHelp: "JPG ou PNG jusqu’à 2 Mo (idéal 1280 × 720). La chaîne doit être validée par téléphone.",
   },
   tiktok: {
     privacy: {
@@ -306,5 +328,6 @@ export const publications: Strings<typeof es> = {
     youtubeTitle: "{label} (YouTube) : ajoutez le titre de la vidéo.",
     youtubeTitleTooLong: "{label} (YouTube) : le titre ne peut pas dépasser 100 caractères.",
     youtubeNoAngles: "{label} (YouTube) : le titre et la description ne peuvent pas contenir < ou >.",
+    youtubeTagsTooLong: "{label} (YouTube) : les tags ne peuvent pas dépasser 500 caractères.",
   },
 };

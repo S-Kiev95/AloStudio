@@ -9,6 +9,7 @@ from __future__ import annotations
 from app.domains.inboxes.models import Inbox
 from app.domains.publishing.adapters.base import (
     ChannelConnectionError,
+    CommentsResult,
     ConnectedAccount,
     ConnectionField,
     Credentials,
@@ -70,6 +71,7 @@ def adapter_for_inbox(inbox: Inbox) -> PublishingAdapter | None:
 
 __all__ = [
     "ChannelConnectionError",
+    "CommentsResult",
     "ConnectedAccount",
     "ConnectionField",
     "Credentials",

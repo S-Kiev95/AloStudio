@@ -15,6 +15,7 @@ import respx
 from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 
+from app.core.auth.devise_token_auth import create_new_auth_token
 from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.oauth_state import sign_oauth_state
@@ -330,3 +331,287 @@ async def test_reads_the_figures(db_session):
 
     assert post is not None and post.metrics == {"views": 120, "likes": 8, "comments": 2}
     assert account is not None and account.metrics == {"followers": 345}
+
+
+async def _headers(db_session, owner) -> dict[str, str]:
+    headers, new_tokens = create_new_auth_token(user_tokens=owner.user.tokens, uid=owner.user.uid)
+    owner.user.tokens = new_tokens
+    db_session.add(owner.user)
+    await db_session.flush()
+    return headers.as_response_headers()
+
+
+def _thread(thread_id: str, text: str, replies: list[dict] | None = None) -> dict:
+    return {
+        "id": thread_id,
+        "snippet": {
+            "topLevelComment": {
+                "id": thread_id,
+                "snippet": {
+                    "authorDisplayName": "Ana",
+                    "authorProfileImageUrl": "https://pic/ana",
+                    "textOriginal": text,
+                    "textDisplay": f"<b>{text}</b>",
+                    "publishedAt": "2026-11-26T18:00:00Z",
+                    "likeCount": 2,
+                },
+            }
+        },
+        "replies": {"comments": replies or []},
+    }
+
+
+def _reply(reply_id: str, text: str, author: str = "Canal CTC") -> dict:
+    return {
+        "id": reply_id,
+        "snippet": {
+            "authorDisplayName": author,
+            "textOriginal": text,
+            "publishedAt": "2026-11-26T18:05:00Z",
+        },
+    }
+
+
+@respx.mock
+async def test_reads_the_comments_of_a_published_video(client, db_session):
+    owner = await _seed(db_session, "-com")
+    channel = await _channel(db_session, owner.account)
+    publication, target = await _target(db_session, owner.account, channel)
+    target.external_id = "VID1"
+    await db_session.flush()
+    route = respx.get(f"{API}/commentThreads").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "items": [
+                    _thread(
+                        "T1",
+                        "¿Cuándo empieza?",
+                        [_reply("R2", "Segunda"), _reply("R1", "El lunes")],
+                    )
+                ]
+            },
+        )
+    )
+
+    r = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/publications/{publication.id}/targets/{target.id}/comments",
+        headers=await _headers(db_session, owner),
+    )
+
+    assert r.status_code == 200, r.text
+    (comment,) = r.json()["comments"]
+    assert (comment["id"], comment["author"], comment["text"], comment["like_count"]) == (
+        "T1",
+        "Ana",
+        "¿Cuándo empieza?",
+        2,
+    )
+    # Replies read oldest first.
+    assert [x["text"] for x in comment["replies"]] == ["El lunes", "Segunda"]
+    params = route.calls[0].request.url.params
+    assert (params["videoId"], params["order"]) == ("VID1", "time")
+
+
+@respx.mock
+async def test_replies_to_a_comment_as_the_channel(client, db_session):
+    owner = await _seed(db_session, "-rep")
+    channel = await _channel(db_session, owner.account)
+    publication, target = await _target(db_session, owner.account, channel)
+    target.external_id = "VID1"
+    await db_session.flush()
+    route = respx.post(f"{API}/comments").mock(
+        return_value=httpx.Response(200, json=_reply("R9", "¡Gracias!"))
+    )
+
+    r = await client.post(
+        f"/api/v1/accounts/{owner.account.id}/publications/{publication.id}/targets/{target.id}/comments/T1/replies",
+        headers=await _headers(db_session, owner),
+        json={"text": "  ¡Gracias!  "},
+    )
+
+    assert r.status_code == 200, r.text
+    assert r.json()["comments"][0]["text"] == "¡Gracias!"
+    sent = json.loads(route.calls[0].request.content)
+    assert sent == {"snippet": {"parentId": "T1", "textOriginal": "¡Gracias!"}}
+
+
+@respx.mock
+async def test_comment_failures_come_back_in_spanish(client, db_session):
+    owner = await _seed(db_session, "-cerr")
+    channel = await _channel(db_session, owner.account)
+    publication, target = await _target(db_session, owner.account, channel)
+    base = f"/api/v1/accounts/{owner.account.id}/publications/{publication.id}/targets/{target.id}/comments"
+    headers = await _headers(db_session, owner)
+
+    # Not published yet.
+    r = await client.get(base, headers=headers)
+    assert r.status_code == 422
+
+    target.external_id = "VID1"
+    await db_session.flush()
+    respx.get(f"{API}/commentThreads").mock(
+        return_value=httpx.Response(
+            403,
+            json={
+                "error": {
+                    "code": 403,
+                    "status": "PERMISSION_DENIED",
+                    "details": [{"reason": "ACCESS_TOKEN_SCOPE_INSUFFICIENT"}],
+                }
+            },
+        )
+    )
+    r = await client.get(base, headers=headers)
+    assert r.status_code == 502
+    assert "volvé a conectar" in r.json()["message"]
+
+    r = await client.post(f"{base}/T1/replies", headers=headers, json={"text": "  "})
+    assert r.status_code == 502
+    assert r.json()["message"] == "Escribí la respuesta."
+
+
+async def test_publications_say_which_targets_have_comments(client, db_session):
+    owner = await _seed(db_session, "-flag")
+    channel = await _channel(db_session, owner.account)
+    publication, _target_row = await _target(db_session, owner.account, channel)
+
+    r = await client.get(
+        f"/api/v1/accounts/{owner.account.id}/publications/{publication.id}",
+        headers=await _headers(db_session, owner),
+    )
+
+    assert r.status_code == 200, r.text
+    assert r.json()["targets"][0]["supports_comments"] is True
+
+
+async def _image_asset(db_session, account_id: int):
+    from app.domains.media_library.models import MediaAsset
+
+    asset = MediaAsset(
+        account_id=account_id,
+        kind="image",
+        key="a/miniatura.jpg",
+        filename="miniatura.jpg",
+        content_type="image/jpeg",
+        size_bytes=1000,
+    )
+    db_session.add(asset)
+    await db_session.flush()
+    return asset
+
+
+@respx.mock
+async def test_uploads_with_tags_category_thumbnail_and_playlist(db_session):
+    owner = await _seed(db_session, "-extra")
+    channel = await _channel(db_session, owner.account)
+    asset = await _image_asset(db_session, owner.account.id)
+    settings = {
+        **CHOICES,
+        "tags": ["curso", "inglés A1"],
+        "category_id": "27",
+        "playlist_id": "PL1",
+        "thumbnail_media_id": asset.id,
+    }
+    publication, target = await _target(db_session, owner.account, channel, settings=settings)
+    start, _ = _mock_upload()
+    respx.get(url__regex=r".*/public/media\?key=a%2Fminiatura\.jpg.*").mock(
+        return_value=httpx.Response(
+            200, content=b"\xff\xd8jpg", headers={"content-type": "image/jpeg"}
+        )
+    )
+    thumb = respx.post("https://www.googleapis.com/upload/youtube/v3/thumbnails/set").mock(
+        return_value=httpx.Response(200, json={"items": []})
+    )
+    playlist = respx.post(f"{API}/playlistItems").mock(
+        return_value=httpx.Response(200, json={"id": "PI1"})
+    )
+
+    result = await YouTubeAdapter().publish(db_session, publication, target)
+
+    assert result.ok, result.error_message
+    assert result.extra == {}
+    snippet = json.loads(start.calls[0].request.content)["snippet"]
+    assert (snippet["tags"], snippet["categoryId"]) == (["curso", "inglés A1"], "27")
+    assert thumb.calls[0].request.url.params["videoId"] == "VID1"
+    assert thumb.calls[0].request.headers["Content-Type"] == "image/jpeg"
+    item = json.loads(playlist.calls[0].request.content)["snippet"]
+    assert item == {"playlistId": "PL1", "resourceId": {"kind": "youtube#video", "videoId": "VID1"}}
+
+
+@respx.mock
+async def test_thumbnail_and_playlist_problems_are_warnings(db_session):
+    owner = await _seed(db_session, "-warn")
+    channel = await _channel(db_session, owner.account)
+    asset = await _image_asset(db_session, owner.account.id)
+    settings = {**CHOICES, "playlist_id": "PLX", "thumbnail_media_id": asset.id}
+    publication, target = await _target(db_session, owner.account, channel, settings=settings)
+    _mock_upload()
+    respx.get(url__regex=r".*/public/media\?key=a%2Fminiatura\.jpg.*").mock(
+        return_value=httpx.Response(
+            200, content=b"\xff\xd8jpg", headers={"content-type": "image/jpeg"}
+        )
+    )
+    respx.post("https://www.googleapis.com/upload/youtube/v3/thumbnails/set").mock(
+        return_value=httpx.Response(
+            403, json={"error": {"code": 403, "errors": [{"reason": "forbidden"}]}}
+        )
+    )
+    respx.post(f"{API}/playlistItems").mock(
+        return_value=httpx.Response(
+            404, json={"error": {"code": 404, "message": "Playlist not found"}}
+        )
+    )
+
+    result = await YouTubeAdapter().publish(db_session, publication, target)
+
+    # The video is up: problems after it never fail the post.
+    assert result.ok and result.external_id == "VID1"
+    warnings = result.extra["warnings"]
+    assert "verificado por teléfono" in warnings[0]
+    assert warnings[1].startswith("No se pudo agregar a la lista")
+
+
+async def test_validation_of_tags_and_category(db_session):
+    from app.domains.publishing.adapters.youtube import tags_length
+
+    owner = await _seed(db_session, "-tags")
+    channel = await _channel(db_session, owner.account)
+    publication, target = await _target(db_session, owner.account, channel)
+    adapter = YouTubeAdapter()
+
+    assert tags_length(["a b", "cd"]) == 3 + 2 + 2 + 1
+    target.settings = {**CHOICES, "tags": ["x" * 300, "y" * 300]}
+    assert any("500 caracteres" in p for p in adapter.validate(publication, target))
+    target.settings = {**CHOICES, "tags": ["uno, dos"], "category_id": "abc"}
+    problems = adapter.validate(publication, target)
+    assert any("comas" in p for p in problems)
+    assert any("categoría" in p for p in problems)
+
+
+@respx.mock
+async def test_the_editor_reads_playlists_and_categories(db_session):
+    owner = await _seed(db_session, "-ci")
+    channel = await _channel(db_session, owner.account)
+    respx.get(f"{API}/playlists").mock(
+        return_value=httpx.Response(
+            200, json={"items": [{"id": "PL1", "snippet": {"title": "Cursos"}}]}
+        )
+    )
+    respx.get(f"{API}/videoCategories").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "items": [
+                    {"id": "27", "snippet": {"title": "Educación", "assignable": True}},
+                    {"id": "18", "snippet": {"title": "Cortos", "assignable": False}},
+                ]
+            },
+        )
+    )
+
+    info = await YouTubeAdapter().compose_info(db_session, channel)
+
+    assert info["can_post"] is True
+    assert info["playlists"] == [{"id": "PL1", "title": "Cursos"}]
+    assert info["categories"] == [{"id": "27", "title": "Educación"}]

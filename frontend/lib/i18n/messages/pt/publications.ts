@@ -231,6 +231,15 @@ export const publications: Strings<typeof es> = {
     all: "Todas",
     pending: "Pendente",
   },
+  comments: {
+    title: "Comentários",
+    show: "Ver comentários",
+    hide: "Ocultar",
+    empty: "Ainda não há comentários.",
+    reply: "Responder",
+    replyPlaceholder: "Escreva a resposta do canal…",
+    send: "Responder",
+  },
   youtube: {
     title: "Título do vídeo",
     titlePlaceholder: "Até 100 caracteres",
@@ -242,6 +251,19 @@ export const publications: Strings<typeof es> = {
     },
     madeForKids: "É conteúdo para crianças",
     descriptionNote: "O texto da publicação vira a descrição. Até o Google aprovar o app, os vídeos ficam privados.",
+    category: "Categoria",
+    categoryDefault: "Pessoas e blogs",
+    playlist: "Playlist",
+    noPlaylist: "Nenhuma",
+    tags: "Tags",
+    tagsPlaceholder: "Escreva uma e aperte Enter ou vírgula",
+    tagsCount: "{count} de {max} caracteres",
+    removeTag: "Remover a tag {tag}",
+    thumbnail: "Miniatura",
+    chooseThumbnail: "Escolher da biblioteca",
+    removeThumbnail: "Remover a miniatura",
+    noImages: "Não há imagens na biblioteca de mídia.",
+    thumbnailHelp: "JPG ou PNG de até 2 MB (ideal 1280 × 720). O canal precisa estar verificado por telefone.",
   },
   tiktok: {
     privacy: {
@@ -306,5 +328,6 @@ export const publications: Strings<typeof es> = {
     youtubeTitle: "{label} (YouTube): coloque o título do vídeo.",
     youtubeTitleTooLong: "{label} (YouTube): o título não pode passar de 100 caracteres.",
     youtubeNoAngles: "{label} (YouTube): o título e a descrição não podem ter os sinais < ou >.",
+    youtubeTagsTooLong: "{label} (YouTube): as tags não podem passar de 500 caracteres.",
   },
 };
