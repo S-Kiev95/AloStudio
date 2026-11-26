@@ -406,7 +406,24 @@ export function useMarkSeen(accountId: string, displayId: number) {
         method: "POST",
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["conversations", accountId] });
+      let hadUnread = false;
+      qc.setQueriesData<ConversationsIndex>(
+        { queryKey: ["conversations", accountId] },
+        (old) => {
+          if (!old?.data?.payload) return old;
+          const idx = old.data.payload.findIndex(
+            (c) => c.id === displayId && c.unread_count > 0,
+          );
+          if (idx === -1) return old;
+          hadUnread = true;
+          const nextPayload = [...old.data.payload];
+          nextPayload[idx] = { ...nextPayload[idx], unread_count: 0 };
+          return { ...old, data: { ...old.data, payload: nextPayload } };
+        },
+      );
+      if (hadUnread) {
+        qc.invalidateQueries({ queryKey: ["conversations", accountId] });
+      }
     },
   });
 }
@@ -489,14 +506,31 @@ export function useBulkAction(accountId: string) {
 
 export function useToggleStatus(accountId: string, displayId: number) {
   const qc = useQueryClient();
+  const detailKey = ["conversation", accountId, displayId] as const;
   return useMutation({
     mutationFn: (status: "open" | "resolved" | "pending") =>
       apiFetch<{ payload: { current_status: string } }>(
         `${base(accountId)}/${displayId}/toggle_status`,
         { method: "POST", body: JSON.stringify({ status }) },
       ),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["conversation", accountId, displayId] });
+    onMutate: async (nextStatus) => {
+      await qc.cancelQueries({ queryKey: detailKey });
+      const prevDetail = qc.getQueryData<Conversation>(detailKey);
+      if (prevDetail) {
+        qc.setQueryData<Conversation>(detailKey, {
+          ...prevDetail,
+          status: nextStatus,
+        });
+      }
+      return { prevDetail };
+    },
+    onError: (_err, _nextStatus, ctx) => {
+      if (ctx?.prevDetail) {
+        qc.setQueryData<Conversation>(detailKey, ctx.prevDetail);
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: detailKey });
       qc.invalidateQueries({ queryKey: ["conversations", accountId] });
     },
   });
