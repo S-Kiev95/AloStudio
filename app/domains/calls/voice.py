@@ -3,9 +3,10 @@
 Each WhatsApp inbox says who answers its calls (``CallInboxSettings.ai_mode``):
 its people (``off``, the default), or AloStudio's voice AI always, outside
 the inbox's hours, or when nobody picked up in ``AI_NO_ANSWER_SECONDS``.
-The AI never takes a call whose conversation is in a person's hands (open,
-and somebody of the team wrote to the customer in the last day, or the AI
-handed it over).
+A call whose conversation is in a person's hands (open, and somebody of the
+team wrote to the customer in the last day, or the AI handed it over and it
+was not resolved since) rings for the people first; the AI only answers it
+if nobody does in ``AI_NO_ANSWER_SECONDS``.
 
 How a call reaches the AI:
 
@@ -49,7 +50,6 @@ from app.core.i18n import DEFAULT_LOCALE, t
 from app.domains.calls import service as calls
 from app.domains.calls.models import (
     AI_MODE_AFTER_HOURS,
-    AI_MODE_ALWAYS,
     AI_MODE_NO_ANSWER,
     AI_MODE_OFF,
     AI_NO_ANSWER_SECONDS,
@@ -157,22 +157,34 @@ async def _inside_hours(session: AsyncSession, inbox_id: int, now: datetime) -> 
     )
 
 
-async def _wants_ai(session: AsyncSession, call: Call, row: CallInboxSettings | None) -> bool:
-    """The inbox wants the AI on this call right now (the mode aside from
-    ``no_answer``'s wait), and the conversation is not a person's."""
+# What the AI does with a ringing call.
+_NOW = "now"  # takes it at once: it never rings for the people
+_AFTER_WAIT = "after_wait"  # rings for the people first; takes it if nobody does
+
+
+async def _plan(session: AsyncSession, call: Call, row: CallInboxSettings | None) -> str | None:
+    """Whether the AI takes this call, and when. ``None``: never (the inbox
+    keeps its calls for the people, it is the inbox's hours in
+    ``after_hours``, or the AI spend cap was reached). A conversation in a
+    person's hands rings for the people first; the AI only answers if
+    nobody does (owner, 2026-11-26)."""
     if row is None or row.ai_mode == AI_MODE_OFF or not ready():
-        return False
+        return None
     if call.direction != DIRECTION_INBOUND or not call.sdp_offer:
-        return False
+        return None
     if row.ai_mode == AI_MODE_AFTER_HOURS and await _inside_hours(session, call.inbox_id, _now()):
-        return False
-    conversation = await session.get(Conversation, call.conversation_id)
-    if conversation is None or await human_owns(session, conversation):
-        return False
+        return None
     from app.domains.usage.limits import limit_reached
     from app.domains.usage.models import KIND_AI
 
-    return not await limit_reached(session, call.account_id, KIND_AI)
+    if await limit_reached(session, call.account_id, KIND_AI):
+        return None
+    if row.ai_mode == AI_MODE_NO_ANSWER:
+        return _AFTER_WAIT
+    conversation = await session.get(Conversation, call.conversation_id)
+    if conversation is None:
+        return None
+    return _AFTER_WAIT if await human_owns(session, conversation) else _NOW
 
 
 async def on_ringing(session: AsyncSession, call: Call) -> None:
@@ -180,19 +192,42 @@ async def on_ringing(session: AsyncSession, call: Call) -> None:
     Never raises: the call must still ring if anything here fails."""
     try:
         row = await calls.inbox_settings(session, call.inbox_id)
-        if not await _wants_ai(session, call, row):
-            return
-        assert row is not None
-        if row.ai_mode in (AI_MODE_ALWAYS, AI_MODE_AFTER_HOURS):
+        plan = await _plan(session, call, row)
+        if plan == _NOW:
             if not await calls.claim_for_ai(session, call=call):
                 return
             await enqueue_answer(call_id=int(call.id or 0), delay=_IMMEDIATE_DELAY)
-        elif row.ai_mode == AI_MODE_NO_ANSWER:
+        elif plan == _AFTER_WAIT:
             await enqueue_answer(
                 call_id=int(call.id or 0), delay=timedelta(seconds=AI_NO_ANSWER_SECONDS)
             )
     except Exception:
         log.exception("calls.voice.on_ringing_failed call_id=%s", call.id)
+
+
+async def on_resolved(session: AsyncSession, conversation: Conversation) -> None:
+    """The team resolved a conversation the AI had handed over: it goes back
+    to the AI. Without this the next call reopens it with the handoff label
+    still on, and it rings for the people again (staging, 2026-11-26)."""
+    from app.domains.conversations.service import update_labels
+
+    label = t(DEFAULT_LOCALE, "calls.ai.label")
+    titles = [x.strip() for x in (conversation.cached_label_list or "").split(",") if x.strip()]
+    if label in titles:
+        await update_labels(
+            session, conversation=conversation, titles=[x for x in titles if x != label]
+        )
+
+
+async def fan_out_to_voice(session: AsyncSession, event_name: str, **payload: Any) -> None:
+    """Conversation events the voice AI cares about: only ``resolved``."""
+    from app.domains.conversations import events as ev
+
+    if event_name != ev.CONVERSATION_RESOLVED:
+        return
+    conversation = payload.get("conversation")
+    if isinstance(conversation, Conversation):
+        await on_resolved(session, conversation)
 
 
 async def enqueue_answer(*, call_id: int, delay: timedelta) -> None:
@@ -244,9 +279,9 @@ async def answer_with_ai(session: AsyncSession, *, call_id: int) -> str:
     if call is None:
         return "gone"
     if call.status == CALL_RINGING:
-        # ``no_answer``: nobody took it in the wait. Ask again, things changed.
+        # Nobody took it in the wait. Ask again: the settings may have changed.
         row = await calls.inbox_settings(session, call.inbox_id)
-        if not await _wants_ai(session, call, row):
+        if await _plan(session, call, row) is None:
             return "not_wanted"
         if not await calls.claim_for_ai(session, call=call):
             return "taken"

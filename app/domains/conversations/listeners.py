@@ -419,6 +419,14 @@ async def broadcast_event(
         await fan_out_to_whatsapp(session, name, **payload)
     except Exception:
         log.exception("whatsapp_listener.error event=%s", name)
+    # Voice AI (F7 paso 3): resolving a conversation it handed over gives it
+    # back to the AI for the next call.
+    from app.domains.calls.voice import fan_out_to_voice
+
+    try:
+        await fan_out_to_voice(session, name, **payload)
+    except Exception:
+        log.exception("voice_listener.error event=%s", name)
     # Reporting event emitter (Phase 7.1) — writes a ReportingEvent row
     # on resolve / first reply / reply / open. Source for dashboards.
     from app.domains.reporting.listener import fan_out_to_reporting

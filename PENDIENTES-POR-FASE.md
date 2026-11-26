@@ -550,9 +550,11 @@ manual, Polar sandbox conectado). Detalle en `PLAN.multitenant.md`.
     Bandejas → Llamadas → «Quién atiende las llamadas»): las personas (por
     defecto, nada cambia), o la IA de voz siempre, fuera del horario o si
     nadie atiende en 20 segundos. Lo decide el administrador de la cuenta.
-  - La IA no atiende si una persona del equipo le escribió al cliente en
-    las últimas 24 h, ni si ya derivó la conversación (etiqueta
-    `pide-persona`). La asignación automática no cuenta como «una persona».
+  - Si una persona del equipo le escribió al cliente en las últimas 24 h, o
+    la IA ya derivó la conversación (etiqueta `pide-persona`), la llamada
+    suena primero para el equipo y la IA atiende si nadie lo hace en 20 s
+    (dueño, 2026-11-26). Resolver la conversación quita `pide-persona`. La
+    asignación automática no cuenta como «una persona».
   - Siempre arranca con el saludo de la bandeja y aclara que es un
     asistente de IA y que lo que dice es orientativo y no vinculante (pedido
     del dueño). Sabe lo que escribe el administrador, el Centro de ayuda y

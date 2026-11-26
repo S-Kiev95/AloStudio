@@ -151,7 +151,7 @@ async def test_without_the_ai_set_up_the_call_rings(db_session, seeded, queued):
     assert queued == []
 
 
-async def test_a_conversation_in_a_persons_hands_rings_for_people(
+async def test_a_conversation_in_a_persons_hands_rings_for_people_first(
     db_session, seeded, voice_ready, queued
 ):
     await _mode(db_session, seeded, AI_MODE_ALWAYS)
@@ -176,7 +176,12 @@ async def test_a_conversation_in_a_persons_hands_rings_for_people(
 
     second = await _ring(db_session, seeded, "wacid.TWO")
     assert second.status == "ringing" and not second.ai_answered
-    assert queued == []
+    # Nobody of the team picks up in 20 s: the AI answers (owner, 2026-11-26).
+    assert queued == [(second.id, timedelta(seconds=20))]
+    with respx.mock:
+        _mock_voice()
+        _mock_meta_calls()
+        assert await voice.answer_with_ai(db_session, call_id=second.id) == "answered"
 
 
 async def test_the_ai_takes_a_call_nobody_answered(db_session, seeded, voice_ready, queued):
@@ -319,10 +324,32 @@ async def test_asking_for_a_person_hands_the_conversation_over(
     ).first()
     assert note is not None and "cuota atrasada" in note.content
 
-    # The next call from this customer rings for the people.
+    # The next call from this customer rings for the people first.
     queued.clear()
     again = await _ring(db_session, seeded, "wacid.NEXT")
     assert again.status == "ringing" and not again.ai_answered
+    assert queued == [(again.id, timedelta(seconds=20))]
+
+
+async def test_resolving_gives_the_conversation_back_to_the_ai(
+    db_session, seeded, voice_ready, queued
+):
+    from app.domains.conversations.service import toggle_status
+
+    await _answered(db_session, seeded)
+    assert await voice.ai_handoff(
+        db_session, provider_call_id="wacid.ABC", reason="Quiere una persona", summary="-"
+    )
+    call = await voice.calls.by_provider_id(db_session, "wacid.ABC")
+    conversation = await db_session.get(Conversation, call.conversation_id)
+    await toggle_status(db_session, conversation=conversation, status="resolved")
+    await db_session.refresh(conversation)
+    assert t(DEFAULT_LOCALE, "calls.ai.label") not in (conversation.cached_label_list or "")
+
+    # The next call reopens it, and the AI takes it at once.
+    queued.clear()
+    again = await _ring(db_session, seeded, "wacid.AFTER")
+    assert again.status == "connecting" and again.ai_answered
 
 
 async def test_the_ai_hangs_up_and_meta_closes_the_call(db_session, seeded, voice_ready, queued):
