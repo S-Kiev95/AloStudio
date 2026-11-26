@@ -36,7 +36,8 @@ from app.domains.portals.models import Article, ArticleEmbedding, Portal
 
 log = logging.getLogger(__name__)
 
-BATCH_SIZE = 32
+# Small enough to finish well inside ``embeddings_service_timeout`` (15s) on CPU.
+BATCH_SIZE = 8
 
 
 async def backfill_comment_replies(

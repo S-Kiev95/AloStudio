@@ -39,7 +39,9 @@ log = logging.getLogger(__name__)
 
 MIN_LENGTH = 12
 MAX_CHARS = 1000  # a long email still has its topic near the top
-BATCH = 16
+# Matches ``batch_size=4`` in ``app.embeddings_service.main``: 16 long messages
+# took ~25-35s on 2 CPU threads and timed out at 15s on every cron run.
+BATCH = 4
 
 
 class MessageEmbedding(SQLModel, table=True):
