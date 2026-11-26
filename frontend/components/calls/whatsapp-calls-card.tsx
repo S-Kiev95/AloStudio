@@ -63,6 +63,8 @@ type Flag =
 
 function problemKey(err: unknown): string {
   const code = (err as { body?: { code?: unknown } })?.body?.code;
+  // F2: the account's plan does not include calls (it is our refusal, not Meta's).
+  if (code === "plan_upgrade_required") return "billing.notInPlan";
   if (typeof code === "string" && code.startsWith("calls.")) {
     return `calls.problems.${code.slice(6)}`;
   }
