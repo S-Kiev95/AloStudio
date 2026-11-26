@@ -271,7 +271,7 @@ async def _on_connect(
     offer = None
     if isinstance(session_block, dict) and session_block.get("sdp_type") == "offer":
         offer = str(session_block.get("sdp") or "") or None
-    await calls.start_inbound(
+    call = await calls.start_inbound(
         session,
         conversation=conversation,
         contact=contact,
@@ -281,6 +281,11 @@ async def _on_connect(
         to_number=str(item.get("to") or "") or channel.phone_number,
         sdp_offer=offer,
     )
+    if call is not None:
+        # The inbox may want its voice AI on this call (F7 paso 3).
+        from app.domains.calls import voice
+
+        await voice.on_ringing(session, call)
 
 
 def _timestamp(value: Any) -> datetime | None:
@@ -330,6 +335,10 @@ async def _on_terminate(
         duration_seconds=duration_seconds,
         reason=reason,
     )
+    if call.ai_answered:
+        from app.domains.calls import voice
+
+        await voice.end_ai_call(call.provider_call_id)
 
 
 # Meta's reference says ``call_transcription_available``; what it really

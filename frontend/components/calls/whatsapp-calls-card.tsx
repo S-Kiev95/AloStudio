@@ -12,7 +12,11 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { usePlanAllows } from "@/lib/api/billing";
 import {
+  AI_GREETING_MAX,
+  AI_INSTRUCTIONS_MAX,
   ANNOUNCEMENT_LANGUAGES,
+  CALL_AI_MODES,
+  type CallAiMode,
   type CallSettingsInput,
   MISSED_TEXT_MAX,
   PURPOSE_MAX,
@@ -20,7 +24,7 @@ import {
   useSaveCallSettings,
 } from "@/lib/api/calls";
 import { useIntlTag, useT } from "@/lib/i18n/provider";
-import { translateOr } from "@/lib/i18n/translate";
+import { type MessageKey, translateOr } from "@/lib/i18n/translate";
 
 type Form = Required<CallSettingsInput>;
 
@@ -35,6 +39,17 @@ const EMPTY: Form = {
   announcement_language: "es",
   missed_call_reply: true,
   missed_call_text: "",
+  ai_mode: "off",
+  ai_greeting: "",
+  ai_instructions: "",
+  ai_voice: "",
+};
+
+const AI_MODE_LABEL: Record<CallAiMode, MessageKey> = {
+  off: "calls.settings.aiModeOff",
+  always: "calls.settings.aiModeAlways",
+  after_hours: "calls.settings.aiModeAfterHours",
+  no_answer: "calls.settings.aiModeNoAnswer",
 };
 
 type Flag =
@@ -107,6 +122,10 @@ export function WhatsappCallsCard({
       announcement_language: data.announcement_language || "es",
       missed_call_reply: data.missed_call_reply ?? true,
       missed_call_text: data.missed_call_text ?? "",
+      ai_mode: data.ai_mode ?? "off",
+      ai_greeting: data.ai_greeting ?? "",
+      ai_instructions: data.ai_instructions ?? "",
+      ai_voice: data.ai_voice ?? "",
     });
   }, [settings.data]);
 
@@ -116,7 +135,13 @@ export function WhatsappCallsCard({
   }
 
   function change(
-    key: "purpose" | "announcement_language" | "missed_call_text",
+    key:
+      | "purpose"
+      | "announcement_language"
+      | "missed_call_text"
+      | "ai_greeting"
+      | "ai_instructions"
+      | "ai_voice",
     value: string,
   ) {
     setSaved(false);
@@ -127,16 +152,35 @@ export function WhatsappCallsCard({
   const restrictions = settings.data?.restrictions ?? [];
   const recordingAllowed = settings.data?.recording_allowed === true;
   const capturing = form.record || form.transcribe;
+  const aiAvailable = settings.data?.ai_available === true;
+  const aiOn = form.ai_mode !== "off";
+  const voices = settings.data?.ai_voices ?? [];
 
   async function submit() {
     setSaved(false);
-    const { record, transcribe, purpose, announcement_language, ...number } = form;
+    const {
+      record,
+      transcribe,
+      purpose,
+      announcement_language,
+      ai_mode,
+      ai_greeting,
+      ai_instructions,
+      ai_voice,
+      ...number
+    } = form;
+    // Without the voice AI set up only "off" is accepted: anything else is left as it is.
+    const ai = aiAvailable
+      ? { ai_mode, ai_greeting, ai_instructions, ai_voice }
+      : ai_mode === "off"
+        ? { ai_mode }
+        : {};
     try {
-      await save.mutateAsync(
-        recordingAllowed
-          ? { ...number, record, transcribe, purpose, announcement_language }
-          : number,
-      );
+      await save.mutateAsync({
+        ...number,
+        ...ai,
+        ...(recordingAllowed ? { record, transcribe, purpose, announcement_language } : {}),
+      });
       setSaved(true);
     } catch {
       // shown below from save.error
@@ -203,6 +247,89 @@ export function WhatsappCallsCard({
                 label={t("calls.settings.callback")}
                 hint={t("calls.settings.callbackHint")}
               />
+            </fieldset>
+
+            <fieldset className="space-y-3 border-t border-glass pt-4">
+              <legend className="text-sm font-medium text-fg">{t("calls.settings.aiTitle")}</legend>
+              {!aiAvailable ? (
+                <p className="text-xs text-fg-muted">{t("calls.settings.aiUnavailable")}</p>
+              ) : null}
+              <div className="space-y-1.5">
+                <Label htmlFor={`call-ai-mode-${inboxId}`}>{t("calls.settings.aiMode")}</Label>
+                <Select
+                  id={`call-ai-mode-${inboxId}`}
+                  value={form.ai_mode}
+                  disabled={!form.enabled || (!aiAvailable && !aiOn)}
+                  onChange={(e) => {
+                    setSaved(false);
+                    const mode = e.target.value as CallAiMode;
+                    setForm((f) => ({ ...f, ai_mode: mode }));
+                  }}
+                >
+                  {CALL_AI_MODES.filter(
+                    (mode) => aiAvailable || mode === "off" || mode === form.ai_mode,
+                  ).map((mode) => (
+                    <option key={mode} value={mode}>
+                      {t(AI_MODE_LABEL[mode])}
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-fg-muted">{t("calls.settings.aiModeHint")}</p>
+                {form.ai_mode === "after_hours" && form.business_hours ? (
+                  <p role="status" className="text-xs text-warning">
+                    {t("calls.settings.aiHoursHint")}
+                  </p>
+                ) : null}
+              </div>
+              {aiAvailable && aiOn ? (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`call-ai-greeting-${inboxId}`}>
+                      {t("calls.settings.aiGreeting")}
+                    </Label>
+                    <Input
+                      id={`call-ai-greeting-${inboxId}`}
+                      value={form.ai_greeting}
+                      maxLength={AI_GREETING_MAX}
+                      disabled={!form.enabled}
+                      onChange={(e) => change("ai_greeting", e.target.value)}
+                    />
+                    <p className="text-xs text-fg-muted">{t("calls.settings.aiGreetingHint")}</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`call-ai-instructions-${inboxId}`}>
+                      {t("calls.settings.aiInstructions")}
+                    </Label>
+                    <Textarea
+                      id={`call-ai-instructions-${inboxId}`}
+                      rows={4}
+                      value={form.ai_instructions}
+                      maxLength={AI_INSTRUCTIONS_MAX}
+                      disabled={!form.enabled}
+                      onChange={(e) => change("ai_instructions", e.target.value)}
+                    />
+                    <p className="text-xs text-fg-muted">
+                      {t("calls.settings.aiInstructionsHint")}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`call-ai-voice-${inboxId}`}>{t("calls.settings.aiVoice")}</Label>
+                    <Select
+                      id={`call-ai-voice-${inboxId}`}
+                      value={form.ai_voice}
+                      disabled={!form.enabled}
+                      onChange={(e) => change("ai_voice", e.target.value)}
+                    >
+                      {voices.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <p className="text-xs text-fg-muted">{t("calls.settings.aiCostHint")}</p>
+                </>
+              ) : null}
             </fieldset>
 
             <fieldset className="space-y-3 border-t border-glass pt-4">

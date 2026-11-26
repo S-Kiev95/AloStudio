@@ -81,6 +81,14 @@ MESSAGES: dict[str, str] = {
     # that marks the conversation to call back
     "calls.missed.reply": "안녕하세요! 전화를 받지 못했어요. 몇 분 안에 다시 전화드릴게요.",
     "calls.missed.label": "부재중-전화",
+    # The voice AI that answers calls (F7 paso 3): the label of a
+    # conversation it handed to a person, what it says first and the
+    # private note it leaves when it hands over
+    "calls.ai.label": "상담원-요청",
+    "calls.ai.greeting": "{business}에 전화해 주셔서 감사합니다.",
+    "calls.ai.disclaimer": "저는 인공지능 어시스턴트입니다. 제 안내는 참고용이며 구속력이 없습니다.",
+    "calls.speaker.ai": "음성 AI",
+    "calls.ai.handoff_note": "음성 AI가 통화를 상담원에게 넘겼습니다.\n사유: {reason}\n요약: {summary}",
     # Why a conversation closed (F17): the default categories, and the
     # title of the private note a closing leaves
     "closing.default.answered": "문의 답변 완료",

@@ -85,6 +85,14 @@ MESSAGES: dict[str, str] = {
     # that marks the conversation to call back
     "calls.missed.reply": "Olá! Vimos sua ligação e não conseguimos atender. Ligamos para você em alguns minutos.",
     "calls.missed.label": "chamada-perdida",
+    # The voice AI that answers calls (F7 paso 3): the label of a
+    # conversation it handed to a person, what it says first and the
+    # private note it leaves when it hands over
+    "calls.ai.label": "pede-pessoa",
+    "calls.ai.greeting": "Olá, obrigado por ligar para {business}.",
+    "calls.ai.disclaimer": "Sou um assistente de inteligência artificial: o que eu disser é orientativo e não é vinculante.",
+    "calls.speaker.ai": "IA de voz",
+    "calls.ai.handoff_note": "A IA de voz passou a ligação para uma pessoa.\nMotivo: {reason}\nResumo: {summary}",
     # Why a conversation closed (F17): the default categories, and the
     # title of the private note a closing leaves
     "closing.default.answered": "Dúvida respondida",

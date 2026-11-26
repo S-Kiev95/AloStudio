@@ -544,6 +544,39 @@ manual, Polar sandbox conectado). Detalle en `PLAN.multitenant.md`.
   dueño para poner **Gemini como agente de voz de las llamadas**. También: la
   función `generate_email_design` (`app/domains/email/ai_design.py`, plantillas y
   firmas de correo con IA) quedó lista para usarla como herramienta del Agente.
+- **Paso 3, agente de voz con Gemini — hecho en la rama `feat/voz-gemini`
+  (agente A, 2026-11-25), todavía no en develop:**
+  - Cada bandeja de WhatsApp elige quién atiende sus llamadas (Ajustes →
+    Bandejas → Llamadas → «Quién atiende las llamadas»): las personas (por
+    defecto, nada cambia), o la IA de voz siempre, fuera del horario o si
+    nadie atiende en 20 segundos. Lo decide el administrador de la cuenta.
+  - La IA no atiende si una persona del equipo le escribió al cliente en
+    las últimas 24 h, ni si ya derivó la conversación (etiqueta
+    `pide-persona`). La asignación automática no cuenta como «una persona».
+  - Siempre arranca con el saludo de la bandeja y aclara que es un
+    asistente de IA y que lo que dice es orientativo y no vinculante (pedido
+    del dueño). Sabe lo que escribe el administrador, el Centro de ayuda y
+    los productos. No pide tarjetas ni contraseñas.
+  - Si el cliente pide una persona, deriva igual que Meta Business Agent en
+    CTC (`bot_handoff`: responsable de derivación, aviso por panel, correo,
+    push o WhatsApp) y deja una nota privada con el motivo y el resumen.
+  - Proceso aparte `python -m app.voice` (Pipecat 1.17 + Gemini Live
+    `gemini-3.8-live`, grupo `uv sync --group voice`), solo en localhost con
+    token. El backend le pasa la oferta de Meta y usa `pre_accept` /
+    `accept` como el navegador; si algo falla antes de que Meta tenga la
+    respuesta, la llamada vuelve a sonar para las personas.
+  - Lo que se habló queda como transcripción de la llamada (si Meta no la
+    transcribe) y el costo va a Gastos de la cuenta (`voice_call`): unos
+    USD 0,02 por minuto con la tarifa del 2026-11-25.
+  - Migración `e2b4d6f8a0c1` (solo agrega columnas). Ajustes de
+    instalación nuevos: `GEMINI_API_KEY`, `VOICE_AI_MODEL`; del `.env`:
+    `VOICE_SERVICE_URL`, `VOICE_SERVICE_TOKEN`.
+  - Probado: 14 tests de integración, 2 del panel y una llamada WebRTC real
+    contra el proceso local (conecta y manda audio). **Falta:** la clave de
+    Gemini, levantar el proceso en el servidor de pruebas con los puertos
+    UDP abiertos, y una llamada real desde WhatsApp.
+  - Sigue: reservar turnos y cargar el CRM por voz cuando entre
+    `feat/agente-ia`; pasar la llamada en vivo a una persona (paso 4).
 
 ## F8. Búsqueda en conversaciones viejas
 

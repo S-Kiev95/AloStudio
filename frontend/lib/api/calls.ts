@@ -155,7 +155,22 @@ export type CallSettings = {
   missed_call_reply: boolean;
   /** What they read (ours until the inbox writes its own). */
   missed_call_text: string;
+  /** The installation has the voice AI set up (F7 paso 3). */
+  ai_available: boolean;
+  /** Who answers: the people, or the voice AI always / out of hours / if nobody does. */
+  ai_mode: CallAiMode;
+  /** What the AI says first (it always adds that it is an AI, not binding). */
+  ai_greeting: string;
+  /** What the AI must know about the business. */
+  ai_instructions: string;
+  ai_voice: string;
+  ai_voices: string[];
 };
+
+export type CallAiMode = "off" | "always" | "after_hours" | "no_answer";
+export const CALL_AI_MODES: CallAiMode[] = ["off", "no_answer", "after_hours", "always"];
+export const AI_GREETING_MAX = 500;
+export const AI_INSTRUCTIONS_MAX = 4000;
 
 /** What the card sends. The recording fields are left out while the
  *  installation does not allow recording (the backend keeps them as they are). */
@@ -170,6 +185,10 @@ export type CallSettingsInput = {
   announcement_language?: string;
   missed_call_reply?: boolean;
   missed_call_text?: string;
+  ai_mode?: CallAiMode;
+  ai_greeting?: string;
+  ai_instructions?: string;
+  ai_voice?: string;
 };
 
 /** Languages Meta can read the recording notice in. */

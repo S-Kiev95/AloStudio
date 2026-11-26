@@ -65,6 +65,7 @@ describe("WhatsappCallsCard", () => {
       business_hours: true,
       missed_call_reply: true,
       missed_call_text: off.missed_call_text,
+      ai_mode: "off",
     });
   });
 
@@ -124,6 +125,50 @@ describe("WhatsappCallsCard", () => {
       announcement_language: "es",
       missed_call_reply: true,
       missed_call_text: off.missed_call_text,
+      ai_mode: "off",
+    });
+  });
+
+  it("says the voice AI needs the installation set up", async () => {
+    server.use(http.get("*/calls/settings/3", () => HttpResponse.json({ ...off, enabled: true })));
+    renderCard();
+    expect(await screen.findByText(/no está configurado en esta instalación/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Saludo")).not.toBeInTheDocument();
+  });
+
+  it("gives the calls to the voice AI with its greeting, what it knows and its voice", async () => {
+    server.use(
+      http.get("*/calls/settings/3", () =>
+        HttpResponse.json({
+          ...off,
+          enabled: true,
+          ai_available: true,
+          ai_mode: "off",
+          ai_greeting: "",
+          ai_instructions: "",
+          ai_voice: "Charon",
+          ai_voices: ["Charon", "Kore"],
+        }),
+      ),
+    );
+    renderCard();
+    fireEvent.change(await screen.findByLabelText("Atiende"), {
+      target: { value: "no_answer" },
+    });
+    expect(screen.getByText(/lo que te diga es orientativo y no es vinculante/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Saludo"), { target: { value: "Hola, CTC Salto." } });
+    fireEvent.change(screen.getByLabelText("Lo que la IA tiene que saber del negocio"), {
+      target: { value: "Las inscripciones abren en marzo." },
+    });
+    fireEvent.change(screen.getByLabelText("Voz"), { target: { value: "Kore" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(await screen.findByText("Guardado en Meta.")).toBeInTheDocument();
+    expect(sent).toMatchObject({
+      ai_mode: "no_answer",
+      ai_greeting: "Hola, CTC Salto.",
+      ai_instructions: "Las inscripciones abren en marzo.",
+      ai_voice: "Kore",
     });
   });
 

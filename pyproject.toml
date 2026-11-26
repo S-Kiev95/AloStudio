@@ -48,6 +48,11 @@ dev = [
     "asgi-lifespan>=2.1",
     "psycopg[binary]>=3.2",
 ]
+# The voice process (F7 paso 3, ``python -m app.voice``): only the host
+# that answers calls with the voice AI needs it.
+voice = [
+    "pipecat-ai[google,webrtc]>=1.17",
+]
 
 [tool.uv]
 package = false

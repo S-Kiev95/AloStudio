@@ -124,6 +124,7 @@ async def present_call(session: AsyncSession, call: Call) -> dict[str, Any]:
             if answered_by is not None
             else None
         ),
+        "ai_answered": call.ai_answered,
         "can_answer": (
             call.direction == DIRECTION_INBOUND
             and call.status == CALL_RINGING
@@ -153,6 +154,8 @@ def _message_data(call: Call, answered_by: User | None) -> dict[str, Any]:
             if answered_by is not None
             else None
         ),
+        # Answered by the voice AI (F7 paso 3) instead of a person.
+        "ai": call.ai_answered,
         "duration": call.duration_seconds,
         "meta": {"created_at": started, "ringing_at": started},
         # "pending" while Meta prepares the file, "ready" once it is ours.
@@ -519,14 +522,36 @@ async def claim(session: AsyncSession, *, call: Call, user_id: int) -> bool:
     return won
 
 
+async def claim_for_ai(session: AsyncSession, *, call: Call) -> bool:
+    """Take a ringing call for the voice AI (F7 paso 3), the way
+    :func:`claim` takes it for an agent: it stops ringing for everybody."""
+    result = await session.exec(
+        update(Call)  # type: ignore[call-overload]
+        .where(
+            Call.id == call.id,  # type: ignore[arg-type]
+            Call.status == CALL_RINGING,  # type: ignore[arg-type]
+            Call.direction == DIRECTION_INBOUND,  # type: ignore[arg-type]
+        )
+        .values(status=CALL_CONNECTING, ai_answered=True, answered_by_id=None, updated_at=_now())
+        .returning(Call.id)
+    )
+    won = result.first() is not None
+    await session.refresh(call)
+    if won:
+        await _sync_message(session, call)
+        await broadcast_call(session, call)
+    return won
+
+
 async def release(session: AsyncSession, *, call: Call) -> None:
     """Give a call back to the others when taking it failed before Meta
-    heard of it."""
+    heard of it (an agent's browser, or the voice AI)."""
     await _lock(session, call)
     if call.status != CALL_CONNECTING:
         return
     call.status = CALL_RINGING
     call.answered_by_id = None
+    call.ai_answered = False
     session.add(call)
     await session.flush()
     await _sync_message(session, call)

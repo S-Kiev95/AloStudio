@@ -63,6 +63,20 @@ PURPOSE_MAX = 250
 # What the customer reads after a call nobody answered.
 MISSED_TEXT_MAX = 1024
 
+# Who answers the inbox's calls (F7 paso 3): the people of the inbox, or
+# AloStudio's voice AI always, outside the inbox's hours, or when nobody
+# picked up in ``AI_NO_ANSWER_SECONDS``.
+AI_MODE_OFF = "off"
+AI_MODE_ALWAYS = "always"
+AI_MODE_AFTER_HOURS = "after_hours"
+AI_MODE_NO_ANSWER = "no_answer"
+AI_MODES = (AI_MODE_OFF, AI_MODE_ALWAYS, AI_MODE_AFTER_HOURS, AI_MODE_NO_ANSWER)
+AI_NO_ANSWER_SECONDS = 20
+AI_GREETING_MAX = 500
+AI_INSTRUCTIONS_MAX = 4000
+# Gemini Live's prebuilt voices offered in the panel.
+AI_VOICES = ("Charon", "Puck", "Kore", "Aoede", "Fenrir", "Leda", "Orus", "Zephyr")
+
 
 class Call(TimestampMixin, table=True):
     """A voice call in a conversation."""
@@ -168,6 +182,10 @@ class Call(TimestampMixin, table=True):
     summary_attempts: int = Field(
         default=0, sa_column=Column(Integer, nullable=False, server_default="0")
     )
+    # Answered by the voice AI instead of a person (``answered_by_id`` empty).
+    ai_answered: bool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default="false")
+    )
 
 
 class CallInboxSettings(TimestampMixin, table=True):
@@ -206,3 +224,15 @@ class CallInboxSettings(TimestampMixin, table=True):
     missed_call_text: str | None = Field(
         default=None, sa_column=Column(String(MISSED_TEXT_MAX), nullable=True)
     )
+    # The voice AI (F7 paso 3): when it answers, what it says first (it
+    # always adds that it is an AI and that what it says is not binding),
+    # what it must know about the business and which voice it speaks with.
+    ai_mode: str = Field(
+        default=AI_MODE_OFF,
+        sa_column=Column(String(16), nullable=False, server_default=AI_MODE_OFF),
+    )
+    ai_greeting: str | None = Field(
+        default=None, sa_column=Column(String(AI_GREETING_MAX), nullable=True)
+    )
+    ai_instructions: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    ai_voice: str | None = Field(default=None, sa_column=Column(String(32), nullable=True))

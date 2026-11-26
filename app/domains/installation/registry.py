@@ -576,6 +576,26 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         group=CALLS_GROUP,
         kind="boolean",
     ),
+    ConfigSpec(
+        name="GEMINI_API_KEY",
+        setting="gemini_api_key",
+        title="Clave de Gemini (agente de voz)",
+        description=(
+            "La usa el agente de voz que atiende llamadas de WhatsApp. Se crea "
+            "en aistudio.google.com con el proyecto de Google Cloud que paga; "
+            "cobra por minuto de audio y el gasto queda en Gastos de cada cuenta."
+        ),
+        group=CALLS_GROUP,
+        kind="password",
+        secret=True,
+    ),
+    ConfigSpec(
+        name="VOICE_AI_MODEL",
+        setting="voice_ai_model",
+        title="Agente de voz: modelo",
+        description="El modelo de Gemini Live, por ejemplo gemini-3.8-live.",
+        group=CALLS_GROUP,
+    ),
 )
 
 CONFIG_SPECS = (

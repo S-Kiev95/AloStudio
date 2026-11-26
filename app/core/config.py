@@ -196,6 +196,14 @@ class Settings(BaseSettings):
     # AI summary of each transcribed call (F17), written into the call's
     # bubble. Off until the operator turns it on: it spends AI credits.
     ai_call_summary_enabled: bool = False
+    # Voice AI for calls (F7 paso 3): Gemini Live behind the voice process
+    # (``python -m app.voice``), which listens on ``voice_service_url``
+    # (localhost) and only takes requests carrying ``voice_service_token``.
+    # No key or no URL: the AI never answers and calls ring as always.
+    gemini_api_key: str = ""
+    voice_ai_model: str = "gemini-3.8-live"
+    voice_service_url: str = ""
+    voice_service_token: str = ""
     # Decisions service (F10): intent, sentiment, urgency and team of each
     # conversation. TypeSafe's Jev today; a local Laya later answers the same
     # ``POST /v1/systemone``, so switching is changing these three.

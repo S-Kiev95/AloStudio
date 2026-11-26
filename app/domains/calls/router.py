@@ -27,6 +27,11 @@ when it gave one.
 
 Recording and transcription (settings ``record`` / ``transcribe``) only
 apply while the installation's operator allows it (``recording_allowed``).
+
+Who answers (``ai_mode``: ``off`` / ``always`` / ``after_hours`` /
+``no_answer``) and what the voice AI says and knows (``ai_greeting``,
+``ai_instructions``, ``ai_voice``) are the inbox's, F7 paso 3;
+``ai_available`` says whether the installation has the voice AI set up.
 """
 
 from __future__ import annotations
@@ -43,8 +48,13 @@ from app.core.deps import AccountContext, account_context, require_admin
 from app.core.errors import ChatwootHTTPException
 from app.domains.billing.service import plan_allows_calls, plan_upgrade_required
 from app.domains.calls import service as calls
-from app.domains.calls import whatsapp
+from app.domains.calls import voice, whatsapp
 from app.domains.calls.models import (
+    AI_GREETING_MAX,
+    AI_INSTRUCTIONS_MAX,
+    AI_MODE_OFF,
+    AI_MODES,
+    AI_VOICES,
     ANNOUNCEMENT_LANGUAGES,
     CALL_COMPLETED,
     CALL_CONNECTING,
@@ -99,6 +109,11 @@ class SettingsBody(BaseModel):
     # A call nobody answered. Left out: unchanged.
     missed_call_reply: bool | None = None
     missed_call_text: str | None = None
+    # Who answers and what the voice AI says and knows. Left out: unchanged.
+    ai_mode: str | None = None
+    ai_greeting: str | None = None
+    ai_instructions: str | None = None
+    ai_voice: str | None = None
 
 
 def _account_id(ctx: AccountContext) -> int:
@@ -181,6 +196,12 @@ def _inbox_out(row: CallInboxSettings | None) -> dict[str, Any]:
         "announcement_language": (row.announcement_language if row else None) or "es",
         "missed_call_reply": row.missed_call_reply if row is not None else True,
         "missed_call_text": calls.missed_reply_text(row),
+        "ai_available": voice.ready(),
+        "ai_mode": (row.ai_mode if row else None) or AI_MODE_OFF,
+        "ai_greeting": (row.ai_greeting if row else None) or "",
+        "ai_instructions": (row.ai_instructions if row else None) or "",
+        "ai_voice": (row.ai_voice if row else None) or AI_VOICES[0],
+        "ai_voices": list(AI_VOICES),
     }
 
 
@@ -195,7 +216,11 @@ async def _save_inbox(
         for value in (body.record, body.transcribe, body.purpose, body.announcement_language)
     )
     missed = body.missed_call_reply is not None or body.missed_call_text is not None
-    if not recording and not missed:
+    ai = any(
+        value is not None
+        for value in (body.ai_mode, body.ai_greeting, body.ai_instructions, body.ai_voice)
+    )
+    if not recording and not missed and not ai:
         return row
     if row is None:
         row = CallInboxSettings(inbox_id=inbox.id, account_id=inbox.account_id)
@@ -209,9 +234,34 @@ async def _save_inbox(
             raise _fail(422, "missed_text")
         # Ours, or the default when it is ours word for word.
         row.missed_call_text = text if text and text != calls.missed_reply_text(None) else None
+    if ai:
+        _apply_ai(row, body)
     session.add(row)
     await session.flush()
     return row
+
+
+def _apply_ai(row: CallInboxSettings, body: SettingsBody) -> None:
+    if body.ai_mode is not None:
+        if body.ai_mode not in AI_MODES:
+            raise _fail(422, "ai_mode")
+        if body.ai_mode != AI_MODE_OFF and not voice.ready():
+            raise _fail(422, "ai_unavailable")
+        row.ai_mode = body.ai_mode
+    if body.ai_greeting is not None:
+        greeting = body.ai_greeting.strip()
+        if len(greeting) > AI_GREETING_MAX:
+            raise _fail(422, "ai_greeting")
+        row.ai_greeting = greeting or None
+    if body.ai_instructions is not None:
+        instructions = body.ai_instructions.strip()
+        if len(instructions) > AI_INSTRUCTIONS_MAX:
+            raise _fail(422, "ai_instructions")
+        row.ai_instructions = instructions or None
+    if body.ai_voice is not None:
+        if body.ai_voice not in AI_VOICES:
+            raise _fail(422, "ai_voice")
+        row.ai_voice = body.ai_voice
 
 
 def _apply_recording(row: CallInboxSettings, body: SettingsBody) -> None:

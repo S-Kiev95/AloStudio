@@ -83,6 +83,14 @@ MESSAGES: dict[str, str] = {
     # that marks the conversation to call back
     "calls.missed.reply": "こんにちは。お電話に出られず申し訳ありません。数分後にこちらからおかけ直しします。",
     "calls.missed.label": "不在着信",
+    # The voice AI that answers calls (F7 paso 3): the label of a
+    # conversation it handed to a person, what it says first and the
+    # private note it leaves when it hands over
+    "calls.ai.label": "担当者希望",
+    "calls.ai.greeting": "{business}にお電話いただきありがとうございます。",
+    "calls.ai.disclaimer": "私はAIアシスタントです。私の回答は参考情報であり、拘束力はありません。",
+    "calls.speaker.ai": "音声AI",
+    "calls.ai.handoff_note": "音声AIが通話を担当者に引き継ぎました。\n理由: {reason}\n要約: {summary}",
     # Why a conversation closed (F17): the default categories, and the
     # title of the private note a closing leaves
     "closing.default.answered": "問い合わせに回答",

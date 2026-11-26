@@ -22,6 +22,8 @@ type CallData = {
   call_direction?: "inbound" | "outbound";
   duration?: number | null;
   answered_by?: { id: number; name: string } | null;
+  /** Answered by the voice AI instead of a person (F7 paso 3). */
+  ai?: boolean;
   /** "pending" while Meta prepares it, "ready" once it is in AloStudio. */
   recording?: "pending" | "ready" | null;
   transcription?: "pending" | "ready" | null;
@@ -67,7 +69,7 @@ export function VoiceCallMessage({ message }: { message: Message }) {
   const ringing = status === "ringing";
   const live = status === "in-progress";
   const outbound = data.call_direction === "outbound";
-  const agent = data.answered_by?.name;
+  const agent = data.answered_by?.name ?? (data.ai ? t("calls.bubble.ai") : undefined);
 
   let title: string;
   let detail: string;

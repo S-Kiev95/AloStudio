@@ -427,6 +427,7 @@ class WorkerSettings:
     def _functions() -> list:
         from arq import func
 
+        from app.domains.calls.voice import voice_answer_call_task
         from app.domains.notifications.mailer import send_notification_email_task
         from app.domains.notifications.push import send_notification_push_task
         from app.domains.notifications.whatsapp import (
@@ -470,6 +471,9 @@ class WorkerSettings:
             # Enqueued on resolve: hands a WhatsApp conversation the team
             # owned back to Meta Business Agent.
             release_to_ai_task,
+            # Enqueued by a WhatsApp call the inbox's voice AI answers
+            # (F7 paso 3), right away or after the no-answer wait.
+            voice_answer_call_task,
             # Enqueued on-demand by the NotificationListener when an in-app
             # notification is created and the recipient wants it by email / push.
             send_notification_email_task,
