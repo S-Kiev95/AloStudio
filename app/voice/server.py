@@ -11,6 +11,8 @@ from __future__ import annotations
 import hmac
 import logging
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -29,7 +31,31 @@ log = logging.getLogger(__name__)
 # Each call holds a WebRTC stream and a Gemini Live session.
 MAX_CALLS = int(os.environ.get("VOICE_MAX_CALLS", "4"))
 
-app = FastAPI(title="AloStudio voice", docs_url=None, redoc_url=None, openapi_url=None)
+async def _installation_settings(*, force: bool) -> None:
+    """The settings saved in Ajustes → Instalación (the Gemini key, the
+    model) override the environment, as in the API and the worker."""
+    from app.core.db import get_session_factory
+    from app.domains.installation.service import apply_overlay, refresh_if_stale
+
+    try:
+        async with get_session_factory()() as session:
+            if force:
+                await apply_overlay(session)
+            else:
+                await refresh_if_stale(session)
+    except Exception as exc:  # noqa: BLE001 — keep what was loaded last
+        log.warning("voice.installation_settings_failed error=%s", type(exc).__name__)
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    await _installation_settings(force=True)
+    yield
+
+
+app = FastAPI(
+    title="AloStudio voice", docs_url=None, redoc_url=None, openapi_url=None, lifespan=_lifespan
+)
 _calls: dict[str, VoiceCall] = {}
 
 
@@ -55,6 +81,9 @@ async def create_call(spec: CallSpec) -> dict[str, str]:
     if spec.provider_call_id in _calls:
         raise HTTPException(status_code=409)
     if len(_calls) >= MAX_CALLS:
+        raise HTTPException(status_code=503)
+    await _installation_settings(force=False)
+    if not get_settings().gemini_api_key:
         raise HTTPException(status_code=503)
     call = await start_call(
         provider_call_id=spec.provider_call_id,
