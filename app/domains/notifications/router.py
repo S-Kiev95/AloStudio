@@ -22,6 +22,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, status
+from sqlalchemy.orm import lazyload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -84,8 +85,10 @@ async def index_notifications(
     }
     convos: dict[tuple[str, int], Conversation] = {}
     if convo_ids:
-        stmt = select(Conversation).where(
-            Conversation.id.in_(convo_ids)
+        stmt = (
+            select(Conversation)
+            .where(Conversation.id.in_(convo_ids))
+            .options(lazyload("*"))
         )
         for c in (await session.exec(stmt)).all():
             if c.id is not None:

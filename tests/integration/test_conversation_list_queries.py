@@ -272,3 +272,62 @@ async def test_the_message_list_costs_a_bounded_number_of_queries(
         f"la lista de mensajes emitió {counter.total} consultas "
         f"(tope {MAX_QUERIES})."
     )
+
+
+async def test_show_last_seen_and_toggle_status_keep_bounded_queries(
+    client, db_session, counter
+):
+    """Opening, marking seen, and resolving a conversation must not pull the
+    whole account/user/access_token graph."""
+    owner = await _seed(db_session, conversations=1, messages_each=15)
+    headers, new_tokens = create_new_auth_token(
+        user_tokens=owner.user.tokens, uid=owner.user.uid
+    )
+    owner.user.tokens = new_tokens
+    db_session.add(owner.user)
+    await db_session.flush()
+    auth = headers.as_response_headers()
+
+    conv = (
+        await db_session.exec(
+            select(Conversation).where(
+                Conversation.account_id == owner.account.id
+            )
+        )
+    ).first()
+    base = f"/api/v1/accounts/{owner.account.id}/conversations/{conv.display_id}"
+
+    db_session.expunge_all()
+    counter.total = 0
+    r_show = await client.get(base, headers=auth)
+    assert r_show.status_code == 200, r_show.text
+    show_queries = counter.total
+    print(f"\n  show_conversation costó {show_queries} consultas")
+    assert show_queries <= MAX_QUERIES
+
+    db_session.expunge_all()
+    counter.total = 0
+    r_seen = await client.post(f"{base}/update_last_seen", headers=auth)
+    assert r_seen.status_code == 200, r_seen.text
+    seen_queries = counter.total
+    print(f"\n  update_last_seen costó {seen_queries} consultas")
+    assert seen_queries <= 10
+
+    db_session.expunge_all()
+    counter.total = 0
+    r_toggle = await client.post(
+        f"{base}/toggle_status", json={"status": "resolved"}, headers=auth
+    )
+    assert r_toggle.status_code == 200, r_toggle.text
+    assert r_toggle.json()["payload"]["current_status"] == "resolved"
+    toggle_queries = counter.total
+    print(f"\n  toggle_status costó {toggle_queries} consultas")
+    assert toggle_queries <= 35
+
+    db_session.expunge_all()
+    counter.total = 0
+    r_profile = await client.get("/api/v1/profile", headers=auth)
+    assert r_profile.status_code == 200, r_profile.text
+    profile_queries = counter.total
+    print(f"\n  show_profile costó {profile_queries} consultas")
+    assert profile_queries <= 6

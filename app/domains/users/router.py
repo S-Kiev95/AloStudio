@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy.orm import lazyload, selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -162,7 +163,13 @@ async def _render_user(session: AsyncSession, user: User) -> dict:
     """
     memberships = (
         await session.exec(
-            select(AccountUser).where(AccountUser.user_id == user.id).order_by(AccountUser.id)  # type: ignore[arg-type]
+            select(AccountUser)
+            .where(AccountUser.user_id == user.id)
+            .order_by(AccountUser.id)  # type: ignore[arg-type]
+            .options(
+                lazyload("*"),
+                selectinload(AccountUser.account).lazyload("*"),
+            )
         )
     ).all()
 

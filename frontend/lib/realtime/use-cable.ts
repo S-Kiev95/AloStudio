@@ -5,7 +5,19 @@ import { useEffect } from "react";
 
 import { type Call, upsertActiveCall } from "../api/calls";
 import { playNotificationSound } from "../notification-sound";
-import { createCable } from "./cable";
+import { createCable, type CableMessage } from "./cable";
+
+function targetConversationDisplayId(msg: CableMessage): number | null {
+  const data = msg.data as Record<string, unknown> | null;
+  if (!data || typeof data !== "object") return null;
+  if (msg.event.startsWith("message.") || msg.event === "first.reply.created") {
+    return typeof data.conversation_id === "number" ? data.conversation_id : null;
+  }
+  if (msg.event.startsWith("conversation.")) {
+    return typeof data.id === "number" ? data.id : null;
+  }
+  return null;
+}
 
 /**
  * Subscribes to the account's RoomChannel and invalidates the relevant
@@ -36,6 +48,12 @@ export function useCable({
         account_id: Number(accountId),
       },
       (msg) => {
+        if (
+          msg.event === "conversation.typing_on" ||
+          msg.event === "conversation.typing_off"
+        ) {
+          return;
+        }
         // Coarse-but-correct: refetch the affected query buckets. The bell
         // badge tracks ``notification.created`` specifically so we don't
         // wait the 60s poll interval to update.
@@ -52,9 +70,19 @@ export function useCable({
           qc.invalidateQueries({ queryKey: ["conversations", accountId] });
           return;
         }
+        const displayId = targetConversationDisplayId(msg);
         qc.invalidateQueries({ queryKey: ["conversations", accountId] });
-        qc.invalidateQueries({ queryKey: ["messages", accountId] });
-        qc.invalidateQueries({ queryKey: ["conversation", accountId] });
+        if (displayId !== null) {
+          qc.invalidateQueries({
+            queryKey: ["messages", accountId, displayId],
+          });
+          qc.invalidateQueries({
+            queryKey: ["conversation", accountId, displayId],
+          });
+        } else {
+          qc.invalidateQueries({ queryKey: ["messages", accountId] });
+          qc.invalidateQueries({ queryKey: ["conversation", accountId] });
+        }
       },
     );
     return dispose;
