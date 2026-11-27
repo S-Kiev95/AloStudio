@@ -601,8 +601,13 @@ mediciones en `docs/auditoria-rendimiento-2026-11-26.md`.
   todo por cada evento ni por «escribiendo».
 
 **Falta, en este orden:**
-1. Staging: `LOG_LEVEL=INFO`, `APP_ENV=staging` y `--workers 2` en uvicorn
-   (y que `configure_logging` se vuelva a aplicar después del overlay).
+1. ~~Staging: registro en INFO y 2 procesos~~ **hecho el 2026-11-26**:
+   `LOG_LEVEL=INFO` en `~/AloStudio/.env` y `--workers 2` en
+   `alostudio-backend.service` (respaldos `.bak-loglevel-20261127` y
+   `.bak-workers-20261127`). Probado: salud, cable en los dos procesos, sin
+   líneas DEBUG. `APP_ENV` quedó en `local` (solo cambia el formato del log a
+   JSON). Con 2 procesos, un cambio en Ajustes → Instalación llega al otro
+   proceso en su refresco periódico. Para CTC, hacer lo mismo al desplegar.
 2. La bandeja no tiene que cargar todo el historial de las 25 conversaciones
    (`conversation_finder` / `_list_loaders`): traer solo el último mensaje y el
    conteo de no leídos.
