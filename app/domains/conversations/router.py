@@ -56,7 +56,7 @@ from app.domains.accounts.service import require_account_users
 from app.domains.contacts.models import Contact, ContactInbox
 from app.domains.contacts.service import ContactInboxBuilder
 from app.domains.conversations.filter import conversation_filter
-from app.domains.conversations.finder import conversation_finder
+from app.domains.conversations.finder import _list_loaders, conversation_finder
 from app.domains.conversations.models import (
     CONVERSATION_STATUS_OPEN,
     MESSAGE_TYPE_INCOMING,
@@ -629,7 +629,7 @@ async def show_conversation(
 ) -> dict[str, Any]:
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, ctx=ctx, display_id=display_id
+        session, ctx=ctx, display_id=display_id, options=_list_loaders()
     )
     body = present_conversation_show(conv)
     if conv.inbox is not None and conv.inbox.channel_type == CHANNEL_TYPE_WHATSAPP:
@@ -671,11 +671,13 @@ async def update_conversation(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, ctx=ctx, display_id=display_id
+        session, ctx=ctx, display_id=display_id, options=_list_loaders()
     )
     if payload.priority is not None:
         await toggle_priority(session, conversation=conv, priority=payload.priority)
-    return present_conversation_show(conv)
+    body = present_conversation_show(conv)
+    await session.commit()
+    return body
 
 
 @router.post("/{display_id}/toggle_status")
@@ -693,7 +695,7 @@ async def toggle_status_endpoint(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, ctx=ctx, display_id=display_id
+        session, ctx=ctx, display_id=display_id, options=_list_loaders()
     )
     snoozed_until = _parse_iso(payload.snoozed_until, field="snoozed_until")
     await toggle_status(
@@ -702,7 +704,9 @@ async def toggle_status_endpoint(
         status=payload.status,
         snoozed_until=snoozed_until,
     )
-    return present_conversation_toggle_status(conv, success=True)
+    body = present_conversation_toggle_status(conv, success=True)
+    await session.commit()
+    return body
 
 
 @router.post("/{display_id}/toggle_priority")
@@ -715,9 +719,10 @@ async def toggle_priority_endpoint(
     """``POST /conversations/:id/toggle_priority`` — Rails returns ``head :ok``."""
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, ctx=ctx, display_id=display_id
+        session, ctx=ctx, display_id=display_id, options=_list_loaders()
     )
     await toggle_priority(session, conversation=conv, priority=payload.priority)
+    await session.commit()
     return Response(status_code=status.HTTP_200_OK)
 
 
@@ -1036,7 +1041,7 @@ async def list_labels(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, ctx=ctx, display_id=display_id
+        session, ctx=ctx, display_id=display_id, options=(lazyload("*"),)
     )
     return {"payload": _parse_label_csv(conv.cached_label_list)}
 
@@ -1056,7 +1061,7 @@ async def set_labels(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, ctx=ctx, display_id=display_id
+        session, ctx=ctx, display_id=display_id, options=_list_loaders()
     )
     raw = payload.get("labels") or []
     if not isinstance(raw, list):
@@ -1068,6 +1073,7 @@ async def set_labels(
     new_titles = await update_labels(
         session, conversation=conv, titles=titles
     )
+    await session.commit()
     return {"payload": new_titles}
 
 
@@ -1086,7 +1092,7 @@ async def update_last_seen_endpoint(
     """
     assert ctx.account.id is not None
     conv = await _load_conversation_by_display_id(
-        session, ctx=ctx, display_id=display_id
+        session, ctx=ctx, display_id=display_id, options=(lazyload("*"),)
     )
     now = datetime.now(UTC)
     conv.agent_last_seen_at = now
@@ -1094,6 +1100,7 @@ async def update_last_seen_endpoint(
         conv.assignee_last_seen_at = now
     session.add(conv)
     await session.flush()
+    await session.commit()
     return Response(status_code=status.HTTP_200_OK)
 
 

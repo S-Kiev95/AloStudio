@@ -75,3 +75,51 @@ describe("createCable", () => {
     expect(ws.closed).toBe(true);
   });
 });
+
+describe("useCable invalidations", () => {
+  it("ignores typing events and scopes invalidation to the target conversation", async () => {
+    const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
+    const { renderHook } = await import("@testing-library/react");
+    const { createElement } = await import("react");
+    const { useCable } = await import("./use-cable");
+
+    vi.stubGlobal("WebSocket", FakeWS as unknown as typeof WebSocket);
+    vi.stubEnv("NEXT_PUBLIC_CABLE_URL", "ws://x/cable");
+
+    const qc = new QueryClient();
+    const spy = vi.spyOn(qc, "invalidateQueries");
+    const identifier = {
+      channel: "RoomChannel",
+      pubsub_token: "TKN",
+      user_id: 7,
+      account_id: 1,
+    };
+    const idStr = JSON.stringify(identifier);
+
+    const { unmount } = renderHook(
+      () => useCable({ pubsubToken: "TKN", userId: 7, accountId: "1" }),
+      {
+        wrapper: ({ children }) =>
+          createElement(QueryClientProvider, { client: qc }, children),
+      },
+    );
+
+    const ws = FakeWS.instances[0];
+    ws.emit({ type: "welcome" });
+    ws.emit({
+      identifier: idStr,
+      message: { event: "conversation.typing_on", data: { id: 18 } },
+    });
+    expect(spy).not.toHaveBeenCalled();
+
+    ws.emit({
+      identifier: idStr,
+      message: { event: "conversation.status_changed", data: { id: 42 } },
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["conversations", "1"] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["conversation", "1", 42] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["messages", "1", 42] });
+
+    unmount();
+  });
+});

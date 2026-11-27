@@ -306,7 +306,7 @@ async def toggle_status(
 
     session.add(conversation)
     await session.flush()
-    await session.refresh(conversation)
+    await session.refresh(conversation, ["updated_at"])
 
     changed = prev_status != new_status
     if changed:
@@ -375,7 +375,7 @@ async def toggle_priority(
     conversation.priority = conversation_priority_from_str(priority)
     session.add(conversation)
     await session.flush()
-    await session.refresh(conversation)
+    await session.refresh(conversation, ["updated_at"])
     if prev != conversation.priority:
         from app.domains.conversations.models import (
             conversation_priority_to_str,
@@ -746,7 +746,7 @@ async def update_labels(
     conversation.cached_label_list = ",".join(new_titles) if new_titles else None
     session.add(conversation)
     await session.flush()
-    await session.refresh(conversation)
+    await session.refresh(conversation, ["updated_at"])
 
     added = [t for t in new_titles if t not in prev_set]
     removed = [t for t in prev_titles if t not in next_set]

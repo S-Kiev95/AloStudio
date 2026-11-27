@@ -396,4 +396,23 @@ describe("ConversationView — notas de cierre (F17)", () => {
     await waitFor(() => expect(closed).toEqual({ category: "Se inscribió", note: null }));
     expect(toggled).toBe(false);
   });
+
+  it("sin notas de cierre, Resolver cambia el estado en pantalla de inmediato antes de que responda la red", async () => {
+    let release!: () => void;
+    server.use(
+      http.post("*/api/v1/accounts/:accountId/conversations/18/toggle_status", async () => {
+        await new Promise<void>((r) => {
+          release = r;
+        });
+        return HttpResponse.json({ payload: { current_status: "resolved" } });
+      }),
+    );
+    renderView();
+    const resolveBtn = await screen.findByRole("button", { name: "Resolver" });
+    fireEvent.click(resolveBtn);
+
+    // Optimistic flip happens immediately while the POST is still in flight.
+    expect(await screen.findByRole("button", { name: "Reabrir" })).toBeInTheDocument();
+    release();
+  });
 });
