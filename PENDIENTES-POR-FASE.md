@@ -585,6 +585,33 @@ manual, Polar sandbox conectado). Detalle en `PLAN.multitenant.md`.
   función `generate_email_design` (`app/domains/email/ai_design.py`, plantillas y
   firmas de correo con IA) quedó lista para usarla como herramienta del Agente.
 
+## Rendimiento del panel (auditoría del 2026-11-26)
+
+Pedido del dueño («el panel de a rato está lento»). La hizo Carbon (Gemini 4
+Carbon en Antigravity, lanzado por el agente A). Informe completo con
+mediciones en `docs/auditoria-rendimiento-2026-11-26.md`.
+
+**En develop y en staging (2026-11-26, `8a3efaf`):**
+- Embeddings: lotes de 4 (antes 16) para que entren en los 15 s; el servicio
+  llevaba 11 días en un bucle de pedidos cortados (30 % de CPU, 0 guardados).
+- Conversaciones: abrir, marcar vista, resolver, prioridad y etiquetas cargan
+  solo lo necesario y confirman antes de responder (resolver: >120 consultas
+  → 33).
+- Panel: «Resolver» cambia al instante (optimista) y el cable ya no recarga
+  todo por cada evento ni por «escribiendo».
+
+**Falta, en este orden:**
+1. Staging: `LOG_LEVEL=INFO`, `APP_ENV=staging` y `--workers 2` en uvicorn
+   (y que `configure_logging` se vuelva a aplicar después del overlay).
+2. La bandeja no tiene que cargar todo el historial de las 25 conversaciones
+   (`conversation_finder` / `_list_loaders`): traer solo el último mensaje y el
+   conteo de no leídos.
+3. Separar los 7 idiomas del panel (hoy ~350 kB gzip de más en cada pantalla).
+4. Índices `access_tokens (owner_type, owner_id)` y `conversations (account_id,
+   status, last_activity_at DESC)`, con `CREATE INDEX CONCURRENTLY`.
+5. Resto: optimista en asignar, prioridad y etiquetas; la transición de 240 ms
+   de `template.tsx`; el cable publicando después del commit.
+
 ## F8. Búsqueda en conversaciones viejas
 
 **Hecho (paso 1, 2026-11-13, rama `feat/f8-busqueda`):**
