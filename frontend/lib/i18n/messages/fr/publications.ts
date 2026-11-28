@@ -4,6 +4,23 @@ import type { Strings } from "../types";
 export const publications: Strings<typeof es> = {
   loadingCalendar: "Chargement du calendrier…",
   analytics: {
+    watchTime: "Durée de visionnage",
+    viewsByTrafficSource: "D’où viennent les vues",
+    traffic: {
+      YT_SEARCH: "Recherche YouTube",
+      SUGGESTED: "Vidéos suggérées",
+      BROWSE: "Accueil et abonnements",
+      EXT_URL: "Sites et apps externes",
+      YT_CHANNEL: "Page de la chaîne",
+      PLAYLIST: "Playlists",
+      NOTIFICATION: "Notifications",
+      SHORTS: "Shorts",
+      END_SCREEN: "Écrans de fin",
+      HASHTAGS: "Hashtags",
+      ADVERTISING: "Annonces",
+      NO_LINK_OTHER: "Direct ou inconnu",
+      YT_OTHER_PAGE: "Autres pages YouTube",
+    },
     custom: "Personnalisée",
     pickDates: "Choisissez les dates Du et Au.",
     invalidDates: "Les dates saisies ne sont pas valides.",

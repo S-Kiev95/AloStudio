@@ -4,6 +4,23 @@ import type { Strings } from "../types";
 export const publications: Strings<typeof es> = {
   loadingCalendar: "カレンダーを読み込み中…",
   analytics: {
+    watchTime: "総再生時間",
+    viewsByTrafficSource: "視聴回数の流入元",
+    traffic: {
+      YT_SEARCH: "YouTube 検索",
+      SUGGESTED: "関連動画",
+      BROWSE: "ホームと登録チャンネル",
+      EXT_URL: "外部サイトとアプリ",
+      YT_CHANNEL: "チャンネルページ",
+      PLAYLIST: "再生リスト",
+      NOTIFICATION: "通知",
+      SHORTS: "ショート",
+      END_SCREEN: "終了画面",
+      HASHTAGS: "ハッシュタグ",
+      ADVERTISING: "広告",
+      NO_LINK_OTHER: "直接または不明",
+      YT_OTHER_PAGE: "その他の YouTube ページ",
+    },
     custom: "カスタム",
     pickDates: "開始日と終了日を選んでください。",
     invalidDates: "入力した日付が正しくありません。",

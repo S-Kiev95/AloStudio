@@ -1,6 +1,23 @@
 export const publications = {
   loadingCalendar: "Cargando calendario…",
   analytics: {
+    watchTime: "Tiempo de visualización",
+    viewsByTrafficSource: "De dónde vienen las vistas",
+    traffic: {
+      YT_SEARCH: "Búsqueda de YouTube",
+      SUGGESTED: "Videos sugeridos",
+      BROWSE: "Inicio y suscripciones",
+      EXT_URL: "Sitios y apps externos",
+      YT_CHANNEL: "Página del canal",
+      PLAYLIST: "Listas de reproducción",
+      NOTIFICATION: "Notificaciones",
+      SHORTS: "Shorts",
+      END_SCREEN: "Pantallas finales",
+      HASHTAGS: "Hashtags",
+      ADVERTISING: "Anuncios",
+      NO_LINK_OTHER: "Directo o desconocido",
+      YT_OTHER_PAGE: "Otras páginas de YouTube",
+    },
     custom: "Personalizado",
     pickDates: "Seleccioná las fechas Desde y Hasta.",
     invalidDates: "Las fechas ingresadas no son válidas.",

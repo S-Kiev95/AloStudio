@@ -4,6 +4,23 @@ import type { Strings } from "../types";
 export const publications: Strings<typeof es> = {
   loadingCalendar: "캘린더를 불러오는 중…",
   analytics: {
+    watchTime: "시청 시간",
+    viewsByTrafficSource: "조회수 유입 경로",
+    traffic: {
+      YT_SEARCH: "YouTube 검색",
+      SUGGESTED: "추천 동영상",
+      BROWSE: "홈 및 구독",
+      EXT_URL: "외부 사이트 및 앱",
+      YT_CHANNEL: "채널 페이지",
+      PLAYLIST: "재생목록",
+      NOTIFICATION: "알림",
+      SHORTS: "Shorts",
+      END_SCREEN: "최종 화면",
+      HASHTAGS: "해시태그",
+      ADVERTISING: "광고",
+      NO_LINK_OTHER: "직접 또는 알 수 없음",
+      YT_OTHER_PAGE: "기타 YouTube 페이지",
+    },
     custom: "직접 설정",
     pickDates: "시작일과 종료일을 선택하세요.",
     invalidDates: "입력한 날짜가 올바르지 않습니다.",

@@ -204,7 +204,9 @@ export type ActivityName =
   | "saves"
   | "reposts"
   | "replies"
-  | "profile_links_taps";
+  | "profile_links_taps"
+  /** YouTube: minutes watched, in milliseconds. */
+  | "watch_time_ms";
 
 export type AnalyticsSeriesPoint = {
   date: string;
@@ -230,7 +232,9 @@ export type AnalyticsChannel = {
   series: AnalyticsSeriesPoint[];
   /** Summed over the period; networks that don't report them leave them out. */
   activity?: Partial<Record<ActivityName, number>>;
-  breakdowns?: Partial<Record<"views_by_surface" | "profile_taps_by_button", MetricSplit>>;
+  breakdowns?: Partial<
+    Record<"views_by_surface" | "profile_taps_by_button" | "views_by_traffic_source", MetricSplit>
+  >;
   audience?: Audience | null;
 };
 
