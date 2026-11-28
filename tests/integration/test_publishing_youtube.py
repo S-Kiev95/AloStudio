@@ -310,6 +310,10 @@ async def test_reads_the_figures(db_session):
     channel = await _channel(db_session, owner.account)
     _publication, target = await _target(db_session, owner.account, channel)
     target.external_id = "VID1"
+    # Without Analytics (403), the basic figures still come from the Data API.
+    respx.get("https://youtubeanalytics.googleapis.com/v2/reports").mock(
+        return_value=httpx.Response(403, json={"error": {"code": 403}})
+    )
     respx.get(f"{API}/videos").mock(
         return_value=httpx.Response(
             200,
