@@ -110,15 +110,9 @@ class PublishingChannel(TimestampMixin, table=True):
     # Key of the adapter that publishes to this channel.
     network: str = Field(sa_column=Column(String, nullable=False))
     name: str | None = Field(default=None, sa_column=Column(String, nullable=True))
-    username: str | None = Field(
-        default=None, sa_column=Column(String, nullable=True)
-    )
-    avatar_url: str | None = Field(
-        default=None, sa_column=Column(String, nullable=True)
-    )
-    external_id: str | None = Field(
-        default=None, sa_column=Column(String, nullable=True)
-    )
+    username: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    avatar_url: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    external_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     inbox_id: int | None = Field(
         default=None,
         sa_column=Column(
@@ -138,13 +132,9 @@ class PublishingChannel(TimestampMixin, table=True):
     )
     status: str = Field(
         default=CHANNEL_STATUS_ACTIVE,
-        sa_column=Column(
-            String, nullable=False, server_default=CHANNEL_STATUS_ACTIVE
-        ),
+        sa_column=Column(String, nullable=False, server_default=CHANNEL_STATUS_ACTIVE),
     )
-    status_message: str | None = Field(
-        default=None, sa_column=Column(Text, nullable=True)
-    )
+    status_message: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
 
 
 class Publication(TimestampMixin, table=True):
@@ -175,9 +165,7 @@ class Publication(TimestampMixin, table=True):
             nullable=False,
         ),
     )
-    content: str | None = Field(
-        default=None, sa_column=Column(Text, nullable=True)
-    )
+    content: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     # Ordered ``[{"type": "image" | "video", "url": str}]``. The URLs must
     # be public: each network downloads the file itself.
     media: list[dict[str, Any]] = Field(
@@ -190,9 +178,7 @@ class Publication(TimestampMixin, table=True):
     )
     state: str = Field(
         default=PUBLICATION_STATE_DRAFT,
-        sa_column=Column(
-            String, nullable=False, server_default=PUBLICATION_STATE_DRAFT
-        ),
+        sa_column=Column(String, nullable=False, server_default=PUBLICATION_STATE_DRAFT),
     )
     created_by_id: int | None = Field(
         default=None,
@@ -258,27 +244,15 @@ class PublicationTarget(TimestampMixin, table=True):
         default_factory=dict,
         sa_column=Column(JSONB, nullable=False, server_default="{}"),
     )
-    content_override: str | None = Field(
-        default=None, sa_column=Column(Text, nullable=True)
-    )
+    content_override: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     state: str = Field(
         default=TARGET_STATE_PENDING,
-        sa_column=Column(
-            String, nullable=False, server_default=TARGET_STATE_PENDING
-        ),
+        sa_column=Column(String, nullable=False, server_default=TARGET_STATE_PENDING),
     )
-    external_id: str | None = Field(
-        default=None, sa_column=Column(String, nullable=True)
-    )
-    permalink: str | None = Field(
-        default=None, sa_column=Column(String, nullable=True)
-    )
-    error_code: str | None = Field(
-        default=None, sa_column=Column(String, nullable=True)
-    )
-    error_message: str | None = Field(
-        default=None, sa_column=Column(Text, nullable=True)
-    )
+    external_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    permalink: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    error_code: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    error_message: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     attempts: int = Field(
         default=0,
         sa_column=Column(Integer, nullable=False, server_default="0"),
@@ -305,9 +279,7 @@ class PublicationTarget(TimestampMixin, table=True):
     )
     # Why the last refresh failed (missing permission, deleted post…);
     # cleared by the next successful one.
-    metrics_error: str | None = Field(
-        default=None, sa_column=Column(Text, nullable=True)
-    )
+    metrics_error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
 
 
 # Normalised metric names. Each adapter maps its network's figures onto
@@ -348,6 +320,8 @@ CHANNEL_METRIC_KEYS: tuple[str, ...] = (
     "reposts",
     "replies",
     "profile_links_taps",
+    # Videos (YouTube): minutes watched that day, in milliseconds.
+    "watch_time_ms",
 )
 # Per-day channel figures split by a dimension, ``{dimension value: n}``:
 # views by the surface they came from (reels, stories, posts, ads) and
@@ -355,6 +329,8 @@ CHANNEL_METRIC_KEYS: tuple[str, ...] = (
 CHANNEL_BREAKDOWN_KEYS: tuple[str, ...] = (
     "views_by_surface",
     "profile_taps_by_button",
+    # YouTube: where the views came from (search, suggested, external…).
+    "views_by_traffic_source",
 )
 
 
@@ -365,9 +341,7 @@ class ChannelMetricSnapshot(TimestampMixin, table=True):
 
     __tablename__ = "channel_metric_snapshots"
     __table_args__ = (
-        UniqueConstraint(
-            "channel_id", "date", name="uniq_channel_metric_snapshots_channel_date"
-        ),
+        UniqueConstraint("channel_id", "date", name="uniq_channel_metric_snapshots_channel_date"),
         Index(
             "index_channel_metric_snapshots_on_account_id_and_date",
             "account_id",
@@ -400,7 +374,6 @@ class ChannelMetricSnapshot(TimestampMixin, table=True):
         default_factory=dict,
         sa_column=Column(JSONB, nullable=False, server_default="{}"),
     )
-
 
 
 class PublishingSignature(TimestampMixin, table=True):
@@ -519,9 +492,7 @@ class PublishingAutopost(TimestampMixin, table=True):
         sa_column=Column(Boolean, nullable=False, server_default="false"),
     )
     # The newest entry seen (its guid, id or link): entries above it are new.
-    last_item_key: str | None = Field(
-        default=None, sa_column=Column(Text, nullable=True)
-    )
+    last_item_key: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     last_checked_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True),

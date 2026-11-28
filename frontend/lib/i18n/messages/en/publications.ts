@@ -4,6 +4,23 @@ import type { Strings } from "../types";
 export const publications: Strings<typeof es> = {
   loadingCalendar: "Loading calendar…",
   analytics: {
+    watchTime: "Watch time",
+    viewsByTrafficSource: "Where views come from",
+    traffic: {
+      YT_SEARCH: "YouTube search",
+      SUGGESTED: "Suggested videos",
+      BROWSE: "Home and subscriptions",
+      EXT_URL: "External sites and apps",
+      YT_CHANNEL: "Channel page",
+      PLAYLIST: "Playlists",
+      NOTIFICATION: "Notifications",
+      SHORTS: "Shorts",
+      END_SCREEN: "End screens",
+      HASHTAGS: "Hashtags",
+      ADVERTISING: "Ads",
+      NO_LINK_OTHER: "Direct or unknown",
+      YT_OTHER_PAGE: "Other YouTube pages",
+    },
     custom: "Custom",
     pickDates: "Pick the From and To dates.",
     invalidDates: "The dates entered aren't valid.",

@@ -78,4 +78,22 @@ describe("ChannelInsights", () => {
     expect(formatDurationMs(250_000, "es-UY")).toBe("4 min 10 s");
     expect(formatDurationMs(7_500_000, "es-UY")).toBe("2 h 5 min");
   });
+
+  it("muestra el tiempo de visualización y de dónde vienen las vistas de YouTube", () => {
+    render(
+      <ChannelInsights
+        entry={entry({
+          channel: { ...CHANNEL, network: "youtube", name: "Canal CTC" },
+          activity: { views: 50, watch_time_ms: 750_000 },
+          breakdowns: { views_by_traffic_source: { YT_SEARCH: 25, SUGGESTED: 15 } },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Tiempo de visualización")).toBeVisible();
+    expect(screen.getByText("12 min 30 s")).toBeVisible();
+    expect(screen.getByText("De dónde vienen las vistas")).toBeVisible();
+    expect(screen.getByText("Búsqueda de YouTube")).toBeVisible();
+    expect(screen.getByText("Videos sugeridos")).toBeVisible();
+  });
 });

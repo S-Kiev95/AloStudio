@@ -615,3 +615,115 @@ async def test_the_editor_reads_playlists_and_categories(db_session):
     assert info["can_post"] is True
     assert info["playlists"] == [{"id": "PL1", "title": "Cursos"}]
     assert info["categories"] == [{"id": "27", "title": "Educación"}]
+
+
+ANALYTICS = "https://youtubeanalytics.googleapis.com/v2/reports"
+
+
+def _analytics_reply(request: httpx.Request) -> httpx.Response:
+    params = request.url.params
+    dims = params.get("dimensions")
+    if dims == "day":
+        return httpx.Response(
+            200,
+            json={
+                "rows": [
+                    ["2026-11-20", 40, 12.5, 3, 1, 2, 4, 1],
+                    ["2026-11-21", 10, 2, 1, 0, 0, 0, 0],
+                ]
+            },
+        )
+    if dims == "day,insightTrafficSourceType":
+        return httpx.Response(
+            200,
+            json={"rows": [["2026-11-20", "YT_SEARCH", 25], ["2026-11-20", "SUGGESTED", 15]]},
+        )
+    if dims == "ageGroup,gender":
+        return httpx.Response(
+            200,
+            json={
+                "rows": [
+                    ["age18-24", "female", 30.0],
+                    ["age18-24", "male", 20.0],
+                    ["age25-34", "male", 50.0],
+                ]
+            },
+        )
+    if dims == "country":
+        return httpx.Response(200, json={"rows": [["UY", 30], ["AR", 10]]})
+    # Per video.
+    assert params["filters"] == "video==VID1"
+    return httpx.Response(200, json={"rows": [[90.0, 135.5, 4]]})
+
+
+@respx.mock
+async def test_channel_figures_from_youtube_analytics(db_session):
+    from datetime import date as _date
+
+    owner = await _seed(db_session, "-yta")
+    channel = await _channel(db_session, owner.account)
+    respx.get(f"{API}/channels").mock(
+        return_value=httpx.Response(
+            200, json={"items": [{"statistics": {"subscriberCount": "345"}}]}
+        )
+    )
+    route = respx.get(ANALYTICS).mock(side_effect=_analytics_reply)
+
+    result = await YouTubeAdapter().fetch_channel_metrics(
+        db_session, channel, days=[_date(2026, 11, 20), _date(2026, 11, 21)]
+    )
+
+    assert result is not None and result.ok
+    assert result.metrics == {"followers": 345}
+    day = result.daily[_date(2026, 11, 20)]
+    assert day["views"] == 40 and day["watch_time_ms"] == 750_000
+    assert (day["likes"], day["comments"], day["shares"], day["interactions"]) == (3, 1, 2, 6)
+    assert (day["follows"], day["unfollows"]) == (4, 1)
+    assert day["views_by_traffic_source"] == {"YT_SEARCH": 25, "SUGGESTED": 15}
+    engaged = result.audience["engaged"]
+    assert engaged["age"] == {"18-24": 50.0, "25-34": 50.0}
+    assert engaged["gender"] == {"F": 30.0, "M": 70.0}
+    assert engaged["country"] == {"UY": 30, "AR": 10}
+    assert route.calls[0].request.url.params["ids"] == "channel==MINE"
+
+
+@respx.mock
+async def test_video_figures_add_watch_time(db_session):
+    owner = await _seed(db_session, "-ytv")
+    channel = await _channel(db_session, owner.account)
+    _publication, target = await _target(db_session, owner.account, channel)
+    target.external_id = "VID1"
+    respx.get(f"{API}/videos").mock(
+        return_value=httpx.Response(200, json={"items": [{"statistics": {"viewCount": "120"}}]})
+    )
+    respx.get(ANALYTICS).mock(side_effect=_analytics_reply)
+
+    post = await YouTubeAdapter().fetch_post_metrics(db_session, target)
+
+    assert post is not None and post.ok
+    assert post.metrics == {
+        "views": 120,
+        "watch_time_ms": 5_400_000,
+        "avg_watch_time_ms": 135_500,
+        "shares": 4,
+    }
+
+
+@respx.mock
+async def test_without_analytics_the_basic_figures_still_go_out(db_session):
+    from datetime import date as _date
+
+    owner = await _seed(db_session, "-ytn")
+    channel = await _channel(db_session, owner.account)
+    respx.get(f"{API}/channels").mock(
+        return_value=httpx.Response(200, json={"items": [{"statistics": {"subscriberCount": "7"}}]})
+    )
+    # A channel connected before the Analytics scope was asked for.
+    respx.get(ANALYTICS).mock(return_value=httpx.Response(403, json={"error": {"code": 403}}))
+
+    result = await YouTubeAdapter().fetch_channel_metrics(
+        db_session, channel, days=[_date(2026, 11, 20)]
+    )
+
+    assert result is not None and result.ok
+    assert (result.metrics, result.daily, result.audience) == ({"followers": 7}, {}, {})

@@ -12,7 +12,7 @@ import type {
 import { useIntlTag, useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 
-import { formatMetricValue } from "./publication-detail-dialog";
+import { formatDurationMs, formatMetricValue } from "./publication-detail-dialog";
 
 /** The account's own figures (not only what was published from here),
  * shown only when the network reports them. */
@@ -29,7 +29,27 @@ const ACTIVITY_FIELDS: { key: ActivityName; label: MessageKey }[] = [
   { key: "reposts", label: "publications.metrics.reposts" },
   { key: "replies", label: "publications.metrics.replies" },
   { key: "profile_links_taps", label: "publications.analytics.profileTaps" },
+  { key: "watch_time_ms", label: "publications.analytics.watchTime" },
 ];
+
+/** YouTube's traffic source types (insightTrafficSourceType). */
+const TRAFFIC_LABELS: Record<string, MessageKey> = {
+  YT_SEARCH: "publications.analytics.traffic.YT_SEARCH",
+  SUGGESTED: "publications.analytics.traffic.SUGGESTED",
+  RELATED_VIDEO: "publications.analytics.traffic.SUGGESTED",
+  BROWSE: "publications.analytics.traffic.BROWSE",
+  SUBSCRIBER: "publications.analytics.traffic.BROWSE",
+  EXT_URL: "publications.analytics.traffic.EXT_URL",
+  YT_CHANNEL: "publications.analytics.traffic.YT_CHANNEL",
+  PLAYLIST: "publications.analytics.traffic.PLAYLIST",
+  NOTIFICATION: "publications.analytics.traffic.NOTIFICATION",
+  SHORTS: "publications.analytics.traffic.SHORTS",
+  END_SCREEN: "publications.analytics.traffic.END_SCREEN",
+  HASHTAGS: "publications.analytics.traffic.HASHTAGS",
+  ADVERTISING: "publications.analytics.traffic.ADVERTISING",
+  NO_LINK_OTHER: "publications.analytics.traffic.NO_LINK_OTHER",
+  YT_OTHER_PAGE: "publications.analytics.traffic.YT_OTHER_PAGE",
+};
 
 const SURFACE_LABELS: Record<string, MessageKey> = {
   reels: "publications.analytics.surfaceReels",
@@ -69,9 +89,11 @@ export function ChannelInsights({ entry }: { entry: AnalyticsChannel }) {
   );
   const surfaces = entry.breakdowns?.views_by_surface;
   const buttons = entry.breakdowns?.profile_taps_by_button;
+  const traffic = entry.breakdowns?.views_by_traffic_source;
   const hasSplits = Boolean(
     (surfaces && Object.keys(surfaces).length) ||
-      (buttons && Object.keys(buttons).length),
+      (buttons && Object.keys(buttons).length) ||
+      (traffic && Object.keys(traffic).length),
   );
 
   if (!activity.length && !hasSplits && !entry.audience) {
@@ -100,7 +122,9 @@ export function ChannelInsights({ entry }: { entry: AnalyticsChannel }) {
                   {t(f.label)}
                 </p>
                 <p className="font-numeric text-sm font-semibold tabular-nums text-fg">
-                  {formatMetricValue(entry.activity?.[f.key], intlTag)}
+                  {f.key === "watch_time_ms"
+                    ? formatDurationMs(entry.activity?.[f.key] ?? 0, intlTag)
+                    : formatMetricValue(entry.activity?.[f.key], intlTag)}
                 </p>
               </div>
             ))}
@@ -115,6 +139,13 @@ export function ChannelInsights({ entry }: { entry: AnalyticsChannel }) {
               title={t("publications.analytics.viewsBySurface")}
               split={surfaces}
               label={(k) => (SURFACE_LABELS[k] ? t(SURFACE_LABELS[k]) : k)}
+            />
+          ) : null}
+          {traffic && Object.keys(traffic).length ? (
+            <SplitBars
+              title={t("publications.analytics.viewsByTrafficSource")}
+              split={traffic}
+              label={(k) => (TRAFFIC_LABELS[k] ? t(TRAFFIC_LABELS[k]) : k)}
             />
           ) : null}
           {buttons && Object.keys(buttons).length ? (

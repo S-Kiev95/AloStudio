@@ -20,7 +20,13 @@ Written from Google's YouTube Data API v3 documentation:
   * The editor reads the channel's playlists and YouTube's categories from
     ``compose_info``.
   * Figures: ``videos.list`` (views, likes, comments) and ``channels.list``
-    (subscribers).
+    (subscribers), plus the YouTube Analytics API (``yt-analytics.readonly``):
+    per day, views, minutes watched, likes, comments, shares and subscribers
+    gained and lost, views by traffic source, and the viewers' age, gender
+    and country over the last 28 days; per video, minutes watched, average
+    view duration and shares. Analytics trails by two or three days, and a
+    channel connected before the scope was asked for keeps the basic figures
+    until it is connected again.
   * Comments: ``commentThreads.list`` reads them live (newest first, with
     their replies) and ``comments.insert`` answers one as the channel. Both
     need ``youtube.force-ssl``: a channel connected before it was asked for
@@ -36,7 +42,7 @@ from __future__ import annotations
 import logging
 import tempfile
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import IO, Any
 from urllib.parse import urlencode
 
@@ -71,7 +77,11 @@ SCOPES: tuple[str, ...] = (
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly",
     "https://www.googleapis.com/auth/youtube.force-ssl",
+    "https://www.googleapis.com/auth/yt-analytics.readonly",
 )
+ANALYTICS_URL = "https://youtubeanalytics.googleapis.com/v2/reports"
+AUDIENCE_DAYS = 28
+COUNTRIES_MAX = 10
 COMMENTS_MAX = 50
 TAGS_MAX_CHARS = 500
 DEFAULT_CATEGORY = "22"  # People & Blogs
@@ -198,7 +208,8 @@ def _access_expired(credentials: dict[str, Any]) -> bool:
 def youtube_settings(target: PublicationTarget) -> dict[str, Any]:
     """What the owner chose for this target in the editor."""
     raw = target.settings or {}
-    tags = raw.get("tags") if isinstance(raw.get("tags"), list) else []
+    raw_tags = raw.get("tags")
+    tags: list[Any] = raw_tags if isinstance(raw_tags, list) else []
     thumb = raw.get("thumbnail_media_id")
     category = str(raw.get("category_id") or DEFAULT_CATEGORY).strip()
     return {
@@ -225,6 +236,17 @@ def tags_length(tags: list[str]) -> int:
 async def _chunks(file: IO[bytes]) -> AsyncIterator[bytes]:
     while block := file.read(CHUNK):
         yield block
+
+
+def _today() -> date:
+    return datetime.now(UTC).date()
+
+
+def _day_of(raw: Any) -> date | None:
+    try:
+        return date.fromisoformat(str(raw))
+    except ValueError:
+        return None
 
 
 def _comment_of(raw: dict[str, Any]) -> dict[str, Any]:
@@ -756,10 +778,52 @@ class YouTubeAdapter(PublishingAdapter):
             return MetricsResult(ok=False, error_message="El video ya no está en YouTube.")
         stats = items[0].get("statistics") or {}
         names = {"views": "viewCount", "likes": "likeCount", "comments": "commentCount"}
-        return MetricsResult(
-            ok=True,
-            metrics={k: int(stats[v]) for k, v in names.items() if str(stats.get(v, "")).isdigit()},
+        metrics = {k: int(stats[v]) for k, v in names.items() if str(stats.get(v, "")).isdigit()}
+        published = target.published_at.date() if target.published_at else date(2005, 4, 23)
+        rows = await self._report(
+            session,
+            channel,
+            {
+                "startDate": published.isoformat(),
+                "endDate": _today().isoformat(),
+                "metrics": "estimatedMinutesWatched,averageViewDuration,shares",
+                "filters": f"video=={target.external_id}",
+            },
         )
+        if rows:
+            minutes, avg_seconds, shares = (rows[0] + [0, 0, 0])[:3]
+            metrics["watch_time_ms"] = int(float(minutes) * 60_000)
+            metrics["avg_watch_time_ms"] = int(float(avg_seconds) * 1000)
+            metrics["shares"] = int(shares)
+        return MetricsResult(ok=True, metrics=metrics)
+
+    async def _report(
+        self, session: AsyncSession, channel: PublishingChannel, params: dict[str, Any]
+    ) -> list[list[Any]] | None:
+        """Rows of a YouTube Analytics report for the channel, or ``None``
+        when it can't be read (the channel lacks the scope, Analytics is off
+        in the project…): the basic figures still go out."""
+        try:
+            token = await self._access_token(session, channel)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(
+                    ANALYTICS_URL,
+                    params={"ids": "channel==MINE", **params},
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+        except (_YouTubeError, httpx.HTTPError) as exc:
+            log.info("youtube.analytics.unavailable channel_id=%s err=%s", channel.id, exc)
+            return None
+        if resp.status_code >= 400:
+            log.info(
+                "youtube.analytics.refused channel_id=%s status=%s", channel.id, resp.status_code
+            )
+            return None
+        try:
+            rows = resp.json().get("rows") or []
+        except ValueError:
+            return None
+        return [list(r) for r in rows if isinstance(r, list)]
 
     async def fetch_channel_metrics(
         self, session: AsyncSession, channel: PublishingChannel, *, days: list[Any]
@@ -784,9 +848,101 @@ class YouTubeAdapter(PublishingAdapter):
             return MetricsResult(ok=False, error_message="No se pudo consultar YouTube.")
         stats = (items[0].get("statistics") or {}) if items else {}
         subscribers = str(stats.get("subscriberCount", ""))
-        if not subscribers.isdigit():
-            return MetricsResult(ok=True)
-        return MetricsResult(ok=True, metrics={"followers": int(subscribers)})
+        metrics = {"followers": int(subscribers)} if subscribers.isdigit() else {}
+        wanted = sorted(d for d in days if isinstance(d, date))
+        daily = await self._daily(session, channel, wanted) if wanted else {}
+        audience = await self._audience(session, channel)
+        return MetricsResult(ok=True, metrics=metrics, daily=daily, audience=audience)
+
+    async def _daily(
+        self, session: AsyncSession, channel: PublishingChannel, days: list[date]
+    ) -> dict[date, dict[str, Any]]:
+        wanted = set(days)
+        span = {"startDate": days[0].isoformat(), "endDate": days[-1].isoformat()}
+        daily: dict[date, dict[str, Any]] = {}
+        rows = await self._report(
+            session,
+            channel,
+            {
+                **span,
+                "dimensions": "day",
+                "metrics": (
+                    "views,estimatedMinutesWatched,likes,comments,shares,"
+                    "subscribersGained,subscribersLost"
+                ),
+                "sort": "day",
+            },
+        )
+        for row in rows or []:
+            day = _day_of(row[0])
+            if day is None or day not in wanted:
+                continue
+            views, _minutes, likes, comments, shares, gained, lost = (
+                [int(float(v)) for v in row[1:8]] + [0] * 7
+            )[:7]
+            daily[day] = {
+                "views": views,
+                "watch_time_ms": int(float(row[2]) * 60_000),
+                "likes": likes,
+                "comments": comments,
+                "shares": shares,
+                "interactions": likes + comments + shares,
+                "follows": gained,
+                "unfollows": lost,
+            }
+        rows = await self._report(
+            session,
+            channel,
+            {**span, "dimensions": "day,insightTrafficSourceType", "metrics": "views"},
+        )
+        for row in rows or []:
+            day = _day_of(row[0])
+            if day is None or day not in wanted or len(row) < 3:
+                continue
+            split = daily.setdefault(day, {}).setdefault("views_by_traffic_source", {})
+            split[str(row[1])] = split.get(str(row[1]), 0) + int(float(row[2]))
+        return daily
+
+    async def _audience(self, session: AsyncSession, channel: PublishingChannel) -> dict[str, Any]:
+        """Who watched in the last 28 days: age and gender (share of the
+        viewers, in percent) and the countries with most views."""
+        end = _today()
+        span = {
+            "startDate": (end - timedelta(days=AUDIENCE_DAYS)).isoformat(),
+            "endDate": end.isoformat(),
+        }
+        engaged: dict[str, dict[str, float]] = {}
+        rows = await self._report(
+            session,
+            channel,
+            {**span, "dimensions": "ageGroup,gender", "metrics": "viewerPercentage"},
+        )
+        for row in rows or []:
+            if len(row) < 3:
+                continue
+            age = str(row[0]).removeprefix("age")
+            pct = round(float(row[2]), 1)
+            ages = engaged.setdefault("age", {})
+            ages[age] = round(ages.get(age, 0) + pct, 1)
+            # Same codes as the other networks' audiences.
+            gender = {"female": "F", "male": "M"}.get(str(row[1]), "U")
+            genders = engaged.setdefault("gender", {})
+            genders[gender] = round(genders.get(gender, 0) + pct, 1)
+        rows = await self._report(
+            session,
+            channel,
+            {
+                **span,
+                "dimensions": "country",
+                "metrics": "views",
+                "sort": "-views",
+                "maxResults": COUNTRIES_MAX,
+            },
+        )
+        for row in rows or []:
+            if len(row) >= 2 and int(float(row[1])) > 0:
+                engaged.setdefault("country", {})[str(row[0])] = int(float(row[1]))
+        return {"engaged": engaged} if engaged else {}
 
 
 __all__ = ["YouTubeAdapter", "tags_length", "youtube_settings"]
