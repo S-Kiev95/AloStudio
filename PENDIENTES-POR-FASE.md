@@ -317,6 +317,14 @@ manual, Polar sandbox conectado). Detalle en `PLAN.multitenant.md`.
   estar verificado por teléfono) y la lista (`playlistItems.insert`) van después
   de subir el video y nunca hacen fallar la publicación: sus problemas quedan en
   `warnings` del destino y se ven en el detalle.
+- **YouTube Analytics (agente B, 2026-11-28), en develop:** con
+  `yt-analytics.readonly` (API habilitada y permiso agregado en Google Cloud), el
+  canal suma por día vistas, tiempo de visualización, me gusta, comentarios,
+  compartidos, suscriptores ganados y perdidos y vistas por fuente de tráfico, y
+  el público de 28 días (edad, género, país); cada video suma tiempo de
+  visualización, duración media y compartidos. Los datos llegan con 2 o 3 días de
+  demora. Un canal conectado antes sigue con las cifras básicas hasta que se
+  reconecte. Falta probarlo con el canal real (paso 1 de la lista de abajo).
 - **Falta de YouTube (dueño y agente B, 2026-11-26):**
   1. **Staging:** está en la rama `feat/voz-gemini` del agente A. Cuando vuelva a
      `develop`, actualizarlo y probar con el canal real la miniatura, la lista y
